@@ -46,7 +46,25 @@ function register() {
   handle('db:getChannelMessages',(channelId)  => queries.getChannelMessages(channelId));
   handle('db:getDmMessages',     (studentId)  => queries.getDmMessages(studentId));
   handle('db:searchMessages',    (channelId, query) => queries.searchMessages(channelId, query));
-  handle('db:sendMessage',       (payload)    => queries.sendMessage(payload));
+
+  // sendMessage — handler dédié : sauvegarde DB + push temps-réel vers tous les renderers
+  ipcMain.handle('db:sendMessage', async (_event, payload) => {
+    try {
+      const result = queries.sendMessage(payload);
+      const { BrowserWindow } = require('electron');
+      const push = {
+        channelId:   payload.channelId   ?? null,
+        dmStudentId: payload.dmStudentId ?? null,
+      };
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send('msg:new', push);
+      }
+      return { ok: true, data: result };
+    } catch (err) {
+      console.error('[IPC db:sendMessage]', err.message);
+      return { ok: false, error: err.message };
+    }
+  });
 
   // Travaux
   handle('db:getTravaux',        (channelId)  => queries.getTravaux(channelId));

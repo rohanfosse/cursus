@@ -1,7 +1,7 @@
 import { state }           from './state.js';
 import { call }            from './api.js';
 import { deadlineClass }   from './utils.js';
-import { renderMessages, sendMessage, initSearch, renderPinnedBanner, initMessageInput, initFormatToolbar, markChannelRead, setUnreadChannels, startUnreadPolling } from './views/chat.js';
+import { renderMessages, sendMessage, initSearch, renderPinnedBanner, initMessageInput, initFormatToolbar, markChannelRead, initUnreadListener } from './views/chat.js';
 import { renderSidebar, initSidebar }              from './views/sidebar.js';
 import { initTravaux, bindNewTravailForm } from './views/travaux.js';
 import { bindDepotsModal, bindNoteModal }                                        from './views/depots.js';
@@ -142,7 +142,7 @@ async function onLogin(user) {
       }
     });
 
-    startUnreadPolling();
+    initUnreadListener();
     document.addEventListener('unread:changed', () => renderSidebar());
   }
 
@@ -161,11 +161,6 @@ async function onLogin(user) {
   document.getElementById('sidebar-section-documents').classList.add('hidden');
 
   await renderSidebar();
-
-  if (user.type === 'teacher' && state.activePromoId) {
-    const chans = await call(window.api.getChannels, state.activePromoId);
-    if (chans) setUnreadChannels(chans.map(c => c.id));
-  }
 
   await updateTravauxBadge();
 

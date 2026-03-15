@@ -82,30 +82,19 @@ function _hasMention(text) {
 
 // ─── Non-lus (unread) ────────────────────────────────────────────────────────
 
-const _lastMsgTs = new Map(); // channelId -> ISO string of latest msg
-let   _pollChannelIds = [];
-
-export function setUnreadChannels(ids) { _pollChannelIds = ids ?? []; }
-
 export function markChannelRead(channelId) {
   delete state.unread[channelId];
 }
 
-export function startUnreadPolling() {
-  setInterval(async () => {
-    for (const chId of _pollChannelIds) {
-      if (chId === state.activeChannelId) continue;
-      const msgs = await call(window.api.getChannelMessages, chId);
-      if (!msgs?.length) continue;
-      const latest = msgs[msgs.length - 1].created_at;
-      const prev   = _lastMsgTs.get(chId);
-      if (prev !== undefined && latest > prev) {
-        state.unread[chId] = (state.unread[chId] ?? 0) + 1;
-        document.dispatchEvent(new CustomEvent('unread:changed'));
-      }
-      _lastMsgTs.set(chId, latest);
-    }
-  }, 20000);
+// Remplace l'ancien polling setInterval(20s) par un push IPC du Main process.
+// Appelée une seule fois au démarrage de l'app (dans _appInitialized).
+export function initUnreadListener() {
+  window.api.onNewMessage(({ channelId }) => {
+    if (!channelId) return;                          // DM ou autre — ignoré
+    if (channelId === state.activeChannelId) return; // canal actif → déjà lu
+    state.unread[channelId] = (state.unread[channelId] ?? 0) + 1;
+    document.dispatchEvent(new CustomEvent('unread:changed'));
+  });
 }
 
 // ─── Réactions en mémoire ────────────────────────────────────────────────────

@@ -101,4 +101,12 @@ contextBridge.exposeInMainWorld('api', {
   // Fichiers
   readFileBase64: (filePath) => invoke('fs:readFileBase64', filePath),
   downloadFile:   (filePath) => invoke('fs:downloadFile',   filePath),
+
+  // Temps réel — push du Main process vers le Renderer
+  // Appelé une seule fois au démarrage. Retourne un unsub pour cleanup éventuel.
+  onNewMessage: (cb) => {
+    const listener = (_event, data) => cb(data);
+    ipcRenderer.on('msg:new', listener);
+    return () => ipcRenderer.removeListener('msg:new', listener);
+  },
 });
