@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <title>CESI Classroom</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     SIDEBAR GAUCHE
+════════════════════════════════════════════ -->
+<aside id="sidebar">
+  <div id="sidebar-header">
+    <div id="app-logo">
+      <div class="logo-mark">CC</div>
+      <span class="logo-text">CESI Classroom</span>
+    </div>
+    <div id="teacher-badge">
+      <div class="avatar teacher-avatar">RF</div>
+      <span>Rohan Fosse</span>
+    </div>
+  </div>
+
+  <nav id="sidebar-nav">
+    <!-- Injecte dynamiquement par app.js -->
+  </nav>
+</aside>
+
+<!-- ════════════════════════════════════════════
+     ZONE CENTRALE
+════════════════════════════════════════════ -->
+<main id="main-area">
+
+  <header id="channel-header">
+    <div id="channel-title">
+      <span id="channel-icon">#</span>
+      <span id="channel-name">Selectionnez un canal</span>
+    </div>
+    <div id="header-actions">
+      <button id="btn-travaux" class="btn-ghost">Travaux</button>
+    </div>
+  </header>
+
+  <div id="messages-container">
+    <div id="messages-list"></div>
+  </div>
+
+  <footer id="message-input-area">
+    <div id="message-input-wrapper">
+      <textarea
+        id="message-input"
+        placeholder="Envoyer un message…"
+        rows="1"
+      ></textarea>
+      <button id="btn-send" title="Envoyer (Entree)">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+      </button>
+    </div>
+  </footer>
+</main>
+
+<!-- ════════════════════════════════════════════
+     PANEL DROIT — TRAVAUX
+════════════════════════════════════════════ -->
+<aside id="panel-travaux" class="hidden">
+  <div class="panel-header">
+    <h2>Travaux</h2>
+    <button id="btn-close-panel" class="btn-ghost">Fermer</button>
+  </div>
+  <div id="panel-content">
+    <button id="btn-new-travail" class="btn-primary">Nouveau travail</button>
+    <div id="travaux-list"></div>
+  </div>
+</aside>
+
+<!-- ════════════════════════════════════════════
+     MODAL — DEPOTS D'UN TRAVAIL
+════════════════════════════════════════════ -->
+<div id="modal-overlay" class="hidden">
+  <div id="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Depots</h3>
+      <button id="modal-close" class="btn-ghost">Fermer</button>
+    </div>
+    <div id="modal-body"></div>
+    <div class="modal-footer depot-footer">
+      <select id="depot-student-select" class="select-field">
+        <option value="">Selectionner un etudiant</option>
+      </select>
+      <button id="modal-depot-btn" class="btn-primary">Deposer un fichier</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     MODAL — ATTRIBUER UNE NOTE
+════════════════════════════════════════════ -->
+<div id="modal-note-overlay" class="hidden">
+  <div id="modal-note">
+    <div class="modal-header">
+      <h3>Attribuer une note</h3>
+      <button id="modal-note-close" class="btn-ghost">Fermer</button>
+    </div>
+    <div class="modal-note-body">
+      <label for="note-input">Note sur 20</label>
+      <input
+        type="number"
+        id="note-input"
+        min="0" max="20" step="0.5"
+        placeholder="ex : 15.5"
+      />
+      <span id="note-error" class="note-error"></span>
+    </div>
+    <div class="modal-footer">
+      <button id="modal-note-cancel" class="btn-ghost">Annuler</button>
+      <button id="modal-note-confirm" class="btn-primary">Valider</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     MODAL — NOUVEAU TRAVAIL
+════════════════════════════════════════════ -->
+<div id="modal-new-travail-overlay" class="hidden">
+  <div id="modal-new-travail">
+    <div class="modal-header">
+      <h3>Nouveau travail</h3>
+      <button id="modal-new-travail-close" class="btn-ghost">Fermer</button>
+    </div>
+    <form id="form-new-travail">
+      <label for="nt-title">Titre</label>
+      <input type="text" id="nt-title" placeholder="Titre du travail" required />
+
+      <label for="nt-description">Consignes</label>
+      <textarea id="nt-description" rows="3" placeholder="Description et consignes…"></textarea>
+
+      <label for="nt-deadline">Date limite</label>
+      <input type="datetime-local" id="nt-deadline" required />
+
+      <div class="modal-footer">
+        <button type="button" id="btn-cancel-travail" class="btn-ghost">Annuler</button>
+        <button type="submit" class="btn-primary">Creer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     BANDEAU D'ERREUR
+════════════════════════════════════════════ -->
+<div id="error-toast" class="hidden">
+  <span id="error-toast-msg"></span>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
