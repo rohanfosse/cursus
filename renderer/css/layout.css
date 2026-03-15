@@ -549,10 +549,39 @@ body {
 
 #message-input::placeholder { color: var(--text-muted); }
 
+/* ── Poignée de redimensionnement ── */
+.resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: ew-resize;
+  z-index: 5;
+  background: transparent;
+  transition: background .15s;
+}
+.resize-handle:hover { background: rgba(255,255,255,.18); }
+body.resizing { cursor: ew-resize !important; user-select: none !important; }
+body.resizing .resize-handle { background: var(--accent); }
+
+/* ── Filtre de type documents ── */
+#doc-type-filter {
+  display: flex;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+#doc-type-filter::-webkit-scrollbar { display: none; }
+
 /* ── Panel droit ── */
 #right-panel {
   width: var(--panel-width);
   min-width: var(--panel-width);
+  position: relative;
   background: var(--bg-dark);
   border-left: 1px solid rgba(255,255,255,.07);
   display: flex;
@@ -597,6 +626,7 @@ body {
 #documents-panel {
   width: 300px;
   min-width: 300px;
+  position: relative;
   background: var(--bg-dark);
   border-left: 1px solid rgba(255,255,255,.07);
   display: flex;

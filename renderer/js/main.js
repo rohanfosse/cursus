@@ -15,6 +15,7 @@ import { openEcheancier, bindEcheancier }           from './views/echeancier.js'
 import { initTravauxSection, switchTravauxView, renderTravauxSidebar } from './views/travaux-main.js';
 import { initDocumentsSection, bindDocumentsModal } from './views/documents-view.js';
 import { openSettings, bindSettings, getPref }      from './views/settings.js';
+import { initCmdPalette }                           from './views/cmd-palette.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   await showLoginScreen(onLogin);
@@ -40,6 +41,14 @@ async function onLogin(user) {
     onChannel: ({ id, promo, name, type }) => openChannel(id, promo, name, type),
     onDm:      ({ id, promo, name })       => openDm(id, promo, name),
   });
+
+  initCmdPalette({
+    onChannel: ({ id, promo, name, type }) => openChannel(id, promo, name, type),
+    onDm:      ({ id, promo, name })       => openDm(id, promo, name),
+    onSection: (section) => switchSection(section),
+  });
+
+  _initResizeHandles();
 
   initTravaux({
     onOpenGestion:    (travail) => openGestionDevoir(travail),
@@ -221,6 +230,48 @@ async function switchSection(section) {
   if (section === 'travaux') {
     await initTravauxSection();
   }
+}
+
+// ─── Redimensionnement des panneaux latéraux ─────────────────────────────────
+
+function _initResizeHandles() {
+  _makeResizable('right-panel',     250, 650);
+  _makeResizable('documents-panel', 220, 650);
+}
+
+function _makeResizable(panelId, minW, maxW) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+
+  const handle = document.createElement('div');
+  handle.className = 'resize-handle';
+  panel.prepend(handle);
+
+  let startX, startW;
+
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    startX = e.clientX;
+    startW = panel.getBoundingClientRect().width;
+    document.body.classList.add('resizing');
+
+    const onMove = ev => {
+      panel.style.transition = 'none';
+      const newW = Math.min(maxW, Math.max(minW, startW - (ev.clientX - startX)));
+      panel.style.width    = newW + 'px';
+      panel.style.minWidth = newW + 'px';
+    };
+
+    const onUp = () => {
+      panel.style.transition = '';
+      document.body.classList.remove('resizing');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+  });
 }
 
 // ─── Ouverture d'un canal ────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import { escapeHtml, showToast } from '../utils.js';
 let _activeChannelId   = null;
 let _activeChannelName = '';
 let _searchQuery       = '';
+let _typeFilter        = 'all'; // 'all' | 'pdf' | 'image' | 'link'
 let _isTeacher         = false;
 let _navInitialized    = false; // évite de re-lier les écouteurs promo/canal
 
@@ -20,6 +21,8 @@ export async function initDocumentsSection() {
   if (!_navInitialized) {
     _navInitialized = true;
     await renderDocumentsSidebar();
+    _bindTypeFilter();
+    _initDragDrop();
   }
 }
 
@@ -117,14 +120,23 @@ export async function renderDocuments() {
   const docs = await call(window.api.getChannelDocuments, _activeChannelId);
   if (!docs) { container.innerHTML = ''; return; }
 
-  // Filtrage recherche
+  // Filtrage recherche + type
   const query = _searchQuery.trim().toLowerCase();
-  const filtered = query
+  let filtered = query
     ? docs.filter(d =>
         d.name.toLowerCase().includes(query) ||
         d.category.toLowerCase().includes(query) ||
         (d.description ?? '').toLowerCase().includes(query))
     : docs;
+
+  if (_typeFilter !== 'all') {
+    filtered = filtered.filter(d => {
+      if (_typeFilter === 'link')  return d.type === 'link';
+      if (_typeFilter === 'pdf')   return d.type !== 'link' && d.name.toLowerCase().endsWith('.pdf');
+      if (_typeFilter === 'image') return d.type !== 'link' && /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(d.name);
+      return true;
+    });
+  }
 
   container.innerHTML = '';
 
@@ -300,5 +312,99 @@ export function bindDocumentsModal() {
   document.getElementById('doc-search-input')?.addEventListener('input', e => {
     _searchQuery = e.target.value;
     renderDocuments();
+  });
+}
+
+// ─── Filtres de type de document ──────────────────────────────────────────────
+
+function _bindTypeFilter() {
+  const bar = document.getElementById('doc-type-filter');
+  if (!bar) return;
+  bar.addEventListener('click', e => {
+    const btn = e.target.closest('[data-filter]');
+    if (!btn) return;
+    _typeFilter = btn.dataset.filter;
+    bar.querySelectorAll('.doc-filter-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.filter === _typeFilter)
+    );
+    renderDocuments();
+  });
+}
+
+// ─── Drag & Drop dans le panneau documents ────────────────────────────────────
+
+function _initDragDrop() {
+  const panel = document.getElementById('documents-panel');
+  if (!panel) return;
+
+  // Overlay visuel
+  const overlay = document.createElement('div');
+  overlay.id        = 'doc-drop-overlay';
+  overlay.className = 'doc-drop-overlay hidden';
+  overlay.innerHTML = `
+    <div class="doc-drop-inner">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36">
+        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+      </svg>
+      <p>Relâchez pour ajouter<br>au canal actuel</p>
+    </div>
+  `;
+  panel.appendChild(overlay);
+
+  let _counter = 0;
+
+  panel.addEventListener('dragenter', e => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    _counter++;
+    overlay.classList.remove('hidden');
+  });
+
+  panel.addEventListener('dragleave', () => {
+    _counter--;
+    if (_counter <= 0) { _counter = 0; overlay.classList.add('hidden'); }
+  });
+
+  panel.addEventListener('dragover', e => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  panel.addEventListener('drop', e => {
+    e.preventDefault();
+    _counter = 0;
+    overlay.classList.add('hidden');
+
+    const files = Array.from(e.dataTransfer.files);
+    if (!files.length) return;
+
+    if (!_activeChannelId) {
+      showToast('Sélectionnez d\'abord un canal.', 'error');
+      return;
+    }
+
+    // Pré-remplir et ouvrir la modale "Ajouter un document"
+    const file   = files[0];
+    const modal  = document.getElementById('modal-add-doc-overlay');
+    if (!modal) return;
+
+    document.getElementById('form-add-doc').reset();
+
+    // Sélectionner le type "fichier"
+    const fileRadio = modal.querySelector('input[name="doc-type"][value="file"]');
+    if (fileRadio) {
+      fileRadio.checked = true;
+      fileRadio.dispatchEvent(new Event('change'));
+    }
+
+    // Pré-remplir nom et chemin
+    const nameInput = document.getElementById('doc-name-input');
+    const pathInput = document.getElementById('doc-path-input');
+    if (nameInput) nameInput.value = file.name.replace(/\.[^.]+$/, '');
+    if (pathInput && file.path) pathInput.value = file.path; // Electron expose file.path
+
+    modal.classList.remove('hidden');
+    document.getElementById('doc-category-input')?.focus();
   });
 }

@@ -1,8 +1,7 @@
 import { call }      from '../api.js';
 import { state }     from '../state.js';
-import { showToast, escapeHtml, formatDate, avatarColor, makeAvatar } from '../utils.js';
+import { showToast, escapeHtml, formatDate, avatarColor } from '../utils.js';
 import { CATEGORIES } from './timeline.js';
-import { openSuiviModal } from './suivi.js';
 
 let _currentPromoId = null;
 let _searchTerm     = '';
@@ -77,6 +76,8 @@ async function renderRendusList(container) {
     byTravail.get(key).items.push(r);
   }
 
+  const isTeacher = state.currentUser?.type === 'teacher';
+
   let html = '';
   for (const [travailTitle, group] of byTravail) {
     const { meta } = group;
@@ -93,7 +94,7 @@ async function renderRendusList(container) {
           <span class="rendus-stats">${group.items.length} rendu${group.items.length > 1 ? 's' : ''} — ${noted} noté${noted > 1 ? 's' : ''}</span>
         </div>
         <div class="rendus-group-items">
-          ${group.items.map(r => buildRenduRow(r)).join('')}
+          ${group.items.map(r => buildRenduRow(r, isTeacher)).join('')}
         </div>
       </div>
     `;
@@ -101,29 +102,93 @@ async function renderRendusList(container) {
 
   container.innerHTML = html;
 
-  // Câbler les boutons
-  container.addEventListener('click', async e => {
-    // Voir PDF
+  // Délégation — un seul handler via onclick pour éviter les doublons
+  container.onclick = async e => {
+    // Ouvrir fichier/PDF
     const btnPdf = e.target.closest('[data-open-pdf]');
     if (btnPdf) {
       const fp = btnPdf.dataset.openPdf;
       if (!fp) return showToast('Chemin de fichier non disponible.', 'error');
-      const isPdf = fp.toLowerCase().endsWith('.pdf');
-      if (isPdf) {
-        await call(window.api.openPdf, fp);
-      } else {
-        await call(window.api.openPath, fp);
-      }
+      fp.toLowerCase().endsWith('.pdf')
+        ? await call(window.api.openPdf, fp)
+        : await call(window.api.openPath, fp);
+      return;
     }
-  });
+
+    // Speed Grader — bouton de note A/B/C/D
+    const gradeBtn = e.target.closest('[data-grade]');
+    if (gradeBtn) {
+      const depotId = parseInt(gradeBtn.closest('[data-depot-id]')?.dataset.depotId);
+      const grade   = gradeBtn.dataset.grade;
+      if (!depotId || !grade) return;
+      const labels = { A: 'Excellent', B: 'Bien', C: 'Passable', D: 'Insuffisant' };
+      const ok = await call(window.api.setNote, { depotId, note: grade });
+      if (ok === null) return;
+      showToast(`Note ${grade} — ${labels[grade]}.`, 'success');
+      await renderRendusList(container);
+      return;
+    }
+
+    // Speed Grader — bouton feedback 💬
+    const fbBtn = e.target.closest('.sg-feedback-btn');
+    if (fbBtn) {
+      const row = fbBtn.closest('.rendu-row');
+      if (!row) return;
+      const existing = row.querySelector('.sg-feedback-form');
+      if (existing) { existing.remove(); return; }
+
+      const depotId      = parseInt(row.dataset.depotId);
+      const currentFb    = fbBtn.dataset.feedback ?? '';
+      const infoEl       = row.querySelector('.rendu-info');
+      if (!infoEl) return;
+
+      const form = document.createElement('div');
+      form.className = 'sg-feedback-form';
+      form.innerHTML = `
+        <input type="text" placeholder="Commentaire…" value="${escapeHtml(currentFb)}" />
+        <button class="btn-primary btn-sm">✓</button>
+      `;
+      form.querySelector('.btn-primary').addEventListener('click', async () => {
+        const text = form.querySelector('input').value.trim();
+        const ok   = await call(window.api.setFeedback, { depotId, feedback: text });
+        if (ok === null) return;
+        showToast('Commentaire enregistré.', 'success');
+        await renderRendusList(container);
+      });
+      form.querySelector('input').addEventListener('keydown', async ev => {
+        if (ev.key === 'Enter') { ev.preventDefault(); form.querySelector('.btn-primary').click(); }
+        if (ev.key === 'Escape') form.remove();
+      });
+      infoEl.appendChild(form);
+      form.querySelector('input').focus();
+      return;
+    }
+  };
 }
 
-function buildRenduRow(r) {
+function buildRenduRow(r, isTeacher = false) {
   const isPdf = r.file_name?.toLowerCase().endsWith('.pdf');
-  const catColor = CATEGORIES[r.category]?.color ?? '#888';
+
+  const gradeSection = r.note != null
+    ? `<span class="note-badge">${r.note}/20</span>`
+    : (isTeacher
+        ? `<div class="sg-grade-selector" data-depot-id="${r.id}">
+             <button class="sg-grade-btn sg-grade-a" data-grade="A" title="Excellent">A</button>
+             <button class="sg-grade-btn sg-grade-b" data-grade="B" title="Bien">B</button>
+             <button class="sg-grade-btn sg-grade-c" data-grade="C" title="Passable">C</button>
+             <button class="sg-grade-btn sg-grade-d" data-grade="D" title="Insuffisant">D</button>
+           </div>`
+        : `<span class="rendu-non-note">Non noté</span>`
+      );
+
+  const feedbackBtn = isTeacher
+    ? `<button class="btn-ghost btn-sm sg-feedback-btn${r.feedback ? ' has-feedback' : ''}"
+              data-feedback="${escapeHtml(r.feedback ?? '')}"
+              title="${r.feedback ? 'Modifier le commentaire' : 'Ajouter un commentaire'}">💬</button>`
+    : '';
 
   return `
-    <div class="rendu-row">
+    <div class="rendu-row" data-depot-id="${r.id}">
       <div class="rendu-row-left">
         <div class="rendu-avatar" style="background:${avatarColor(r.student_name)};color:#fff">
           ${escapeHtml(r.avatar_initials ?? '?')}
@@ -135,18 +200,16 @@ function buildRenduRow(r) {
             <span>${escapeHtml(r.file_name ?? 'Fichier manquant')}</span>
             <span class="rendu-date">· ${formatDate(r.submitted_at)}</span>
           </div>
-          ${r.feedback ? `<div class="rendu-feedback">${escapeHtml(r.feedback)}</div>` : ''}
+          ${r.feedback ? `<div class="rendu-feedback">"${escapeHtml(r.feedback)}"</div>` : ''}
         </div>
       </div>
       <div class="rendu-row-right">
-        ${r.note != null
-          ? `<span class="note-badge">${r.note}/20</span>`
-          : `<span class="rendu-non-note">Non noté</span>`
-        }
+        ${gradeSection}
+        ${feedbackBtn}
         ${r.file_path ? `
           <button class="btn-ghost btn-sm" data-open-pdf="${escapeHtml(r.file_path)}"
                   title="${isPdf ? 'Voir le PDF' : 'Ouvrir le fichier'}">
-            ${isPdf ? '👁 Voir' : '📂 Ouvrir'}
+            ${isPdf ? '👁' : '📂'}
           </button>
         ` : ''}
       </div>
