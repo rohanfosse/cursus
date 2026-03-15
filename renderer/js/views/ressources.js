@@ -139,23 +139,20 @@ export async function renderRessourcesInline(travailId, container) {
   const items = await call(window.api.getRessources, travailId);
   if (!items || !items.length) return;
 
-  const section = document.createElement('div');
-  section.className = 'ressources-inline';
-
-  const title = document.createElement('div');
-  title.className   = 'ressources-inline-title';
-  title.textContent = 'Ressources';
-  section.appendChild(title);
+  const label = document.createElement('div');
+  label.className   = 'res-block-label';
+  label.textContent = '📎 Ressources utiles';
+  container.appendChild(label);
 
   for (const r of items) {
     const btn = document.createElement('button');
     btn.className = 'ressource-inline-btn';
     btn.innerHTML = `${r.type === 'link' ? linkIcon() : fileIcon()} <span>${escapeHtml(r.name)}</span>`;
+    btn.tabIndex = 0;
     btn.addEventListener('click', () => openRessource(r));
-    section.appendChild(btn);
+    btn.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+    container.appendChild(btn);
   }
-
-  container.appendChild(section);
 }
 
 // ─── Icones SVG ───────────────────────────────────────────────────────────────

@@ -1,9 +1,8 @@
 import { call }      from '../api.js';
 import { state }     from '../state.js';
-import { showToast } from '../utils.js';
 import {
-  avatarColor, escapeHtml, formatDate,
-  deadlineClass, deadlineLabel, makeAvatar,
+  showToast, avatarColor, escapeHtml, formatDate,
+  deadlineClass, deadlineLabel, makeAvatar, formatGrade, gradeClass,
 } from '../utils.js';
 import { renderTravaux } from './travaux.js';
 
@@ -82,8 +81,8 @@ async function renderSuivi(travailId) {
     if (rendu) {
       if (r.note != null) {
         const badge = document.createElement('span');
-        badge.className = 'note-badge';
-        badge.textContent = `${r.note}/20`;
+        badge.className = `note-badge ${gradeClass(r.note)}`;
+        badge.textContent = formatGrade(r.note);
         noteArea.appendChild(badge);
       } else {
         const btn = document.createElement('button');
@@ -148,16 +147,20 @@ async function buildGroupSelect(travailId, studentId, currentGroupId) {
   return wrap;
 }
 
-// Champ de note inline dans le suivi (evite d'ouvrir une 2e modal)
+// Sélection de note inline A/B/C/D dans le suivi
 function openInlineNoteInput(depotId, container, travailId) {
   container.innerHTML = '';
-  const input = document.createElement('input');
-  input.type        = 'number';
-  input.min         = '0';
-  input.max         = '20';
-  input.step        = '0.5';
-  input.placeholder = '0–20';
-  input.style.cssText = 'width:64px;background:var(--bg-light);border:1px solid var(--accent);border-radius:4px;color:var(--text-primary);padding:4px 6px;font-size:13px;outline:none;text-align:center;-moz-appearance:textfield;';
+
+  const select = document.createElement('select');
+  select.className = 'form-select';
+  select.style.cssText = 'width:72px;font-size:12px;padding:3px 4px;';
+  select.innerHTML = `
+    <option value="">—</option>
+    <option value="A">A</option>
+    <option value="B">B</option>
+    <option value="C">C</option>
+    <option value="D">D</option>
+  `;
 
   const btnOk = document.createElement('button');
   btnOk.className   = 'btn-primary';
@@ -165,8 +168,8 @@ function openInlineNoteInput(depotId, container, travailId) {
   btnOk.textContent = 'OK';
 
   const save = async () => {
-    const val = parseFloat(input.value.replace(',', '.'));
-    if (isNaN(val) || val < 0 || val > 20) { input.style.borderColor = 'var(--color-danger)'; return; }
+    const val = select.value;
+    if (!val) { select.style.borderColor = 'var(--color-danger)'; return; }
     const ok = await call(window.api.setNote, { depotId, note: val });
     if (ok === null) return;
     showToast('Note enregistree.', 'success');
@@ -175,11 +178,11 @@ function openInlineNoteInput(depotId, container, travailId) {
   };
 
   btnOk.addEventListener('click', save);
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
+  select.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
 
-  container.appendChild(input);
+  container.appendChild(select);
   container.appendChild(btnOk);
-  input.focus();
+  select.focus();
 }
 
 // ─── Export CSV ────────────────────────────────────────────────────────────────

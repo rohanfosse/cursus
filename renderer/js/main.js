@@ -1,4 +1,6 @@
 import { state }           from './state.js';
+import { call }            from './api.js';
+import { deadlineClass }   from './utils.js';
 import { renderMessages, sendMessage, initSearch } from './views/chat.js';
 import { renderSidebar, initSidebar }              from './views/sidebar.js';
 import { openPanel, closePanel, renderTravaux, initTravaux, bindNewTravailForm } from './views/travaux.js';
@@ -123,8 +125,26 @@ async function onLogin(user) {
   const btnEch = document.getElementById('btn-echeancier');
   if (btnEch) btnEch.addEventListener('click', () => openEcheancier());
 
+  // ── Badge Travaux + écoute de dépôt réussi ───────────────────────────────
+  await updateTravauxBadge();
+  document.addEventListener('depot:success', () => updateTravauxBadge());
+
   // ── Modal détail travail (depuis timeline) ───────────────────────────────
   // Câblé dynamiquement dans gantt.js / timeline.js
+}
+
+// ─── Badge Travaux ─────────────────────────────────────────────────────────
+
+async function updateTravauxBadge() {
+  const badge = document.getElementById('nav-badge-travaux');
+  if (!badge) return;
+  const user = state.currentUser;
+  if (!user || user.type !== 'student') return;
+
+  const travaux = await call(window.api.getStudentTravaux, user.id);
+  const pending = (travaux ?? []).filter(t => t.depot_id == null && t.type !== 'jalon');
+  badge.classList.toggle('hidden', pending.length === 0);
+  badge.textContent = pending.length > 9 ? '9+' : String(pending.length || '');
 }
 
 // ─── Basculer entre Messages / Travaux / Documents ───────────────────────────
@@ -146,6 +166,7 @@ async function switchSection(section) {
   document.getElementById('main-area').classList.toggle('hidden',       section !== 'messages');
   document.getElementById('travaux-area').classList.toggle('hidden',    section !== 'travaux');
   document.getElementById('documents-area').classList.toggle('hidden',  section !== 'documents');
+  if (section !== 'messages') document.getElementById('channel-pending-banner')?.remove();
 
   if (section === 'travaux') {
     await initTravauxSection();
@@ -210,6 +231,31 @@ async function openChannel(channelId, promoId, channelName, channelType) {
 
   await renderMessages();
   if (state.rightPanel === 'travaux') await renderTravaux();
+
+  // ── Bannière travaux en attente (étudiant) ───────────────────────────────
+  document.getElementById('channel-pending-banner')?.remove();
+  if (state.currentUser?.type === 'student' && channelId) {
+    const travaux = await call(window.api.getStudentTravaux, state.currentUser.id);
+    const pending = (travaux ?? []).filter(t =>
+      t.channel_id === channelId && t.depot_id == null && t.type !== 'jalon'
+    );
+    if (pending.length) {
+      const hasUrgent = pending.some(t =>
+        ['deadline-passed', 'deadline-critical'].includes(deadlineClass(t.deadline))
+      );
+      const banner = document.createElement('div');
+      banner.id = 'channel-pending-banner';
+      banner.className = `channel-pending-banner${hasUrgent ? ' channel-pending-urgent' : ''}`;
+      banner.innerHTML = `
+        <span>📋 ${pending.length} travail${pending.length > 1 ? 'x' : ''} à rendre dans ce canal${hasUrgent ? ' — <strong>urgent !</strong>' : ''}</span>
+        <button class="btn-primary" style="font-size:11px;padding:3px 10px" id="btn-banner-travaux">Voir mes travaux</button>
+      `;
+      banner.querySelector('#btn-banner-travaux').addEventListener('click', () => {
+        document.getElementById('nav-btn-travaux').click();
+      });
+      document.getElementById('messages-container').prepend(banner);
+    }
+  }
 }
 
 // ─── Ouverture d'un DM ───────────────────────────────────────────────────────

@@ -1,7 +1,6 @@
 import { call }      from '../api.js';
 import { state }     from '../state.js';
-import { showToast } from '../utils.js';
-import { avatarColor, escapeHtml, formatDate, makeAvatar } from '../utils.js';
+import { showToast, avatarColor, escapeHtml, formatDate, makeAvatar, formatGrade, gradeClass } from '../utils.js';
 import { renderTravaux } from './travaux.js';
 
 // ─── Modal depots ─────────────────────────────────────────────────────────────
@@ -66,8 +65,8 @@ export async function renderDepots(travailId) {
 
     if (d.note != null) {
       const badge = document.createElement('span');
-      badge.className = 'note-badge';
-      badge.textContent = `${d.note}/20`;
+      badge.className = `note-badge ${gradeClass(d.note)}`;
+      badge.textContent = formatGrade(d.note);
       actions.appendChild(badge);
     } else {
       const btnNote = document.createElement('button');
@@ -122,10 +121,9 @@ function toggleFeedbackForm(depot, infoEl, btnFeedback) {
 
 function openNoteModal(depotId) {
   state.pendingNoteDepotId = depotId;
-  document.getElementById('note-input').value = '';
+  document.querySelectorAll('input[name="note-grade"]').forEach(r => { r.checked = false; });
   document.getElementById('note-error').textContent = '';
   document.getElementById('modal-note-overlay').classList.remove('hidden');
-  document.getElementById('note-input').focus();
 }
 
 export function bindNoteModal() {
@@ -141,19 +139,18 @@ export function bindNoteModal() {
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
   const confirm = async () => {
-    const raw    = document.getElementById('note-input').value.replace(',', '.');
-    const parsed = parseFloat(raw);
-    const errEl  = document.getElementById('note-error');
+    const selected = document.querySelector('input[name="note-grade"]:checked');
+    const errEl    = document.getElementById('note-error');
 
-    if (isNaN(parsed) || parsed < 0 || parsed > 20) {
-      errEl.textContent = 'Entrez un nombre entre 0 et 20.';
+    if (!selected) {
+      errEl.textContent = 'Selectionnez une note.';
       return;
     }
     errEl.textContent = '';
 
     const ok = await call(window.api.setNote, {
       depotId: state.pendingNoteDepotId,
-      note:    parsed,
+      note:    selected.value,
     });
     if (ok === null) return;
 
@@ -164,9 +161,6 @@ export function bindNoteModal() {
   };
 
   document.getElementById('modal-note-confirm').addEventListener('click', confirm);
-  document.getElementById('note-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') confirm();
-  });
 }
 
 // ─── Liaison du formulaire de depot ─────────────────────────────────────────

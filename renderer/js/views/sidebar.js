@@ -187,7 +187,9 @@ function buildPromoSection(promo, channels, students, showDms) {
       <div class="dm-item"
            data-student-id="${s.id}"
            data-promo-id="${promo.id}"
-           data-student-name="${escapeHtml(s.name)}">
+           data-student-name="${escapeHtml(s.name)}"
+           tabindex="0"
+           role="button">
         <span class="student-avatar-sm"
               style="background:${avatarColor(s.name)};color:#fff">${escapeHtml(s.avatar_initials)}</span>
         <span>${escapeHtml(s.name)}</span>
@@ -208,7 +210,9 @@ function buildPromoSection(promo, channels, students, showDms) {
              data-channel-id="${ch.id}"
              data-promo-id="${promo.id}"
              data-channel-name="${escapeHtml(ch.name)}"
-             data-channel-type="${ch.type}">
+             data-channel-type="${ch.type}"
+             tabindex="0"
+             role="button">
           <span class="channel-prefix">#</span>
           <span>${escapeHtml(ch.name)}</span>
           ${annonceBadge(ch.type)}
@@ -233,7 +237,7 @@ function attachNavDelegation(nav) {
   if (_delegationAttached) return;
   _delegationAttached = true;
 
-  nav.addEventListener('click', e => {
+  const handleNav = e => {
     const channelEl = e.target.closest('[data-channel-id]');
     const dmEl      = e.target.closest('[data-student-id]');
 
@@ -253,7 +257,10 @@ function attachNavDelegation(nav) {
         name:  dmEl.dataset.studentName,
       });
     }
-  });
+  };
+
+  nav.addEventListener('click', handleNav);
+  nav.addEventListener('keydown', e => { if (e.key === 'Enter') handleNav(e); });
 }
 
 export function setActiveItem(el) {

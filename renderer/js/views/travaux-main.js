@@ -12,8 +12,33 @@ let _activeView  = 'gantt'; // 'gantt' | 'rendus' (boutons header)
 // ─── Initialisation de la section Travaux ────────────────────────────────────
 
 export async function initTravauxSection() {
-  await renderTravauxSidebar();
-  await switchTravauxView('gantt');
+  const isStudent = state.currentUser?.type === 'student';
+
+  // Masquer/afficher les contrôles enseignant
+  document.getElementById('btn-view-gantt').classList.toggle('hidden', isStudent);
+  document.getElementById('btn-view-rendus').classList.toggle('hidden', isStudent);
+
+  if (isStudent) {
+    // Masquer Gantt/Rendus, afficher la vue dashboard étudiant
+    document.getElementById('gantt-view').classList.add('hidden');
+    document.getElementById('rendus-view').classList.add('hidden');
+    const sv = document.getElementById('student-view');
+    sv.classList.remove('hidden');
+
+    const { renderStudentDashboard } = await import('./student-dashboard.js');
+    await renderStudentDashboard(sv);
+
+    // Masquer l'onglet "Rendus" (inutile pour un étudiant)
+    document.querySelectorAll('#travaux-sidebar-tabs .trv-tab').forEach(t => {
+      if (t.dataset.tab === 'rendus') t.style.display = 'none';
+    });
+
+    await renderTravauxSidebar();
+  } else {
+    document.getElementById('student-view').classList.add('hidden');
+    await renderTravauxSidebar();
+    await switchTravauxView('gantt');
+  }
 }
 
 // ─── Sidebar Travaux ─────────────────────────────────────────────────────────

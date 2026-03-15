@@ -103,6 +103,48 @@ export function showToast(msg, type = 'error') {
   _toastTimer = setTimeout(() => el.classList.add('hidden'), 4000);
 }
 
+// ─── Notation A/B/C/D (ou numérique legacy) ─────────────────────────────────
+
+export function formatGrade(note) {
+  if (note == null) return '';
+  if (typeof note === 'number' || (typeof note === 'string' && !isNaN(parseFloat(note)) && ['A','B','C','D'].indexOf(note) === -1)) {
+    return `${note}/20`;
+  }
+  return String(note);
+}
+
+export function gradeClass(note) {
+  if (note == null) return '';
+  if (typeof note === 'string' && ['A','B','C','D'].includes(note)) {
+    return note === 'A' ? 'note-good' : note === 'B' ? 'note-mid' : note === 'C' ? 'note-mid' : 'note-low';
+  }
+  const n = parseFloat(note);
+  return n >= 14 ? 'note-good' : n >= 10 ? 'note-mid' : 'note-low';
+}
+
+// Toast avec bouton "Annuler" — retourne une Promise<boolean> (true = annulé)
+export function showUndoToast(msg, duration = 5000) {
+  return new Promise(resolve => {
+    const el = document.getElementById('app-toast');
+    el.className = 'toast-undo';
+    el.innerHTML = `<span class="toast-msg">${escapeHtml(msg)}</span><button class="toast-undo-btn">Annuler</button>`;
+    clearTimeout(_toastTimer);
+    let done = false;
+
+    el.querySelector('.toast-undo-btn').addEventListener('click', () => {
+      if (done) return;
+      done = true;
+      clearTimeout(_toastTimer);
+      el.classList.add('hidden');
+      resolve(true);
+    }, { once: true });
+
+    _toastTimer = setTimeout(() => {
+      if (!done) { done = true; el.classList.add('hidden'); resolve(false); }
+    }, duration);
+  });
+}
+
 // ─── DOM ────────────────────────────────────────────────────────────────────
 
 export function el(id) {
