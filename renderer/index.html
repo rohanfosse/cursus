@@ -50,6 +50,7 @@
       </div>
       <button id="btn-search" class="btn-ghost" title="Rechercher">Rechercher</button>
       <button id="btn-timeline" class="btn-ghost">Timeline</button>
+      <button id="btn-echeancier" class="btn-ghost" style="display:none">Mon planning</button>
       <button id="btn-travaux" class="btn-ghost">Travaux</button>
       <button id="btn-mes-travaux" class="btn-ghost" style="display:none">Mes travaux</button>
     </div>
@@ -274,8 +275,9 @@
 <div id="timeline-overlay" class="fullscreen-overlay hidden">
   <div id="timeline-panel">
     <div id="timeline-header">
-      <div>
+      <div style="flex:1;min-width:0;">
         <h2 id="timeline-title">Timeline des travaux</h2>
+        <div id="timeline-promo-tabs" class="timeline-promo-tabs"></div>
         <div id="timeline-filters" class="timeline-filters">
           <button class="timeline-filter-btn" data-cat="TP" style="--cat-color:#4A90D9">TP</button>
           <button class="timeline-filter-btn" data-cat="Projet" style="--cat-color:#7B68EE">Projet</button>
@@ -287,6 +289,19 @@
       <button id="btn-timeline-close" class="btn-ghost">Fermer</button>
     </div>
     <div id="timeline-body"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     ÉCHÉANCIER PROFESSEUR
+════════════════════════════════════════ -->
+<div id="echeancier-overlay" class="fullscreen-overlay hidden">
+  <div id="echeancier-panel">
+    <div id="echeancier-header">
+      <h2>Mon planning</h2>
+      <button id="btn-echeancier-close" class="btn-ghost">Fermer</button>
+    </div>
+    <div id="echeancier-body"></div>
   </div>
 </div>
 

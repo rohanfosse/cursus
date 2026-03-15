@@ -63,6 +63,9 @@ function register() {
   // Brouillon / publication
   handle('db:updateTravailPublished', (payload)   => queries.updateTravailPublished(payload));
 
+  // Echéancier prof
+  handle('db:getTeacherSchedule',     ()          => queries.getTeacherSchedule());
+
   // Promotions
   handle('db:createPromotion',   (payload)    => queries.createPromotion(payload));
   handle('db:deletePromotion',   (promoId)    => queries.deletePromotion(promoId));

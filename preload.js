@@ -71,4 +71,7 @@ contextBridge.exposeInMainWorld('api', {
   openImageDialog:    ()               => invoke('dialog:openImage'),
   openFileDialog:     ()               => invoke('dialog:openFile'),
   exportCsv:          (travailId)      => invoke('export:csv',            travailId),
+
+  // Echéancier prof
+  getTeacherSchedule: ()               => invoke('db:getTeacherSchedule'),
 });

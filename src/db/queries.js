@@ -899,6 +899,78 @@ function deleteRessource(ressourceId) {
   return getDb().prepare('DELETE FROM ressources WHERE id = ?').run(ressourceId);
 }
 
+// ─── Échéancier professeur ────────────────────────────────────────────────────
+
+function getTeacherSchedule() {
+  const db = getDb();
+
+  // Dépôts sans note (à corriger)
+  const aNoter = db.prepare(`
+    SELECT d.id AS depot_id, d.file_name, d.submitted_at,
+           s.name AS student_name, s.avatar_initials,
+           t.id AS travail_id, t.title AS travail_title, t.deadline,
+           t.category,
+           ch.name AS channel_name,
+           p.name  AS promo_name, p.color AS promo_color
+    FROM depots d
+    JOIN students s   ON s.id  = d.student_id
+    JOIN travaux t    ON t.id  = d.travail_id
+    JOIN channels ch  ON ch.id = t.channel_id
+    JOIN promotions p ON p.id  = ch.promo_id
+    WHERE d.note IS NULL
+    ORDER BY d.submitted_at ASC
+  `).all();
+
+  // Jalons à venir (30 prochains jours)
+  const jalons = db.prepare(`
+    SELECT t.id, t.title, t.deadline, t.description, t.category,
+           ch.name AS channel_name,
+           p.name  AS promo_name, p.color AS promo_color
+    FROM travaux t
+    JOIN channels ch  ON ch.id = t.channel_id
+    JOIN promotions p ON p.id  = ch.promo_id
+    WHERE t.type = 'jalon'
+      AND t.published = 1
+      AND t.deadline >= datetime('now','localtime')
+      AND t.deadline <= datetime('now','localtime','+30 days')
+    ORDER BY t.deadline ASC
+  `).all();
+
+  // Brouillons à publier
+  const brouillons = db.prepare(`
+    SELECT t.id, t.title, t.deadline, t.category, t.type,
+           ch.name AS channel_name,
+           p.name  AS promo_name, p.color AS promo_color
+    FROM travaux t
+    JOIN channels ch  ON ch.id = t.channel_id
+    JOIN promotions p ON p.id  = ch.promo_id
+    WHERE t.published = 0
+    ORDER BY t.deadline ASC
+  `).all();
+
+  // Echéances dans les 7 jours (devoirs publiés avec des rendus manquants)
+  const urgents = db.prepare(`
+    SELECT t.id, t.title, t.deadline, t.category,
+           ch.name AS channel_name,
+           p.name  AS promo_name, p.color AS promo_color,
+           (SELECT COUNT(*) FROM depots d WHERE d.travail_id = t.id) AS depots_count,
+           CASE WHEN t.group_id IS NOT NULL
+             THEN (SELECT COUNT(*) FROM group_members WHERE group_id = t.group_id)
+             ELSE (SELECT COUNT(*) FROM students WHERE promo_id = p.id)
+           END AS students_total
+    FROM travaux t
+    JOIN channels ch  ON ch.id = t.channel_id
+    JOIN promotions p ON p.id  = ch.promo_id
+    WHERE t.type = 'devoir'
+      AND t.published = 1
+      AND t.deadline >= datetime('now','localtime')
+      AND t.deadline <= datetime('now','localtime','+7 days')
+    ORDER BY t.deadline ASC
+  `).all();
+
+  return { aNoter, jalons, brouillons, urgents };
+}
+
 // ─── Profil etudiant ──────────────────────────────────────────────────────────
 
 function getStudentProfile(studentId) {
@@ -937,4 +1009,5 @@ module.exports = {
   getTravailGroupMembers, setTravailGroupMember,
   updateTravailPublished,
   createPromotion, deletePromotion,
+  getTeacherSchedule,
 };

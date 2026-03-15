@@ -12,12 +12,33 @@ export const CATEGORIES = {
   Rendu:   { label: 'Rendu',   color: '#F39C12' },
 };
 
+// Filtres actifs
+let _promoFilter    = null; // null = toutes les promos
+let _categoryFilter = null;
+
 // ─── Ouverture de la timeline ─────────────────────────────────────────────────
 
 export async function openTimeline() {
+  _promoFilter    = null;
+  _categoryFilter = null;
+
   const overlay = document.getElementById('timeline-overlay');
   overlay.classList.remove('hidden');
-  await renderTimeline(null);
+
+  // Titres selon le rôle
+  document.getElementById('timeline-title').textContent =
+    state.currentUser?.type === 'teacher'
+      ? 'Timeline des travaux — toutes les promotions'
+      : 'Ma timeline';
+
+  // Onglets promo (prof uniquement)
+  await renderPromoTabs();
+
+  // Reset filtres catégorie visuellement
+  document.querySelectorAll('#timeline-filters [data-cat]')
+    .forEach(b => b.classList.remove('active'));
+
+  await renderTimeline();
 }
 
 export function bindTimeline() {
@@ -30,26 +51,61 @@ export function bindTimeline() {
     if (e.target === overlay) overlay.classList.add('hidden');
   });
 
-  // Filtres categorie
+  // Filtres catégorie
   overlay.querySelector('#timeline-filters').addEventListener('click', e => {
     const btn = e.target.closest('[data-cat]');
     if (!btn) return;
-
-    const cat = btn.dataset.cat;
-
-    // Toggle
     if (btn.classList.contains('active')) {
       btn.classList.remove('active');
-      renderTimeline(null);
+      _categoryFilter = null;
     } else {
       overlay.querySelectorAll('#timeline-filters [data-cat]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      renderTimeline(cat);
+      _categoryFilter = btn.dataset.cat;
     }
+    renderTimeline();
   });
 }
 
-async function renderTimeline(categoryFilter) {
+// ─── Onglets promo (prof) ────────────────────────────────────────────────────
+
+async function renderPromoTabs() {
+  const container = document.getElementById('timeline-promo-tabs');
+  if (!container) return;
+
+  if (state.currentUser?.type !== 'teacher') {
+    container.innerHTML = '';
+    return;
+  }
+
+  const promotions = await call(window.api.getPromotions);
+  if (!promotions) return;
+
+  container.innerHTML = `
+    <button class="promo-tab active" data-promo-id="">Toutes</button>
+    ${promotions.map(p => `
+      <button class="promo-tab" data-promo-id="${p.id}">
+        <span class="promo-dot" style="background:${p.color}"></span>
+        ${escapeHtml(p.name)}
+      </button>
+    `).join('')}
+  `;
+
+  container.addEventListener('click', e => {
+    const btn = e.target.closest('[data-promo-id]');
+    if (!btn) return;
+    container.querySelectorAll('.promo-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _promoFilter = btn.dataset.promoId ? parseInt(btn.dataset.promoId) : null;
+    _categoryFilter = null;
+    document.querySelectorAll('#timeline-filters [data-cat]').forEach(b => b.classList.remove('active'));
+    renderTimeline();
+  });
+}
+
+// ─── Rendu de la timeline ────────────────────────────────────────────────────
+
+async function renderTimeline() {
   const body = document.getElementById('timeline-body');
   body.innerHTML = '<div class="timeline-loading">Chargement…</div>';
 
@@ -59,14 +115,13 @@ async function renderTimeline(categoryFilter) {
   if (user?.type === 'student') {
     travaux = await call(window.api.getStudentTravaux, user.id);
   } else {
-    // Professeur : vue globale de tous les travaux (on passe par getPromotions + getTravaux)
-    travaux = await loadAllTravaux();
+    travaux = await loadAllTravaux(_promoFilter);
   }
 
   if (!travaux) { body.innerHTML = ''; return; }
 
-  if (categoryFilter) {
-    travaux = travaux.filter(t => t.category === categoryFilter);
+  if (_categoryFilter) {
+    travaux = travaux.filter(t => t.category === _categoryFilter);
   }
 
   // Trier par deadline croissante
@@ -75,7 +130,7 @@ async function renderTimeline(categoryFilter) {
   body.innerHTML = '';
 
   if (!travaux.length) {
-    body.innerHTML = `<div class="timeline-empty">Aucun travail${categoryFilter ? ` dans la categorie "${categoryFilter}"` : ''}.</div>`;
+    body.innerHTML = `<div class="timeline-empty">Aucun travail${_categoryFilter ? ` en "${_categoryFilter}"` : ''}${_promoFilter ? ' pour cette promotion' : ''}.</div>`;
     return;
   }
 
@@ -106,9 +161,29 @@ async function renderTimeline(categoryFilter) {
       const dlClass   = deadlineClass(t.deadline);
       const dlLabel   = deadlineLabel(t.deadline);
       const catColor  = CATEGORIES[t.category]?.color ?? '#888';
+      const isJalon   = t.type === 'jalon';
+
+      // Pour le prof : infos progression
+      const promoLine = (user?.type === 'teacher' && t.promo_name)
+        ? `<span class="timeline-promo-tag" style="background:${t.promo_color}20;color:${t.promo_color}">${escapeHtml(t.promo_name)}</span>`
+        : '';
+
+      const progressLine = (user?.type === 'teacher' && !isJalon && t.students_total != null)
+        ? (() => {
+            const pct = t.students_total > 0 ? Math.round((t.depots_count / t.students_total) * 100) : 0;
+            return `
+              <div class="timeline-progress">
+                <div class="timeline-progress-track">
+                  <div class="timeline-progress-fill" style="width:${pct}%;background:${catColor}"></div>
+                </div>
+                <span class="timeline-progress-label">${t.depots_count}/${t.students_total} rendus</span>
+              </div>
+            `;
+          })()
+        : '';
 
       const card = document.createElement('div');
-      card.className = `timeline-card ${rendu ? 'rendu' : ''} ${isPast && !rendu ? 'retard' : ''}`;
+      card.className = `timeline-card${rendu ? ' rendu' : ''}${isPast && !rendu && !isJalon ? ' retard' : ''}${isJalon ? ' jalon' : ''}`;
 
       card.innerHTML = `
         <div class="timeline-line">
@@ -116,27 +191,36 @@ async function renderTimeline(categoryFilter) {
         </div>
         <div class="timeline-card-content">
           <div class="timeline-card-header">
-            <span class="category-badge" style="background:${catColor}20;color:${catColor};border-color:${catColor}40">
-              ${escapeHtml(t.category)}
-            </span>
-            ${rendu
-              ? '<span class="timeline-status rendu">Rendu</span>'
-              : isPast
-                ? '<span class="timeline-status retard">En retard</span>'
-                : `<span class="deadline-badge ${dlClass}">${dlLabel}</span>`
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <span class="category-badge" style="background:${catColor}20;color:${catColor};border-color:${catColor}40">
+                ${escapeHtml(t.category)}
+              </span>
+              ${isJalon ? '<span class="jalon-badge">Jalon</span>' : ''}
+              ${promoLine}
+            </div>
+            ${isJalon
+              ? (isPast
+                  ? '<span class="timeline-status past-jalon">Passé</span>'
+                  : `<span class="deadline-badge ${dlClass}">${dlLabel}</span>`)
+              : (rendu
+                  ? '<span class="timeline-status rendu">Rendu ✓</span>'
+                  : isPast
+                    ? '<span class="timeline-status retard">En retard</span>'
+                    : `<span class="deadline-badge ${dlClass}">${dlLabel}</span>`)
             }
           </div>
           <div class="timeline-card-title">${escapeHtml(t.title)}</div>
           <div class="timeline-card-meta">
             ${t.channel_name ? `#${escapeHtml(t.channel_name)}` : ''}
             ${t.group_name   ? ` &middot; <span class="group-tag">${escapeHtml(t.group_name)}</span>` : ''}
-            &middot; limite le <strong>${formatDate(t.deadline)}</strong>
+            &middot; ${isJalon ? 'le' : 'limite le'} <strong>${formatDate(t.deadline)}</strong>
           </div>
           ${t.description ? `<div class="timeline-card-desc">${escapeHtml(t.description)}</div>` : ''}
+          ${progressLine}
           ${rendu && user?.type === 'student' ? `
             <div class="timeline-rendu-info">
               <span>${escapeHtml(t.file_name)}</span>
-              ${t.note != null ? `<span class="note-badge">${t.note}/20</span>` : '<span class="stc-pending-note">Non note</span>'}
+              ${t.note != null ? `<span class="note-badge">${t.note}/20</span>` : '<span class="stc-pending-note">Non noté</span>'}
             </div>
           ` : ''}
           <div class="timeline-ressources-zone" id="tl-res-${t.id}"></div>
@@ -145,19 +229,21 @@ async function renderTimeline(categoryFilter) {
 
       monthEl.appendChild(card);
 
-      // Charger les ressources en parallele
       renderRessourcesInline(t.id, card.querySelector(`#tl-res-${t.id}`));
     }
   }
 }
 
-async function loadAllTravaux() {
-  // Pour le prof : aggreger tous les travaux de toutes les promos
+// ─── Chargement tous les travaux (prof) ──────────────────────────────────────
+
+async function loadAllTravaux(promoId = null) {
   const promotions = await call(window.api.getPromotions);
   if (!promotions) return null;
 
   const all = [];
   for (const promo of promotions) {
+    if (promoId && promo.id !== promoId) continue;
+
     const channels = await call(window.api.getChannels, promo.id);
     if (!channels) continue;
     for (const ch of channels) {
@@ -165,7 +251,7 @@ async function loadAllTravaux() {
       const travaux = await call(window.api.getTravaux, ch.id);
       if (!travaux) continue;
       for (const t of travaux) {
-        all.push({ ...t, channel_name: ch.name });
+        all.push({ ...t, channel_name: ch.name, promo_name: promo.name, promo_color: promo.color });
       }
     }
   }

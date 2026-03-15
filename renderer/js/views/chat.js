@@ -7,6 +7,8 @@ import {
   makeAvatar,
 } from '../utils.js';
 
+const GROUP_THRESHOLD_MS = 5 * 60 * 1000; // messages < 5 min apart sont groupés
+
 // ─── Rendu des messages ──────────────────────────────────────────────────────
 
 export async function renderMessages(searchTerm = '') {
@@ -40,37 +42,60 @@ export async function renderMessages(searchTerm = '') {
     return;
   }
 
-  let lastDateStr = null;
+  let lastDateStr  = null;
+  let prevAuthor   = null;
+  let prevTime     = null;
 
   for (const msg of messages) {
     const dateStr = new Date(msg.created_at).toDateString();
     if (dateStr !== lastDateStr) {
       lastDateStr = dateStr;
+      prevAuthor  = null; // réinitialise le groupement sur changement de jour
+      prevTime    = null;
       const sep = document.createElement('div');
       sep.className = 'date-separator';
       sep.innerHTML = `<span>${formatDateSeparator(msg.created_at)}</span>`;
       list.appendChild(sep);
     }
 
-    const row = document.createElement('div');
-    row.className = 'msg-row';
+    const msgTime  = new Date(msg.created_at).getTime();
+    const isGrouped = !searchTerm
+      && prevAuthor === msg.author_name
+      && prevTime !== null
+      && (msgTime - prevTime) < GROUP_THRESHOLD_MS;
 
-    const initials = msg.author_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-    const bgColor  = msg.author_type === 'teacher' ? 'var(--accent)' : avatarColor(msg.author_name);
-    const content  = searchTerm
+    prevAuthor = msg.author_name;
+    prevTime   = msgTime;
+
+    const content = searchTerm
       ? highlightTerm(msg.content, searchTerm)
       : escapeHtml(msg.content);
 
-    row.appendChild(makeAvatar(initials, bgColor));
-    row.insertAdjacentHTML('beforeend', `
-      <div class="msg-body">
-        <div class="msg-meta">
-          <span class="msg-author ${msg.author_type}">${escapeHtml(msg.author_name)}</span>
-          <span class="msg-time">${formatTime(msg.created_at)}</span>
+    const row = document.createElement('div');
+
+    if (isGrouped) {
+      row.className = 'msg-row msg-grouped';
+      row.innerHTML = `
+        <div class="msg-grouped-time">${formatTime(msg.created_at)}</div>
+        <div class="msg-body">
+          <div class="msg-content">${content}</div>
         </div>
-        <div class="msg-content">${content}</div>
-      </div>
-    `);
+      `;
+    } else {
+      row.className = 'msg-row';
+      const initials = msg.author_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+      const bgColor  = msg.author_type === 'teacher' ? 'var(--accent)' : avatarColor(msg.author_name);
+      row.appendChild(makeAvatar(initials, bgColor));
+      row.insertAdjacentHTML('beforeend', `
+        <div class="msg-body">
+          <div class="msg-meta">
+            <span class="msg-author ${msg.author_type}">${escapeHtml(msg.author_name)}</span>
+            <span class="msg-time">${formatTime(msg.created_at)}</span>
+          </div>
+          <div class="msg-content">${content}</div>
+        </div>
+      `);
+    }
 
     list.appendChild(row);
   }
@@ -91,11 +116,13 @@ export async function sendMessage() {
   if (!content) return;
   if (!state.activeChannelId && !state.activeDmStudentId) return;
 
+  const user = state.currentUser;
+
   const ok = await call(window.api.sendMessage, {
     channelId:   state.activeChannelId   ?? null,
     dmStudentId: state.activeDmStudentId ?? null,
-    authorName:  'Rohan Fosse',
-    authorType:  'teacher',
+    authorName:  user?.name ?? 'Inconnu',
+    authorType:  user?.type ?? 'student',
     content,
   });
 

@@ -8,6 +8,7 @@ import { showLoginScreen }                         from './views/login.js';
 import { renderStudentTravaux }                    from './views/student-dashboard.js';
 import { openTimeline, bindTimeline }              from './views/timeline.js';
 import { openRessourcesModal, bindRessourcesModal } from './views/ressources.js';
+import { openEcheancier, bindEcheancier }           from './views/echeancier.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
 
@@ -42,11 +43,15 @@ async function onLogin(user) {
   const btnTravaux     = document.getElementById('btn-travaux');
   const btnMesTravaux  = document.getElementById('btn-mes-travaux');
 
+  const btnEcheancier = document.getElementById('btn-echeancier');
+
   if (isStudent) {
     btnTravaux.style.display = 'none';
-    if (btnMesTravaux) btnMesTravaux.style.display = '';
+    if (btnMesTravaux)   btnMesTravaux.style.display   = '';
+    if (btnEcheancier)   btnEcheancier.style.display   = 'none';
   } else {
-    if (btnMesTravaux) btnMesTravaux.style.display = 'none';
+    if (btnMesTravaux)   btnMesTravaux.style.display   = 'none';
+    if (btnEcheancier)   btnEcheancier.style.display   = '';
   }
 
   // ── Chargement initial ────────────────────────────────────────────────────
@@ -92,8 +97,12 @@ async function onLogin(user) {
   bindSuiviModal();
   bindRessourcesModal();
   bindTimeline();
+  bindEcheancier();
 
   document.getElementById('btn-timeline').addEventListener('click', () => openTimeline());
+
+  const btnEch = document.getElementById('btn-echeancier');
+  if (btnEch) btnEch.addEventListener('click', () => openEcheancier());
 }
 
 // ─── Ouverture d'un canal ────────────────────────────────────────────────────
