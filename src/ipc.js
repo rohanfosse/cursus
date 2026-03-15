@@ -124,6 +124,43 @@ function register() {
   handle('db:deleteChannelDocument',        (id)         => queries.deleteChannelDocument(id));
   handle('db:getChannelDocumentCategories', (channelId)  => queries.getChannelDocumentCategories(channelId));
 
+  // Messages épinglés
+  handle('db:getPinnedMessages',   (channelId) => queries.getPinnedMessages(channelId));
+  handle('db:togglePinMessage',    (payload)   => queries.togglePinMessage(payload.messageId, payload.pinned));
+
+  // Action de masse — non-rendus → D
+  handle('db:markNonSubmittedAsD', (travailId) => queries.markNonSubmittedAsD(travailId));
+
+  // Lecture de fichier en base64 (prévisualisation in-app)
+  ipcMain.handle('fs:readFileBase64', async (_event, filePath) => {
+    try {
+      const buffer = fs.readFileSync(filePath);
+      const ext = path.extname(filePath).slice(1).toLowerCase();
+      const mimeMap = {
+        pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg',
+        jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+        mp4: 'video/mp4', txt: 'text/plain',
+      };
+      const mime = mimeMap[ext] ?? 'application/octet-stream';
+      return { ok: true, data: { mime, b64: buffer.toString('base64'), ext } };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  // Téléchargement — copie vers un emplacement choisi par l'utilisateur
+  ipcMain.handle('fs:downloadFile', async (_event, filePath) => {
+    try {
+      const fileName = path.basename(filePath);
+      const { canceled, filePath: dest } = await dialog.showSaveDialog({ defaultPath: fileName });
+      if (canceled || !dest) return { ok: true, data: null };
+      fs.copyFileSync(filePath, dest);
+      return { ok: true, data: dest };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   // Dialogue image — photo de profil (retourne base64 data URL)
   ipcMain.handle('dialog:openImage', async () => {
     try {

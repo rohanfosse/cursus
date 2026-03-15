@@ -161,6 +161,10 @@ function migrate(db) {
       PRIMARY KEY (travail_id, student_id)
     )
   `);
+
+  // Messages épinglés
+  if (!col('messages').includes('pinned'))
+    db.exec('ALTER TABLE messages ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
 }
 
 // ─── Seed ────────────────────────────────────────────────────────────────────
@@ -1167,6 +1171,46 @@ function getStudentProfile(studentId) {
   return { student, travaux };
 }
 
+// ─── Messages épinglés ───────────────────────────────────────────────────────
+
+function getPinnedMessages(channelId) {
+  return getDb().prepare(`
+    SELECT id, author_name, content, created_at
+    FROM messages WHERE channel_id = ? AND pinned = 1
+    ORDER BY created_at DESC LIMIT 5
+  `).all(channelId);
+}
+
+function togglePinMessage(messageId, pinned) {
+  return getDb().prepare('UPDATE messages SET pinned = ? WHERE id = ?')
+    .run(pinned ? 1 : 0, messageId).changes;
+}
+
+// ─── Action de masse : marquer les non-rendus comme D ────────────────────────
+
+function markNonSubmittedAsD(travailId) {
+  const db = getDb();
+  const travail = db.prepare('SELECT channel_id FROM travaux WHERE id = ?').get(travailId);
+  if (!travail) return 0;
+  const channel = db.prepare('SELECT promo_id FROM channels WHERE id = ?').get(travail.channel_id);
+  if (!channel) return 0;
+
+  const students = db.prepare(`
+    SELECT s.id FROM students s
+    LEFT JOIN depots d ON d.travail_id = ? AND d.student_id = s.id
+    WHERE s.promo_id = ? AND d.id IS NULL
+  `).all(travailId, channel.promo_id);
+
+  if (!students.length) return 0;
+
+  const ins = db.prepare(
+    `INSERT OR IGNORE INTO depots (travail_id, student_id, file_name, file_path, note) VALUES (?, ?, '—', '', 'D')`
+  );
+  const tx = db.transaction(() => { for (const s of students) ins.run(travailId, s.id); });
+  tx();
+  return students.length;
+}
+
 module.exports = {
   initSchema, seedIfEmpty,
   getPromotions, getChannels, getStudents, getAllStudents,
@@ -1185,4 +1229,5 @@ module.exports = {
   getGanttData,
   getAllRendus,
   getChannelDocuments, addChannelDocument, deleteChannelDocument, getChannelDocumentCategories,
+  getPinnedMessages, togglePinMessage, markNonSubmittedAsD,
 };

@@ -90,6 +90,35 @@ export async function renderStudentDashboard(container) {
   `;
   container.appendChild(statsBar);
 
+  // ── Distribution des notes + ponctualité ──────────────────────────────────
+  const gradedTravaux = sorted.filter(t => t.depot_id != null && t.note != null && t.type !== 'jalon');
+  if (gradedTravaux.length) {
+    const gradeCounts = { A: 0, B: 0, C: 0, D: 0 };
+    for (const t of gradedTravaux) {
+      const n = String(t.note).toUpperCase();
+      if (n in gradeCounts) gradeCounts[n]++;
+    }
+
+    const onTimeCount = sorted.filter(t =>
+      t.depot_id != null && t.type !== 'jalon' && t.submitted_at && t.deadline &&
+      t.submitted_at <= t.deadline
+    ).length;
+    const submittedCount = sorted.filter(t => t.depot_id != null && t.type !== 'jalon').length;
+    const punctualityPct = submittedCount > 0 ? Math.round((onTimeCount / submittedCount) * 100) : null;
+
+    const gradeEl = document.createElement('div');
+    gradeEl.className = 'std-grade-distribution';
+    gradeEl.innerHTML = `
+      <span class="std-grade-dist-label">Notes :</span>
+      <span class="std-grade-pill std-grade-a">A <strong>${gradeCounts.A}</strong></span>
+      <span class="std-grade-pill std-grade-b">B <strong>${gradeCounts.B}</strong></span>
+      <span class="std-grade-pill std-grade-c">C <strong>${gradeCounts.C}</strong></span>
+      <span class="std-grade-pill std-grade-d">D <strong>${gradeCounts.D}</strong></span>
+      ${punctualityPct !== null ? `<span class="std-punctuality">⏱ ${punctualityPct}% dans les délais</span>` : ''}
+    `;
+    container.appendChild(gradeEl);
+  }
+
   // ── Barre de progression semestrielle ────────────────────────────────────
   if (totalWork > 0) {
     const pct = Math.round((rendus / totalWork) * 100);

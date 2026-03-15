@@ -1,7 +1,7 @@
 import { state }           from './state.js';
 import { call }            from './api.js';
 import { deadlineClass }   from './utils.js';
-import { renderMessages, sendMessage, initSearch } from './views/chat.js';
+import { renderMessages, sendMessage, initSearch, renderPinnedBanner } from './views/chat.js';
 import { renderSidebar, initSidebar }              from './views/sidebar.js';
 import { openPanel, closePanel, renderTravaux, initTravaux, bindNewTravailForm } from './views/travaux.js';
 import { bindDepotsModal, bindNoteModal }                                        from './views/depots.js';
@@ -46,6 +46,18 @@ async function onLogin(user) {
     onChannel: ({ id, promo, name, type }) => openChannel(id, promo, name, type),
     onDm:      ({ id, promo, name })       => openDm(id, promo, name),
     onSection: (section) => switchSection(section),
+  });
+
+  // ── Bouton recherche globale dans la barre de titre ───────────────────────
+  document.getElementById('global-search-btn')?.addEventListener('click', () => {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+  });
+
+  // ── Fermeture visionneuse document (touche Échap) ─────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.getElementById('document-preview-overlay')?.classList.add('hidden');
+    }
   });
 
   _initResizeHandles();
@@ -330,6 +342,7 @@ async function openChannel(channelId, promoId, channelName, channelType) {
   }
 
   await renderMessages();
+  await renderPinnedBanner(channelId);
   if (state.rightPanel === 'travaux') await renderTravaux();
 
   // ── Bannière travaux en attente (étudiant) ───────────────────────────────

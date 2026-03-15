@@ -20,13 +20,75 @@ body {
   border-bottom: 1px solid rgba(255,255,255,.05);
 }
 
+#title-bar {
+  justify-content: flex-start;
+  gap: 0;
+  padding: 0 16px;
+}
 #title-app-name {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
   letter-spacing: .2px;
   pointer-events: none;
+  min-width: 120px;
 }
+
+/* ── Barre de recherche globale dans le titre ── */
+#global-search-btn {
+  flex: 1;
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 20px;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 12px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: background .15s, border-color .15s;
+}
+#global-search-btn:hover {
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.18);
+  color: var(--text-secondary);
+}
+#global-search-btn span { flex: 1; text-align: left; }
+#global-search-btn kbd {
+  font-size: 10px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+/* ── Bannière messages épinglés ── */
+#pinned-messages-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: rgba(74,144,217,.08);
+  border-bottom: 1px solid rgba(74,144,217,.2);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+#pinned-messages-banner.hidden { display: none; }
+.pinned-banner-icon { flex-shrink: 0; font-size: 13px; }
+.pinned-messages-list {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.pinned-messages-list:hover { color: var(--text-primary); }
 
 /* ── Corps de l'application ── */
 #app-body {

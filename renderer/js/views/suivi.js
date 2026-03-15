@@ -41,6 +41,9 @@ async function renderSuivi(travailId) {
   // Bouton export
   document.getElementById('btn-export-csv').dataset.travailId = travailId;
 
+  // Stats + action de masse
+  _renderSuiviStats(rows, travailId);
+
   body.innerHTML = '';
 
   for (const r of rows) {
@@ -105,6 +108,53 @@ async function renderSuivi(travailId) {
     row.appendChild(noteArea);
     body.appendChild(row);
   }
+}
+
+// ─── Stats + action de masse ──────────────────────────────────────────────────
+
+function _renderSuiviStats(rows, travailId) {
+  let statsEl = document.getElementById('suivi-stats-section');
+  if (!statsEl) {
+    statsEl = document.createElement('div');
+    statsEl.id = 'suivi-stats-section';
+    const progressWrapper = document.querySelector('.suivi-progress-wrapper');
+    if (progressWrapper?.parentElement) {
+      progressWrapper.parentElement.insertBefore(statsEl, progressWrapper.nextSibling);
+    }
+  }
+
+  const graded = rows.filter(r => r.note != null);
+  const counts = { A: 0, B: 0, C: 0, D: 0 };
+  for (const r of graded) {
+    const n = String(r.note).toUpperCase();
+    if (n in counts) counts[n]++;
+  }
+  const nonRendus = rows.filter(r => r.depot_id == null).length;
+
+  statsEl.innerHTML = `
+    <div class="suivi-stats-bar">
+      <span class="suivi-stats-label">Notes :</span>
+      <span class="suivi-stat-chip suivi-stat-a">A <strong>${counts.A}</strong></span>
+      <span class="suivi-stat-chip suivi-stat-b">B <strong>${counts.B}</strong></span>
+      <span class="suivi-stat-chip suivi-stat-c">C <strong>${counts.C}</strong></span>
+      <span class="suivi-stat-chip suivi-stat-d">D <strong>${counts.D}</strong></span>
+      <span class="suivi-stat-chip suivi-stat-nr">Non rendus <strong>${nonRendus}</strong></span>
+    </div>
+    ${nonRendus > 0 ? `
+    <div class="suivi-mass-action">
+      <button class="btn-ghost" id="btn-mass-d" style="color:var(--color-danger);border-color:var(--color-danger)20">
+        Marquer les non-rendus comme D (${nonRendus})
+      </button>
+    </div>` : ''}
+  `;
+
+  statsEl.querySelector('#btn-mass-d')?.addEventListener('click', async () => {
+    const n = await call(window.api.markNonSubmittedAsD, travailId);
+    if (n === null) return;
+    showToast(`${n} étudiant${n > 1 ? 's' : ''} marqué${n > 1 ? 's' : ''} D.`, 'success');
+    await renderSuivi(travailId);
+    await renderTravaux();
+  });
 }
 
 async function buildGroupSelect(travailId, studentId, currentGroupId) {

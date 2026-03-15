@@ -87,4 +87,15 @@ contextBridge.exposeInMainWorld('api', {
   addChannelDocument:           (payload)    => invoke('db:addChannelDocument',           payload),
   deleteChannelDocument:        (id)         => invoke('db:deleteChannelDocument',        id),
   getChannelDocumentCategories: (channelId)  => invoke('db:getChannelDocumentCategories', channelId),
+
+  // Messages épinglés
+  getPinnedMessages:   (channelId) => invoke('db:getPinnedMessages', channelId),
+  togglePinMessage:    (payload)   => invoke('db:togglePinMessage',  payload),
+
+  // Action de masse
+  markNonSubmittedAsD: (travailId) => invoke('db:markNonSubmittedAsD', travailId),
+
+  // Fichiers
+  readFileBase64: (filePath) => invoke('fs:readFileBase64', filePath),
+  downloadFile:   (filePath) => invoke('fs:downloadFile',   filePath),
 });

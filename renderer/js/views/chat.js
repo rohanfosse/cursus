@@ -73,16 +73,24 @@ export async function renderMessages(searchTerm = '') {
 
     const row = document.createElement('div');
 
+    const isTeacher = state.currentUser?.type === 'teacher';
+    const pinBtn = isTeacher && state.activeChannelId
+      ? `<button class="msg-pin-btn${msg.pinned ? ' pinned' : ''}" data-msg-id="${msg.id}" data-pinned="${msg.pinned ? 1 : 0}" title="${msg.pinned ? 'Désépingler' : 'Épingler'}">📌</button>`
+      : '';
+
     if (isGrouped) {
       row.className = 'msg-row msg-grouped';
+      row.dataset.msgId = msg.id;
       row.innerHTML = `
         <div class="msg-grouped-time">${formatTime(msg.created_at)}</div>
         <div class="msg-body">
           <div class="msg-content">${content}</div>
         </div>
+        ${pinBtn}
       `;
     } else {
       row.className = 'msg-row';
+      row.dataset.msgId = msg.id;
       const initials = msg.author_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
       const bgColor  = msg.author_type === 'teacher' ? 'var(--accent)' : avatarColor(msg.author_name);
       row.appendChild(makeAvatar(initials, bgColor));
@@ -94,6 +102,7 @@ export async function renderMessages(searchTerm = '') {
           </div>
           <div class="msg-content">${content}</div>
         </div>
+        ${pinBtn}
       `);
     }
 
@@ -101,6 +110,42 @@ export async function renderMessages(searchTerm = '') {
   }
 
   if (!searchTerm) scrollToBottom();
+
+  // ── Pin handler (délégation sur la liste) ────────────────────────────────
+  if (!list._pinHandlerBound) {
+    list._pinHandlerBound = true;
+    list.addEventListener('click', async e => {
+      const btn = e.target.closest('.msg-pin-btn');
+      if (!btn) return;
+      const msgId  = parseInt(btn.dataset.msgId);
+      const pinned = btn.dataset.pinned === '1' ? 0 : 1;
+      await call(window.api.togglePinMessage, { messageId: msgId, pinned });
+      await renderMessages();
+      await renderPinnedBanner(state.activeChannelId);
+    });
+  }
+}
+
+// ─── Bannière messages épinglés ───────────────────────────────────────────────
+
+export async function renderPinnedBanner(channelId) {
+  const banner = document.getElementById('pinned-messages-banner');
+  const listEl = document.getElementById('pinned-messages-list');
+  if (!banner || !listEl) return;
+
+  if (!channelId) { banner.classList.add('hidden'); return; }
+
+  const msgs = await call(window.api.getPinnedMessages, channelId);
+  if (!msgs || !msgs.length) { banner.classList.add('hidden'); return; }
+
+  listEl.innerHTML = msgs.map(m => `
+    <div class="pinned-msg-item">
+      <span class="pinned-msg-author">${escapeHtml(m.author_name)}</span>
+      <span class="pinned-msg-content">${escapeHtml(m.content.slice(0, 80))}${m.content.length > 80 ? '…' : ''}</span>
+    </div>
+  `).join('');
+
+  banner.classList.remove('hidden');
 }
 
 function scrollToBottom() {

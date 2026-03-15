@@ -1,6 +1,6 @@
 import { call }      from '../api.js';
 import { state }     from '../state.js';
-import { escapeHtml, showToast } from '../utils.js';
+import { escapeHtml, showToast, formatDate } from '../utils.js';
 
 // État local
 let _activeChannelId   = null;
@@ -191,13 +191,15 @@ function buildDocCard(d) {
       <div class="doc-card-name">${escapeHtml(d.name)}</div>
       ${d.description ? `<div class="doc-card-desc">${escapeHtml(d.description)}</div>` : ''}
       <div class="doc-card-meta">${isLink ? escapeHtml(d.path_or_url) : 'Fichier local'}</div>
+      ${d.created_at ? `<div class="doc-card-date">${formatDate(d.created_at)}</div>` : ''}
     </div>
     <div class="doc-card-actions">
-      <button class="btn-ghost doc-btn-open" title="Ouvrir">
+      <button class="btn-ghost doc-btn-open" title="Ouvrir / Prévisualiser">
         <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
           <path d="M19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
         </svg>
       </button>
+      ${!isLink ? `<button class="btn-ghost doc-btn-download" title="Télécharger">📥</button>` : ''}
       ${_isTeacher ? `<button class="btn-ghost doc-btn-delete" title="Supprimer">
         <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
           <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
@@ -210,13 +212,14 @@ function buildDocCard(d) {
     if (isLink) {
       await call(window.api.openExternal, d.path_or_url);
     } else {
-      const ext2 = (d.path_or_url.match(/\.([^.]+)$/) ?? ['', ''])[1].toLowerCase();
-      if (ext2 === 'pdf') {
-        await call(window.api.openPdf, d.path_or_url);
-      } else {
-        await call(window.api.openPath, d.path_or_url);
-      }
+      await openDocPreview(d);
     }
+  });
+
+  card.querySelector('.doc-btn-download')?.addEventListener('click', async () => {
+    const result = await call(window.api.downloadFile, d.path_or_url);
+    if (result === null) return;
+    if (result) showToast(`Téléchargé : ${result}`, 'success');
   });
 
   if (_isTeacher) {
@@ -313,6 +316,68 @@ export function bindDocumentsModal() {
     _searchQuery = e.target.value;
     renderDocuments();
   });
+}
+
+// ─── Visionneuse in-app ───────────────────────────────────────────────────────
+
+export async function openDocPreview(doc) {
+  const overlay   = document.getElementById('document-preview-overlay');
+  const titleEl   = document.getElementById('doc-preview-title');
+  const bodyEl    = document.getElementById('doc-preview-body');
+  const dlBtn     = document.getElementById('doc-preview-download');
+  const extBtn    = document.getElementById('doc-preview-open-ext');
+  const closeBtn  = document.getElementById('doc-preview-close');
+  if (!overlay) return;
+
+  titleEl.textContent = doc.name;
+  bodyEl.innerHTML    = '<div class="doc-preview-loading">Chargement…</div>';
+  overlay.classList.remove('hidden');
+
+  // Stocker le chemin pour le bouton download
+  dlBtn.dataset.filePath = doc.path_or_url;
+
+  const res = await call(window.api.readFileBase64, doc.path_or_url);
+  if (!res) { bodyEl.innerHTML = '<div class="doc-preview-error">Impossible de lire le fichier.</div>'; return; }
+
+  const { mime, b64, ext } = res;
+  const dataUrl = `data:${mime};base64,${b64}`;
+
+  if (mime === 'application/pdf') {
+    bodyEl.innerHTML = `<embed src="${dataUrl}" type="application/pdf" width="100%" height="100%">`;
+  } else if (mime.startsWith('image/')) {
+    bodyEl.innerHTML = `<img src="${dataUrl}" alt="${escapeHtml(doc.name)}" style="max-width:100%;max-height:100%;object-fit:contain;">`;
+  } else if (mime === 'text/plain') {
+    const text = atob(b64);
+    bodyEl.innerHTML = `<pre class="doc-preview-text">${escapeHtml(text)}</pre>`;
+  } else {
+    bodyEl.innerHTML = `
+      <div class="doc-preview-unsupported">
+        <div style="font-size:48px">📄</div>
+        <p>Prévisualisation non disponible pour ce type de fichier (.${ext}).</p>
+        <button class="btn-primary" id="doc-preview-open-ext-fallback">Ouvrir avec l'application par défaut</button>
+      </div>
+    `;
+    bodyEl.querySelector('#doc-preview-open-ext-fallback')?.addEventListener('click', async () => {
+      await call(window.api.openPath, doc.path_or_url);
+    });
+  }
+
+  // Fermeture
+  const close = () => overlay.classList.add('hidden');
+  closeBtn.onclick  = close;
+  overlay.onclick   = e => { if (e.target === overlay) close(); };
+
+  // Téléchargement
+  dlBtn.onclick = async () => {
+    const result = await call(window.api.downloadFile, doc.path_or_url);
+    if (result === null) return;
+    if (result) showToast(`Téléchargé : ${result}`, 'success');
+  };
+
+  // Ouvrir en externe
+  extBtn.onclick = async () => {
+    await call(window.api.openPath, doc.path_or_url);
+  };
 }
 
 // ─── Filtres de type de document ──────────────────────────────────────────────
