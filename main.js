@@ -11,6 +11,12 @@ function createWindow() {
     minHeight: 640,
     title: 'CESI Classroom',
     backgroundColor: '#111214',
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color:       '#111214',
+      symbolColor: '#9aa0a6',
+      height:      32,
+    },
     webPreferences: {
       preload:          path.join(__dirname, 'preload.js'),
       contextIsolation: true,

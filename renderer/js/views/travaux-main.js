@@ -9,6 +9,18 @@ let _activeTab   = 'list'; // 'list' | 'rendus'
 let _activePromo = null;   // null = toutes
 let _activeView  = 'gantt'; // 'gantt' | 'rendus' (boutons header)
 
+// Écouter le changement de promo depuis le rail de navigation
+document.addEventListener('promo:switch', ({ detail }) => {
+  _activePromo = detail.promoId ?? null;
+  setGanttPromo(_activePromo);
+  setRendusPromo(_activePromo);
+  // Re-rendre si la section Travaux est visible
+  if (!document.getElementById('travaux-area')?.classList.contains('hidden')) {
+    renderTravauxSidebar();
+    switchTravauxView(_activeView);
+  }
+});
+
 // ─── Initialisation de la section Travaux ────────────────────────────────────
 
 export async function initTravauxSection() {
@@ -79,11 +91,18 @@ async function renderPromoFilter() {
   const promotions = await call(window.api.getPromotions);
   if (!promotions) return;
 
+  // Synchroniser _activePromo avec la promo sélectionnée dans le rail
+  if (state.activePromoId && _activePromo == null) {
+    _activePromo = state.activePromoId;
+    setGanttPromo(_activePromo);
+    setRendusPromo(_activePromo);
+  }
+
   container.innerHTML = `
     <div class="trv-promo-filter">
-      <button class="trv-promo-btn active" data-promo-id="">Toutes</button>
+      <button class="trv-promo-btn${!_activePromo ? ' active' : ''}" data-promo-id="">Toutes</button>
       ${promotions.map(p => `
-        <button class="trv-promo-btn" data-promo-id="${p.id}">
+        <button class="trv-promo-btn${_activePromo === p.id ? ' active' : ''}" data-promo-id="${p.id}">
           <span class="promo-dot" style="background:${p.color}"></span>
           ${escapeHtml(p.name)}
         </button>

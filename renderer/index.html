@@ -12,6 +12,18 @@
 <body>
 
 <!-- ════════════════════════════════════════
+     BARRE DE TITRE PERSONNALISÉE
+════════════════════════════════════════ -->
+<div id="title-bar">
+  <span id="title-app-name">CESI Classroom</span>
+</div>
+
+<!-- ════════════════════════════════════════
+     CORPS DE L'APPLICATION
+════════════════════════════════════════ -->
+<div id="app-body">
+
+<!-- ════════════════════════════════════════
      RAIL DE NAVIGATION (icônes gauche)
 ════════════════════════════════════════ -->
 <nav id="nav-rail">
@@ -19,6 +31,8 @@
     <div id="nav-logo">
       <div class="logo-mark">CC</div>
     </div>
+    <div id="nav-promo-list"></div>
+    <div class="nav-rail-divider"></div>
     <button class="nav-rail-btn active" id="nav-btn-messages" data-section="messages" title="Messages">
       <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
         <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
@@ -174,6 +188,8 @@
      PANEL DROIT (travaux ou profil)
 ════════════════════════════════════════ -->
 <aside id="right-panel" class="hidden"></aside>
+
+</div><!-- #app-body -->
 
 <!-- ════════════════════════════════════════
      MODAL — DEPOTS D'UN TRAVAIL

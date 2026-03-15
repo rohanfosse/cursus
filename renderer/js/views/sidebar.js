@@ -2,7 +2,7 @@ import { call }        from '../api.js';
 import { state }       from '../state.js';
 import { avatarColor, escapeHtml } from '../utils.js';
 
-// Callbacks injectes par main.js pour ne pas creer de dependances circulaires
+// Callbacks injectes par main.js
 let _onChannel = null;
 let _onDm      = null;
 
@@ -15,7 +15,7 @@ export async function renderSidebar() {
   const nav  = document.getElementById('sidebar-nav');
   const user = state.currentUser;
 
-  // Mettre a jour le badge utilisateur dans le header
+  // Mettre à jour le badge utilisateur dans le header
   const badgeEl = document.getElementById('teacher-badge');
   if (badgeEl && user) {
     const color = user.type === 'teacher' ? 'var(--accent)' : avatarColor(user.name);
@@ -30,44 +30,179 @@ export async function renderSidebar() {
 
   nav.innerHTML = '';
 
-  // ── Vue etudiant — sidebar simplifiee ─────────────────────────────────────
   if (user?.type === 'student') {
+    _clearPromoRail();
     await renderStudentSidebar(nav, user);
     return;
   }
 
-  // ── Vue professeur — toutes les promos ────────────────────────────────────
   await renderTeacherSidebar(nav);
 }
 
 // ─── Sidebar professeur ───────────────────────────────────────────────────────
 
+let _allPromos   = [];
+let _allStudents = [];
+
 async function renderTeacherSidebar(nav) {
-  const promotions  = await call(window.api.getPromotions);
-  const allStudents = await call(window.api.getAllStudents);
-  if (!promotions || !allStudents) return;
+  _allPromos   = (await call(window.api.getPromotions)) ?? [];
+  _allStudents = (await call(window.api.getAllStudents)) ?? [];
 
-  for (const promo of promotions) {
-    const channels = await call(window.api.getChannels, promo.id);
-    if (!channels) continue;
-    const students = allStudents.filter(s => s.promo_id === promo.id);
+  if (!_allPromos.length) return;
 
-    const section = buildPromoSection(promo, channels, students, true);
-    nav.appendChild(section);
+  // Sélectionner la première promo par défaut
+  if (!state.activePromoId || !_allPromos.find(p => p.id === state.activePromoId)) {
+    state.activePromoId = _allPromos[0].id;
   }
 
-  // Bouton "Nouvelle promotion"
+  _renderPromoRail(_allPromos);
+  await _renderTeacherChannels(nav);
+  attachNavDelegation(nav);
+}
+
+// ─── Icônes promo dans le rail ────────────────────────────────────────────────
+
+function _renderPromoRail(promos) {
+  const list = document.getElementById('nav-promo-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  for (const p of promos) {
+    const btn = document.createElement('button');
+    btn.className = `nav-promo-btn${p.id === state.activePromoId ? ' active' : ''}`;
+    btn.style.setProperty('--promo-color', p.color);
+    btn.title    = p.name;
+    btn.dataset.promoId = p.id;
+    btn.textContent = _promoInitials(p.name);
+    btn.addEventListener('click', () => _switchPromo(p.id));
+    list.appendChild(btn);
+  }
+}
+
+function _clearPromoRail() {
+  const list = document.getElementById('nav-promo-list');
+  if (list) list.innerHTML = '';
+  const divider = document.querySelector('.nav-rail-divider');
+  if (divider) divider.style.display = 'none';
+}
+
+function _promoInitials(name) {
+  const m = name.trim().match(/^([A-Za-z]+)(\d+)/);
+  if (m) return (m[1].slice(0, 2) + m[2].slice(-1)).toUpperCase();
+  return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
+// ─── Changement de promotion ──────────────────────────────────────────────────
+
+async function _switchPromo(promoId) {
+  state.activePromoId = promoId;
+
+  // Mettre à jour les icônes
+  document.querySelectorAll('.nav-promo-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.promoId) === promoId);
+  });
+
+  // Mettre à jour le nom de la promo dans le header sidebar
+  const promo = _allPromos.find(p => p.id === promoId);
+  _updateSidebarPromoLabel(promo);
+
+  // Re-rendre les canaux
+  const nav = document.getElementById('sidebar-nav');
+  nav.innerHTML = '';
+  await _renderTeacherChannels(nav);
+  attachNavDelegation(nav);
+
+  // Notifier les autres sections (travaux, etc.)
+  document.dispatchEvent(new CustomEvent('promo:switch', { detail: { promoId } }));
+}
+
+function _updateSidebarPromoLabel(promo) {
+  const header = document.getElementById('sidebar-promo-label');
+  if (!header || !promo) return;
+  header.textContent = promo.name;
+  header.style.setProperty('--promo-color', promo.color);
+}
+
+// ─── Liste plate des canaux pour la promo active ──────────────────────────────
+
+async function _renderTeacherChannels(nav) {
+  const promo = _allPromos.find(p => p.id === state.activePromoId);
+  if (!promo) return;
+
+  const channels = (await call(window.api.getChannels, promo.id)) ?? [];
+  const students  = _allStudents.filter(s => s.promo_id === promo.id);
+
+  // En-tête de la promo sélectionnée dans la sidebar
+  let promoLabel = document.getElementById('sidebar-promo-label');
+  if (!promoLabel) {
+    promoLabel = document.createElement('div');
+    promoLabel.id = 'sidebar-promo-label';
+    promoLabel.className = 'sidebar-promo-label';
+    nav.parentElement?.insertBefore(promoLabel, nav);
+  }
+  promoLabel.textContent = promo.name;
+  promoLabel.style.setProperty('--promo-color', promo.color);
+
+  // Section Canaux
+  if (channels.length) {
+    const lbl = document.createElement('div');
+    lbl.className = 'section-label';
+    lbl.textContent = 'Canaux';
+    nav.appendChild(lbl);
+
+    for (const ch of channels) {
+      const item = document.createElement('div');
+      item.className = 'channel-item';
+      item.dataset.channelId   = ch.id;
+      item.dataset.promoId     = promo.id;
+      item.dataset.channelName = ch.name;
+      item.dataset.channelType = ch.type;
+      item.tabIndex = 0;
+      item.setAttribute('role', 'button');
+      item.innerHTML = `
+        <span class="channel-prefix">#</span>
+        <span>${escapeHtml(ch.name)}</span>
+        ${ch.type === 'annonce' ? '<span class="channel-annonce">Annonce</span>' : ''}
+      `;
+      nav.appendChild(item);
+    }
+  }
+
+  // Section Messages directs
+  if (students.length) {
+    const lbl = document.createElement('div');
+    lbl.className = 'section-label';
+    lbl.style.marginTop = '12px';
+    lbl.textContent = 'Messages directs';
+    nav.appendChild(lbl);
+
+    for (const s of students) {
+      const item = document.createElement('div');
+      item.className = 'dm-item';
+      item.dataset.studentId   = s.id;
+      item.dataset.promoId     = promo.id;
+      item.dataset.studentName = s.name;
+      item.tabIndex = 0;
+      item.setAttribute('role', 'button');
+      item.innerHTML = `
+        <span class="student-avatar-sm" style="background:${avatarColor(s.name)};color:#fff">${escapeHtml(s.avatar_initials)}</span>
+        <span>${escapeHtml(s.name)}</span>
+      `;
+      nav.appendChild(item);
+    }
+  }
+
+  // Bouton nouvelle promotion
   const btnNew = document.createElement('button');
   btnNew.className = 'btn-new-promo';
   btnNew.textContent = '+ Nouvelle promotion';
   btnNew.addEventListener('click', () => openNewPromoForm(nav));
   nav.appendChild(btnNew);
-
-  attachNavDelegation(nav);
 }
 
+// ─── Formulaire nouvelle promotion ───────────────────────────────────────────
+
 function openNewPromoForm(nav) {
-  // Eviter les doublons
   if (document.getElementById('new-promo-form')) return;
 
   const COLORS = ['#4A90D9','#7B68EE','#50C878','#E74C3C','#F39C12','#1ABC9C','#E91E63'];
@@ -118,7 +253,7 @@ function openNewPromoForm(nav) {
   document.getElementById('new-promo-name').focus();
 }
 
-// ─── Sidebar etudiant ─────────────────────────────────────────────────────────
+// ─── Sidebar étudiant ─────────────────────────────────────────────────────────
 
 async function renderStudentSidebar(nav, user) {
   const [channels, promotions, travaux] = await Promise.all([
@@ -134,7 +269,7 @@ async function renderStudentSidebar(nav, user) {
   const section = buildPromoSection(promo, channels, [], false);
   nav.appendChild(section);
 
-  // ── Lien DM professeur ──────────────────────────────────────────────────
+  // Lien DM professeur
   const dmLabel = document.createElement('div');
   dmLabel.className = 'section-label';
   dmLabel.style.marginTop = '12px';
@@ -153,7 +288,7 @@ async function renderStudentSidebar(nav, user) {
   });
   nav.appendChild(dmTeacher);
 
-  // ── Pastilles : canaux avec travaux non rendus ───────────────────────────
+  // Pastilles : canaux avec travaux non rendus
   if (travaux) {
     const pendingChannels = new Set(
       travaux
@@ -172,7 +307,7 @@ async function renderStudentSidebar(nav, user) {
   attachNavDelegation(nav);
 }
 
-// ─── Construction d'une section promo ────────────────────────────────────────
+// ─── Section promo (vue étudiant, collapsible) ────────────────────────────────
 
 function buildPromoSection(promo, channels, students, showDms) {
   const section = document.createElement('div');
@@ -229,7 +364,7 @@ function buildPromoSection(promo, channels, students, showDms) {
   return section;
 }
 
-// ─── Delegation d'evenements sur le nav ──────────────────────────────────────
+// ─── Délégation d'événements sur le nav ──────────────────────────────────────
 
 let _delegationAttached = false;
 
