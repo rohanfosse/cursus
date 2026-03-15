@@ -1,7 +1,7 @@
 const { ipcMain, dialog, shell } = require('electron');
 const fs      = require('fs');
 const path    = require('path');
-const queries = require('./db/queries');
+const queries = require('./db/index');
 
 // Wrapper uniforme : toutes les reponses ont la forme { ok, data } ou { ok: false, error }
 function handle(channel, fn) {

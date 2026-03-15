@@ -1,7 +1,7 @@
 const { app, BrowserWindow } = require('electron');
-const path    = require('path');
-const queries = require('./src/db/queries');
-const ipc     = require('./src/ipc');
+const path = require('path');
+const db   = require('./src/db/index');
+const ipc  = require('./src/ipc');
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -32,8 +32,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  queries.initSchema();
-  queries.seedIfEmpty();
+  db.init();
   ipc.register();
   createWindow();
 
