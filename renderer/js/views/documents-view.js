@@ -399,7 +399,7 @@ function _bindTypeFilter() {
 // ─── Drag & Drop dans le panneau documents ────────────────────────────────────
 
 function _initDragDrop() {
-  const panel = document.getElementById('documents-panel');
+  const panel = document.getElementById('documents-area');
   if (!panel) return;
 
   // Overlay visuel

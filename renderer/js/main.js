@@ -53,11 +53,22 @@ async function onLogin(user) {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
   });
 
-  // ── Fermeture visionneuse document (touche Échap) ─────────────────────────
+  // ── Fermeture des overlays (touche Échap) — du plus haut au plus bas ──────
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      document.getElementById('document-preview-overlay')?.classList.add('hidden');
+    if (e.key !== 'Escape') return;
+    const order = [
+      '#document-preview-overlay',
+      '#modal-gestion-overlay',
+      '#timeline-overlay',
+      '#echeancier-overlay',
+      '#cmd-palette-overlay',
+    ];
+    for (const sel of order) {
+      const el = document.querySelector(sel);
+      if (el && !el.classList.contains('hidden')) { el.classList.add('hidden'); return; }
     }
+    const modal = document.querySelector('.modal-overlay:not(.hidden)');
+    if (modal) modal.classList.add('hidden');
   });
 
   _initResizeHandles();
@@ -89,7 +100,7 @@ async function onLogin(user) {
 
   document.getElementById('nav-btn-messages').addEventListener('click',  () => switchSection('messages'));
   document.getElementById('nav-btn-travaux').addEventListener('click',   () => switchSection('travaux'));
-  document.getElementById('nav-btn-documents').addEventListener('click', () => toggleDocumentsPanel());
+  document.getElementById('nav-btn-documents').addEventListener('click', () => switchSection('documents'));
 
   // Avatar → Paramètres
   document.getElementById('nav-user-avatar').addEventListener('click', () => openSettings());
@@ -152,16 +163,13 @@ async function onLogin(user) {
   const btnEch = document.getElementById('btn-echeancier');
   if (btnEch) btnEch.addEventListener('click', () => openEcheancier());
 
-  // ── Bouton fermeture du panneau Documents ─────────────────────────────────
-  document.getElementById('btn-close-doc-panel')?.addEventListener('click', () => toggleDocumentsPanel(false));
-
   // ── Badge Travaux + écoute de dépôt réussi ───────────────────────────────
   await updateTravauxBadge();
   document.addEventListener('depot:success', () => updateTravauxBadge());
 
   // ── Préférence : Documents ouverts par défaut ─────────────────────────────
   if (getPref('docsOpenByDefault')) {
-    await toggleDocumentsPanel(true);
+    await switchSection('documents');
   }
 
   // ── Fermeture du right-panel en cliquant en dehors (petits écrans) ────────
@@ -172,16 +180,6 @@ async function onLogin(user) {
     if (!panel.contains(e.target)) {
       state.rightPanel = null;
       panel.classList.add('hidden');
-    }
-  });
-
-  // ── Fermeture du panneau Documents en cliquant en dehors (petits écrans) ──
-  document.addEventListener('click', e => {
-    if (window.innerWidth > 1280) return;
-    const panel = document.getElementById('documents-panel');
-    if (!panel || panel.classList.contains('hidden')) return;
-    if (!panel.contains(e.target) && !document.getElementById('nav-btn-documents').contains(e.target)) {
-      toggleDocumentsPanel(false);
     }
   });
 
@@ -203,24 +201,6 @@ async function updateTravauxBadge() {
   badge.textContent = pending.length > 9 ? '9+' : String(pending.length || '');
 }
 
-// ─── Panneau Documents (toggle) ──────────────────────────────────────────────
-
-let _documentsOpen = false;
-
-async function toggleDocumentsPanel(forceOpen) {
-  const shouldOpen = forceOpen !== undefined ? forceOpen : !_documentsOpen;
-  if (shouldOpen === _documentsOpen) return;
-  _documentsOpen = shouldOpen;
-
-  const panel = document.getElementById('documents-panel');
-  panel.classList.toggle('hidden', !_documentsOpen);
-  document.getElementById('nav-btn-documents').classList.toggle('active', _documentsOpen);
-
-  if (_documentsOpen) {
-    await initDocumentsSection();
-  }
-}
-
 // ─── Basculer entre Messages / Travaux ───────────────────────────────────────
 
 let _currentSection = 'messages';
@@ -229,18 +209,25 @@ async function switchSection(section) {
   if (_currentSection === section) return;
   _currentSection = section;
 
-  document.getElementById('nav-btn-messages').classList.toggle('active', section === 'messages');
-  document.getElementById('nav-btn-travaux').classList.toggle('active',  section === 'travaux');
+  document.getElementById('nav-btn-messages').classList.toggle('active',  section === 'messages');
+  document.getElementById('nav-btn-travaux').classList.toggle('active',   section === 'travaux');
+  document.getElementById('nav-btn-documents').classList.toggle('active', section === 'documents');
 
   document.getElementById('sidebar-section-messages').classList.toggle('hidden', section !== 'messages');
   document.getElementById('sidebar-section-travaux').classList.toggle('hidden',  section !== 'travaux');
+  document.getElementById('sidebar-section-documents').classList.toggle('hidden', section !== 'documents');
 
-  document.getElementById('main-area').classList.toggle('hidden',    section !== 'messages');
-  document.getElementById('travaux-area').classList.toggle('hidden', section !== 'travaux');
+  document.getElementById('main-area').classList.toggle('hidden',      section !== 'messages');
+  document.getElementById('travaux-area').classList.toggle('hidden',   section !== 'travaux');
+  document.getElementById('documents-area').classList.toggle('hidden', section !== 'documents');
+
   if (section !== 'messages') document.getElementById('channel-pending-banner')?.remove();
 
   if (section === 'travaux') {
     await initTravauxSection();
+  }
+  if (section === 'documents') {
+    await initDocumentsSection();
   }
 }
 
@@ -248,7 +235,6 @@ async function switchSection(section) {
 
 function _initResizeHandles() {
   _makeResizable('right-panel',     250, 650);
-  _makeResizable('documents-panel', 220, 650);
 }
 
 function _makeResizable(panelId, minW, maxW) {

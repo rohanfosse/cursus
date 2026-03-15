@@ -105,8 +105,11 @@
     <div id="travaux-nav"></div>
   </div>
 
-  <!-- Section DOCUMENTS (vide — navigation déplacée dans #documents-panel) -->
-  <div id="sidebar-section-documents" class="hidden"></div>
+  <!-- Section DOCUMENTS -->
+  <div id="sidebar-section-documents" class="hidden">
+    <div id="doc-promo-filter"></div>
+    <div id="doc-channel-nav"></div>
+  </div>
 </aside>
 
 <!-- ════════════════════════════════════════
@@ -163,7 +166,7 @@
   <footer id="message-input-area">
     <div id="message-input-wrapper">
       <textarea id="message-input" placeholder="Envoyer un message…" rows="1"></textarea>
-      <button id="btn-send" title="Envoyer (Entree)">
+      <button id="btn-send" title="Envoyer (Entree)" aria-label="Envoyer le message">
         <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
           <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
         </svg>
@@ -193,26 +196,19 @@
   </div>
 </section>
 
-<!-- ════════════════════════════════════════
-     ZONE DOCUMENTS — placeholder (remplacé par #documents-panel)
-════════════════════════════════════════ -->
-<section id="documents-area" class="hidden"></section>
-
-<!-- ════════════════════════════════════════
-     PANNEAU DOCUMENTS (colonne latérale)
-════════════════════════════════════════ -->
-<aside id="documents-panel" class="hidden">
-  <div id="doc-panel-header">
-    <span id="documents-area-channel-name">Documents</span>
-    <div class="doc-panel-header-actions">
-      <button id="btn-add-doc" class="btn-primary" style="display:none;font-size:11px;padding:3px 8px">+ Doc</button>
-      <button id="btn-close-doc-panel" class="btn-ghost" style="font-size:13px;padding:4px 8px" title="Fermer">✕</button>
+<!-- ════════════════════════════════════════════
+     ZONE DOCUMENTS (section principale)
+════════════════════════════════════════════ -->
+<section id="documents-area" class="hidden">
+  <header id="documents-area-header">
+    <div id="documents-area-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <span id="documents-area-channel-name">Documents</span>
     </div>
-  </div>
-  <div id="doc-panel-nav">
-    <div id="doc-promo-filter"></div>
-    <div id="doc-channel-nav"></div>
-  </div>
+    <div id="documents-area-actions">
+      <button id="btn-add-doc" class="btn-primary" style="display:none;font-size:11px;padding:3px 8px" aria-label="Ajouter un document">+ Doc</button>
+    </div>
+  </header>
   <div id="doc-panel-search">
     <input type="text" id="doc-search-input" class="doc-search-input" placeholder="Rechercher…" autocomplete="off" />
   </div>
@@ -223,7 +219,8 @@
     <button class="doc-filter-btn" data-filter="link">Liens</button>
   </div>
   <div id="documents-main-content"></div>
-</aside>
+</section>
+
 
 <!-- ════════════════════════════════════════
      PANEL DROIT (travaux ou profil)
@@ -635,10 +632,10 @@
           <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
           Télécharger
         </button>
-        <button id="doc-preview-open-ext" class="btn-ghost" style="font-size:12px" title="Ouvrir dans une app externe">
+        <button id="doc-preview-open-ext" class="btn-ghost" style="font-size:12px" title="Ouvrir dans une app externe" aria-label="Ouvrir dans une app externe">
           <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
         </button>
-        <button id="doc-preview-close" class="btn-ghost" style="font-size:16px;padding:4px 10px">✕</button>
+        <button id="doc-preview-close" class="btn-ghost" aria-label="Fermer la visionneuse" style="font-size:16px;padding:4px 10px">✕</button>
       </div>
     </div>
     <div id="doc-preview-body"></div>

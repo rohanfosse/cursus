@@ -37,6 +37,8 @@
   color: var(--text-secondary);
   cursor: pointer;
   padding: 6px 8px;
+  min-width: 36px;
+  min-height: 36px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -44,6 +46,29 @@
   transition: background .15s, color .15s;
 }
 .btn-icon:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* Bouton de fermeture de modale (icône ✕) */
+.btn-close-modal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .14s, color .14s;
+}
+.btn-close-modal:hover {
+  background: rgba(255,255,255,.08);
+  color: var(--text-primary);
+}
 
 #btn-send {
   background: var(--accent);
@@ -206,8 +231,8 @@
 }
 .travail-card:hover { border-color: var(--accent); background: var(--bg-light); }
 
-.travail-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.travail-desc  { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.4; }
+.travail-title { font-weight: 600; font-size: 13px; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.travail-desc  { font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.4; }
 
 .travail-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
 
@@ -2082,7 +2107,7 @@
   font-size: 13px;
   padding: 6px 12px;
   outline: none;
-  width: 220px;
+  width: 100%;
 }
 .doc-search-input:focus { border-color: var(--accent); }
 .doc-search-input::placeholder { color: var(--text-muted); }
@@ -2949,33 +2974,14 @@ button:focus-visible {
   transform: translateX(18px);
 }
 
-/* ── Panneau documents — ajustements dans la colonne étroite ── */
-#doc-panel-nav .doc-promo-btn {
+/* ── Sidebar documents — navigation dans la colonne étroite ── */
+#sidebar-section-documents .doc-promo-btn {
   padding: 6px 10px;
   font-size: 11px;
 }
-#doc-panel-nav .doc-channel-item {
+#sidebar-section-documents .doc-channel-item {
   padding: 6px 10px;
   font-size: 12px;
-}
-#documents-panel .doc-search-input {
-  width: 100%;
-  box-sizing: border-box;
-}
-#documents-panel .doc-card {
-  padding: 10px;
-  gap: 8px;
-}
-#documents-panel .doc-card-icon {
-  width: 34px;
-  height: 34px;
-}
-#documents-panel .doc-card-meta {
-  font-size: 10px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 180px;
 }
 .gd-empty-ok { color: var(--color-success); font-style: normal; font-weight: 500; }
 
