@@ -73,11 +73,8 @@
     <div id="travaux-nav"></div>
   </div>
 
-  <!-- Section DOCUMENTS -->
-  <div id="sidebar-section-documents" class="hidden">
-    <div id="doc-promo-filter"></div>
-    <div id="doc-channel-nav"></div>
-  </div>
+  <!-- Section DOCUMENTS (vide — navigation déplacée dans #documents-panel) -->
+  <div id="sidebar-section-documents" class="hidden"></div>
 </aside>
 
 <!-- ════════════════════════════════════════
@@ -148,20 +145,30 @@
 </section>
 
 <!-- ════════════════════════════════════════
-     ZONE DOCUMENTS (section Documents)
+     ZONE DOCUMENTS — placeholder (remplacé par #documents-panel)
 ════════════════════════════════════════ -->
-<section id="documents-area" class="hidden">
-  <header id="documents-area-header">
-    <div id="documents-area-title">
-      <span id="documents-area-channel-name">Documents</span>
+<section id="documents-area" class="hidden"></section>
+
+<!-- ════════════════════════════════════════
+     PANNEAU DOCUMENTS (colonne latérale)
+════════════════════════════════════════ -->
+<aside id="documents-panel" class="hidden">
+  <div id="doc-panel-header">
+    <span id="documents-area-channel-name">Documents</span>
+    <div class="doc-panel-header-actions">
+      <button id="btn-add-doc" class="btn-primary" style="display:none;font-size:11px;padding:3px 8px">+ Doc</button>
+      <button id="btn-close-doc-panel" class="btn-ghost" style="font-size:13px;padding:4px 8px" title="Fermer">✕</button>
     </div>
-    <div id="documents-area-actions">
-      <input type="text" id="doc-search-input" class="doc-search-input" placeholder="Rechercher…" autocomplete="off" />
-      <button id="btn-add-doc" class="btn-primary" style="display:none">+ Ajouter</button>
-    </div>
-  </header>
+  </div>
+  <div id="doc-panel-nav">
+    <div id="doc-promo-filter"></div>
+    <div id="doc-channel-nav"></div>
+  </div>
+  <div id="doc-panel-search">
+    <input type="text" id="doc-search-input" class="doc-search-input" placeholder="Rechercher…" autocomplete="off" />
+  </div>
   <div id="documents-main-content"></div>
-</section>
+</aside>
 
 <!-- ════════════════════════════════════════
      PANEL DROIT (travaux ou profil)
@@ -512,6 +519,49 @@
     <div id="gd-body">
       <div id="gd-rendus-section"  class="gd-section"></div>
       <div id="gd-attente-section" class="gd-section"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     MODAL — PARAMÈTRES
+════════════════════════════════════════ -->
+<div id="modal-settings-overlay" class="modal-overlay hidden">
+  <div class="modal modal-settings">
+    <div class="modal-header">
+      <h3>Paramètres</h3>
+      <button id="modal-settings-close" class="btn-ghost">Fermer</button>
+    </div>
+    <div class="settings-layout">
+      <nav class="settings-nav">
+        <button class="settings-nav-item active" data-section="general">Général</button>
+        <button class="settings-nav-item" data-section="appearance">Apparence</button>
+      </nav>
+      <div class="settings-content">
+
+        <!-- Section : Général -->
+        <div class="settings-section" id="settings-section-general">
+          <h4 class="settings-section-title">Général</h4>
+
+          <div class="settings-option">
+            <div class="settings-option-info">
+              <span class="settings-option-name">Documents ouverts par défaut</span>
+              <span class="settings-option-desc">La colonne Documents s'ouvre automatiquement au démarrage de l'application.</span>
+            </div>
+            <label class="settings-toggle-label">
+              <input type="checkbox" id="settings-docs-default" class="settings-checkbox" />
+              <span class="settings-toggle-switch"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Section : Apparence -->
+        <div class="settings-section hidden" id="settings-section-appearance">
+          <h4 class="settings-section-title">Apparence</h4>
+          <p class="settings-placeholder">Options à venir…</p>
+        </div>
+
+      </div>
     </div>
   </div>
 </div>

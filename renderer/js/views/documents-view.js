@@ -7,6 +7,7 @@ let _activeChannelId   = null;
 let _activeChannelName = '';
 let _searchQuery       = '';
 let _isTeacher         = false;
+let _navInitialized    = false; // évite de re-lier les écouteurs promo/canal
 
 // ─── Initialisation ───────────────────────────────────────────────────────────
 
@@ -16,7 +17,10 @@ export async function initDocumentsSection() {
   const btnAdd = document.getElementById('btn-add-doc');
   if (btnAdd) btnAdd.style.display = _isTeacher ? '' : 'none';
 
-  await renderDocumentsSidebar();
+  if (!_navInitialized) {
+    _navInitialized = true;
+    await renderDocumentsSidebar();
+  }
 }
 
 // ─── Sidebar (promo + canaux) ──────────────────────────────────────────────────

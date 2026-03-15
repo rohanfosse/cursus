@@ -496,33 +496,37 @@ body {
   scrollbar-color: var(--bg-active) transparent;
 }
 
-/* ── Zone Documents ── */
-#documents-area {
-  flex: 1;
+/* ── Zone Documents (legacy placeholder — masqué) ── */
+#documents-area { display: none; }
+
+/* ── Panneau Documents (colonne latérale) ── */
+#documents-panel {
+  width: 300px;
+  min-width: 300px;
+  background: var(--bg-dark);
+  border-left: 1px solid rgba(255,255,255,.07);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  transition: width .2s ease, min-width .2s ease;
+}
+#documents-panel.hidden {
+  width: 0;
   min-width: 0;
-  background: var(--bg-main);
+  border: none;
   overflow: hidden;
 }
 
-#documents-area-header {
+#doc-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 0 20px;
+  padding: 0 12px;
   height: var(--header-height);
   border-bottom: 1px solid rgba(255,255,255,.07);
   flex-shrink: 0;
-}
-
-#documents-area-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-primary);
   min-width: 0;
 }
@@ -531,19 +535,49 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
-#documents-area-actions {
+.doc-panel-header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+#doc-panel-nav {
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  flex-shrink: 0;
+  max-height: 190px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-active) transparent;
+}
+
+#doc-panel-search {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
   flex-shrink: 0;
 }
 
 #documents-main-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 14px 12px;
   scrollbar-width: thin;
   scrollbar-color: var(--bg-active) transparent;
+}
+
+@media (max-width: 1280px) {
+  #documents-panel:not(.hidden) {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 300px;
+    z-index: 200;
+    box-shadow: -4px 0 24px rgba(0,0,0,.5);
+  }
+  #documents-panel.hidden { display: none; }
 }
