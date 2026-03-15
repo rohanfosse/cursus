@@ -2,6 +2,7 @@ import { call }        from '../api.js';
 import { state }       from '../state.js';
 import { avatarColor, escapeHtml, showToast, deadlineClass } from '../utils.js';
 import { refreshLucide } from '../lucide.js';
+import { showSkeleton }  from '../loading.js';
 
 // Callbacks injectes par main.js
 let _onChannel = null;
@@ -14,6 +15,7 @@ export function initSidebar({ onChannel, onDm }) {
 }
 
 export async function renderSidebar() {
+  showSkeleton('sidebar-nav', 'sidebar');
   const nav  = document.getElementById('sidebar-nav');
   const user = state.currentUser;
 
@@ -29,8 +31,6 @@ export async function renderSidebar() {
       </div>
     `;
   }
-
-  nav.innerHTML = '';
 
   const channelsHeader = document.getElementById('sidebar-channels-header');
 
@@ -54,6 +54,7 @@ async function renderTeacherSidebar(nav) {
   _allPromos   = (await call(window.api.getPromotions)) ?? [];
   _allStudents = (await call(window.api.getAllStudents)) ?? [];
 
+  nav.innerHTML = '';
   if (!_allPromos.length) return;
 
   // Sélectionner la première promo par défaut
@@ -271,6 +272,7 @@ async function renderStudentSidebar(nav, user) {
     call(window.api.getPromotions),
     call(window.api.getStudentTravaux, user.id),
   ]);
+  nav.innerHTML = '';
   if (!channels || !promotions) return;
 
   const promo = promotions.find(p => p.id === user.promo_id);

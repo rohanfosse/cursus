@@ -3960,3 +3960,67 @@ button:focus-visible {
   margin-right: 4px;
   white-space: nowrap;
 }
+
+/* ════════════════════════════════════════════
+   SQUELETTES DE CHARGEMENT
+════════════════════════════════════════════ */
+
+@keyframes skel-pulse {
+  0%, 100% { opacity: .45; }
+  50%       { opacity: .2;  }
+}
+
+.skel {
+  background: var(--bg-active);
+  border-radius: 4px;
+  animation: skel-pulse 1.4s ease-in-out infinite;
+}
+
+.skel-line {
+  height: 12px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+}
+
+.skel-w30 { width: 30%; }
+.skel-w50 { width: 50%; }
+.skel-w70 { width: 70%; }
+.skel-w90 { width: 90%; }
+
+.skel-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skel-avatar-sm {
+  width: 20px;
+  height: 20px;
+}
+
+/* Rangée squelette pour messages */
+.skel-msg-row {
+  display: flex;
+  gap: 10px;
+  padding: 10px 16px;
+  align-items: flex-start;
+}
+
+.skel-msg-body {
+  flex: 1;
+  padding-top: 4px;
+}
+
+/* Rangée squelette pour la sidebar */
+.skel-list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+}
+
+/* Groupe squelette (titre + liste) */
+.skel-zone {
+  padding: 8px 4px;
+}

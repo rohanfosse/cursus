@@ -1,6 +1,7 @@
 import { call }        from '../api.js';
 import { state }       from '../state.js';
 import { showToast }   from '../utils.js';
+import { showSkeleton } from '../loading.js';
 import {
   formatTime, formatDateSeparator,
   avatarColor, escapeHtml, highlightTerm,
@@ -194,7 +195,8 @@ function _showPicker(btn, msgId) {
 
 export async function renderMessages(searchTerm = '') {
   const list = document.getElementById('messages-list');
-  list.innerHTML = '';
+
+  if (!searchTerm) showSkeleton('messages-list', 'messages');
 
   let messages = null;
 
@@ -222,6 +224,7 @@ export async function renderMessages(searchTerm = '') {
     return;
   }
 
+  list.innerHTML = '';
   let lastDateStr = null;
   let prevAuthor  = null;
   let prevTime    = null;

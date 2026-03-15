@@ -1,5 +1,7 @@
 // Etat global de l'application — source de verite unique
-export const state = {
+// Proxy reactif : state.X = value declenche automatiquement les abonnes
+
+const _data = {
   // Identite connectee
   currentUser: null,          // { id, name, avatar_initials, type: 'teacher'|'student', promo_id, promo_name }
 
@@ -20,3 +22,19 @@ export const state = {
   // Non-lus (channelId -> count)
   unread:             {},
 };
+
+const _subs = {};
+
+/** S'abonner aux changements d'une clé. Retourne une fonction de désabonnement. */
+export function subscribe(key, fn) {
+  (_subs[key] ??= new Set()).add(fn);
+  return () => _subs[key]?.delete(fn);
+}
+
+export const state = new Proxy(_data, {
+  set(target, key, value) {
+    target[key] = value;
+    _subs[key]?.forEach(fn => fn(value));
+    return true;
+  },
+});
