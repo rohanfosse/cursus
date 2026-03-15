@@ -3,6 +3,29 @@ import { state }     from '../state.js';
 import { showToast, avatarColor, escapeHtml, formatDate, makeAvatar, formatGrade, gradeClass } from '../utils.js';
 import { renderTravaux } from './travaux.js';
 
+// ─── Helper : pills de liens ──────────────────────────────────────────────────
+
+function _hostLabel(url) {
+  try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
+}
+
+function _depotLinkPills(linkUrl, deployUrl) {
+  let html = '';
+  if (linkUrl) {
+    html += `<button class="link-pill-btn link-pill-repo" data-url="${escapeHtml(linkUrl)}" title="${escapeHtml(linkUrl)}">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+      ${escapeHtml(_hostLabel(linkUrl))}
+    </button>`;
+  }
+  if (deployUrl) {
+    html += `<button class="link-pill-btn link-pill-deploy" data-url="${escapeHtml(deployUrl)}" title="${escapeHtml(deployUrl)}">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+      ${escapeHtml(_hostLabel(deployUrl))}
+    </button>`;
+  }
+  return html;
+}
+
 // ─── Modal depots ─────────────────────────────────────────────────────────────
 
 export async function openDepotsModal(travail) {
@@ -55,7 +78,10 @@ export async function renderDepots(travailId) {
     info.className = 'depot-info';
     info.innerHTML = `
       <div class="depot-student">${escapeHtml(d.student_name)}</div>
-      <div class="depot-file" title="${escapeHtml(d.file_name)}">${escapeHtml(d.file_name)}</div>
+      ${d.link_url
+        ? `<div class="depot-link-pills">${_depotLinkPills(d.link_url, d.deploy_url)}</div>`
+        : `<div class="depot-file" title="${escapeHtml(d.file_name)}">${escapeHtml(d.file_name)}</div>`
+      }
       <div class="depot-date">Depose le ${formatDate(d.submitted_at)}</div>
       ${d.feedback ? `<div class="depot-feedback">${escapeHtml(d.feedback)}</div>` : ''}
     `;
@@ -167,6 +193,12 @@ export function bindNoteModal() {
 
 export function bindDepotsModal() {
   const overlay = document.getElementById('modal-depots-overlay');
+
+  // Délégation pour les pills de liens (ouvrir dans le navigateur externe)
+  overlay.addEventListener('click', e => {
+    const pill = e.target.closest('.link-pill-btn[data-url]');
+    if (pill) { call(window.api.openExternal, pill.dataset.url); return; }
+  });
 
   document.getElementById('modal-depots-close').addEventListener('click', () => {
     overlay.classList.add('hidden');

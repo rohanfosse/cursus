@@ -165,6 +165,12 @@ function migrate(db) {
   // Messages épinglés
   if (!col('messages').includes('pinned'))
     db.exec('ALTER TABLE messages ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
+
+  // Dépôts par lien (GitHub, Figma, Vercel…)
+  if (!col('depots').includes('link_url'))
+    db.exec('ALTER TABLE depots ADD COLUMN link_url TEXT');
+  if (!col('depots').includes('deploy_url'))
+    db.exec('ALTER TABLE depots ADD COLUMN deploy_url TEXT');
 }
 
 // ─── Seed ────────────────────────────────────────────────────────────────────
@@ -852,7 +858,7 @@ function getTravauxSuivi(travailId) {
   return getDb().prepare(`
     SELECT
       s.id AS student_id, s.name AS student_name, s.avatar_initials, s.photo_data,
-      d.id AS depot_id, d.file_name, d.file_path,
+      d.id AS depot_id, d.file_name, d.file_path, d.link_url, d.deploy_url,
       d.note, d.feedback, d.submitted_at,
       tgm.group_id   AS travail_group_id,
       tg.name        AS travail_group_name
@@ -905,7 +911,7 @@ function getStudentTravaux(studentId) {
       t.id, t.title, t.description, t.deadline, t.group_id, t.category, t.type,
       ch.name AS channel_name, ch.id AS channel_id,
       tgm_g.name AS group_name,
-      d.id    AS depot_id, d.file_name, d.note, d.feedback, d.submitted_at
+      d.id    AS depot_id, d.file_name, d.link_url, d.deploy_url, d.note, d.feedback, d.submitted_at
     FROM students s
     JOIN channels ch ON ch.promo_id = s.promo_id AND ch.type = 'chat'
     JOIN travaux t   ON t.channel_id = ch.id
@@ -934,15 +940,17 @@ function getDepots(travailId) {
   `).all(travailId);
 }
 
-function addDepot({ travailId, studentId, fileName, filePath }) {
+function addDepot({ travailId, studentId, fileName, filePath, linkUrl, deployUrl }) {
   return getDb().prepare(`
-    INSERT INTO depots (travail_id, student_id, file_name, file_path)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO depots (travail_id, student_id, file_name, file_path, link_url, deploy_url)
+    VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(travail_id, student_id) DO UPDATE SET
       file_name    = excluded.file_name,
+      link_url     = excluded.link_url,
+      deploy_url   = excluded.deploy_url,
       file_path    = excluded.file_path,
       submitted_at = datetime('now', 'localtime')
-  `).run(travailId, studentId, fileName, filePath);
+  `).run(travailId, studentId, fileName ?? '🔗 Lien web', filePath ?? '', linkUrl ?? null, deployUrl ?? null);
 }
 
 function setNote({ depotId, note }) {

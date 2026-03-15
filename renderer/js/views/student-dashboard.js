@@ -10,6 +10,10 @@ import { renderRessourcesInline } from './ressources.js';
 // ─── État de l'onglet actif ────────────────────────────────────────────────
 let _activeTab = 'todo'; // 'todo' | 'waiting' | 'graded'
 
+// ─── Mode de dépôt par travail ────────────────────────────────────────────
+// Persiste entre les re-renders pour ne pas reset le toggle au refresh
+const _depotMode = new Map(); // travailId -> 'file' | 'link'
+
 // ─── Dépôt de fichier (partagé, exporté) ─────────────────────────────────────
 
 export async function deposerFichier(travail, onSuccess = null, preselectedPath = null) {
@@ -40,6 +44,27 @@ export async function deposerFichier(travail, onSuccess = null, preselectedPath 
     await onSuccess();
   } else {
     await renderStudentTravaux();
+  }
+}
+
+// ─── Soumission d'un lien (GitHub, Figma, Vercel…) ───────────────────────────
+
+export async function soumettreLien(travail, linkUrl, deployUrl, onSuccess = null) {
+  const ok = await call(window.api.addDepot, {
+    travailId: travail.id,
+    studentId: state.currentUser.id,
+    linkUrl,
+    deployUrl: deployUrl || null,
+  });
+  if (ok === null) return;
+
+  showToast('Lien soumis !', 'success');
+  document.dispatchEvent(new CustomEvent('depot:success'));
+
+  if (onSuccess) {
+    await onSuccess();
+  } else {
+    await renderStudentDashboard(document.getElementById('student-travaux-container'));
   }
 }
 
@@ -247,9 +272,29 @@ function _buildARendreCard(t, container) {
     <div class="std-card-res" id="std-res-${t.id}"></div>
   `;
 
-  // ── Zone de dépôt avec Drag & Drop ───────────────────────────────────────
+  const refresh = async () => {
+    if (container) await renderStudentDashboard(container);
+  };
+
+  // ── Toggle Fichier / Lien ─────────────────────────────────────────────────
+  const mode = _depotMode.get(t.id) ?? 'file';
+
+  const toggleWrap = document.createElement('div');
+  toggleWrap.className = 'depot-type-toggle';
+  toggleWrap.innerHTML = `
+    <button class="depot-toggle-btn${mode === 'file' ? ' active' : ''}" data-mode="file">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+      Fichier local
+    </button>
+    <button class="depot-toggle-btn${mode === 'link' ? ' active' : ''}" data-mode="link">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+      Lien web
+    </button>
+  `;
+
+  // ── Zone Fichier ──────────────────────────────────────────────────────────
   const dropZone = document.createElement('div');
-  dropZone.className = `std-drop-zone${isLate ? ' std-drop-zone-late' : ''}`;
+  dropZone.className = `std-drop-zone${isLate ? ' std-drop-zone-late' : ''}${mode === 'link' ? ' hidden' : ''}`;
   dropZone.tabIndex = 0;
   dropZone.setAttribute('role', 'button');
   dropZone.setAttribute('aria-label', 'Déposer un fichier');
@@ -263,11 +308,6 @@ function _buildARendreCard(t, container) {
     </button>
   `;
 
-  const refresh = async () => {
-    if (container) await renderStudentDashboard(container);
-  };
-
-  // Drag & Drop
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('std-drop-active'); });
   dropZone.addEventListener('dragleave', () => dropZone.classList.remove('std-drop-active'));
   dropZone.addEventListener('drop', async e => {
@@ -276,19 +316,69 @@ function _buildARendreCard(t, container) {
     const file = e.dataTransfer.files[0];
     if (file) await deposerFichier(t, refresh, file.path);
   });
-
-  // Bouton parcourir
   dropZone.querySelector('.std-btn-deposer').addEventListener('click', e => {
     e.stopPropagation();
     deposerFichier(t, refresh);
   });
-
-  // Accessibilité clavier sur la zone
   dropZone.addEventListener('keydown', e => {
     if (e.key === 'Enter') dropZone.querySelector('.std-btn-deposer').click();
   });
 
+  // ── Formulaire Lien ───────────────────────────────────────────────────────
+  const linkForm = document.createElement('div');
+  linkForm.className = `depot-link-form${mode === 'file' ? ' hidden' : ''}`;
+  linkForm.innerHTML = `
+    <div class="depot-link-field">
+      <label class="depot-link-label">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+        Code source <span class="depot-link-required">*</span>
+      </label>
+      <input class="depot-link-input" id="link-main-${t.id}" type="url"
+        placeholder="https://github.com/votre-repo  |  https://www.figma.com/…"
+        autocomplete="off" spellcheck="false">
+    </div>
+    <div class="depot-link-field">
+      <label class="depot-link-label">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+        Version en ligne <span class="depot-link-optional">(optionnel)</span>
+      </label>
+      <input class="depot-link-input" id="link-deploy-${t.id}" type="url"
+        placeholder="https://mon-projet.vercel.app  |  https://netlify.app/…"
+        autocomplete="off" spellcheck="false">
+    </div>
+    <button class="btn-primary depot-link-submit${isLate ? ' std-btn-late' : ''}">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+      ${isLate ? 'Soumettre (en retard)' : 'Soumettre le lien'}
+    </button>
+    <p class="depot-link-error hidden" id="link-err-${t.id}">Veuillez saisir l'URL du code source.</p>
+  `;
+
+  linkForm.querySelector('.depot-link-submit').addEventListener('click', async () => {
+    const mainUrl   = linkForm.querySelector(`#link-main-${t.id}`).value.trim();
+    const deployUrl = linkForm.querySelector(`#link-deploy-${t.id}`).value.trim();
+    const errEl     = linkForm.querySelector(`#link-err-${t.id}`);
+    if (!mainUrl) { errEl.classList.remove('hidden'); return; }
+    errEl.classList.add('hidden');
+    await soumettreLien(t, mainUrl, deployUrl || null, refresh);
+  });
+
+  // ── Branchement du toggle ─────────────────────────────────────────────────
+  toggleWrap.addEventListener('click', e => {
+    const btn = e.target.closest('.depot-toggle-btn');
+    if (!btn) return;
+    const newMode = btn.dataset.mode;
+    if (_depotMode.get(t.id) === newMode) return;
+    _depotMode.set(t.id, newMode);
+    toggleWrap.querySelectorAll('.depot-toggle-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === newMode)
+    );
+    dropZone.classList.toggle('hidden', newMode === 'link');
+    linkForm.classList.toggle('hidden', newMode === 'file');
+  });
+
+  card.appendChild(toggleWrap);
   card.appendChild(dropZone);
+  card.appendChild(linkForm);
   renderRessourcesInline(t.id, card.querySelector(`#std-res-${t.id}`));
   return card;
 }
@@ -336,8 +426,11 @@ function _buildAttenteCard(t, container) {
     <div class="std-card-title">${escapeHtml(t.title)}</div>
     <div class="std-card-meta">#${escapeHtml(t.channel_name)}</div>
     <div class="std-card-file">
-      <span class="std-file-icon">📄</span>
-      <span class="std-file-name" title="${escapeHtml(t.file_name)}">${escapeHtml(t.file_name)}</span>
+      ${t.link_url
+        ? _buildLinkPills(t.link_url, t.deploy_url)
+        : `<span class="std-file-icon">📄</span>
+           <span class="std-file-name" title="${escapeHtml(t.file_name)}">${escapeHtml(t.file_name)}</span>`
+      }
       <span class="stc-pending-note">En attente de note</span>
     </div>
     <div class="std-card-deadline">Déposé le ${formatDate(t.submitted_at)}</div>
@@ -472,10 +565,32 @@ function _makePanelCard(t) {
   return card;
 }
 
+function _buildLinkPills(linkUrl, deployUrl) {
+  const pills = [];
+  if (linkUrl) {
+    const host = (() => { try { return new URL(linkUrl).hostname.replace('www.',''); } catch { return 'Code'; } })();
+    pills.push(`<a class="link-pill-btn link-pill-repo" href="${escapeHtml(linkUrl)}" target="_blank" title="${escapeHtml(linkUrl)}">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+      ${escapeHtml(host)}
+    </a>`);
+  }
+  if (deployUrl) {
+    const host2 = (() => { try { return new URL(deployUrl).hostname.replace('www.',''); } catch { return 'Démo'; } })();
+    pills.push(`<a class="link-pill-btn link-pill-deploy" href="${escapeHtml(deployUrl)}" target="_blank" title="${escapeHtml(deployUrl)}">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+      ${escapeHtml(host2)}
+    </a>`);
+  }
+  return `<div class="link-pills-wrap">${pills.join('')}</div>`;
+}
+
 function _renderRenduInfo(t) {
   return `
     <div class="stc-rendu-info">
-      <span class="stc-file-name" title="${escapeHtml(t.file_name)}">${escapeHtml(t.file_name)}</span>
+      ${t.link_url
+        ? _buildLinkPills(t.link_url, t.deploy_url)
+        : `<span class="stc-file-name" title="${escapeHtml(t.file_name)}">${escapeHtml(t.file_name)}</span>`
+      }
       <span class="stc-submitted-at">Depose le ${formatDate(t.submitted_at)}</span>
       ${t.note != null
         ? `<span class="note-badge ${gradeClass(t.note)}">${formatGrade(t.note)}</span>`
