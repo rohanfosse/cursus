@@ -1,4 +1,17 @@
-const { app, BrowserWindow } = require('electron');
+console.log('[DEBUG] process.type:', process.type);
+console.log('[DEBUG] process.versions.electron:', process.versions.electron);
+console.log('[DEBUG] Module cache for electron:', require.cache['electron'] ? 'cached' : 'not cached');
+
+// In Electron, the built-in 'electron' module should be accessible.
+// If node_modules/electron/index.js is being loaded instead, we bypass it.
+const Module = require('module');
+const _resolveFilename = Module._resolveFilename.bind(Module);
+console.log('[DEBUG] Module._resolveFilename for electron:', _resolveFilename('electron', module));
+
+const electron = require('electron');
+console.log('[DEBUG] typeof electron:', typeof electron);
+console.log('[DEBUG] electron value (first 100):', String(electron).slice(0, 100));
+const { app, BrowserWindow } = electron;
 const path    = require('path');
 const queries = require('./src/db/queries');
 const ipc     = require('./src/ipc');
