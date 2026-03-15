@@ -1,33 +1,37 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Chaque appel renvoie { ok: bool, data?, error? }.
-// Le renderer est responsable de verifier result.ok avant d'utiliser result.data.
-
 function invoke(channel, ...args) {
   return ipcRenderer.invoke(channel, ...args);
 }
 
 contextBridge.exposeInMainWorld('api', {
-  // Promotions & structure
-  getPromotions:      ()          => invoke('db:getPromotions'),
-  getChannels:        (promoId)   => invoke('db:getChannels',   promoId),
-  getStudents:        (promoId)   => invoke('db:getStudents',   promoId),
-  getAllStudents:      ()          => invoke('db:getAllStudents'),
+  // Structure
+  getPromotions:      ()               => invoke('db:getPromotions'),
+  getChannels:        (promoId)        => invoke('db:getChannels',       promoId),
+  getStudents:        (promoId)        => invoke('db:getStudents',       promoId),
+  getAllStudents:      ()               => invoke('db:getAllStudents'),
 
   // Messages
-  getChannelMessages: (channelId) => invoke('db:getChannelMessages', channelId),
-  getDmMessages:      (studentId) => invoke('db:getDmMessages',      studentId),
-  sendMessage:        (payload)   => invoke('db:sendMessage',        payload),
+  getChannelMessages: (channelId)      => invoke('db:getChannelMessages', channelId),
+  getDmMessages:      (studentId)      => invoke('db:getDmMessages',      studentId),
+  searchMessages:     (channelId, q)   => invoke('db:searchMessages',     channelId, q),
+  sendMessage:        (payload)        => invoke('db:sendMessage',        payload),
 
   // Travaux
-  getTravaux:         (channelId) => invoke('db:getTravaux',    channelId),
-  createTravail:      (payload)   => invoke('db:createTravail', payload),
+  getTravaux:         (channelId)      => invoke('db:getTravaux',         channelId),
+  createTravail:      (payload)        => invoke('db:createTravail',      payload),
+  getTravauxSuivi:    (travailId)      => invoke('db:getTravauxSuivi',    travailId),
 
   // Depots
-  getDepots:          (travailId) => invoke('db:getDepots', travailId),
-  addDepot:           (payload)   => invoke('db:addDepot',  payload),
-  setNote:            (payload)   => invoke('db:setNote',   payload),
+  getDepots:          (travailId)      => invoke('db:getDepots',          travailId),
+  addDepot:           (payload)        => invoke('db:addDepot',           payload),
+  setNote:            (payload)        => invoke('db:setNote',            payload),
+  setFeedback:        (payload)        => invoke('db:setFeedback',        payload),
 
-  // Dialogue fichier natif
-  openFileDialog:     ()          => invoke('dialog:openFile'),
+  // Profil etudiant
+  getStudentProfile:  (studentId)      => invoke('db:getStudentProfile',  studentId),
+
+  // Fichiers & export
+  openFileDialog:     ()               => invoke('dialog:openFile'),
+  exportCsv:          (travailId)      => invoke('export:csv',            travailId),
 });
