@@ -39,8 +39,17 @@ contextBridge.exposeInMainWorld('api', {
   getStudentProfile:  (studentId)      => invoke('db:getStudentProfile',  studentId),
   getStudentTravaux:  (studentId)      => invoke('db:getStudentTravaux',  studentId),
 
+  // Ressources
+  getRessources:      (travailId)      => invoke('db:getRessources',      travailId),
+  addRessource:       (payload)        => invoke('db:addRessource',       payload),
+  deleteRessource:    (id)             => invoke('db:deleteRessource',    id),
+
   // Identites (login)
   getIdentities:      ()               => invoke('db:getIdentities'),
+
+  // Ouverture de fichiers / liens
+  openPath:           (filePath)       => invoke('shell:openPath',        filePath),
+  openExternal:       (url)            => invoke('shell:openExternal',    url),
 
   // Fichiers & export
   openFileDialog:     ()               => invoke('dialog:openFile'),

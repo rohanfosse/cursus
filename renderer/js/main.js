@@ -6,6 +6,8 @@ import { openDepotsModal, renderDepots, bindDepotsModal, bindNoteModal }        
 import { openSuiviModal, bindSuiviModal, openProfilPanel }                       from './views/suivi.js';
 import { showLoginScreen }                         from './views/login.js';
 import { renderStudentTravaux }                    from './views/student-dashboard.js';
+import { openTimeline, bindTimeline }              from './views/timeline.js';
+import { openRessourcesModal, bindRessourcesModal } from './views/ressources.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
 
@@ -24,8 +26,9 @@ async function onLogin(user) {
   });
 
   initTravaux({
-    onOpenDepots: (travail) => openDepotsModal(travail),
-    onOpenSuivi:  (travail) => openSuiviModal(travail),
+    onOpenDepots:     (travail) => openDepotsModal(travail),
+    onOpenSuivi:      (travail) => openSuiviModal(travail),
+    onOpenRessources: (travail) => openRessourcesModal(travail),
   });
 
   initSearch();
@@ -87,6 +90,10 @@ async function onLogin(user) {
   bindDepotsModal();
   bindNoteModal();
   bindSuiviModal();
+  bindRessourcesModal();
+  bindTimeline();
+
+  document.getElementById('btn-timeline').addEventListener('click', () => openTimeline());
 }
 
 // ─── Ouverture d'un canal ────────────────────────────────────────────────────

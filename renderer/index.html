@@ -49,6 +49,7 @@
         <button id="btn-search-clear" title="Effacer">&#10005;</button>
       </div>
       <button id="btn-search" class="btn-ghost" title="Rechercher">Rechercher</button>
+      <button id="btn-timeline" class="btn-ghost">Timeline</button>
       <button id="btn-travaux" class="btn-ghost">Travaux</button>
       <button id="btn-mes-travaux" class="btn-ghost" style="display:none">Mes travaux</button>
     </div>
@@ -176,6 +177,16 @@
         <textarea id="nt-description" class="form-textarea" rows="3" placeholder="Description et consignes…"></textarea>
       </div>
       <div class="form-group">
+        <label class="form-label" for="nt-category">Categorie</label>
+        <select id="nt-category" class="form-select" required>
+          <option value="TP">TP</option>
+          <option value="Projet">Projet</option>
+          <option value="Devoir">Devoir</option>
+          <option value="Examen">Examen</option>
+          <option value="Rendu">Rendu</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label class="form-label" for="nt-group">Groupe (optionnel)</label>
         <select id="nt-group" class="form-select">
           <option value="">Toute la promotion</option>
@@ -190,6 +201,64 @@
         <button type="submit" class="btn-primary">Creer le travail</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     MODAL — RESSOURCES D'UN TRAVAIL
+════════════════════════════════════════ -->
+<div id="modal-ressources-overlay" class="modal-overlay hidden">
+  <div class="modal modal-md">
+    <div class="modal-header">
+      <div class="modal-header-info">
+        <h3 id="modal-ressources-title">Ressources</h3>
+      </div>
+      <button id="modal-ressources-close" class="btn-ghost">Fermer</button>
+    </div>
+    <div class="modal-body" id="ressources-list"></div>
+    <div id="ressources-add-zone" class="modal-footer" style="flex-direction:column;align-items:stretch;gap:10px;">
+      <form id="form-add-ressource" style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;gap:16px;align-items:center;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="ressource-type" value="link" checked /> Lien URL
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="ressource-type" value="file" /> Fichier local
+          </label>
+        </div>
+        <input type="text" id="ressource-name-input" class="form-input" placeholder="Nom de la ressource" required />
+        <div id="ressource-field-link">
+          <input type="url" id="ressource-link-input" class="form-input" placeholder="https://..." />
+        </div>
+        <div id="ressource-field-file" style="display:none;display:flex;gap:8px;align-items:center;">
+          <input type="text" id="ressource-path-input" class="form-input" placeholder="Chemin du fichier…" readonly style="flex:1" />
+          <button type="button" id="btn-ressource-add-file" class="btn-ghost">Parcourir</button>
+        </div>
+        <button type="submit" class="btn-primary">Ajouter</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TIMELINE
+════════════════════════════════════════ -->
+<div id="timeline-overlay" class="fullscreen-overlay hidden">
+  <div id="timeline-panel">
+    <div id="timeline-header">
+      <div>
+        <h2 id="timeline-title">Timeline des travaux</h2>
+        <div id="timeline-filters" class="timeline-filters">
+          <button class="timeline-filter-btn" data-cat="TP" style="--cat-color:#4A90D9">TP</button>
+          <button class="timeline-filter-btn" data-cat="Projet" style="--cat-color:#7B68EE">Projet</button>
+          <button class="timeline-filter-btn" data-cat="Devoir" style="--cat-color:#50C878">Devoir</button>
+          <button class="timeline-filter-btn" data-cat="Examen" style="--cat-color:#E74C3C">Examen</button>
+          <button class="timeline-filter-btn" data-cat="Rendu" style="--cat-color:#F39C12">Rendu</button>
+        </div>
+      </div>
+      <button id="btn-timeline-close" class="btn-ghost">Fermer</button>
+    </div>
+    <div id="timeline-body"></div>
   </div>
 </div>
 

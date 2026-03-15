@@ -1,4 +1,4 @@
-const { ipcMain, dialog } = require('electron');
+const { ipcMain, dialog, shell } = require('electron');
 const fs      = require('fs');
 const path    = require('path');
 const queries = require('./db/queries');
@@ -50,8 +50,33 @@ function register() {
   handle('db:getStudentProfile',  (studentId) => queries.getStudentProfile(studentId));
   handle('db:getStudentTravaux',  (studentId) => queries.getStudentTravaux(studentId));
 
+  // Ressources
+  handle('db:getRessources',     (travailId)  => queries.getRessources(travailId));
+  handle('db:addRessource',      (payload)    => queries.addRessource(payload));
+  handle('db:deleteRessource',   (id)         => queries.deleteRessource(id));
+
   // Identite / login
   handle('db:getIdentities',     ()           => queries.getIdentities());
+
+  // Ouverture de fichier / lien externe (pour les ressources)
+  ipcMain.handle('shell:openPath', async (_event, filePath) => {
+    try {
+      const err = await shell.openPath(filePath);
+      return err ? { ok: false, error: err } : { ok: true, data: null };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
+
+  ipcMain.handle('shell:openExternal', async (_event, url) => {
+    try {
+      if (!/^https?:\/\//i.test(url)) return { ok: false, error: 'URL invalide.' };
+      await shell.openExternal(url);
+      return { ok: true, data: null };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
 
   // Dialogue fichier — ouverture
   ipcMain.handle('dialog:openFile', async () => {

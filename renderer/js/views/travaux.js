@@ -2,13 +2,16 @@ import { call }      from '../api.js';
 import { state }     from '../state.js';
 import { showToast } from '../utils.js';
 import { deadlineClass, deadlineLabel, formatDate, escapeHtml, isoForDatetimeLocal } from '../utils.js';
+import { CATEGORIES } from './timeline.js';
 
-let _onOpenDepots = null;
-let _onOpenSuivi  = null;
+let _onOpenDepots     = null;
+let _onOpenSuivi      = null;
+let _onOpenRessources = null;
 
-export function initTravaux({ onOpenDepots, onOpenSuivi }) {
-  _onOpenDepots = onOpenDepots;
-  _onOpenSuivi  = onOpenSuivi;
+export function initTravaux({ onOpenDepots, onOpenSuivi, onOpenRessources }) {
+  _onOpenDepots     = onOpenDepots;
+  _onOpenSuivi      = onOpenSuivi;
+  _onOpenRessources = onOpenRessources;
 }
 
 // ─── Panel travaux ────────────────────────────────────────────────────────────
@@ -70,8 +73,11 @@ export async function renderTravaux() {
 
     const card = document.createElement('div');
     card.className = 'travail-card';
+    const catColor = CATEGORIES[t.category]?.color ?? '#888';
+
     card.innerHTML = `
       <div class="travail-title">
+        <span class="category-badge" style="background:${catColor}20;color:${catColor};border-color:${catColor}40">${escapeHtml(t.category ?? 'TP')}</span>
         ${escapeHtml(t.title)}
         ${t.group_name ? `<span class="group-tag">${escapeHtml(t.group_name)}</span>` : ''}
       </div>
@@ -88,13 +94,25 @@ export async function renderTravaux() {
     // Clic gauche : ouvrir les depots
     card.addEventListener('click', () => _onOpenDepots?.(t));
 
-    // Bouton suivi au survol (injecte en JS pour eviter la collision d'evenements)
+    // Boutons d'action
+    const actions = document.createElement('div');
+    actions.className = 'travail-card-actions';
+
+    const btnRessources = document.createElement('button');
+    btnRessources.className   = 'btn-ghost';
+    btnRessources.style.cssText = 'font-size:12px;flex:1;';
+    btnRessources.textContent = 'Ressources';
+    btnRessources.addEventListener('click', e => { e.stopPropagation(); _onOpenRessources?.(t); });
+
     const btnSuivi = document.createElement('button');
-    btnSuivi.className = 'btn-ghost';
-    btnSuivi.style.cssText = 'margin-top:8px;width:100%;font-size:12px;';
-    btnSuivi.textContent = 'Voir le suivi complet';
+    btnSuivi.className   = 'btn-ghost';
+    btnSuivi.style.cssText = 'font-size:12px;flex:1;';
+    btnSuivi.textContent = 'Suivi complet';
     btnSuivi.addEventListener('click', e => { e.stopPropagation(); _onOpenSuivi?.(t); });
-    card.appendChild(btnSuivi);
+
+    actions.appendChild(btnRessources);
+    actions.appendChild(btnSuivi);
+    card.appendChild(actions);
 
     list.appendChild(card);
   }
@@ -150,6 +168,7 @@ export function bindNewTravailForm() {
     const description = document.getElementById('nt-description').value.trim();
     const deadline    = document.getElementById('nt-deadline').value;
     const groupVal    = document.getElementById('nt-group').value;
+    const category    = document.getElementById('nt-category').value;
     if (!title || !deadline) return;
 
     const ok = await call(window.api.createTravail, {
@@ -158,6 +177,7 @@ export function bindNewTravailForm() {
       description,
       deadline: deadline.replace('T', ' ') + ':00',
       groupId:  groupVal ? parseInt(groupVal) : null,
+      category,
     });
     if (ok === null) return;
 

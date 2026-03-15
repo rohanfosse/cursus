@@ -60,7 +60,17 @@ function initSchema() {
       group_id    INTEGER REFERENCES groups(id) ON DELETE SET NULL,
       title       TEXT NOT NULL,
       description TEXT,
-      deadline    TEXT NOT NULL
+      deadline    TEXT NOT NULL,
+      category    TEXT NOT NULL DEFAULT 'TP' CHECK(category IN ('TP','Projet','Devoir','Examen','Rendu'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ressources (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      travail_id  INTEGER NOT NULL REFERENCES travaux(id) ON DELETE CASCADE,
+      type        TEXT NOT NULL CHECK(type IN ('file', 'link')),
+      name        TEXT NOT NULL,
+      path_or_url TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
     );
 
     CREATE TABLE IF NOT EXISTS depots (
@@ -91,6 +101,9 @@ function migrate(db) {
 
   if (!col('travaux').includes('group_id'))
     db.exec('ALTER TABLE travaux ADD COLUMN group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL');
+
+  if (!col('travaux').includes('category'))
+    db.exec("ALTER TABLE travaux ADD COLUMN category TEXT NOT NULL DEFAULT 'TP'");
 }
 
 // ─── Seed ────────────────────────────────────────────────────────────────────
@@ -106,7 +119,8 @@ function seedIfEmpty() {
   const ig = db.prepare('INSERT INTO groups (promo_id, name) VALUES (?, ?)');
   const im = db.prepare('INSERT INTO group_members (group_id, student_id) VALUES (?, ?)');
   const imsg = db.prepare('INSERT INTO messages (channel_id, dm_student_id, author_name, author_type, content, created_at) VALUES (?, ?, ?, ?, ?, ?)');
-  const it = db.prepare('INSERT INTO travaux (channel_id, group_id, title, description, deadline) VALUES (?, ?, ?, ?, ?)');
+  const it  = db.prepare('INSERT INTO travaux (channel_id, group_id, title, description, deadline, category) VALUES (?, ?, ?, ?, ?, ?)');
+  const ir  = db.prepare('INSERT INTO ressources (travail_id, type, name, path_or_url) VALUES (?, ?, ?, ?)');
   const id = db.prepare('INSERT INTO depots (travail_id, student_id, file_name, file_path, note, submitted_at) VALUES (?, ?, ?, ?, ?, ?)');
 
   const p1 = ip.run('BTS SIO 1ere annee', '#4A90D9').lastInsertRowid;
@@ -156,23 +170,27 @@ function seedIfEmpty() {
   imsg.run(null, s4, 'David Bernard','student', 'Mon contexte pro pour l\'E5 est pret. Puis-je vous l\'envoyer ?', '2026-03-14 11:00:00');
   imsg.run(null, s4, 'Rohan Fosse',  'teacher', 'Oui David, depose-le dans #projet-e5.', '2026-03-14 11:10:00');
 
-  // Travail pour toute la promo p1 (group_id = null)
+  // Travaux avec categories
   const t1 = it.run(c4, null, 'TP Reseaux - Configuration VLAN',
     'Configurer un reseau avec 3 VLANs sur Packet Tracer. Exporter le fichier .pkt et rediger un compte-rendu.',
-    '2026-03-20 23:59:00').lastInsertRowid;
+    '2026-03-20 23:59:00', 'TP').lastInsertRowid;
 
-  // Travail assigne uniquement au Groupe A
   const t2 = it.run(c4, g1, 'TD Python - Scripts reseau (Groupe A)',
     'Ecrire un script Python qui scanne un reseau local et liste les hotes actifs.',
-    '2026-03-17 18:00:00').lastInsertRowid;
+    '2026-03-17 18:00:00', 'TP').lastInsertRowid;
 
   const t3 = it.run(c7, null, 'Livrable E5 - Contexte professionnel',
     'Rediger le contexte professionnel de votre projet E5 (3 a 5 pages). Format PDF.',
-    '2026-03-25 12:00:00').lastInsertRowid;
+    '2026-03-25 12:00:00', 'Projet').lastInsertRowid;
 
   it.run(c9, null, 'Projet React - Application CRUD',
     'Application React complete avec gestion d\'etat, API REST et tests.',
-    '2026-04-05 23:59:00');
+    '2026-04-05 23:59:00', 'Projet');
+
+  // Ressources exemples
+  ir.run(t1, 'link', 'Cours VLAN - Cisco NetAcad', 'https://www.netacad.com');
+  ir.run(t1, 'link', 'Telecharger Packet Tracer', 'https://www.netacad.com/courses/packet-tracer');
+  ir.run(t3, 'link', 'Referentiel BTS SIO E5', 'https://www.education.gouv.fr');
 
   id.run(t1, s1, 'MARTIN_Alice_TP_VLAN.pkt',         '/depots/MARTIN_Alice_TP_VLAN.pkt',         16.5, '2026-03-18 20:30:00');
   id.run(t2, s2, 'DURAND_Baptiste_script_reseau.py', '/depots/DURAND_Baptiste_script_reseau.py', null, '2026-03-16 15:00:00');
@@ -314,11 +332,11 @@ function getTravailById(travailId) {
   return getDb().prepare('SELECT * FROM travaux WHERE id = ?').get(travailId);
 }
 
-function createTravail({ channelId, groupId, title, description, deadline }) {
+function createTravail({ channelId, groupId, title, description, deadline, category }) {
   return getDb().prepare(`
-    INSERT INTO travaux (channel_id, group_id, title, description, deadline)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(channelId, groupId ?? null, title, description, deadline);
+    INSERT INTO travaux (channel_id, group_id, title, description, deadline, category)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(channelId, groupId ?? null, title, description, deadline, category ?? 'TP');
 }
 
 // ─── Suivi (vue enseignant) ───────────────────────────────────────────────────
@@ -400,6 +418,24 @@ function setFeedback({ depotId, feedback }) {
   return getDb().prepare('UPDATE depots SET feedback = ? WHERE id = ?').run(feedback, depotId);
 }
 
+// ─── Ressources ───────────────────────────────────────────────────────────────
+
+function getRessources(travailId) {
+  return getDb().prepare(
+    'SELECT * FROM ressources WHERE travail_id = ? ORDER BY created_at ASC'
+  ).all(travailId);
+}
+
+function addRessource({ travailId, type, name, pathOrUrl }) {
+  return getDb().prepare(`
+    INSERT INTO ressources (travail_id, type, name, path_or_url) VALUES (?, ?, ?, ?)
+  `).run(travailId, type, name, pathOrUrl);
+}
+
+function deleteRessource(ressourceId) {
+  return getDb().prepare('DELETE FROM ressources WHERE id = ?').run(ressourceId);
+}
+
 // ─── Profil etudiant ──────────────────────────────────────────────────────────
 
 function getStudentProfile(studentId) {
@@ -434,4 +470,5 @@ module.exports = {
   getDepots, addDepot, setNote, setFeedback,
   getStudentProfile,
   getIdentities,
+  getRessources, addRessource, deleteRessource,
 };

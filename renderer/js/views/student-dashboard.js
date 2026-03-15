@@ -2,6 +2,8 @@ import { call }      from '../api.js';
 import { state }     from '../state.js';
 import { showToast } from '../utils.js';
 import { escapeHtml, formatDate, deadlineClass, deadlineLabel } from '../utils.js';
+import { CATEGORIES } from './timeline.js';
+import { renderRessourcesInline } from './ressources.js';
 
 // ─── Panel "Mes travaux" (vue etudiant) ───────────────────────────────────────
 
@@ -63,9 +65,12 @@ function makeTravailCard(t) {
   const dlClass = deadlineClass(t.deadline);
   const dlLabel = deadlineLabel(t.deadline);
 
+  const catColor = CATEGORIES[t.category]?.color ?? '#888';
+
   card.innerHTML = `
     <div class="stc-header">
       <span class="stc-title">${escapeHtml(t.title)}</span>
+      <span class="category-badge" style="background:${catColor}20;color:${catColor};border-color:${catColor}40">${escapeHtml(t.category ?? 'TP')}</span>
       ${!rendu ? `<span class="deadline-badge ${dlClass}">${dlLabel}</span>` : ''}
     </div>
     <div class="stc-meta">
@@ -77,12 +82,16 @@ function makeTravailCard(t) {
     <div class="stc-depot-area" id="depot-area-${t.id}">
       ${rendu ? renderRenduInfo(t) : ''}
     </div>
+    <div class="stc-ressources-zone" id="stc-res-${t.id}"></div>
     ${!rendu ? `<button class="btn-primary stc-btn-deposer" data-travail-id="${t.id}">Deposer un fichier</button>` : ''}
   `;
 
   if (!rendu) {
     card.querySelector('.stc-btn-deposer').addEventListener('click', () => deposerFichier(t));
   }
+
+  // Charger les ressources
+  renderRessourcesInline(t.id, card.querySelector(`#stc-res-${t.id}`));
 
   return card;
 }
