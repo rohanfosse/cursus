@@ -170,7 +170,10 @@ function migrate(db) {
   if (!col('depots').includes('link_url'))
     db.exec('ALTER TABLE depots ADD COLUMN link_url TEXT');
   if (!col('depots').includes('deploy_url'))
-    db.exec('ALTER TABLE depots ADD COLUMN deploy_url TEXT');
+      db.exec('ALTER TABLE depots ADD COLUMN deploy_url TEXT');
+
+    if (!col('messages').includes('reactions'))
+      db.exec('ALTER TABLE messages ADD COLUMN reactions TEXT DEFAULT NULL');
 }
 
 // ─── Seed ────────────────────────────────────────────────────────────────────
@@ -234,11 +237,11 @@ function seedIfEmpty() {
     'Les groupes pour les projets annuels sont affiches dans le canal #projets.',
     '2026-03-15 10:30:00');
 
-  imsg.run(c1_gen, null, 'Rohan Fosse',    'teacher',  'Bonjour a tous, bienvenue sur CESI Classroom.', '2026-03-01 09:00:00');
+  const m_gen1 = imsg.run(c1_gen, null, 'Rohan Fosse',    'teacher',  'Bonjour a tous, bienvenue sur CESI Classroom.', '2026-03-01 09:00:00').lastInsertRowid;
   imsg.run(c1_gen, null, 'Lucas Dupont',   'student',  'Bonjour M. Fosse, merci pour cet espace.', '2026-03-01 09:10:00');
   imsg.run(c1_gen, null, 'Manon Bernard',  'student',  'On pourra deposer les TP ici directement ?', '2026-03-01 09:12:00');
   imsg.run(c1_gen, null, 'Rohan Fosse',    'teacher',  'Oui, chaque TP a son propre travail dans #remise-tp avec la deadline visible.', '2026-03-01 09:15:00');
-  imsg.run(c1_gen, null, 'Theo Leclerc',   'student',  'Super, c\'est bien plus pratique que par email.', '2026-03-01 09:17:00');
+  const m_gen5 = imsg.run(c1_gen, null, 'Theo Leclerc',   'student',  'Super, c\'est bien plus pratique que par email.', '2026-03-01 09:17:00').lastInsertRowid;
   imsg.run(c1_gen, null, 'Camille Rousseau','student', 'Est-ce qu\'on peut voir nos notes directement ici ?', '2026-03-02 10:00:00');
   imsg.run(c1_gen, null, 'Rohan Fosse',    'teacher',  'Oui, dans "Mes travaux" vous verrez vos notes et commentaires au fur et a mesure.', '2026-03-02 10:05:00');
   imsg.run(c1_gen, null, 'Hugo Martin',    'student',  'On sera en groupes pour tous les TP ?', '2026-03-03 14:00:00');
@@ -252,7 +255,7 @@ function seedIfEmpty() {
   imsg.run(c1_dev, null, 'Lea Fontaine',   'student',  'La comprehension de liste c\'est exige dans le TP ?', '2026-03-09 14:00:00');
   imsg.run(c1_dev, null, 'Rohan Fosse',    'teacher',  'C\'est conseille mais pas obligatoire. Cela montre une bonne maitrise.', '2026-03-09 14:05:00');
 
-  imsg.run(c1_tp,  null, 'Rohan Fosse',    'teacher',  'Le TP Python est ouvert. Deadline : 15 avril 23h59. Lisez bien la consigne avant de commencer.', '2026-03-15 08:00:00');
+  const m_tp1 = imsg.run(c1_tp,  null, 'Rohan Fosse',    'teacher',  'Le TP Python est ouvert. Deadline : 15 avril 23h59. Lisez bien la consigne avant de commencer.', '2026-03-15 08:00:00').lastInsertRowid;
   imsg.run(c1_tp,  null, 'Lucas Dupont',   'student',  'On peut utiliser des bibliotheques externes ?', '2026-03-15 09:00:00');
   imsg.run(c1_tp,  null, 'Rohan Fosse',    'teacher',  'Biblioth??que standard uniquement (os, sys, collections…). Pas de numpy ni pandas.', '2026-03-15 09:05:00');
   imsg.run(c1_tp,  null, 'Manon Bernard',  'student',  'Format du rendu : .py seulement ou aussi un rapport ?', '2026-03-15 09:10:00');
@@ -266,12 +269,19 @@ function seedIfEmpty() {
 
   // DMs CPIA2
   imsg.run(null, s1, 'Lucas Dupont',  'student',  'Bonjour M. Fosse, j\'ai un souci avec mon environnement Python, pip ne fonctionne plus.', '2026-03-12 14:00:00');
-  imsg.run(null, s1, 'Rohan Fosse',   'teacher',  'Essaie "python -m pip install --upgrade pip" en tant qu\'admin. Si ca ne marche pas, reinstalle Python 3.11.', '2026-03-12 14:10:00');
+  const m_dm1 = imsg.run(null, s1, 'Rohan Fosse',   'teacher',  'Essaie "python -m pip install --upgrade pip" en tant qu\'admin. Si ca ne marche pas, reinstalle Python 3.11.', '2026-03-12 14:10:00').lastInsertRowid;
   imsg.run(null, s1, 'Lucas Dupont',  'student',  'Ca a marche, merci beaucoup !', '2026-03-12 14:15:00');
   imsg.run(null, s2, 'Manon Bernard', 'student',  'M. Fosse, je peux remettre mon TP en avance ?', '2026-03-20 16:00:00');
   imsg.run(null, s2, 'Rohan Fosse',   'teacher',  'Bien sur, tu peux deposer quand tu veux avant la deadline.', '2026-03-20 16:05:00');
   imsg.run(null, s7, 'Nathan Dubois', 'student',  'Pour le groupe 3, on est seulement 2. Est-ce que le projet est adapte ?', '2026-03-14 10:00:00');
   imsg.run(null, s7, 'Rohan Fosse',   'teacher',  'Oui, le scope du projet est allegé pour les groupes de 2. Voir la note dans les consignes.', '2026-03-14 10:08:00');
+
+  // Réactions initiales (données de test)
+  const upReact = db.prepare('UPDATE messages SET reactions = ? WHERE id = ?');
+  upReact.run('{"check":2,"eye":5}',  m_gen1);
+  upReact.run('{"thumb":3,"bulb":1}', m_gen5);
+  upReact.run('{"check":4,"eye":2}',  m_tp1);
+  upReact.run('{"thumb":1,"eye":3}',  m_dm1);
 
   // ── Travaux CPIA2 ──────────────────────────────
 
@@ -365,28 +375,28 @@ function seedIfEmpty() {
   // ── Depots CPIA2 ──────────────────────────────
 
   // Devoir UML (t2) — deadline passee, notes attribuees
-  id_.run(t2, s1, 'DUPONT_Lucas_UML.pdf',      'depots/DUPONT_Lucas_UML.pdf',      15,   'Bonne modelisation, le diagramme de sequence manque de detail sur les cas d\'erreur.', '2026-03-25 21:00:00');
-  id_.run(t2, s2, 'BERNARD_Manon_UML.pdf',     'depots/BERNARD_Manon_UML.pdf',     18,   'Excellent travail. Tres propre et complet. Le diagramme de classes est remarquable.', '2026-03-24 18:30:00');
-  id_.run(t2, s3, 'LECLERC_Theo_UML.pdf',      'depots/LECLERC_Theo_UML.pdf',      11,   'Diagramme de cas d\'utilisation incomplet. Le systeme acteur/cas n\'est pas bien delimitee.', '2026-03-27 23:30:00');
-  id_.run(t2, s4, 'ROUSSEAU_Camille_UML.pdf',  'depots/ROUSSEAU_Camille_UML.pdf',  13.5, 'Correct. Quelques erreurs de multiplicite dans les associations.', '2026-03-26 20:00:00');
-  id_.run(t2, s5, 'MARTIN_Hugo_UML.pdf',       'depots/MARTIN_Hugo_UML.pdf',       14,   'Bien dans l\'ensemble. Le diagramme de sequence est bon.', '2026-03-26 22:00:00');
-  id_.run(t2, s7, 'DUBOIS_Nathan_UML.pdf',     'depots/DUBOIS_Nathan_UML.pdf',     17.5, 'Tres bon travail. Les trois diagrammes sont coherents entre eux.', '2026-03-23 16:00:00');
-  id_.run(t2, s8, 'FONTAINE_Lea_UML.pdf',      'depots/FONTAINE_Lea_UML.pdf',      16,   'Tres bien. Quelques types de donnees a preciser dans le diagramme de classes.', '2026-03-28 20:00:00');
+  id_.run(t2, s1, 'DUPONT_Lucas_UML.pdf',      'depots/DUPONT_Lucas_UML.pdf',      'B',  'Bonne modelisation, le diagramme de sequence manque de detail sur les cas d\'erreur.', '2026-03-25 21:00:00');
+  id_.run(t2, s2, 'BERNARD_Manon_UML.pdf',     'depots/BERNARD_Manon_UML.pdf',     'A',  'Excellent travail. Tres propre et complet. Le diagramme de classes est remarquable.', '2026-03-24 18:30:00');
+  id_.run(t2, s3, 'LECLERC_Theo_UML.pdf',      'depots/LECLERC_Theo_UML.pdf',      'D',  'Diagramme de cas d\'utilisation incomplet. Le systeme acteur/cas n\'est pas bien delimitee.', '2026-03-27 23:30:00');
+  id_.run(t2, s4, 'ROUSSEAU_Camille_UML.pdf',  'depots/ROUSSEAU_Camille_UML.pdf',  'C',  'Correct. Quelques erreurs de multiplicite dans les associations.', '2026-03-26 20:00:00');
+  id_.run(t2, s5, 'MARTIN_Hugo_UML.pdf',       'depots/MARTIN_Hugo_UML.pdf',       'B',  'Bien dans l\'ensemble. Le diagramme de sequence est bon.', '2026-03-26 22:00:00');
+  id_.run(t2, s7, 'DUBOIS_Nathan_UML.pdf',     'depots/DUBOIS_Nathan_UML.pdf',     'A',  'Tres bon travail. Les trois diagrammes sont coherents entre eux.', '2026-03-23 16:00:00');
+  id_.run(t2, s8, 'FONTAINE_Lea_UML.pdf',      'depots/FONTAINE_Lea_UML.pdf',      'A',  'Tres bien. Quelques types de donnees a preciser dans le diagramme de classes.', '2026-03-28 20:00:00');
   // Jade n'a pas rendu le devoir UML
 
   // Examen Python (t3) — notes attribuees
-  id_.run(t3, s1, 'DUPONT_Lucas_exam.py',      'depots/DUPONT_Lucas_exam.py',      14,   null, '2026-04-05 12:00:00');
-  id_.run(t3, s2, 'BERNARD_Manon_exam.py',     'depots/BERNARD_Manon_exam.py',     17,   null, '2026-04-05 12:00:00');
-  id_.run(t3, s3, 'LECLERC_Theo_exam.py',      'depots/LECLERC_Theo_exam.py',      11,   null, '2026-04-05 12:00:00');
-  id_.run(t3, s4, 'ROUSSEAU_Camille_exam.py',  'depots/ROUSSEAU_Camille_exam.py',  13,   null, '2026-04-05 12:00:00');
-  id_.run(t3, s5, 'MARTIN_Hugo_exam.py',       'depots/MARTIN_Hugo_exam.py',       15.5, null, '2026-04-05 12:00:00');
-  id_.run(t3, s6, 'PETIT_Jade_exam.py',        'depots/PETIT_Jade_exam.py',        16,   null, '2026-04-05 12:00:00');
-  id_.run(t3, s7, 'DUBOIS_Nathan_exam.py',     'depots/DUBOIS_Nathan_exam.py',     18,   null, '2026-04-05 12:00:00');
-  id_.run(t3, s8, 'FONTAINE_Lea_exam.py',      'depots/FONTAINE_Lea_exam.py',      12,   null, '2026-04-05 12:00:00');
+  id_.run(t3, s1, 'DUPONT_Lucas_exam.py',      'depots/DUPONT_Lucas_exam.py',      'B',  null, '2026-04-05 12:00:00');
+  id_.run(t3, s2, 'BERNARD_Manon_exam.py',     'depots/BERNARD_Manon_exam.py',     'A',  null, '2026-04-05 12:00:00');
+  id_.run(t3, s3, 'LECLERC_Theo_exam.py',      'depots/LECLERC_Theo_exam.py',      'D',  null, '2026-04-05 12:00:00');
+  id_.run(t3, s4, 'ROUSSEAU_Camille_exam.py',  'depots/ROUSSEAU_Camille_exam.py',  'C',  null, '2026-04-05 12:00:00');
+  id_.run(t3, s5, 'MARTIN_Hugo_exam.py',       'depots/MARTIN_Hugo_exam.py',       'B',  null, '2026-04-05 12:00:00');
+  id_.run(t3, s6, 'PETIT_Jade_exam.py',        'depots/PETIT_Jade_exam.py',        'A',  null, '2026-04-05 12:00:00');
+  id_.run(t3, s7, 'DUBOIS_Nathan_exam.py',     'depots/DUBOIS_Nathan_exam.py',     'A',  null, '2026-04-05 12:00:00');
+  id_.run(t3, s8, 'FONTAINE_Lea_exam.py',      'depots/FONTAINE_Lea_exam.py',      'C',  null, '2026-04-05 12:00:00');
 
   // TP Python (t1) — en cours, quelques rendus, notes partielles
-  id_.run(t1, s1, 'DUPONT_Lucas_tp_python.py',     'depots/DUPONT_Lucas_tp_python.py',     15,   'Bon travail. La Stack et la Queue sont correctes. La table de hachage gere bien les collisions. Penser aux cas limites.', '2026-04-10 21:00:00');
-  id_.run(t1, s2, 'BERNARD_Manon_tp_python.py',    'depots/BERNARD_Manon_tp_python.py',    18,   'Excellent. Code tres propre, bien documente, tests complets. Bravo.', '2026-04-08 19:00:00');
+  id_.run(t1, s1, 'DUPONT_Lucas_tp_python.py',     'depots/DUPONT_Lucas_tp_python.py',     'B',  'Bon travail. La Stack et la Queue sont correctes. La table de hachage gere bien les collisions. Penser aux cas limites.', '2026-04-10 21:00:00');
+  id_.run(t1, s2, 'BERNARD_Manon_tp_python.py',    'depots/BERNARD_Manon_tp_python.py',    'A',  'Excellent. Code tres propre, bien documente, tests complets. Bravo.', '2026-04-08 19:00:00');
   id_.run(t1, s4, 'ROUSSEAU_Camille_tp_python.py', 'depots/ROUSSEAU_Camille_tp_python.py', null, null, '2026-04-12 22:00:00');
   id_.run(t1, s7, 'DUBOIS_Nathan_tp_python.py',    'depots/DUBOIS_Nathan_tp_python.py',    null, null, '2026-04-13 16:30:00');
   // Theo, Hugo, Jade, Lea : pas encore rendus
@@ -461,7 +471,7 @@ function seedIfEmpty() {
   imsg.run(c2_gen, null, 'Laura Vincent',    'student', 'M. Fosse, le rapport de stage est different du contexte pro ?', '2026-03-06 10:00:00');
   imsg.run(c2_gen, null, 'Rohan Fosse',      'teacher', 'Oui. Le contexte pro est le document E5 officiel. Le rapport de stage est votre retour d\'experience de periode industrie.', '2026-03-06 10:10:00');
 
-  imsg.run(c2_e5,  null, 'Rohan Fosse',      'teacher', 'Les jalons de soutenance sont maintenant visibles dans votre planning. Preparez votre presentation (15-20 slides max).', '2026-03-12 10:00:00');
+  const m_e5_1 = imsg.run(c2_e5,  null, 'Rohan Fosse',      'teacher', 'Les jalons de soutenance sont maintenant visibles dans votre planning. Preparez votre presentation (15-20 slides max).', '2026-03-12 10:00:00').lastInsertRowid;
   imsg.run(c2_e5,  null, 'Maxime Laurent',   'student', 'On est evalue sur quels criteres principalement ?', '2026-03-12 10:30:00');
   imsg.run(c2_e5,  null, 'Rohan Fosse',      'teacher', 'Contexte professionnel (40%), maitrise technique (30%), communication orale (30%).', '2026-03-12 10:35:00');
   imsg.run(c2_e5,  null, 'Elisa Garnier',    'student', 'Merci, c\'est clair. On peut s\'entrainer avec vous avant ?', '2026-03-12 10:40:00');
@@ -488,7 +498,7 @@ function seedIfEmpty() {
   imsg.run(null, f9, 'Pierre Bonnet',    'student',  'M. Fosse, j\'ai change d\'entreprise en cours de formation. Ca impacte mon E5 ?', '2026-03-12 11:00:00');
   imsg.run(null, f9, 'Rohan Fosse',      'teacher',  'Ca complexifie un peu le contexte pro. Viens me voir en dehors des cours pour qu\'on adapte ton plan.', '2026-03-12 11:10:00');
   imsg.run(null, f2, 'Chloe Simon',      'student',  'Est-ce que je peux faire ma soutenance en anglais ? Mon maitre de stage est anglophone.', '2026-03-14 15:00:00');
-  imsg.run(null, f2, 'Rohan Fosse',      'teacher',  'Oui, c\'est tout a fait possible et valorise. Previens-moi pour que je prepare le jury.', '2026-03-14 15:05:00');
+  const m_dm_f2 = imsg.run(null, f2, 'Rohan Fosse',      'teacher',  'Oui, c\'est tout a fait possible et valorise. Previens-moi pour que je prepare le jury.', '2026-03-14 15:05:00').lastInsertRowid;
 
   // ── Travaux FISAA4 ──────────────────────────────
 
@@ -586,10 +596,10 @@ function seedIfEmpty() {
   // ── Depots FISAA4 ──────────────────────────────
 
   // Dossier E5 (f_t1) — la plupart ont rendu, quelques notes
-  id_.run(f_t1, f1, 'MOREAU_Alexandre_E5_v2.pdf',   'depots/MOREAU_Alexandre_E5_v2.pdf',   16,   'Tres bon contexte. La description des missions est precise et bien illustree.', '2026-03-28 20:00:00');
-  id_.run(f_t1, f2, 'SIMON_Chloe_E5.pdf',           'depots/SIMON_Chloe_E5.pdf',           17.5, 'Excellent. Structure claire, ecriture professionnelle. Le bilan de competences est particulierement bien redige.', '2026-03-25 18:00:00');
-  id_.run(f_t1, f3, 'LAURENT_Maxime_E5.pdf',        'depots/LAURENT_Maxime_E5.pdf',        14,   'Correct mais la partie livrables manque de details concrets. Revoir avant la soutenance.', '2026-03-30 22:00:00');
-  id_.run(f_t1, f4, 'GARNIER_Elisa_E5.pdf',         'depots/GARNIER_Elisa_E5.pdf',         15.5, 'Tres bien dans l\'ensemble. Quelques fautes d\'orthographe a corriger.', '2026-03-29 19:00:00');
+  id_.run(f_t1, f1, 'MOREAU_Alexandre_E5_v2.pdf',   'depots/MOREAU_Alexandre_E5_v2.pdf',   'A',  'Tres bon contexte. La description des missions est precise et bien illustree.', '2026-03-28 20:00:00');
+  id_.run(f_t1, f2, 'SIMON_Chloe_E5.pdf',           'depots/SIMON_Chloe_E5.pdf',           'A',  'Excellent. Structure claire, ecriture professionnelle. Le bilan de competences est particulierement bien redige.', '2026-03-25 18:00:00');
+  id_.run(f_t1, f3, 'LAURENT_Maxime_E5.pdf',        'depots/LAURENT_Maxime_E5.pdf',        'B',  'Correct mais la partie livrables manque de details concrets. Revoir avant la soutenance.', '2026-03-30 22:00:00');
+  id_.run(f_t1, f4, 'GARNIER_Elisa_E5.pdf',         'depots/GARNIER_Elisa_E5.pdf',         'B',  'Tres bien dans l\'ensemble. Quelques fautes d\'orthographe a corriger.', '2026-03-29 19:00:00');
   id_.run(f_t1, f5, 'LEFEBVRE_Raphael_E5.pdf',      'depots/LEFEBVRE_Raphael_E5.pdf',      null, null, '2026-03-31 23:50:00');
   id_.run(f_t1, f6, 'THOMAS_Ines_E5.pdf',           'depots/THOMAS_Ines_E5.pdf',           null, null, '2026-03-30 21:00:00');
   id_.run(f_t1, f7, 'ROUX_Quentin_E5.pdf',          'depots/ROUX_Quentin_E5.pdf',          null, null, '2026-04-01 23:30:00');

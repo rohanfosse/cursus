@@ -8,7 +8,100 @@ import {
 } from '../utils.js';
 import { refreshLucide } from '../lucide.js';
 
-const GROUP_THRESHOLD_MS = 5 * 60 * 1000; // messages < 5 min apart sont groupés
+const GROUP_THRESHOLD_MS = 5 * 60 * 1000;
+
+// ─── Réactions en mémoire ────────────────────────────────────────────────────
+
+const _reactions = new Map(); // msgId -> { check, thumb, bulb, question, eye }
+const _userVotes = new Map(); // msgId -> Set<type>
+
+const REACT_TYPES = [
+  { type: 'check',    icon: 'check'       },
+  { type: 'thumb',    icon: 'thumbs-up'   },
+  { type: 'bulb',     icon: 'lightbulb'   },
+  { type: 'question', icon: 'help-circle' },
+  { type: 'eye',      icon: 'eye'         },
+];
+
+function _initReactions(msgId, dbJson) {
+  if (_reactions.has(msgId)) return;
+  const base = { check: 0, thumb: 0, bulb: 0, question: 0, eye: 0 };
+  if (dbJson) { try { Object.assign(base, JSON.parse(dbJson)); } catch {} }
+  _reactions.set(msgId, base);
+  if (!_userVotes.has(msgId)) _userVotes.set(msgId, new Set());
+}
+
+function _renderReactions(msgId) {
+  const el = document.getElementById(`react-${msgId}`);
+  if (!el) return;
+  const r    = _reactions.get(msgId) ?? {};
+  const mine = _userVotes.get(msgId) ?? new Set();
+  el.innerHTML = REACT_TYPES
+    .filter(t => (r[t.type] ?? 0) > 0)
+    .map(t => `<button class="msg-reaction-pill${mine.has(t.type) ? ' mine' : ''}"
+        data-msg-id="${msgId}" data-react-type="${t.type}" aria-label="Réaction ${t.type}">
+      <i data-lucide="${t.icon}" aria-hidden="true"></i>
+      <span>${r[t.type]}</span>
+    </button>`)
+    .join('');
+  refreshLucide();
+}
+
+function _toggleReact(msgId, type) {
+  const r    = _reactions.get(msgId);
+  const mine = _userVotes.get(msgId);
+  if (!r || !mine) return;
+  if (mine.has(type)) { mine.delete(type); r[type] = Math.max(0, (r[type] ?? 1) - 1); }
+  else               { mine.add(type);    r[type] = (r[type] ?? 0) + 1; }
+  _renderReactions(msgId);
+}
+
+// ─── Picker de réactions ─────────────────────────────────────────────────────
+
+let _pickerTarget = null;
+
+function _showPicker(btn, msgId) {
+  let picker = document.getElementById('reaction-picker');
+  if (!picker) {
+    picker = document.createElement('div');
+    picker.id        = 'reaction-picker';
+    picker.className = 'reaction-picker hidden';
+    picker.innerHTML = REACT_TYPES.map(t =>
+      `<button class="reaction-picker-btn" data-type="${t.type}" aria-label="${t.type}">
+        <i data-lucide="${t.icon}" aria-hidden="true"></i>
+      </button>`
+    ).join('');
+    document.body.appendChild(picker);
+    refreshLucide();
+
+    picker.addEventListener('click', e => {
+      const b = e.target.closest('[data-type]');
+      if (!b || _pickerTarget === null) return;
+      _toggleReact(_pickerTarget, b.dataset.type);
+      picker.classList.add('hidden');
+      _pickerTarget = null;
+    });
+    document.addEventListener('click', e => {
+      if (!picker.classList.contains('hidden')
+          && !picker.contains(e.target)
+          && !e.target.closest('.add-reaction-btn')) {
+        picker.classList.add('hidden');
+        _pickerTarget = null;
+      }
+    }, true);
+  }
+
+  if (!picker.classList.contains('hidden') && _pickerTarget === msgId) {
+    picker.classList.add('hidden');
+    _pickerTarget = null;
+    return;
+  }
+  _pickerTarget = msgId;
+  const rect = btn.getBoundingClientRect();
+  picker.style.top  = (rect.top - 52) + 'px';
+  picker.style.left = Math.max(4, rect.left - 60) + 'px';
+  picker.classList.remove('hidden');
+}
 
 // ─── Rendu des messages ──────────────────────────────────────────────────────
 
@@ -28,7 +121,6 @@ export async function renderMessages(searchTerm = '') {
 
   if (!messages) return;
 
-  // Compteur de resultats en mode recherche
   const countEl = document.getElementById('search-results-count');
   if (countEl) {
     countEl.textContent = searchTerm
@@ -43,15 +135,19 @@ export async function renderMessages(searchTerm = '') {
     return;
   }
 
-  let lastDateStr  = null;
-  let prevAuthor   = null;
-  let prevTime     = null;
+  let lastDateStr = null;
+  let prevAuthor  = null;
+  let prevTime    = null;
+
+  const isTeacher = state.currentUser?.type === 'teacher';
 
   for (const msg of messages) {
+    _initReactions(msg.id, msg.reactions);
+
     const dateStr = new Date(msg.created_at).toDateString();
     if (dateStr !== lastDateStr) {
       lastDateStr = dateStr;
-      prevAuthor  = null; // réinitialise le groupement sur changement de jour
+      prevAuthor  = null;
       prevTime    = null;
       const sep = document.createElement('div');
       sep.className = 'date-separator';
@@ -59,7 +155,7 @@ export async function renderMessages(searchTerm = '') {
       list.appendChild(sep);
     }
 
-    const msgTime  = new Date(msg.created_at).getTime();
+    const msgTime   = new Date(msg.created_at).getTime();
     const isGrouped = !searchTerm
       && prevAuthor === msg.author_name
       && prevTime !== null
@@ -72,12 +168,21 @@ export async function renderMessages(searchTerm = '') {
       ? highlightTerm(msg.content, searchTerm)
       : escapeHtml(msg.content);
 
-    const row = document.createElement('div');
+    const hoverActions = `
+      <div class="msg-hover-actions">
+        ${isTeacher && state.activeChannelId ? `
+          <button class="msg-action-btn msg-pin-btn${msg.pinned ? ' pinned' : ''}"
+                  data-msg-id="${msg.id}" data-pinned="${msg.pinned ? 1 : 0}"
+                  title="${msg.pinned ? 'Désépingler' : 'Épingler'}" aria-label="${msg.pinned ? 'Désépingler' : 'Épingler'}">
+            <i data-lucide="pin" aria-hidden="true"></i>
+          </button>` : ''}
+        <button class="msg-action-btn add-reaction-btn"
+                data-msg-id="${msg.id}" title="Réagir" aria-label="Ajouter une réaction">
+          <i data-lucide="smile-plus" aria-hidden="true"></i>
+        </button>
+      </div>`;
 
-    const isTeacher = state.currentUser?.type === 'teacher';
-    const pinBtn = isTeacher && state.activeChannelId
-      ? `<button class="msg-pin-btn${msg.pinned ? ' pinned' : ''}" data-msg-id="${msg.id}" data-pinned="${msg.pinned ? 1 : 0}" title="${msg.pinned ? 'Désépingler' : 'Épingler'}"><i data-lucide="pin" aria-hidden="true"></i></button>`
-      : '';
+    const row = document.createElement('div');
 
     if (isGrouped) {
       row.className = 'msg-row msg-grouped';
@@ -86,8 +191,9 @@ export async function renderMessages(searchTerm = '') {
         <div class="msg-grouped-time">${formatTime(msg.created_at)}</div>
         <div class="msg-body">
           <div class="msg-content">${content}</div>
+          <div class="msg-reactions-list" id="react-${msg.id}"></div>
         </div>
-        ${pinBtn}
+        ${hoverActions}
       `;
     } else {
       row.className = 'msg-row';
@@ -102,28 +208,42 @@ export async function renderMessages(searchTerm = '') {
             <span class="msg-time">${formatTime(msg.created_at)}</span>
           </div>
           <div class="msg-content">${content}</div>
+          <div class="msg-reactions-list" id="react-${msg.id}"></div>
         </div>
-        ${pinBtn}
+        ${hoverActions}
       `);
     }
 
     list.appendChild(row);
+    _renderReactions(msg.id);
   }
 
   if (!searchTerm) scrollToBottom();
   refreshLucide();
 
-  // ── Pin handler (délégation sur la liste) ────────────────────────────────
-  if (!list._pinHandlerBound) {
-    list._pinHandlerBound = true;
+  // ── Délégation unique : pin + react-btn + pilules ────────────────────────
+  if (!list._handlerBound) {
+    list._handlerBound = true;
     list.addEventListener('click', async e => {
-      const btn = e.target.closest('.msg-pin-btn');
-      if (!btn) return;
-      const msgId  = parseInt(btn.dataset.msgId);
-      const pinned = btn.dataset.pinned === '1' ? 0 : 1;
-      await call(window.api.togglePinMessage, { messageId: msgId, pinned });
-      await renderMessages();
-      await renderPinnedBanner(state.activeChannelId);
+      const pin = e.target.closest('.msg-pin-btn');
+      if (pin) {
+        const msgId  = parseInt(pin.dataset.msgId);
+        const pinned = pin.dataset.pinned === '1' ? 0 : 1;
+        await call(window.api.togglePinMessage, { messageId: msgId, pinned });
+        await renderMessages();
+        await renderPinnedBanner(state.activeChannelId);
+        return;
+      }
+      const reactBtn = e.target.closest('.add-reaction-btn');
+      if (reactBtn) {
+        _showPicker(reactBtn, parseInt(reactBtn.dataset.msgId));
+        return;
+      }
+      const pill = e.target.closest('.msg-reaction-pill');
+      if (pill) {
+        _toggleReact(parseInt(pill.dataset.msgId), pill.dataset.reactType);
+        return;
+      }
     });
   }
 }

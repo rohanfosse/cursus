@@ -3260,34 +3260,109 @@ button:focus-visible {
    PHASE 6 — Analytique, Preview, Pins
 ═══════════════════════════════════════════════════ */
 
-/* ─── 1. Pin button sur les messages ─────────────── */
+/* ─── 1. Hover actions + réactions ───────────────── */
 .msg-row { position: relative; }
-.msg-pin-btn {
+
+.msg-hover-actions {
   position: absolute;
   right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  background: var(--bg-light);
+  top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-dark);
   border: 1px solid rgba(255,255,255,.1);
-  border-radius: 6px;
-  padding: 3px 6px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: opacity .12s, background .12s;
-  line-height: 1;
+  border-radius: 7px;
+  padding: 2px 3px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s;
+  z-index: 10;
+}
+.msg-row:hover .msg-hover-actions,
+.msg-row.msg-grouped:hover .msg-hover-actions { opacity: 1; pointer-events: auto; }
+
+.msg-action-btn {
+  background: transparent;
+  border: none;
   color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 5px;
+  border-radius: 5px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: background .1s, color .1s;
 }
-.msg-pin-btn .lucide {
-  width: 12px;
-  height: 12px;
+.msg-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.msg-action-btn .lucide { width: 13px; height: 13px; }
+.msg-pin-btn.pinned { color: var(--accent); }
+
+/* Pilules de réactions */
+.msg-reactions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  min-height: 0;
 }
-.msg-row:hover .msg-pin-btn { opacity: 1; }
-.msg-pin-btn:hover { background: var(--bg-active); color: var(--text-primary); }
-.msg-pin-btn.pinned { color: var(--accent); opacity: 1; }
+.msg-reaction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 20px;
+  padding: 2px 8px 2px 6px;
+  font-size: 11.5px;
+  font-family: var(--font);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.msg-reaction-pill:hover {
+  background: rgba(255,255,255,.1);
+  border-color: rgba(255,255,255,.2);
+  color: var(--text-secondary);
+}
+.msg-reaction-pill.mine {
+  background: rgba(74,144,217,.14);
+  border-color: rgba(74,144,217,.4);
+  color: #7ab8f0;
+}
+.msg-reaction-pill .lucide { width: 12px; height: 12px; }
+
+/* Picker de réactions */
+.reaction-picker {
+  position: fixed;
+  display: flex;
+  gap: 2px;
+  padding: 5px 6px;
+  background: var(--bg-dark);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 28px rgba(0,0,0,.45);
+  z-index: 600;
+}
+.reaction-picker.hidden { display: none; }
+.reaction-picker-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .1s, color .1s, transform .1s;
+}
+.reaction-picker-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  transform: scale(1.2);
+}
+.reaction-picker-btn .lucide { width: 16px; height: 16px; }
 
 /* ─── 2. Suivi — stats distribution notes ────────── */
 .suivi-stats-bar {
