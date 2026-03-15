@@ -121,16 +121,53 @@ function openNewPromoForm(nav) {
 // ─── Sidebar etudiant ─────────────────────────────────────────────────────────
 
 async function renderStudentSidebar(nav, user) {
-  const channels = await call(window.api.getChannels, user.promo_id);
-  if (!channels) return;
+  const [channels, promotions, travaux] = await Promise.all([
+    call(window.api.getChannels, user.promo_id),
+    call(window.api.getPromotions),
+    call(window.api.getStudentTravaux, user.id),
+  ]);
+  if (!channels || !promotions) return;
 
-  // Creer une section unique pour la promo de l'etudiant, sans DMs
-  const promotions = await call(window.api.getPromotions);
-  const promo = promotions?.find(p => p.id === user.promo_id);
+  const promo = promotions.find(p => p.id === user.promo_id);
   if (!promo) return;
 
   const section = buildPromoSection(promo, channels, [], false);
   nav.appendChild(section);
+
+  // ── Lien DM professeur ──────────────────────────────────────────────────
+  const dmLabel = document.createElement('div');
+  dmLabel.className = 'section-label';
+  dmLabel.style.marginTop = '12px';
+  dmLabel.textContent = 'Message direct';
+  nav.appendChild(dmLabel);
+
+  const dmTeacher = document.createElement('div');
+  dmTeacher.className = 'dm-teacher-item';
+  dmTeacher.innerHTML = `
+    <span class="dm-teacher-avatar">RF</span>
+    <span>Professeur Rohan Fosse</span>
+  `;
+  dmTeacher.addEventListener('click', () => {
+    setActiveItem(dmTeacher);
+    _onDm?.({ id: user.id, promo: user.promo_id, name: 'Rohan Fosse' });
+  });
+  nav.appendChild(dmTeacher);
+
+  // ── Pastilles : canaux avec travaux non rendus ───────────────────────────
+  if (travaux) {
+    const pendingChannels = new Set(
+      travaux
+        .filter(t => t.depot_id == null && t.type !== 'jalon')
+        .map(t => t.channel_id)
+    );
+    section.querySelectorAll('[data-channel-id]').forEach(el => {
+      if (pendingChannels.has(parseInt(el.dataset.channelId))) {
+        const dot = document.createElement('span');
+        dot.className = 'channel-pending-dot';
+        el.appendChild(dot);
+      }
+    });
+  }
 
   attachNavDelegation(nav);
 }
@@ -220,7 +257,7 @@ function attachNavDelegation(nav) {
 }
 
 export function setActiveItem(el) {
-  document.querySelectorAll('.channel-item.active, .dm-item.active')
+  document.querySelectorAll('.channel-item.active, .dm-item.active, .dm-teacher-item.active')
     .forEach(x => x.classList.remove('active'));
   el.classList.add('active');
 }

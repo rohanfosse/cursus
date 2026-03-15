@@ -33,16 +33,27 @@ export function isoForDatetimeLocal() {
 
 export function deadlineClass(deadlineStr) {
   const diff = new Date(deadlineStr).getTime() - Date.now();
-  if (diff < 0)                    return 'deadline-passed';
-  if (diff < 48 * 60 * 60 * 1000) return 'deadline-soon';
+  if (diff < 0)                          return 'deadline-passed';
+  if (diff < 24 * 60 * 60 * 1000)       return 'deadline-critical';
+  if (diff < 3  * 24 * 60 * 60 * 1000)  return 'deadline-soon';
+  if (diff < 7  * 24 * 60 * 60 * 1000)  return 'deadline-warning';
   return 'deadline-ok';
 }
 
 export function deadlineLabel(deadlineStr) {
-  const cls = deadlineClass(deadlineStr);
-  if (cls === 'deadline-passed') return 'Delai depasse';
-  if (cls === 'deadline-soon')   return 'Moins de 48 h';
-  return 'En cours';
+  const diff = new Date(deadlineStr).getTime() - Date.now();
+  if (diff < 0) {
+    const d = Math.ceil(-diff / (24 * 3600 * 1000));
+    return d === 1 ? "Retard d'1 jour" : `Retard de ${d}j`;
+  }
+  const h = diff / (3600 * 1000);
+  if (h < 1)   return "Moins d'1h !";
+  if (h < 24)  return `Dans ${Math.ceil(h)}h`;
+  const d = Math.ceil(h / 24);
+  if (d === 1) return 'Demain';
+  if (d <= 7)  return `Dans ${d} jours`;
+  if (d <= 30) return `Dans ${Math.round(d / 7)} sem.`;
+  return `Dans ${Math.ceil(d / 30)} mois`;
 }
 
 // ─── Couleurs d'avatars ─────────────────────────────────────────────────────
