@@ -1,0 +1,285 @@
+// ─── Handlers IPC — processus Main ────────────────────────────────────────────
+// Ce fichier est intentionnellement en JavaScript pour la compatibilité
+// avec better-sqlite3 (module natif CommonJS).
+// Les types sont déclarés dans src/renderer/src/env.d.ts côté renderer.
+
+const { ipcMain, dialog, shell } = require('electron')
+const fs      = require('fs')
+const path    = require('path')
+// Chemin relatif depuis src/main/ vers src/db/
+const queries = require('../db/index')
+
+// ─── Sécurité : validation des chemins de fichiers ───────────────────────────
+const MAX_READ_BYTES = 50 * 1024 * 1024
+
+function assertSafePath(filePath) {
+  if (typeof filePath !== 'string' || !filePath.trim()) {
+    throw new Error('Chemin de fichier invalide.')
+  }
+  if (filePath.includes('\0')) {
+    throw new Error('Chemin de fichier invalide (null byte).')
+  }
+  const resolved = path.resolve(filePath)
+  if (!path.isAbsolute(resolved)) {
+    throw new Error('Chemin de fichier non absolu.')
+  }
+  return resolved
+}
+
+// Wrapper uniforme { ok, data } / { ok: false, error }
+function handle(channel, fn) {
+  ipcMain.handle(channel, async (_event, ...args) => {
+    try {
+      return { ok: true, data: fn(...args) }
+    } catch (err) {
+      console.error(`[IPC ${channel}]`, err.message)
+      return { ok: false, error: err.message }
+    }
+  })
+}
+
+function register() {
+  // ── Structure ────────────────────────────────────────────────────────────
+  handle('db:getPromotions',    ()           => queries.getPromotions())
+  handle('db:getChannels',      (promoId)    => queries.getChannels(promoId))
+  handle('db:getStudents',      (promoId)    => queries.getStudents(promoId))
+  handle('db:getAllStudents',   ()           => queries.getAllStudents())
+
+  // ── Messages ─────────────────────────────────────────────────────────────
+  handle('db:getChannelMessages', (channelId)        => queries.getChannelMessages(channelId))
+  handle('db:getDmMessages',      (studentId)        => queries.getDmMessages(studentId))
+  handle('db:searchMessages',     (channelId, query) => queries.searchMessages(channelId, query))
+
+  // sendMessage — handler dédié : DB + push temps-réel vers tous les renderers
+  ipcMain.handle('db:sendMessage', async (_event, payload) => {
+    try {
+      const result = queries.sendMessage(payload)
+      const { BrowserWindow } = require('electron')
+      const push = {
+        channelId:   payload.channelId   ?? null,
+        dmStudentId: payload.dmStudentId ?? null,
+      }
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send('msg:new', push)
+      }
+      return { ok: true, data: result }
+    } catch (err) {
+      console.error('[IPC db:sendMessage]', err.message)
+      return { ok: false, error: err.message }
+    }
+  })
+
+  // ── Travaux ───────────────────────────────────────────────────────────────
+  handle('db:getTravaux',       (channelId) => queries.getTravaux(channelId))
+  handle('db:getTravailById',   (travailId) => queries.getTravailById(travailId))
+  handle('db:createTravail',    (payload)   => queries.createTravail(payload))
+  handle('db:getTravauxSuivi',  (travailId) => queries.getTravauxSuivi(travailId))
+
+  // ── Dépôts ────────────────────────────────────────────────────────────────
+  handle('db:getDepots',   (travailId) => queries.getDepots(travailId))
+  handle('db:addDepot',    (payload)   => queries.addDepot(payload))
+  handle('db:setNote',     (payload)   => queries.setNote(payload))
+  handle('db:setFeedback', (payload)   => queries.setFeedback(payload))
+
+  // ── Groupes ───────────────────────────────────────────────────────────────
+  handle('db:getGroups',       (promoId)  => queries.getGroups(promoId))
+  handle('db:createGroup',     (payload)  => queries.createGroup(payload))
+  handle('db:deleteGroup',     (groupId)  => queries.deleteGroup(groupId))
+  handle('db:getGroupMembers', (groupId)  => queries.getGroupMembers(groupId))
+  handle('db:setGroupMembers', (payload)  => queries.setGroupMembers(payload))
+
+  // ── Profil étudiant ───────────────────────────────────────────────────────
+  handle('db:getStudentProfile', (studentId) => queries.getStudentProfile(studentId))
+  handle('db:getStudentTravaux', (studentId) => queries.getStudentTravaux(studentId))
+
+  // ── Ressources ────────────────────────────────────────────────────────────
+  handle('db:getRessources',  (travailId) => queries.getRessources(travailId))
+  handle('db:addRessource',   (payload)   => queries.addRessource(payload))
+  handle('db:deleteRessource',(id)        => queries.deleteRessource(id))
+
+  // ── Groupes par projet ────────────────────────────────────────────────────
+  handle('db:getTravailGroupMembers', (travailId) => queries.getTravailGroupMembers(travailId))
+  handle('db:setTravailGroupMember',  (payload)   => queries.setTravailGroupMember(payload))
+
+  // ── Brouillon / publication ───────────────────────────────────────────────
+  handle('db:updateTravailPublished', (payload) => queries.updateTravailPublished(payload))
+
+  // ── Échéancier prof ───────────────────────────────────────────────────────
+  handle('db:getTeacherSchedule', () => queries.getTeacherSchedule())
+
+  // ── Gantt + rendus ────────────────────────────────────────────────────────
+  handle('db:getGanttData',  (promoId) => queries.getGanttData(promoId ?? null))
+  handle('db:getAllRendus',   (promoId) => queries.getAllRendus(promoId ?? null))
+
+  // ── Visualisation PDF ─────────────────────────────────────────────────────
+  ipcMain.handle('window:openPdf', async (_event, filePath) => {
+    try {
+      const { BrowserWindow } = require('electron')
+      const win = new BrowserWindow({
+        width: 960, height: 780,
+        title: 'Visualisation — CESI Cours',
+        backgroundColor: '#111214',
+        webPreferences: { nodeIntegration: false, contextIsolation: true },
+      })
+      await win.loadURL(`file://${filePath}`)
+      return { ok: true, data: null }
+    } catch (err) {
+      return { ok: false, error: err.message }
+    }
+  })
+
+  // ── Promotions & canaux ───────────────────────────────────────────────────
+  handle('db:createPromotion', (payload)  => queries.createPromotion(payload))
+  handle('db:deletePromotion', (promoId)  => queries.deletePromotion(promoId))
+  handle('db:createChannel',   (payload)  => queries.createChannel(payload))
+
+  // ── Inscription étudiant ──────────────────────────────────────────────────
+  handle('db:getStudentByEmail', (email)   => queries.getStudentByEmail(email))
+  handle('db:registerStudent',   (payload) => queries.registerStudent(payload))
+
+  // ── Identité / login ──────────────────────────────────────────────────────
+  handle('db:getIdentities',        ()                 => queries.getIdentities())
+  handle('db:loginWithCredentials', (email, password)  => queries.loginWithCredentials(email, password))
+
+  // ── Shell — ouvrir fichier/lien ───────────────────────────────────────────
+  ipcMain.handle('shell:openPath', async (_event, filePath) => {
+    try {
+      const resolved = assertSafePath(filePath)
+      if (!fs.existsSync(resolved)) return { ok: false, error: 'Fichier introuvable.' }
+      const err = await shell.openPath(resolved)
+      return err ? { ok: false, error: err } : { ok: true, data: null }
+    } catch (e) {
+      return { ok: false, error: e.message }
+    }
+  })
+
+  ipcMain.handle('shell:openExternal', async (_event, url) => {
+    try {
+      if (typeof url !== 'string' || !/^(https?:\/\/|mailto:)/i.test(url)) {
+        return { ok: false, error: 'URL invalide.' }
+      }
+      await shell.openExternal(url)
+      return { ok: true, data: null }
+    } catch (e) {
+      return { ok: false, error: e.message }
+    }
+  })
+
+  // ── Documents de canal ────────────────────────────────────────────────────
+  handle('db:getChannelDocuments',          (channelId) => queries.getChannelDocuments(channelId))
+  handle('db:getPromoDocuments',            (promoId)   => queries.getPromoDocuments(promoId))
+  handle('db:addChannelDocument',           (payload)   => queries.addChannelDocument(payload))
+  handle('db:deleteChannelDocument',        (id)        => queries.deleteChannelDocument(id))
+  handle('db:getChannelDocumentCategories', (channelId) => queries.getChannelDocumentCategories(channelId))
+
+  // ── Messages épinglés ─────────────────────────────────────────────────────
+  handle('db:getPinnedMessages', (channelId) => queries.getPinnedMessages(channelId))
+  handle('db:togglePinMessage',  (payload)   => queries.togglePinMessage(payload.messageId, payload.pinned))
+
+  // ── Action de masse ───────────────────────────────────────────────────────
+  handle('db:markNonSubmittedAsD', (travailId) => queries.markNonSubmittedAsD(travailId))
+
+  // ── Fichiers ──────────────────────────────────────────────────────────────
+  ipcMain.handle('fs:readFileBase64', async (_event, filePath) => {
+    try {
+      const resolved = assertSafePath(filePath)
+      if (!fs.existsSync(resolved)) return { ok: false, error: 'Fichier introuvable.' }
+      const stats = fs.statSync(resolved)
+      if (stats.size > MAX_READ_BYTES) return { ok: false, error: 'Fichier trop volumineux (> 50 Mo).' }
+      const buffer  = fs.readFileSync(resolved)
+      const ext     = path.extname(resolved).slice(1).toLowerCase()
+      const mimeMap = {
+        pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg',
+        jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+        mp4: 'video/mp4', txt: 'text/plain',
+      }
+      const mime = mimeMap[ext] ?? 'application/octet-stream'
+      return { ok: true, data: { mime, b64: buffer.toString('base64'), ext } }
+    } catch (err) {
+      return { ok: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('fs:downloadFile', async (_event, filePath) => {
+    try {
+      const resolved = assertSafePath(filePath)
+      if (!fs.existsSync(resolved)) return { ok: false, error: 'Fichier introuvable.' }
+      const fileName = path.basename(resolved)
+      const { canceled, filePath: dest } = await dialog.showSaveDialog({ defaultPath: fileName })
+      if (canceled || !dest) return { ok: true, data: null }
+      fs.copyFileSync(resolved, dest)
+      return { ok: true, data: dest }
+    } catch (err) {
+      return { ok: false, error: err.message }
+    }
+  })
+
+  // ── Dialogues ─────────────────────────────────────────────────────────────
+  ipcMain.handle('dialog:openImage', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif'] }],
+      })
+      if (result.canceled || !result.filePaths.length) return { ok: true, data: null }
+      const buffer = fs.readFileSync(result.filePaths[0])
+      const ext    = path.extname(result.filePaths[0]).slice(1).toLowerCase()
+      const mime   = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
+      return { ok: true, data: `data:${mime};base64,${buffer.toString('base64')}` }
+    } catch (err) {
+      return { ok: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('dialog:openFile', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        filters: [
+          { name: 'Tous les fichiers', extensions: ['*'] },
+          { name: 'PDF',               extensions: ['pdf'] },
+          { name: 'Documents',         extensions: ['doc', 'docx', 'odt'] },
+          { name: 'Archives',          extensions: ['zip', 'tar', 'gz'] },
+          { name: 'Code source',       extensions: ['py', 'js', 'ts', 'java', 'c', 'cpp', 'pkt'] },
+        ],
+      })
+      if (result.canceled || !result.filePaths.length) return { ok: true, data: null }
+      return { ok: true, data: result.filePaths[0] }
+    } catch (err) {
+      return { ok: false, error: err.message }
+    }
+  })
+
+  // ── Export CSV ────────────────────────────────────────────────────────────
+  ipcMain.handle('export:csv', async (_event, travailId) => {
+    try {
+      const travail = queries.getTravailById(travailId)
+      const rows    = queries.getTravauxSuivi(travailId)
+      const safeName = (travail?.title ?? 'export')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .slice(0, 60)
+      const { canceled, filePath } = await dialog.showSaveDialog({
+        title: 'Exporter les notes',
+        defaultPath: `notes_${safeName}.csv`,
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+      })
+      if (canceled || !filePath) return { ok: true, data: null }
+      const headers = ['Etudiant', 'Fichier depose', 'Date de depot', 'Note /20', 'Commentaire']
+      const lines = rows.map(r =>
+        [r.student_name, r.file_name ?? '', r.submitted_at ?? '',
+          r.note != null ? String(r.note) : '', r.feedback ?? '']
+          .map(v => `"${String(v).replace(/"/g, '""')}"`)
+          .join(';')
+      )
+      const csv = '\uFEFF' + [headers.join(';'), ...lines].join('\r\n')
+      fs.writeFileSync(filePath, csv, 'utf8')
+      return { ok: true, data: path.basename(filePath) }
+    } catch (err) {
+      console.error('[IPC export:csv]', err.message)
+      return { ok: false, error: err.message }
+    }
+  })
+}
+
+module.exports = { register }
