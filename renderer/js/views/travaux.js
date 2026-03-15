@@ -203,6 +203,7 @@ export function bindNewTravailForm() {
     const isJalon     = type === 'jalon';
     const title       = document.getElementById('nt-title').value.trim();
     const description = document.getElementById('nt-description').value.trim();
+    const startDate   = document.getElementById('nt-start-date')?.value ?? '';
     const deadline    = document.getElementById('nt-deadline').value;
     const groupVal    = !isJalon ? document.getElementById('nt-group').value    : '';
     const category    = document.getElementById('nt-category').value;
@@ -213,6 +214,7 @@ export function bindNewTravailForm() {
       channelId: state.activeChannelId,
       title,
       description,
+      startDate: startDate ? startDate.replace('T', ' ') + ':00' : null,
       deadline:  deadline.replace('T', ' ') + ':00',
       groupId:   groupVal ? parseInt(groupVal) : null,
       category,

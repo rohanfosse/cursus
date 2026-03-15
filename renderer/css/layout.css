@@ -6,6 +6,92 @@ body {
   height: 100vh;
 }
 
+/* ── Rail de navigation ── */
+#nav-rail {
+  width: 52px;
+  min-width: 52px;
+  background: var(--bg-darkest);
+  border-right: 1px solid rgba(255,255,255,.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  gap: 4px;
+  z-index: 10;
+}
+
+#nav-rail-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+#nav-rail-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 4px;
+}
+
+#nav-logo {
+  margin-bottom: 8px;
+  padding: 6px 0;
+}
+
+.nav-rail-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+  position: relative;
+}
+.nav-rail-btn:hover {
+  background: rgba(255,255,255,.06);
+  color: var(--text-secondary);
+}
+.nav-rail-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.nav-rail-btn .nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  background: #e74c3c;
+  border-radius: 50%;
+}
+
+.nav-user-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+.nav-user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* ── Sidebar ── */
 #sidebar {
   width: var(--sidebar-width);
@@ -18,16 +104,9 @@ body {
 }
 
 #sidebar-header {
-  padding: 16px 14px 12px;
+  padding: 12px 14px 10px;
   border-bottom: 1px solid rgba(255,255,255,.07);
   flex-shrink: 0;
-}
-
-#app-logo {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-bottom: 12px;
 }
 
 .logo-mark {
@@ -50,6 +129,55 @@ body {
   font-weight: 700;
 }
 
+/* ── Sections sidebar ── */
+#sidebar-section-messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#sidebar-section-travaux {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#sidebar-section-travaux.hidden,
+#sidebar-section-messages.hidden { display: none; }
+
+/* Onglets Travaux/Rendus dans la sidebar */
+#travaux-sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  flex-shrink: 0;
+}
+.trv-tab {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all .15s;
+}
+.trv-tab:hover { color: var(--text-secondary); }
+.trv-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+#travaux-promo-filter {
+  padding: 8px 10px 4px;
+  flex-shrink: 0;
+}
+#travaux-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-active) transparent;
+}
+
 #teacher-badge {
   display: flex;
   align-items: center;
@@ -66,7 +194,7 @@ body {
   scrollbar-color: var(--bg-active) transparent;
 }
 
-/* ── Zone centrale ── */
+/* ── Zone centrale chat ── */
 #main-area {
   flex: 1;
   display: flex;
@@ -74,6 +202,68 @@ body {
   min-width: 0;
   background: var(--bg-medium);
 }
+#main-area.hidden { display: none; }
+
+/* ── Zone travaux ── */
+#travaux-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-medium);
+}
+#travaux-area.hidden { display: none; }
+
+#travaux-area-header {
+  height: var(--header-height);
+  background: var(--bg-medium);
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+#travaux-area-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+#travaux-area-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-view {
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 20px;
+}
+.btn-view.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+#travaux-main-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#gantt-view,
+#rendus-view {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#gantt-view.hidden,
+#rendus-view.hidden { display: none; }
 
 #channel-header {
   height: var(--header-height);
@@ -266,6 +456,58 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-active) transparent;
+}
+
+/* ── Zone Documents ── */
+#documents-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-main);
+  overflow: hidden;
+}
+
+#documents-area-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 20px;
+  height: var(--header-height);
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  flex-shrink: 0;
+}
+
+#documents-area-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+#documents-area-channel-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#documents-area-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+#documents-main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
   scrollbar-width: thin;
   scrollbar-color: var(--bg-active) transparent;
 }

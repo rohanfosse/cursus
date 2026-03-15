@@ -2,6 +2,7 @@ import { call }      from '../api.js';
 import { state }     from '../state.js';
 import { escapeHtml, formatDate, deadlineClass, deadlineLabel } from '../utils.js';
 import { renderRessourcesInline } from './ressources.js';
+import { openTravailDetail } from './gantt.js';
 
 // Categories disponibles et leurs couleurs
 export const CATEGORIES = {
@@ -226,6 +227,12 @@ async function renderTimeline() {
           <div class="timeline-ressources-zone" id="tl-res-${t.id}"></div>
         </div>
       `;
+
+      // Clic sur la carte → modal détail
+      card.addEventListener('click', e => {
+        if (e.target.closest('button, a')) return;
+        openTravailDetail({ ...t, students_total: null, depots_count: 0 });
+      });
 
       monthEl.appendChild(card);
 

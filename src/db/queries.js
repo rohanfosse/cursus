@@ -83,6 +83,17 @@ function initSchema() {
       created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
     );
 
+    CREATE TABLE IF NOT EXISTS channel_documents (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_id  INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+      category    TEXT NOT NULL DEFAULT 'Général',
+      type        TEXT NOT NULL CHECK(type IN ('file', 'link')),
+      name        TEXT NOT NULL,
+      path_or_url TEXT NOT NULL,
+      description TEXT,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
+
     CREATE TABLE IF NOT EXISTS depots (
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
       travail_id   INTEGER NOT NULL REFERENCES travaux(id) ON DELETE CASCADE,
@@ -124,6 +135,23 @@ function migrate(db) {
   if (!col('students').includes('photo_data'))
     db.exec('ALTER TABLE students ADD COLUMN photo_data TEXT');
 
+  if (!col('travaux').includes('start_date'))
+    db.exec('ALTER TABLE travaux ADD COLUMN start_date TEXT');
+
+  // Table documents de canal (si inexistante)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS channel_documents (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_id  INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+      category    TEXT NOT NULL DEFAULT 'Général',
+      type        TEXT NOT NULL CHECK(type IN ('file', 'link')),
+      name        TEXT NOT NULL,
+      path_or_url TEXT NOT NULL,
+      description TEXT,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    )
+  `);
+
   // Table des groupes par projet (si inexistante — bases existantes)
   db.exec(`
     CREATE TABLE IF NOT EXISTS travail_group_members (
@@ -153,6 +181,7 @@ function seedIfEmpty() {
   const itgm = db.prepare('INSERT OR IGNORE INTO travail_group_members (travail_id, student_id, group_id) VALUES (?, ?, ?)');
   const ir   = db.prepare('INSERT INTO ressources (travail_id, type, name, path_or_url) VALUES (?, ?, ?, ?)');
   const id_  = db.prepare('INSERT INTO depots (travail_id, student_id, file_name, file_path, note, feedback, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  const icd  = db.prepare('INSERT INTO channel_documents (channel_id, category, type, name, path_or_url, description) VALUES (?, ?, ?, ?, ?, ?)');
 
   // ══════════════════════════════════════════════
   //  PROMOTION 1 — CPIA2 25-26
@@ -573,6 +602,45 @@ function seedIfEmpty() {
   id_.run(f_t8, f3, 'LAURENT_Maxime_convoyeur.zip',  'depots/LAURENT_Maxime_convoyeur.zip',  null, null, '2026-04-22 16:00:00');
   id_.run(f_t8, f7, 'ROUX_Quentin_convoyeur.zip',    'depots/ROUX_Quentin_convoyeur.zip',    null, null, '2026-04-23 20:00:00');
   id_.run(f_t8, f9, 'BONNET_Pierre_convoyeur.zip',   'depots/BONNET_Pierre_convoyeur.zip',   null, null, '2026-04-24 11:00:00');
+
+  // ── Documents de canal ──────────────────────────────
+
+  // CPIA2 — cours-developpement
+  icd.run(c1_dev, 'Cours Python',    'link', 'Documentation officielle Python 3', 'https://docs.python.org/3/', 'Reference complete du langage Python 3');
+  icd.run(c1_dev, 'Cours Python',    'link', 'Real Python — Tutoriels pratiques',  'https://realpython.com/',   'Tutoriels Python de qualite, du debutant a l\'expert');
+  icd.run(c1_dev, 'Algorithmique',   'link', 'Visualgo — Algorithmes interactifs', 'https://visualgo.net/',     'Visualisation animee des structures de donnees et algorithmes');
+  icd.run(c1_dev, 'Algorithmique',   'link', 'Big-O Cheat Sheet',                  'https://www.bigocheatsheet.com/', 'Tableau de complexite des algorithmes courants');
+  icd.run(c1_dev, 'Outils',          'link', 'Python Tutor — Debogueur visuel',    'http://pythontutor.com/',   'Executer et visualiser du code Python pas-a-pas dans le navigateur');
+  icd.run(c1_dev, 'UML',             'link', 'Draw.io — Diagrammes gratuits',      'https://app.diagrams.net/', 'Outil en ligne pour creer des diagrammes UML');
+  icd.run(c1_dev, 'UML',             'link', 'PlantUML — UML en texte',            'https://plantuml.com/',     'Generer des diagrammes UML a partir de texte');
+
+  // CPIA2 — general
+  icd.run(c1_gen, 'Organisation',    'link', 'Planning de l\'annee CPIA2 25-26',   'https://www.google.com/calendar', 'Calendrier des cours, evaluations et conges');
+  icd.run(c1_gen, 'Organisation',    'link', 'Reglement interieur CESI',           'https://www.cesi.fr/',      'Charte et regles de vie en formation');
+
+  // CPIA2 — projets
+  icd.run(c1_prj, 'Projet annuel',   'link', 'Cahier des charges — Application de gestion', 'https://www.python.org/', 'Specifications completes et criteres d\'evaluation du projet annuel');
+  icd.run(c1_prj, 'Methodologie',    'link', 'Pro Git — Livre de reference',       'https://git-scm.com/book/fr/v2', 'Guide complet de Git en francais (gratuit)');
+  icd.run(c1_prj, 'Methodologie',    'link', 'PEP 8 — Style Guide Python',         'https://peps.python.org/pep-0008/', 'Convention de style officielle pour le code Python');
+  icd.run(c1_prj, 'Methodologie',    'link', 'Guide de redaction de rapport',      'https://www.cesi.fr/',      'Conseils pour structurer et rediger un rapport technique');
+
+  // FISAA4 — systemes-industriels
+  icd.run(c2_sys, 'Automates',       'link', 'Introduction aux API industriels',   'https://fr.wikipedia.org/wiki/Automate_programmable_industriel', 'Vue d\'ensemble des automates programmables');
+  icd.run(c2_sys, 'Automates',       'link', 'PLCopen — Standard IEC 61131-3',     'https://www.plcopen.org/',  'Organisation internationale pour la programmation automate');
+  icd.run(c2_sys, 'SCADA',           'link', 'Introduction aux systemes SCADA',    'https://fr.wikipedia.org/wiki/SCADA', 'Concepts fondamentaux de la supervision industrielle');
+  icd.run(c2_sys, 'SCADA',           'link', 'Ignition SCADA — Documentation',     'https://docs.inductiveautomation.com/', 'Documentation officielle de la plateforme Ignition');
+  icd.run(c2_sys, 'Reseaux indus.',  'link', 'Profibus & Profinet — Tutoriel',     'https://profinetuniversity.com/', 'Introduction aux reseaux industriels Profibus et Profinet');
+
+  // FISAA4 — anglais-pro
+  icd.run(c2_ang, 'Vocabulaire',     'link', 'BBC Learning English',               'https://www.bbc.co.uk/learningenglish/', 'Ressources BBC pour l\'anglais professionnel');
+  icd.run(c2_ang, 'Vocabulaire',     'link', 'EngVid — Videos anglais pro',        'https://www.engvid.com/',   'Vocabulaire et grammaire pour le milieu professionnel');
+  icd.run(c2_ang, 'Exercices',       'link', 'British Council — Anglais pro',      'https://learnenglish.britishcouncil.org/business-english', 'Exercices d\'anglais des affaires du British Council');
+
+  // FISAA4 — projets-e5
+  icd.run(c2_e5, 'Referentiel',      'link', 'Referentiel BTS SN — Epreuve E5',   'https://www.education.gouv.fr/', 'Referentiel officiel de l\'epreuve E5 du BTS SN');
+  icd.run(c2_e5, 'Referentiel',      'link', 'Grille d\'evaluation E5',            'https://www.education.gouv.fr/', 'Criteres et baremes d\'evaluation de la soutenance');
+  icd.run(c2_e5, 'Methodologie',     'link', 'Guide de redaction du rapport E5',   'https://www.education.gouv.fr/', 'Structure et conseils de redaction pour le rapport de stage');
+  icd.run(c2_e5, 'Methodologie',     'link', 'Exemples de dossiers E5 (anonymises)', 'https://www.education.gouv.fr/', 'Exemples de rapports pour se reperer dans les attentes');
 }
 
 // ─── Promotions & structure ───────────────────────────────────────────────────
@@ -747,13 +815,13 @@ function getTravailById(travailId) {
   return getDb().prepare('SELECT * FROM travaux WHERE id = ?').get(travailId);
 }
 
-function createTravail({ channelId, groupId, title, description, deadline, category, type, published }) {
+function createTravail({ channelId, groupId, title, description, startDate, deadline, category, type, published }) {
   const db = getDb();
   const result = db.prepare(`
-    INSERT INTO travaux (channel_id, group_id, title, description, deadline, category, type, published)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO travaux (channel_id, group_id, title, description, start_date, deadline, category, type, published)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    channelId, groupId ?? null, title, description, deadline,
+    channelId, groupId ?? null, title, description, startDate ?? null, deadline,
     category  ?? 'TP',
     type      ?? 'devoir',
     published != null ? (published ? 1 : 0) : 1
@@ -899,6 +967,110 @@ function deleteRessource(ressourceId) {
   return getDb().prepare('DELETE FROM ressources WHERE id = ?').run(ressourceId);
 }
 
+// ─── Documents de canal (bibliothèque) ───────────────────────────────────────
+
+function getChannelDocuments(channelId) {
+  return getDb().prepare(`
+    SELECT * FROM channel_documents WHERE channel_id = ? ORDER BY category ASC, created_at ASC
+  `).all(channelId);
+}
+
+function addChannelDocument({ channelId, category, type, name, pathOrUrl, description }) {
+  return getDb().prepare(`
+    INSERT INTO channel_documents (channel_id, category, type, name, path_or_url, description)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(channelId, category || 'Général', type, name, pathOrUrl, description ?? null);
+}
+
+function deleteChannelDocument(id) {
+  return getDb().prepare('DELETE FROM channel_documents WHERE id = ?').run(id);
+}
+
+function getChannelDocumentCategories(channelId) {
+  return getDb().prepare(`
+    SELECT DISTINCT category FROM channel_documents WHERE channel_id = ? ORDER BY category ASC
+  `).all(channelId).map(r => r.category);
+}
+
+// ─── Gantt ────────────────────────────────────────────────────────────────────
+
+function getGanttData(promoId) {
+  const db = getDb();
+  const query = promoId
+    ? `
+      SELECT t.id, t.title, t.category, t.type, t.published,
+             t.start_date, t.deadline, t.group_id,
+             g.name AS group_name,
+             ch.name AS channel_name, ch.id AS channel_id,
+             p.name AS promo_name, p.color AS promo_color, p.id AS promo_id,
+             (SELECT COUNT(*) FROM depots d WHERE d.travail_id = t.id) AS depots_count,
+             CASE WHEN t.group_id IS NOT NULL
+               THEN (SELECT COUNT(*) FROM group_members WHERE group_id = t.group_id)
+               ELSE (SELECT COUNT(*) FROM students WHERE promo_id = p.id)
+             END AS students_total
+      FROM travaux t
+      JOIN channels ch  ON ch.id = t.channel_id
+      JOIN promotions p ON p.id  = ch.promo_id
+      LEFT JOIN groups g ON g.id = t.group_id
+      WHERE p.id = ? AND ch.type = 'chat'
+      ORDER BY t.deadline ASC
+    `
+    : `
+      SELECT t.id, t.title, t.category, t.type, t.published,
+             t.start_date, t.deadline, t.group_id,
+             g.name AS group_name,
+             ch.name AS channel_name, ch.id AS channel_id,
+             p.name AS promo_name, p.color AS promo_color, p.id AS promo_id,
+             (SELECT COUNT(*) FROM depots d WHERE d.travail_id = t.id) AS depots_count,
+             CASE WHEN t.group_id IS NOT NULL
+               THEN (SELECT COUNT(*) FROM group_members WHERE group_id = t.group_id)
+               ELSE (SELECT COUNT(*) FROM students WHERE promo_id = p.id)
+             END AS students_total
+      FROM travaux t
+      JOIN channels ch  ON ch.id = t.channel_id
+      JOIN promotions p ON p.id  = ch.promo_id
+      LEFT JOIN groups g ON g.id = t.group_id
+      WHERE ch.type = 'chat'
+      ORDER BY p.name ASC, t.deadline ASC
+    `;
+  return promoId ? db.prepare(query).all(promoId) : db.prepare(query).all();
+}
+
+// ─── Tous les rendus (vue professeur) ─────────────────────────────────────────
+
+function getAllRendus(promoId) {
+  const db = getDb();
+  const query = promoId
+    ? `
+      SELECT d.id, d.file_name, d.file_path, d.note, d.feedback, d.submitted_at,
+             s.id AS student_id, s.name AS student_name, s.avatar_initials, s.photo_data,
+             t.id AS travail_id, t.title AS travail_title, t.category, t.deadline,
+             ch.name AS channel_name,
+             p.name AS promo_name, p.color AS promo_color
+      FROM depots d
+      JOIN students s   ON s.id  = d.student_id
+      JOIN travaux t    ON t.id  = d.travail_id
+      JOIN channels ch  ON ch.id = t.channel_id
+      JOIN promotions p ON p.id  = ch.promo_id
+      WHERE p.id = ?
+      ORDER BY d.submitted_at DESC
+    `
+    : `
+      SELECT d.id, d.file_name, d.file_path, d.note, d.feedback, d.submitted_at,
+             s.id AS student_id, s.name AS student_name, s.avatar_initials, s.photo_data,
+             t.id AS travail_id, t.title AS travail_title, t.category, t.deadline,
+             ch.name AS channel_name,
+             p.name AS promo_name, p.color AS promo_color
+      FROM depots d
+      JOIN students s   ON s.id  = d.student_id
+      JOIN travaux t    ON t.id  = d.travail_id
+      JOIN channels ch  ON ch.id = t.channel_id
+      JOIN promotions p ON p.id  = ch.promo_id
+      ORDER BY d.submitted_at DESC
+    `;
+  return promoId ? db.prepare(query).all(promoId) : db.prepare(query).all();
+}
+
 // ─── Échéancier professeur ────────────────────────────────────────────────────
 
 function getTeacherSchedule() {
@@ -1010,4 +1182,7 @@ module.exports = {
   updateTravailPublished,
   createPromotion, deletePromotion,
   getTeacherSchedule,
+  getGanttData,
+  getAllRendus,
+  getChannelDocuments, addChannelDocument, deleteChannelDocument, getChannelDocumentCategories,
 };

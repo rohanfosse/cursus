@@ -64,7 +64,28 @@ function register() {
   handle('db:updateTravailPublished', (payload)   => queries.updateTravailPublished(payload));
 
   // Echéancier prof
-  handle('db:getTeacherSchedule',     ()          => queries.getTeacherSchedule());
+  handle('db:getTeacherSchedule',     ()           => queries.getTeacherSchedule());
+
+  // Gantt + rendus
+  handle('db:getGanttData',           (promoId)    => queries.getGanttData(promoId ?? null));
+  handle('db:getAllRendus',            (promoId)    => queries.getAllRendus(promoId ?? null));
+
+  // Visualisation PDF dans une nouvelle fenêtre
+  ipcMain.handle('window:openPdf', async (_event, filePath) => {
+    try {
+      const { BrowserWindow } = require('electron');
+      const win = new BrowserWindow({
+        width: 960, height: 780,
+        title: 'Visualisation — CESI Classroom',
+        backgroundColor: '#111214',
+        webPreferences: { nodeIntegration: false, contextIsolation: true },
+      });
+      await win.loadURL(`file://${filePath}`);
+      return { ok: true, data: null };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
 
   // Promotions
   handle('db:createPromotion',   (payload)    => queries.createPromotion(payload));
@@ -96,6 +117,12 @@ function register() {
       return { ok: false, error: e.message };
     }
   });
+
+  // Documents de canal (bibliothèque)
+  handle('db:getChannelDocuments',          (channelId)  => queries.getChannelDocuments(channelId));
+  handle('db:addChannelDocument',           (payload)    => queries.addChannelDocument(payload));
+  handle('db:deleteChannelDocument',        (id)         => queries.deleteChannelDocument(id));
+  handle('db:getChannelDocumentCategories', (channelId)  => queries.getChannelDocumentCategories(channelId));
 
   // Dialogue image — photo de profil (retourne base64 data URL)
   ipcMain.handle('dialog:openImage', async () => {

@@ -74,4 +74,17 @@ contextBridge.exposeInMainWorld('api', {
 
   // Echéancier prof
   getTeacherSchedule: ()               => invoke('db:getTeacherSchedule'),
+
+  // Gantt + rendus
+  getGanttData:       (promoId)        => invoke('db:getGanttData',       promoId),
+  getAllRendus:        (promoId)        => invoke('db:getAllRendus',        promoId),
+
+  // PDF viewer
+  openPdf:            (filePath)       => invoke('window:openPdf',        filePath),
+
+  // Documents de canal
+  getChannelDocuments:          (channelId)  => invoke('db:getChannelDocuments',          channelId),
+  addChannelDocument:           (payload)    => invoke('db:addChannelDocument',           payload),
+  deleteChannelDocument:        (id)         => invoke('db:deleteChannelDocument',        id),
+  getChannelDocumentCategories: (channelId)  => invoke('db:getChannelDocumentCategories', channelId),
 });
