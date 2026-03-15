@@ -1,6 +1,6 @@
 import { state }           from './state.js';
 import { call }            from './api.js';
-import { deadlineClass }   from './utils.js';
+import { deadlineClass, trapFocus } from './utils.js';
 import { renderMessages, sendMessage, initSearch, renderPinnedBanner, initMessageInput, initFormatToolbar, markChannelRead, initUnreadListener } from './views/chat.js';
 import { renderSidebar, initSidebar }              from './views/sidebar.js';
 import { initTravaux, bindNewTravailForm } from './views/travaux.js';
@@ -18,6 +18,9 @@ import { initCmdPalette }                           from './views/cmd-palette.js
 import { refreshLucide }                            from './lucide.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // A11y : focus trap clavier sur toutes les modales présentes dans le DOM
+  document.querySelectorAll('.modal-overlay').forEach(trapFocus);
+
   await showLoginScreen(onLogin);
 });
 

@@ -44,7 +44,7 @@ function _showEmailForm(onLogin, prefillEmail = '') {
     <div id="login-panel">
       <div id="login-logo">
         <div class="logo-mark">CC</div>
-        <span class="logo-text">CESI Classroom</span>
+        <span class="logo-text">CESI Cours</span>
       </div>
       <h2 id="login-title">Connexion</h2>
       <p id="login-subtitle">Entrez vos identifiants pour continuer</p>
@@ -217,7 +217,7 @@ async function _showRegisterForm(onLogin) {
     <div id="login-panel" style="max-width:480px;">
       <div id="login-logo">
         <div class="logo-mark">CC</div>
-        <span class="logo-text">CESI Classroom</span>
+        <span class="logo-text">CESI Cours</span>
       </div>
       <h2 id="login-title">Nouveau compte étudiant</h2>
       <p id="login-subtitle">Seules les adresses @viacesi.fr sont acceptées</p>

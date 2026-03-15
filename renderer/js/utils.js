@@ -145,6 +145,40 @@ export function showUndoToast(msg, duration = 5000) {
   });
 }
 
+// ─── Accessibilité — focus trap clavier ──────────────────────────────────────
+// Appliqué à chaque .modal-overlay : capture Tab/Shift-Tab à l'intérieur
+// et déplace automatiquement le focus sur le premier élément à l'ouverture.
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), ' +
+  'textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+export function trapFocus(overlayEl) {
+  // 1. Cyclage Tab/Shift-Tab dans la modale
+  overlayEl.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    const focusable = [...overlayEl.querySelectorAll(FOCUSABLE)];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
+
+  // 2. Déplacement automatique du focus à l'ouverture (suppression de .hidden)
+  new MutationObserver(() => {
+    if (!overlayEl.classList.contains('hidden')) {
+      const first = overlayEl.querySelector(FOCUSABLE);
+      first?.focus();
+    }
+  }).observe(overlayEl, { attributeFilter: ['class'] });
+}
+
 // ─── DOM ────────────────────────────────────────────────────────────────────
 
 export function el(id) {

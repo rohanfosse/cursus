@@ -1,7 +1,7 @@
 {
-  "name": "cesi-classroom",
+  "name": "cesi-cours",
   "version": "1.0.0",
-  "description": "Application de classe Slack-like pour les promotions CESI",
+  "description": "Espace pédagogique numérique pour les promotions CESI",
   "main": "main.js",
   "scripts": {
     "start": "node_modules\\electron\\dist\\electron.exe .",
@@ -29,8 +29,8 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "fr.cesi.classroom",
-    "productName": "CESI Classroom",
+    "appId": "fr.cesi.cours",
+    "productName": "CESI Cours",
     "directories": {
       "output": "dist"
     },

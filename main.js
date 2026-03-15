@@ -9,7 +9,7 @@ function createWindow() {
     height: 800,
     minWidth:  960,
     minHeight: 640,
-    title: 'CESI Classroom',
+    title: 'CESI Cours',
     backgroundColor: '#111214',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
