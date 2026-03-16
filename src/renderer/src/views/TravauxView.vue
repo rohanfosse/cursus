@@ -1,6 +1,6 @@
 <script setup lang="ts">
-  import { ref, computed, onMounted, watch } from 'vue'
-  import { BarChart2, List, Plus, Upload, Link2, X, FileText, CheckCircle2, Clock } from 'lucide-vue-next'
+  import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+  import { BarChart2, List, Plus, Upload, Link2, X, FileText, CheckCircle2, Clock, Lock } from 'lucide-vue-next'
   import { useAppStore }     from '@/stores/app'
   import { useTravauxStore } from '@/stores/travaux'
   import { useModalsStore }  from '@/stores/modals'
@@ -17,6 +17,22 @@
 
   const activePromoId = computed(() => promoFilter.value ?? appStore.activePromoId)
 
+  // ── Horloge temps réel pour verrouillage des deadlines ───────────────────
+  /**
+   * Pourquoi une horloge 30 s plutôt que requestAnimationFrame ?
+   *   - rAF tourne à 60 fps = 60 appels/s × N cartes → inutile et coûteux
+   *   - Les deadlines sont à la minute près; un intervalle de 30 s est
+   *     suffisant tout en réagissant dans la demi-minute suivant l'expiration
+   *   - Nettoyé dans onBeforeUnmount → zéro fuite mémoire
+   */
+  const now = ref(Date.now())
+  let clockInterval: ReturnType<typeof setInterval> | null = null
+
+  /** Renvoie true si la deadline est passée (verrouille le bouton Déposer) */
+  function isExpired(deadline: string): boolean {
+    return now.value >= new Date(deadline).getTime()
+  }
+
   // Dépôt inline (étudiant)
   const depositingTravailId = ref<number | null>(null)
   const depositMode         = ref<'file' | 'link'>('file')
@@ -26,12 +42,18 @@
   const depositing          = ref(false)
 
   onMounted(async () => {
+    clockInterval = setInterval(() => { now.value = Date.now() }, 30_000)
+
     const res = await window.api.getPromotions()
     promotions.value = res?.ok ? res.data : []
     if (!promoFilter.value && promotions.value.length) {
       promoFilter.value = promotions.value[0].id
     }
     await loadView()
+  })
+
+  onBeforeUnmount(() => {
+    if (clockInterval !== null) clearInterval(clockInterval)
   })
 
   async function loadView() {
@@ -69,9 +91,15 @@
   }
 
   async function submitDeposit(travail: Travail) {
+    // ── Debounce / double-clic ─────────────────────────────────────────────
+    // depositing.value agit comme mutex : posé synchroniquement avant tout
+    // await, donc aucun second clic ne peut passer avant la fin du premier.
+    if (depositing.value) return
     if (!appStore.currentUser) return
     if (depositMode.value === 'file' && !depositFile.value) return
     if (depositMode.value === 'link' && !depositLink.value.trim()) return
+    // Vérification deadline côté client (la DB valide aussi côté serveur)
+    if (isExpired(travail.deadline)) return
 
     depositing.value = true
     try {
@@ -272,25 +300,30 @@
                   <button
                     class="btn-primary"
                     style="font-size:12px"
-                    :disabled="depositing || (depositMode === 'file' ? !depositFile : !depositLink.trim())"
+                    :disabled="depositing || isExpired(t.deadline) || (depositMode === 'file' ? !depositFile : !depositLink.trim())"
+                    :title="isExpired(t.deadline) ? 'Délai de soumission expiré' : undefined"
                     @click="submitDeposit(t)"
                   >
                     <Upload :size="12" />
-                    {{ depositing ? 'Dépôt…' : 'Déposer' }}
+                    {{ depositing ? 'Dépôt…' : isExpired(t.deadline) ? 'Délai expiré' : 'Déposer' }}
                   </button>
                 </div>
               </div>
             </template>
 
-            <!-- Bouton Déposer -->
+            <!-- Bouton Déposer (verrouillé si deadline expirée) -->
             <div v-else class="travail-card-footer">
               <span class="travail-deadline-date">Échéance : {{ formatDate(t.deadline) }}</span>
               <button
                 class="btn-primary"
                 style="font-size:12px;padding:5px 12px"
+                :disabled="isExpired(t.deadline)"
+                :title="isExpired(t.deadline) ? 'Délai de soumission expiré' : 'Déposer un travail'"
                 @click="startDeposit(t)"
               >
-                <Upload :size="12" /> Déposer
+                <Lock v-if="isExpired(t.deadline)" :size="12" />
+                <Upload v-else :size="12" />
+                {{ isExpired(t.deadline) ? 'Délai expiré' : 'Déposer' }}
               </button>
             </div>
           </div>

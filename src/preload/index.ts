@@ -12,10 +12,13 @@ contextBridge.exposeInMainWorld('api', {
   getAllStudents:    ()              => invoke('db:getAllStudents'),
 
   // ── Messages ───────────────────────────────────────────────────────────────
-  getChannelMessages: (channelId: number)       => invoke('db:getChannelMessages', channelId),
-  getDmMessages:      (studentId: number)       => invoke('db:getDmMessages',      studentId),
-  searchMessages:     (channelId: number, q: string) => invoke('db:searchMessages', channelId, q),
-  sendMessage:        (payload: unknown)        => invoke('db:sendMessage',         payload),
+  getChannelMessages:     (channelId: number)                    => invoke('db:getChannelMessages',     channelId),
+  getDmMessages:          (studentId: number)                    => invoke('db:getDmMessages',          studentId),
+  // Pagination par curseur — beforeId = undefined pour la page initiale
+  getChannelMessagesPage: (channelId: number, beforeId?: number) => invoke('db:getChannelMessagesPage', channelId, beforeId ?? null),
+  getDmMessagesPage:      (studentId: number, beforeId?: number) => invoke('db:getDmMessagesPage',      studentId, beforeId ?? null),
+  searchMessages:         (channelId: number, q: string)         => invoke('db:searchMessages',         channelId, q),
+  sendMessage:            (payload: unknown)                     => invoke('db:sendMessage',             payload),
 
   // ── Travaux ────────────────────────────────────────────────────────────────
   getTravaux:        (channelId: number)  => invoke('db:getTravaux',       channelId),

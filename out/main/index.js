@@ -971,15 +971,36 @@ function requireMessages() {
   if (hasRequiredMessages) return messages;
   hasRequiredMessages = 1;
   const { getDb } = requireConnection();
+  const PAGE_SIZE = 50;
   function getChannelMessages(channelId) {
     return getDb().prepare(
       "SELECT * FROM messages WHERE channel_id = ? ORDER BY created_at ASC"
     ).all(channelId);
   }
+  function getChannelMessagesPage(channelId, beforeId) {
+    if (beforeId) {
+      return getDb().prepare(
+        "SELECT * FROM messages WHERE channel_id = ? AND id < ? ORDER BY id DESC LIMIT ?"
+      ).all(channelId, beforeId, PAGE_SIZE);
+    }
+    return getDb().prepare(
+      "SELECT * FROM messages WHERE channel_id = ? ORDER BY id DESC LIMIT ?"
+    ).all(channelId, PAGE_SIZE);
+  }
   function getDmMessages(studentId) {
     return getDb().prepare(
       "SELECT * FROM messages WHERE dm_student_id = ? ORDER BY created_at ASC"
     ).all(studentId);
+  }
+  function getDmMessagesPage(studentId, beforeId) {
+    if (beforeId) {
+      return getDb().prepare(
+        "SELECT * FROM messages WHERE dm_student_id = ? AND id < ? ORDER BY id DESC LIMIT ?"
+      ).all(studentId, beforeId, PAGE_SIZE);
+    }
+    return getDb().prepare(
+      "SELECT * FROM messages WHERE dm_student_id = ? ORDER BY id DESC LIMIT ?"
+    ).all(studentId, PAGE_SIZE);
   }
   function searchMessages(channelId, query) {
     return getDb().prepare(`
@@ -1006,7 +1027,9 @@ function requireMessages() {
   }
   messages = {
     getChannelMessages,
+    getChannelMessagesPage,
     getDmMessages,
+    getDmMessagesPage,
     searchMessages,
     sendMessage,
     getPinnedMessages,
@@ -1445,6 +1468,8 @@ function requireIpc() {
     handle("db:getAllStudents", () => queries.getAllStudents());
     handle("db:getChannelMessages", (channelId) => queries.getChannelMessages(channelId));
     handle("db:getDmMessages", (studentId) => queries.getDmMessages(studentId));
+    handle("db:getChannelMessagesPage", (channelId, beforeId) => queries.getChannelMessagesPage(channelId, beforeId ?? null));
+    handle("db:getDmMessagesPage", (studentId, beforeId) => queries.getDmMessagesPage(studentId, beforeId ?? null));
     handle("db:searchMessages", (channelId, query) => queries.searchMessages(channelId, query));
     ipcMain.handle("db:sendMessage", async (_event, payload) => {
       try {

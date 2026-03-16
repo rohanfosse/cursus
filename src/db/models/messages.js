@@ -1,15 +1,44 @@
 const { getDb } = require('../connection');
 
+const PAGE_SIZE = 50;
+
 function getChannelMessages(channelId) {
   return getDb().prepare(
     'SELECT * FROM messages WHERE channel_id = ? ORDER BY created_at ASC'
   ).all(channelId);
 }
 
+/**
+ * Pagination par curseur (infinite scroll vers le haut).
+ * Retourne les PAGE_SIZE messages les plus récents (ou avant beforeId).
+ * L'ordre DESC est inversé côté store pour afficher ASC.
+ */
+function getChannelMessagesPage(channelId, beforeId) {
+  if (beforeId) {
+    return getDb().prepare(
+      'SELECT * FROM messages WHERE channel_id = ? AND id < ? ORDER BY id DESC LIMIT ?'
+    ).all(channelId, beforeId, PAGE_SIZE);
+  }
+  return getDb().prepare(
+    'SELECT * FROM messages WHERE channel_id = ? ORDER BY id DESC LIMIT ?'
+  ).all(channelId, PAGE_SIZE);
+}
+
 function getDmMessages(studentId) {
   return getDb().prepare(
     'SELECT * FROM messages WHERE dm_student_id = ? ORDER BY created_at ASC'
   ).all(studentId);
+}
+
+function getDmMessagesPage(studentId, beforeId) {
+  if (beforeId) {
+    return getDb().prepare(
+      'SELECT * FROM messages WHERE dm_student_id = ? AND id < ? ORDER BY id DESC LIMIT ?'
+    ).all(studentId, beforeId, PAGE_SIZE);
+  }
+  return getDb().prepare(
+    'SELECT * FROM messages WHERE dm_student_id = ? ORDER BY id DESC LIMIT ?'
+  ).all(studentId, PAGE_SIZE);
 }
 
 function searchMessages(channelId, query) {
@@ -41,6 +70,8 @@ function togglePinMessage(messageId, pinned) {
 }
 
 module.exports = {
-  getChannelMessages, getDmMessages, searchMessages, sendMessage,
+  getChannelMessages, getChannelMessagesPage,
+  getDmMessages, getDmMessagesPage,
+  searchMessages, sendMessage,
   getPinnedMessages, togglePinMessage,
 };

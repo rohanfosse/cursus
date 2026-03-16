@@ -25,6 +25,9 @@ declare global {
       // Messages
       getChannelMessages(channelId: number): Promise<IpcResponse<Message[]>>
       getDmMessages(studentId: number): Promise<IpcResponse<Message[]>>
+      // Pagination par curseur — beforeId omis pour la première page
+      getChannelMessagesPage(channelId: number, beforeId?: number | null): Promise<IpcResponse<Message[]>>
+      getDmMessagesPage(studentId: number, beforeId?: number | null): Promise<IpcResponse<Message[]>>
       searchMessages(channelId: number, q: string): Promise<IpcResponse<Message[]>>
       sendMessage(payload: SendMessagePayload): Promise<IpcResponse<{ id: number }>>
 

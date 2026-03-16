@@ -12,6 +12,9 @@ electron.contextBridge.exposeInMainWorld("api", {
   // ── Messages ───────────────────────────────────────────────────────────────
   getChannelMessages: (channelId) => invoke("db:getChannelMessages", channelId),
   getDmMessages: (studentId) => invoke("db:getDmMessages", studentId),
+  // Pagination par curseur — beforeId = undefined pour la page initiale
+  getChannelMessagesPage: (channelId, beforeId) => invoke("db:getChannelMessagesPage", channelId, beforeId ?? null),
+  getDmMessagesPage: (studentId, beforeId) => invoke("db:getDmMessagesPage", studentId, beforeId ?? null),
   searchMessages: (channelId, q) => invoke("db:searchMessages", channelId, q),
   sendMessage: (payload) => invoke("db:sendMessage", payload),
   // ── Travaux ────────────────────────────────────────────────────────────────

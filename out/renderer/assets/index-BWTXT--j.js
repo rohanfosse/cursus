@@ -9874,6 +9874,16 @@ const List = createLucideIcon("list", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const Lock = createLucideIcon("lock", [
+  ["rect", { width: "18", height: "11", x: "3", y: "11", rx: "2", ry: "2", key: "1w4ew1" }],
+  ["path", { d: "M7 11V7a5 5 0 0 1 10 0v4", key: "fwvmzm" }]
+]);
+/**
+ * @license lucide-vue-next v0.577.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const LogOut = createLucideIcon("log-out", [
   ["path", { d: "m16 17 5-5-5-5", key: "1bji2h" }],
   ["path", { d: "M21 12H9", key: "dn1m92" }],
@@ -10193,11 +10203,14 @@ const useAppStore = /* @__PURE__ */ defineStore("app", () => {
   };
 });
 const GROUP_THRESHOLD_MS = 5 * 60 * 1e3;
+const PAGE_SIZE = 50;
 const useMessagesStore = /* @__PURE__ */ defineStore("messages", () => {
   const appStore = useAppStore();
   const messages = /* @__PURE__ */ ref([]);
   const pinned = /* @__PURE__ */ ref([]);
   const loading = /* @__PURE__ */ ref(false);
+  const loadingMore = /* @__PURE__ */ ref(false);
+  const hasMore = /* @__PURE__ */ ref(false);
   const searchTerm = /* @__PURE__ */ ref("");
   const firstUnreadId = /* @__PURE__ */ ref(null);
   const reactions = /* @__PURE__ */ reactive({});
@@ -10215,32 +10228,60 @@ const useMessagesStore = /* @__PURE__ */ defineStore("messages", () => {
   }
   async function fetchMessages() {
     loading.value = true;
+    hasMore.value = false;
+    firstUnreadId.value = null;
     try {
       const { activeChannelId, activeDmStudentId } = appStore;
-      let res = null;
       const lrKey = _lrKey();
       const lastReadId = lrKey ? parseInt(localStorage.getItem(lrKey) ?? "0", 10) : 0;
+      let fetched = [];
       if (searchTerm.value && activeChannelId) {
-        res = await window.api.searchMessages(activeChannelId, searchTerm.value);
+        const res = await window.api.searchMessages(activeChannelId, searchTerm.value);
+        fetched = res?.ok ? res.data : [];
+        hasMore.value = false;
       } else if (activeChannelId) {
-        res = await window.api.getChannelMessages(activeChannelId);
+        const res = await window.api.getChannelMessagesPage(activeChannelId);
+        const page = res?.ok ? res.data : [];
+        fetched = page.slice().reverse();
+        hasMore.value = page.length === PAGE_SIZE;
       } else if (activeDmStudentId) {
-        res = await window.api.getDmMessages(activeDmStudentId);
+        const res = await window.api.getDmMessagesPage(activeDmStudentId);
+        const page = res?.ok ? res.data : [];
+        fetched = page.slice().reverse();
+        hasMore.value = page.length === PAGE_SIZE;
       }
-      const fetched = res?.ok ? res.data : [];
       messages.value = fetched;
       if (!searchTerm.value && lastReadId > 0) {
         const first = fetched.find((m) => m.id > lastReadId);
         firstUnreadId.value = first?.id ?? null;
-      } else {
-        firstUnreadId.value = null;
       }
       if (lrKey && fetched.length) {
-        const lastId = fetched[fetched.length - 1].id;
-        localStorage.setItem(lrKey, String(lastId));
+        localStorage.setItem(lrKey, String(fetched[fetched.length - 1].id));
       }
     } finally {
       loading.value = false;
+    }
+  }
+  async function loadOlderMessages() {
+    if (loadingMore.value || !hasMore.value) return;
+    const oldestId = messages.value[0]?.id;
+    if (!oldestId) return;
+    loadingMore.value = true;
+    try {
+      const { activeChannelId, activeDmStudentId } = appStore;
+      let page = [];
+      if (activeChannelId) {
+        const res = await window.api.getChannelMessagesPage(activeChannelId, oldestId);
+        page = res?.ok ? res.data : [];
+      } else if (activeDmStudentId) {
+        const res = await window.api.getDmMessagesPage(activeDmStudentId, oldestId);
+        page = res?.ok ? res.data : [];
+      }
+      const older = page.slice().reverse();
+      hasMore.value = page.length === PAGE_SIZE;
+      messages.value = [...older, ...messages.value];
+    } finally {
+      loadingMore.value = false;
     }
   }
   async function fetchPinned(channelId) {
@@ -10294,12 +10335,15 @@ const useMessagesStore = /* @__PURE__ */ defineStore("messages", () => {
     messages,
     pinned,
     loading,
+    loadingMore,
+    hasMore,
     searchTerm,
     firstUnreadId,
     reactions,
     userVotes,
     isGrouped,
     fetchMessages,
+    loadOlderMessages,
     fetchPinned,
     sendMessage,
     togglePin,
@@ -10689,7 +10733,7 @@ const _hoisted_2$n = {
   class: "msg-avatar-placeholder"
 };
 const _hoisted_3$l = { class: "msg-body" };
-const _hoisted_4$i = { class: "msg-author" };
+const _hoisted_4$j = { class: "msg-author" };
 const _hoisted_5$f = { class: "msg-time" };
 const _hoisted_6$e = {
   key: 0,
@@ -10752,7 +10796,7 @@ const _sfc_main$q = /* @__PURE__ */ defineComponent({
         }, null, 8, ["initials", "color", "photo-data"])) : (openBlock(), createElementBlock("div", _hoisted_2$n)),
         createBaseVNode("div", _hoisted_3$l, [
           !__props.grouped ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
-            createBaseVNode("span", _hoisted_4$i, toDisplayString(__props.msg.author_name), 1),
+            createBaseVNode("span", _hoisted_4$j, toDisplayString(__props.msg.author_name), 1),
             createBaseVNode("span", _hoisted_5$f, toDisplayString(unref(formatTime)(__props.msg.created_at)), 1),
             isPinned.value ? (openBlock(), createElementBlock("span", _hoisted_6$e, "📌")) : createCommentVNode("", true)
           ], 64)) : createCommentVNode("", true),
@@ -10797,12 +10841,16 @@ const _sfc_main$q = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$o = { class: "date-separator" };
-const _hoisted_2$m = {
+const _hoisted_1$o = {
+  key: 0,
+  class: "load-more-indicator"
+};
+const _hoisted_2$m = { class: "date-separator" };
+const _hoisted_3$k = {
   key: 0,
   class: "unread-divider"
 };
-const _hoisted_3$k = {
+const _hoisted_4$i = {
   key: 2,
   class: "empty-state"
 };
@@ -10821,15 +10869,15 @@ const _sfc_main$p = /* @__PURE__ */ defineComponent({
       () => store.messages.length,
       () => nextTick(() => {
         if (!listEl.value) return;
+        const el = listEl.value;
         if (!initialScrollDone && store.firstUnreadId) {
-          const marker = listEl.value.querySelector(".unread-divider");
+          const marker = el.querySelector(".unread-divider");
           if (marker) {
             marker.scrollIntoView({ block: "center" });
             initialScrollDone = true;
             return;
           }
         }
-        const el = listEl.value;
         const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
         if (atBottom || !initialScrollDone) {
           el.scrollTop = el.scrollHeight;
@@ -10839,6 +10887,31 @@ const _sfc_main$p = /* @__PURE__ */ defineComponent({
     );
     watch(() => store.loading, (loading) => {
       if (loading) initialScrollDone = false;
+    });
+    const sentinelEl = /* @__PURE__ */ ref(null);
+    let observer = null;
+    async function loadMore() {
+      if (!listEl.value || !store.hasMore || store.loadingMore) return;
+      const el = listEl.value;
+      const prevHeight = el.scrollHeight;
+      const prevTop = el.scrollTop;
+      await store.loadOlderMessages();
+      await nextTick();
+      el.scrollTop = prevTop + (el.scrollHeight - prevHeight);
+    }
+    onMounted(() => {
+      if (!sentinelEl.value) return;
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) loadMore();
+        },
+        { root: listEl.value, threshold: 0.1 }
+      );
+      observer.observe(sentinelEl.value);
+    });
+    onBeforeUnmount(() => {
+      observer?.disconnect();
+      observer = null;
     });
     const dateGroups = computed(() => {
       const groups = [];
@@ -10872,31 +10945,47 @@ const _sfc_main$p = /* @__PURE__ */ defineComponent({
             key: i,
             class: "skel-msg-row"
           }, [..._cache[0] || (_cache[0] = [
-            createStaticVNode('<div class="skel skel-avatar" data-v-7e39a9fa></div><div class="skel-msg-body" data-v-7e39a9fa><div class="skel skel-line skel-w30" data-v-7e39a9fa></div><div class="skel skel-line skel-w90" data-v-7e39a9fa></div><div class="skel skel-line skel-w70" data-v-7e39a9fa></div></div>', 2)
+            createStaticVNode('<div class="skel skel-avatar" data-v-6d76756c></div><div class="skel-msg-body" data-v-6d76756c><div class="skel skel-line skel-w30" data-v-6d76756c></div><div class="skel skel-line skel-w90" data-v-6d76756c></div><div class="skel skel-line skel-w70" data-v-6d76756c></div></div>', 2)
           ])]);
-        }), 64)) : unref(store).messages.length ? (openBlock(true), createElementBlock(Fragment, { key: 1 }, renderList(dateGroups.value, (group) => {
-          return openBlock(), createElementBlock(Fragment, {
-            key: group.date
+        }), 64)) : unref(store).messages.length ? (openBlock(), createElementBlock(Fragment, { key: 1 }, [
+          createBaseVNode("div", {
+            ref_key: "sentinelEl",
+            ref: sentinelEl,
+            class: "scroll-sentinel",
+            "aria-hidden": "true"
           }, [
-            createBaseVNode("div", _hoisted_1$o, [
-              createBaseVNode("span", null, toDisplayString(group.date), 1)
-            ]),
-            (openBlock(true), createElementBlock(Fragment, null, renderList(group.messages, ({ msg, grouped, isFirstUnread }) => {
-              return openBlock(), createElementBlock(Fragment, {
-                key: msg.id
-              }, [
-                isFirstUnread ? (openBlock(), createElementBlock("div", _hoisted_2$m, [..._cache[1] || (_cache[1] = [
-                  createBaseVNode("span", { class: "unread-divider-label" }, "Nouveaux messages", -1)
-                ])])) : createCommentVNode("", true),
-                createVNode(_sfc_main$q, {
-                  msg,
-                  grouped,
-                  "search-term": unref(store).searchTerm
-                }, null, 8, ["msg", "grouped", "search-term"])
-              ], 64);
-            }), 128))
-          ], 64);
-        }), 128)) : (openBlock(), createElementBlock("div", _hoisted_3$k, [
+            unref(store).loadingMore ? (openBlock(), createElementBlock("div", _hoisted_1$o, [..._cache[1] || (_cache[1] = [
+              createBaseVNode("span", { class: "load-more-dots" }, [
+                createBaseVNode("span"),
+                createBaseVNode("span"),
+                createBaseVNode("span")
+              ], -1)
+            ])])) : createCommentVNode("", true)
+          ], 512),
+          (openBlock(true), createElementBlock(Fragment, null, renderList(dateGroups.value, (group) => {
+            return openBlock(), createElementBlock(Fragment, {
+              key: group.date
+            }, [
+              createBaseVNode("div", _hoisted_2$m, [
+                createBaseVNode("span", null, toDisplayString(group.date), 1)
+              ]),
+              (openBlock(true), createElementBlock(Fragment, null, renderList(group.messages, ({ msg, grouped, isFirstUnread }) => {
+                return openBlock(), createElementBlock(Fragment, {
+                  key: msg.id
+                }, [
+                  isFirstUnread ? (openBlock(), createElementBlock("div", _hoisted_3$k, [..._cache[2] || (_cache[2] = [
+                    createBaseVNode("span", { class: "unread-divider-label" }, "Nouveaux messages", -1)
+                  ])])) : createCommentVNode("", true),
+                  createVNode(_sfc_main$q, {
+                    msg,
+                    grouped,
+                    "search-term": unref(store).searchTerm
+                  }, null, 8, ["msg", "grouped", "search-term"])
+                ], 64);
+              }), 128))
+            ], 64);
+          }), 128))
+        ], 64)) : (openBlock(), createElementBlock("div", _hoisted_4$i, [
           createBaseVNode("p", null, toDisplayString(unref(store).searchTerm ? "Aucun message ne correspond à cette recherche." : "Aucun message pour l'instant."), 1)
         ]))
       ], 512);
@@ -10910,7 +10999,7 @@ const _export_sfc = (sfc, props) => {
   }
   return target;
 };
-const MessageList = /* @__PURE__ */ _export_sfc(_sfc_main$p, [["__scopeId", "data-v-7e39a9fa"]]);
+const MessageList = /* @__PURE__ */ _export_sfc(_sfc_main$p, [["__scopeId", "data-v-6d76756c"]]);
 const _hoisted_1$n = {
   id: "chat-format-toolbar",
   class: "chat-format-toolbar"
@@ -11336,13 +11425,13 @@ const _hoisted_21$3 = {
   class: "deposit-link-row"
 };
 const _hoisted_22$3 = { class: "deposit-actions" };
-const _hoisted_23$3 = ["disabled", "onClick"];
+const _hoisted_23$3 = ["disabled", "title", "onClick"];
 const _hoisted_24$3 = {
   key: 3,
   class: "travail-card-footer"
 };
 const _hoisted_25$3 = { class: "travail-deadline-date" };
-const _hoisted_26$3 = ["onClick"];
+const _hoisted_26$3 = ["disabled", "title", "onClick"];
 const _hoisted_27$3 = {
   key: 0,
   class: "empty-hint"
@@ -11397,6 +11486,11 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
     const promoFilter = /* @__PURE__ */ ref(null);
     const promotions = /* @__PURE__ */ ref([]);
     const activePromoId = computed(() => promoFilter.value ?? appStore.activePromoId);
+    const now = /* @__PURE__ */ ref(Date.now());
+    let clockInterval = null;
+    function isExpired(deadline) {
+      return now.value >= new Date(deadline).getTime();
+    }
     const depositingTravailId = /* @__PURE__ */ ref(null);
     const depositMode = /* @__PURE__ */ ref("file");
     const depositLink = /* @__PURE__ */ ref("");
@@ -11404,12 +11498,18 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
     const depositFileName = /* @__PURE__ */ ref(null);
     const depositing = /* @__PURE__ */ ref(false);
     onMounted(async () => {
+      clockInterval = setInterval(() => {
+        now.value = Date.now();
+      }, 3e4);
       const res = await window.api.getPromotions();
       promotions.value = res?.ok ? res.data : [];
       if (!promoFilter.value && promotions.value.length) {
         promoFilter.value = promotions.value[0].id;
       }
       await loadView();
+    });
+    onBeforeUnmount(() => {
+      if (clockInterval !== null) clearInterval(clockInterval);
     });
     async function loadView() {
       if (appStore.isStudent) {
@@ -11440,9 +11540,11 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
       }
     }
     async function submitDeposit(travail) {
+      if (depositing.value) return;
       if (!appStore.currentUser) return;
       if (depositMode.value === "file" && !depositFile.value) return;
       if (depositMode.value === "link" && !depositLink.value.trim()) return;
+      if (isExpired(travail.deadline)) return;
       depositing.value = true;
       try {
         const ok = await travauxStore.addDepot({
@@ -11653,11 +11755,12 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
                       createBaseVNode("button", {
                         class: "btn-primary",
                         style: { "font-size": "12px" },
-                        disabled: depositing.value || (depositMode.value === "file" ? !depositFile.value : !depositLink.value.trim()),
+                        disabled: depositing.value || isExpired(t.deadline) || (depositMode.value === "file" ? !depositFile.value : !depositLink.value.trim()),
+                        title: isExpired(t.deadline) ? "Délai de soumission expiré" : void 0,
                         onClick: ($event) => submitDeposit(t)
                       }, [
                         createVNode(unref(Upload), { size: 12 }),
-                        createTextVNode(" " + toDisplayString(depositing.value ? "Dépôt…" : "Déposer"), 1)
+                        createTextVNode(" " + toDisplayString(depositing.value ? "Dépôt…" : isExpired(t.deadline) ? "Délai expiré" : "Déposer"), 1)
                       ], 8, _hoisted_23$3)
                     ])
                   ])) : (openBlock(), createElementBlock("div", _hoisted_24$3, [
@@ -11665,17 +11768,25 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
                     createBaseVNode("button", {
                       class: "btn-primary",
                       style: { "font-size": "12px", "padding": "5px 12px" },
+                      disabled: isExpired(t.deadline),
+                      title: isExpired(t.deadline) ? "Délai de soumission expiré" : "Déposer un travail",
                       onClick: ($event) => startDeposit(t)
                     }, [
-                      createVNode(unref(Upload), { size: 12 }),
-                      _cache[18] || (_cache[18] = createTextVNode(" Déposer ", -1))
+                      isExpired(t.deadline) ? (openBlock(), createBlock(unref(Lock), {
+                        key: 0,
+                        size: 12
+                      })) : (openBlock(), createBlock(unref(Upload), {
+                        key: 1,
+                        size: 12
+                      })),
+                      createTextVNode(" " + toDisplayString(isExpired(t.deadline) ? "Délai expiré" : "Déposer"), 1)
                     ], 8, _hoisted_26$3)
                   ]))
                 ], 2);
               }), 128))
             ]))
           ], 64)) : unref(travauxStore).view === "gantt" ? (openBlock(), createElementBlock(Fragment, { key: 1 }, [
-            unref(travauxStore).loading ? (openBlock(), createElementBlock("div", _hoisted_27$3, [..._cache[19] || (_cache[19] = [
+            unref(travauxStore).loading ? (openBlock(), createElementBlock("div", _hoisted_27$3, [..._cache[18] || (_cache[18] = [
               createBaseVNode("div", {
                 class: "skel skel-line skel-w70",
                 style: { "height": "14px", "margin": "0 auto 8px" }
@@ -11688,11 +11799,11 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
                 class: "skel skel-line skel-w50",
                 style: { "height": "14px", "margin": "0 auto" }
               }, null, -1)
-            ])])) : ganttItems.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_28$2, [..._cache[20] || (_cache[20] = [
+            ])])) : ganttItems.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_28$2, [..._cache[19] || (_cache[19] = [
               createBaseVNode("h3", null, "Aucun travail créé", -1),
               createBaseVNode("p", null, "Créez un premier travail pour visualiser le Gantt.", -1)
             ])])) : (openBlock(), createElementBlock("div", _hoisted_29$2, [
-              _cache[21] || (_cache[21] = createBaseVNode("div", { class: "gantt-legend" }, [
+              _cache[20] || (_cache[20] = createBaseVNode("div", { class: "gantt-legend" }, [
                 createBaseVNode("span", { class: "gantt-legend-item type-devoir" }, "Devoir"),
                 createBaseVNode("span", { class: "gantt-legend-item type-projet" }, "Projet"),
                 createBaseVNode("span", { class: "gantt-legend-item type-jalon" }, "Jalon")
@@ -11728,7 +11839,7 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
                 return createBaseVNode("div", {
                   key: i,
                   class: "skel-travail-card"
-                }, [..._cache[22] || (_cache[22] = [
+                }, [..._cache[21] || (_cache[21] = [
                   createBaseVNode("div", {
                     class: "skel skel-line skel-w50",
                     style: { "height": "16px" }
@@ -11739,7 +11850,7 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
                   }, null, -1)
                 ])]);
               }), 64))
-            ])) : rendusByTravail.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_37, [..._cache[23] || (_cache[23] = [
+            ])) : rendusByTravail.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_37, [..._cache[22] || (_cache[22] = [
               createBaseVNode("h3", null, "Aucun rendu pour cette promotion", -1),
               createBaseVNode("p", null, "Les rendus des étudiants apparaîtront ici.", -1)
             ])])) : (openBlock(), createElementBlock("div", _hoisted_38, [
@@ -11782,7 +11893,7 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const TravauxView = /* @__PURE__ */ _export_sfc(_sfc_main$k, [["__scopeId", "data-v-4ef782bb"]]);
+const TravauxView = /* @__PURE__ */ _export_sfc(_sfc_main$k, [["__scopeId", "data-v-7e20499b"]]);
 const useDocumentsStore = /* @__PURE__ */ defineStore("documents", () => {
   const appStore = useAppStore();
   const documents = /* @__PURE__ */ ref([]);
@@ -12762,24 +12873,18 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _hoisted_1$b = {
-  class: "cmd-palette-box",
-  style: { "max-width": "560px", "width": "100%", "background": "var(--bg-secondary)", "border-radius": "var(--radius)", "padding": "0", "overflow": "hidden" }
-};
-const _hoisted_2$b = { style: { "display": "flex", "align-items": "center", "gap": "8px", "padding": "12px 16px", "border-bottom": "1px solid var(--border)" } };
-const _hoisted_3$a = {
-  id: "cmd-palette-results",
-  style: { "list-style": "none", "padding": "8px 0", "max-height": "360px", "overflow-y": "auto" }
-};
-const _hoisted_4$9 = ["onClick", "onMouseenter"];
-const _hoisted_5$8 = { style: { "font-size": "11px", "color": "var(--text-muted)" } };
+const _hoisted_1$b = { class: "cmd-palette-box" };
+const _hoisted_2$b = { class: "cmd-search-bar" };
+const _hoisted_3$a = ["onClick", "onMouseenter"];
+const _hoisted_4$9 = { class: "cmd-result-label" };
+const _hoisted_5$8 = { class: "cmd-result-sub" };
 const _hoisted_6$8 = {
-  key: 0,
-  style: { "padding": "16px", "text-align": "center", "color": "var(--text-muted)", "font-size": "13px" }
+  key: 1,
+  class: "cmd-empty"
 };
 const _hoisted_7$5 = {
-  key: 1,
-  style: { "padding": "16px", "text-align": "center", "color": "var(--text-muted)", "font-size": "13px" }
+  key: 2,
+  class: "cmd-empty"
 };
 const _sfc_main$c = /* @__PURE__ */ defineComponent({
   __name: "CmdPalette",
@@ -12790,6 +12895,7 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
     const router2 = useRouter();
     const query = /* @__PURE__ */ ref("");
     const inputEl = /* @__PURE__ */ ref(null);
+    const listEl = /* @__PURE__ */ ref(null);
     const selected = /* @__PURE__ */ ref(0);
     const allChannels = /* @__PURE__ */ ref([]);
     const allStudents = /* @__PURE__ */ ref([]);
@@ -12804,16 +12910,68 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
       const chArrays = await Promise.all(
         allPromos.value.map((p2) => window.api.getChannels(p2.id))
       );
-      allChannels.value = chArrays.flatMap((r, i) => r?.ok ? r.data.map((c) => ({ ...c, promo_name: allPromos.value[i].name })) : []);
+      allChannels.value = chArrays.flatMap(
+        (r, i) => r?.ok ? r.data.map((c) => ({ ...c, promo_name: allPromos.value[i].name })) : []
+      );
     }
+    function fuzzyScore(str, q) {
+      if (!q) return 0;
+      const s = str.toLowerCase();
+      const query_ = q.toLowerCase();
+      let si = 0, qi = 0, score = 0, lastMatchIdx = -1;
+      while (si < s.length && qi < query_.length) {
+        if (s[si] === query_[qi]) {
+          const consecutive = lastMatchIdx === si - 1 ? 5 : 0;
+          const wordStart = si === 0 || /[\s\-_.]/.test(s[si - 1]) ? 3 : 0;
+          score += 1 + consecutive + wordStart;
+          lastMatchIdx = si;
+          qi++;
+        }
+        si++;
+      }
+      return qi < query_.length ? -1 : score;
+    }
+    const SECTIONS = [
+      { key: "messages", label: "Messages" },
+      { key: "travaux", label: "Travaux" },
+      { key: "documents", label: "Documents" }
+    ];
     const results = computed(() => {
-      const q = query.value.trim().toLowerCase();
+      const q = query.value.trim();
       if (!q) return [];
-      const channels = allChannels.value.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 5).map((c) => ({ type: "channel", label: `#${c.name}`, sub: c.promo_name, data: c }));
-      const students = allStudents.value.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 5).map((s) => ({ type: "dm", label: `@${s.name}`, sub: s.promo_name, data: s }));
-      const sections = ["messages", "travaux", "documents"].filter((s) => s.includes(q)).map((s) => ({ type: "section", label: s.charAt(0).toUpperCase() + s.slice(1), sub: "Section", data: s }));
+      const channels = allChannels.value.map((c) => ({ item: c, score: fuzzyScore(c.name, q) })).filter(({ score }) => score >= 0).sort((a, b) => b.score - a.score).slice(0, 5).map(({ item: c }) => ({
+        type: "channel",
+        label: `#${c.name}`,
+        sub: c.promo_name,
+        data: c
+      }));
+      const students = allStudents.value.map((s) => ({ item: s, score: fuzzyScore(s.name, q) })).filter(({ score }) => score >= 0).sort((a, b) => b.score - a.score).slice(0, 5).map(({ item: s }) => ({
+        type: "dm",
+        label: `@${s.name}`,
+        sub: s.promo_name,
+        data: s
+      }));
+      const sections = SECTIONS.filter(({ key }) => fuzzyScore(key, q) >= 0).map(({ key, label }) => ({
+        type: "section",
+        label,
+        sub: "Section",
+        data: key
+      }));
       return [...channels, ...students, ...sections];
     });
+    watch(results, () => {
+      selected.value = 0;
+    });
+    watch(selected, () => {
+      nextTick(() => {
+        if (!listEl.value) return;
+        const items = listEl.value.querySelectorAll("[data-result-item]");
+        items[selected.value]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+    });
+    function moveSelection(delta) {
+      selected.value = Math.max(0, Math.min(selected.value + delta, results.value.length - 1));
+    }
     function select(i) {
       const item = results.value[i];
       if (!item) return;
@@ -12831,17 +12989,17 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
         router2.push("/" + item.data);
       }
     }
-    function onKey(e) {
+    function onGlobalKey(e) {
       if (e.ctrlKey && e.key === "k") {
         e.preventDefault();
         modals.cmdPalette = true;
       }
     }
     onMounted(() => {
-      document.addEventListener("keydown", onKey);
+      document.addEventListener("keydown", onGlobalKey);
       loadData();
     });
-    onUnmounted(() => document.removeEventListener("keydown", onKey));
+    onUnmounted(() => document.removeEventListener("keydown", onGlobalKey));
     watch(() => modals.cmdPalette, (open) => {
       if (open) {
         query.value = "";
@@ -12853,7 +13011,6 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
       return openBlock(), createBlock(Teleport, { to: "body" }, [
         unref(modals).cmdPalette ? (openBlock(), createElementBlock("div", {
           key: 0,
-          id: "cmd-palette-overlay",
           class: "modal-overlay",
           onClick: _cache[5] || (_cache[5] = withModifiers(($event) => unref(modals).cmdPalette = false, ["self"]))
         }, [
@@ -12861,47 +13018,51 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
             createBaseVNode("div", _hoisted_2$b, [
               createVNode(unref(Search), {
                 size: 16,
-                style: { "color": "var(--text-muted)" }
+                style: { "color": "var(--text-muted)", "flex-shrink": "0" }
               }),
               withDirectives(createBaseVNode("input", {
-                id: "cmd-palette-input",
                 ref_key: "inputEl",
                 ref: inputEl,
                 "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => query.value = $event),
                 type: "text",
                 placeholder: "Chercher un canal, un étudiant, une section…",
-                style: { "flex": "1", "background": "transparent", "border": "none", "outline": "none", "color": "var(--text-primary)", "font-size": "14px" },
+                class: "cmd-search-input",
                 onKeydown: [
                   _cache[1] || (_cache[1] = withKeys(($event) => unref(modals).cmdPalette = false, ["escape"])),
-                  _cache[2] || (_cache[2] = withKeys(withModifiers(($event) => selected.value = Math.min(selected.value + 1, results.value.length - 1), ["prevent"]), ["arrow-down"])),
-                  _cache[3] || (_cache[3] = withKeys(withModifiers(($event) => selected.value = Math.max(selected.value - 1, 0), ["prevent"]), ["arrow-up"])),
+                  _cache[2] || (_cache[2] = withKeys(withModifiers(($event) => moveSelection(1), ["prevent"]), ["arrow-down"])),
+                  _cache[3] || (_cache[3] = withKeys(withModifiers(($event) => moveSelection(-1), ["prevent"]), ["arrow-up"])),
                   _cache[4] || (_cache[4] = withKeys(withModifiers(($event) => select(selected.value), ["prevent"]), ["enter"]))
                 ]
               }, null, 544), [
                 [vModelText, query.value]
-              ])
+              ]),
+              _cache[6] || (_cache[6] = createBaseVNode("kbd", { class: "cmd-kbd" }, "Esc", -1))
             ]),
-            createBaseVNode("ul", _hoisted_3$a, [
-              (openBlock(true), createElementBlock(Fragment, null, renderList(results.value, (r, i) => {
+            createBaseVNode("ul", {
+              ref_key: "listEl",
+              ref: listEl,
+              class: "cmd-results"
+            }, [
+              results.value.length ? (openBlock(true), createElementBlock(Fragment, { key: 0 }, renderList(results.value, (r, i) => {
                 return openBlock(), createElementBlock("li", {
                   key: i,
+                  "data-result-item": "",
                   class: normalizeClass(["cmd-result-item", { active: i === selected.value }]),
-                  style: { "display": "flex", "justify-content": "space-between", "align-items": "center", "padding": "8px 16px", "cursor": "pointer" },
                   onClick: ($event) => select(i),
                   onMouseenter: ($event) => selected.value = i
                 }, [
-                  createBaseVNode("span", null, toDisplayString(r.label), 1),
+                  createBaseVNode("span", _hoisted_4$9, toDisplayString(r.label), 1),
                   createBaseVNode("span", _hoisted_5$8, toDisplayString(r.sub), 1)
-                ], 42, _hoisted_4$9);
-              }), 128)),
-              !results.value.length && query.value ? (openBlock(), createElementBlock("li", _hoisted_6$8, " Aucun résultat ")) : !query.value ? (openBlock(), createElementBlock("li", _hoisted_7$5, " Tapez pour chercher… ")) : createCommentVNode("", true)
-            ])
+                ], 42, _hoisted_3$a);
+              }), 128)) : query.value ? (openBlock(), createElementBlock("li", _hoisted_6$8, "Aucun résultat pour « " + toDisplayString(query.value) + " »", 1)) : (openBlock(), createElementBlock("li", _hoisted_7$5, "Tapez pour chercher…"))
+            ], 512)
           ])
         ])) : createCommentVNode("", true)
       ]);
     };
   }
 });
+const CmdPalette = /* @__PURE__ */ _export_sfc(_sfc_main$c, [["__scopeId", "data-v-bb91a0ea"]]);
 const PREFS_KEY = "cc_prefs";
 const DEFAULTS = {
   docsOpenByDefault: false,
@@ -14660,7 +14821,7 @@ const _sfc_main = /* @__PURE__ */ defineComponent({
           ])
         ])),
         unref(appStore).currentUser ? (openBlock(), createElementBlock(Fragment, { key: 2 }, [
-          createVNode(_sfc_main$c),
+          createVNode(CmdPalette),
           createVNode(_sfc_main$a, {
             modelValue: unref(modals).settings,
             "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => unref(modals).settings = $event)

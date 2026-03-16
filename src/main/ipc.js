@@ -46,9 +46,12 @@ function register() {
   handle('db:getAllStudents',   ()           => queries.getAllStudents())
 
   // ── Messages ─────────────────────────────────────────────────────────────
-  handle('db:getChannelMessages', (channelId)        => queries.getChannelMessages(channelId))
-  handle('db:getDmMessages',      (studentId)        => queries.getDmMessages(studentId))
-  handle('db:searchMessages',     (channelId, query) => queries.searchMessages(channelId, query))
+  handle('db:getChannelMessages',     (channelId)              => queries.getChannelMessages(channelId))
+  handle('db:getDmMessages',          (studentId)              => queries.getDmMessages(studentId))
+  // Endpoints paginés (infinite scroll) — beforeId = curseur (null = page initiale)
+  handle('db:getChannelMessagesPage', (channelId, beforeId)    => queries.getChannelMessagesPage(channelId, beforeId ?? null))
+  handle('db:getDmMessagesPage',      (studentId, beforeId)    => queries.getDmMessagesPage(studentId, beforeId ?? null))
+  handle('db:searchMessages',         (channelId, query)       => queries.searchMessages(channelId, query))
 
   // sendMessage — handler dédié : DB + push temps-réel vers tous les renderers
   ipcMain.handle('db:sendMessage', async (_event, payload) => {

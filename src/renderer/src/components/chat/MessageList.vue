@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { computed, watch, nextTick, ref } from 'vue'
+  import { computed, watch, nextTick, ref, onMounted, onBeforeUnmount } from 'vue'
   import { useMessagesStore } from '@/stores/messages'
   import MessageBubble from './MessageBubble.vue'
   import { formatDateSeparator } from '@/utils/date'
@@ -8,31 +8,33 @@
   const store  = useMessagesStore()
   const listEl = ref<HTMLElement | null>(null)
 
-  // Initialiser les réactions à chaque changement de liste
+  // ── Initialisation des réactions ──────────────────────────────────────────
   watch(
     () => store.messages,
     (msgs) => msgs.forEach((m) => store.initReactions(m.id, m.reactions)),
     { immediate: true },
   )
 
-  // Auto-scroll : seulement si on est déjà en bas (± 100px)
-  // Si des "nouveaux messages" existent, scroller jusqu'au marqueur la première fois
+  // ── Scroll automatique ────────────────────────────────────────────────────
+  // - Premier chargement + marqueur de non-lu → scroller vers le divider
+  // - Sinon → scroll vers le bas uniquement si déjà en bas (± 120px)
   let initialScrollDone = false
+
   watch(
     () => store.messages.length,
     () => nextTick(() => {
       if (!listEl.value) return
+      const el = listEl.value
+
       if (!initialScrollDone && store.firstUnreadId) {
-        // Scroller jusqu'au marqueur "nouveaux messages"
-        const marker = listEl.value.querySelector('.unread-divider')
+        const marker = el.querySelector('.unread-divider')
         if (marker) {
           marker.scrollIntoView({ block: 'center' })
           initialScrollDone = true
           return
         }
       }
-      // Sinon scroll vers le bas
-      const el = listEl.value
+
       const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
       if (atBottom || !initialScrollDone) {
         el.scrollTop = el.scrollHeight
@@ -41,8 +43,55 @@
     }),
   )
 
-  // Réinitialiser le scroll à chaque changement de canal
-  watch(() => store.loading, (loading) => { if (loading) initialScrollDone = false })
+  // Réinitialiser le scroll à chaque changement de canal (loading passe à true)
+  watch(() => store.loading, (loading) => {
+    if (loading) initialScrollDone = false
+  })
+
+  // ── Infinite scroll vers le haut — IntersectionObserver ──────────────────
+  /**
+   * Pourquoi IntersectionObserver plutôt qu'un écouteur de scroll ?
+   *   - Aucun calcul de scrollTop à chaque pixel de défilement (0 overhead JS)
+   *   - Le callback est déclenché par le navigateur hors du thread principal
+   *   - Cleanup explicite dans onBeforeUnmount → zéro fuite mémoire
+   *
+   * Stratégie scroll-anchor (évite le saut de vue) :
+   *   1. Mémoriser scrollHeight + scrollTop AVANT le prepend
+   *   2. Attendre que le store mette à jour messages.value (await loadOlderMessages)
+   *   3. Attendre la mise à jour du DOM (await nextTick)
+   *   4. scrollTop = ancienScrollTop + (nouvScrollHeight - ancienScrollHeight)
+   *      → l'utilisateur reste visuellement au même message
+   */
+  const sentinelEl = ref<HTMLElement | null>(null)
+  let   observer: IntersectionObserver | null = null
+
+  async function loadMore() {
+    if (!listEl.value || !store.hasMore || store.loadingMore) return
+
+    const el         = listEl.value
+    const prevHeight = el.scrollHeight
+    const prevTop    = el.scrollTop
+
+    await store.loadOlderMessages()
+    await nextTick()
+
+    // Restaurer la position visuelle
+    el.scrollTop = prevTop + (el.scrollHeight - prevHeight)
+  }
+
+  onMounted(() => {
+    if (!sentinelEl.value) return
+    observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) loadMore() },
+      { root: listEl.value, threshold: 0.1 },
+    )
+    observer.observe(sentinelEl.value)
+  })
+
+  onBeforeUnmount(() => {
+    observer?.disconnect()
+    observer = null
+  })
 
   // ── Groupement par date ────────────────────────────────────────────────────
   interface GroupedMessage { msg: Message; grouped: boolean; isFirstUnread: boolean }
@@ -50,7 +99,7 @@
 
   const dateGroups = computed<DateGroup[]>(() => {
     const groups: DateGroup[] = []
-    let lastDate = ''
+    let lastDate  = ''
     let lastMsg: Message | null = null
     let unreadMarked = false
 
@@ -79,7 +128,8 @@
 
 <template>
   <div ref="listEl" id="messages-list" class="messages-list">
-    <!-- Squelette de chargement -->
+
+    <!-- Squelette de chargement (canal en cours de chargement) -->
     <template v-if="store.loading">
       <div v-for="i in 5" :key="i" class="skel-msg-row">
         <div class="skel skel-avatar" />
@@ -91,9 +141,29 @@
       </div>
     </template>
 
-    <!-- Messages -->
     <template v-else-if="store.messages.length">
+      <!--
+        Sentinelle en haut de la liste.
+        Quand elle devient visible (scroll vers le haut), l'IntersectionObserver
+        déclenche loadMore(). Elle est invisible mais occupe de la hauteur pour
+        que l'observer puisse la détecter correctement.
+      -->
+      <div ref="sentinelEl" class="scroll-sentinel" aria-hidden="true">
+        <!-- Indicateur de chargement des anciens messages -->
+        <div v-if="store.loadingMore" class="load-more-indicator">
+          <span class="load-more-dots">
+            <span /><span /><span />
+          </span>
+        </div>
+      </div>
+
+      <!-- Messages groupés par date -->
       <template v-for="group in dateGroups" :key="group.date">
+        <!--
+          position: sticky; top: 0  → le séparateur de date reste visible
+          pendant le scroll, comme dans Slack/Discord.
+          backdrop-filter: blur()   → effet "verre dépoli" sur les messages derrière.
+        -->
         <div class="date-separator"><span>{{ group.date }}</span></div>
 
         <template v-for="{ msg, grouped, isFirstUnread } in group.messages" :key="msg.id">
@@ -115,11 +185,88 @@
     <div v-else class="empty-state">
       <p>{{ store.searchTerm ? 'Aucun message ne correspond à cette recherche.' : "Aucun message pour l'instant." }}</p>
     </div>
+
   </div>
 </template>
 
 <style scoped>
-/* Séparateur "Nouveaux messages" — style Slack */
+/* ── Sentinelle de scroll (invisible, uniquement pour l'observer) ── */
+.scroll-sentinel {
+  height: 1px;
+  flex-shrink: 0;
+}
+
+/* ── Indicateur de chargement des anciens messages ── */
+.load-more-indicator {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+
+.load-more-dots {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.load-more-dots span {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+
+.load-more-dots span:nth-child(2) { animation-delay: .2s; }
+.load-more-dots span:nth-child(3) { animation-delay: .4s; }
+
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: scale(.6); opacity: .4; }
+  40%           { transform: scale(1);  opacity: 1; }
+}
+
+/* ── Séparateur de date — sticky ── */
+/*
+ * position: sticky + backdrop-filter crée un effet "verre dépoli" à la Slack :
+ * le label de date reste en haut pendant le défilement et le contenu en-dessous
+ * est flou, signalant clairement que l'on change de jour.
+ */
+.date-separator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 20px 2px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  /* Forcer un contexte de rendu pour que backdrop-filter fonctionne */
+  isolation: isolate;
+}
+
+.date-separator::before,
+.date-separator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.date-separator span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding: 3px 10px;
+  border-radius: 20px;
+  /* Fond semi-opaque + blur pour l'effet dépoli */
+  background: color-mix(in srgb, var(--bg-main) 88%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+}
+
+/* ── Séparateur "Nouveaux messages" ── */
 .unread-divider {
   display: flex;
   align-items: center;

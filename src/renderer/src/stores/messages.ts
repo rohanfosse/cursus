@@ -4,19 +4,22 @@ import { useAppStore } from './app'
 import type { Message } from '@/types'
 
 const GROUP_THRESHOLD_MS = 5 * 60 * 1000
+const PAGE_SIZE          = 50
 
 export const useMessagesStore = defineStore('messages', () => {
   const appStore = useAppStore()
 
-  const messages       = ref<Message[]>([])
-  const pinned         = ref<Message[]>([])
-  const loading        = ref(false)
-  const searchTerm     = ref('')
-  const firstUnreadId  = ref<number | null>(null)
+  const messages      = ref<Message[]>([])
+  const pinned        = ref<Message[]>([])
+  const loading       = ref(false)
+  const loadingMore   = ref(false)   // chargement des messages plus anciens
+  const hasMore       = ref(false)   // des messages plus anciens existent-ils ?
+  const searchTerm    = ref('')
+  const firstUnreadId = ref<number | null>(null)
 
   // Réactions en mémoire — non persistées (client-side uniquement)
-  const reactions  = reactive<Record<number, Record<string, number>>>({})
-  const userVotes  = reactive<Record<number, Set<string>>>({})
+  const reactions = reactive<Record<number, Record<string, number>>>({})
+  const userVotes = reactive<Record<number, Set<string>>>({})
 
   // ── Groupement de messages ────────────────────────────────────────────────
   // Deux messages consécutifs du même auteur dans la même minute → grouped
@@ -26,7 +29,7 @@ export const useMessagesStore = defineStore('messages', () => {
     return new Date(msg.created_at).getTime() - new Date(prev.created_at).getTime() < GROUP_THRESHOLD_MS
   }
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
+  // ── Clé localStorage pour le marqueur de lecture ──────────────────────────
   function _lrKey(): string | null {
     const { activeChannelId, activeDmStudentId } = appStore
     if (activeChannelId)   return `lastRead:ch:${activeChannelId}`
@@ -34,47 +37,105 @@ export const useMessagesStore = defineStore('messages', () => {
     return null
   }
 
+  // ── Fetch initial (page la plus récente) ──────────────────────────────────
+  /**
+   * Charge les PAGE_SIZE messages les plus récents du canal/DM actif.
+   * Utilise le curseur localStorage pour marquer le premier message non lu.
+   *
+   * Pourquoi DESC + reverse() ?
+   *   SQLite retourne les 50 derniers en ORDER BY id DESC (le plus efficace
+   *   avec un index sur id). On les renverse côté JS pour affichage ASC.
+   *   Cela évite une sous-requête ou un tri supplémentaire en DB.
+   */
   async function fetchMessages() {
-    loading.value = true
+    loading.value    = true
+    hasMore.value    = false
+    firstUnreadId.value = null
+
     try {
       const { activeChannelId, activeDmStudentId } = appStore
-      let res: { ok: boolean; data: Message[] } | null = null
 
-      // Lire le marqueur de lecture avant le fetch (pour les nouveaux messages)
-      const lrKey = _lrKey()
-      const lastReadId = lrKey
-        ? parseInt(localStorage.getItem(lrKey) ?? '0', 10)
-        : 0
+      // Lire le marqueur avant le fetch pour détecter les nouveaux messages
+      const lrKey      = _lrKey()
+      const lastReadId = lrKey ? parseInt(localStorage.getItem(lrKey) ?? '0', 10) : 0
+
+      let fetched: Message[] = []
 
       if (searchTerm.value && activeChannelId) {
-        res = await window.api.searchMessages(activeChannelId, searchTerm.value)
+        // Mode recherche : pas de pagination, pas de marqueur non-lu
+        const res = await window.api.searchMessages(activeChannelId, searchTerm.value)
+        fetched       = res?.ok ? res.data : []
+        hasMore.value = false
       } else if (activeChannelId) {
-        res = await window.api.getChannelMessages(activeChannelId)
+        const res    = await window.api.getChannelMessagesPage(activeChannelId)
+        const page   = res?.ok ? (res.data as Message[]) : []
+        fetched      = page.slice().reverse()          // ASC pour affichage
+        hasMore.value = page.length === PAGE_SIZE
       } else if (activeDmStudentId) {
-        res = await window.api.getDmMessages(activeDmStudentId)
+        const res    = await window.api.getDmMessagesPage(activeDmStudentId)
+        const page   = res?.ok ? (res.data as Message[]) : []
+        fetched      = page.slice().reverse()
+        hasMore.value = page.length === PAGE_SIZE
       }
 
-      const fetched = res?.ok ? res.data : []
       messages.value = fetched
 
-      // Calculer le premier message non lu (seulement hors recherche)
+      // Calculer le premier message non lu (hors mode recherche)
       if (!searchTerm.value && lastReadId > 0) {
         const first = fetched.find((m) => m.id > lastReadId)
         firstUnreadId.value = first?.id ?? null
-      } else {
-        firstUnreadId.value = null
       }
 
       // Sauvegarder le dernier message comme "lu"
       if (lrKey && fetched.length) {
-        const lastId = fetched[fetched.length - 1].id
-        localStorage.setItem(lrKey, String(lastId))
+        localStorage.setItem(lrKey, String(fetched[fetched.length - 1].id))
       }
     } finally {
       loading.value = false
     }
   }
 
+  // ── Chargement de messages plus anciens (infinite scroll vers le haut) ────
+  /**
+   * Charge la page précédente (avant le plus ancien message chargé).
+   * Le composant doit préserver la position de scroll AVANT d'appeler cette
+   * fonction, puis la restaurer après awaiting + nextTick.
+   *
+   * Stratégie scroll-anchor :
+   *   prevHeight = el.scrollHeight
+   *   await loadOlderMessages()
+   *   await nextTick()
+   *   el.scrollTop = savedTop + (el.scrollHeight - prevHeight)
+   */
+  async function loadOlderMessages(): Promise<void> {
+    if (loadingMore.value || !hasMore.value) return
+    const oldestId = messages.value[0]?.id
+    if (!oldestId) return
+
+    loadingMore.value = true
+    try {
+      const { activeChannelId, activeDmStudentId } = appStore
+      let page: Message[] = []
+
+      if (activeChannelId) {
+        const res = await window.api.getChannelMessagesPage(activeChannelId, oldestId)
+        page = res?.ok ? (res.data as Message[]) : []
+      } else if (activeDmStudentId) {
+        const res = await window.api.getDmMessagesPage(activeDmStudentId, oldestId)
+        page = res?.ok ? (res.data as Message[]) : []
+      }
+
+      const older   = page.slice().reverse()          // ASC
+      hasMore.value = page.length === PAGE_SIZE
+
+      // Prepend sans déclencher de re-render complet — spread crée un nouveau ref
+      messages.value = [...older, ...messages.value]
+    } finally {
+      loadingMore.value = false
+    }
+  }
+
+  // ── Epinglage ─────────────────────────────────────────────────────────────
   async function fetchPinned(channelId: number) {
     const res = await window.api.getPinnedMessages(channelId)
     pinned.value = res?.ok ? res.data : []
@@ -84,10 +145,10 @@ export const useMessagesStore = defineStore('messages', () => {
   async function sendMessage(content: string) {
     if (!appStore.currentUser || !content.trim()) return
     await window.api.sendMessage({
-      channelId:    appStore.activeChannelId   ?? undefined,
-      dmStudentId:  appStore.activeDmStudentId ?? undefined,
-      authorId:     appStore.currentUser.id,
-      content:      content.trim(),
+      channelId:   appStore.activeChannelId   ?? undefined,
+      dmStudentId: appStore.activeDmStudentId ?? undefined,
+      authorId:    appStore.currentUser.id,
+      content:     content.trim(),
     })
     // Le push msg:new déclenche un rechargement via le listener dans App.vue
     await fetchMessages()
@@ -105,7 +166,7 @@ export const useMessagesStore = defineStore('messages', () => {
   function initReactions(msgId: number, dbJson: string | null) {
     if (reactions[msgId]) return
     const base: Record<string, number> = { check: 0, thumb: 0, bulb: 0, question: 0, eye: 0 }
-    if (dbJson) { try { Object.assign(base, JSON.parse(dbJson)) } catch {} }
+    if (dbJson) { try { Object.assign(base, JSON.parse(dbJson)) } catch { /* invalid JSON */ } }
     reactions[msgId] = base
     if (!userVotes[msgId]) userVotes[msgId] = new Set()
   }
@@ -115,7 +176,7 @@ export const useMessagesStore = defineStore('messages', () => {
     const mine = userVotes[msgId]
     if (!r || !mine) return
     if (mine.has(type)) { mine.delete(type); r[type] = Math.max(0, (r[type] ?? 1) - 1) }
-    else               { mine.add(type);    r[type] = (r[type] ?? 0) + 1 }
+    else                { mine.add(type);    r[type] = (r[type] ?? 0) + 1 }
   }
 
   function clearSearch() {
@@ -123,9 +184,10 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   return {
-    messages, pinned, loading, searchTerm, firstUnreadId,
+    messages, pinned, loading, loadingMore, hasMore,
+    searchTerm, firstUnreadId,
     reactions, userVotes,
-    isGrouped, fetchMessages, fetchPinned,
+    isGrouped, fetchMessages, loadOlderMessages, fetchPinned,
     sendMessage, togglePin,
     initReactions, toggleReaction, clearSearch,
   }
