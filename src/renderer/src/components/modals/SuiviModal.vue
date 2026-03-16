@@ -1,84 +1,512 @@
 <script setup lang="ts">
-  /**
-   * SuiviModal — Suivi détaillé d'un travail
-   *
-   * TODO: Implémenter :
-   *   - Barre de progression (rendus / total)
-   *   - Liste par étudiant avec statut (rendu / en attente / noté)
-   *   - Bouton export CSV (api.exportCsv)
-   *   - Bouton "Relancer les non-rendus" (markNonSubmittedAsD)
-   *   - Panneau profil étudiant au clic
-   *
-   * Référence : renderer/js/views/suivi.js
-   * Store : useTravauxStore() → depots, markNonSubmittedAsD()
-   */
-  import { watch, computed } from 'vue'
+  import { ref, computed, watch } from 'vue'
+  import {
+    CheckCircle2, Clock, FileText, Link2, Award, Download, AlertTriangle,
+  } from 'lucide-vue-next'
   import { useTravauxStore } from '@/stores/travaux'
   import { useAppStore }     from '@/stores/app'
+  import { useToast }        from '@/composables/useToast'
+  import { avatarColor }     from '@/utils/format'
+  import { formatDate }      from '@/utils/date'
   import Modal from '@/components/ui/Modal.vue'
 
-  const api   = window.api
   const props = defineProps<{ modelValue: boolean }>()
   const emit  = defineEmits<{ 'update:modelValue': [v: boolean] }>()
 
-  const travauxStore = useTravauxStore()
-  const appStore     = useAppStore()
+  const travauxStore  = useTravauxStore()
+  const appStore      = useAppStore()
+  const { showToast } = useToast()
 
-  const pct = computed(() => {
-    const suivi = travauxStore.depots
-    return suivi.length ? Math.round(suivi.filter((d) => d.submitted_at).length / suivi.length * 100) : 0
-  })
+  // ── Données suivi (tous les étudiants, rendu ou non) ──────────────────────
+  interface SuiviRow {
+    student_id:          number
+    student_name:        string
+    avatar_initials:     string
+    photo_data:          string | null
+    depot_id:            number | null
+    file_name:           string | null
+    link_url:            string | null
+    note:                string | null
+    feedback:            string | null
+    submitted_at:        string | null
+    travail_group_name:  string | null
+  }
+
+  const rows    = ref<SuiviRow[]>([])
+  const loading = ref(false)
+
+  // ── Note inline ───────────────────────────────────────────────────────────
+  const editingNote    = ref<number | null>(null)  // depot_id
+  const pendingNote    = ref('')
+  const editingFeedback = ref<number | null>(null)
+  const pendingFeedback = ref('')
+  const saving          = ref(false)
 
   watch(() => props.modelValue, async (open) => {
     if (open && appStore.currentTravailId) {
-      await travauxStore.fetchDepots(appStore.currentTravailId)
+      loading.value = true
+      try {
+        const res = await window.api.getTravauxSuivi(appStore.currentTravailId)
+        rows.value  = res?.ok ? (res.data as unknown as SuiviRow[]) : []
+      } finally {
+        loading.value = false
+      }
     }
   })
+
+  const submitted = computed(() => rows.value.filter((r) => r.submitted_at))
+  const pct       = computed(() => rows.value.length ? Math.round(submitted.value.length / rows.value.length * 100) : 0)
+
+  function startEditNote(r: SuiviRow) {
+    editingNote.value    = r.depot_id
+    pendingNote.value    = r.note ?? ''
+    editingFeedback.value = null
+  }
+
+  function startEditFeedback(r: SuiviRow) {
+    editingFeedback.value = r.depot_id
+    pendingFeedback.value = r.feedback ?? ''
+    editingNote.value     = null
+  }
+
+  async function saveNote(r: SuiviRow) {
+    if (!r.depot_id) return
+    saving.value = true
+    try {
+      await window.api.setNote({ depotId: r.depot_id, note: pendingNote.value.trim() || null })
+      r.note           = pendingNote.value.trim() || null
+      editingNote.value = null
+    } finally {
+      saving.value = false
+    }
+  }
+
+  async function saveFeedback(r: SuiviRow) {
+    if (!r.depot_id) return
+    saving.value = true
+    try {
+      await window.api.setFeedback({ depotId: r.depot_id, feedback: pendingFeedback.value.trim() || null })
+      r.feedback           = pendingFeedback.value.trim() || null
+      editingFeedback.value = null
+    } finally {
+      saving.value = false
+    }
+  }
+
+  async function handleExportCsv() {
+    if (!appStore.currentTravailId) return
+    const res = await window.api.exportCsv(appStore.currentTravailId)
+    if (res?.ok && res.data) showToast(`Export CSV : ${res.data}`, 'success')
+    else if (!res?.ok) showToast('Erreur lors de l\'export.')
+  }
+
+  async function handleMarkD() {
+    if (!appStore.currentTravailId) return
+    if (!confirm('Marquer tous les non-rendus avec la note D ?')) return
+    await travauxStore.markNonSubmittedAsD(appStore.currentTravailId)
+    // Recharger le suivi
+    const res  = await window.api.getTravauxSuivi(appStore.currentTravailId)
+    rows.value = res?.ok ? (res.data as unknown as SuiviRow[]) : []
+    showToast('Non-rendus marqués D.', 'info')
+  }
 </script>
 
 <template>
   <Modal :model-value="modelValue" title="Suivi du travail" max-width="760px" @update:model-value="emit('update:modelValue', $event)">
-    <div style="padding:24px;min-height:200px">
+    <div class="suivi-body">
+
       <!-- Barre de progression -->
-      <div style="margin-bottom:16px">
-        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
-          <span>Rendus</span>
-          <span>{{ pct }}%</span>
+      <div class="suivi-progress-header">
+        <div class="suivi-progress-labels">
+          <span class="suivi-progress-title">Progression des rendus</span>
+          <span class="suivi-progress-pct">{{ submitted.length }} / {{ rows.length }} — {{ pct }}%</span>
         </div>
-        <div style="height:8px;background:var(--bg-tertiary);border-radius:4px">
-          <div
-            id="suivi-progress-fill"
-            style="height:100%;border-radius:4px;background:var(--accent);transition:width .3s"
-            :style="{ width: `${pct}%` }"
-          />
+        <div class="suivi-progress-track">
+          <div class="suivi-progress-fill" :style="{ width: `${pct}%` }" />
         </div>
       </div>
 
-      <!-- TODO: Migrer depuis renderer/js/views/suivi.js -->
-      <p style="color:var(--text-muted);font-size:13px;text-align:center">
-        Liste des rendus à implémenter.<br />
-        Référence : <code>renderer/js/views/suivi.js</code>
-      </p>
-      <p style="color:var(--text-muted);font-size:12px;text-align:center;margin-top:8px">
-        {{ travauxStore.depots.length }} entrées chargées.
-      </p>
+      <!-- Chargement -->
+      <div v-if="loading" class="suivi-loading">
+        <div v-for="i in 4" :key="i" class="skel-suivi-row">
+          <div class="skel skel-avatar skel-avatar-sm" />
+          <div class="skel skel-line skel-w50" />
+          <div class="skel skel-line skel-w30" style="margin-left:auto" />
+        </div>
+      </div>
+
+      <!-- Liste des étudiants -->
+      <div v-else-if="rows.length" class="suivi-table">
+        <div
+          v-for="r in rows"
+          :key="r.student_id"
+          class="suivi-row"
+          :class="{ 'suivi-row--submitted': !!r.submitted_at }"
+        >
+          <!-- Avatar -->
+          <div
+            class="suivi-avatar"
+            :style="{ background: r.photo_data ? 'transparent' : avatarColor(r.student_name) }"
+          >
+            <img v-if="r.photo_data" :src="r.photo_data" class="suivi-avatar-img" />
+            <span v-else>{{ r.avatar_initials }}</span>
+          </div>
+
+          <!-- Nom + groupe -->
+          <div class="suivi-info">
+            <span class="suivi-student-name">{{ r.student_name }}</span>
+            <span v-if="r.travail_group_name" class="suivi-group-tag">{{ r.travail_group_name }}</span>
+          </div>
+
+          <!-- Fichier déposé -->
+          <div v-if="r.submitted_at" class="suivi-file">
+            <Link2 v-if="r.link_url" :size="11" class="suivi-file-icon" />
+            <FileText v-else :size="11" class="suivi-file-icon" />
+            <span class="suivi-file-name">{{ r.file_name ?? r.link_url ?? '—' }}</span>
+            <span class="suivi-file-date">{{ formatDate(r.submitted_at) }}</span>
+          </div>
+          <div v-else class="suivi-not-submitted">
+            <Clock :size="12" />
+            Non rendu
+          </div>
+
+          <!-- Note & feedback (édition inline) -->
+          <div v-if="r.depot_id" class="suivi-note-section">
+            <!-- Note -->
+            <template v-if="editingNote === r.depot_id">
+              <input
+                v-model="pendingNote"
+                class="suivi-note-input"
+                placeholder="Note…"
+                @keyup.enter="saveNote(r)"
+                @keyup.esc="editingNote = null"
+              />
+              <button class="btn-primary suivi-save-btn" :disabled="saving" @click="saveNote(r)">✓</button>
+              <button class="btn-ghost suivi-save-btn" @click="editingNote = null">✕</button>
+            </template>
+            <button v-else class="suivi-note-badge" :class="r.note ? 'has-note' : 'no-note'" @click="startEditNote(r)">
+              <Award :size="11" />
+              {{ r.note ?? 'Noter' }}
+            </button>
+
+            <!-- Feedback -->
+            <template v-if="editingFeedback === r.depot_id">
+              <input
+                v-model="pendingFeedback"
+                class="suivi-feedback-input"
+                placeholder="Commentaire…"
+                @keyup.enter="saveFeedback(r)"
+                @keyup.esc="editingFeedback = null"
+              />
+              <button class="btn-primary suivi-save-btn" :disabled="saving" @click="saveFeedback(r)">✓</button>
+              <button class="btn-ghost suivi-save-btn" @click="editingFeedback = null">✕</button>
+            </template>
+            <button v-else-if="r.note" class="suivi-feedback-btn" @click="startEditFeedback(r)">
+              {{ r.feedback ? '✎ ' + r.feedback : '+ Commentaire' }}
+            </button>
+          </div>
+          <div v-else class="suivi-note-section" />
+        </div>
+      </div>
+
+      <!-- État vide -->
+      <div v-else class="suivi-empty">
+        <AlertTriangle :size="28" class="suivi-empty-icon" />
+        <p>Aucun étudiant trouvé pour ce travail.</p>
+      </div>
+
     </div>
 
-    <div class="modal-footer" style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
-      <button
-        class="btn-ghost"
-        style="font-size:12px"
-        @click="appStore.currentTravailId && api.exportCsv(appStore.currentTravailId)"
-      >
-        Exporter CSV
-      </button>
-      <button
-        class="btn-danger"
-        style="font-size:12px"
-        @click="appStore.currentTravailId && travauxStore.markNonSubmittedAsD(appStore.currentTravailId)"
-      >
-        Non rendus → D
-      </button>
+    <!-- Footer -->
+    <div class="modal-footer suivi-footer">
+      <span class="suivi-footer-stat">
+        <CheckCircle2 :size="13" style="color:var(--color-success)" />
+        {{ submitted.length }} rendu{{ submitted.length > 1 ? 's' : '' }} sur {{ rows.length }}
+      </span>
+      <div class="suivi-footer-actions">
+        <button class="btn-ghost" style="display:flex;align-items:center;gap:6px;font-size:12px" @click="handleExportCsv">
+          <Download :size="13" /> Exporter CSV
+        </button>
+        <button class="btn-danger" style="font-size:12px" @click="handleMarkD">
+          Non rendus → D
+        </button>
+        <button class="btn-ghost" @click="emit('update:modelValue', false)">Fermer</button>
+      </div>
     </div>
   </Modal>
 </template>
+
+<style scoped>
+.suivi-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 260px;
+}
+
+/* ── Barre de progression ── */
+.suivi-progress-header {
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.suivi-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.suivi-progress-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.suivi-progress-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-light);
+}
+
+.suivi-progress-track {
+  height: 6px;
+  background: rgba(255,255,255,.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.suivi-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width .4s ease;
+}
+
+/* ── Loading ── */
+.suivi-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 20px;
+}
+
+.skel-suivi-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+/* ── Table étudiants ── */
+.suivi-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.suivi-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--t-fast);
+  min-height: 52px;
+}
+.suivi-row:hover { background: rgba(255,255,255,.02); }
+.suivi-row--submitted { /* no special bg needed */ }
+
+.suivi-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.suivi-avatar-img { width: 100%; height: 100%; object-fit: cover; }
+
+.suivi-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.suivi-student-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.suivi-group-tag {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,.07);
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+.suivi-file {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.suivi-file-icon { color: var(--text-muted); flex-shrink: 0; }
+
+.suivi-file-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.suivi-file-date {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.suivi-not-submitted {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Note inline ── */
+.suivi-note-section {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 130px;
+  justify-content: flex-end;
+}
+
+.suivi-note-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: none;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .12s;
+}
+
+.suivi-note-badge.has-note {
+  background: rgba(74,144,217,.18);
+  color: var(--accent-light);
+}
+.suivi-note-badge.has-note:hover { background: rgba(74,144,217,.28); }
+
+.suivi-note-badge.no-note {
+  background: rgba(255,255,255,.06);
+  color: var(--text-muted);
+}
+.suivi-note-badge.no-note:hover { background: rgba(255,255,255,.12); color: var(--text-secondary); }
+
+.suivi-note-input,
+.suivi-feedback-input {
+  width: 80px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--bg-input, rgba(255,255,255,.06));
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font);
+  outline: none;
+}
+.suivi-note-input:focus,
+.suivi-feedback-input:focus { border-color: var(--accent); }
+.suivi-feedback-input { width: 120px; }
+
+.suivi-save-btn {
+  padding: 3px 7px;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.suivi-feedback-btn {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  font-style: italic;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color var(--t-fast), background var(--t-fast);
+}
+.suivi-feedback-btn:hover { color: var(--text-secondary); background: rgba(255,255,255,.06); }
+
+/* ── Empty ── */
+.suivi-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.suivi-empty-icon { opacity: .4; }
+
+/* ── Footer ── */
+.suivi-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.suivi-footer-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.suivi-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+</style>
