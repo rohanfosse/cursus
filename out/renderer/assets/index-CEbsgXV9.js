@@ -12220,7 +12220,7 @@ const _sfc_main$g = /* @__PURE__ */ defineComponent({
               title: p2.name,
               style: normalizeStyle({ "--promo-color": p2.color }),
               onClick: ($event) => emit2("select", p2.id)
-            }, toDisplayString(p2.name.slice(0, 4).toUpperCase()), 15, _hoisted_2$f)
+            }, toDisplayString(p2.name), 15, _hoisted_2$f)
           ]);
         }), 128))
       ]);

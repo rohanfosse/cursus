@@ -21,7 +21,7 @@
         :style="{ '--promo-color': p.color }"
         @click="emit('select', p.id)"
       >
-        {{ p.name.slice(0, 4).toUpperCase() }}
+        {{ p.name }}
       </button>
     </li>
   </ul>

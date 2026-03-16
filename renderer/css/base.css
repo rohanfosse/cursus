@@ -7,35 +7,36 @@
    VARIABLES
 ════════════════════════════════════════════ */
 :root {
-  /* Fonds */
-  --bg-rail:    #19171D;   /* Rail de navigation tout à gauche */
-  --bg-sidebar: #1A1D21;   /* Sidebar canaux */
-  --bg-main:    #222529;   /* Zone principale */
-  --bg-input:   #1A1D21;   /* Zone de saisie / entrées */
-  --bg-hover:   rgba(255,255,255,.08);
-  --bg-active:  rgba(255,255,255,.14);
-  --bg-modal:   #1E2024;
+  /* Fonds — thème sombre doux (Notion / Linear / Slack) */
+  --bg-rail:    #1C1E23;   /* Rail de navigation tout à gauche */
+  --bg-sidebar: #22242A;   /* Sidebar canaux */
+  --bg-main:    #282C34;   /* Zone principale */
+  --bg-input:   #22242A;   /* Zone de saisie / entrées */
+  --bg-hover:   rgba(255,255,255,.07);
+  --bg-active:  rgba(255,255,255,.12);
+  --bg-modal:   #252830;
 
   /* Alias legacy (composants existants) */
-  --bg-darkest: #111214;
-  --bg-dark:    #1A1D21;
-  --bg-medium:  #222529;
-  --bg-light:   #2c2f35;
-  --bg-primary: #111214;
+  --bg-darkest: #151720;
+  --bg-dark:    #22242A;
+  --bg-medium:  #282C34;
+  --bg-light:   #2E3240;
+  --bg-primary: #151720;
 
-  /* Texte */
-  --text-primary:   #D1D2D3;
-  --text-secondary: #97979A;
-  --text-muted:     #5C5E63;
+  /* Texte — contraste soigné sans éblouir */
+  --text-primary:   #DDDFE2;
+  --text-secondary: #9EA1A8;
+  --text-muted:     #64686F;
 
   /* Accent */
   --accent:       #4A90D9;
   --accent-hover: #5ca3f5;
   --accent-dark:  #2e6dae;
+  --accent-subtle: rgba(74,144,217,.15);
 
-  /* Bordures */
-  --border:       rgba(255,255,255,.07);
-  --border-input: rgba(255,255,255,.12);
+  /* Bordures — plus subtiles */
+  --border:       rgba(255,255,255,.06);
+  --border-input: rgba(255,255,255,.11);
 
   /* États sémantiques */
   --color-danger:  #E74C3C;
