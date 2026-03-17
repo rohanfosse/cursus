@@ -2,11 +2,13 @@
 import { watch, ref, computed, onBeforeUnmount } from 'vue'
 import { Download, ExternalLink, FileText, Image, Video, File, Table2, BookOpen } from 'lucide-vue-next'
 import { useDocumentsStore } from '@/stores/documents'
+import { useOpenExternal }   from '@/composables/useOpenExternal'
 import Modal from '@/components/ui/Modal.vue'
 import * as mammoth from 'mammoth'
 import * as XLSX from 'xlsx'
 
 const api   = window.api
+const { openExternal } = useOpenExternal()
 const props = defineProps<{ modelValue: boolean }>()
 const emit  = defineEmits<{ 'update:modelValue': [v: boolean] }>()
 
@@ -74,7 +76,7 @@ watch(() => props.modelValue, async (open) => {
 
   // Lien : ouvrir directement dans le navigateur et fermer la modal
   if (doc.value.type === 'link') {
-    api.openExternal(doc.value.content)
+    await openExternal(doc.value.content)
     emit('update:modelValue', false)
     return
   }

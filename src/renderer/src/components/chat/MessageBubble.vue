@@ -5,9 +5,10 @@
   import { useMessagesStore } from '@/stores/messages'
   import Avatar from '@/components/ui/Avatar.vue'
   import ReactionPicker from './ReactionPicker.vue'
-  import { avatarColor }         from '@/utils/format'
-  import { formatTime }          from '@/utils/date'
+  import { avatarColor }          from '@/utils/format'
+  import { formatTime }           from '@/utils/date'
   import { renderMessageContent } from '@/utils/html'
+  import { useOpenExternal }      from '@/composables/useOpenExternal'
   import type { Message } from '@/types'
 
   interface Props {
@@ -20,6 +21,7 @@
 
   const appStore      = useAppStore()
   const messagesStore = useMessagesStore()
+  const { openExternal } = useOpenExternal()
 
   const content = computed(() =>
     renderMessageContent(props.msg.content, props.searchTerm, appStore.currentUser?.name ?? ''),
@@ -44,7 +46,7 @@
     if (!a) return
     e.preventDefault()
     const url = a.dataset.url
-    if (url) window.api.openExternal(url)
+    if (url) openExternal(url)
   }
 
   const reactionsToShow = computed(() => {

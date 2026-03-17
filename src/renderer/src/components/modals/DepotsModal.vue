@@ -4,6 +4,7 @@
   import { useTravauxStore } from '@/stores/travaux'
   import { useAppStore }     from '@/stores/app'
   import { useToast }        from '@/composables/useToast'
+  import { useOpenExternal } from '@/composables/useOpenExternal'
   import { avatarColor, initials, formatGrade, gradeClass } from '@/utils/format'
   import { formatDate } from '@/utils/date'
   import Modal from '@/components/ui/Modal.vue'
@@ -14,7 +15,8 @@
 
   const travauxStore = useTravauxStore()
   const appStore     = useAppStore()
-  const { showToast } = useToast()
+  const { showToast }    = useToast()
+  const { openExternal } = useOpenExternal()
 
   // ── Notation inline ───────────────────────────────────────────────────────
   const editingNoteId     = ref<number | null>(null)
@@ -92,14 +94,9 @@
   }
 
   // ── Ouvrir / télécharger ─────────────────────────────────────────────────
-  function normalizeUrl(url: string): string {
-    const u = url.trim()
-    return /^(https?:\/\/|mailto:)/i.test(u) ? u : 'https://' + u
-  }
-
   async function openDepot(d: Depot) {
     if (d.type === 'link') {
-      await window.api.openExternal(normalizeUrl(d.content))
+      await openExternal(d.content)
     } else {
       await window.api.openPath(d.content)
     }

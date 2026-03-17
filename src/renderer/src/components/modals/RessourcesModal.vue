@@ -4,6 +4,7 @@
   import { useTravauxStore } from '@/stores/travaux'
   import { useAppStore }     from '@/stores/app'
   import { useToast }        from '@/composables/useToast'
+  import { useOpenExternal } from '@/composables/useOpenExternal'
   import Modal from '@/components/ui/Modal.vue'
 
   const props = defineProps<{ modelValue: boolean }>()
@@ -11,7 +12,8 @@
 
   const travauxStore  = useTravauxStore()
   const appStore      = useAppStore()
-  const { showToast } = useToast()
+  const { showToast }    = useToast()
+  const { openExternal } = useOpenExternal()
 
   // ── Formulaire d'ajout ────────────────────────────────────────────────────
   const showForm    = ref(false)
@@ -76,13 +78,8 @@
     }
   }
 
-  function normalizeUrl(url: string): string {
-    const u = url.trim()
-    return /^(https?:\/\/|mailto:)/i.test(u) ? u : 'https://' + u
-  }
-
   async function openResource(content: string, type: string) {
-    if (type === 'link') await window.api.openExternal(normalizeUrl(content))
+    if (type === 'link') await openExternal(content)
     else await window.api.openPath(content)
   }
 

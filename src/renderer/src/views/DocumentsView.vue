@@ -8,6 +8,7 @@
   import { useDocumentsStore } from '@/stores/documents'
   import { useModalsStore }    from '@/stores/modals'
   import { useToast }          from '@/composables/useToast'
+  import { useOpenExternal }   from '@/composables/useOpenExternal'
   import Modal     from '@/components/ui/Modal.vue'
   import { formatDate } from '@/utils/date'
   import { parseCategoryIcon } from '@/utils/categoryIcon'
@@ -17,7 +18,8 @@
   const appStore = useAppStore()
   const docStore = useDocumentsStore()
   const modals   = useModalsStore()
-  const { showToast } = useToast()
+  const { showToast }    = useToast()
+  const { openExternal } = useOpenExternal()
 
   // ── Add modal ────────────────────────────────────────────────────────────
   const showAddModal = ref(false)
@@ -94,20 +96,10 @@
     file:  'Fichier',
   }
 
-  // ── Normalise une URL (ajoute https:// si pas de protocole) ─────────────
-  function normalizeUrl(url: string): string {
-    const u = url.trim()
-    if (!u) return u
-    if (/^(https?:\/\/|mailto:)/i.test(u)) return u
-    return 'https://' + u
-  }
-
   // ── Actions ─────────────────────────────────────────────────────────────
   async function openDoc(doc: AppDocument) {
     if (doc.type === 'link') {
-      const url = normalizeUrl(doc.content)
-      const res = await api.openExternal(url)
-      if (!res?.ok) showToast(res?.error ?? 'Impossible d\'ouvrir le lien.')
+      await openExternal(doc.content)
     } else {
       docStore.openPreview(doc)
       modals.documentPreview = true
@@ -155,7 +147,7 @@
         project:     appStore.activeProject ?? null,
         name:        addName.value.trim(),
         type:        addType.value,
-        pathOrUrl:   addType.value === 'link' ? normalizeUrl(addLink.value) : addFile.value,
+        pathOrUrl:   addType.value === 'link' ? addLink.value.trim() : addFile.value,
         category:    addCategory.value.trim() || null,
         description: null,
       })
