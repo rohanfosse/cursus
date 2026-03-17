@@ -10,6 +10,7 @@ import { useTravauxStore } from '@/stores/travaux'
 import { useModalsStore }  from '@/stores/modals'
 import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
 import { avatarColor, initials } from '@/utils/format'
+import { parseCategoryIcon } from '@/utils/categoryIcon'
 import type { Devoir } from '@/types'
 import ProjetFiche from '@/components/projet/ProjetFiche.vue'
 
@@ -250,6 +251,32 @@ const rendusByDevoir = computed(() => {
   return [...map.values()]
 })
 
+// ── Vue étudiant : résumé par projet (sans filtre actif) ──────────────────
+const studentProjectOverview = computed(() => {
+  if (appStore.activeProject) return []
+  const map = new Map<string, { key: string; label: string; total: number; submitted: number; pending: number }>()
+  for (const t of travauxStore.devoirs) {
+    const cat   = t.category?.trim() || null
+    const mKey  = cat ?? '__none__'
+    if (!map.has(mKey)) {
+      map.set(mKey, {
+        key:       mKey,
+        label:     cat ? parseCategoryIcon(cat).label || cat : 'Sans projet',
+        total:     0,
+        submitted: 0,
+        pending:   0,
+      })
+    }
+    const g = map.get(mKey)!
+    g.total++
+    if (t.depot_id != null) g.submitted++
+    else if (!isEventType(t.type)) g.pending++
+  }
+  return [...map.values()]
+    .filter(g => g.total > 0 && g.key !== '__none__')
+    .sort((a, b) => a.label.localeCompare(b.label, 'fr'))
+})
+
 // ── Label lisible pour les types ──────────────────────────────────────────────
 const TYPE_LABELS: Record<string, string> = {
   livrable:    'Livrable',
@@ -277,7 +304,12 @@ function typeLabel(t: string): string {
       <div class="devoirs-header-title">
         <BookOpen :size="18" />
         <span>Devoirs</span>
-        <span v-if="appStore.activeChannelName" class="header-channel-ctx">
+        <template v-if="appStore.activeProject">
+          <span class="header-breadcrumb-sep">›</span>
+          <span class="header-project-ctx">{{ appStore.activeProject.replace(/^\S+\s/, '') }}</span>
+          <button class="header-project-clear" title="Voir tous les devoirs" @click="appStore.activeProject = null">✕</button>
+        </template>
+        <span v-else-if="appStore.activeChannelName" class="header-channel-ctx">
           # {{ appStore.activeChannelName }}
         </span>
       </div>
@@ -362,7 +394,29 @@ function typeLabel(t: string): string {
           <p>Vos devoirs apparaîtront ici dès qu'un enseignant en créera.</p>
         </div>
 
-        <!-- Groupes de devoirs -->
+        <!-- Aperçu par projet (sans filtre actif, plusieurs projets) -->
+        <div v-else-if="!appStore.activeProject && studentProjectOverview.length > 1" class="student-project-overview">
+          <button
+            v-for="p in studentProjectOverview"
+            :key="p.key"
+            class="student-proj-card"
+            @click="appStore.activeProject = p.key"
+          >
+            <span class="student-proj-label">{{ p.label }}</span>
+            <span class="student-proj-stat">
+              <span class="student-proj-submitted">{{ p.submitted }} rendu{{ p.submitted > 1 ? 's' : '' }}</span>
+              <span v-if="p.pending" class="student-proj-pending"> · {{ p.pending }} à faire</span>
+            </span>
+            <div class="student-proj-bar">
+              <div
+                class="student-proj-bar-fill"
+                :style="{ width: (p.total ? Math.round(p.submitted / p.total * 100) : 0) + '%' }"
+              />
+            </div>
+          </button>
+        </div>
+
+        <!-- Groupes de devoirs (filtre actif ou un seul projet) -->
         <div v-else class="devoirs-grouped">
 
           <!-- ▸ EN RETARD -->
@@ -376,7 +430,7 @@ function typeLabel(t: string): string {
                 <div class="devoir-card-header">
                   <div class="devoir-card-meta">
                     <span class="devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
-                    <span v-if="t.category" class="tag-badge">{{ t.category }}</span>
+                    <span v-if="t.category" class="tag-badge">{{ parseCategoryIcon(t.category).label || t.category }}</span>
                     <span v-if="t.channel_name" class="devoir-channel"># {{ t.channel_name }}</span>
                   </div>
                   <span class="deadline-badge" :class="deadlineClass(t.deadline)">
@@ -406,7 +460,7 @@ function typeLabel(t: string): string {
                 <div class="devoir-card-header">
                   <div class="devoir-card-meta">
                     <span class="devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
-                    <span v-if="t.category" class="tag-badge">{{ t.category }}</span>
+                    <span v-if="t.category" class="tag-badge">{{ parseCategoryIcon(t.category).label || t.category }}</span>
                     <span v-if="t.channel_name" class="devoir-channel"># {{ t.channel_name }}</span>
                   </div>
                   <span class="deadline-badge" :class="deadlineClass(t.deadline)">
@@ -474,7 +528,7 @@ function typeLabel(t: string): string {
                 <div class="devoir-card-header">
                   <div class="devoir-card-meta">
                     <span class="devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
-                    <span v-if="t.category" class="tag-badge">{{ t.category }}</span>
+                    <span v-if="t.category" class="tag-badge">{{ parseCategoryIcon(t.category).label || t.category }}</span>
                     <span v-if="t.channel_name" class="devoir-channel"># {{ t.channel_name }}</span>
                   </div>
                   <span class="deadline-badge" :class="deadlineClass(t.deadline)">
@@ -542,7 +596,7 @@ function typeLabel(t: string): string {
                 <div class="devoir-card-header">
                   <div class="devoir-card-meta">
                     <span class="devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
-                    <span v-if="t.category" class="tag-badge">{{ t.category }}</span>
+                    <span v-if="t.category" class="tag-badge">{{ parseCategoryIcon(t.category).label || t.category }}</span>
                     <span v-if="t.channel_name" class="devoir-channel"># {{ t.channel_name }}</span>
                   </div>
                   <span class="deadline-badge" :class="deadlineClass(t.deadline)">
@@ -573,7 +627,7 @@ function typeLabel(t: string): string {
                 <div class="devoir-card-header">
                   <div class="devoir-card-meta">
                     <span class="devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
-                    <span v-if="t.category" class="tag-badge">{{ t.category }}</span>
+                    <span v-if="t.category" class="tag-badge">{{ parseCategoryIcon(t.category).label || t.category }}</span>
                     <span v-if="t.channel_name" class="devoir-channel"># {{ t.channel_name }}</span>
                   </div>
                   <span class="deadline-badge" :class="deadlineClass(t.deadline)">
@@ -694,7 +748,7 @@ function typeLabel(t: string): string {
             <h3 class="liste-card-title">{{ t.title }}</h3>
             <div class="liste-card-meta">
               <span v-if="t.channel_name" class="liste-card-channel"># {{ t.channel_name }}</span>
-              <span v-if="t.category" class="tag-badge">{{ t.category }}</span>
+              <span v-if="t.category" class="tag-badge">{{ parseCategoryIcon(t.category).label || t.category }}</span>
             </div>
             <div class="liste-card-footer">
               <span class="deadline-badge" :class="deadlineClass(t.deadline)">
@@ -864,6 +918,36 @@ function typeLabel(t: string): string {
   color: var(--text-muted);
 }
 
+.header-breadcrumb-sep {
+  font-size: 13px;
+  color: var(--text-muted);
+  opacity: .5;
+}
+
+.header-project-ctx {
+  font-size: 13px;
+  font-weight: 600;
+  color: #9B87F5;
+}
+
+.header-project-clear {
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+  border: 1px solid rgba(155,135,245,.3);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.header-project-clear:hover {
+  background: rgba(155,135,245,.15);
+  color: #9B87F5;
+  border-color: rgba(155,135,245,.6);
+}
+
 .devoirs-header-actions {
   display: flex;
   align-items: center;
@@ -947,6 +1031,60 @@ function typeLabel(t: string): string {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+}
+
+/* ── Aperçu projets étudiant ─────────────────────────────────────────────── */
+.student-project-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.student-proj-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sidebar);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font);
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.student-proj-card:hover {
+  background: var(--bg-hover);
+  border-color: #9B87F5;
+}
+
+.student-proj-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.student-proj-stat {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.student-proj-submitted { color: var(--color-success); }
+.student-proj-pending   { color: var(--color-warning); }
+
+.student-proj-bar {
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.08);
+  overflow: hidden;
+}
+
+.student-proj-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--color-success);
+  transition: width .3s ease;
 }
 
 /* ── Liste commune ─────────────────────────────────────────────────────────── */

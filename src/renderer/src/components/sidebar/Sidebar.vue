@@ -162,6 +162,19 @@
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'))
   })
 
+  // ── Stats de rendus par projet (pour indicateurs sidebar) ─────────────────
+  const projectStats = computed((): Record<string, { depots: number; expected: number }> => {
+    const map: Record<string, { depots: number; expected: number }> = {}
+    for (const t of travauxStore.ganttData as any[]) {
+      const cat = (t as any).category?.trim()
+      if (!cat || !(t as any).published) continue
+      if (!map[cat]) map[cat] = { depots: 0, expected: 0 }
+      map[cat].depots   += (t as any).depots_count  ?? 0
+      map[cat].expected += (t as any).students_total ?? 0
+    }
+    return map
+  })
+
   function onProjectCreated(name: string) {
     loadCustomProjects()
     appStore.activeProject = name
@@ -240,12 +253,12 @@
   // ── Réactivité ────────────────────────────────────────────────────────────
   onMounted(() => {
     load(); loadCustomProjects()
-    if (route.name === 'devoirs' || route.name === 'dashboard') loadDbProjects()
+    if (route.name === 'devoirs' || route.name === 'dashboard' || route.name === 'documents') loadDbProjects()
   })
 
   watch(() => route.name, (n) => {
     if (n === 'messages' || n === 'dashboard') load()
-    if (n === 'devoirs' || n === 'dashboard')  loadDbProjects()
+    if (n === 'devoirs' || n === 'dashboard' || n === 'documents')  loadDbProjects()
   })
   watch(() => modals.createChannel, (open) => { if (!open) load() })
   // Recharger quand l'utilisateur change (simulation étudiant)
@@ -431,10 +444,52 @@
             />
             <span v-else class="project-bullet" />
             <span class="channel-name">{{ parseCategoryIcon(proj).label }}</span>
+            <span
+              v-if="appStore.isTeacher && projectStats[proj]"
+              class="project-rendus-badge"
+              :class="{ 'badge-complete': projectStats[proj].depots >= projectStats[proj].expected && projectStats[proj].expected > 0 }"
+            >{{ projectStats[proj].depots }}/{{ projectStats[proj].expected }}</span>
           </button>
         </nav>
 
         <NewProjectModal v-model="modals.newProject" @created="onProjectCreated" />
+      </template>
+
+      <!-- Liste des projets (section Documents) -->
+      <template v-else-if="route.name === 'documents'">
+        <div class="sidebar-section-header">
+          <span>Projets</span>
+        </div>
+
+        <nav aria-label="Filtrer les documents par projet">
+          <!-- Tous les documents -->
+          <button
+            class="sidebar-item"
+            :class="{ active: appStore.activeProject === null }"
+            @click="appStore.activeProject = null"
+          >
+            <FolderOpen :size="13" class="project-icon" />
+            <span class="channel-name">Tous les documents</span>
+          </button>
+
+          <!-- Projets -->
+          <button
+            v-for="proj in allProjects"
+            :key="proj"
+            class="sidebar-item"
+            :class="{ active: appStore.activeProject === proj }"
+            @click="appStore.activeProject = proj"
+          >
+            <component
+              v-if="parseCategoryIcon(proj).icon"
+              :is="parseCategoryIcon(proj).icon!"
+              :size="13"
+              class="project-icon"
+            />
+            <span v-else class="project-bullet" />
+            <span class="channel-name">{{ parseCategoryIcon(proj).label }}</span>
+          </button>
+        </nav>
       </template>
 
       <!-- Canaux groupés par catégorie (autres sections) -->
@@ -666,6 +721,23 @@
   min-width: 0;
 }
 .project-add-input:focus { border-color: #9B87F5; box-shadow: 0 0 0 2px rgba(155,135,245,.2); }
+
+/* ── Badge rendus par projet ── */
+.project-rendus-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: rgba(155,135,245,.12);
+  color: #9B87F5;
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: .85;
+}
+.project-rendus-badge.badge-complete {
+  background: rgba(39,174,96,.14);
+  color: var(--color-success);
+}
 
 /* ── Arbre projets (dashboard) ── */
 .dash-project-group {
