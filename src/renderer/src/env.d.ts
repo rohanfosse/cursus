@@ -104,6 +104,11 @@ declare global {
       deleteChannelDocument(id: number): Promise<IpcResponse<null>>
       getChannelDocumentCategories(channelId: number): Promise<IpcResponse<string[]>>
 
+      // Documents de projet (nouveau)
+      getProjectDocuments(promoId: number, project?: string | null): Promise<IpcResponse<AppDocument[]>>
+      addProjectDocument(payload: object): Promise<IpcResponse<{ id: number }>>
+      getProjectDocumentCategories(promoId: number, project?: string | null): Promise<IpcResponse<string[]>>
+
       // Messages épinglés
       getPinnedMessages(channelId: number): Promise<IpcResponse<Message[]>>
       togglePinMessage(payload: { messageId: number; pinned: boolean }): Promise<IpcResponse<null>>

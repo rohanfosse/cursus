@@ -98,6 +98,11 @@ contextBridge.exposeInMainWorld('api', {
   deleteChannelDocument:        (id: number)        => invoke('db:deleteChannelDocument',        id),
   getChannelDocumentCategories: (channelId: number) => invoke('db:getChannelDocumentCategories', channelId),
 
+  // ── Documents de projet (nouveau) ──────────────────────────────────────────
+  getProjectDocuments:          (promoId: number, project?: string | null) => invoke('db:getProjectDocuments', promoId, project ?? null),
+  addProjectDocument:           (payload: unknown)                          => invoke('db:addProjectDocument', payload),
+  getProjectDocumentCategories: (promoId: number, project?: string | null) => invoke('db:getProjectDocumentCategories', promoId, project ?? null),
+
   // ── Messages épinglés ──────────────────────────────────────────────────────
   getPinnedMessages: (channelId: number) => invoke('db:getPinnedMessages', channelId),
   togglePinMessage:  (payload: unknown)  => invoke('db:togglePinMessage',  payload),

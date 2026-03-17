@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 7;
+const CURRENT_VERSION = 8;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -67,13 +67,14 @@ function initSchema() {
 
     CREATE TABLE IF NOT EXISTS travaux (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      channel_id  INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+      promo_id    INTEGER NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+      channel_id  INTEGER REFERENCES channels(id) ON DELETE SET NULL,
       group_id    INTEGER REFERENCES groups(id) ON DELETE SET NULL,
       title       TEXT NOT NULL,
       description TEXT,
       deadline    TEXT NOT NULL,
       category    TEXT,
-      type        TEXT NOT NULL DEFAULT 'devoir' CHECK(type IN ('devoir', 'jalon')),
+      type        TEXT NOT NULL DEFAULT 'devoir' CHECK(type IN ('devoir', 'jalon', 'projet')),
       published   INTEGER NOT NULL DEFAULT 1,
       start_date  TEXT
     );
@@ -96,7 +97,9 @@ function initSchema() {
 
     CREATE TABLE IF NOT EXISTS channel_documents (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      channel_id  INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+      promo_id    INTEGER NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+      channel_id  INTEGER REFERENCES channels(id) ON DELETE SET NULL,
+      project     TEXT,
       category    TEXT NOT NULL DEFAULT 'Général',
       type        TEXT NOT NULL CHECK(type IN ('file', 'link')),
       name        TEXT NOT NULL,
@@ -211,6 +214,57 @@ function runMigrations(db) {
         INSERT INTO travaux_v7 SELECT id, channel_id, group_id, title, description, deadline, category, type, published, start_date FROM travaux;
         DROP TABLE travaux;
         ALTER TABLE travaux_v7 RENAME TO travaux;
+      `);
+    },
+
+    // v8 : travaux et documents indépendants des canaux (promo_id direct)
+    (db) => {
+      db.exec(`
+        -- Reconstruction de travaux avec promo_id direct et channel_id nullable
+        CREATE TABLE IF NOT EXISTS travaux_v8 (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          promo_id    INTEGER NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+          channel_id  INTEGER REFERENCES channels(id) ON DELETE SET NULL,
+          group_id    INTEGER REFERENCES groups(id) ON DELETE SET NULL,
+          title       TEXT NOT NULL,
+          description TEXT,
+          deadline    TEXT NOT NULL,
+          category    TEXT,
+          type        TEXT NOT NULL DEFAULT 'devoir' CHECK(type IN ('devoir', 'jalon', 'projet')),
+          published   INTEGER NOT NULL DEFAULT 1,
+          start_date  TEXT
+        );
+        INSERT INTO travaux_v8
+          SELECT t.id,
+            COALESCE((SELECT ch.promo_id FROM channels ch WHERE ch.id = t.channel_id), 1),
+            t.channel_id, t.group_id, t.title, t.description, t.deadline,
+            t.category, t.type, t.published, t.start_date
+          FROM travaux t;
+        DROP TABLE travaux;
+        ALTER TABLE travaux_v8 RENAME TO travaux;
+
+        -- Reconstruction de channel_documents avec promo_id + project et channel_id nullable
+        CREATE TABLE IF NOT EXISTS channel_documents_v8 (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          promo_id    INTEGER NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+          channel_id  INTEGER REFERENCES channels(id) ON DELETE SET NULL,
+          project     TEXT,
+          category    TEXT NOT NULL DEFAULT 'Général',
+          type        TEXT NOT NULL CHECK(type IN ('file', 'link')),
+          name        TEXT NOT NULL,
+          path_or_url TEXT NOT NULL,
+          description TEXT,
+          created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT INTO channel_documents_v8
+          SELECT cd.id,
+            COALESCE((SELECT ch.promo_id FROM channels ch WHERE ch.id = cd.channel_id), 1),
+            cd.channel_id,
+            (SELECT ch.category FROM channels ch WHERE ch.id = cd.channel_id),
+            cd.category, cd.type, cd.name, cd.path_or_url, cd.description, cd.created_at
+          FROM channel_documents cd;
+        DROP TABLE channel_documents;
+        ALTER TABLE channel_documents_v8 RENAME TO channel_documents;
       `);
     },
   ];

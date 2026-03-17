@@ -11,8 +11,7 @@ function getTravaux(channelId) {
         WHEN t.group_id IS NOT NULL
           THEN (SELECT COUNT(*) FROM group_members WHERE group_id = t.group_id)
         ELSE
-          (SELECT COUNT(*) FROM students WHERE promo_id =
-            (SELECT promo_id FROM channels WHERE id = t.channel_id))
+          (SELECT COUNT(*) FROM students WHERE promo_id = t.promo_id)
       END AS students_total
     FROM travaux t
     LEFT JOIN groups g ON t.group_id = g.id
@@ -25,25 +24,22 @@ function getTravailById(travailId) {
   return getDb().prepare('SELECT * FROM travaux WHERE id = ?').get(travailId);
 }
 
-function createTravail({ channelId, groupId, title, description, startDate, deadline, category, type, published }) {
-  const db     = getDb();
+function createTravail({ promoId, channelId, groupId, title, description, startDate, deadline, category, type, published }) {
+  const db = getDb();
   const result = db.prepare(`
-    INSERT INTO travaux (channel_id, group_id, title, description, start_date, deadline, category, type, published)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO travaux (promo_id, channel_id, group_id, title, description, start_date, deadline, category, type, published)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    channelId, groupId ?? null, title, description, startDate ?? null, deadline,
-    category  ?? 'TP',
-    type      ?? 'devoir',
+    promoId, channelId ?? null, groupId ?? null, title, description, startDate ?? null,
+    deadline, category ?? null, type ?? 'devoir',
     published != null ? (published ? 1 : 0) : 1
   );
-
   if (groupId) {
     const travailId = result.lastInsertRowid;
     const members   = db.prepare('SELECT student_id FROM group_members WHERE group_id = ?').all(groupId);
     const ins       = db.prepare('INSERT OR IGNORE INTO travail_group_members (travail_id, student_id, group_id) VALUES (?, ?, ?)');
     for (const m of members) ins.run(travailId, m.student_id, groupId);
   }
-
   return result;
 }
 
@@ -62,8 +58,7 @@ function getTravauxSuivi(travailId) {
       tgm.group_id   AS travail_group_id,
       tg.name        AS travail_group_name
     FROM travaux t
-    JOIN channels c ON t.channel_id = c.id
-    JOIN students s ON s.promo_id = c.promo_id
+    JOIN students s ON s.promo_id = t.promo_id
     LEFT JOIN depots d   ON d.travail_id = t.id AND d.student_id = s.id
     LEFT JOIN travail_group_members tgm ON tgm.travail_id = t.id AND tgm.student_id = s.id
     LEFT JOIN groups tg  ON tg.id = tgm.group_id
@@ -83,12 +78,10 @@ function getStudentTravaux(studentId) {
   return getDb().prepare(`
     SELECT
       t.id, t.title, t.description, t.deadline, t.group_id, t.category, t.type,
-      ch.name AS channel_name, ch.id AS channel_id,
       tgm_g.name AS group_name,
       d.id    AS depot_id, d.file_name, d.link_url, d.deploy_url, d.note, d.feedback, d.submitted_at
     FROM students s
-    JOIN channels ch ON ch.promo_id = s.promo_id AND ch.type = 'chat'
-    JOIN travaux t   ON t.channel_id = ch.id
+    JOIN travaux t ON t.promo_id = s.promo_id
     LEFT JOIN travail_group_members tgm ON tgm.travail_id = t.id AND tgm.student_id = s.id
     LEFT JOIN groups tgm_g ON tgm_g.id = tgm.group_id
     LEFT JOIN depots d  ON d.travail_id = t.id AND d.student_id = s.id
@@ -142,16 +135,15 @@ function getGanttData(promoId) {
            (SELECT COUNT(*) FROM depots d WHERE d.travail_id = t.id) AS depots_count,
            CASE WHEN t.group_id IS NOT NULL
              THEN (SELECT COUNT(*) FROM group_members WHERE group_id = t.group_id)
-             ELSE (SELECT COUNT(*) FROM students WHERE promo_id = p.id)
+             ELSE (SELECT COUNT(*) FROM students WHERE promo_id = t.promo_id)
            END AS students_total
     FROM travaux t
-    JOIN channels ch  ON ch.id = t.channel_id
-    JOIN promotions p ON p.id  = ch.promo_id
+    JOIN promotions p ON p.id = t.promo_id
+    LEFT JOIN channels ch ON ch.id = t.channel_id
     LEFT JOIN groups g ON g.id = t.group_id
-    WHERE ch.type = 'chat'
   `;
   if (promoId) {
-    return db.prepare(`${base} AND p.id = ? ORDER BY t.deadline ASC`).all(promoId);
+    return db.prepare(`${base} WHERE t.promo_id = ? ORDER BY t.deadline ASC`).all(promoId);
   }
   return db.prepare(`${base} ORDER BY p.name ASC, t.deadline ASC`).all();
 }
@@ -169,8 +161,8 @@ function getAllRendus(promoId) {
     FROM depots d
     JOIN students s   ON s.id  = d.student_id
     JOIN travaux t    ON t.id  = d.travail_id
-    JOIN channels ch  ON ch.id = t.channel_id
-    JOIN promotions p ON p.id  = ch.promo_id
+    JOIN promotions p ON p.id  = t.promo_id
+    LEFT JOIN channels ch ON ch.id = t.channel_id
   `;
   if (promoId) {
     return db.prepare(`${base} WHERE p.id = ? ORDER BY d.submitted_at DESC`).all(promoId);
@@ -192,8 +184,8 @@ function getTeacherSchedule() {
     FROM depots d
     JOIN students s   ON s.id  = d.student_id
     JOIN travaux t    ON t.id  = d.travail_id
-    JOIN channels ch  ON ch.id = t.channel_id
-    JOIN promotions p ON p.id  = ch.promo_id
+    JOIN promotions p ON p.id  = t.promo_id
+    LEFT JOIN channels ch ON ch.id = t.channel_id
     WHERE d.note IS NULL
     ORDER BY d.submitted_at ASC
   `).all();
@@ -203,8 +195,8 @@ function getTeacherSchedule() {
            ch.name AS channel_name,
            p.name  AS promo_name, p.color AS promo_color
     FROM travaux t
-    JOIN channels ch  ON ch.id = t.channel_id
-    JOIN promotions p ON p.id  = ch.promo_id
+    JOIN promotions p ON p.id = t.promo_id
+    LEFT JOIN channels ch ON ch.id = t.channel_id
     WHERE t.type = 'jalon'
       AND t.published = 1
       AND t.deadline >= datetime('now')
@@ -217,8 +209,8 @@ function getTeacherSchedule() {
            ch.name AS channel_name,
            p.name  AS promo_name, p.color AS promo_color
     FROM travaux t
-    JOIN channels ch  ON ch.id = t.channel_id
-    JOIN promotions p ON p.id  = ch.promo_id
+    JOIN promotions p ON p.id = t.promo_id
+    LEFT JOIN channels ch ON ch.id = t.channel_id
     WHERE t.published = 0
     ORDER BY t.deadline ASC
   `).all();
@@ -230,11 +222,11 @@ function getTeacherSchedule() {
            (SELECT COUNT(*) FROM depots d WHERE d.travail_id = t.id) AS depots_count,
            CASE WHEN t.group_id IS NOT NULL
              THEN (SELECT COUNT(*) FROM group_members WHERE group_id = t.group_id)
-             ELSE (SELECT COUNT(*) FROM students WHERE promo_id = p.id)
+             ELSE (SELECT COUNT(*) FROM students WHERE promo_id = t.promo_id)
            END AS students_total
     FROM travaux t
-    JOIN channels ch  ON ch.id = t.channel_id
-    JOIN promotions p ON p.id  = ch.promo_id
+    JOIN promotions p ON p.id = t.promo_id
+    LEFT JOIN channels ch ON ch.id = t.channel_id
     WHERE t.type = 'devoir'
       AND t.published = 1
       AND t.deadline >= datetime('now')
@@ -249,19 +241,16 @@ function getTeacherSchedule() {
 
 function markNonSubmittedAsD(travailId) {
   const db      = getDb();
-  const travail = db.prepare('SELECT channel_id FROM travaux WHERE id = ?').get(travailId);
+  const travail = db.prepare('SELECT promo_id FROM travaux WHERE id = ?').get(travailId);
   if (!travail) return 0;
-  const channel = db.prepare('SELECT promo_id FROM channels WHERE id = ?').get(travail.channel_id);
-  if (!channel) return 0;
 
   const students = db.prepare(`
     SELECT s.id FROM students s
     LEFT JOIN depots d ON d.travail_id = ? AND d.student_id = s.id
     WHERE s.promo_id = ? AND d.id IS NULL
-  `).all(travailId, channel.promo_id);
+  `).all(travailId, travail.promo_id);
 
   if (!students.length) return 0;
-
   const ins = db.prepare(
     `INSERT OR IGNORE INTO depots (travail_id, student_id, file_name, file_path, note) VALUES (?, ?, '—', '', 'D')`
   );
@@ -275,8 +264,7 @@ function getTravailCategories(promoId) {
   const rows = getDb().prepare(`
     SELECT DISTINCT t.category
     FROM travaux t
-    JOIN channels ch ON ch.id = t.channel_id
-    WHERE ch.promo_id = ? AND t.category IS NOT NULL AND t.category != ''
+    WHERE t.promo_id = ? AND t.category IS NOT NULL AND t.category != ''
     ORDER BY t.category ASC
   `).all(promoId);
   return rows.map(r => r.category);

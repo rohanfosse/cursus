@@ -31,7 +31,7 @@ function requireSchema() {
   if (hasRequiredSchema) return schema;
   hasRequiredSchema = 1;
   const { getDb } = requireConnection();
-  const CURRENT_VERSION = 6;
+  const CURRENT_VERSION = 8;
   function initSchema() {
     const db2 = getDb();
     db2.exec(`
@@ -92,13 +92,14 @@ function requireSchema() {
 
     CREATE TABLE IF NOT EXISTS travaux (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      channel_id  INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+      promo_id    INTEGER NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+      channel_id  INTEGER REFERENCES channels(id) ON DELETE SET NULL,
       group_id    INTEGER REFERENCES groups(id) ON DELETE SET NULL,
       title       TEXT NOT NULL,
       description TEXT,
       deadline    TEXT NOT NULL,
-      category    TEXT NOT NULL DEFAULT 'TP' CHECK(category IN ('TP','Projet','Devoir','Examen','Rendu')),
-      type        TEXT NOT NULL DEFAULT 'devoir' CHECK(type IN ('devoir', 'jalon')),
+      category    TEXT,
+      type        TEXT NOT NULL DEFAULT 'devoir' CHECK(type IN ('devoir', 'jalon', 'projet')),
       published   INTEGER NOT NULL DEFAULT 1,
       start_date  TEXT
     );
@@ -121,7 +122,9 @@ function requireSchema() {
 
     CREATE TABLE IF NOT EXISTS channel_documents (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      channel_id  INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+      promo_id    INTEGER NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+      channel_id  INTEGER REFERENCES channels(id) ON DELETE SET NULL,
+      project     TEXT,
       category    TEXT NOT NULL DEFAULT 'Général',
       type        TEXT NOT NULL CHECK(type IN ('file', 'link')),
       name        TEXT NOT NULL,
@@ -203,6 +206,76 @@ function requireSchema() {
       // v6 : catégories de canaux
       (db3) => {
         tryAlter(db3, "ALTER TABLE channels ADD COLUMN category TEXT DEFAULT NULL");
+      },
+      // v7 : supprimer le CHECK sur travaux.category (SQLite = recréation de table)
+      (db3) => {
+        db3.exec(`
+        CREATE TABLE IF NOT EXISTS travaux_v7 (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          channel_id  INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+          group_id    INTEGER REFERENCES groups(id) ON DELETE SET NULL,
+          title       TEXT NOT NULL,
+          description TEXT,
+          deadline    TEXT NOT NULL,
+          category    TEXT,
+          type        TEXT NOT NULL DEFAULT 'devoir' CHECK(type IN ('devoir', 'jalon', 'projet')),
+          published   INTEGER NOT NULL DEFAULT 1,
+          start_date  TEXT
+        );
+        INSERT INTO travaux_v7 SELECT id, channel_id, group_id, title, description, deadline, category, type, published, start_date FROM travaux;
+        DROP TABLE travaux;
+        ALTER TABLE travaux_v7 RENAME TO travaux;
+      `);
+      },
+      // v8 : travaux et documents indépendants des canaux (promo_id direct)
+      (db3) => {
+        db3.exec(`
+        -- Reconstruction de travaux avec promo_id direct et channel_id nullable
+        CREATE TABLE IF NOT EXISTS travaux_v8 (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          promo_id    INTEGER NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+          channel_id  INTEGER REFERENCES channels(id) ON DELETE SET NULL,
+          group_id    INTEGER REFERENCES groups(id) ON DELETE SET NULL,
+          title       TEXT NOT NULL,
+          description TEXT,
+          deadline    TEXT NOT NULL,
+          category    TEXT,
+          type        TEXT NOT NULL DEFAULT 'devoir' CHECK(type IN ('devoir', 'jalon', 'projet')),
+          published   INTEGER NOT NULL DEFAULT 1,
+          start_date  TEXT
+        );
+        INSERT INTO travaux_v8
+          SELECT t.id,
+            COALESCE((SELECT ch.promo_id FROM channels ch WHERE ch.id = t.channel_id), 1),
+            t.channel_id, t.group_id, t.title, t.description, t.deadline,
+            t.category, t.type, t.published, t.start_date
+          FROM travaux t;
+        DROP TABLE travaux;
+        ALTER TABLE travaux_v8 RENAME TO travaux;
+
+        -- Reconstruction de channel_documents avec promo_id + project et channel_id nullable
+        CREATE TABLE IF NOT EXISTS channel_documents_v8 (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          promo_id    INTEGER NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+          channel_id  INTEGER REFERENCES channels(id) ON DELETE SET NULL,
+          project     TEXT,
+          category    TEXT NOT NULL DEFAULT 'Général',
+          type        TEXT NOT NULL CHECK(type IN ('file', 'link')),
+          name        TEXT NOT NULL,
+          path_or_url TEXT NOT NULL,
+          description TEXT,
+          created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT INTO channel_documents_v8
+          SELECT cd.id,
+            COALESCE((SELECT ch.promo_id FROM channels ch WHERE ch.id = cd.channel_id), 1),
+            cd.channel_id,
+            (SELECT ch.category FROM channels ch WHERE ch.id = cd.channel_id),
+            cd.category, cd.type, cd.name, cd.path_or_url, cd.description, cd.created_at
+          FROM channel_documents cd;
+        DROP TABLE channel_documents;
+        ALTER TABLE channel_documents_v8 RENAME TO channel_documents;
+      `);
       }
     ];
     db2.transaction(() => {
@@ -549,21 +622,21 @@ ${cur}
     const ig = db2.prepare("INSERT INTO groups (promo_id, name) VALUES (?, ?)");
     const im = db2.prepare("INSERT INTO group_members (group_id, student_id) VALUES (?, ?)");
     const imsg = db2.prepare("INSERT INTO messages (channel_id, dm_student_id, author_name, author_type, content, created_at) VALUES (?, ?, ?, ?, ?, ?)");
-    const it = db2.prepare("INSERT INTO travaux (channel_id, group_id, title, description, start_date, deadline, category, type, published) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    const it = db2.prepare("INSERT INTO travaux (promo_id, channel_id, group_id, title, description, start_date, deadline, category, type, published) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     const itgm = db2.prepare("INSERT OR IGNORE INTO travail_group_members (travail_id, student_id, group_id) VALUES (?, ?, ?)");
     const ir = db2.prepare("INSERT INTO ressources (travail_id, type, name, path_or_url) VALUES (?, ?, ?, ?)");
     const id_ = db2.prepare("INSERT INTO depots (travail_id, student_id, file_name, file_path, note, feedback, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    const icd = db2.prepare("INSERT INTO channel_documents (channel_id, category, type, name, path_or_url, description) VALUES (?, ?, ?, ?, ?, ?)");
+    const icd = db2.prepare("INSERT INTO channel_documents (promo_id, project, category, type, name, path_or_url, description) VALUES (?, ?, ?, ?, ?, ?, ?)");
     const p1 = ip.run("CPIA2 25-26", "#E8742A").lastInsertRowid;
     const c1_ann = ic.run(p1, "annonces", "Informations importantes", "annonce", null).lastInsertRowid;
-    const c1_gen = ic.run(p1, "general", "Canal principal de la promo", "chat", "💬 Communication").lastInsertRowid;
-    const c1_dev = ic.run(p1, "cours-dev", "Cours de développement logiciel", "chat", "💻 Développement").lastInsertRowid;
-    const c1_rdev = ic.run(p1, "remise-dev", "Dépôt des travaux de développement", "chat", "💻 Développement").lastInsertRowid;
-    const c1_algo = ic.run(p1, "cours-algo", "Algorithmique et structures", "chat", "⚙️ Algorithmique").lastInsertRowid;
-    const c1_tpalgo = ic.run(p1, "tp-algo", "Dépôt des TPs algorithmique", "chat", "⚙️ Algorithmique").lastInsertRowid;
-    const c1_bdd = ic.run(p1, "cours-bdd", "Bases de données et modélisation", "chat", "🗄️ Bases de données").lastInsertRowid;
-    const c1_tpbdd = ic.run(p1, "tp-bdd", "Dépôt des TPs bases de données", "chat", "🗄️ Bases de données").lastInsertRowid;
-    const c1_net = ic.run(p1, "reseaux", "Réseaux & administration système", "chat", "📡 Réseaux").lastInsertRowid;
+    const c1_gen = ic.run(p1, "general", "Canal principal de la promo", "chat", "message-square Communication").lastInsertRowid;
+    const c1_dev = ic.run(p1, "cours-dev", "Cours de développement logiciel", "chat", "monitor Développement").lastInsertRowid;
+    const c1_rdev = ic.run(p1, "remise-dev", "Dépôt des travaux de développement", "chat", "monitor Développement").lastInsertRowid;
+    const c1_algo = ic.run(p1, "cours-algo", "Algorithmique et structures", "chat", "cog Algorithmique").lastInsertRowid;
+    ic.run(p1, "tp-algo", "Dépôt des TPs algorithmique", "chat", "cog Algorithmique").lastInsertRowid;
+    const c1_bdd = ic.run(p1, "cours-bdd", "Bases de données et modélisation", "chat", "database Bases de données").lastInsertRowid;
+    ic.run(p1, "tp-bdd", "Dépôt des TPs bases de données", "chat", "database Bases de données").lastInsertRowid;
+    ic.run(p1, "reseaux", "Réseaux & administration système", "chat", "wifi Réseaux").lastInsertRowid;
     const s1 = is_.run(p1, "Lucas Dupont", "lucas.dupont@viacesi.fr", "LD").lastInsertRowid;
     const s2 = is_.run(p1, "Manon Bernard", "manon.bernard@viacesi.fr", "MB").lastInsertRowid;
     const s3 = is_.run(p1, "Theo Leclerc", "theo.leclerc@viacesi.fr", "TL").lastInsertRowid;
@@ -610,13 +683,14 @@ ${cur}
     imsg.run(null, s3, "Theo Leclerc", "student", "Je bloque sur la table de hachage, les collisions ne sont pas bien gerees.", "2026-03-20 16:00:00");
     imsg.run(null, s3, "Rohan Fosse", "teacher", "Utilise le chaining (liste chainee pour chaque bucket). Je peux partager un exemple si besoin.", "2026-03-20 16:10:00");
     const t_web1 = it.run(
-      c1_rdev,
+      p1,
+      null,
       null,
       "Livrable 1 — Maquette & spécifications",
       "Concevoir et documenter la maquette de votre application web :\n- Wireframes de tous les ecrans (desktop + mobile)\n- Diagramme de cas d'utilisation\n- Modele de donnees (schema BDD)\n- Charte graphique\nRendu PDF via la section Travaux.",
       "2026-01-15",
       "2026-03-27 23:59:00",
-      "💻 Développement Web",
+      "monitor Développement Web",
       "devoir",
       1
     ).lastInsertRowid;
@@ -624,67 +698,73 @@ ${cur}
     ir.run(t_web1, "link", "Draw.io — Diagrammes gratuits", "https://app.diagrams.net/");
     ir.run(t_web1, "link", "Figma — Maquettes UI", "https://figma.com/");
     const t_web2 = it.run(
-      c1_rdev,
+      p1,
+      null,
       null,
       "Livrable 2 — Version bêta fonctionnelle",
       "Remettre une version beta de votre application :\n- Authentification fonctionnelle\n- Au moins 2 fonctionnalites CRUD completes\n- Tests unitaires (couverture > 60%)\n- README avec instructions d'installation\nRendu : archive ZIP (code source) + rapport PDF.",
       "2026-03-28",
       "2026-05-08 23:59:00",
-      "💻 Développement Web",
+      "monitor Développement Web",
       "devoir",
       1
     ).lastInsertRowid;
     ir.run(t_web2, "link", "Flask documentation", "https://flask.palletsprojects.com/");
     ir.run(t_web2, "link", "pytest — Tests Python", "https://docs.pytest.org/");
     it.run(
-      c1_rdev,
+      p1,
+      null,
       null,
       "Soutenance finale — Projet Web",
       "Presentation de votre application finalisee.\nDuree : 15 min demo + 5 min questions.\nCriteres : qualite du code, fonctionnalites, design, tests.",
       "2026-06-12",
       "2026-06-12 09:00:00",
-      "💻 Développement Web",
+      "monitor Développement Web",
       "jalon",
       1
     );
     const t_algo1 = it.run(
-      c1_tpalgo,
+      p1,
+      null,
       null,
       "TP — Structures de données fondamentales",
       "Implementer en Python :\n1. Pile (Stack) avec push/pop/peek\n2. File (Queue) avec enqueue/dequeue\n3. Table de hachage avec gestion des collisions\nChaque structure doit avoir ses tests unitaires. Fichier .py unique.",
       "2026-02-01",
       "2026-04-03 23:59:00",
-      "⚙️ Algorithmique",
+      "cog Algorithmique",
       "devoir",
       1
     ).lastInsertRowid;
     ir.run(t_algo1, "link", "Visualgo — Structures de données", "https://visualgo.net/en/list");
     ir.run(t_algo1, "link", "Documentation Python collections", "https://docs.python.org/3/library/collections.html");
     const t_algo2 = it.run(
-      c1_tpalgo,
+      p1,
+      null,
       null,
       "TP — Algorithmes de tri & complexité",
       "Implementer et comparer :\n- Bubble sort, Insertion sort, Merge sort, Quicksort\nMesurer les performances avec timeit sur des tableaux de 100, 1000, 10000 elements.\nRendu : .py + tableau de complexites commenté.",
       "2026-04-04",
       "2026-05-02 23:59:00",
-      "⚙️ Algorithmique",
+      "cog Algorithmique",
       "devoir",
       1
     ).lastInsertRowid;
     ir.run(t_algo2, "link", "Big-O Cheat Sheet", "https://www.bigocheatsheet.com/");
     it.run(
-      c1_tpalgo,
+      p1,
+      null,
       null,
       "Examen algorithmique — Mi-parcours",
       "Examen sur table, 2h. Programme : structures de donnees + complexite + tris.\nQCM (20 pts) + exercice de code (20 pts). Pas de ressources autorisees.",
       "2026-05-22",
       "2026-05-22 09:00:00",
-      "⚙️ Algorithmique",
+      "cog Algorithmique",
       "jalon",
       1
     );
     const t_bdd1 = it.run(
-      c1_tpbdd,
+      p1,
+      null,
       null,
       "DM — Modélisation UML",
       `Modeliser un systeme de gestion de bibliotheque :
@@ -694,66 +774,71 @@ ${cur}
 Rendu PDF.`,
       "2026-02-15",
       "2026-03-28 23:59:00",
-      "🗄️ Bases de données",
+      "database Bases de données",
       "devoir",
       1
     ).lastInsertRowid;
     ir.run(t_bdd1, "link", "PlantUML — UML en texte", "https://plantuml.com/");
     ir.run(t_bdd1, "link", "UML Resource Center", "https://www.uml.org/");
     const t_bdd2 = it.run(
-      c1_tpbdd,
+      p1,
+      null,
       null,
       "TP — Requêtes SQL avancées",
       "Exercices sur :\n- Jointures (INNER, LEFT, FULL)\n- Sous-requetes correlees\n- Fonctions d'agregation et GROUP BY / HAVING\n- Vues et index\nBase de donnees fournie en ressource. Rendu : fichier .sql.",
       "2026-03-29",
       "2026-05-09 23:59:00",
-      "🗄️ Bases de données",
+      "database Bases de données",
       "devoir",
       1
     ).lastInsertRowid;
     ir.run(t_bdd2, "link", "SQLZoo — Pratique SQL interactive", "https://sqlzoo.net/");
     it.run(
-      c1_tpbdd,
+      p1,
+      null,
       null,
       "Examen BDD — Modélisation & SQL",
       "Examen 2h. Partie 1 : modelisation UML (40%) — Partie 2 : requetes SQL (60%).\nBDD fournie. Pas de ressources autorisees.",
       "2026-05-28",
       "2026-05-28 09:00:00",
-      "🗄️ Bases de données",
+      "database Bases de données",
       "jalon",
       1
     );
     const t_net1 = it.run(
-      c1_net,
+      p1,
+      null,
       null,
       "TP — Configuration réseau d'entreprise",
       "Configurer un petit reseau d'entreprise sous Cisco Packet Tracer :\n- 2 VLANs (utilisateurs / serveurs)\n- Routage inter-VLAN\n- DHCP + DNS\n- Pare-feu basique\nRendu : fichier .pkt + rapport PDF.",
       "2026-03-01",
       "2026-04-17 23:59:00",
-      "📡 Réseaux",
+      "wifi Réseaux",
       "devoir",
       1
     ).lastInsertRowid;
     ir.run(t_net1, "link", "Cisco Packet Tracer (telechargement)", "https://www.netacad.com/courses/packet-tracer");
     it.run(
-      c1_net,
+      p1,
+      null,
       null,
       "Rapport — Mini-réseau d'entreprise (projet final)",
       "Concevoir et documenter un reseau complet pour une PME de 50 employes :\n- Schema d'architecture logique et physique\n- Adressage IP et plan de sous-reseaux\n- Choix des equipements justifies\n- Politique de securite\nRendu : rapport PDF (15-20 pages).",
       "2026-04-18",
       "2026-06-05 23:59:00",
-      "📡 Réseaux",
+      "wifi Réseaux",
       "devoir",
       1
     );
     it.run(
-      c1_net,
+      p1,
+      null,
       null,
       "Soutenance — Projet Réseaux",
       "Presentation de votre architecture reseau.\nDuree : 10 min presentation + 5 min questions.\nSupport : slides + Packet Tracer demo.",
       "2026-06-19",
       "2026-06-19 14:00:00",
-      "📡 Réseaux",
+      "wifi Réseaux",
       "jalon",
       1
     );
@@ -784,24 +869,24 @@ Rendu PDF.`,
     id_.run(t_bdd1, s6, "PETIT_Jade_UML.pdf", pdf("dm_uml_petit.pdf"), "A", "Tres bien. Structure claire, les relations entre classes sont bien justifiees. Tres propre.", "2026-03-23 17:00:00");
     id_.run(t_bdd1, s7, "DUBOIS_Nathan_UML.pdf", "depots/DUBOIS_Nathan_UML.pdf", "B", "Bien. Les 3 diagrammes sont presents et globalement corrects. Quelques coquilles dans les noms de methodes.", "2026-03-24 16:00:00");
     id_.run(t_bdd1, s8, "FONTAINE_Lea_UML.pdf", "depots/FONTAINE_Lea_UML.pdf", "B", "Bonne modelisation. Le diagramme de classes est tres propre. Le diagramme de sequence pourrait etre plus exhaustif.", "2026-03-27 20:00:00");
-    icd.run(c1_dev, "💻 Développement Web", "file", "Cahier des charges — Projet Web Full-Stack", pdf("cahier_charges_web.pdf"), "Specifications completes du projet web annuel");
-    icd.run(c1_dev, "💻 Développement Web", "file", "Grille d'evaluation developpement", pdf("grille_eval_dev.pdf"), "Criteres et bareme de notation");
-    icd.run(c1_dev, "Ressources", "link", "Documentation Flask", "https://flask.palletsprojects.com/", "Framework web Python utilise dans le projet");
-    icd.run(c1_dev, "Ressources", "link", "MDN Web Docs — HTML/CSS/JS", "https://developer.mozilla.org/fr/", "Reference complete du developpement web");
-    icd.run(c1_dev, "Outils", "link", "Python Tutor — Debogueur visuel", "http://pythontutor.com/", "Executer du code Python pas-a-pas");
-    icd.run(c1_algo, "Cours", "link", "Visualgo — Algorithmes interactifs", "https://visualgo.net/", "Visualisation animee des structures de donnees");
-    icd.run(c1_algo, "Cours", "link", "Big-O Cheat Sheet", "https://www.bigocheatsheet.com/", "Complexite des algorithmes courants");
-    icd.run(c1_bdd, "Cours UML", "link", "Draw.io — Diagrammes gratuits", "https://app.diagrams.net/", "Outil en ligne pour diagrammes UML");
-    icd.run(c1_bdd, "Cours SQL", "link", "SQLZoo — Pratique interactive", "https://sqlzoo.net/", "Exercices SQL interactifs");
+    icd.run(p1, "monitor Développement Web", "Général", "file", "Cahier des charges — Projet Web Full-Stack", pdf("cahier_charges_web.pdf"), "Specifications completes du projet web annuel");
+    icd.run(p1, "monitor Développement Web", "Général", "file", "Grille d'evaluation developpement", pdf("grille_eval_dev.pdf"), "Criteres et bareme de notation");
+    icd.run(p1, "monitor Développement Web", "Ressources", "link", "Documentation Flask", "https://flask.palletsprojects.com/", "Framework web Python utilise dans le projet");
+    icd.run(p1, "monitor Développement Web", "Ressources", "link", "MDN Web Docs — HTML/CSS/JS", "https://developer.mozilla.org/fr/", "Reference complete du developpement web");
+    icd.run(p1, "monitor Développement Web", "Outils", "link", "Python Tutor — Debogueur visuel", "http://pythontutor.com/", "Executer du code Python pas-a-pas");
+    icd.run(p1, "cog Algorithmique", "Cours", "link", "Visualgo — Algorithmes interactifs", "https://visualgo.net/", "Visualisation animee des structures de donnees");
+    icd.run(p1, "cog Algorithmique", "Cours", "link", "Big-O Cheat Sheet", "https://www.bigocheatsheet.com/", "Complexite des algorithmes courants");
+    icd.run(p1, "database Bases de données", "Cours UML", "link", "Draw.io — Diagrammes gratuits", "https://app.diagrams.net/", "Outil en ligne pour diagrammes UML");
+    icd.run(p1, "database Bases de données", "Cours SQL", "link", "SQLZoo — Pratique interactive", "https://sqlzoo.net/", "Exercices SQL interactifs");
     const p2 = ip.run("FISAA4 24-27", "#2ECC71").lastInsertRowid;
     const c2_ann = ic.run(p2, "annonces", "Informations importantes", "annonce", null).lastInsertRowid;
-    const c2_gen = ic.run(p2, "general", "Canal principal", "chat", "💬 Communication").lastInsertRowid;
-    const c2_auto = ic.run(p2, "cours-automates", "Cours automatisme industriel", "chat", "🔌 Automatisme").lastInsertRowid;
-    const c2_tp_auto = ic.run(p2, "tp-automates", "Dépôt des TPs automatisme", "chat", "🔌 Automatisme").lastInsertRowid;
-    const c2_scada = ic.run(p2, "cours-scada", "Cours supervision industrielle", "chat", "📊 Supervision").lastInsertRowid;
-    const c2_proj_sc = ic.run(p2, "projet-supervision", "Projet supervision SCADA", "chat", "📊 Supervision").lastInsertRowid;
-    const c2_profinet = ic.run(p2, "reseaux-industriels", "Réseaux industriels & Profinet", "chat", "🌐 Réseaux industriels").lastInsertRowid;
-    const c2_e5 = ic.run(p2, "preparation-e5", "Préparation projet E5", "chat", "🎓 Projet E5").lastInsertRowid;
+    const c2_gen = ic.run(p2, "general", "Canal principal", "chat", "message-square Communication").lastInsertRowid;
+    const c2_auto = ic.run(p2, "cours-automates", "Cours automatisme industriel", "chat", "zap Automatisme").lastInsertRowid;
+    ic.run(p2, "tp-automates", "Dépôt des TPs automatisme", "chat", "zap Automatisme").lastInsertRowid;
+    const c2_scada = ic.run(p2, "cours-scada", "Cours supervision industrielle", "chat", "bar-chart-2 Supervision").lastInsertRowid;
+    ic.run(p2, "projet-supervision", "Projet supervision SCADA", "chat", "bar-chart-2 Supervision").lastInsertRowid;
+    ic.run(p2, "reseaux-industriels", "Réseaux industriels & Profinet", "chat", "globe Réseaux industriels").lastInsertRowid;
+    const c2_e5 = ic.run(p2, "preparation-e5", "Préparation projet E5", "chat", "graduation-cap Projet E5").lastInsertRowid;
     const f1 = is_.run(p2, "Alexandre Moreau", "alexandre.moreau@viacesi.fr", "AM").lastInsertRowid;
     const f2 = is_.run(p2, "Chloe Simon", "chloe.simon@viacesi.fr", "CS").lastInsertRowid;
     const f3 = is_.run(p2, "Maxime Laurent", "maxime.laurent@viacesi.fr", "ML").lastInsertRowid;
@@ -851,142 +936,154 @@ Rendu PDF.`,
     imsg.run(null, f9, "Pierre Bonnet", "student", "J'ai change d'entreprise en cours de formation. Ca impacte mon dossier E5 ?", "2026-02-15 10:00:00");
     imsg.run(null, f9, "Rohan Fosse", "teacher", "Un peu. Adaptez la partie 1 pour presenter les deux contextes et focalisez sur le projet le plus representatif.", "2026-02-15 10:10:00");
     const f_auto1 = it.run(
-      c2_tp_auto,
+      p2,
+      null,
       null,
       "TP — Programmation S7-1200 (TIA Portal)",
       "Programmer un automate Siemens S7-1200 pour controler un convoyeur simule :\n- GRAFCET de niveau 1 et 2\n- Traduction en Ladder (OB1 + FC)\n- Gestion des defauts et arret urgence\n- Test avec PLCSIM V17\nRendu : fichier projet TIA (.zap) + rapport PDF.",
       "2026-01-20",
       "2026-04-03 17:00:00",
-      "🔌 Automatisme Siemens",
+      "zap Automatisme Siemens",
       "devoir",
       1
     ).lastInsertRowid;
     ir.run(f_auto1, "link", "Documentation TIA Portal Siemens", "https://support.industry.siemens.com/");
     ir.run(f_auto1, "link", "Introduction GRAFCET", "https://www.plcopen.org/");
     const f_auto2 = it.run(
-      c2_tp_auto,
+      p2,
+      null,
       null,
       "Projet — Ligne de tri automatique",
       "Concevoir et programmer une ligne de tri automatique selon le CDC fourni :\n- Analyse fonctionnelle complete (GRAFCET multi-niveau)\n- Programme automate (TIA Portal V17)\n- Interface SCADA basique (WinCC Basic)\n- Rapport de tests\nTravail par groupes (A/B/C).",
       "2026-04-04",
       "2026-05-22 17:00:00",
-      "🔌 Automatisme Siemens",
+      "zap Automatisme Siemens",
       "devoir",
       1
     ).lastInsertRowid;
     ir.run(f_auto2, "link", "Siemens Industry Online Support", "https://support.industry.siemens.com/");
     it.run(
-      c2_tp_auto,
+      p2,
+      null,
       null,
       "Soutenance — Automatisme Siemens",
       "Presentation et demo de votre projet ligne de tri.\nDuree : 20 min presentation + 10 min questions.\nJury : M. Fosse + ingenieur partenaire.",
       "2026-06-05",
       "2026-06-05 09:00:00",
-      "🔌 Automatisme Siemens",
+      "zap Automatisme Siemens",
       "jalon",
       1
     );
     const f_scada1 = it.run(
-      c2_proj_sc,
+      p2,
+      null,
       null,
       "TP — Interface WinCC (supervision de process)",
       "Creer une interface de supervision WinCC Comfort pour un process de remplissage :\n- 3 ecrans : vue generale, detail cuves, historique alarmes\n- Communication OPC-UA avec automate S7-1500\n- Courbes de tendance\n- Archivage des variables\nRendu : projet WinCC + rapport PDF.",
       "2026-02-10",
       "2026-04-17 17:00:00",
-      "📊 Supervision SCADA",
+      "bar-chart-2 Supervision SCADA",
       "devoir",
       1
     ).lastInsertRowid;
     ir.run(f_scada1, "link", "WinCC Unified documentation", "https://support.industry.siemens.com/");
     it.run(
-      c2_proj_sc,
+      p2,
+      null,
       null,
       "Projet — Supervision complète (SCADA avancé)",
       "Developper une solution de supervision complete pour un atelier de production :\n- Interface multi-ecrans\n- Gestion des alarmes (priorites, acquittement, rapport)\n- Historisation et export CSV\n- Rapport de sécurité (droits utilisateurs)\nRendu complet attendu.",
       "2026-04-18",
       "2026-06-06 17:00:00",
-      "📊 Supervision SCADA",
+      "bar-chart-2 Supervision SCADA",
       "devoir",
       1
     );
     it.run(
-      c2_proj_sc,
+      p2,
+      null,
       null,
       "Soutenance — Projet SCADA",
       "Presentation de votre solution de supervision.\nDuree : 20 min demo + 10 min questions.\nCriteres : ergonomie, fonctionnalites, securite, gestion alarmes.",
       "2026-06-19",
       "2026-06-19 14:00:00",
-      "📊 Supervision SCADA",
+      "bar-chart-2 Supervision SCADA",
       "jalon",
       1
     );
     const f_net1 = it.run(
-      c2_profinet,
+      p2,
+      null,
       null,
       "TP — Réseaux industriels Profinet",
       "Configurer un reseau Profinet avec TIA Portal :\n- 1 CPU S7-1500 + 2 ET200SP en reseau\n- Adressage Profinet (Device Name, IP)\n- Echange de donnees I/O\n- Diagnostic reseau\nRendu : projet TIA + rapport PDF.",
       "2026-02-20",
       "2026-04-10 17:00:00",
-      "🌐 Réseaux industriels",
+      "globe Réseaux industriels",
       "devoir",
       1
     ).lastInsertRowid;
     ir.run(f_net1, "link", "Profinet University", "https://profinetuniversity.com/");
     it.run(
-      c2_profinet,
+      p2,
+      null,
       null,
       "Projet — Intégration réseau industriel",
       "Integrer un reseau industriel complet pour un atelier simule :\n- Profinet (capteurs, actionneurs, variateurs)\n- OPC-UA (communication avec SCADA)\n- Diagnostic et maintenance preventive\nRendu : architecture + programme + rapport.",
       "2026-04-11",
       "2026-05-29 17:00:00",
-      "🌐 Réseaux industriels",
+      "globe Réseaux industriels",
       "devoir",
       1
     );
     it.run(
-      c2_profinet,
+      p2,
+      null,
       null,
       "Examen — Réseaux industriels",
       "Examen 2h sur table. QCM (40%) + exercice de configuration (60%).\nProgramme : Profinet, OPC-UA, diagnostic reseau.",
       "2026-06-05",
       "2026-06-05 14:00:00",
-      "🌐 Réseaux industriels",
+      "globe Réseaux industriels",
       "jalon",
       1
     );
     const f_e5_1 = it.run(
-      c2_e5,
+      p2,
+      null,
       null,
       "Dossier — Contexte professionnel E5",
       "Rediger le contexte professionnel selon le referentiel BTS FISAA :\n- Presentation entreprise\n- Contexte et enjeux du projet\n- Missions realisees et livrables\n- Competences demontrées\n- Bilan\nFormat : PDF, 5-8 pages hors annexes.",
       "2025-09-01",
       "2026-04-01 23:59:00",
-      "🎓 Projet E5",
+      "graduation-cap Projet E5",
       "devoir",
       1
     ).lastInsertRowid;
     ir.run(f_e5_1, "file", "Référentiel officiel E5 BTS FISAA", pdf("referentiel_e5.pdf"));
     ir.run(f_e5_1, "link", "Eduscol — Épreuves BTS", "https://eduscol.education.fr/");
     const f_e5_2 = it.run(
-      c2_e5,
+      p2,
+      null,
       null,
       "Rapport de stage — Période industrie",
       "Rediger le rapport de stage de votre periode industrie :\n- Introduction et presentation de l'entreprise\n- Deroulement de la periode (planning, missions)\n- Competences acquises\n- Retour d'experience et perspectives\nFormat : PDF, 20-30 pages.",
       "2025-09-01",
       "2026-04-15 23:59:00",
-      "🎓 Projet E5",
+      "graduation-cap Projet E5",
       "devoir",
       1
     ).lastInsertRowid;
     ir.run(f_e5_2, "link", "Guide de redaction rapport de stage CESI", "https://www.cesi.fr/");
     const f_e5_3a = it.run(
-      c2_e5,
+      p2,
+      null,
       ga,
       "Soutenance E5 — Groupe A",
       "Soutenance individuelle devant jury.\nDuree : 20 min expose + 10 min questions.\nJury : M. Fosse + representant entreprise.\nLieu : salle conference CESI.",
       "2026-04-18",
       "2026-04-18 09:00:00",
-      "🎓 Projet E5",
+      "graduation-cap Projet E5",
       "jalon",
       1
     ).lastInsertRowid;
@@ -995,13 +1092,14 @@ Rendu PDF.`,
     itgm.run(f_e5_3a, f3, ga);
     itgm.run(f_e5_3a, f4, ga);
     const f_e5_3b = it.run(
-      c2_e5,
+      p2,
+      null,
       gb,
       "Soutenance E5 — Groupe B",
       "Memes modalites que Groupe A.",
       "2026-04-19",
       "2026-04-19 09:00:00",
-      "🎓 Projet E5",
+      "graduation-cap Projet E5",
       "jalon",
       1
     ).lastInsertRowid;
@@ -1010,13 +1108,14 @@ Rendu PDF.`,
     itgm.run(f_e5_3b, f7, gb);
     itgm.run(f_e5_3b, f8, gb);
     const f_e5_3c = it.run(
-      c2_e5,
+      p2,
+      null,
       gc,
       "Soutenance E5 — Groupe C",
       "Memes modalites que Groupe A.",
       "2026-04-20",
       "2026-04-20 09:00:00",
-      "🎓 Projet E5",
+      "graduation-cap Projet E5",
       "jalon",
       1
     ).lastInsertRowid;
@@ -1044,14 +1143,14 @@ Rendu PDF.`,
     id_.run(f_scada1, f6, "THOMAS_Ines_WinCC.zip", "depots/THOMAS_Ines_WinCC.zip", "B", "Bien. Les 3 ecrans sont realises. Les courbes de tendance pourraient etre mieux parametrees. Alarmes fonctionnelles.", "2026-04-16 21:00:00");
     id_.run(f_scada1, f8, "GIRARD_Amelie_WinCC.zip", "depots/GIRARD_Amelie_WinCC.zip", "C", "Ecrans corrects mais communication OPC-UA non configuree. Archivage absent. A completer.", "2026-04-17 10:00:00");
     id_.run(f_scada1, f10, "DUMONT_Sofia_WinCC.zip", "depots/DUMONT_Sofia_WinCC.zip", null, null, "2026-04-17 16:00:00");
-    icd.run(c2_auto, "🔌 Automatisme", "file", "Référentiel officiel E5 BTS FISAA", pdf("referentiel_e5.pdf"), "Référentiel des compétences et critères d'évaluation");
-    icd.run(c2_auto, "Cours", "link", "Documentation TIA Portal V17", "https://support.industry.siemens.com/", "Documentation officielle Siemens TIA Portal");
-    icd.run(c2_auto, "Cours", "link", "Introduction GRAFCET", "https://www.plcopen.org/", "Standards IEC 61131-3 et GRAFCET");
-    icd.run(c2_scada, "Cours", "link", "Introduction SCADA & WinCC", "https://support.industry.siemens.com/", "Guide WinCC Unified");
-    icd.run(c2_scada, "Cours", "link", "OPC-UA — Introduction", "https://opcfoundation.org/", "Standard OPC-UA pour l'interopérabilité industrielle");
-    icd.run(c2_profinet, "Cours", "link", "Profinet University", "https://profinetuniversity.com/", "Ressources de formation Profinet");
-    icd.run(c2_e5, "🎓 Projet E5", "file", "Référentiel BTS FISAA — Épreuve E5", pdf("referentiel_e5.pdf"), "Document officiel des épreuves E5");
-    icd.run(c2_e5, "Méthodologie", "link", "Guide de rédaction contexte pro", "https://eduscol.education.fr/", "Conseils pour structurer le dossier E5");
+    icd.run(p2, "zap Automatisme Siemens", "Général", "file", "Référentiel officiel E5 BTS FISAA", pdf("referentiel_e5.pdf"), "Référentiel des compétences et critères d'évaluation");
+    icd.run(p2, "zap Automatisme Siemens", "Cours", "link", "Documentation TIA Portal V17", "https://support.industry.siemens.com/", "Documentation officielle Siemens TIA Portal");
+    icd.run(p2, "zap Automatisme Siemens", "Cours", "link", "Introduction GRAFCET", "https://www.plcopen.org/", "Standards IEC 61131-3 et GRAFCET");
+    icd.run(p2, "bar-chart-2 Supervision SCADA", "Cours", "link", "Introduction SCADA & WinCC", "https://support.industry.siemens.com/", "Guide WinCC Unified");
+    icd.run(p2, "bar-chart-2 Supervision SCADA", "Cours", "link", "OPC-UA — Introduction", "https://opcfoundation.org/", "Standard OPC-UA pour l'interopérabilité industrielle");
+    icd.run(p2, "globe Réseaux industriels", "Cours", "link", "Profinet University", "https://profinetuniversity.com/", "Ressources de formation Profinet");
+    icd.run(p2, "graduation-cap Projet E5", "Général", "file", "Référentiel BTS FISAA — Épreuve E5", pdf("referentiel_e5.pdf"), "Document officiel des épreuves E5");
+    icd.run(p2, "graduation-cap Projet E5", "Méthodologie", "link", "Guide de rédaction contexte pro", "https://eduscol.education.fr/", "Conseils pour structurer le dossier E5");
   }
   seed = { seedIfEmpty, resetAndSeed };
   return seed;
@@ -1310,8 +1409,7 @@ function requireAssignments() {
         WHEN t.group_id IS NOT NULL
           THEN (SELECT COUNT(*) FROM group_members WHERE group_id = t.group_id)
         ELSE
-          (SELECT COUNT(*) FROM students WHERE promo_id =
-            (SELECT promo_id FROM channels WHERE id = t.channel_id))
+          (SELECT COUNT(*) FROM students WHERE promo_id = t.promo_id)
       END AS students_total
     FROM travaux t
     LEFT JOIN groups g ON t.group_id = g.id
@@ -1322,19 +1420,20 @@ function requireAssignments() {
   function getTravailById(travailId) {
     return getDb().prepare("SELECT * FROM travaux WHERE id = ?").get(travailId);
   }
-  function createTravail({ channelId, groupId, title, description, startDate, deadline, category, type, published }) {
+  function createTravail({ promoId, channelId, groupId, title, description, startDate, deadline, category, type, published }) {
     const db2 = getDb();
     const result = db2.prepare(`
-    INSERT INTO travaux (channel_id, group_id, title, description, start_date, deadline, category, type, published)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO travaux (promo_id, channel_id, group_id, title, description, start_date, deadline, category, type, published)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-      channelId,
+      promoId,
+      channelId ?? null,
       groupId ?? null,
       title,
       description,
       startDate ?? null,
       deadline,
-      category ?? "TP",
+      category ?? null,
       type ?? "devoir",
       published != null ? published ? 1 : 0 : 1
     );
@@ -1358,8 +1457,7 @@ function requireAssignments() {
       tgm.group_id   AS travail_group_id,
       tg.name        AS travail_group_name
     FROM travaux t
-    JOIN channels c ON t.channel_id = c.id
-    JOIN students s ON s.promo_id = c.promo_id
+    JOIN students s ON s.promo_id = t.promo_id
     LEFT JOIN depots d   ON d.travail_id = t.id AND d.student_id = s.id
     LEFT JOIN travail_group_members tgm ON tgm.travail_id = t.id AND tgm.student_id = s.id
     LEFT JOIN groups tg  ON tg.id = tgm.group_id
@@ -1376,12 +1474,10 @@ function requireAssignments() {
     return getDb().prepare(`
     SELECT
       t.id, t.title, t.description, t.deadline, t.group_id, t.category, t.type,
-      ch.name AS channel_name, ch.id AS channel_id,
       tgm_g.name AS group_name,
       d.id    AS depot_id, d.file_name, d.link_url, d.deploy_url, d.note, d.feedback, d.submitted_at
     FROM students s
-    JOIN channels ch ON ch.promo_id = s.promo_id AND ch.type = 'chat'
-    JOIN travaux t   ON t.channel_id = ch.id
+    JOIN travaux t ON t.promo_id = s.promo_id
     LEFT JOIN travail_group_members tgm ON tgm.travail_id = t.id AND tgm.student_id = s.id
     LEFT JOIN groups tgm_g ON tgm_g.id = tgm.group_id
     LEFT JOIN depots d  ON d.travail_id = t.id AND d.student_id = s.id
@@ -1428,16 +1524,15 @@ function requireAssignments() {
            (SELECT COUNT(*) FROM depots d WHERE d.travail_id = t.id) AS depots_count,
            CASE WHEN t.group_id IS NOT NULL
              THEN (SELECT COUNT(*) FROM group_members WHERE group_id = t.group_id)
-             ELSE (SELECT COUNT(*) FROM students WHERE promo_id = p.id)
+             ELSE (SELECT COUNT(*) FROM students WHERE promo_id = t.promo_id)
            END AS students_total
     FROM travaux t
-    JOIN channels ch  ON ch.id = t.channel_id
-    JOIN promotions p ON p.id  = ch.promo_id
+    JOIN promotions p ON p.id = t.promo_id
+    LEFT JOIN channels ch ON ch.id = t.channel_id
     LEFT JOIN groups g ON g.id = t.group_id
-    WHERE ch.type = 'chat'
   `;
     if (promoId) {
-      return db2.prepare(`${base} AND p.id = ? ORDER BY t.deadline ASC`).all(promoId);
+      return db2.prepare(`${base} WHERE t.promo_id = ? ORDER BY t.deadline ASC`).all(promoId);
     }
     return db2.prepare(`${base} ORDER BY p.name ASC, t.deadline ASC`).all();
   }
@@ -1452,8 +1547,8 @@ function requireAssignments() {
     FROM depots d
     JOIN students s   ON s.id  = d.student_id
     JOIN travaux t    ON t.id  = d.travail_id
-    JOIN channels ch  ON ch.id = t.channel_id
-    JOIN promotions p ON p.id  = ch.promo_id
+    JOIN promotions p ON p.id  = t.promo_id
+    LEFT JOIN channels ch ON ch.id = t.channel_id
   `;
     if (promoId) {
       return db2.prepare(`${base} WHERE p.id = ? ORDER BY d.submitted_at DESC`).all(promoId);
@@ -1471,8 +1566,8 @@ function requireAssignments() {
     FROM depots d
     JOIN students s   ON s.id  = d.student_id
     JOIN travaux t    ON t.id  = d.travail_id
-    JOIN channels ch  ON ch.id = t.channel_id
-    JOIN promotions p ON p.id  = ch.promo_id
+    JOIN promotions p ON p.id  = t.promo_id
+    LEFT JOIN channels ch ON ch.id = t.channel_id
     WHERE d.note IS NULL
     ORDER BY d.submitted_at ASC
   `).all();
@@ -1481,8 +1576,8 @@ function requireAssignments() {
            ch.name AS channel_name,
            p.name  AS promo_name, p.color AS promo_color
     FROM travaux t
-    JOIN channels ch  ON ch.id = t.channel_id
-    JOIN promotions p ON p.id  = ch.promo_id
+    JOIN promotions p ON p.id = t.promo_id
+    LEFT JOIN channels ch ON ch.id = t.channel_id
     WHERE t.type = 'jalon'
       AND t.published = 1
       AND t.deadline >= datetime('now')
@@ -1494,8 +1589,8 @@ function requireAssignments() {
            ch.name AS channel_name,
            p.name  AS promo_name, p.color AS promo_color
     FROM travaux t
-    JOIN channels ch  ON ch.id = t.channel_id
-    JOIN promotions p ON p.id  = ch.promo_id
+    JOIN promotions p ON p.id = t.promo_id
+    LEFT JOIN channels ch ON ch.id = t.channel_id
     WHERE t.published = 0
     ORDER BY t.deadline ASC
   `).all();
@@ -1506,11 +1601,11 @@ function requireAssignments() {
            (SELECT COUNT(*) FROM depots d WHERE d.travail_id = t.id) AS depots_count,
            CASE WHEN t.group_id IS NOT NULL
              THEN (SELECT COUNT(*) FROM group_members WHERE group_id = t.group_id)
-             ELSE (SELECT COUNT(*) FROM students WHERE promo_id = p.id)
+             ELSE (SELECT COUNT(*) FROM students WHERE promo_id = t.promo_id)
            END AS students_total
     FROM travaux t
-    JOIN channels ch  ON ch.id = t.channel_id
-    JOIN promotions p ON p.id  = ch.promo_id
+    JOIN promotions p ON p.id = t.promo_id
+    LEFT JOIN channels ch ON ch.id = t.channel_id
     WHERE t.type = 'devoir'
       AND t.published = 1
       AND t.deadline >= datetime('now')
@@ -1521,15 +1616,13 @@ function requireAssignments() {
   }
   function markNonSubmittedAsD(travailId) {
     const db2 = getDb();
-    const travail = db2.prepare("SELECT channel_id FROM travaux WHERE id = ?").get(travailId);
+    const travail = db2.prepare("SELECT promo_id FROM travaux WHERE id = ?").get(travailId);
     if (!travail) return 0;
-    const channel = db2.prepare("SELECT promo_id FROM channels WHERE id = ?").get(travail.channel_id);
-    if (!channel) return 0;
     const students2 = db2.prepare(`
     SELECT s.id FROM students s
     LEFT JOIN depots d ON d.travail_id = ? AND d.student_id = s.id
     WHERE s.promo_id = ? AND d.id IS NULL
-  `).all(travailId, channel.promo_id);
+  `).all(travailId, travail.promo_id);
     if (!students2.length) return 0;
     const ins = db2.prepare(
       `INSERT OR IGNORE INTO depots (travail_id, student_id, file_name, file_path, note) VALUES (?, ?, '—', '', 'D')`
@@ -1543,8 +1636,7 @@ function requireAssignments() {
     const rows = getDb().prepare(`
     SELECT DISTINCT t.category
     FROM travaux t
-    JOIN channels ch ON ch.id = t.channel_id
-    WHERE ch.promo_id = ? AND t.category IS NOT NULL AND t.category != ''
+    WHERE t.promo_id = ? AND t.category IS NOT NULL AND t.category != ''
     ORDER BY t.category ASC
   `).all(promoId);
     return rows.map((r) => r.category);
@@ -1628,6 +1720,20 @@ function requireDocuments() {
   if (hasRequiredDocuments) return documents;
   hasRequiredDocuments = 1;
   const { getDb } = requireConnection();
+  function getProjectDocuments(promoId, project) {
+    if (project) {
+      return getDb().prepare(`
+      SELECT * FROM channel_documents
+      WHERE promo_id = ? AND project = ?
+      ORDER BY category ASC, created_at ASC
+    `).all(promoId, project);
+    }
+    return getDb().prepare(`
+    SELECT * FROM channel_documents
+    WHERE promo_id = ?
+    ORDER BY category ASC, created_at ASC
+  `).all(promoId);
+  }
   function getChannelDocuments(channelId) {
     return getDb().prepare(`
     SELECT * FROM channel_documents WHERE channel_id = ? ORDER BY category ASC, created_at ASC
@@ -1635,21 +1741,43 @@ function requireDocuments() {
   }
   function getPromoDocuments(promoId) {
     return getDb().prepare(`
-    SELECT cd.*, c.name AS channel_name
-    FROM channel_documents cd
-    JOIN channels c ON cd.channel_id = c.id
-    WHERE c.promo_id = ?
-    ORDER BY cd.category ASC, cd.created_at ASC
+    SELECT * FROM channel_documents WHERE promo_id = ?
+    ORDER BY category ASC, created_at ASC
   `).all(promoId);
   }
-  function addChannelDocument({ channelId, category, type, name, pathOrUrl, description }) {
+  function addProjectDocument({ promoId, project, category, type, name, pathOrUrl, description }) {
     return getDb().prepare(`
-    INSERT INTO channel_documents (channel_id, category, type, name, path_or_url, description)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(channelId, category || "Général", type, name, pathOrUrl, description ?? null);
+    INSERT INTO channel_documents (promo_id, project, category, type, name, path_or_url, description)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(promoId, project ?? null, category || "Général", type, name, pathOrUrl, description ?? null);
+  }
+  function addChannelDocument({ channelId, promoId, project, category, type, name, pathOrUrl, description }) {
+    if (promoId) return addProjectDocument({ promoId, project, category, type, name, pathOrUrl, description });
+    const ch = getDb().prepare("SELECT promo_id, category FROM channels WHERE id = ?").get(channelId);
+    return addProjectDocument({
+      promoId: ch?.promo_id ?? 1,
+      project: project ?? ch?.category ?? null,
+      category,
+      type,
+      name,
+      pathOrUrl,
+      description
+    });
   }
   function deleteChannelDocument(id) {
     return getDb().prepare("DELETE FROM channel_documents WHERE id = ?").run(id);
+  }
+  function getProjectDocumentCategories(promoId, project) {
+    if (project) {
+      return getDb().prepare(`
+      SELECT DISTINCT category FROM channel_documents
+      WHERE promo_id = ? AND project = ?
+      ORDER BY category ASC
+    `).all(promoId, project).map((r) => r.category);
+    }
+    return getDb().prepare(`
+    SELECT DISTINCT category FROM channel_documents WHERE promo_id = ? ORDER BY category ASC
+  `).all(promoId).map((r) => r.category);
   }
   function getChannelDocumentCategories(channelId) {
     return getDb().prepare(`
@@ -1657,10 +1785,13 @@ function requireDocuments() {
   `).all(channelId).map((r) => r.category);
   }
   documents = {
+    getProjectDocuments,
     getChannelDocuments,
     getPromoDocuments,
+    addProjectDocument,
     addChannelDocument,
     deleteChannelDocument,
+    getProjectDocumentCategories,
     getChannelDocumentCategories
   };
   return documents;
@@ -1836,6 +1967,9 @@ function requireIpc() {
     handle("db:addChannelDocument", (payload) => queries.addChannelDocument(payload));
     handle("db:deleteChannelDocument", (id) => queries.deleteChannelDocument(id));
     handle("db:getChannelDocumentCategories", (channelId) => queries.getChannelDocumentCategories(channelId));
+    handle("db:getProjectDocuments", (promoId, project) => queries.getProjectDocuments(promoId, project ?? null));
+    handle("db:addProjectDocument", (payload) => queries.addProjectDocument(payload));
+    handle("db:getProjectDocumentCategories", (promoId, project) => queries.getProjectDocumentCategories(promoId, project ?? null));
     handle("db:getPinnedMessages", (channelId) => queries.getPinnedMessages(channelId));
     handle("db:togglePinMessage", (payload) => queries.togglePinMessage(payload.messageId, payload.pinned));
     handle("db:markNonSubmittedAsD", (travailId) => queries.markNonSubmittedAsD(travailId));

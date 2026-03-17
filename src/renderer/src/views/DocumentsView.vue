@@ -10,6 +10,7 @@
   import { useToast }          from '@/composables/useToast'
   import Modal     from '@/components/ui/Modal.vue'
   import { formatDate } from '@/utils/date'
+  import { parseCategoryIcon } from '@/utils/categoryIcon'
   import type { AppDocument } from '@/types'
 
   const api      = window.api
@@ -17,8 +18,6 @@
   const docStore = useDocumentsStore()
   const modals   = useModalsStore()
   const { showToast } = useToast()
-
-  const channelsList = ref<{ id: number; name: string }[]>([])
 
   // ── Add modal ────────────────────────────────────────────────────────────
   const showAddModal = ref(false)
@@ -28,31 +27,19 @@
   const addLink      = ref('')
   const addFile      = ref<string | null>(null)
   const addFileName  = ref<string | null>(null)
-  const addChannelId = ref<number | null>(null)
   const adding       = ref(false)
 
   // ── Chargement ───────────────────────────────────────────────────────────
-  async function loadChannels() {
+  async function loadDocuments() {
     const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id ?? null
     if (!promoId) return
-    const res = await api.getChannels(promoId)
-    channelsList.value = res?.ok ? res.data : []
+    await docStore.fetchDocuments(promoId, appStore.activeProject)
   }
 
-  async function loadDocuments() {
-    const chId    = appStore.activeChannelId
-    const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id ?? null
-    if (chId)          await docStore.fetchDocuments(chId)
-    else if (promoId)  await docStore.fetchDocuments(undefined, promoId)
-  }
+  onMounted(loadDocuments)
 
-  onMounted(async () => {
-    await loadChannels()
-    await loadDocuments()
-  })
-
-  watch(() => appStore.activeChannelId, loadDocuments)
-  watch(() => appStore.activePromoId,   async () => { await loadChannels(); await loadDocuments() })
+  watch(() => appStore.activeProject, loadDocuments)
+  watch(() => appStore.activePromoId, loadDocuments)
 
   // ── Filtrage + catégories ────────────────────────────────────────────────
   const filtered = computed(() => {
@@ -78,12 +65,6 @@
     }
     return map
   })
-
-  const activeChannelName = computed(() =>
-    appStore.activeChannelId
-      ? (channelsList.value.find((c) => c.id === appStore.activeChannelId)?.name ?? null)
-      : null,
-  )
 
   // ── Icônes & couleurs selon le type ─────────────────────────────────────
   type DocIconType = 'image' | 'pdf' | 'video' | 'link' | 'file'
@@ -136,7 +117,6 @@
     addLink.value      = ''
     addFile.value      = null
     addFileName.value  = null
-    addChannelId.value = appStore.activeChannelId ?? channelsList.value[0]?.id ?? null
     showAddModal.value = true
   }
 
@@ -155,16 +135,17 @@
   }
 
   async function submitAdd() {
-    if (!addName.value.trim() || !addChannelId.value) return
+    if (!addName.value.trim()) return
     if (addType.value === 'file' && !addFile.value) return
     if (addType.value === 'link' && !addLink.value.trim()) return
     adding.value = true
     try {
       const ok = await docStore.addDocument({
-        channelId:   addChannelId.value,
+        promoId:     appStore.activePromoId ?? appStore.currentUser?.promo_id,
+        project:     appStore.activeProject ?? null,
         name:        addName.value.trim(),
         type:        addType.value,
-        path_or_url: addType.value === 'link' ? addLink.value.trim() : addFile.value,
+        pathOrUrl:   addType.value === 'link' ? addLink.value.trim() : addFile.value,
         category:    addCategory.value.trim() || null,
         description: null,
       })
@@ -189,8 +170,8 @@
         <FolderOpen :size="18" class="docs-header-icon" />
         <div class="docs-header-title-block">
           <h1 class="docs-header-title">Documents</h1>
-          <span v-if="activeChannelName" class="docs-header-channel">#{{ activeChannelName }}</span>
-          <span v-else class="docs-header-channel">Tous les canaux</span>
+          <span v-if="appStore.activeProject" class="docs-header-channel">{{ parseCategoryIcon(appStore.activeProject).label }}</span>
+          <span v-else class="docs-header-channel">Tous les projets</span>
         </div>
       </div>
 
@@ -334,21 +315,6 @@
     <Modal v-model="showAddModal" title="Ajouter un document" max-width="480px">
       <div class="docs-add-form">
 
-        <!-- Canal cible -->
-        <div class="form-group">
-          <label class="form-label">Canal</label>
-          <!-- Canal actif → badge read-only -->
-          <div v-if="appStore.activeChannelId" class="docs-channel-badge">
-            <span class="docs-channel-badge-hash">#</span>
-            <span>{{ activeChannelName }}</span>
-          </div>
-          <!-- Pas de canal actif → sélecteur -->
-          <select v-else v-model="addChannelId" class="form-select" required>
-            <option :value="null" disabled>Choisir un canal…</option>
-            <option v-for="c in channelsList" :key="c.id" :value="c.id">#{{ c.name }}</option>
-          </select>
-        </div>
-
         <!-- Nom -->
         <div class="form-group">
           <label class="form-label">Nom du document</label>
@@ -418,7 +384,7 @@
         <button class="btn-ghost" @click="showAddModal = false">Annuler</button>
         <button
           class="btn-primary"
-          :disabled="!addName.trim() || !addChannelId || (addType === 'file' && !addFile) || (addType === 'link' && !addLink.trim()) || adding"
+          :disabled="!addName.trim() || (addType === 'file' && !addFile) || (addType === 'link' && !addLink.trim()) || adding"
           @click="submitAdd"
         >
           {{ adding ? 'Ajout en cours…' : 'Ajouter' }}

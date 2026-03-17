@@ -179,6 +179,11 @@ function register() {
   handle('db:deleteChannelDocument',        (id)        => queries.deleteChannelDocument(id))
   handle('db:getChannelDocumentCategories', (channelId) => queries.getChannelDocumentCategories(channelId))
 
+  // ── Documents de projet (nouveau) ─────────────────────────────────────────
+  handle('db:getProjectDocuments',          (promoId, project)  => queries.getProjectDocuments(promoId, project ?? null))
+  handle('db:addProjectDocument',           (payload)           => queries.addProjectDocument(payload))
+  handle('db:getProjectDocumentCategories', (promoId, project)  => queries.getProjectDocumentCategories(promoId, project ?? null))
+
   // ── Messages épinglés ─────────────────────────────────────────────────────
   handle('db:getPinnedMessages', (channelId) => queries.getPinnedMessages(channelId))
   handle('db:togglePinMessage',  (payload)   => queries.togglePinMessage(payload.messageId, payload.pinned))

@@ -78,6 +78,10 @@ electron.contextBridge.exposeInMainWorld("api", {
   addChannelDocument: (payload) => invoke("db:addChannelDocument", payload),
   deleteChannelDocument: (id) => invoke("db:deleteChannelDocument", id),
   getChannelDocumentCategories: (channelId) => invoke("db:getChannelDocumentCategories", channelId),
+  // ── Documents de projet (nouveau) ──────────────────────────────────────────
+  getProjectDocuments: (promoId, project) => invoke("db:getProjectDocuments", promoId, project ?? null),
+  addProjectDocument: (payload) => invoke("db:addProjectDocument", payload),
+  getProjectDocumentCategories: (promoId, project) => invoke("db:getProjectDocumentCategories", promoId, project ?? null),
   // ── Messages épinglés ──────────────────────────────────────────────────────
   getPinnedMessages: (channelId) => invoke("db:getPinnedMessages", channelId),
   togglePinMessage: (payload) => invoke("db:togglePinMessage", payload),

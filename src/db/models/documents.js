@@ -1,5 +1,21 @@
 const { getDb } = require('../connection');
 
+function getProjectDocuments(promoId, project) {
+  if (project) {
+    return getDb().prepare(`
+      SELECT * FROM channel_documents
+      WHERE promo_id = ? AND project = ?
+      ORDER BY category ASC, created_at ASC
+    `).all(promoId, project);
+  }
+  return getDb().prepare(`
+    SELECT * FROM channel_documents
+    WHERE promo_id = ?
+    ORDER BY category ASC, created_at ASC
+  `).all(promoId);
+}
+
+// Alias kept for IPC backwards compat
 function getChannelDocuments(channelId) {
   return getDb().prepare(`
     SELECT * FROM channel_documents WHERE channel_id = ? ORDER BY category ASC, created_at ASC
@@ -8,25 +24,48 @@ function getChannelDocuments(channelId) {
 
 function getPromoDocuments(promoId) {
   return getDb().prepare(`
-    SELECT cd.*, c.name AS channel_name
-    FROM channel_documents cd
-    JOIN channels c ON cd.channel_id = c.id
-    WHERE c.promo_id = ?
-    ORDER BY cd.category ASC, cd.created_at ASC
+    SELECT * FROM channel_documents WHERE promo_id = ?
+    ORDER BY category ASC, created_at ASC
   `).all(promoId);
 }
 
-function addChannelDocument({ channelId, category, type, name, pathOrUrl, description }) {
+function addProjectDocument({ promoId, project, category, type, name, pathOrUrl, description }) {
   return getDb().prepare(`
-    INSERT INTO channel_documents (channel_id, category, type, name, path_or_url, description)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(channelId, category || 'Général', type, name, pathOrUrl, description ?? null);
+    INSERT INTO channel_documents (promo_id, project, category, type, name, path_or_url, description)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(promoId, project ?? null, category || 'Général', type, name, pathOrUrl, description ?? null);
+}
+
+// Alias for backwards compat
+function addChannelDocument({ channelId, promoId, project, category, type, name, pathOrUrl, description }) {
+  if (promoId) return addProjectDocument({ promoId, project, category, type, name, pathOrUrl, description });
+  // legacy: derive promoId from channelId
+  const ch = getDb().prepare('SELECT promo_id, category FROM channels WHERE id = ?').get(channelId);
+  return addProjectDocument({
+    promoId: ch?.promo_id ?? 1,
+    project: project ?? ch?.category ?? null,
+    category, type, name, pathOrUrl, description,
+  });
 }
 
 function deleteChannelDocument(id) {
   return getDb().prepare('DELETE FROM channel_documents WHERE id = ?').run(id);
 }
 
+function getProjectDocumentCategories(promoId, project) {
+  if (project) {
+    return getDb().prepare(`
+      SELECT DISTINCT category FROM channel_documents
+      WHERE promo_id = ? AND project = ?
+      ORDER BY category ASC
+    `).all(promoId, project).map(r => r.category);
+  }
+  return getDb().prepare(`
+    SELECT DISTINCT category FROM channel_documents WHERE promo_id = ? ORDER BY category ASC
+  `).all(promoId).map(r => r.category);
+}
+
+// Alias kept for IPC backwards compat
 function getChannelDocumentCategories(channelId) {
   return getDb().prepare(`
     SELECT DISTINCT category FROM channel_documents WHERE channel_id = ? ORDER BY category ASC
@@ -34,6 +73,8 @@ function getChannelDocumentCategories(channelId) {
 }
 
 module.exports = {
-  getChannelDocuments, getPromoDocuments,
-  addChannelDocument, deleteChannelDocument, getChannelDocumentCategories,
+  getProjectDocuments, getChannelDocuments,
+  getPromoDocuments, addProjectDocument, addChannelDocument,
+  deleteChannelDocument,
+  getProjectDocumentCategories, getChannelDocumentCategories,
 };

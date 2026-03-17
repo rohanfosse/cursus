@@ -40,8 +40,6 @@
   const startDate   = ref(isoForDatetimeLocal())
   const isDraft     = ref(false)
   const assignTo    = ref<'all' | 'group'>('all')
-  const channelId   = ref<number | null>(null)
-  const channels      = ref<{ id: number; name: string }[]>([])
   const dbProjects    = ref<string[]>([])
   const allProjects   = computed(() => {
     const custom = (() => { try { return JSON.parse(localStorage.getItem(CUSTOM_PROJECTS_KEY) ?? '[]') as string[] } catch { return [] } })()
@@ -62,19 +60,15 @@
 
   watch(() => props.modelValue, async (open) => {
     if (open && appStore.activePromoId) {
-      const [chRes, stuRes, grpRes, projRes] = await Promise.all([
-        window.api.getChannels(appStore.activePromoId),
+      const [stuRes, grpRes, projRes] = await Promise.all([
         window.api.getStudents(appStore.activePromoId),
         window.api.getGroups(appStore.activePromoId),
         window.api.getTravailCategories(appStore.activePromoId),
       ])
-      channels.value   = chRes?.ok ? chRes.data : []
       students.value   = stuRes?.ok ? stuRes.data : []
       groups.value     = grpRes?.ok ? grpRes.data : []
       dbProjects.value = projRes?.ok ? projRes.data : []
 
-      // Pré-sélectionner le canal actif
-      channelId.value = appStore.activeChannelId
       title.value = description.value = ''
       // Pré-remplir avec le projet actif depuis la sidebar
       category.value = appStore.activeProject ?? ''
@@ -130,7 +124,7 @@
   const isJalon = computed(() => type.value === 'jalon')
 
   async function submit() {
-    if (!title.value.trim() || !channelId.value) return
+    if (!title.value.trim()) return
     creating.value = true
     try {
       const res = await travauxStore.createTravail({
@@ -143,7 +137,7 @@
         isPublished:  !isDraft.value,
         assignedTo:   assignTo.value,
         groupId:      assignTo.value === 'group' ? selectedGroupId.value : null,
-        channelId:    channelId.value,
+        promoId:      appStore.activePromoId,
       })
       if (!res) return
       showToast('Travail créé.', 'success')
@@ -293,15 +287,6 @@
         </button>
       </div>
 
-      <!-- Canal (secondaire) -->
-      <div class="form-group">
-        <label class="form-label">Canal <span style="opacity:.6">(section)</span></label>
-        <select v-model="channelId" class="form-select" required>
-          <option :value="null">Choisir un canal…</option>
-          <option v-for="c in channels" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
-      </div>
-
       <!-- Brouillon -->
       <label class="checkbox-label" style="display:flex;align-items:center;gap:8px">
         <input v-model="isDraft" type="checkbox" />
@@ -311,7 +296,7 @@
 
     <div class="modal-footer" style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0">
       <button class="btn-ghost" @click="emit('update:modelValue', false)">Annuler</button>
-      <button class="btn-primary" :disabled="!title.trim() || !channelId || creating" @click="submit">
+      <button class="btn-primary" :disabled="!title.trim() || creating" @click="submit">
         {{ creating ? 'Création…' : isDraft ? 'Enregistrer brouillon' : 'Publier' }}
       </button>
     </div>
