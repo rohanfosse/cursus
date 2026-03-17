@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { ref, watch, computed, onMounted } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import { Plus, ChevronDown } from 'lucide-vue-next'
+  import { Plus, ChevronDown, FolderOpen } from 'lucide-vue-next'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
   import { useMessagesStore } from '@/stores/messages'
@@ -203,6 +203,16 @@
       {{ sectionLabel }}
     </div>
 
+    <!-- Raccourci "Tous les documents" -->
+    <button
+      class="sidebar-all-docs-btn"
+      :class="{ active: route.name === 'documents' && !appStore.activeChannelId }"
+      @click="appStore.activeChannelId = null; router.push('/documents')"
+    >
+      <FolderOpen :size="13" class="sidebar-all-docs-icon" />
+      Tous les documents
+    </button>
+
     <!-- Section Messages -->
     <div id="sidebar-section-messages">
       <!-- Rail des promos (prof) -->
@@ -309,6 +319,30 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ── Raccourci Tous les documents ── */
+.sidebar-all-docs-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--t-fast), color var(--t-fast);
+  flex-shrink: 0;
+}
+.sidebar-all-docs-btn:hover  { background: var(--bg-hover); color: var(--text-primary); }
+.sidebar-all-docs-btn.active { color: #27AE60; background: rgba(39,174,96,.08); }
+
+.sidebar-all-docs-icon { flex-shrink: 0; color: #27AE60; }
 
 /* Accent coloré selon la section active */
 .sidebar-section-indicator::before {
