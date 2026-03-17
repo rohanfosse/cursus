@@ -67,6 +67,9 @@ electron.contextBridge.exposeInMainWorld("api", {
   // ── Gantt + rendus ─────────────────────────────────────────────────────────
   getGanttData: (promoId) => invoke("db:getGanttData", promoId),
   getAllRendus: (promoId) => invoke("db:getAllRendus", promoId),
+  getTravailCategories: (promoId) => invoke("db:getTravailCategories", promoId),
+  // ── Données de démonstration ───────────────────────────────────────────────
+  resetAndSeed: () => invoke("db:resetAndSeed"),
   // ── PDF viewer ─────────────────────────────────────────────────────────────
   openPdf: (filePath) => invoke("window:openPdf", filePath),
   // ── Documents ──────────────────────────────────────────────────────────────

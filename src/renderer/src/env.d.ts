@@ -115,6 +115,9 @@ declare global {
       readFileBase64(filePath: string): Promise<IpcResponse<{ mime: string; b64: string; ext: string }>>
       downloadFile(filePath: string): Promise<IpcResponse<null>>
 
+      // Données de démo
+      resetAndSeed(): Promise<IpcResponse<null>>
+
       // Temps réel — push du Main process
       onNewMessage(
         cb: (data: { channelId: number | null; dmStudentId: number | null }) => void,

@@ -137,6 +137,9 @@ function register() {
   handle('db:deletePromotion', (promoId)  => queries.deletePromotion(promoId))
   handle('db:createChannel',   (payload)  => queries.createChannel(payload))
 
+  // ── Réinitialisation des données ─────────────────────────────────────────
+  handle('db:resetAndSeed', () => { queries.resetAndSeed(); return null })
+
   // ── Inscription étudiant ──────────────────────────────────────────────────
   handle('db:getStudentByEmail', (email)   => queries.getStudentByEmail(email))
   handle('db:registerStudent',   (payload) => queries.registerStudent(payload))

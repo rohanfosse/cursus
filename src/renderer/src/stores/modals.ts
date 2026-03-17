@@ -18,6 +18,7 @@ export const useModalsStore = defineStore('modals', () => {
   const createChannel   = ref(false)
   const cmdPalette      = ref(false)
   const impersonate     = ref(false)
+  const newProject      = ref(false)
 
   function closeAll() {
     depots.value          = false
@@ -32,12 +33,13 @@ export const useModalsStore = defineStore('modals', () => {
     createChannel.value   = false
     cmdPalette.value      = false
     impersonate.value     = false
+    newProject.value      = false
   }
 
   return {
     depots, suivi, gestionDevoir, ressources,
     timeline, echeancier, settings, documentPreview,
-    newDevoir, createChannel, cmdPalette, impersonate,
+    newDevoir, createChannel, cmdPalette, impersonate, newProject,
     closeAll,
   }
 })

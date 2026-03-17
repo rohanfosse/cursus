@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { ref, watch, computed } from 'vue'
-  import { LogOut, Settings, User, Info, Camera, X } from 'lucide-vue-next'
+  import { LogOut, Settings, User, Info, Camera, X, RotateCcw } from 'lucide-vue-next'
   import { useAppStore } from '@/stores/app'
   import { useRouter }   from 'vue-router'
   import { usePrefs }    from '@/composables/usePrefs'
@@ -72,6 +72,22 @@
       ? 'var(--accent)'
       : avatarColor(appStore.currentUser?.name ?? ''),
   )
+
+  const resetting = ref(false)
+  async function resetDemoData() {
+    if (!confirm('Réinitialiser toutes les données de démonstration ? Cette action est irréversible.')) return
+    resetting.value = true
+    try {
+      const res = await window.api.resetAndSeed()
+      if (res?.ok) {
+        showToast('Données réinitialisées. Redémarrez ou rechargez la page.', 'success')
+      } else {
+        showToast(res?.error ?? 'Erreur lors de la réinitialisation.')
+      }
+    } finally {
+      resetting.value = false
+    }
+  }
 
   const navItems: { key: Section; label: string }[] = [
     { key: 'general', label: 'Général' },
@@ -146,6 +162,19 @@
             <div class="stg-info-row">
               <span class="stg-info-label">Langue</span>
               <span class="stg-info-value">Français</span>
+            </div>
+          </div>
+          <div v-if="appStore.isTeacher" class="stg-group">
+            <h4 class="stg-group-title">Données de démonstration</h4>
+            <div class="stg-toggle-row" style="cursor:default">
+              <div class="stg-toggle-info">
+                <span class="stg-toggle-label">Réinitialiser les données</span>
+                <span class="stg-toggle-desc">Recharge les deux promotions d'exemple (CPIA2 / FISAA4) avec devoirs, dépôts et documents de test.</span>
+              </div>
+              <button class="btn-ghost stg-reset-btn" :disabled="resetting" @click="resetDemoData">
+                <RotateCcw :size="13" />
+                {{ resetting ? 'Réinitialisation…' : 'Réinitialiser' }}
+              </button>
             </div>
           </div>
         </section>
@@ -461,6 +490,19 @@
   font-size: 13px;
   color: #E67E22;
 }
+
+/* Reset btn */
+.stg-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 5px 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: var(--color-danger) !important;
+}
+.stg-reset-btn:hover { background: rgba(231,76,60,.1) !important; }
 
 /* À propos */
 .stg-about-text {

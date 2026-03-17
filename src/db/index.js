@@ -1,5 +1,5 @@
 const { initSchema }   = require('./schema');
-const { seedIfEmpty }  = require('./seed');
+const { seedIfEmpty, resetAndSeed } = require('./seed');
 
 const promotions  = require('./models/promotions');
 const students    = require('./models/students');
@@ -17,6 +17,7 @@ function init() {
 
 module.exports = {
   init,
+  resetAndSeed,
   ...promotions,
   ...students,
   ...groups,

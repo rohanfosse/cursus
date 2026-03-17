@@ -81,8 +81,12 @@ contextBridge.exposeInMainWorld('api', {
   getTeacherSchedule: () => invoke('db:getTeacherSchedule'),
 
   // ── Gantt + rendus ─────────────────────────────────────────────────────────
-  getGanttData: (promoId: number) => invoke('db:getGanttData', promoId),
-  getAllRendus:  (promoId: number) => invoke('db:getAllRendus',  promoId),
+  getGanttData:         (promoId: number) => invoke('db:getGanttData',         promoId),
+  getAllRendus:          (promoId: number) => invoke('db:getAllRendus',          promoId),
+  getTravailCategories: (promoId: number) => invoke('db:getTravailCategories',  promoId),
+
+  // ── Données de démonstration ───────────────────────────────────────────────
+  resetAndSeed: () => invoke('db:resetAndSeed'),
 
   // ── PDF viewer ─────────────────────────────────────────────────────────────
   openPdf: (filePath: string) => invoke('window:openPdf', filePath),

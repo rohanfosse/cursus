@@ -1,7 +1,8 @@
 <script setup lang="ts">
-  import { ref, watch, computed, onMounted, nextTick } from 'vue'
+  import { ref, watch, computed, onMounted } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import { Plus, ChevronDown, FolderOpen, Layers, Check, X as XIcon } from 'lucide-vue-next'
+  import { Plus, ChevronDown, FolderOpen, Layers } from 'lucide-vue-next'
+  import NewProjectModal from '@/components/modals/NewProjectModal.vue'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
   import { useMessagesStore } from '@/stores/messages'
@@ -132,19 +133,12 @@
   // ── Projets (section Devoirs) ─────────────────────────────────────────────
   const dbProjects     = ref<string[]>([])
   const customProjects = ref<string[]>([])
-  const addingProject  = ref(false)
-  const newProjectName = ref('')
-  const addProjectInput = ref<HTMLInputElement | null>(null)
 
   function loadCustomProjects() {
     try {
       const raw = localStorage.getItem(CUSTOM_PROJECTS_KEY)
       customProjects.value = raw ? JSON.parse(raw) : []
     } catch { customProjects.value = [] }
-  }
-
-  function saveCustomProjects() {
-    try { localStorage.setItem(CUSTOM_PROJECTS_KEY, JSON.stringify(customProjects.value)) } catch {}
   }
 
   async function loadDbProjects() {
@@ -159,29 +153,10 @@
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'))
   })
 
-  async function startAddProject() {
-    addingProject.value = true
-    newProjectName.value = ''
-    await nextTick()
-    addProjectInput.value?.focus()
-  }
-
-  function confirmAddProject() {
-    const name = newProjectName.value.trim()
-    if (name && !allProjects.value.includes(name)) {
-      customProjects.value = [...customProjects.value, name]
-      saveCustomProjects()
-    }
-    addingProject.value = false
-    if (name) {
-      appStore.activeProject = name
-      router.push('/devoirs')
-    }
-  }
-
-  function cancelAddProject() {
-    addingProject.value = false
-    newProjectName.value = ''
+  function onProjectCreated(name: string) {
+    loadCustomProjects()
+    appStore.activeProject = name
+    router.push('/devoirs')
   }
 
   function selectProject(name: string | null) {
@@ -229,7 +204,7 @@
   }
 
   // ── Réactivité ────────────────────────────────────────────────────────────
-  onMounted(() => { load(); loadCustomProjects() })
+  onMounted(() => { load(); loadCustomProjects(); if (route.name === 'devoirs') loadDbProjects() })
 
   watch(() => route.name, (n) => {
     if (n === 'messages') load()
@@ -305,7 +280,7 @@
             title="Nouveau projet"
             aria-label="Nouveau projet"
             style="padding:2px"
-            @click="startAddProject"
+            @click="modals.newProject = true"
           >
             <Plus :size="14" />
           </button>
@@ -333,22 +308,9 @@
             <span class="project-bullet" />
             <span class="channel-name">{{ proj }}</span>
           </button>
-
-          <!-- Saisie inline nouveau projet -->
-          <div v-if="addingProject" class="project-add-row">
-            <input
-              ref="addProjectInput"
-              v-model="newProjectName"
-              class="project-add-input"
-              placeholder="Nom du projet…"
-              maxlength="60"
-              @keydown.enter.prevent="confirmAddProject"
-              @keydown.escape.prevent="cancelAddProject"
-            />
-            <button class="btn-icon" title="Confirmer" @click="confirmAddProject"><Check :size="13" /></button>
-            <button class="btn-icon" title="Annuler"   @click="cancelAddProject"><XIcon  :size="13" /></button>
-          </div>
         </nav>
+
+        <NewProjectModal v-model="modals.newProject" @created="onProjectCreated" />
       </template>
 
       <!-- Canaux groupés par catégorie (autres sections) -->

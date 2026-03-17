@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 6;
+const CURRENT_VERSION = 7;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -72,7 +72,7 @@ function initSchema() {
       title       TEXT NOT NULL,
       description TEXT,
       deadline    TEXT NOT NULL,
-      category    TEXT NOT NULL DEFAULT 'TP' CHECK(category IN ('TP','Projet','Devoir','Examen','Rendu')),
+      category    TEXT,
       type        TEXT NOT NULL DEFAULT 'devoir' CHECK(type IN ('devoir', 'jalon')),
       published   INTEGER NOT NULL DEFAULT 1,
       start_date  TEXT
@@ -191,6 +191,27 @@ function runMigrations(db) {
     // v6 : catégories de canaux
     (db) => {
       tryAlter(db, 'ALTER TABLE channels ADD COLUMN category TEXT DEFAULT NULL');
+    },
+
+    // v7 : supprimer le CHECK sur travaux.category (SQLite = recréation de table)
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS travaux_v7 (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          channel_id  INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+          group_id    INTEGER REFERENCES groups(id) ON DELETE SET NULL,
+          title       TEXT NOT NULL,
+          description TEXT,
+          deadline    TEXT NOT NULL,
+          category    TEXT,
+          type        TEXT NOT NULL DEFAULT 'devoir' CHECK(type IN ('devoir', 'jalon', 'projet')),
+          published   INTEGER NOT NULL DEFAULT 1,
+          start_date  TEXT
+        );
+        INSERT INTO travaux_v7 SELECT id, channel_id, group_id, title, description, deadline, category, type, published, start_date FROM travaux;
+        DROP TABLE travaux;
+        ALTER TABLE travaux_v7 RENAME TO travaux;
+      `);
     },
   ];
 
