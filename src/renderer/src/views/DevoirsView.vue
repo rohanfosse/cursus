@@ -11,6 +11,7 @@ import { useModalsStore }  from '@/stores/modals'
 import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
 import { avatarColor, initials } from '@/utils/format'
 import type { Devoir } from '@/types'
+import ProjetFiche from '@/components/projet/ProjetFiche.vue'
 
 const appStore     = useAppStore()
 const travauxStore = useTravauxStore()
@@ -85,7 +86,9 @@ watch(() => appStore.activeChannelId, () => {
 
 // ── Groupes urgence étudiant ───────────────────────────────────────────────────
 const studentGroups = computed(() => {
-  const all = travauxStore.devoirs
+  const all = appStore.activeProject
+    ? travauxStore.devoirs.filter(t => t.category === appStore.activeProject)
+    : travauxStore.devoirs
   return {
     overdue:   all.filter(t => t.depot_id == null && !isEventType(t.type) && isExpired(t.deadline)),
     urgent:    all.filter(t => {
@@ -102,14 +105,19 @@ const studentGroups = computed(() => {
 })
 
 // Simplification : submitted = ceux qui ont depot_id
-const submittedDevoirs = computed(() => travauxStore.devoirs.filter(t => t.depot_id != null))
-const pendingDeposit   = computed(() =>
-  travauxStore.devoirs.filter(t => t.depot_id == null && !isEventType(t.type)),
+const filteredDevoirs  = computed(() =>
+  appStore.activeProject
+    ? travauxStore.devoirs.filter(t => t.category === appStore.activeProject)
+    : travauxStore.devoirs
 )
-const eventDevoirs     = computed(() => travauxStore.devoirs.filter(t => isEventType(t.type)))
+const submittedDevoirs = computed(() => filteredDevoirs.value.filter(t => t.depot_id != null))
+const pendingDeposit   = computed(() =>
+  filteredDevoirs.value.filter(t => t.depot_id == null && !isEventType(t.type)),
+)
+const eventDevoirs     = computed(() => filteredDevoirs.value.filter(t => isEventType(t.type)))
 
 const studentStats = computed(() => ({
-  total:     travauxStore.devoirs.length,
+  total:     filteredDevoirs.value.length,
   pending:   studentGroups.value.overdue.length + studentGroups.value.urgent.length + studentGroups.value.pending.length,
   urgent:    studentGroups.value.overdue.length + studentGroups.value.urgent.length,
   submitted: submittedDevoirs.value.length,
@@ -275,8 +283,8 @@ function typeLabel(t: string): string {
       </div>
 
       <div class="devoirs-header-actions">
-        <!-- Toggle vue (prof) -->
-        <template v-if="appStore.isTeacher">
+        <!-- Toggle vue (prof) — masqué quand on est sur la fiche projet -->
+        <template v-if="appStore.isTeacher && !appStore.activeProject">
           <div class="view-toggle">
             <button
               class="view-toggle-btn"
@@ -310,7 +318,7 @@ function typeLabel(t: string): string {
 
     <!-- ── Barre de stats étudiant ──────────────────────────────────────────── -->
     <div
-      v-if="appStore.isStudent && travauxStore.devoirs.length > 0"
+      v-if="appStore.isStudent && filteredDevoirs.length > 0"
       class="student-stats-bar"
     >
       <div class="stat-chip stat-chip-neutral">
@@ -348,7 +356,7 @@ function typeLabel(t: string): string {
         </div>
 
         <!-- État vide -->
-        <div v-else-if="travauxStore.devoirs.length === 0" class="empty-state-custom">
+        <div v-else-if="filteredDevoirs.length === 0" class="empty-state-custom">
           <CheckCircle2 :size="48" class="empty-icon" />
           <h3>Aucun devoir assigné</h3>
           <p>Vos devoirs apparaîtront ici dès qu'un enseignant en créera.</p>
@@ -589,6 +597,11 @@ function typeLabel(t: string): string {
           </template>
 
         </div><!-- /devoirs-grouped -->
+      </template>
+
+      <!-- ════════════════════════ Fiche Projet (prof + projet actif) ════════════════════════ -->
+      <template v-else-if="appStore.activeProject && appStore.activePromoId">
+        <ProjetFiche :project-key="appStore.activeProject" :promo-id="appStore.activePromoId" />
       </template>
 
       <!-- ════════════════════════ Vue GANTT (prof) ════════════════════════ -->

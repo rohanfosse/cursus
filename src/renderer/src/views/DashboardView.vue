@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import {
   Clock, Edit3, Users, BookOpen, AlertTriangle,
   ChevronRight, CheckCircle2, FileText, Eye, LayoutDashboard,
-  Award, Calendar, TrendingUp,
+  Award, Calendar, TrendingUp, FolderOpen,
 } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
@@ -11,6 +11,8 @@ import { useTravauxStore } from '@/stores/travaux'
 import { useRouter }      from 'vue-router'
 import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
 import { avatarColor }    from '@/utils/format'
+import { parseCategoryIcon } from '@/utils/categoryIcon'
+import type { Component } from 'vue'
 import type { Devoir }    from '@/types'
 
 const appStore     = useAppStore()
@@ -47,6 +49,7 @@ interface GanttRow {
   start_date:     string | null
   type:           string
   published:      number
+  category:       string | null
   channel_name:   string
   promo_name:     string
   promo_color:    string
@@ -66,6 +69,7 @@ const brouillons     = ref<BrouillonRow[]>([])
 const promos         = ref<Promotion[]>([])
 const totalStudents  = ref(0)
 const urgents        = ref<GanttRow[]>([])
+const ganttAll       = ref<GanttRow[]>([])
 
 // ── État étudiant ─────────────────────────────────────────────────────────────
 const loadingStudent = ref(true)
@@ -88,9 +92,11 @@ onMounted(async () => {
       if (promosRes?.ok) promos.value       = promosRes.data as Promotion[]
       if (studRes?.ok)   totalStudents.value = (studRes.data as unknown[]).length
       if (ganttRes?.ok) {
+        const rows    = ganttRes.data as GanttRow[]
+        ganttAll.value = rows
         const now     = Date.now()
         const in7days = now + 7 * 86_400_000
-        urgents.value = (ganttRes.data as GanttRow[])
+        urgents.value = rows
           .filter(t => t.published && new Date(t.deadline).getTime() >= now && new Date(t.deadline).getTime() <= in7days)
           .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
           .slice(0, 10)
@@ -109,8 +115,58 @@ function openDevoir(id: number) {
   modals.gestionDevoir = true
 }
 
+function goToProject(projectKey: string) {
+  appStore.activeProject = projectKey
+  router.push('/devoirs')
+}
+
 // ── Computed prof ─────────────────────────────────────────────────────────────
 const greetingName = computed(() => (appStore.currentUser?.name ?? '').split(' ')[0])
+
+interface ProjectCard {
+  key:            string
+  label:          string
+  icon:           Component | null
+  total:          number
+  published:      number
+  depots:         number
+  expected:       number
+  nextDeadline:   string | null
+}
+
+const projectCards = computed((): ProjectCard[] => {
+  const map = new Map<string, GanttRow[]>()
+  for (const t of ganttAll.value) {
+    if (!t.category?.trim()) continue
+    if (!map.has(t.category)) map.set(t.category, [])
+    map.get(t.category)!.push(t)
+  }
+  const cards: ProjectCard[] = []
+  for (const [key, rows] of map) {
+    const { icon, label } = parseCategoryIcon(key)
+    const published = rows.filter(r => r.published)
+    const now = Date.now()
+    const upcoming = published
+      .filter(r => new Date(r.deadline).getTime() >= now)
+      .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+    cards.push({
+      key,
+      label,
+      icon,
+      total:        rows.length,
+      published:    published.length,
+      depots:       rows.reduce((s, r) => s + (r.depots_count ?? 0), 0),
+      expected:     rows.reduce((s, r) => s + (r.students_total ?? 0), 0),
+      nextDeadline: upcoming[0]?.deadline ?? null,
+    })
+  }
+  return cards.sort((a, b) => {
+    if (!a.nextDeadline && !b.nextDeadline) return a.label.localeCompare(b.label)
+    if (!a.nextDeadline) return 1
+    if (!b.nextDeadline) return -1
+    return new Date(a.nextDeadline).getTime() - new Date(b.nextDeadline).getTime()
+  })
+})
 const today = computed(() =>
   new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
 )
@@ -223,6 +279,38 @@ const firstFeedback = computed(() =>
             <Users :size="18" class="db-stat-icon" />
           </div>
         </div>
+
+        <!-- Projets -->
+        <section v-if="projectCards.length > 0" class="db-projects-section">
+          <div class="db-section-header">
+            <h2 class="db-section-title"><FolderOpen :size="15" /> Projets</h2>
+            <button class="btn-ghost db-see-all-btn" @click="router.push('/devoirs')">Voir tous les devoirs →</button>
+          </div>
+          <div class="db-project-grid">
+            <div
+              v-for="p in projectCards"
+              :key="p.key"
+              class="db-project-card"
+              @click="goToProject(p.key)"
+            >
+              <div class="db-project-icon">
+                <component :is="p.icon" v-if="p.icon" :size="20" />
+                <FolderOpen v-else :size="20" />
+              </div>
+              <div class="db-project-info">
+                <span class="db-project-name">{{ p.label }}</span>
+                <span class="db-project-stats">
+                  {{ p.published }} devoir{{ p.published > 1 ? 's' : '' }} publiés
+                  <template v-if="p.expected"> · {{ p.depots }}/{{ p.expected }} rendus</template>
+                </span>
+                <span v-if="p.nextDeadline" class="db-project-next" :class="deadlineClass(p.nextDeadline)">
+                  <Clock :size="9" /> {{ deadlineLabel(p.nextDeadline) }}
+                </span>
+              </div>
+              <ChevronRight :size="14" class="db-project-chevron" />
+            </div>
+          </div>
+        </section>
 
         <!-- Corps prof -->
         <div class="db-body">
@@ -494,6 +582,81 @@ const firstFeedback = computed(() =>
 </template>
 
 <style scoped>
+/* ── Projets ── */
+.db-projects-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.db-see-all-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  color: var(--text-muted);
+}
+.db-project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.db-project-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sidebar);
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.db-project-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.db-project-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--accent-subtle);
+  color: var(--accent-light);
+}
+.db-project-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.db-project-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-project-stats {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.db-project-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.db-project-next.deadline-ok     { color: var(--color-success); }
+.db-project-next.deadline-warning { color: #F39C12; }
+.db-project-next.deadline-soon    { color: var(--color-warning); }
+.db-project-next.deadline-critical,
+.db-project-next.deadline-passed  { color: var(--color-danger); }
+.db-project-chevron { color: var(--text-muted); flex-shrink: 0; }
+
 /* ── Shell ── */
 .dashboard-shell {
   flex: 1;
