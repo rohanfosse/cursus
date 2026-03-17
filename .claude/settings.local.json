@@ -3,7 +3,9 @@
     "allow": [
       "Bash(rm -rf out)",
       "Bash(npm run:*)",
-      "Bash(npx vue-tsc:*)"
+      "Bash(npx vue-tsc:*)",
+      "Bash(python3 -c \":*)",
+      "Bash(file /tmp/*.tmp)"
     ]
   }
 }

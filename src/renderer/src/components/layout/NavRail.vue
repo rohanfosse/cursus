@@ -2,6 +2,7 @@
   import { computed, ref, onMounted } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
   import { MessageSquare, BookOpen, FileText, Calendar, UserCheck, LayoutDashboard, X } from 'lucide-vue-next'
+  import logoUrl from '@/assets/logo.png'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
   import { useTravauxStore } from '@/stores/travaux'
@@ -60,13 +61,14 @@
   <nav class="nav-rail" aria-label="Navigation principale">
     <!-- Logo — cliquable pour le prof -->
     <div class="nav-logo">
-      <div
-        class="logo-mark"
-        style="font-size:10px;letter-spacing:-0.5px"
+      <img
+        :src="logoUrl"
+        class="nav-logo-img"
+        alt="CESIA"
         :style="appStore.isTeacher ? { cursor: 'pointer' } : {}"
         :title="appStore.isTeacher ? 'Tableau de bord' : undefined"
         @click="appStore.isTeacher && router.push('/dashboard')"
-      >CeS</div>
+      />
     </div>
 
     <!-- ── Tableau de bord ── -->
@@ -196,6 +198,19 @@
 </template>
 
 <style scoped>
+/* ── Logo ── */
+.nav-logo-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.3));
+  transition: transform .15s;
+}
+.nav-logo-img:hover {
+  transform: scale(1.07);
+}
+
 /* ── Bascule rapide étudiant ── */
 .nav-quick-student {
   width: 32px;

@@ -17,7 +17,8 @@ function createWindow(): void {
     height: 800,
     minWidth: 960,
     minHeight: 640,
-    title: 'CeSlack',
+    title: 'CESIA',
+    icon: join(__dirname, '../../resources/icon.png'),
     backgroundColor: '#111214',
     titleBarStyle: 'hidden',
     titleBarOverlay: {

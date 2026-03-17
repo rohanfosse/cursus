@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
   import { Search } from 'lucide-vue-next'
+  import logoUrl from '@/assets/logo.png'
   import { useAppStore }      from '@/stores/app'
   import { useModalsStore }   from '@/stores/modals'
   import { useMessagesStore } from '@/stores/messages'
@@ -189,7 +190,7 @@
       <div class="cmd-palette-box">
         <!-- Barre de recherche -->
         <div class="cmd-search-bar">
-          <Search :size="16" style="color:var(--text-muted);flex-shrink:0" />
+          <img :src="logoUrl" class="cmd-logo" alt="CESIA" />
           <input
             ref="inputEl"
             v-model="query"
@@ -240,6 +241,14 @@
 }
 
 /* ── Barre de recherche ── */
+.cmd-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.25));
+}
+
 .cmd-search-bar {
   display: flex;
   align-items: center;
