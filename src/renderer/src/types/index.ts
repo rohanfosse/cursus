@@ -40,22 +40,28 @@ export interface Message {
   is_pinned: boolean | 0 | 1
 }
 
-export interface Travail {
+export interface Devoir {
   id: number
   title: string
   description: string | null
   channel_id: number
   channel_name?: string
-  type: 'devoir' | 'jalon' | 'projet'
+  type: 'soutenance' | 'livrable' | 'cctl' | 'etude_de_cas' | 'memoire' | 'autre'
   category: string | null
   deadline: string
   start_date: string | null
   is_published: boolean | 0 | 1
+  is_graded?: boolean | 0 | 1
   assigned_to: 'all' | 'group'
   group_id: number | null
   depot_id: number | null
   group_name?: string | null
+  note?: string | null
+  feedback?: string | null
 }
+
+// backward compat alias — le backend renvoie toujours Travail, on l'aliase ici
+export type Travail = Devoir
 
 export interface Depot {
   id: number

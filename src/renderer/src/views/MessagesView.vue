@@ -26,7 +26,7 @@
       await messagesStore.fetchMessages()
       if (chId) {
         await messagesStore.fetchPinned(chId as number)
-        if (appStore.isStudent) await travauxStore.fetchStudentTravaux()
+        if (appStore.isStudent) await travauxStore.fetchStudentDevoirs()
       }
     },
   )
@@ -46,7 +46,7 @@
   // ── Bannière travaux en attente ───────────────────────────────────────────
   const pendingForChannel = computed(() => {
     if (!appStore.isStudent || !appStore.activeChannelId) return []
-    return travauxStore.pendingTravaux.filter(
+    return travauxStore.pendingDevoirs.filter(
       (t) => t.channel_id === appStore.activeChannelId,
     )
   })
@@ -129,12 +129,12 @@
     >
       <span>
         <ClipboardList :size="14" class="icon-inline" />
-        {{ pendingForChannel.length }} travail{{ pendingForChannel.length > 1 ? 'x' : '' }}
+        {{ pendingForChannel.length }} devoir{{ pendingForChannel.length > 1 ? 's' : '' }}
         à rendre dans ce canal{{ bannerUrgent ? ' — ' : '' }}
         <strong v-if="bannerUrgent">urgent !</strong>
       </span>
-      <button class="btn-primary btn-xs" @click="$router.push('/travaux')">
-        Voir mes travaux
+      <button class="btn-primary btn-xs" @click="$router.push('/devoirs')">
+        Voir mes devoirs
       </button>
     </div>
 

@@ -129,19 +129,19 @@
 
   // ── Contexte sidebar selon la route ───────────────────────────────────────
   const sectionLabel = computed(() => {
-    if (route.name === 'travaux')   return 'Travaux'
+    if (route.name === 'devoirs')   return 'Devoirs'
     if (route.name === 'documents') return 'Documents'
     return 'Messages'
   })
 
   const channelSectionLabel = computed(() => {
-    if (route.name === 'travaux')   return 'Travaux par canal'
+    if (route.name === 'devoirs')   return 'Devoirs par canal'
     if (route.name === 'documents') return 'Docs par canal'
     return 'Canaux'
   })
 
   const channelActionLabel = computed(() => {
-    if (route.name === 'travaux')   return 'Voir les travaux de ce canal'
+    if (route.name === 'devoirs')   return 'Voir les devoirs de ce canal'
     if (route.name === 'documents') return 'Voir les docs de ce canal'
     return undefined
   })
@@ -321,10 +321,10 @@
   flex-shrink: 0;
 }
 .sidebar-section--messages::before { background: var(--accent); }
-.sidebar-section--travaux::before  { background: #F39C12; }
+.sidebar-section--devoirs::before  { background: #9B87F5; }
 .sidebar-section--documents::before{ background: #27AE60; }
 .sidebar-section--messages { color: var(--accent); }
-.sidebar-section--travaux  { color: #F39C12; }
+.sidebar-section--devoirs  { color: #9B87F5; }
 .sidebar-section--documents{ color: #27AE60; }
 
 /* ── Catégories de canaux ── */

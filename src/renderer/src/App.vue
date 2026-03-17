@@ -11,7 +11,7 @@
   import CmdPalette           from '@/components/modals/CmdPalette.vue'
   import SettingsModal        from '@/components/modals/SettingsModal.vue'
   import CreateChannelModal   from '@/components/modals/CreateChannelModal.vue'
-  import NewTravailModal      from '@/components/modals/NewTravailModal.vue'
+  import NewDevoirModal       from '@/components/modals/NewDevoirModal.vue'
   import DepotsModal          from '@/components/modals/DepotsModal.vue'
   import SuiviModal           from '@/components/modals/SuiviModal.vue'
   import GestionDevoirModal   from '@/components/modals/GestionDevoirModal.vue'
@@ -76,7 +76,7 @@
     <CmdPalette />
     <SettingsModal        v-model="modals.settings"        />
     <CreateChannelModal   v-model="modals.createChannel"   />
-    <NewTravailModal      v-model="modals.newTravail"      />
+    <NewDevoirModal       v-model="modals.newDevoir"       />
     <DepotsModal          v-model="modals.depots"          />
     <SuiviModal           v-model="modals.suivi"           />
     <GestionDevoirModal   v-model="modals.gestionDevoir"   />

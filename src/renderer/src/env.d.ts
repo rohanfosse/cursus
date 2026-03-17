@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import type {
-  User, Promotion, Channel, Message, Travail, Depot,
+  User, Promotion, Channel, Message, Devoir, Depot,
   AppDocument, Ressource, Group, Student, SendMessagePayload,
 } from './types'
 
@@ -31,9 +31,9 @@ declare global {
       searchMessages(channelId: number, q: string): Promise<IpcResponse<Message[]>>
       sendMessage(payload: SendMessagePayload): Promise<IpcResponse<{ id: number }>>
 
-      // Travaux
-      getTravaux(channelId: number): Promise<IpcResponse<Travail[]>>
-      getTravailById(travailId: number): Promise<IpcResponse<Travail>>
+      // Travaux / Devoirs
+      getTravaux(channelId: number): Promise<IpcResponse<Devoir[]>>
+      getTravailById(travailId: number): Promise<IpcResponse<Devoir>>
       createTravail(payload: object): Promise<IpcResponse<{ id: number }>>
       getTravauxSuivi(travailId: number): Promise<IpcResponse<Depot[]>>
 
@@ -50,9 +50,9 @@ declare global {
       getGroupMembers(groupId: number): Promise<IpcResponse<{ student_id: number }[]>>
       setGroupMembers(payload: object): Promise<IpcResponse<null>>
 
-      // Profil & travaux étudiant
+      // Profil & devoirs étudiant
       getStudentProfile(studentId: number): Promise<IpcResponse<object>>
-      getStudentTravaux(studentId: number): Promise<IpcResponse<Travail[]>>
+      getStudentTravaux(studentId: number): Promise<IpcResponse<Devoir[]>>
 
       // Ressources
       getRessources(travailId: number): Promise<IpcResponse<Ressource[]>>

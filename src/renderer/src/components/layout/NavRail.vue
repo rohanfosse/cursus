@@ -22,7 +22,7 @@
       : { background: avatarColor(user.value.name) }
   })
 
-  const pendingCount = computed(() => travauxStore.pendingTravaux.length)
+  const pendingCount = computed(() => travauxStore.pendingDevoirs.length)
 </script>
 
 <template>
@@ -46,16 +46,16 @@
 
     <button
       class="nav-btn"
-      :class="{ active: route.name === 'travaux' }"
-      title="Travaux"
-      aria-label="Section Travaux"
-      @click="router.push('/travaux')"
+      :class="{ active: route.name === 'devoirs' }"
+      title="Devoirs"
+      aria-label="Section Devoirs"
+      @click="router.push('/devoirs')"
     >
       <BookOpen :size="20" />
-      <span class="nav-label">Travaux</span>
+      <span class="nav-label">Devoirs</span>
       <span
         v-if="appStore.isStudent && pendingCount > 0"
-        id="nav-badge-travaux"
+        id="nav-badge-devoirs"
         class="nav-badge"
       >
         {{ pendingCount > 9 ? '9+' : pendingCount }}

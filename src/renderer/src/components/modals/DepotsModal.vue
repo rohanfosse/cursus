@@ -124,18 +124,18 @@
 <template>
   <Modal
     :model-value="modelValue"
-    :title="travauxStore.currentTravail?.title ?? 'Dépôts'"
+    :title="travauxStore.currentDevoir?.title ?? 'Dépôts'"
     max-width="820px"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <!-- Sous-titre + progression -->
-    <div v-if="travauxStore.currentTravail" class="depots-subheader">
+    <div v-if="travauxStore.currentDevoir" class="depots-subheader">
       <div class="depots-meta-row">
-        <span class="travail-type-badge" :class="`type-${travauxStore.currentTravail.type}`">
-          {{ travauxStore.currentTravail.type }}
+        <span class="travail-type-badge" :class="`type-${travauxStore.currentDevoir.type}`">
+          {{ travauxStore.currentDevoir.type }}
         </span>
         <span class="depots-deadline">
-          Échéance : {{ formatDate(travauxStore.currentTravail.deadline) }}
+          Échéance : {{ formatDate(travauxStore.currentDevoir.deadline) }}
         </span>
       </div>
 

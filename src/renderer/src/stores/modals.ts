@@ -14,7 +14,7 @@ export const useModalsStore = defineStore('modals', () => {
   const echeancier      = ref(false)
   const settings        = ref(false)
   const documentPreview = ref(false)
-  const newTravail      = ref(false)
+  const newDevoir       = ref(false)
   const createChannel   = ref(false)
   const cmdPalette      = ref(false)
   const impersonate     = ref(false)
@@ -28,7 +28,7 @@ export const useModalsStore = defineStore('modals', () => {
     echeancier.value      = false
     settings.value        = false
     documentPreview.value = false
-    newTravail.value      = false
+    newDevoir.value       = false
     createChannel.value   = false
     cmdPalette.value      = false
     impersonate.value     = false
@@ -37,7 +37,7 @@ export const useModalsStore = defineStore('modals', () => {
   return {
     depots, suivi, gestionDevoir, ressources,
     timeline, echeancier, settings, documentPreview,
-    newTravail, createChannel, cmdPalette, impersonate,
+    newDevoir, createChannel, cmdPalette, impersonate,
     closeAll,
   }
 })

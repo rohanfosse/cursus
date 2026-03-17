@@ -3,30 +3,23 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import {
   BookOpen, BarChart2, List, Grid, Plus, Upload, Link2, X,
   FileText, CheckCircle2, Clock, Lock, AlertTriangle, ChevronRight,
-  Users, Award,
+  Users, Award, Calendar,
 } from 'lucide-vue-next'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { useModalsStore }  from '@/stores/modals'
 import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
 import { avatarColor, initials } from '@/utils/format'
-import type { Travail } from '@/types'
+import type { Devoir } from '@/types'
 
 const appStore     = useAppStore()
 const travauxStore = useTravauxStore()
 const modals       = useModalsStore()
 
-// ── Vue locale enseignant (remplace travauxStore.view côté UI) ────────────────
+// ── Vue locale enseignant ──────────────────────────────────────────────────────
 const teacherView = ref<'gantt' | 'liste' | 'rendus'>('gantt')
 
 // ── Horloge temps réel pour verrouillage des deadlines ────────────────────────
-/**
- * Pourquoi une horloge 30 s plutôt que requestAnimationFrame ?
- *   - rAF tourne à 60 fps = 60 appels/s × N cartes → inutile et coûteux
- *   - Les deadlines sont à la minute près; un intervalle de 30 s est
- *     suffisant tout en réagissant dans la demi-minute suivant l'expiration
- *   - Nettoyé dans onBeforeUnmount → zéro fuite mémoire
- */
 const now = ref(Date.now())
 let clockInterval: ReturnType<typeof setInterval> | null = null
 
@@ -35,13 +28,24 @@ function isExpired(deadline: string): boolean {
   return now.value >= new Date(deadline).getTime()
 }
 
+/** Types qui n'ont pas de dépôt fichier (présence requise) */
+function isEventType(type: string): boolean {
+  return type === 'soutenance' || type === 'cctl'
+}
+
 // ── Dépôt inline (étudiant) ───────────────────────────────────────────────────
-const depositingTravailId = ref<number | null>(null)
-const depositMode         = ref<'file' | 'link'>('file')
-const depositLink         = ref('')
-const depositFile         = ref<string | null>(null)
-const depositFileName     = ref<string | null>(null)
-const depositing          = ref(false)
+const depositingDevoirId = ref<number | null>(null)
+const depositMode        = ref<'file' | 'link'>('file')
+const depositLink        = ref('')
+const depositFile        = ref<string | null>(null)
+const depositFileName    = ref<string | null>(null)
+const depositing         = ref(false)
+
+// ── Notation inline (prof, vue rendus) ────────────────────────────────────────
+const editingDepotId      = ref<number | null>(null)
+const pendingNoteValue    = ref('')
+const pendingFeedbackValue = ref('')
+const savingGrade         = ref(false)
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 onMounted(async () => {
@@ -60,7 +64,6 @@ async function loadView() {
   } else {
     const promoId = appStore.activePromoId
     if (!promoId) return
-    // Toujours charger le gantt pour avoir les titres disponibles dans rendus/liste
     await travauxStore.fetchGantt(promoId)
     if (teacherView.value === 'rendus') {
       await travauxStore.fetchRendus(promoId)
@@ -76,7 +79,6 @@ function setTeacherView(v: 'gantt' | 'liste' | 'rendus') {
 
 watch(() => appStore.activePromoId, loadView)
 
-// Recharger les travaux étudiant quand le canal change depuis la sidebar
 watch(() => appStore.activeChannelId, () => {
   if (appStore.isStudent) travauxStore.fetchStudentDevoirs()
 })
@@ -85,37 +87,45 @@ watch(() => appStore.activeChannelId, () => {
 const studentGroups = computed(() => {
   const all = travauxStore.devoirs
   return {
-    overdue:   all.filter(t => t.depot_id == null && isExpired(t.deadline)),
+    overdue:   all.filter(t => t.depot_id == null && !isEventType(t.type) && isExpired(t.deadline)),
     urgent:    all.filter(t => {
-      if (t.depot_id != null || isExpired(t.deadline)) return false
+      if (t.depot_id != null || isExpired(t.deadline) || isEventType(t.type)) return false
       return new Date(t.deadline).getTime() - now.value < 3 * 86_400_000
     }),
     pending:   all.filter(t => {
-      if (t.depot_id != null || isExpired(t.deadline)) return false
+      if (t.depot_id != null || isExpired(t.deadline) || isEventType(t.type)) return false
       return new Date(t.deadline).getTime() - now.value >= 3 * 86_400_000
     }),
-    submitted: all.filter(t => t.depot_id != null),
+    event:     all.filter(t => isEventType(t.type) && t.depot_id == null),
+    submitted: all.filter(t => t.depot_id != null || isEventType(t.type) && !isExpired(t.deadline) === false),
   }
 })
+
+// Simplification : submitted = ceux qui ont depot_id
+const submittedDevoirs = computed(() => travauxStore.devoirs.filter(t => t.depot_id != null))
+const pendingDeposit   = computed(() =>
+  travauxStore.devoirs.filter(t => t.depot_id == null && !isEventType(t.type)),
+)
+const eventDevoirs     = computed(() => travauxStore.devoirs.filter(t => isEventType(t.type)))
 
 const studentStats = computed(() => ({
   total:     travauxStore.devoirs.length,
   pending:   studentGroups.value.overdue.length + studentGroups.value.urgent.length + studentGroups.value.pending.length,
   urgent:    studentGroups.value.overdue.length + studentGroups.value.urgent.length,
-  submitted: studentGroups.value.submitted.length,
+  submitted: submittedDevoirs.value.length,
 }))
 
 // ── Dépôt étudiant ─────────────────────────────────────────────────────────────
-function startDeposit(t: Travail) {
-  depositingTravailId.value = t.id
-  depositMode.value         = 'file'
-  depositLink.value         = ''
-  depositFile.value         = null
-  depositFileName.value     = null
+function startDeposit(t: Devoir) {
+  depositingDevoirId.value = t.id
+  depositMode.value        = 'file'
+  depositLink.value        = ''
+  depositFile.value        = null
+  depositFileName.value    = null
 }
 
 function cancelDeposit() {
-  depositingTravailId.value = null
+  depositingDevoirId.value = null
 }
 
 async function pickFile() {
@@ -131,21 +141,17 @@ function clearDepositFile() {
   depositFileName.value = null
 }
 
-async function submitDeposit(travail: Travail) {
-  // ── Debounce / double-clic ───────────────────────────────────────────────
-  // depositing.value agit comme mutex : posé synchroniquement avant tout
-  // await, donc aucun second clic ne peut passer avant la fin du premier.
+async function submitDeposit(devoir: Devoir) {
   if (depositing.value) return
   if (!appStore.currentUser) return
   if (depositMode.value === 'file' && !depositFile.value) return
   if (depositMode.value === 'link' && !depositLink.value.trim()) return
-  // Vérification deadline côté client (la DB valide aussi côté serveur)
-  if (isExpired(travail.deadline)) return
+  if (isExpired(devoir.deadline)) return
 
   depositing.value = true
   try {
     const ok = await travauxStore.addDepot({
-      travail_id: travail.id,
+      travail_id: devoir.id,
       student_id: appStore.currentUser.id,
       type:       depositMode.value,
       content:    depositMode.value === 'file' ? depositFile.value! : depositLink.value.trim(),
@@ -160,18 +166,43 @@ async function submitDeposit(travail: Travail) {
   }
 }
 
-// ── Vue prof : ouvrir un travail ───────────────────────────────────────────────
-async function openTravail(travailId: number) {
-  appStore.currentTravailId = travailId
-  await travauxStore.openTravail(travailId)
+// ── Vue prof : ouvrir un devoir ────────────────────────────────────────────────
+async function openDevoir(devoirId: number) {
+  appStore.currentTravailId = devoirId
+  await travauxStore.openTravail(devoirId)
   modals.gestionDevoir = true
 }
 
+// ── Notation inline (prof) ─────────────────────────────────────────────────────
+function startEditGrade(depotId: number, currentNote: string | null, currentFeedback: string | null) {
+  editingDepotId.value       = depotId
+  pendingNoteValue.value     = currentNote ?? ''
+  pendingFeedbackValue.value = currentFeedback ?? ''
+}
+
+function cancelEditGrade() {
+  editingDepotId.value = null
+}
+
+async function saveGrade(depotId: number) {
+  savingGrade.value = true
+  try {
+    await travauxStore.setNote({ depotId, note: pendingNoteValue.value.trim() || null })
+    await travauxStore.setFeedback({ depotId, feedback: pendingFeedbackValue.value.trim() || null })
+    editingDepotId.value = null
+    // Refresh rendus
+    const promoId = appStore.activePromoId
+    if (promoId) await travauxStore.fetchRendus(promoId)
+  } finally {
+    savingGrade.value = false
+  }
+}
+
 // ── Gantt : calcul des positions ───────────────────────────────────────────────
-type GanttItem = Travail & { left: number; width: number; dlClass: string }
+type GanttItem = Devoir & { left: number; width: number; dlClass: string }
 
 const ganttItems = computed((): { items: GanttItem[]; todayPct: number } => {
-  const raw = travauxStore.ganttData as Travail[]
+  const raw = travauxStore.ganttData as Devoir[]
   if (!raw.length) return { items: [], todayPct: 0 }
 
   const dates = raw.flatMap(t => [
@@ -197,35 +228,53 @@ const ganttItems = computed((): { items: GanttItem[]; todayPct: number } => {
   return { items, todayPct }
 })
 
-// ── Rendus : grouper par travail avec titres ───────────────────────────────────
-const rendusByTravail = computed(() => {
-  const ganttMap = new Map((travauxStore.ganttData as Travail[]).map(t => [t.id, t]))
-  const map = new Map<number, { travail: Partial<Travail>; rendus: typeof travauxStore.allRendus }>()
+// ── Rendus : grouper par devoir avec titres ────────────────────────────────────
+const rendusByDevoir = computed(() => {
+  const ganttMap = new Map((travauxStore.ganttData as (Devoir & { students_total?: number })[]).map(t => [t.id, t]))
+  const map = new Map<number, { devoir: Partial<Devoir & { students_total?: number }>; rendus: typeof travauxStore.allRendus }>()
   for (const r of travauxStore.allRendus) {
     if (!map.has(r.travail_id)) {
       const gt = ganttMap.get(r.travail_id)
-      map.set(r.travail_id, { travail: gt ?? { id: r.travail_id }, rendus: [] })
+      map.set(r.travail_id, { devoir: gt ?? { id: r.travail_id }, rendus: [] })
     }
     map.get(r.travail_id)!.rendus.push(r)
   }
   return [...map.values()]
 })
+
+// ── Label lisible pour les types ──────────────────────────────────────────────
+const TYPE_LABELS: Record<string, string> = {
+  livrable:    'Livrable',
+  soutenance:  'Soutenance',
+  cctl:        'CCTL',
+  etude_de_cas:'Étude de cas',
+  memoire:     'Mémoire',
+  autre:       'Autre',
+  // backward compat
+  devoir:      'Devoir',
+  projet:      'Projet',
+  jalon:       'Jalon',
+}
+
+function typeLabel(t: string): string {
+  return TYPE_LABELS[t] ?? t
+}
 </script>
 
 <template>
-  <div class="travaux-area">
+  <div class="devoirs-area">
 
     <!-- ── En-tête ─────────────────────────────────────────────────────────── -->
-    <header class="travaux-header">
-      <div class="travaux-header-title">
+    <header class="devoirs-header">
+      <div class="devoirs-header-title">
         <BookOpen :size="18" />
-        <span>Travaux</span>
+        <span>Devoirs</span>
         <span v-if="appStore.activeChannelName" class="header-channel-ctx">
           # {{ appStore.activeChannelName }}
         </span>
       </div>
 
-      <div class="travaux-header-actions">
+      <div class="devoirs-header-actions">
         <!-- Toggle vue (prof) -->
         <template v-if="appStore.isTeacher">
           <div class="view-toggle">
@@ -283,13 +332,13 @@ const rendusByTravail = computed(() => {
     </div>
 
     <!-- ── Contenu principal ────────────────────────────────────────────────── -->
-    <div class="travaux-content">
+    <div class="devoirs-content">
 
       <!-- ════════════════════════ Vue ÉTUDIANT ════════════════════════ -->
       <template v-if="appStore.isStudent">
 
         <!-- Squelettes -->
-        <div v-if="travauxStore.loading" class="travaux-list">
+        <div v-if="travauxStore.loading" class="devoirs-list">
           <div v-for="i in 4" :key="i" class="skel-card">
             <div class="skel skel-line skel-w30" style="height:12px" />
             <div class="skel skel-line skel-w70" style="height:16px;margin-top:10px" />
@@ -301,12 +350,12 @@ const rendusByTravail = computed(() => {
         <!-- État vide -->
         <div v-else-if="travauxStore.devoirs.length === 0" class="empty-state-custom">
           <CheckCircle2 :size="48" class="empty-icon" />
-          <h3>Aucun travail assigné</h3>
-          <p>Vos travaux apparaîtront ici dès qu'un enseignant en créera.</p>
+          <h3>Aucun devoir assigné</h3>
+          <p>Vos devoirs apparaîtront ici dès qu'un enseignant en créera.</p>
         </div>
 
-        <!-- Groupes de travaux -->
-        <div v-else class="travaux-grouped">
+        <!-- Groupes de devoirs -->
+        <div v-else class="devoirs-grouped">
 
           <!-- ▸ EN RETARD -->
           <template v-if="studentGroups.overdue.length">
@@ -314,63 +363,22 @@ const rendusByTravail = computed(() => {
               <Lock :size="12" /> En retard
               <span class="group-count">{{ studentGroups.overdue.length }}</span>
             </div>
-            <div class="travaux-list">
-              <div v-for="t in studentGroups.overdue" :key="t.id" class="travail-card travail-card--overdue">
-                <!-- Carte meta -->
-                <div class="travail-card-header">
-                  <div class="travail-card-meta">
-                    <span class="travail-type-badge" :class="`type-${t.type}`">{{ t.type }}</span>
+            <div class="devoirs-list">
+              <div v-for="t in studentGroups.overdue" :key="t.id" class="devoir-card devoir-card--overdue">
+                <div class="devoir-card-header">
+                  <div class="devoir-card-meta">
+                    <span class="devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
                     <span v-if="t.category" class="tag-badge">{{ t.category }}</span>
-                    <span v-if="t.channel_name" class="travail-channel"># {{ t.channel_name }}</span>
+                    <span v-if="t.channel_name" class="devoir-channel"># {{ t.channel_name }}</span>
                   </div>
                   <span class="deadline-badge" :class="deadlineClass(t.deadline)">
                     <Clock :size="10" />{{ deadlineLabel(t.deadline) }}
                   </span>
                 </div>
-                <h3 class="travail-card-title">{{ t.title }}</h3>
-                <p v-if="t.description" class="travail-card-desc">{{ t.description }}</p>
-                <!-- Formulaire de dépôt inline -->
-                <template v-if="depositingTravailId === t.id">
-                  <div class="deposit-form">
-                    <div class="deposit-type-toggle">
-                      <button class="deposit-toggle-btn" :class="{ active: depositMode === 'file' }" @click="depositMode = 'file'">
-                        <FileText :size="12" /> Fichier
-                      </button>
-                      <button class="deposit-toggle-btn" :class="{ active: depositMode === 'link' }" @click="depositMode = 'link'">
-                        <Link2 :size="12" /> Lien URL
-                      </button>
-                    </div>
-                    <div v-if="depositMode === 'file'">
-                      <div v-if="depositFile" class="deposit-file-selected">
-                        <CheckCircle2 :size="15" class="deposit-file-selected-icon" />
-                        <span class="deposit-file-selected-name">{{ depositFileName }}</span>
-                        <button class="deposit-file-selected-clear" type="button" @click.stop="clearDepositFile">
-                          <X :size="12" />
-                        </button>
-                      </div>
-                      <div v-else class="deposit-file-zone" @click="pickFile">
-                        <Upload :size="20" class="deposit-file-zone-icon" />
-                        <span class="deposit-file-zone-label">Cliquer pour choisir un fichier</span>
-                        <span class="deposit-file-zone-hint">PDF, images, archives…</span>
-                      </div>
-                    </div>
-                    <input v-else v-model="depositLink" class="form-input" placeholder="https://…" type="url" />
-                    <div class="deposit-actions">
-                      <button class="btn-ghost btn-deposit-cancel" @click="cancelDeposit"><X :size="12" /> Annuler</button>
-                      <button
-                        class="btn-primary btn-deposit-submit"
-                        :disabled="depositing || isExpired(t.deadline) || (depositMode === 'file' ? !depositFile : !depositLink.trim())"
-                        @click="submitDeposit(t)"
-                      >
-                        <Upload :size="12" />
-                        {{ depositing ? 'Dépôt…' : isExpired(t.deadline) ? 'Délai expiré' : 'Déposer' }}
-                      </button>
-                    </div>
-                  </div>
-                </template>
-                <!-- Pied de carte -->
-                <div v-else class="travail-card-footer">
-                  <span class="travail-deadline-date">Échéance : {{ formatDate(t.deadline) }}</span>
+                <h3 class="devoir-card-title">{{ t.title }}</h3>
+                <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <div class="devoir-card-footer">
+                  <span class="devoir-deadline-date">Échéance : {{ formatDate(t.deadline) }}</span>
                   <button class="btn-deposit-expired" disabled>
                     <Lock :size="12" /> Délai expiré
                   </button>
@@ -385,21 +393,21 @@ const rendusByTravail = computed(() => {
               <AlertTriangle :size="12" /> Urgent
               <span class="group-count">{{ studentGroups.urgent.length }}</span>
             </div>
-            <div class="travaux-list">
-              <div v-for="t in studentGroups.urgent" :key="t.id" class="travail-card travail-card--urgent">
-                <div class="travail-card-header">
-                  <div class="travail-card-meta">
-                    <span class="travail-type-badge" :class="`type-${t.type}`">{{ t.type }}</span>
+            <div class="devoirs-list">
+              <div v-for="t in studentGroups.urgent" :key="t.id" class="devoir-card devoir-card--urgent">
+                <div class="devoir-card-header">
+                  <div class="devoir-card-meta">
+                    <span class="devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
                     <span v-if="t.category" class="tag-badge">{{ t.category }}</span>
-                    <span v-if="t.channel_name" class="travail-channel"># {{ t.channel_name }}</span>
+                    <span v-if="t.channel_name" class="devoir-channel"># {{ t.channel_name }}</span>
                   </div>
                   <span class="deadline-badge" :class="deadlineClass(t.deadline)">
                     <Clock :size="10" />{{ deadlineLabel(t.deadline) }}
                   </span>
                 </div>
-                <h3 class="travail-card-title">{{ t.title }}</h3>
-                <p v-if="t.description" class="travail-card-desc">{{ t.description }}</p>
-                <template v-if="depositingTravailId === t.id">
+                <h3 class="devoir-card-title">{{ t.title }}</h3>
+                <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <template v-if="depositingDevoirId === t.id">
                   <div class="deposit-form">
                     <div class="deposit-type-toggle">
                       <button class="deposit-toggle-btn" :class="{ active: depositMode === 'file' }" @click="depositMode = 'file'">
@@ -437,8 +445,8 @@ const rendusByTravail = computed(() => {
                     </div>
                   </div>
                 </template>
-                <div v-else class="travail-card-footer">
-                  <span class="travail-deadline-date">Échéance : {{ formatDate(t.deadline) }}</span>
+                <div v-else class="devoir-card-footer">
+                  <span class="devoir-deadline-date">Échéance : {{ formatDate(t.deadline) }}</span>
                   <button class="btn-primary btn-deposit" @click="startDeposit(t)">
                     <Upload :size="12" /> Déposer
                   </button>
@@ -453,21 +461,21 @@ const rendusByTravail = computed(() => {
               <Clock :size="12" /> À rendre
               <span class="group-count">{{ studentGroups.pending.length }}</span>
             </div>
-            <div class="travaux-list">
-              <div v-for="t in studentGroups.pending" :key="t.id" class="travail-card travail-card--pending">
-                <div class="travail-card-header">
-                  <div class="travail-card-meta">
-                    <span class="travail-type-badge" :class="`type-${t.type}`">{{ t.type }}</span>
+            <div class="devoirs-list">
+              <div v-for="t in studentGroups.pending" :key="t.id" class="devoir-card devoir-card--pending">
+                <div class="devoir-card-header">
+                  <div class="devoir-card-meta">
+                    <span class="devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
                     <span v-if="t.category" class="tag-badge">{{ t.category }}</span>
-                    <span v-if="t.channel_name" class="travail-channel"># {{ t.channel_name }}</span>
+                    <span v-if="t.channel_name" class="devoir-channel"># {{ t.channel_name }}</span>
                   </div>
                   <span class="deadline-badge" :class="deadlineClass(t.deadline)">
                     <Clock :size="10" />{{ deadlineLabel(t.deadline) }}
                   </span>
                 </div>
-                <h3 class="travail-card-title">{{ t.title }}</h3>
-                <p v-if="t.description" class="travail-card-desc">{{ t.description }}</p>
-                <template v-if="depositingTravailId === t.id">
+                <h3 class="devoir-card-title">{{ t.title }}</h3>
+                <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <template v-if="depositingDevoirId === t.id">
                   <div class="deposit-form">
                     <div class="deposit-type-toggle">
                       <button class="deposit-toggle-btn" :class="{ active: depositMode === 'file' }" @click="depositMode = 'file'">
@@ -505,8 +513,8 @@ const rendusByTravail = computed(() => {
                     </div>
                   </div>
                 </template>
-                <div v-else class="travail-card-footer">
-                  <span class="travail-deadline-date">Échéance : {{ formatDate(t.deadline) }}</span>
+                <div v-else class="devoir-card-footer">
+                  <span class="devoir-deadline-date">Échéance : {{ formatDate(t.deadline) }}</span>
                   <button class="btn-primary btn-deposit" @click="startDeposit(t)">
                     <Upload :size="12" /> Déposer
                   </button>
@@ -515,35 +523,72 @@ const rendusByTravail = computed(() => {
             </div>
           </template>
 
-          <!-- ▸ RENDUS -->
-          <template v-if="studentGroups.submitted.length">
-            <div class="group-header group-header--success">
-              <CheckCircle2 :size="12" /> Rendus
-              <span class="group-count">{{ studentGroups.submitted.length }}</span>
+          <!-- ▸ PRÉSENCE (soutenance / cctl) -->
+          <template v-if="studentGroups.event.length">
+            <div class="group-header group-header--purple">
+              <Calendar :size="12" /> Présence requise
+              <span class="group-count">{{ studentGroups.event.length }}</span>
             </div>
-            <div class="travaux-list">
-              <div v-for="t in studentGroups.submitted" :key="t.id" class="travail-card travail-card--submitted">
-                <div class="travail-card-header">
-                  <div class="travail-card-meta">
-                    <span class="travail-type-badge" :class="`type-${t.type}`">{{ t.type }}</span>
+            <div class="devoirs-list">
+              <div v-for="t in studentGroups.event" :key="t.id" class="devoir-card devoir-card--event">
+                <div class="devoir-card-header">
+                  <div class="devoir-card-meta">
+                    <span class="devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
                     <span v-if="t.category" class="tag-badge">{{ t.category }}</span>
-                    <span v-if="t.channel_name" class="travail-channel"># {{ t.channel_name }}</span>
+                    <span v-if="t.channel_name" class="devoir-channel"># {{ t.channel_name }}</span>
                   </div>
                   <span class="deadline-badge" :class="deadlineClass(t.deadline)">
                     <Clock :size="10" />{{ deadlineLabel(t.deadline) }}
                   </span>
                 </div>
-                <h3 class="travail-card-title">{{ t.title }}</h3>
-                <p v-if="t.description" class="travail-card-desc">{{ t.description }}</p>
-                <div class="travail-submitted-info">
-                  <CheckCircle2 :size="14" />
-                  <span>Rendu déposé</span>
+                <h3 class="devoir-card-title">{{ t.title }}</h3>
+                <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <div class="devoir-presence-notice">
+                  <Calendar :size="14" class="devoir-presence-icon" />
+                  <span>Présence requise — pas de dépôt fichier</span>
+                </div>
+                <div class="devoir-card-footer">
+                  <span class="devoir-deadline-date">Date : {{ formatDate(t.deadline) }}</span>
                 </div>
               </div>
             </div>
           </template>
 
-        </div><!-- /travaux-grouped -->
+          <!-- ▸ RENDUS -->
+          <template v-if="submittedDevoirs.length">
+            <div class="group-header group-header--success">
+              <CheckCircle2 :size="12" /> Rendus
+              <span class="group-count">{{ submittedDevoirs.length }}</span>
+            </div>
+            <div class="devoirs-list">
+              <div v-for="t in submittedDevoirs" :key="t.id" class="devoir-card devoir-card--submitted">
+                <div class="devoir-card-header">
+                  <div class="devoir-card-meta">
+                    <span class="devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
+                    <span v-if="t.category" class="tag-badge">{{ t.category }}</span>
+                    <span v-if="t.channel_name" class="devoir-channel"># {{ t.channel_name }}</span>
+                  </div>
+                  <span class="deadline-badge" :class="deadlineClass(t.deadline)">
+                    <Clock :size="10" />{{ deadlineLabel(t.deadline) }}
+                  </span>
+                </div>
+                <h3 class="devoir-card-title">{{ t.title }}</h3>
+                <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <div class="devoir-submitted-info">
+                  <CheckCircle2 :size="14" />
+                  <span>Rendu déposé</span>
+                </div>
+                <!-- Note & feedback si disponibles -->
+                <div v-if="t.note" class="devoir-grade-row">
+                  <Award :size="13" class="devoir-grade-icon" />
+                  <span class="devoir-grade-value">{{ t.note }}</span>
+                  <span v-if="t.feedback" class="devoir-grade-feedback">{{ t.feedback }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+        </div><!-- /devoirs-grouped -->
       </template>
 
       <!-- ════════════════════════ Vue GANTT (prof) ════════════════════════ -->
@@ -558,17 +603,19 @@ const rendusByTravail = computed(() => {
 
         <div v-else-if="ganttItems.items.length === 0" class="empty-state-custom">
           <BarChart2 :size="48" class="empty-icon" />
-          <h3>Aucun travail créé</h3>
-          <p>Créez un premier travail pour visualiser le Gantt.</p>
+          <h3>Aucun devoir créé</h3>
+          <p>Créez un premier devoir pour visualiser le Gantt.</p>
         </div>
 
         <div v-else class="gantt-wrapper">
           <!-- Légende -->
           <div class="gantt-legend">
-            <span class="legend-pill type-devoir">Devoir</span>
-            <span class="legend-pill type-projet">Projet</span>
-            <span class="legend-pill type-jalon">Jalon</span>
-            <span class="legend-pill type-tp">TP</span>
+            <span class="legend-pill type-livrable">Livrable</span>
+            <span class="legend-pill type-soutenance">Soutenance</span>
+            <span class="legend-pill type-cctl">CCTL</span>
+            <span class="legend-pill type-etude_de_cas">Étude de cas</span>
+            <span class="legend-pill type-memoire">Mémoire</span>
+            <span class="legend-pill type-autre">Autre</span>
             <span class="legend-separator" />
             <span class="legend-today">
               <span class="legend-today-line" /> Aujourd'hui
@@ -581,10 +628,10 @@ const rendusByTravail = computed(() => {
               v-for="item in ganttItems.items"
               :key="item.id"
               class="gantt-row"
-              @click="openTravail(item.id)"
+              @click="openDevoir(item.id)"
             >
               <div class="gantt-row-label">
-                <span class="gantt-label-type travail-type-badge" :class="`type-${item.type}`">{{ item.type }}</span>
+                <span class="gantt-label-type devoir-type-badge" :class="`type-${item.type}`">{{ typeLabel(item.type) }}</span>
                 <span class="gantt-label-name">{{ item.title }}</span>
                 <span class="deadline-badge" :class="item.dlClass">{{ formatDate(item.deadline) }}</span>
               </div>
@@ -614,21 +661,21 @@ const rendusByTravail = computed(() => {
           </div>
         </div>
 
-        <div v-else-if="(travauxStore.ganttData as Travail[]).length === 0" class="empty-state-custom">
+        <div v-else-if="(travauxStore.ganttData as Devoir[]).length === 0" class="empty-state-custom">
           <Grid :size="48" class="empty-icon" />
-          <h3>Aucun travail créé</h3>
-          <p>Créez un premier travail pour le voir ici.</p>
+          <h3>Aucun devoir créé</h3>
+          <p>Créez un premier devoir pour le voir ici.</p>
         </div>
 
         <div v-else class="liste-grid">
           <div
-            v-for="t in (travauxStore.ganttData as Travail[])"
+            v-for="t in (travauxStore.ganttData as Devoir[])"
             :key="t.id"
             class="liste-card"
-            @click="openTravail(t.id)"
+            @click="openDevoir(t.id)"
           >
             <div class="liste-card-top">
-              <span class="travail-type-badge" :class="`type-${t.type}`">{{ t.type }}</span>
+              <span class="devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
               <ChevronRight :size="14" class="liste-card-chevron" />
             </div>
             <h3 class="liste-card-title">{{ t.title }}</h3>
@@ -648,42 +695,45 @@ const rendusByTravail = computed(() => {
       <!-- ════════════════════════ Vue RENDUS (prof) ════════════════════════ -->
       <template v-else>
 
-        <div v-if="travauxStore.loading" class="travaux-list">
+        <div v-if="travauxStore.loading" class="devoirs-list">
           <div v-for="i in 3" :key="i" class="skel-card">
             <div class="skel skel-line skel-w50" style="height:16px" />
             <div class="skel skel-line skel-w30" style="height:12px;margin-top:8px" />
           </div>
         </div>
 
-        <div v-else-if="rendusByTravail.length === 0" class="empty-state-custom">
+        <div v-else-if="rendusByDevoir.length === 0" class="empty-state-custom">
           <Users :size="48" class="empty-icon" />
           <h3>Aucun rendu pour cette promotion</h3>
           <p>Les rendus des étudiants apparaîtront ici.</p>
         </div>
 
-        <div v-else class="travaux-list">
+        <div v-else class="devoirs-list">
           <div
-            v-for="group in rendusByTravail"
-            :key="group.travail.id"
+            v-for="group in rendusByDevoir"
+            :key="group.devoir.id"
             class="rendus-group"
           >
             <div class="rendus-group-header">
               <div class="rendus-group-header-left">
                 <span
-                  v-if="(group.travail as Travail).type"
-                  class="travail-type-badge"
-                  :class="`type-${(group.travail as Travail).type}`"
+                  v-if="(group.devoir as Devoir).type"
+                  class="devoir-type-badge"
+                  :class="`type-${(group.devoir as Devoir).type}`"
                 >
-                  {{ (group.travail as Travail).type }}
+                  {{ typeLabel((group.devoir as Devoir).type) }}
                 </span>
                 <span class="rendus-group-title">
-                  {{ (group.travail as Travail).title ?? `Travail #${group.travail.id}` }}
+                  {{ (group.devoir as Devoir).title ?? `Devoir #${group.devoir.id}` }}
                 </span>
                 <span class="rendus-count-badge">
                   {{ group.rendus.length }} rendu{{ group.rendus.length > 1 ? 's' : '' }}
+                  <template v-if="(group.devoir as any).students_total">
+                    / {{ (group.devoir as any).students_total }} attendu{{ (group.devoir as any).students_total > 1 ? 's' : '' }}
+                  </template>
                 </span>
               </div>
-              <button class="btn-ghost btn-ouvrir" @click="openTravail(group.travail.id!)">
+              <button class="btn-ghost btn-ouvrir" @click="openDevoir(group.devoir.id!)">
                 Ouvrir <ChevronRight :size="13" />
               </button>
             </div>
@@ -702,11 +752,56 @@ const rendusByTravail = computed(() => {
                   </span>
                 </div>
                 <div class="rendu-right">
-                  <span v-if="r.note" class="note-badge">
-                    <Award :size="11" /> {{ r.note }}
-                  </span>
-                  <span v-else class="rendu-no-note">Non noté</span>
-                  <p v-if="r.feedback" class="rendu-feedback">{{ r.feedback }}</p>
+                  <!-- Notation inline -->
+                  <template v-if="editingDepotId === r.id">
+                    <div class="grade-inline-form">
+                      <input
+                        v-model="pendingNoteValue"
+                        class="form-input grade-input"
+                        placeholder="A–F ou /20"
+                        style="width:90px;font-size:12px;padding:4px 8px"
+                      />
+                      <textarea
+                        v-model="pendingFeedbackValue"
+                        class="form-input grade-textarea"
+                        placeholder="Commentaire…"
+                        rows="2"
+                        style="font-size:11px;padding:4px 8px;resize:none"
+                      />
+                      <div class="grade-inline-actions">
+                        <button class="btn-ghost" style="font-size:11px;padding:3px 8px" @click="cancelEditGrade">
+                          <X :size="11" />
+                        </button>
+                        <button
+                          class="btn-primary"
+                          style="font-size:11px;padding:3px 10px"
+                          :disabled="savingGrade"
+                          @click="saveGrade(r.id)"
+                        >
+                          {{ savingGrade ? '…' : 'OK' }}
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <span
+                      v-if="r.note"
+                      class="note-badge note-badge-clickable"
+                      :title="'Modifier la note'"
+                      @click="startEditGrade(r.id, r.note, r.feedback)"
+                    >
+                      <Award :size="11" /> {{ r.note }}
+                    </span>
+                    <span
+                      v-else
+                      class="rendu-no-note rendu-no-note-clickable"
+                      :title="'Ajouter une note'"
+                      @click="startEditGrade(r.id, null, null)"
+                    >
+                      Non noté
+                    </span>
+                    <p v-if="r.feedback" class="rendu-feedback">{{ r.feedback }}</p>
+                  </template>
                 </div>
               </div>
             </div>
@@ -714,13 +809,13 @@ const rendusByTravail = computed(() => {
         </div>
       </template>
 
-    </div><!-- /travaux-content -->
-  </div><!-- /travaux-area -->
+    </div><!-- /devoirs-content -->
+  </div><!-- /devoirs-area -->
 </template>
 
 <style scoped>
 /* ── Layout principal ─────────────────────────────────────────────────────── */
-.travaux-area {
+.devoirs-area {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -730,7 +825,7 @@ const rendusByTravail = computed(() => {
 }
 
 /* ── En-tête ─────────────────────────────────────────────────────────────── */
-.travaux-header {
+.devoirs-header {
   height: var(--header-height);
   flex-shrink: 0;
   display: flex;
@@ -741,7 +836,7 @@ const rendusByTravail = computed(() => {
   border-bottom: 1px solid var(--border);
 }
 
-.travaux-header-title {
+.devoirs-header-title {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -756,7 +851,7 @@ const rendusByTravail = computed(() => {
   color: var(--text-muted);
 }
 
-.travaux-header-actions {
+.devoirs-header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -835,14 +930,14 @@ const rendusByTravail = computed(() => {
 .dot-green   { background: var(--color-success); }
 
 /* ── Contenu scrollable ──────────────────────────────────────────────────── */
-.travaux-content {
+.devoirs-content {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
 }
 
 /* ── Liste commune ─────────────────────────────────────────────────────────── */
-.travaux-list {
+.devoirs-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -851,7 +946,7 @@ const rendusByTravail = computed(() => {
 }
 
 /* ── Groupes urgence étudiant ────────────────────────────────────────────── */
-.travaux-grouped {
+.devoirs-grouped {
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -888,9 +983,10 @@ const rendusByTravail = computed(() => {
 .group-header--warning { color: var(--color-warning); }
 .group-header--accent  { color: var(--accent-light); }
 .group-header--success { color: var(--color-success); }
+.group-header--purple  { color: #9b87f5; }
 
 /* ── Carte étudiant ──────────────────────────────────────────────────────── */
-.travail-card {
+.devoir-card {
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
   border-left-width: 4px;
@@ -898,19 +994,20 @@ const rendusByTravail = computed(() => {
   padding: 16px;
   transition: border-color var(--t-base);
 }
-.travail-card:hover { border-color: rgba(74, 144, 217, 0.3); }
+.devoir-card:hover { border-color: rgba(74, 144, 217, 0.3); }
 
-.travail-card--overdue   { border-left-color: var(--color-danger);  }
-.travail-card--overdue:hover   { border-left-color: var(--color-danger);  }
-.travail-card--urgent    { border-left-color: var(--color-warning); }
-.travail-card--urgent:hover    { border-left-color: var(--color-warning); }
-.travail-card--pending   { border-left-color: var(--accent);        }
-.travail-card--pending:hover   { border-left-color: var(--accent);        }
-.travail-card--submitted { border-left-color: var(--color-success); }
-.travail-card--submitted:hover { border-left-color: var(--color-success); border-color: rgba(39, 174, 96, 0.3); }
+.devoir-card--overdue   { border-left-color: var(--color-danger);  }
+.devoir-card--overdue:hover   { border-left-color: var(--color-danger);  }
+.devoir-card--urgent    { border-left-color: var(--color-warning); }
+.devoir-card--urgent:hover    { border-left-color: var(--color-warning); }
+.devoir-card--pending   { border-left-color: var(--accent);        }
+.devoir-card--pending:hover   { border-left-color: var(--accent);        }
+.devoir-card--submitted { border-left-color: var(--color-success); }
+.devoir-card--submitted:hover { border-left-color: var(--color-success); border-color: rgba(39, 174, 96, 0.3); }
+.devoir-card--event     { border-left-color: #9b87f5; }
+.devoir-card--event:hover     { border-left-color: #9b87f5; border-color: rgba(155, 135, 245, 0.3); }
 
-/* En-tête de carte */
-.travail-card-header {
+.devoir-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -918,27 +1015,26 @@ const rendusByTravail = computed(() => {
   margin-bottom: 8px;
 }
 
-.travail-card-meta {
+.devoir-card-meta {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.travail-channel {
+.devoir-channel {
   font-size: 11px;
   color: var(--text-muted);
 }
 
-/* Titre + description */
-.travail-card-title {
+.devoir-card-title {
   font-size: 15px;
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 4px;
 }
 
-.travail-card-desc {
+.devoir-card-desc {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.5;
@@ -949,8 +1045,25 @@ const rendusByTravail = computed(() => {
   overflow: hidden;
 }
 
+/* Présence requise */
+.devoir-presence-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #9b87f5;
+  background: rgba(155, 135, 245, 0.1);
+  border: 1px solid rgba(155, 135, 245, 0.25);
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+.devoir-presence-icon { flex-shrink: 0; }
+
 /* Statut rendu */
-.travail-submitted-info {
+.devoir-submitted-info {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -960,8 +1073,19 @@ const rendusByTravail = computed(() => {
   margin-top: 8px;
 }
 
-/* Pied de carte */
-.travail-card-footer {
+/* Grade dans la carte rendu (étudiant) */
+.devoir-grade-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12.5px;
+}
+.devoir-grade-icon { color: var(--accent-light); flex-shrink: 0; }
+.devoir-grade-value { font-weight: 700; color: var(--accent-light); }
+.devoir-grade-feedback { color: var(--text-secondary); font-style: italic; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.devoir-card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -970,7 +1094,7 @@ const rendusByTravail = computed(() => {
   border-top: 1px solid var(--border);
 }
 
-.travail-deadline-date {
+.devoir-deadline-date {
   font-size: 12px;
   color: var(--text-muted);
 }
@@ -1146,7 +1270,7 @@ const rendusByTravail = computed(() => {
 }
 
 /* ── Badges de type ──────────────────────────────────────────────────────── */
-.travail-type-badge {
+.devoir-type-badge {
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
@@ -1155,10 +1279,16 @@ const rendusByTravail = computed(() => {
   border-radius: 4px;
 }
 
-.type-devoir { background: rgba(74, 144, 217, 0.2);  color: var(--accent); }
-.type-projet { background: rgba(123, 104, 238, 0.2); color: #9b87f5; }
-.type-jalon  { background: rgba(243, 156, 18, 0.2);  color: var(--color-warning); }
-.type-tp     { background: rgba(39, 174, 96, 0.2);   color: var(--color-success); }
+.type-livrable    { background: rgba(74,144,217,.2);   color: var(--accent); }
+.type-soutenance  { background: rgba(155,135,245,.2);  color: #9b87f5; }
+.type-cctl        { background: rgba(231,76,60,.2);    color: #E74C3C; }
+.type-etude_de_cas { background: rgba(230,126,34,.2);  color: #E67E22; }
+.type-memoire     { background: rgba(39,174,96,.2);    color: #27AE60; }
+.type-autre       { background: rgba(149,165,166,.2);  color: #95a5a6; }
+/* backward compat for old DB records */
+.type-devoir { background: rgba(74,144,217,.2);  color: var(--accent); }
+.type-projet { background: rgba(155,135,245,.2); color: #9b87f5; }
+.type-jalon  { background: rgba(243,156,18,.2);  color: var(--color-warning); }
 
 /* ── Gantt ───────────────────────────────────────────────────────────────── */
 .gantt-wrapper { max-width: 1000px; margin: 0 auto; }
@@ -1187,14 +1317,18 @@ const rendusByTravail = computed(() => {
   height: 10px;
   border-radius: 3px;
 }
-.legend-pill.type-devoir { color: var(--accent); }
-.legend-pill.type-projet { color: #9b87f5; }
-.legend-pill.type-jalon  { color: var(--color-warning); }
-.legend-pill.type-tp     { color: var(--color-success); }
-.legend-pill.type-devoir::before { background: var(--accent); }
-.legend-pill.type-projet::before { background: #9b87f5; }
-.legend-pill.type-jalon::before  { background: var(--color-warning); }
-.legend-pill.type-tp::before     { background: var(--color-success); }
+.legend-pill.type-livrable    { color: var(--accent); }
+.legend-pill.type-soutenance  { color: #9b87f5; }
+.legend-pill.type-cctl        { color: #E74C3C; }
+.legend-pill.type-etude_de_cas { color: #E67E22; }
+.legend-pill.type-memoire     { color: #27AE60; }
+.legend-pill.type-autre       { color: #95a5a6; }
+.legend-pill.type-livrable::before    { background: var(--accent); }
+.legend-pill.type-soutenance::before  { background: #9b87f5; }
+.legend-pill.type-cctl::before        { background: #E74C3C; }
+.legend-pill.type-etude_de_cas::before { background: #E67E22; }
+.legend-pill.type-memoire::before     { background: #27AE60; }
+.legend-pill.type-autre::before       { background: #95a5a6; }
 
 .legend-separator { width: 1px; height: 16px; background: var(--border); }
 
@@ -1277,11 +1411,17 @@ const rendusByTravail = computed(() => {
   transition: opacity var(--t-fast);
   z-index: 1;
 }
-.gantt-bar:hover            { opacity: 1; }
-.gantt-bar.type-devoir      { background: var(--accent); }
-.gantt-bar.type-projet      { background: #9b87f5; }
-.gantt-bar.type-jalon       { background: var(--color-warning); }
-.gantt-bar.type-tp          { background: var(--color-success); }
+.gantt-bar:hover              { opacity: 1; }
+.gantt-bar.type-livrable      { background: var(--accent); }
+.gantt-bar.type-soutenance    { background: #9b87f5; }
+.gantt-bar.type-cctl          { background: #E74C3C; }
+.gantt-bar.type-etude_de_cas  { background: #E67E22; }
+.gantt-bar.type-memoire       { background: #27AE60; }
+.gantt-bar.type-autre         { background: #95a5a6; }
+/* backward compat */
+.gantt-bar.type-devoir        { background: var(--accent); }
+.gantt-bar.type-projet        { background: #9b87f5; }
+.gantt-bar.type-jalon         { background: var(--color-warning); }
 
 .gantt-skel {
   display: flex;
@@ -1475,6 +1615,7 @@ const rendusByTravail = computed(() => {
   align-items: flex-end;
   gap: 4px;
   flex-shrink: 0;
+  min-width: 90px;
 }
 
 .note-badge {
@@ -1488,6 +1629,14 @@ const rendusByTravail = computed(() => {
   background: rgba(74, 144, 217, 0.15);
   color: var(--accent-light);
 }
+
+.note-badge-clickable,
+.rendu-no-note-clickable {
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.note-badge-clickable:hover   { opacity: .75; }
+.rendu-no-note-clickable:hover { opacity: .75; text-decoration: underline; }
 
 .rendu-no-note {
   font-size: 11px;
@@ -1503,5 +1652,19 @@ const rendusByTravail = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   font-style: italic;
+}
+
+/* ── Notation inline ─────────────────────────────────────────────────────── */
+.grade-inline-form {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 160px;
+}
+
+.grade-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
 }
 </style>

@@ -1,15 +1,15 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useAppStore } from './app'
-import type { Travail, Depot, Ressource } from '@/types'
+import type { Devoir, Depot, Ressource } from '@/types'
 import { deadlineClass } from '@/utils/date'
 
 export const useTravauxStore = defineStore('travaux', () => {
   const appStore = useAppStore()
 
   // ── État ──────────────────────────────────────────────────────────────────
-  const travaux        = ref<Travail[]>([])
-  const currentTravail = ref<Travail | null>(null)
+  const devoirs        = ref<Devoir[]>([])
+  const currentDevoir  = ref<Devoir | null>(null)
   const depots         = ref<Depot[]>([])
   const ressources     = ref<Ressource[]>([])
   const ganttData      = ref<object[]>([])
@@ -18,26 +18,31 @@ export const useTravauxStore = defineStore('travaux', () => {
   const view           = ref<'gantt' | 'rendus' | 'student'>('gantt')
 
   // ── Calculs ───────────────────────────────────────────────────────────────
-  const pendingTravaux = computed(() =>
-    travaux.value.filter((t) => t.depot_id == null && t.type !== 'jalon'),
+  const pendingDevoirs = computed(() =>
+    devoirs.value.filter((t) => t.depot_id == null && t.type !== 'soutenance' && t.type !== 'cctl'),
   )
 
   const hasPendingUrgent = computed(() =>
-    pendingTravaux.value.some((t) =>
+    pendingDevoirs.value.some((t) =>
       ['deadline-passed', 'deadline-critical'].includes(deadlineClass(t.deadline)),
     ),
   )
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
-  async function fetchStudentTravaux() {
+  async function fetchStudentDevoirs() {
     if (!appStore.currentUser) return
     loading.value = true
     try {
       const res = await window.api.getStudentTravaux(appStore.currentUser.id)
-      travaux.value = res?.ok ? res.data : []
+      devoirs.value = res?.ok ? res.data : []
     } finally {
       loading.value = false
     }
+  }
+
+  /** @deprecated use fetchStudentDevoirs */
+  async function fetchStudentTravaux() {
+    return fetchStudentDevoirs()
   }
 
   async function fetchGantt(promoId: number) {
@@ -73,7 +78,7 @@ export const useTravauxStore = defineStore('travaux', () => {
   async function openTravail(travailId: number) {
     const res = await window.api.getTravailById(travailId)
     if (res?.ok) {
-      currentTravail.value = res.data
+      currentDevoir.value = res.data
       appStore.currentTravailId = travailId
       await fetchDepots(travailId)
       await fetchRessources(travailId)
@@ -112,9 +117,13 @@ export const useTravauxStore = defineStore('travaux', () => {
   }
 
   return {
-    travaux, currentTravail, depots, ressources,
+    // renamed
+    devoirs, currentDevoir, pendingDevoirs,
+    fetchStudentDevoirs,
+    // unchanged
+    depots, ressources,
     ganttData, allRendus, loading, view,
-    pendingTravaux, hasPendingUrgent,
+    hasPendingUrgent,
     fetchStudentTravaux, fetchGantt, fetchRendus,
     fetchDepots, fetchRessources, openTravail,
     createTravail, addDepot, setNote, setFeedback,

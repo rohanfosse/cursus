@@ -6,7 +6,7 @@
   import { useModalsStore }  from '@/stores/modals'
   import { useTravauxStore } from '@/stores/travaux'
   import Modal from '@/components/ui/Modal.vue'
-  import type { Travail } from '@/types'
+  import type { Devoir } from '@/types'
 
   const props = defineProps<{ modelValue: boolean }>()
   const emit  = defineEmits<{ 'update:modelValue': [v: boolean] }>()
@@ -15,9 +15,9 @@
   const modals       = useModalsStore()
   const travauxStore = useTravauxStore()
 
-  type FilterType = 'all' | 'devoir' | 'jalon' | 'projet'
+  type FilterType = 'all' | 'soutenance' | 'livrable' | 'cctl' | 'etude_de_cas' | 'memoire' | 'autre'
 
-  const items      = ref<(Travail & { promo_name?: string; promo_color?: string; depots_count?: number; students_total?: number })[]>([])
+  const items      = ref<(Devoir & { promo_name?: string; promo_color?: string; depots_count?: number; students_total?: number })[]>([])
   const loading    = ref(false)
   const filterType = ref<FilterType>('all')
 
@@ -51,10 +51,13 @@
   })
 
   const typeCounts = computed(() => ({
-    all:    items.value.length,
-    devoir: items.value.filter((t) => t.type === 'devoir').length,
-    jalon:  items.value.filter((t) => t.type === 'jalon').length,
-    projet: items.value.filter((t) => t.type === 'projet').length,
+    all:          items.value.length,
+    soutenance:   items.value.filter((t) => t.type === 'soutenance').length,
+    livrable:     items.value.filter((t) => t.type === 'livrable').length,
+    cctl:         items.value.filter((t) => t.type === 'cctl').length,
+    etude_de_cas: items.value.filter((t) => t.type === 'etude_de_cas').length,
+    memoire:      items.value.filter((t) => t.type === 'memoire').length,
+    autre:        items.value.filter((t) => t.type === 'autre').length,
   }))
 
   async function openTravail(id: number) {
@@ -71,13 +74,13 @@
       <!-- Filtres de type -->
       <div class="tl-filters">
         <button
-          v-for="f in (['all', 'devoir', 'jalon', 'projet'] as FilterType[])"
+          v-for="f in (['all', 'livrable', 'soutenance', 'cctl', 'etude_de_cas', 'memoire', 'autre'] as FilterType[])"
           :key="f"
           class="tl-filter-btn"
           :class="{ active: filterType === f, [`type-${f}`]: f !== 'all' }"
           @click="filterType = f"
         >
-          {{ f === 'all' ? 'Tous' : f.charAt(0).toUpperCase() + f.slice(1) }}
+          {{ f === 'all' ? 'Tous' : f === 'etude_de_cas' ? 'Étude de cas' : f.charAt(0).toUpperCase() + f.slice(1) }}
           <span class="tl-filter-count">{{ typeCounts[f] }}</span>
         </button>
       </div>
@@ -110,7 +113,7 @@
             <!-- En-tête de mois -->
             <div class="tl-month-header">
               <span class="tl-month-label">{{ month }}</span>
-              <span class="tl-month-count">{{ monthItems.length }} travail{{ monthItems.length > 1 ? 'x' : '' }}</span>
+              <span class="tl-month-count">{{ monthItems.length }} devoir{{ monthItems.length > 1 ? 's' : '' }}</span>
             </div>
 
             <!-- Items du mois -->
@@ -361,8 +364,15 @@
   border-radius: 4px;
   flex-shrink: 0;
 }
+.type-livrable    { background: rgba(74,144,217,.2);   color: var(--accent); }
+.type-soutenance  { background: rgba(155,135,245,.2);  color: #9b87f5; }
+.type-cctl        { background: rgba(231,76,60,.2);    color: #E74C3C; }
+.type-etude_de_cas { background: rgba(230,126,34,.2);  color: #E67E22; }
+.type-memoire     { background: rgba(39,174,96,.2);    color: #27AE60; }
+.type-autre       { background: rgba(149,165,166,.2);  color: #95a5a6; }
+/* backward compat */
 .type-devoir { background: rgba(74,144,217,.2);  color: var(--accent); }
-.type-projet { background: rgba(123,104,238,.2); color: #9b87f5; }
+.type-projet { background: rgba(155,135,245,.2); color: #9b87f5; }
 .type-jalon  { background: rgba(243,156,18,.2);  color: var(--color-warning); }
 
 .tl-item-title {
