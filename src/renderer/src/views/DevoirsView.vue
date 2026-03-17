@@ -12,7 +12,8 @@ import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
 import { avatarColor, initials } from '@/utils/format'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
 import type { Devoir } from '@/types'
-import ProjetFiche from '@/components/projet/ProjetFiche.vue'
+import ProjetFiche        from '@/components/projet/ProjetFiche.vue'
+import StudentProjetFiche from '@/components/projet/StudentProjetFiche.vue'
 
 const appStore     = useAppStore()
 const travauxStore = useTravauxStore()
@@ -377,8 +378,16 @@ function typeLabel(t: string): string {
       <!-- ════════════════════════ Vue ÉTUDIANT ════════════════════════ -->
       <template v-if="appStore.isStudent">
 
+        <!-- Fiche projet étudiant (filtre projet actif) -->
+        <template v-if="appStore.activeProject && appStore.activePromoId">
+          <StudentProjetFiche
+            :project-key="appStore.activeProject"
+            :promo-id="appStore.activePromoId"
+          />
+        </template>
+
         <!-- Squelettes -->
-        <div v-if="travauxStore.loading" class="devoirs-list">
+        <div v-else-if="travauxStore.loading" class="devoirs-list">
           <div v-for="i in 4" :key="i" class="skel-card">
             <div class="skel skel-line skel-w30" style="height:12px" />
             <div class="skel skel-line skel-w70" style="height:16px;margin-top:10px" />

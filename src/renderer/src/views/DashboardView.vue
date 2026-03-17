@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import {
   Clock, Edit3, Users, BookOpen, AlertTriangle,
   ChevronRight, CheckCircle2, FileText, Eye, LayoutDashboard,
-  Award, Calendar, TrendingUp, FolderOpen,
+  Award, Calendar, TrendingUp, FolderOpen, CalendarDays,
 } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
@@ -226,6 +226,58 @@ function gradeColorClass(note: string | null | undefined): string {
 const firstFeedback = computed(() =>
   travauxStore.devoirs.find(t => t.depot_id != null && t.feedback),
 )
+
+// Devoirs urgents pour le dashboard (retard + < 3 jours)
+const studentDashboardUrgent = computed(() => {
+  const limit = Date.now() + 3 * 86_400_000
+  return travauxStore.devoirs
+    .filter(t => t.depot_id == null && !isEventType(t) && new Date(t.deadline).getTime() <= limit)
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+})
+
+// ── Cartes projet étudiant ─────────────────────────────────────────────────
+interface StudentProjectCard {
+  key:          string
+  label:        string
+  icon:         Component | null
+  total:        number
+  submitted:    number
+  pending:      number
+  overdue:      number
+  nextDeadline: string | null
+  avgGrade:     number | null
+}
+
+const studentProjectCards = computed((): StudentProjectCard[] => {
+  const map = new Map<string, Devoir[]>()
+  for (const t of travauxStore.devoirs) {
+    const cat = t.category?.trim()
+    if (!cat) continue
+    if (!map.has(cat)) map.set(cat, [])
+    map.get(cat)!.push(t)
+  }
+  const now = Date.now()
+  const cards: StudentProjectCard[] = []
+  for (const [key, rows] of map) {
+    const { icon, label } = parseCategoryIcon(key)
+    const submitted  = rows.filter(r => r.depot_id != null)
+    const pending    = rows.filter(r => r.depot_id == null && r.type !== 'soutenance' && r.type !== 'cctl')
+    const overdue    = pending.filter(r => now >= new Date(r.deadline).getTime())
+    const upcoming   = pending
+      .filter(r => new Date(r.deadline).getTime() > now)
+      .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+    const grades     = submitted.map(r => parseFloat(r.note ?? '')).filter(n => !isNaN(n))
+    const avgGrade   = grades.length ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length * 10) / 10 : null
+    cards.push({ key, label, icon, total: rows.length, submitted: submitted.length, pending: pending.length, overdue: overdue.length, nextDeadline: upcoming[0]?.deadline ?? null, avgGrade })
+  }
+  return cards.sort((a, b) => {
+    if (a.overdue !== b.overdue) return b.overdue - a.overdue
+    if (!a.nextDeadline && !b.nextDeadline) return a.label.localeCompare(b.label)
+    if (!a.nextDeadline) return 1
+    if (!b.nextDeadline) return -1
+    return new Date(a.nextDeadline).getTime() - new Date(b.nextDeadline).getTime()
+  })
+})
 </script>
 
 <template>
@@ -436,9 +488,14 @@ const firstFeedback = computed(() =>
               <p class="db-date">{{ today }}</p>
             </div>
           </div>
-          <button class="btn-ghost db-echeancier-btn" @click="router.push('/devoirs')">
-            <BookOpen :size="14" /> Voir tous mes devoirs
-          </button>
+          <div class="db-header-actions">
+            <button class="btn-ghost db-echeancier-btn" @click="modals.studentTimeline = true">
+              <CalendarDays :size="14" /> Ma timeline
+            </button>
+            <button class="btn-ghost db-echeancier-btn" @click="router.push('/devoirs')">
+              <BookOpen :size="14" /> Tous mes devoirs
+            </button>
+          </div>
         </div>
 
         <!-- Stats étudiant -->
@@ -465,30 +522,69 @@ const firstFeedback = computed(() =>
           </div>
         </div>
 
+        <!-- Cartes projet étudiant -->
+        <section v-if="studentProjectCards.length > 0" class="db-student-projects">
+          <div class="db-section-header">
+            <h2 class="db-section-title"><FolderOpen :size="15" /> Mes projets</h2>
+            <button class="btn-ghost db-see-all-btn" @click="router.push('/devoirs')">Tout voir →</button>
+          </div>
+          <div class="db-project-grid">
+            <div
+              v-for="p in studentProjectCards"
+              :key="p.key"
+              class="db-project-card"
+              @click="goToProject(p.key)"
+            >
+              <div class="db-project-icon">
+                <component :is="p.icon" v-if="p.icon" :size="18" />
+                <FolderOpen v-else :size="18" />
+              </div>
+              <div class="db-project-info">
+                <span class="db-project-name">{{ p.label }}</span>
+                <span class="db-project-stats">
+                  {{ p.submitted }}/{{ p.total }} rendus
+                  <template v-if="p.overdue"> · <span style="color:var(--color-danger)">{{ p.overdue }} en retard</span></template>
+                  <template v-else-if="p.avgGrade != null"> · moy. {{ p.avgGrade }}/20</template>
+                </span>
+                <span v-if="p.nextDeadline" class="db-project-next" :class="deadlineClass(p.nextDeadline)">
+                  <Clock :size="9" /> {{ deadlineLabel(p.nextDeadline) }}
+                </span>
+              </div>
+              <div class="db-student-proj-bar">
+                <div
+                  class="db-student-proj-fill"
+                  :style="{ width: (p.total ? Math.round(p.submitted / p.total * 100) : 0) + '%' }"
+                  :class="{ 'fill-done': p.submitted === p.total && p.total > 0 }"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- Corps étudiant -->
         <div class="db-body">
 
-          <!-- Colonne gauche : À rendre -->
+          <!-- Colonne gauche : Urgent maintenant -->
           <section class="db-section db-section-left">
             <div class="db-section-header">
               <h2 class="db-section-title">
-                <Clock :size="15" /> À rendre
-                <span v-if="studentPending.length" class="db-section-badge db-badge-warning">{{ studentPending.length }}</span>
+                <AlertTriangle :size="15" /> Urgent maintenant
+                <span v-if="studentDashboardUrgent.length" class="db-section-badge db-badge-warning">{{ studentDashboardUrgent.length }}</span>
               </h2>
             </div>
 
-            <div v-if="studentPending.length === 0 && studentEvents.length === 0" class="db-empty">
+            <div v-if="studentDashboardUrgent.length === 0 && studentEvents.length === 0" class="db-empty">
               <CheckCircle2 :size="32" class="db-empty-success" />
-              <p>Aucun devoir en attente.</p>
+              <p>Rien d'urgent pour les 3 prochains jours.</p>
             </div>
 
             <div v-else class="db-rendu-list">
-              <!-- Devoirs à déposer -->
+              <!-- Devoirs urgents -->
               <div
-                v-for="t in studentPending"
+                v-for="t in studentDashboardUrgent"
                 :key="t.id"
                 class="db-rendu-row"
-                @click="router.push('/devoirs')"
+                @click="goToProject(t.category ?? '')"
               >
                 <div class="db-pending-urgency" :class="deadlineClass(t.deadline)" />
                 <div class="db-rendu-info">
@@ -498,6 +594,7 @@ const firstFeedback = computed(() =>
                   </div>
                   <span class="db-rendu-meta">
                     <span v-if="t.channel_name" class="db-rendu-channel">#{{ t.channel_name }}</span>
+                    <span v-if="t.category" class="db-rendu-proj">{{ parseCategoryIcon(t.category).label }}</span>
                   </span>
                 </div>
                 <div class="db-rendu-right">
@@ -657,6 +754,52 @@ const firstFeedback = computed(() =>
 .db-project-next.deadline-passed  { color: var(--color-danger); }
 .db-project-chevron { color: var(--text-muted); flex-shrink: 0; }
 
+/* ── Cartes projet étudiant ── */
+.db-student-projects {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Réutilise .db-project-grid et .db-project-card du prof mais avec barre de progression */
+.db-student-proj-bar {
+  grid-column: 1 / -1;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255,255,255,.06);
+  overflow: hidden;
+  margin-top: 4px;
+  width: 100%;
+}
+.db-student-proj-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: #9B87F5;
+  transition: width .3s ease;
+}
+.db-student-proj-fill.fill-done { background: var(--color-success); }
+
+/* On réorganise db-project-card en colonne pour la variante étudiant */
+.db-student-projects .db-project-card {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px 10px;
+}
+.db-student-projects .db-project-card .db-project-icon {
+  margin-bottom: 2px;
+}
+
+/* Libellé projet dans les lignes urgentes */
+.db-rendu-proj {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #9B87F5;
+  background: rgba(155,135,245,.12);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
 /* ── Shell ── */
 .dashboard-shell {
   flex: 1;
@@ -685,6 +828,7 @@ const firstFeedback = computed(() =>
 .db-title { font-size: 20px; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
 .db-date  { font-size: 12px; color: var(--text-muted); margin-top: 2px; text-transform: capitalize; }
 .db-echeancier-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 12px; flex-shrink: 0; }
+.db-header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
 /* ── Stats ── */
 .db-stats {

@@ -1,0 +1,1079 @@
+<script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  FileText, Link2, Hash, Megaphone, ChevronLeft, ExternalLink,
+  Layers, CalendarDays, FolderOpen, Upload, X, CheckCircle2,
+  Clock, Lock, Award, Users, BookOpen, AlertTriangle,
+} from 'lucide-vue-next'
+import { useAppStore }          from '@/stores/app'
+import { useTravauxStore }      from '@/stores/travaux'
+import { useDocumentsStore }    from '@/stores/documents'
+import { useModalsStore }       from '@/stores/modals'
+import { parseCategoryIcon }    from '@/utils/categoryIcon'
+import { formatDate, deadlineClass, deadlineLabel } from '@/utils/date'
+import { avatarColor } from '@/utils/format'
+import type { AppDocument, Channel, Devoir } from '@/types'
+import type { ProjectMeta } from '@/components/modals/NewProjectModal.vue'
+
+const TYPE_LABELS: Record<string, string> = {
+  livrable: 'Livrable', soutenance: 'Soutenance', cctl: 'CCTL',
+  etude_de_cas: 'Étude de cas', memoire: 'Mémoire', autre: 'Autre',
+}
+
+const props = defineProps<{ projectKey: string; promoId: number }>()
+
+const router       = useRouter()
+const appStore     = useAppStore()
+const travauxStore = useTravauxStore()
+const docStore     = useDocumentsStore()
+const modals       = useModalsStore()
+
+// ── Métadonnées projet (localStorage) ────────────────────────────────────────
+const projectMeta = computed((): ProjectMeta | null => {
+  try {
+    const raw = localStorage.getItem(`cc_projects_${props.promoId}`)
+    const metas = raw ? (JSON.parse(raw) as ProjectMeta[]) : []
+    return metas.find(m => m.name === props.projectKey) ?? null
+  } catch { return null }
+})
+
+// ── Devoirs de l'étudiant pour ce projet ─────────────────────────────────────
+const devoirs = computed((): Devoir[] =>
+  travauxStore.devoirs
+    .filter(t => t.category === props.projectKey)
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+)
+
+const devoirsSubmitted = computed(() => devoirs.value.filter(t => t.depot_id != null))
+const devoirsPending   = computed(() => devoirs.value.filter(t => t.depot_id == null && !isEventType(t.type)))
+const devoirsEvent     = computed(() => devoirs.value.filter(t => isEventType(t.type)))
+
+// ── Horloge ───────────────────────────────────────────────────────────────────
+const now = ref(Date.now())
+let clockInterval: ReturnType<typeof setInterval> | null = null
+onMounted(() => { clockInterval = setInterval(() => { now.value = Date.now() }, 30_000) })
+import { onBeforeUnmount } from 'vue'
+onBeforeUnmount(() => { if (clockInterval) clearInterval(clockInterval) })
+
+function isExpired(deadline: string)       { return now.value >= new Date(deadline).getTime() }
+function isEventType(type: string)         { return type === 'soutenance' || type === 'cctl' }
+function isOverdue(t: Devoir)              { return t.depot_id == null && !isEventType(t.type) && isExpired(t.deadline) }
+function isUrgent(t: Devoir)              {
+  if (t.depot_id != null || isExpired(t.deadline) || isEventType(t.type)) return false
+  return new Date(t.deadline).getTime() - now.value < 3 * 86_400_000
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+const stats = computed(() => {
+  const graded  = devoirs.value.filter(t => t.note != null)
+  const grades  = graded.map(t => parseFloat(t.note ?? '')).filter(n => !isNaN(n))
+  const avg     = grades.length ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length * 10) / 10 : null
+  const overdue = devoirs.value.filter(t => isOverdue(t)).length
+  const pct     = devoirs.value.length ? Math.round((devoirsSubmitted.value.length / devoirs.value.length) * 100) : 0
+  return {
+    total:     devoirs.value.length,
+    submitted: devoirsSubmitted.value.length,
+    pending:   devoirsPending.value.length,
+    overdue,
+    graded:    graded.length,
+    avg,
+    pct,
+    docs:      documents.value.length,
+    channels:  channels.value.length,
+  }
+})
+
+// ── Groupe (si devoir de groupe) ──────────────────────────────────────────────
+const groupName = computed(() => devoirs.value.find(t => t.group_name)?.group_name ?? null)
+
+interface GroupMember {
+  student_id:      number
+  student_name:    string
+  avatar_initials: string
+  group_name:      string
+}
+const groupMembers  = ref<GroupMember[]>([])
+const loadingGroup  = ref(false)
+
+async function loadGroupMembers() {
+  const groupDevoir = devoirs.value.find(t => t.group_id != null)
+  if (!groupDevoir) { groupMembers.value = []; return }
+  loadingGroup.value = true
+  try {
+    const res = await window.api.getTravailGroupMembers(groupDevoir.id)
+    groupMembers.value = res?.ok ? (res.data as GroupMember[]) : []
+  } finally { loadingGroup.value = false }
+}
+
+watch(() => devoirs.value, () => { loadGroupMembers() }, { immediate: true })
+
+// ── Documents + Canaux ────────────────────────────────────────────────────────
+const documents = ref<AppDocument[]>([])
+const channels  = ref<Channel[]>([])
+const loading   = ref(false)
+
+async function loadData() {
+  loading.value = true
+  try {
+    const [docsRes, chRes] = await Promise.all([
+      window.api.getProjectDocuments(props.promoId, props.projectKey),
+      window.api.getChannels(props.promoId),
+    ])
+    documents.value = docsRes?.ok ? docsRes.data : []
+    const all = chRes?.ok ? chRes.data as Channel[] : []
+    channels.value = all.filter(c => c.category?.trim() === props.projectKey)
+  } finally { loading.value = false }
+}
+
+onMounted(loadData)
+watch(() => [props.projectKey, props.promoId] as const, loadData)
+
+// ── Dépôt inline ──────────────────────────────────────────────────────────────
+const depositingDevoirId = ref<number | null>(null)
+const depositMode        = ref<'file' | 'link'>('file')
+const depositLink        = ref('')
+const depositFile        = ref<string | null>(null)
+const depositFileName    = ref<string | null>(null)
+const depositing         = ref(false)
+
+function startDeposit(t: Devoir) {
+  depositingDevoirId.value = t.id
+  depositMode.value        = 'file'
+  depositLink.value        = ''
+  depositFile.value        = null
+  depositFileName.value    = null
+}
+function cancelDeposit() { depositingDevoirId.value = null }
+
+async function pickFile() {
+  const res = await window.api.openFileDialog()
+  if (res?.ok && res.data) {
+    depositFile.value     = res.data
+    depositFileName.value = res.data.split(/[\\/]/).pop() ?? res.data
+  }
+}
+function clearDepositFile() { depositFile.value = null; depositFileName.value = null }
+
+async function submitDeposit(devoir: Devoir) {
+  if (depositing.value || !appStore.currentUser) return
+  if (depositMode.value === 'file' && !depositFile.value) return
+  if (depositMode.value === 'link' && !depositLink.value.trim()) return
+  if (isExpired(devoir.deadline)) return
+  depositing.value = true
+  try {
+    const ok = await travauxStore.addDepot({
+      travail_id: devoir.id,
+      student_id: appStore.currentUser.id,
+      type:       depositMode.value,
+      content:    depositMode.value === 'file' ? depositFile.value! : depositLink.value.trim(),
+      file_name:  depositMode.value === 'file' ? depositFileName.value : null,
+    })
+    if (ok) {
+      cancelDeposit()
+      await travauxStore.fetchStudentDevoirs()
+    }
+  } finally { depositing.value = false }
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function goToChannel(ch: Channel) {
+  appStore.openChannel(ch.id, props.promoId, ch.name, ch.type)
+  router.push('/messages')
+}
+
+function openDoc(doc: AppDocument) {
+  if (doc.type === 'link') {
+    window.api.openExternal(doc.content)
+  } else {
+    docStore.openPreview(doc)
+    modals.documentPreview = true
+  }
+}
+
+function formatDateRange(start?: string, end?: string): string {
+  if (!start && !end) return ''
+  const fmt = (d: string) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+  if (start && end) return `${fmt(start)} → ${fmt(end)}`
+  if (end) return `Jusqu'au ${fmt(end)}`
+  return `Depuis ${fmt(start!)}`
+}
+
+function gradeColor(note: string | null | undefined): string {
+  const n = parseFloat(note ?? '')
+  if (isNaN(n)) return 'grade-letter'
+  if (n >= 16) return 'grade-a'
+  if (n >= 12) return 'grade-b'
+  if (n >= 8)  return 'grade-c'
+  return 'grade-d'
+}
+</script>
+
+<template>
+  <div class="spf-shell">
+
+    <!-- ── En-tête ──────────────────────────────────────────────────────── -->
+    <header class="spf-header">
+      <div class="spf-header-top">
+        <button class="spf-back-btn" @click="appStore.activeProject = null">
+          <ChevronLeft :size="14" /> Tous mes projets
+        </button>
+      </div>
+
+      <div class="spf-header-identity">
+        <div class="spf-icon-wrap">
+          <component
+            v-if="parseCategoryIcon(projectKey).icon"
+            :is="parseCategoryIcon(projectKey).icon!"
+            :size="22"
+            class="spf-project-icon"
+          />
+          <Layers v-else :size="22" class="spf-project-icon" />
+        </div>
+        <div class="spf-header-text">
+          <h2 class="spf-project-name">{{ parseCategoryIcon(projectKey).label }}</h2>
+          <p v-if="projectMeta?.description" class="spf-project-desc">{{ projectMeta.description }}</p>
+          <div class="spf-project-meta-row">
+            <span v-if="projectMeta?.startDate || projectMeta?.endDate" class="spf-project-dates">
+              <CalendarDays :size="11" />
+              {{ formatDateRange(projectMeta?.startDate, projectMeta?.endDate) }}
+            </span>
+            <span v-if="groupName" class="spf-group-pill">
+              <Users :size="11" /> {{ groupName }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chips stats -->
+      <div class="spf-stats-row">
+        <span class="spf-stat-chip" :class="stats.overdue > 0 ? 'spf-chip-red' : stats.pending > 0 ? 'spf-chip-orange' : 'spf-chip-green'">
+          <CheckCircle2 :size="11" />
+          {{ stats.submitted }}/{{ stats.total }} rendus
+          <span v-if="stats.total" class="spf-chip-pct">({{ stats.pct }}%)</span>
+        </span>
+        <span v-if="stats.overdue" class="spf-stat-chip spf-chip-red">
+          <AlertTriangle :size="11" /> {{ stats.overdue }} en retard
+        </span>
+        <span v-if="stats.avg != null" class="spf-stat-chip spf-chip-blue">
+          <Award :size="11" /> Moy. {{ stats.avg }}/20
+        </span>
+        <span v-if="stats.docs" class="spf-stat-chip spf-chip-muted">
+          <FolderOpen :size="11" /> {{ stats.docs }} docs
+        </span>
+        <span v-if="stats.channels" class="spf-stat-chip spf-chip-muted">
+          <Hash :size="11" /> {{ stats.channels }} canal{{ stats.channels > 1 ? 'ux' : '' }}
+        </span>
+      </div>
+
+      <!-- Barre de progression globale -->
+      <div v-if="stats.total > 0" class="spf-global-progress">
+        <div class="spf-global-bar">
+          <div
+            class="spf-global-fill"
+            :class="stats.pct === 100 ? 'fill-complete' : stats.pct > 50 ? 'fill-good' : ''"
+            :style="{ width: stats.pct + '%' }"
+          />
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Corps ────────────────────────────────────────────────────────── -->
+    <div class="spf-body">
+
+      <!-- ── Colonne principale : Devoirs ─────────────────────────────── -->
+      <section class="spf-col-main">
+
+        <!-- Squelettes chargement -->
+        <div v-if="travauxStore.loading" class="spf-loading">
+          <div v-for="i in 3" :key="i" class="skel-card">
+            <div class="skel skel-line skel-w30" style="height:11px" />
+            <div class="skel skel-line skel-w70" style="height:15px;margin-top:8px" />
+          </div>
+        </div>
+
+        <div v-else-if="!devoirs.length" class="spf-empty">
+          <BookOpen :size="32" class="spf-empty-icon" />
+          <p>Aucun devoir pour ce projet.</p>
+        </div>
+
+        <template v-else>
+
+          <!-- ▸ À rendre (overdue + urgent + pending) -->
+          <template v-if="devoirsPending.length">
+            <div class="spf-section-label">
+              <Clock :size="12" /> À rendre
+              <span class="spf-section-count">{{ devoirsPending.length }}</span>
+            </div>
+            <div class="spf-devoir-list">
+              <div
+                v-for="t in devoirsPending"
+                :key="t.id"
+                class="spf-devoir-card"
+                :class="{ 'spf-card--overdue': isOverdue(t), 'spf-card--urgent': isUrgent(t) }"
+              >
+                <div class="spf-card-top">
+                  <span class="spf-type-badge" :class="`type-${t.type}`">{{ TYPE_LABELS[t.type] ?? t.type }}</span>
+                  <span class="spf-card-title">{{ t.title }}</span>
+                  <span class="spf-deadline-badge" :class="deadlineClass(t.deadline)">
+                    <Clock :size="9" />{{ deadlineLabel(t.deadline) }}
+                  </span>
+                </div>
+                <div class="spf-card-sub">
+                  <span class="spf-card-date">
+                    {{ isOverdue(t) ? '🔒 Délai expiré' : 'Échéance : ' + formatDate(t.deadline) }}
+                  </span>
+                  <span v-if="t.group_name" class="spf-card-group"><Users :size="10" /> {{ t.group_name }}</span>
+                </div>
+                <p v-if="t.description" class="spf-card-desc">{{ t.description }}</p>
+
+                <!-- Formulaire de dépôt -->
+                <template v-if="depositingDevoirId === t.id">
+                  <div class="spf-deposit-form">
+                    <div class="spf-deposit-toggle">
+                      <button class="spf-toggle-btn" :class="{ active: depositMode === 'file' }" @click="depositMode = 'file'">
+                        <FileText :size="12" /> Fichier
+                      </button>
+                      <button class="spf-toggle-btn" :class="{ active: depositMode === 'link' }" @click="depositMode = 'link'">
+                        <Link2 :size="12" /> Lien
+                      </button>
+                    </div>
+                    <div v-if="depositMode === 'file'">
+                      <div v-if="depositFile" class="spf-file-selected">
+                        <CheckCircle2 :size="14" class="spf-file-ok" />
+                        <span class="spf-file-name">{{ depositFileName }}</span>
+                        <button class="spf-file-clear" @click.stop="clearDepositFile"><X :size="11" /></button>
+                      </div>
+                      <div v-else class="spf-file-zone" @click="pickFile">
+                        <Upload :size="18" class="spf-file-zone-icon" />
+                        <span>Cliquer pour choisir un fichier</span>
+                      </div>
+                    </div>
+                    <input v-else v-model="depositLink" class="form-input" placeholder="https://…" type="url" />
+                    <div class="spf-deposit-actions">
+                      <button class="btn-ghost" @click="cancelDeposit"><X :size="12" /> Annuler</button>
+                      <button
+                        class="btn-primary"
+                        :disabled="depositing || (depositMode === 'file' ? !depositFile : !depositLink.trim())"
+                        @click="submitDeposit(t)"
+                      >
+                        <Upload :size="12" />{{ depositing ? 'Dépôt…' : 'Déposer' }}
+                      </button>
+                    </div>
+                  </div>
+                </template>
+                <div v-else class="spf-card-actions">
+                  <button v-if="isOverdue(t)" class="spf-btn-expired" disabled>
+                    <Lock :size="12" /> Délai expiré
+                  </button>
+                  <button v-else class="btn-primary spf-btn-deposit" @click="startDeposit(t)">
+                    <Upload :size="12" /> Déposer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ▸ Événements (soutenance / CCTL) -->
+          <template v-if="devoirsEvent.length">
+            <div class="spf-section-label" style="margin-top:16px">
+              <CalendarDays :size="12" /> Événements
+              <span class="spf-section-count">{{ devoirsEvent.length }}</span>
+            </div>
+            <div class="spf-devoir-list">
+              <div v-for="t in devoirsEvent" :key="t.id" class="spf-devoir-card spf-card--event">
+                <div class="spf-card-top">
+                  <span class="spf-type-badge" :class="`type-${t.type}`">{{ TYPE_LABELS[t.type] ?? t.type }}</span>
+                  <span class="spf-card-title">{{ t.title }}</span>
+                  <span class="spf-deadline-badge" :class="deadlineClass(t.deadline)">
+                    <Clock :size="9" />{{ deadlineLabel(t.deadline) }}
+                  </span>
+                </div>
+                <div class="spf-card-sub">
+                  <span class="spf-card-date">{{ formatDate(t.deadline) }}</span>
+                </div>
+                <p v-if="t.description" class="spf-card-desc">{{ t.description }}</p>
+                <div class="spf-event-notice">
+                  <CalendarDays :size="13" /> Présence requise
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ▸ Rendus -->
+          <template v-if="devoirsSubmitted.length">
+            <div class="spf-section-label" style="margin-top:16px">
+              <CheckCircle2 :size="12" /> Rendus
+              <span class="spf-section-count">{{ devoirsSubmitted.length }}</span>
+            </div>
+            <div class="spf-devoir-list">
+              <div v-for="t in devoirsSubmitted" :key="t.id" class="spf-devoir-card spf-card--done">
+                <div class="spf-card-top">
+                  <span class="spf-type-badge" :class="`type-${t.type}`">{{ TYPE_LABELS[t.type] ?? t.type }}</span>
+                  <span class="spf-card-title">{{ t.title }}</span>
+                  <CheckCircle2 :size="14" class="spf-done-check" />
+                </div>
+                <div class="spf-card-sub">
+                  <span class="spf-card-date">Échéance : {{ formatDate(t.deadline) }}</span>
+                </div>
+                <!-- Note + feedback -->
+                <div v-if="t.note" class="spf-grade-row">
+                  <span class="spf-grade-badge" :class="gradeColor(t.note)">{{ t.note }}</span>
+                  <span v-if="t.feedback" class="spf-feedback-text">« {{ t.feedback }} »</span>
+                </div>
+                <div v-else class="spf-grade-pending">
+                  <Award :size="12" /> En attente de notation
+                </div>
+              </div>
+            </div>
+          </template>
+
+        </template>
+      </section>
+
+      <!-- ── Colonne secondaire : Documents + Canaux ───────────────────── -->
+      <aside class="spf-col-aside">
+
+        <!-- Documents -->
+        <div class="spf-aside-section">
+          <div class="spf-aside-header">
+            <span>Ressources</span>
+            <span class="spf-aside-count">{{ documents.length }}</span>
+          </div>
+          <div v-if="loading" class="spf-aside-loading">
+            <div v-for="i in 3" :key="i" class="skel-list-row">
+              <div class="skel" style="width:20px;height:20px;border-radius:4px;flex-shrink:0" />
+              <div class="skel skel-line skel-w70" />
+            </div>
+          </div>
+          <div v-else-if="!documents.length" class="spf-aside-empty">
+            Aucune ressource déposée.
+          </div>
+          <ul v-else class="spf-doc-list">
+            <li v-for="doc in documents" :key="doc.id" class="spf-doc-item" @click="openDoc(doc)">
+              <span class="spf-doc-icon">
+                <Link2 v-if="doc.type === 'link'" :size="12" />
+                <FileText v-else :size="12" />
+              </span>
+              <span class="spf-doc-name">{{ doc.name }}</span>
+              <ExternalLink :size="11" class="spf-doc-open" />
+            </li>
+          </ul>
+        </div>
+
+        <!-- Canaux -->
+        <div class="spf-aside-section" style="margin-top:20px">
+          <div class="spf-aside-header">
+            <span>Canaux</span>
+            <span class="spf-aside-count">{{ channels.length }}</span>
+          </div>
+          <div v-if="!channels.length" class="spf-aside-empty">
+            Aucun canal associé.
+          </div>
+          <ul v-else class="spf-channel-list">
+            <li v-for="ch in channels" :key="ch.id" class="spf-channel-item" @click="goToChannel(ch)">
+              <Megaphone v-if="ch.type === 'annonce'" :size="13" class="spf-ch-icon spf-ch-icon--ann" />
+              <Hash v-else :size="13" class="spf-ch-icon" />
+              <span class="spf-ch-name">{{ ch.name }}</span>
+              <ExternalLink :size="11" class="spf-ch-open" />
+            </li>
+          </ul>
+        </div>
+
+        <!-- P3 — Membres du groupe -->
+        <div v-if="groupName" class="spf-aside-section" style="margin-top:20px">
+          <div class="spf-aside-header">
+            <Users :size="11" />
+            <span>Mon groupe</span>
+            <span class="spf-aside-count">{{ groupMembers.length }}</span>
+          </div>
+          <div v-if="loadingGroup" class="spf-aside-loading">
+            <div v-for="i in 3" :key="i" class="skel-list-row">
+              <div class="skel" style="width:24px;height:24px;border-radius:50%;flex-shrink:0" />
+              <div class="skel skel-line skel-w70" />
+            </div>
+          </div>
+          <div v-else-if="!groupMembers.length" class="spf-aside-empty">Aucun membre trouvé.</div>
+          <ul v-else class="spf-member-list">
+            <li
+              v-for="m in groupMembers"
+              :key="m.student_id"
+              class="spf-member-item"
+              :class="{ 'spf-member-me': m.student_id === appStore.currentUser?.id }"
+            >
+              <div class="spf-member-avatar" :style="{ background: avatarColor(m.avatar_initials) }">
+                {{ m.avatar_initials }}
+              </div>
+              <span class="spf-member-name">{{ m.student_name }}</span>
+              <span v-if="m.student_id === appStore.currentUser?.id" class="spf-member-you">moi</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- P5 — Mes résultats -->
+        <div v-if="devoirsSubmitted.length > 0" class="spf-aside-section" style="margin-top:20px">
+          <div class="spf-aside-header">
+            <Award :size="11" />
+            <span>Mes résultats</span>
+            <span class="spf-aside-count">{{ stats.graded }}/{{ devoirsSubmitted.length }}</span>
+          </div>
+          <div class="spf-results-list">
+            <div
+              v-for="t in devoirsSubmitted"
+              :key="t.id"
+              class="spf-result-row"
+            >
+              <div class="spf-result-top">
+                <span class="spf-result-title">{{ t.title }}</span>
+                <span v-if="t.note" class="spf-result-grade" :class="gradeColor(t.note)">{{ t.note }}</span>
+                <span v-else class="spf-result-pending">—</span>
+              </div>
+              <div v-if="t.feedback" class="spf-result-feedback">
+                « {{ t.feedback }} »
+              </div>
+            </div>
+          </div>
+          <div v-if="stats.avg != null" class="spf-results-avg">
+            <Award :size="11" /> Moyenne du projet : <strong>{{ stats.avg }}/20</strong>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+/* ── Shell ── */
+.spf-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── En-tête ── */
+.spf-header {
+  padding: 14px 24px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.spf-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: var(--font);
+  cursor: pointer;
+  padding: 2px 6px 2px 2px;
+  border-radius: 4px;
+  transition: color var(--t-fast), background var(--t-fast);
+}
+.spf-back-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+.spf-header-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.spf-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(155,135,245,.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.spf-project-icon { color: #9B87F5; }
+
+.spf-header-text { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.spf-project-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+.spf-project-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.spf-project-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.spf-project-dates {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.spf-group-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(155,135,245,.12);
+  color: #9B87F5;
+}
+
+/* Stats chips */
+.spf-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.spf-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+}
+.spf-chip-green  { background: rgba(39,174,96,.12);   color: var(--color-success); border-color: rgba(39,174,96,.25); }
+.spf-chip-orange { background: rgba(243,156,18,.12);  color: var(--color-warning); border-color: rgba(243,156,18,.25); }
+.spf-chip-red    { background: rgba(231,76,60,.12);   color: var(--color-danger);  border-color: rgba(231,76,60,.25); }
+.spf-chip-blue   { background: rgba(74,144,217,.12);  color: var(--accent);        border-color: rgba(74,144,217,.25); }
+.spf-chip-muted  { background: rgba(255,255,255,.04); color: var(--text-muted);    border-color: var(--border); }
+.spf-chip-pct    { font-size: 10px; opacity: .7; }
+
+/* Barre de progression globale */
+.spf-global-progress { padding: 0; }
+.spf-global-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255,255,255,.07);
+  overflow: hidden;
+}
+.spf-global-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: #9B87F5;
+  transition: width .4s ease;
+  opacity: .8;
+}
+.spf-global-fill.fill-good     { opacity: 1; }
+.spf-global-fill.fill-complete { background: var(--color-success); opacity: 1; }
+
+/* ── Corps ── */
+.spf-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Colonne principale ── */
+.spf-col-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 22px;
+  border-right: 1px solid var(--border);
+  min-width: 0;
+}
+
+.spf-loading { display: flex; flex-direction: column; gap: 10px; }
+
+.spf-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.spf-empty-icon { opacity: .3; }
+
+.spf-section-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.spf-section-count {
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(255,255,255,.06);
+  padding: 1px 5px;
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+
+.spf-devoir-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* Carte devoir */
+.spf-devoir-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,.02);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background var(--t-fast);
+}
+.spf-card--overdue { border-color: rgba(231,76,60,.3); background: rgba(231,76,60,.04); }
+.spf-card--urgent  { border-color: rgba(243,156,18,.3); background: rgba(243,156,18,.04); }
+.spf-card--event   { border-color: rgba(155,135,245,.25); background: rgba(155,135,245,.04); }
+.spf-card--done    { opacity: .75; }
+
+.spf-card-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.spf-type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.type-livrable     { background: rgba(74,144,217,.2);   color: var(--accent); }
+.type-soutenance   { background: rgba(243,156,18,.2);   color: var(--color-warning); }
+.type-cctl         { background: rgba(123,104,238,.2);  color: #9b87f5; }
+.type-etude_de_cas { background: rgba(39,174,96,.2);    color: var(--color-success); }
+.type-memoire      { background: rgba(231,76,60,.2);    color: #e74c3c; }
+.type-autre        { background: rgba(127,140,141,.2);  color: #95a5a6; }
+
+.spf-card-title {
+  flex: 1;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 0;
+}
+.spf-deadline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.deadline-ok       { background: rgba(39,174,96,.1);  color: var(--color-success); }
+.deadline-warning  { background: rgba(243,156,18,.1); color: #F39C12; }
+.deadline-soon     { background: rgba(243,156,18,.12); color: var(--color-warning); }
+.deadline-critical,
+.deadline-passed   { background: rgba(231,76,60,.12); color: #ff7b6b; }
+
+.spf-card-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.spf-card-date  { font-size: 11px; color: var(--text-muted); }
+.spf-card-group { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: #9B87F5; }
+.spf-card-desc  { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.4; }
+
+/* Note */
+.spf-done-check { color: var(--color-success); margin-left: auto; flex-shrink: 0; }
+.spf-grade-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.spf-grade-badge {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.grade-a { background: rgba(39,174,96,.15);   color: var(--color-success); }
+.grade-b { background: rgba(74,144,217,.15);  color: var(--accent); }
+.grade-c { background: rgba(243,156,18,.15);  color: var(--color-warning); }
+.grade-d { background: rgba(231,76,60,.15);   color: var(--color-danger); }
+.grade-letter { background: rgba(155,135,245,.15); color: #9B87F5; }
+
+.spf-feedback-text {
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--text-secondary);
+  flex: 1;
+}
+.spf-grade-pending {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Événement */
+.spf-event-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #9B87F5;
+  background: rgba(155,135,245,.08);
+  padding: 4px 10px;
+  border-radius: 6px;
+  width: fit-content;
+}
+
+/* Actions */
+.spf-card-actions { display: flex; justify-content: flex-end; }
+.spf-btn-deposit { font-size: 12px; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px; }
+.spf-btn-expired {
+  font-size: 11px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: not-allowed;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Formulaire dépôt */
+.spf-deposit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(255,255,255,.03);
+  border-radius: 8px;
+  border: 1px solid var(--border-input);
+}
+.spf-deposit-toggle { display: flex; gap: 4px; }
+.spf-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-input);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all .15s;
+}
+.spf-toggle-btn.active { border-color: #9B87F5; background: rgba(155,135,245,.12); color: #9B87F5; }
+
+.spf-file-zone {
+  border: 2px dashed var(--border-input);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12px;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.spf-file-zone:hover { border-color: #9B87F5; background: rgba(155,135,245,.05); }
+.spf-file-zone-icon { opacity: .5; }
+
+.spf-file-selected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(39,174,96,.06);
+  border: 1px solid rgba(39,174,96,.2);
+  border-radius: 6px;
+}
+.spf-file-ok   { color: var(--color-success); flex-shrink: 0; }
+.spf-file-name { flex: 1; font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spf-file-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  transition: color var(--t-fast);
+}
+.spf-file-clear:hover { color: var(--color-danger); }
+
+.spf-deposit-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+/* ── Colonne secondaire ── */
+.spf-col-aside {
+  width: 240px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 18px 16px;
+  background: rgba(0,0,0,.04);
+}
+
+.spf-aside-section { display: flex; flex-direction: column; gap: 8px; }
+.spf-aside-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+.spf-aside-count {
+  font-size: 10px;
+  background: rgba(255,255,255,.06);
+  padding: 1px 5px;
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+.spf-aside-loading { display: flex; flex-direction: column; gap: 6px; }
+.spf-aside-empty { font-size: 12px; color: var(--text-muted); font-style: italic; }
+
+.spf-doc-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.spf-doc-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.spf-doc-item:hover { background: var(--bg-hover); }
+.spf-doc-item:hover .spf-doc-open { opacity: 1; }
+.spf-doc-icon { flex-shrink: 0; color: var(--text-muted); display: flex; align-items: center; }
+.spf-doc-name { flex: 1; font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spf-doc-open { flex-shrink: 0; color: var(--text-muted); opacity: 0; transition: opacity var(--t-fast); }
+
+.spf-channel-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.spf-channel-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.spf-channel-item:hover { background: var(--bg-hover); }
+.spf-channel-item:hover .spf-ch-open { opacity: 1; }
+.spf-ch-icon     { flex-shrink: 0; color: var(--text-muted); }
+.spf-ch-icon--ann { color: #E5A842; }
+.spf-ch-name     { flex: 1; font-size: 12px; color: var(--text-secondary); }
+.spf-ch-open     { flex-shrink: 0; color: var(--text-muted); opacity: 0; transition: opacity var(--t-fast); }
+
+/* ── P3 Membres du groupe ── */
+.spf-member-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.spf-member-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  transition: background var(--t-fast);
+}
+.spf-member-item:hover { background: var(--bg-hover); }
+.spf-member-me { background: rgba(155,135,245,.06); }
+.spf-member-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  letter-spacing: 0;
+}
+.spf-member-name { flex: 1; font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spf-member-you {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: rgba(155,135,245,.15);
+  color: #9B87F5;
+  flex-shrink: 0;
+}
+
+/* ── P5 Résultats ── */
+.spf-results-list { display: flex; flex-direction: column; gap: 6px; }
+.spf-result-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255,255,255,.02);
+}
+.spf-result-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.spf-result-title {
+  flex: 1;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.spf-result-grade {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+.spf-result-pending { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+.spf-result-feedback {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.spf-results-avg {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  padding: 6px 9px 0;
+  margin-top: 2px;
+  border-top: 1px solid var(--border);
+}
+.spf-results-avg strong { color: var(--text-primary); }
+</style>

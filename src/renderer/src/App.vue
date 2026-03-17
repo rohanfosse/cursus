@@ -20,7 +20,8 @@
   import TimelineModal        from '@/components/modals/TimelineModal.vue'
   import EcheancierModal      from '@/components/modals/EcheancierModal.vue'
   import DocumentPreviewModal from '@/components/modals/DocumentPreviewModal.vue'
-  import ImpersonateModal     from '@/components/modals/ImpersonateModal.vue'
+  import ImpersonateModal        from '@/components/modals/ImpersonateModal.vue'
+  import StudentTimelineModal    from '@/components/modals/StudentTimelineModal.vue'
 
   const appStore = useAppStore()
   const modals   = useModalsStore()
@@ -89,7 +90,8 @@
     <TimelineModal        v-model="modals.timeline"        />
     <EcheancierModal      v-model="modals.echeancier"      />
     <DocumentPreviewModal v-model="modals.documentPreview" />
-    <ImpersonateModal     v-model="modals.impersonate"     />
+    <ImpersonateModal        v-model="modals.impersonate"        />
+    <StudentTimelineModal    v-model="modals.studentTimeline"    />
   </template>
 </template>
 
