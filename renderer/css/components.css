@@ -148,12 +148,12 @@ button { font-family: var(--font); }
 .msg-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 12px;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
-  margin-top: 1px;
+  margin-top: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -188,20 +188,26 @@ button { font-family: var(--font); }
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 4px 20px;
+  padding: 7px 20px;
   border-radius: 0;
   position: relative;
   transition: background .08s;
 }
 
+/* Messages groupés (suite du même auteur) — espacement réduit */
+.msg-row.grouped {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
 .msg-row:hover {
-  background: rgba(255,255,255,.04);
+  background: rgba(255,255,255,.042);
 }
 
 
 .msg-row.pinned {
-  background: rgba(74,144,217,.05);
-  border-left: 2px solid rgba(74,144,217,.4);
+  background: rgba(232,137,26,.04);
+  border-left: 2px solid rgba(232,137,26,.45);
   padding-left: 18px;
 }
 
@@ -217,10 +223,11 @@ button { font-family: var(--font); }
 }
 
 .msg-author {
-  font-weight: 700;
+  font-weight: 800;
   font-size: 14px;
   color: var(--text-primary);
-  margin-right: 6px;
+  margin-right: 7px;
+  letter-spacing: -.01em;
 }
 
 .msg-author.teacher { color: var(--accent-light); }
@@ -229,6 +236,7 @@ button { font-family: var(--font); }
   font-size: 11px;
   color: var(--text-muted);
   font-weight: 400;
+  letter-spacing: .01em;
 }
 
 .pin-badge {
@@ -239,10 +247,10 @@ button { font-family: var(--font); }
 
 .msg-text {
   font-size: 14.5px;
-  line-height: 1.55;
+  line-height: 1.6;
   color: var(--text-primary);
   word-break: break-word;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 /* Mise en forme dans les messages */
@@ -369,10 +377,12 @@ button { font-family: var(--font); }
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 16px 20px 8px;
+  margin: 20px 20px 8px;
   color: var(--text-muted);
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
 }
 .date-separator::before,
 .date-separator::after {

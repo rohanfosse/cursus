@@ -2,7 +2,7 @@
 import { ref, computed, nextTick } from 'vue'
 import {
   Pin, PinOff, MoreHorizontal, Copy, Trash2, Check, Pencil,
-  SmilePlus, Bookmark, Reply,
+  SmilePlus, Bookmark, BookmarkCheck, Reply, AlertTriangle,
 } from 'lucide-vue-next'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
@@ -28,11 +28,27 @@ const messagesStore = useMessagesStore()
 const { openExternal } = useOpenExternal()
 
 // ── State
-const showMenu    = ref(false)
-const showPicker  = ref(false)
-const editing     = ref(false)
-const editContent = ref('')
-const editEl      = ref<HTMLTextAreaElement | null>(null)
+const showMenu         = ref(false)
+const showPicker       = ref(false)
+const editing          = ref(false)
+const editContent      = ref('')
+const editEl           = ref<HTMLTextAreaElement | null>(null)
+const confirmingDelete = ref(false)
+
+// ── Bookmarks (localStorage)
+const BOOKMARK_KEY = 'cesia:bookmarks'
+function getBookmarkIds(): number[] {
+  try { return JSON.parse(localStorage.getItem(BOOKMARK_KEY) || '[]') } catch { return [] }
+}
+const isBookmarked = ref(getBookmarkIds().includes(props.msg.id))
+
+function toggleBookmark() {
+  const ids = getBookmarkIds()
+  const idx = ids.indexOf(props.msg.id)
+  if (idx === -1) { ids.push(props.msg.id) } else { ids.splice(idx, 1) }
+  localStorage.setItem(BOOKMARK_KEY, JSON.stringify(ids))
+  isBookmarked.value = idx === -1
+}
 
 // ── Menu contextuel (clic droit)
 const ctxVisible = ref(false)
@@ -142,11 +158,17 @@ function onEditKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') cancelEdit()
 }
 
-async function deleteMessage() {
-  if (!confirm('Supprimer ce message définitivement ?')) { showMenu.value = false; return }
+function deleteMessage() {
   showMenu.value = false
+  confirmingDelete.value = true
+}
+
+async function confirmDelete() {
+  confirmingDelete.value = false
   await messagesStore.deleteMessage(props.msg.id)
 }
+
+function cancelDelete() { confirmingDelete.value = false }
 
 function onMsgClick(e: MouseEvent) {
   const a = (e.target as HTMLElement).closest('a[data-url]') as HTMLAnchorElement | null
@@ -156,7 +178,7 @@ function onMsgClick(e: MouseEvent) {
   if (url) openExternal(url)
 }
 
-function closeAll() { showMenu.value = false; showPicker.value = false }
+function closeAll() { showMenu.value = false; showPicker.value = false; confirmingDelete.value = false }
 </script>
 
 <template>
@@ -225,6 +247,16 @@ function closeAll() { showMenu.value = false; showPicker.value = false }
           </button>
         </div>
       </div>
+
+      <!-- Confirmation de suppression inline -->
+      <Transition name="del-confirm-fade">
+        <div v-if="confirmingDelete" class="msg-delete-confirm">
+          <AlertTriangle :size="13" class="del-icon" />
+          <span class="del-label">Supprimer ce message définitivement ?</span>
+          <button class="del-btn del-btn-danger" @click="confirmDelete">Supprimer</button>
+          <button class="del-btn del-btn-cancel" @click="cancelDelete">Annuler</button>
+        </div>
+      </Transition>
 
       <!-- Réactions affichées sous le texte -->
       <div v-if="reactionsToShow.length && !editing" class="msg-reactions-row">
@@ -295,9 +327,15 @@ function closeAll() { showMenu.value = false; showPicker.value = false }
         <Pin v-else :size="15" />
       </button>
 
-      <!-- Bookmark (placeholder) -->
-      <button class="pill-btn" title="Sauvegarder" disabled>
-        <Bookmark :size="15" />
+      <!-- Bookmark -->
+      <button
+        class="pill-btn"
+        :class="{ 'pill-bookmarked': isBookmarked }"
+        :title="isBookmarked ? 'Retirer des favoris' : 'Sauvegarder dans les favoris'"
+        @click.stop="toggleBookmark"
+      >
+        <BookmarkCheck v-if="isBookmarked" :size="15" />
+        <Bookmark v-else :size="15" />
       </button>
 
       <!-- Menu ··· -->
@@ -710,4 +748,65 @@ function closeAll() { showMenu.value = false; showPicker.value = false }
 .msg-edit-hint { font-size: 10.5px; color: var(--text-muted); }
 .msg-edit-save { color: var(--color-success); }
 .msg-edit-save:hover { background: rgba(39,174,96,.12); }
+
+/* ════════════════════════════════════════════
+   CONFIRMATION SUPPRESSION INLINE
+════════════════════════════════════════════ */
+.msg-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 7px 12px;
+  background: rgba(231,76,60,.09);
+  border: 1px solid rgba(231,76,60,.22);
+  border-radius: 7px;
+  max-width: fit-content;
+}
+
+.del-icon { color: var(--color-danger); flex-shrink: 0; }
+
+.del-label {
+  font-size: 12.5px;
+  color: var(--color-danger);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.del-btn {
+  font-size: 12px;
+  font-family: var(--font);
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  transition: opacity .12s;
+  white-space: nowrap;
+}
+.del-btn:hover { opacity: .85; }
+
+.del-btn-danger {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.del-btn-cancel {
+  background: rgba(255,255,255,.07);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-input);
+}
+.del-btn-cancel:hover { color: var(--text-primary); background: rgba(255,255,255,.11); }
+
+.del-confirm-fade-enter-active { transition: opacity .14s ease, transform .14s ease; }
+.del-confirm-fade-leave-active { transition: opacity .10s ease, transform .10s ease; }
+.del-confirm-fade-enter-from, .del-confirm-fade-leave-to { opacity: 0; transform: translateY(-4px); }
+
+/* ════════════════════════════════════════════
+   BOOKMARK ACTIF
+════════════════════════════════════════════ */
+.pill-bookmarked {
+  color: var(--color-warning) !important;
+}
+.pill-bookmarked:hover { background: rgba(232,137,26,.12) !important; }
 </style>

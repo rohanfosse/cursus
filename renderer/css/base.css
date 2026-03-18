@@ -7,59 +7,59 @@
    VARIABLES
 ════════════════════════════════════════════ */
 :root {
-  /* Fonds — thème sombre doux (Notion / Linear / Slack) */
-  --bg-rail:    #181c27;   /* Rail de navigation tout à gauche — bleu nuit */
-  --bg-sidebar: #1f2230;   /* Sidebar canaux */
-  --bg-main:    #272b36;   /* Zone principale */
-  --bg-input:   #1f2230;   /* Zone de saisie / entrées */
-  --bg-hover:   rgba(255,255,255,.07);
-  --bg-active:  rgba(74,144,217,.18);
-  --bg-modal:   #232632;
+  /* Fonds — thème sombre chaleureux (Slack-inspired) */
+  --bg-rail:    #1a1d21;   /* Rail de navigation — near-black chaud */
+  --bg-sidebar: #1d2128;   /* Sidebar canaux — légèrement plus clair */
+  --bg-main:    #222529;   /* Zone principale — gris foncé chaud */
+  --bg-input:   #1c1f24;   /* Zone de saisie */
+  --bg-hover:   rgba(255,255,255,.06);
+  --bg-active:  rgba(74,144,217,.16);
+  --bg-modal:   #1e2127;
 
   /* Alias legacy (composants existants) */
-  --bg-darkest: #131620;
-  --bg-dark:    #1f2230;
-  --bg-medium:  #272b36;
-  --bg-light:   #2e3347;
-  --bg-primary: #131620;
+  --bg-darkest: #141618;
+  --bg-dark:    #1d2128;
+  --bg-medium:  #222529;
+  --bg-light:   #2a2e35;
+  --bg-primary: #141618;
 
   /* Texte — contraste soigné sans éblouir */
-  --text-primary:   #DDDFE2;
-  --text-secondary: #9EA1A8;
-  --text-muted:     #64686F;
+  --text-primary:   #D1D2D3;   /* Blanc légèrement chaud */
+  --text-secondary: #97999C;   /* Gris moyen chaleureux */
+  --text-muted:     #616467;   /* Gris discret */
 
   /* Accent */
   --accent:        #4A90D9;
-  --accent-hover:  #5ca3f5;
+  --accent-hover:  #5da3f0;
   --accent-dark:   #2e6dae;
-  --accent-light:  #7EB6FF;   /* noms de prof dans les messages */
-  --accent-subtle: rgba(74,144,217,.15);
+  --accent-light:  #7EB8FF;
+  --accent-subtle: rgba(74,144,217,.14);
 
   /* Ombres */
-  --shadow-sm: 0 1px 4px rgba(0,0,0,.3);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.45);
-  --shadow-lg: 0 12px 40px rgba(0,0,0,.6);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.35);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.50);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.65);
 
   /* Timings de transition */
   --t-fast: .12s;
   --t-base: .18s;
   --t-slow: .28s;
 
-  /* Bordures — plus subtiles */
-  --border:       rgba(255,255,255,.06);
-  --border-input: rgba(255,255,255,.11);
+  /* Bordures */
+  --border:       rgba(255,255,255,.07);
+  --border-input: rgba(255,255,255,.13);
 
   /* États sémantiques */
   --color-danger:  #E74C3C;
-  --color-warning: #F39C12;
-  --color-success: #27AE60;
+  --color-warning: #E8891A;
+  --color-success: #2ECC71;
 
   /* Deadlines */
-  --deadline-ok-bg:     rgba(39, 174, 96, .18);
+  --deadline-ok-bg:     rgba(46, 204, 113, .16);
   --deadline-ok-text:   #6FCF97;
-  --deadline-soon-bg:   rgba(243, 156, 18, .18);
+  --deadline-soon-bg:   rgba(232, 137, 26, .16);
   --deadline-soon-text: #F2C94C;
-  --deadline-over-bg:   rgba(231, 76, 60, .18);
+  --deadline-over-bg:   rgba(231, 76, 60, .16);
   --deadline-over-text: #EB5757;
 
   /* Typographie */
@@ -74,7 +74,7 @@
   /* Dimensions de layout */
   --rail-width:    72px;
   --sidebar-width: 240px;
-  --header-height: 49px;
+  --header-height: 52px;
   --input-height:  auto;
   --panel-width:   340px;
 }

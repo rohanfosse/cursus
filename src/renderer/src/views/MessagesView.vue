@@ -101,22 +101,24 @@
     },
   )
 
-  // ── Scroll vers message surligné (depuis CmdPalette) ─────────────────────
-  watch(() => messagesStore.highlightMessageId, async (id) => {
-    if (!id) return
+  // ── Scroll vers message surligné (depuis CmdPalette ou PinnedBanner) ─────
+  async function scrollToMessage(id: number) {
     await nextTick()
     const el = document.querySelector<HTMLElement>(`[data-msg-id="${id}"]`)
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' })
       el.classList.add('msg-highlight')
-      setTimeout(() => {
-        el.classList.remove('msg-highlight')
-        messagesStore.highlightMessageId = null
-      }, 2200)
-    } else {
-      messagesStore.highlightMessageId = null
+      setTimeout(() => { el.classList.remove('msg-highlight') }, 2200)
     }
+  }
+
+  watch(() => messagesStore.highlightMessageId, async (id) => {
+    if (!id) return
+    await scrollToMessage(id)
+    messagesStore.highlightMessageId = null
   })
+
+  function onPinnedJump(id: number) { scrollToMessage(id) }
 
   // ── Recherche ─────────────────────────────────────────────────────────────
   async function doSearch() {
@@ -213,7 +215,7 @@
     </header>
 
     <!-- Messages épinglés -->
-    <PinnedBanner v-if="appStore.activeChannelId" />
+    <PinnedBanner v-if="appStore.activeChannelId" @jump-to="onPinnedJump" />
 
     <!-- Bannière travaux en attente (étudiant) -->
     <Transition name="banner-slide">

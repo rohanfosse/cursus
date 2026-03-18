@@ -329,10 +329,10 @@ nav[aria-label="Messages directs"] {
 }
 
 .sidebar-item.active {
-  background: var(--bg-active);
+  background: rgba(74,144,217,.18);
   color: #fff;
-  font-weight: 600;
-  box-shadow: inset 2px 0 0 var(--accent);
+  font-weight: 700;
+  border-radius: 6px;
 }
 
 /* ── Non-lu : nom en gras + couleur primaire (comme Slack) ── */
@@ -479,7 +479,7 @@ nav[aria-label="Messages directs"] {
   gap: 12px;
   background: var(--bg-main);
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  box-shadow: 0 1px 0 rgba(255,255,255,.04), 0 2px 12px rgba(0,0,0,.25);
   z-index: 10;
 }
 
@@ -492,19 +492,21 @@ nav[aria-label="Messages directs"] {
 }
 
 #channel-icon {
-  color: var(--text-muted);
-  font-size: 16px;
-  font-weight: 400;
+  color: var(--text-secondary);
+  font-size: 17px;
+  font-weight: 300;
   flex-shrink: 0;
+  opacity: .7;
 }
 
 .channel-header-left .channel-name {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: -.01em;
 }
 
 .channel-type-badge {
@@ -569,14 +571,21 @@ nav[aria-label="Messages directs"] {
   align-items: center;
   gap: 8px;
   padding: 6px 20px;
-  background: rgba(74,144,217,.07);
-  border-bottom: 1px solid rgba(74,144,217,.18);
+  background: rgba(232,137,26,.06);
+  border-bottom: 1px solid rgba(232,137,26,.15);
   font-size: 12.5px;
   flex-shrink: 0;
   color: var(--text-secondary);
 }
 
 .pinned-banner:hover { color: var(--text-primary); }
+
+/* Classe racine du composant PinnedBanner.vue */
+.pinned-messages-banner {
+  background: rgba(232,137,26,.055);
+  border-bottom: 1px solid rgba(232,137,26,.14);
+  flex-shrink: 0;
+}
 
 /* Bannière travaux en attente */
 .channel-pending-banner {
@@ -610,7 +619,7 @@ nav[aria-label="Messages directs"] {
 .messages-list {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 0 8px;
+  padding: 20px 0 12px;
   display: flex;
   flex-direction: column;
 }
@@ -628,7 +637,7 @@ nav[aria-label="Messages directs"] {
 /* ── Zone de saisie ──────────────────────────────────────────────────────── */
 .message-input-area {
   flex-shrink: 0;
-  padding: 12px 20px 16px;
+  padding: 10px 20px 18px;
   background: var(--bg-main);
   border-top: 1px solid var(--border);
 }
@@ -652,17 +661,17 @@ nav[aria-label="Messages directs"] {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid var(--border-input);
-  border-radius: 12px;
-  padding: 4px 4px 4px 12px;
+  background: rgba(255,255,255,.055);
+  border: 1.5px solid var(--border-input);
+  border-radius: 10px;
+  padding: 4px 6px 4px 14px;
   transition: border-color .2s, box-shadow .2s, background .2s;
 }
 
 .message-input-wrapper:focus-within {
-  border-color: rgba(74,144,217,.55);
-  background: rgba(255,255,255,.08);
-  box-shadow: 0 0 0 3px rgba(74,144,217,.12), 0 2px 8px rgba(0,0,0,.2);
+  border-color: rgba(74,144,217,.6);
+  background: rgba(255,255,255,.07);
+  box-shadow: 0 0 0 3px rgba(74,144,217,.10), 0 2px 10px rgba(0,0,0,.22);
 }
 
 .message-input {
