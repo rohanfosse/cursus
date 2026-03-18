@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-  import { Search } from 'lucide-vue-next'
+  import { Search, Hash, MessageSquare, User, LayoutGrid } from 'lucide-vue-next'
   import logoUrl from '@/assets/logo.png'
   import { useAppStore }      from '@/stores/app'
   import { useModalsStore }   from '@/stores/modals'
@@ -18,10 +18,16 @@
   const listEl   = ref<HTMLUListElement | null>(null)
   const selected = ref(0)
 
-  // Données pour la recherche
+  // Données structure
   const allChannels = ref<(Channel & { promo_name?: string })[]>([])
   const allStudents = ref<Student[]>([])
   const allPromos   = ref<Promotion[]>([])
+
+  // Résultats messages (async, debounced)
+  type MsgResult = { id: number; content: string; author_name: string; created_at: string; channel_id: number; channel_name: string; promo_id: number }
+  const msgResults    = ref<MsgResult[]>([])
+  const msgSearching  = ref(false)
+  let   debounceTimer = 0
 
   async function loadData() {
     const [pRes, sRes] = await Promise.all([
@@ -39,29 +45,12 @@
     )
   }
 
-  // ── Fuzzy search ──────────────────────────────────────────────────────────
-  /**
-   * Algorithme de scoring inspiré de FZF, sans dépendance externe.
-   *
-   * Principe : tous les caractères de `q` doivent apparaître dans `str`
-   * dans l'ordre (sous-séquence). Le score favorise :
-   *   - les correspondances consécutives (+5 par caractère consécutif)
-   *   - les débuts de mot / après séparateur (+3)
-   *
-   * Retourne -1 si aucune correspondance (filtre out).
-   *
-   * Pourquoi pas une vraie lib (fuse.js, fuzzysort) ?
-   *   - Pas de bundle supplémentaire (~20 kB non compressé pour fuse.js)
-   *   - La palette traite au plus quelques dizaines de canaux/étudiants
-   *   - Cet algo couvre 95 % des cas d'usage réels (typos légères, initiales)
-   */
+  // ── Fuzzy score (même algo qu'avant) ─────────────────────────────────────
   function fuzzyScore(str: string, q: string): number {
     if (!q) return 0
     const s = str.toLowerCase()
     const query_ = q.toLowerCase()
-
     let si = 0, qi = 0, score = 0, lastMatchIdx = -1
-
     while (si < s.length && qi < query_.length) {
       if (s[si] === query_[qi]) {
         const consecutive = lastMatchIdx === si - 1 ? 5 : 0
@@ -72,9 +61,17 @@
       }
       si++
     }
-
-    // Tous les caractères de la query n'ont pas été trouvés → pas de match
     return qi < query_.length ? -1 : score
+  }
+
+  // ── Troncature contenu message ────────────────────────────────────────────
+  function excerpt(content: string, q: string, maxLen = 72): string {
+    const clean = content.replace(/[*_`>#[\]!]/g, '').trim()
+    const idx   = clean.toLowerCase().indexOf(q.toLowerCase())
+    if (idx > 20) {
+      return '…' + clean.slice(Math.max(0, idx - 10), idx + maxLen - 12) + (clean.length > idx + maxLen ? '…' : '')
+    }
+    return clean.slice(0, maxLen) + (clean.length > maxLen ? '…' : '')
   }
 
   const SECTIONS = [
@@ -83,7 +80,13 @@
     { key: 'documents', label: 'Documents'},
   ]
 
-  const results = computed(() => {
+  type ResultItem =
+    | { type: 'channel'; label: string; sub: string; data: Channel & { promo_name?: string } }
+    | { type: 'dm';      label: string; sub: string; data: Student }
+    | { type: 'section'; label: string; sub: string; data: string }
+    | { type: 'message'; label: string; sub: string; data: MsgResult }
+
+  const structureResults = computed((): ResultItem[] => {
     const q = query.value.trim()
     if (!q) return []
 
@@ -92,47 +95,55 @@
       .filter(({ score }) => score >= 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 5)
-      .map(({ item: c }) => ({
-        type: 'channel' as const,
-        label: `#${c.name}`,
-        sub: c.promo_name,
-        data: c,
-      }))
+      .map(({ item: c }): ResultItem => ({ type: 'channel', label: `#${c.name}`, sub: c.promo_name ?? '', data: c }))
 
     const students = allStudents.value
       .map((s) => ({ item: s, score: fuzzyScore(s.name, q) }))
       .filter(({ score }) => score >= 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
-      .map(({ item: s }) => ({
-        type: 'dm' as const,
-        label: `@${s.name}`,
-        sub: (s as Student & { promo_name?: string }).promo_name,
-        data: s,
-      }))
+      .slice(0, 4)
+      .map(({ item: s }): ResultItem => ({ type: 'dm', label: s.name, sub: (s as Student & { promo_name?: string }).promo_name ?? '', data: s }))
 
     const sections = SECTIONS
       .filter(({ key }) => fuzzyScore(key, q) >= 0)
-      .map(({ key, label }) => ({
-        type: 'section' as const,
-        label,
-        sub: 'Section',
-        data: key,
-      }))
+      .map(({ key, label }): ResultItem => ({ type: 'section', label, sub: 'Section', data: key }))
 
     return [...channels, ...students, ...sections]
   })
 
-  // ── Remise à zéro de la sélection quand les résultats changent ───────────
+  const results = computed((): ResultItem[] => {
+    const msgs: ResultItem[] = msgResults.value.map((m): ResultItem => ({
+      type:  'message',
+      label: excerpt(m.content, query.value.trim()),
+      sub:   `#${m.channel_name}`,
+      data:  m,
+    }))
+    return [...structureResults.value, ...msgs]
+  })
+
+  // ── Recherche asynchrone de messages (debounce 300ms) ────────────────────
+  async function searchMessages(q: string) {
+    if (q.length < 2) { msgResults.value = []; return }
+    msgSearching.value = true
+    try {
+      const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id ?? null
+      const res = await window.api.searchAllMessages({ promoId, query: q, limit: 6 })
+      msgResults.value = res?.ok ? res.data : []
+    } finally {
+      msgSearching.value = false
+    }
+  }
+
+  watch(query, (q) => {
+    clearTimeout(debounceTimer)
+    const trimmed = q.trim()
+    if (!trimmed) { msgResults.value = []; return }
+    debounceTimer = window.setTimeout(() => searchMessages(trimmed), 300)
+  })
+
+  // ── Navigation ────────────────────────────────────────────────────────────
   watch(results, () => { selected.value = 0 })
 
-  // ── Navigation clavier — scroll automatique vers l'item sélectionné ──────
-  /**
-   * scrollIntoView({ block: 'nearest' }) est la méthode native la plus
-   * performante : elle ne scrolle que si l'élément est hors de la vue,
-   * et uniquement de la distance minimale nécessaire.
-   * Pas besoin de calculer des offsets manuellement.
-   */
   watch(selected, () => {
     nextTick(() => {
       if (!listEl.value) return
@@ -149,7 +160,8 @@
     const item = results.value[i]
     if (!item) return
     modals.cmdPalette = false
-    query.value = ''
+    query.value       = ''
+    msgResults.value  = []
 
     if (item.type === 'channel') {
       const c = item.data as Channel & { promo_name?: string }
@@ -159,8 +171,16 @@
       const s = item.data as Student
       appStore.openDm(s.id, s.promo_id, s.name)
       messagesStore.fetchMessages()
-    } else {
+    } else if (item.type === 'section') {
       router.push('/' + item.data)
+    } else if (item.type === 'message') {
+      const m = item.data as MsgResult
+      // Naviguer vers le canal du message
+      const ch = allChannels.value.find((c) => c.id === m.channel_id)
+      if (ch) {
+        appStore.openChannel(ch.id, ch.promo_id, ch.name, ch.type)
+        messagesStore.fetchMessages()
+      }
     }
   }
 
@@ -169,92 +189,138 @@
   }
 
   onMounted(()   => { document.addEventListener('keydown', onGlobalKey); loadData() })
-  onUnmounted(() => document.removeEventListener('keydown', onGlobalKey))
+  onUnmounted(() => { document.removeEventListener('keydown', onGlobalKey); clearTimeout(debounceTimer) })
 
   watch(() => modals.cmdPalette, (open) => {
     if (open) {
-      query.value    = ''
-      selected.value = 0
+      query.value       = ''
+      selected.value    = 0
+      msgResults.value  = []
       setTimeout(() => inputEl.value?.focus(), 50)
     }
   })
+
+  // ── Icône par type de résultat ────────────────────────────────────────────
+  function resultIcon(type: string) {
+    if (type === 'channel') return Hash
+    if (type === 'dm')      return User
+    if (type === 'section') return LayoutGrid
+    return MessageSquare
+  }
+
+  // Détecter la première occurrence d'un type 'message' pour afficher le séparateur
+  function isFirstMessage(i: number): boolean {
+    if (results.value[i].type !== 'message') return false
+    return i === 0 || results.value[i - 1].type !== 'message'
+  }
 </script>
 
 <template>
   <Teleport to="body">
-    <div
-      v-if="modals.cmdPalette"
-      class="modal-overlay"
-      @click.self="modals.cmdPalette = false"
-    >
-      <div class="cmd-palette-box">
-        <!-- Barre de recherche -->
-        <div class="cmd-search-bar">
-          <img :src="logoUrl" class="cmd-logo" alt="CESIA" />
-          <input
-            ref="inputEl"
-            v-model="query"
-            type="text"
-            placeholder="Chercher un canal, un étudiant, une section…"
-            class="cmd-search-input"
-            @keydown.escape="modals.cmdPalette = false"
-            @keydown.arrow-down.prevent="moveSelection(+1)"
-            @keydown.arrow-up.prevent="moveSelection(-1)"
-            @keydown.enter.prevent="select(selected)"
-          />
-          <kbd class="cmd-kbd">Esc</kbd>
-        </div>
+    <Transition name="cmd-fade">
+      <div
+        v-if="modals.cmdPalette"
+        class="modal-overlay"
+        @click.self="modals.cmdPalette = false"
+      >
+        <div class="cmd-palette-box">
+          <!-- Barre de recherche -->
+          <div class="cmd-search-bar">
+            <img :src="logoUrl" class="cmd-logo" alt="CESIA" />
+            <Search :size="15" class="cmd-search-icon" />
+            <input
+              ref="inputEl"
+              v-model="query"
+              type="text"
+              placeholder="Canaux, contacts, messages…"
+              class="cmd-search-input"
+              @keydown.escape="modals.cmdPalette = false"
+              @keydown.arrow-down.prevent="moveSelection(+1)"
+              @keydown.arrow-up.prevent="moveSelection(-1)"
+              @keydown.enter.prevent="select(selected)"
+            />
+            <span v-if="msgSearching" class="cmd-searching-dot" title="Recherche…" />
+            <kbd class="cmd-kbd">Esc</kbd>
+          </div>
 
-        <!-- Résultats -->
-        <ul ref="listEl" class="cmd-results">
-          <template v-if="results.length">
-            <li
-              v-for="(r, i) in results"
-              :key="i"
-              data-result-item
-              class="cmd-result-item"
-              :class="{ active: i === selected }"
-              @click="select(i)"
-              @mouseenter="selected = i"
-            >
-              <span class="cmd-result-label">{{ r.label }}</span>
-              <span class="cmd-result-sub">{{ r.sub }}</span>
+          <!-- Résultats -->
+          <ul ref="listEl" class="cmd-results">
+            <template v-if="results.length">
+              <!-- Séparateur avant la section Messages -->
+              <template v-for="(r, i) in results" :key="i">
+                <li v-if="isFirstMessage(i)" class="cmd-section-sep">
+                  <span>Messages</span>
+                </li>
+                <li
+                  data-result-item
+                  class="cmd-result-item"
+                  :class="{ active: i === selected }"
+                  @click="select(i)"
+                  @mouseenter="selected = i"
+                >
+                  <component :is="resultIcon(r.type)" :size="13" class="cmd-result-icon" :class="`icon-${r.type}`" />
+                  <div class="cmd-result-body">
+                    <span class="cmd-result-label">{{ r.label }}</span>
+                    <span v-if="r.type === 'message'" class="cmd-result-author">
+                      {{ (r.data as any).author_name }}
+                    </span>
+                  </div>
+                  <span class="cmd-result-sub">{{ r.sub }}</span>
+                </li>
+              </template>
+            </template>
+
+            <li v-else-if="query" class="cmd-empty">
+              <Search :size="16" class="cmd-empty-icon" />
+              Aucun résultat pour « {{ query }} »
             </li>
-          </template>
-          <li v-else-if="query" class="cmd-empty">Aucun résultat pour « {{ query }} »</li>
-          <li v-else class="cmd-empty">Tapez pour chercher…</li>
-        </ul>
+            <li v-else class="cmd-empty cmd-empty-hint">
+              <kbd>↑</kbd><kbd>↓</kbd> naviguer &nbsp;·&nbsp; <kbd>↵</kbd> ouvrir &nbsp;·&nbsp; <kbd>Ctrl K</kbd> ouvrir/fermer
+            </li>
+          </ul>
+        </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
 <style scoped>
+/* ── Transition overlay ── */
+.cmd-fade-enter-active,
+.cmd-fade-leave-active { transition: opacity .12s ease; }
+.cmd-fade-enter-from,
+.cmd-fade-leave-to     { opacity: 0; }
+
 .cmd-palette-box {
   width: 100%;
-  max-width: 560px;
+  max-width: 580px;
   background: var(--bg-modal);
   border: 1px solid var(--border-input);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 24px 48px rgba(0,0,0,.5);
+  box-shadow: 0 28px 56px rgba(0, 0, 0, .55);
 }
 
 /* ── Barre de recherche ── */
+.cmd-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
 .cmd-logo {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   object-fit: contain;
   flex-shrink: 0;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.25));
 }
 
-.cmd-search-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
+.cmd-search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .cmd-search-input {
@@ -266,53 +332,98 @@
   font-family: var(--font);
   font-size: 14px;
 }
-
 .cmd-search-input::placeholder { color: var(--text-muted); }
+
+/* Point de chargement ── */
+.cmd-searching-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  animation: cmd-pulse 1.2s ease-in-out infinite;
+}
+@keyframes cmd-pulse {
+  0%, 100% { opacity: .3; transform: scale(.8); }
+  50%       { opacity: 1;  transform: scale(1.1); }
+}
 
 .cmd-kbd {
   flex-shrink: 0;
   font-size: 10px;
   font-family: var(--font);
   color: var(--text-muted);
-  background: rgba(255,255,255,.07);
+  background: rgba(255, 255, 255, .07);
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 2px 6px;
+}
+
+/* ── Séparateur de section Messages ── */
+.cmd-section-sep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  user-select: none;
 }
 
 /* ── Liste des résultats ── */
 .cmd-results {
   list-style: none;
   padding: 6px 0;
-  max-height: 360px;
+  max-height: 380px;
   overflow-y: auto;
-  /* Scroll discret */
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,.12) transparent;
+  scrollbar-color: rgba(255, 255, 255, .12) transparent;
 }
 
 .cmd-result-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 9px 16px;
+  gap: 10px;
+  padding: 8px 16px;
   cursor: pointer;
   transition: background .08s;
-  gap: 12px;
 }
+.cmd-result-item.active     { background: rgba(74, 144, 217, .15); }
+.cmd-result-item:hover:not(.active) { background: var(--bg-hover); }
 
-.cmd-result-item.active {
-  background: rgba(74,144,217,.15);
-}
+/* Icône type ── */
+.cmd-result-icon { flex-shrink: 0; color: var(--text-muted); }
+.icon-channel { color: var(--accent); }
+.icon-message { color: #9B87F5; }
+.icon-dm      { color: #27AE60; }
+.icon-section { color: var(--color-warning, #E5A842); }
 
-.cmd-result-item:hover:not(.active) {
-  background: var(--bg-hover);
+/* Corps du résultat ── */
+.cmd-result-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .cmd-result-label {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmd-result-author {
+  font-size: 11px;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -325,11 +436,32 @@
   flex-shrink: 0;
 }
 
+/* ── État vide ── */
 .cmd-empty {
   padding: 20px 16px;
   text-align: center;
   color: var(--text-muted);
   font-size: 13px;
   font-style: italic;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.cmd-empty-icon { opacity: .4; }
+
+.cmd-empty-hint {
+  font-size: 11.5px;
+  font-style: normal;
+  gap: 4px;
+}
+.cmd-empty-hint kbd {
+  font-size: 10px;
+  font-family: var(--font);
+  background: rgba(255, 255, 255, .08);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--text-secondary);
 }
 </style>

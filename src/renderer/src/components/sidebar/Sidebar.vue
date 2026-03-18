@@ -436,6 +436,19 @@
       </div>
     </div>
 
+    <!-- Barre de recherche rapide -->
+    <button
+      class="sidebar-search-bar"
+      aria-label="Rechercher (Ctrl+K)"
+      @click="modals.cmdPalette = true"
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <span class="sidebar-search-placeholder">Rechercher…</span>
+      <kbd class="sidebar-search-kbd">Ctrl K</kbd>
+    </button>
+
     <!-- Indicateur de section actuelle -->
     <div class="sidebar-section-indicator" :class="`sidebar-section--${route.name as string}`">
       {{ sectionLabel }}
@@ -760,6 +773,51 @@
 </template>
 
 <style scoped>
+/* ── Barre de recherche rapide ── */
+.sidebar-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: calc(100% - 20px);
+  margin: 8px 10px 4px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: var(--font);
+  color: var(--text-muted);
+  transition: background .12s, border-color .12s;
+  flex-shrink: 0;
+  text-align: left;
+}
+.sidebar-search-bar:hover {
+  background: rgba(255, 255, 255, .09);
+  border-color: rgba(255, 255, 255, .18);
+  color: var(--text-secondary);
+}
+
+.sidebar-search-placeholder {
+  flex: 1;
+  font-size: 12.5px;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-search-kbd {
+  font-size: 9.5px;
+  font-family: var(--font);
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
 /* ── Indicateur de section ── */
 .sidebar-section-indicator {
   font-size: 10.5px;

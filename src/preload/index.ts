@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('api', {
   getChannelMessagesPage: (channelId: number, beforeId?: number) => invoke('db:getChannelMessagesPage', channelId, beforeId ?? null),
   getDmMessagesPage:      (studentId: number, beforeId?: number) => invoke('db:getDmMessagesPage',      studentId, beforeId ?? null),
   searchMessages:         (channelId: number, q: string)         => invoke('db:searchMessages',         channelId, q),
+  searchAllMessages:      (args: { promoId: number | null; query: string; limit?: number }) => invoke('db:searchAllMessages', args),
   sendMessage:            (payload: unknown)                     => invoke('db:sendMessage',             payload),
 
   // ── Travaux ────────────────────────────────────────────────────────────────

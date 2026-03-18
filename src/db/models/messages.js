@@ -96,10 +96,37 @@ function togglePinMessage(messageId, pinned) {
     .run(pinned ? 1 : 0, messageId).changes;
 }
 
+/** Recherche cross-canal dans une promo (ou toutes promos si promoId = null). */
+function searchAllMessages(promoId, query, limit = 8) {
+  if (promoId) {
+    return getDb().prepare(`
+      SELECT m.id, m.content, m.author_name, m.created_at,
+             c.id AS channel_id, c.name AS channel_name, c.promo_id
+      FROM messages m
+      JOIN channels c ON m.channel_id = c.id
+      WHERE c.promo_id = ?
+        AND m.dm_student_id IS NULL
+        AND m.content LIKE '%' || ? || '%'
+      ORDER BY m.created_at DESC
+      LIMIT ?
+    `).all(promoId, query, limit);
+  }
+  return getDb().prepare(`
+    SELECT m.id, m.content, m.author_name, m.created_at,
+           c.id AS channel_id, c.name AS channel_name, c.promo_id
+    FROM messages m
+    JOIN channels c ON m.channel_id = c.id
+    WHERE m.dm_student_id IS NULL
+      AND m.content LIKE '%' || ? || '%'
+    ORDER BY m.created_at DESC
+    LIMIT ?
+  `).all(query, limit);
+}
+
 module.exports = {
   getChannelMessages, getChannelMessagesPage,
   getDmMessages, getDmMessagesPage,
-  searchMessages, sendMessage,
+  searchMessages, searchAllMessages, sendMessage,
   getPinnedMessages, togglePinMessage, updateReactions,
   deleteMessage, editMessage,
 };

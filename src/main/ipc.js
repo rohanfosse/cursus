@@ -52,6 +52,7 @@ function register() {
   handle('db:getChannelMessagesPage', (channelId, beforeId)    => queries.getChannelMessagesPage(channelId, beforeId ?? null))
   handle('db:getDmMessagesPage',      (studentId, beforeId)    => queries.getDmMessagesPage(studentId, beforeId ?? null))
   handle('db:searchMessages',         (channelId, query)       => queries.searchMessages(channelId, query))
+  handle('db:searchAllMessages',      ({ promoId, query, limit }) => queries.searchAllMessages(promoId ?? null, query, limit ?? 8))
 
   // sendMessage — handler dédié : DB + push temps-réel vers tous les renderers
   ipcMain.handle('db:sendMessage', async (_event, payload) => {

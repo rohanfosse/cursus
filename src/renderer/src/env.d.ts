@@ -30,6 +30,7 @@ declare global {
       getChannelMessagesPage(channelId: number, beforeId?: number | null): Promise<IpcResponse<Message[]>>
       getDmMessagesPage(studentId: number, beforeId?: number | null): Promise<IpcResponse<Message[]>>
       searchMessages(channelId: number, q: string): Promise<IpcResponse<Message[]>>
+      searchAllMessages(args: { promoId: number | null; query: string; limit?: number }): Promise<IpcResponse<{ id: number; content: string; author_name: string; created_at: string; channel_id: number; channel_name: string; promo_id: number }[]>>
       sendMessage(payload: SendMessagePayload): Promise<IpcResponse<{ id: number }>>
       updateReactions(msgId: number, reactionsJson: string): Promise<IpcResponse<number>>
 
