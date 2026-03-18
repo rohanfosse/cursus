@@ -150,6 +150,8 @@
         pathOrUrl:   addType.value === 'link' ? addLink.value.trim() : addFile.value,
         category:    addCategory.value.trim() || null,
         description: null,
+        authorName:  appStore.currentUser?.name ?? 'Système',
+        authorType:  appStore.currentUser?.type ?? 'teacher',
       })
       if (ok) {
         showToast('Document ajouté.', 'success')

@@ -10008,6 +10008,16 @@ const Cog = createLucideIcon("cog", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const Copy = createLucideIcon("copy", [
+  ["rect", { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2", key: "17jyea" }],
+  ["path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2", key: "zix9uf" }]
+]);
+/**
+ * @license lucide-vue-next v0.577.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const Cpu = createLucideIcon("cpu", [
   ["path", { d: "M12 20v2", key: "1lh1kg" }],
   ["path", { d: "M12 2v2", key: "tus03m" }],
@@ -10045,6 +10055,17 @@ const Download = createLucideIcon("download", [
   ["path", { d: "M12 15V3", key: "m9g1x1" }],
   ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", key: "ih7n3h" }],
   ["path", { d: "m7 10 5 5 5-5", key: "brsn70" }]
+]);
+/**
+ * @license lucide-vue-next v0.577.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const Ellipsis = createLucideIcon("ellipsis", [
+  ["circle", { cx: "12", cy: "12", r: "1", key: "41hilf" }],
+  ["circle", { cx: "19", cy: "12", r: "1", key: "1wjl8i" }],
+  ["circle", { cx: "5", cy: "12", r: "1", key: "1pcz8c" }]
 ]);
 /**
  * @license lucide-vue-next v0.577.0 - ISC
@@ -10324,6 +10345,15 @@ const Link2 = createLucideIcon("link-2", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const LoaderCircle = createLucideIcon("loader-circle", [
+  ["path", { d: "M21 12a9 9 0 1 1-6.219-8.56", key: "13zald" }]
+]);
+/**
+ * @license lucide-vue-next v0.577.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const List = createLucideIcon("list", [
   ["path", { d: "M3 5h.01", key: "18ugdj" }],
   ["path", { d: "M3 12h.01", key: "nlz23k" }],
@@ -10395,6 +10425,21 @@ const Monitor = createLucideIcon("monitor", [
   ["rect", { width: "20", height: "14", x: "2", y: "3", rx: "2", key: "48i651" }],
   ["line", { x1: "8", x2: "16", y1: "21", y2: "21", key: "1svkeh" }],
   ["line", { x1: "12", x2: "12", y1: "17", y2: "21", key: "vw1qmm" }]
+]);
+/**
+ * @license lucide-vue-next v0.577.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const Paperclip = createLucideIcon("paperclip", [
+  [
+    "path",
+    {
+      d: "m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551",
+      key: "1miecu"
+    }
+  ]
 ]);
 /**
  * @license lucide-vue-next v0.577.0 - ISC
@@ -64745,20 +64790,31 @@ const _hoisted_2$x = {
 };
 const _hoisted_3$t = { class: "msg-body" };
 const _hoisted_4$s = { class: "msg-author" };
-const _hoisted_5$q = { class: "msg-time" };
-const _hoisted_6$p = {
+const _hoisted_5$r = { class: "msg-time" };
+const _hoisted_6$q = {
   key: 0,
   class: "pin-badge",
   title: "Message épinglé"
 };
-const _hoisted_7$p = ["innerHTML"];
+const _hoisted_7$q = ["innerHTML"];
 const _hoisted_8$p = {
   key: 1,
   class: "msg-reactions"
 };
 const _hoisted_9$o = ["aria-label", "onClick"];
-const _hoisted_10$o = { class: "msg-actions" };
-const _hoisted_11$m = ["title", "aria-label"];
+const _hoisted_10$o = { class: "reaction-emoji" };
+const _hoisted_11$m = { class: "reaction-count" };
+const _hoisted_12$m = {
+  key: 2,
+  class: "msg-thread-btn"
+};
+const _hoisted_13$k = { class: "msg-actions" };
+const _hoisted_14$k = ["title", "aria-label"];
+const _hoisted_15$k = {
+  key: 0,
+  class: "msg-menu",
+  role: "menu"
+};
 const _sfc_main$z = /* @__PURE__ */ defineComponent({
   __name: "MessageBubble",
   props: {
@@ -64771,21 +64827,24 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
     const appStore = useAppStore();
     const messagesStore = useMessagesStore();
     const { openExternal } = useOpenExternal();
+    const showMenu = /* @__PURE__ */ ref(false);
     const content = computed(
       () => renderMessageContent(props2.msg.content, props2.searchTerm, appStore.currentUser?.name ?? "")
     );
     const color = computed(() => avatarColor(props2.msg.author_name));
     const isPinned = computed(() => !!props2.msg.is_pinned);
+    const replyCount = computed(() => props2.msg.reply_count ?? 0);
     function togglePin() {
       messagesStore.togglePin(props2.msg.id, !isPinned.value);
+      showMenu.value = false;
     }
-    const REACT_TYPES = [
-      { type: "check", icon: "check" },
-      { type: "thumb", icon: "thumbs-up" },
-      { type: "bulb", icon: "lightbulb" },
-      { type: "question", icon: "help-circle" },
-      { type: "eye", icon: "eye" }
-    ];
+    async function copyMessage() {
+      try {
+        await navigator.clipboard.writeText(props2.msg.content);
+      } catch {
+      }
+      showMenu.value = false;
+    }
     function onMsgClick(e) {
       const a = e.target.closest("a[data-url]");
       if (!a) return;
@@ -64793,11 +64852,26 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
       const url = a.dataset.url;
       if (url) openExternal(url);
     }
+    const EMOJI_MAP = {
+      check: "✅",
+      thumb: "👍",
+      bulb: "💡",
+      question: "❓",
+      eye: "👀"
+    };
+    const REACT_TYPES = [
+      { type: "check", icon: "check" },
+      { type: "thumb", icon: "thumbs-up" },
+      { type: "bulb", icon: "lightbulb" },
+      { type: "question", icon: "help-circle" },
+      { type: "eye", icon: "eye" }
+    ];
     const reactionsToShow = computed(() => {
       const r = messagesStore.reactions[props2.msg.id] ?? {};
       const mine = messagesStore.userVotes[props2.msg.id] ?? /* @__PURE__ */ new Set();
       return REACT_TYPES.filter((t) => (r[t.type] ?? 0) > 0).map((t) => ({
         ...t,
+        emoji: EMOJI_MAP[t.type] ?? "",
         count: r[t.type],
         isMine: mine.has(t.type)
       }));
@@ -64805,7 +64879,8 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
     return (_ctx, _cache) => {
       return openBlock(), createElementBlock("div", {
         class: normalizeClass(["msg-row", { grouped: __props.grouped, pinned: isPinned.value }]),
-        "data-msg-id": __props.msg.id
+        "data-msg-id": __props.msg.id,
+        onClick: _cache[3] || (_cache[3] = withModifiers(($event) => showMenu.value = false, ["self"]))
       }, [
         !__props.grouped ? (openBlock(), createBlock(_sfc_main$B, {
           key: 0,
@@ -64816,14 +64891,14 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
         createBaseVNode("div", _hoisted_3$t, [
           !__props.grouped ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
             createBaseVNode("span", _hoisted_4$s, toDisplayString(__props.msg.author_name), 1),
-            createBaseVNode("span", _hoisted_5$q, toDisplayString(unref(formatTime)(__props.msg.created_at)), 1),
-            isPinned.value ? (openBlock(), createElementBlock("span", _hoisted_6$p, "📌")) : createCommentVNode("", true)
+            createBaseVNode("span", _hoisted_5$r, toDisplayString(unref(formatTime)(__props.msg.created_at)), 1),
+            isPinned.value ? (openBlock(), createElementBlock("span", _hoisted_6$q, "📌")) : createCommentVNode("", true)
           ], 64)) : createCommentVNode("", true),
           createBaseVNode("p", {
             class: "msg-text",
             innerHTML: content.value,
             onClick: onMsgClick
-          }, null, 8, _hoisted_7$p),
+          }, null, 8, _hoisted_7$q),
           reactionsToShow.value.length ? (openBlock(), createElementBlock("div", _hoisted_8$p, [
             (openBlock(true), createElementBlock(Fragment, null, renderList(reactionsToShow.value, (r) => {
               return openBlock(), createElementBlock("button", {
@@ -64832,12 +64907,17 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
                 "aria-label": `Réaction ${r.type}`,
                 onClick: ($event) => unref(messagesStore).toggleReaction(__props.msg.id, r.type)
               }, [
-                createBaseVNode("span", null, toDisplayString(r.count), 1)
+                createBaseVNode("span", _hoisted_10$o, toDisplayString(r.emoji), 1),
+                createBaseVNode("span", _hoisted_11$m, toDisplayString(r.count), 1)
               ], 10, _hoisted_9$o);
             }), 128))
+          ])) : createCommentVNode("", true),
+          replyCount.value > 0 ? (openBlock(), createElementBlock("button", _hoisted_12$m, [
+            createVNode(unref(MessageSquare), { size: 12 }),
+            createBaseVNode("span", null, toDisplayString(replyCount.value) + " réponse" + toDisplayString(replyCount.value > 1 ? "s" : ""), 1)
           ])) : createCommentVNode("", true)
         ]),
-        createBaseVNode("div", _hoisted_10$o, [
+        createBaseVNode("div", _hoisted_13$k, [
           createVNode(_sfc_main$A, {
             "msg-id": __props.msg.id
           }, null, 8, ["msg-id"]),
@@ -64855,12 +64935,61 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
               key: 1,
               size: 14
             }))
-          ], 8, _hoisted_11$m)) : createCommentVNode("", true)
+          ], 8, _hoisted_14$k)) : createCommentVNode("", true),
+          createBaseVNode("div", {
+            class: "msg-menu-wrap",
+            onMouseleave: _cache[2] || (_cache[2] = ($event) => showMenu.value = false)
+          }, [
+            createBaseVNode("button", {
+              class: "btn-icon msg-action-btn",
+              title: "Plus d'options",
+              "aria-label": "Plus d'options",
+              onClick: _cache[0] || (_cache[0] = withModifiers(($event) => showMenu.value = !showMenu.value, ["stop"]))
+            }, [
+              createVNode(unref(Ellipsis), { size: 14 })
+            ]),
+            showMenu.value ? (openBlock(), createElementBlock("div", _hoisted_15$k, [
+              createBaseVNode("button", {
+                class: "msg-menu-item",
+                role: "menuitem",
+                onClick: copyMessage
+              }, [
+                createVNode(unref(Copy), { size: 12 }),
+                _cache[4] || (_cache[4] = createTextVNode(" Copier le texte ", -1))
+              ]),
+              unref(appStore).isTeacher ? (openBlock(), createElementBlock("button", {
+                key: 0,
+                class: "msg-menu-item",
+                role: "menuitem",
+                onClick: togglePin
+              }, [
+                createVNode(unref(Pin), { size: 12 }),
+                createTextVNode(" " + toDisplayString(isPinned.value ? "Désépingler" : "Épingler"), 1)
+              ])) : createCommentVNode("", true),
+              unref(appStore).isTeacher ? (openBlock(), createElementBlock("button", {
+                key: 1,
+                class: "msg-menu-item msg-menu-danger",
+                role: "menuitem",
+                onClick: _cache[1] || (_cache[1] = ($event) => showMenu.value = false)
+              }, [
+                createVNode(unref(Trash2), { size: 12 }),
+                _cache[5] || (_cache[5] = createTextVNode(" Supprimer ", -1))
+              ])) : createCommentVNode("", true)
+            ])) : createCommentVNode("", true)
+          ], 32)
         ])
       ], 10, _hoisted_1$z);
     };
   }
 });
+const _export_sfc = (sfc, props2) => {
+  const target = sfc.__vccOpts || sfc;
+  for (const [key, val] of props2) {
+    target[key] = val;
+  }
+  return target;
+};
+const MessageBubble = /* @__PURE__ */ _export_sfc(_sfc_main$z, [["__scopeId", "data-v-631e121a"]]);
 const _hoisted_1$y = {
   key: 0,
   class: "load-more-indicator"
@@ -64996,7 +65125,7 @@ const _sfc_main$y = /* @__PURE__ */ defineComponent({
                   isFirstUnread ? (openBlock(), createElementBlock("div", _hoisted_3$s, [..._cache[2] || (_cache[2] = [
                     createBaseVNode("span", { class: "unread-divider-label" }, "Nouveaux messages", -1)
                   ])])) : createCommentVNode("", true),
-                  createVNode(_sfc_main$z, {
+                  createVNode(MessageBubble, {
                     msg,
                     grouped,
                     "search-term": unref(store).searchTerm
@@ -65012,13 +65141,6 @@ const _sfc_main$y = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const _export_sfc = (sfc, props2) => {
-  const target = sfc.__vccOpts || sfc;
-  for (const [key, val] of props2) {
-    target[key] = val;
-  }
-  return target;
-};
 const MessageList = /* @__PURE__ */ _export_sfc(_sfc_main$y, [["__scopeId", "data-v-2fbd1929"]]);
 const _hoisted_1$x = {
   id: "chat-format-toolbar",
@@ -65095,12 +65217,27 @@ const _sfc_main$x = /* @__PURE__ */ defineComponent({
   }
 });
 const _hoisted_1$w = {
+  class: "mi-typing",
+  "aria-live": "polite"
+};
+const _hoisted_2$v = {
+  key: 0,
+  class: "mi-typing-text"
+};
+const _hoisted_3$r = {
   id: "message-input-wrapper",
   class: "message-input-wrapper"
 };
-const _hoisted_2$v = ["placeholder"];
-const _hoisted_3$r = ["disabled"];
-const _hoisted_4$q = {
+const _hoisted_4$q = ["placeholder"];
+const _hoisted_5$q = {
+  class: "btn-icon mi-attach-btn",
+  title: "Joindre un fichier",
+  "aria-label": "Joindre un fichier",
+  tabindex: "-1",
+  disabled: ""
+};
+const _hoisted_6$p = ["disabled"];
+const _hoisted_7$p = {
   key: 1,
   class: "readonly-notice"
 };
@@ -65118,6 +65255,7 @@ const _sfc_main$w = /* @__PURE__ */ defineComponent({
       if (appStore.activeChannelName) return `Envoyer dans #${appStore.activeChannelName}`;
       return "Votre message…";
     });
+    const typingText = computed(() => "");
     function autoResize() {
       if (!inputEl.value) return;
       inputEl.value.style.height = "auto";
@@ -65147,11 +65285,14 @@ const _sfc_main$w = /* @__PURE__ */ defineComponent({
         class: normalizeClass(["message-input-area", { readonly: unref(appStore).isReadonly }])
       }, [
         !unref(appStore).isReadonly ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
+          createBaseVNode("div", _hoisted_1$w, [
+            typingText.value ? (openBlock(), createElementBlock("span", _hoisted_2$v, toDisplayString(typingText.value), 1)) : createCommentVNode("", true)
+          ]),
           showToolbar.value ? (openBlock(), createBlock(_sfc_main$x, {
             key: 0,
             "input-el": inputEl.value
           }, null, 8, ["input-el"])) : createCommentVNode("", true),
-          createBaseVNode("div", _hoisted_1$w, [
+          createBaseVNode("div", _hoisted_3$r, [
             createBaseVNode("button", {
               id: "btn-toggle-format",
               class: normalizeClass(["btn-icon", { active: showToolbar.value }]),
@@ -65171,24 +65312,35 @@ const _sfc_main$w = /* @__PURE__ */ defineComponent({
               rows: "1",
               onInput: autoResize,
               onKeydown
-            }, null, 40, _hoisted_2$v), [
+            }, null, 40, _hoisted_4$q), [
               [vModelText, content.value]
+            ]),
+            createBaseVNode("button", _hoisted_5$q, [
+              createVNode(unref(Paperclip), { size: 16 })
             ]),
             createBaseVNode("button", {
               id: "btn-send",
-              class: "btn-primary",
+              class: "btn-primary mi-send-btn",
               disabled: !content.value.trim() || sending.value,
               "aria-label": "Envoyer le message",
               onClick: send
             }, [
-              createVNode(unref(Send), { size: 16 })
-            ], 8, _hoisted_3$r)
+              sending.value ? (openBlock(), createBlock(unref(LoaderCircle), {
+                key: 0,
+                size: 16,
+                class: "mi-spinner"
+              })) : (openBlock(), createBlock(unref(Send), {
+                key: 1,
+                size: 16
+              }))
+            ], 8, _hoisted_6$p)
           ])
-        ], 64)) : (openBlock(), createElementBlock("p", _hoisted_4$q, "Ce canal est en lecture seule."))
+        ], 64)) : (openBlock(), createElementBlock("p", _hoisted_7$p, "Ce canal est en lecture seule."))
       ], 2);
     };
   }
 });
+const MessageInput = /* @__PURE__ */ _export_sfc(_sfc_main$w, [["__scopeId", "data-v-4b3a877d"]]);
 const _hoisted_1$v = {
   key: 0,
   class: "pinned-messages-banner"
@@ -65531,7 +65683,7 @@ const _sfc_main$u = /* @__PURE__ */ defineComponent({
               createVNode(unref(X$1), { size: 13 })
             ], 8, _hoisted_14$j)
           ])) : createCommentVNode("", true),
-          createVNode(_sfc_main$w)
+          createVNode(MessageInput)
         ])) : (openBlock(), createElementBlock("div", _hoisted_15$j, [..._cache[6] || (_cache[6] = [
           createBaseVNode("p", null, "Sélectionnez un canal dans la barre latérale pour commencer.", -1)
         ])])),
@@ -66254,18 +66406,18 @@ const _hoisted_87$2 = {
 };
 const _hoisted_88$2 = { class: "spf-aside-header" };
 const _hoisted_89$2 = { class: "spf-aside-count" };
-const _hoisted_90$2 = { class: "spf-results-list" };
-const _hoisted_91$2 = { class: "spf-result-top" };
-const _hoisted_92$2 = { class: "spf-result-title" };
-const _hoisted_93$2 = {
+const _hoisted_90$1 = { class: "spf-results-list" };
+const _hoisted_91$1 = { class: "spf-result-top" };
+const _hoisted_92$1 = { class: "spf-result-title" };
+const _hoisted_93$1 = {
   key: 1,
   class: "spf-result-pending"
 };
-const _hoisted_94$2 = {
+const _hoisted_94$1 = {
   key: 0,
   class: "spf-result-feedback"
 };
-const _hoisted_95$2 = {
+const _hoisted_95$1 = {
   key: 0,
   class: "spf-results-avg"
 };
@@ -66896,24 +67048,24 @@ const _sfc_main$s = /* @__PURE__ */ defineComponent({
                 _cache[22] || (_cache[22] = createBaseVNode("span", null, "Mes résultats", -1)),
                 createBaseVNode("span", _hoisted_89$2, toDisplayString(stats.value.graded) + "/" + toDisplayString(devoirsSubmitted.value.length), 1)
               ]),
-              createBaseVNode("div", _hoisted_90$2, [
+              createBaseVNode("div", _hoisted_90$1, [
                 (openBlock(true), createElementBlock(Fragment, null, renderList(devoirsSubmitted.value, (t) => {
                   return openBlock(), createElementBlock("div", {
                     key: t.id,
                     class: "spf-result-row"
                   }, [
-                    createBaseVNode("div", _hoisted_91$2, [
-                      createBaseVNode("span", _hoisted_92$2, toDisplayString(t.title), 1),
+                    createBaseVNode("div", _hoisted_91$1, [
+                      createBaseVNode("span", _hoisted_92$1, toDisplayString(t.title), 1),
                       t.note ? (openBlock(), createElementBlock("span", {
                         key: 0,
                         class: normalizeClass(["spf-result-grade", gradeColor(t.note)])
-                      }, toDisplayString(t.note), 3)) : (openBlock(), createElementBlock("span", _hoisted_93$2, "—"))
+                      }, toDisplayString(t.note), 3)) : (openBlock(), createElementBlock("span", _hoisted_93$1, "—"))
                     ]),
-                    t.feedback ? (openBlock(), createElementBlock("div", _hoisted_94$2, " « " + toDisplayString(t.feedback) + " » ", 1)) : createCommentVNode("", true)
+                    t.feedback ? (openBlock(), createElementBlock("div", _hoisted_94$1, " « " + toDisplayString(t.feedback) + " » ", 1)) : createCommentVNode("", true)
                   ]);
                 }), 128))
               ]),
-              stats.value.avg != null ? (openBlock(), createElementBlock("div", _hoisted_95$2, [
+              stats.value.avg != null ? (openBlock(), createElementBlock("div", _hoisted_95$1, [
                 createVNode(unref(Award), { size: 11 }),
                 _cache[23] || (_cache[23] = createTextVNode(" Moyenne du projet : ", -1)),
                 createBaseVNode("strong", null, toDisplayString(stats.value.avg) + "/20", 1)
@@ -67093,103 +67245,103 @@ const _hoisted_86$1 = { class: "group-header group-header--success" };
 const _hoisted_87$1 = { class: "group-count" };
 const _hoisted_88$1 = { class: "devoirs-list" };
 const _hoisted_89$1 = { class: "devoir-card-header" };
-const _hoisted_90$1 = { class: "devoir-card-meta" };
-const _hoisted_91$1 = {
+const _hoisted_90 = { class: "devoir-card-meta" };
+const _hoisted_91 = {
   key: 0,
   class: "tag-badge"
 };
-const _hoisted_92$1 = {
+const _hoisted_92 = {
   key: 1,
   class: "devoir-channel"
 };
-const _hoisted_93$1 = { class: "devoir-card-title" };
-const _hoisted_94$1 = {
+const _hoisted_93 = { class: "devoir-card-title" };
+const _hoisted_94 = {
   key: 0,
   class: "devoir-card-desc"
 };
-const _hoisted_95$1 = { class: "devoir-submitted-info" };
-const _hoisted_96$1 = {
+const _hoisted_95 = { class: "devoir-submitted-info" };
+const _hoisted_96 = {
   key: 1,
   class: "devoir-grade-row"
 };
-const _hoisted_97$1 = { class: "devoir-grade-value" };
-const _hoisted_98$1 = {
+const _hoisted_97 = { class: "devoir-grade-value" };
+const _hoisted_98 = {
   key: 0,
   class: "devoir-grade-feedback"
 };
-const _hoisted_99$1 = {
+const _hoisted_99 = {
   key: 0,
   class: "gantt-skel"
 };
-const _hoisted_100$1 = {
+const _hoisted_100 = {
   key: 1,
   class: "empty-state-custom"
 };
-const _hoisted_101$1 = {
+const _hoisted_101 = {
   key: 2,
   class: "gantt-wrapper"
 };
-const _hoisted_102$1 = { class: "gantt-chart" };
-const _hoisted_103$1 = ["onClick"];
-const _hoisted_104$1 = { class: "gantt-row-label" };
-const _hoisted_105$1 = { class: "gantt-label-name" };
-const _hoisted_106$1 = { class: "gantt-track" };
-const _hoisted_107$1 = ["title"];
-const _hoisted_108$1 = {
+const _hoisted_102 = { class: "gantt-chart" };
+const _hoisted_103 = ["onClick"];
+const _hoisted_104 = { class: "gantt-row-label" };
+const _hoisted_105 = { class: "gantt-label-name" };
+const _hoisted_106 = { class: "gantt-track" };
+const _hoisted_107 = ["title"];
+const _hoisted_108 = {
   key: 0,
   class: "liste-grid"
 };
-const _hoisted_109$1 = {
+const _hoisted_109 = {
   key: 1,
   class: "empty-state-custom"
 };
-const _hoisted_110$1 = {
+const _hoisted_110 = {
   key: 2,
   class: "liste-grid"
 };
-const _hoisted_111$1 = ["onClick"];
-const _hoisted_112$1 = { class: "liste-card-top" };
-const _hoisted_113$1 = { class: "liste-card-title" };
-const _hoisted_114$1 = { class: "liste-card-meta" };
-const _hoisted_115$1 = {
+const _hoisted_111 = ["onClick"];
+const _hoisted_112 = { class: "liste-card-top" };
+const _hoisted_113 = { class: "liste-card-title" };
+const _hoisted_114 = { class: "liste-card-meta" };
+const _hoisted_115 = {
   key: 0,
   class: "liste-card-channel"
 };
-const _hoisted_116$1 = {
+const _hoisted_116 = {
   key: 1,
   class: "tag-badge"
 };
-const _hoisted_117$1 = { class: "liste-card-footer" };
-const _hoisted_118$1 = {
+const _hoisted_117 = { class: "liste-card-footer" };
+const _hoisted_118 = {
   key: 0,
   class: "devoirs-list"
 };
-const _hoisted_119$1 = {
+const _hoisted_119 = {
   key: 1,
   class: "empty-state-custom"
 };
-const _hoisted_120$1 = {
+const _hoisted_120 = {
   key: 2,
   class: "devoirs-list"
 };
-const _hoisted_121$1 = { class: "rendus-group-header" };
-const _hoisted_122$1 = { class: "rendus-group-header-left" };
-const _hoisted_123$1 = { class: "rendus-group-title" };
-const _hoisted_124$1 = { class: "rendus-count-badge" };
-const _hoisted_125$1 = ["onClick"];
-const _hoisted_126$1 = { class: "rendus-list" };
-const _hoisted_127$1 = { class: "rendu-info" };
-const _hoisted_128$1 = { class: "rendu-student" };
-const _hoisted_129$1 = { class: "rendu-file" };
-const _hoisted_130$1 = { class: "rendu-right" };
-const _hoisted_131$1 = {
+const _hoisted_121 = { class: "rendus-group-header" };
+const _hoisted_122 = { class: "rendus-group-header-left" };
+const _hoisted_123 = { class: "rendus-group-title" };
+const _hoisted_124 = { class: "rendus-count-badge" };
+const _hoisted_125 = ["onClick"];
+const _hoisted_126 = { class: "rendus-list" };
+const _hoisted_127 = { class: "rendu-info" };
+const _hoisted_128 = { class: "rendu-student" };
+const _hoisted_129 = { class: "rendu-file" };
+const _hoisted_130 = { class: "rendu-right" };
+const _hoisted_131 = {
   key: 0,
   class: "grade-inline-form"
 };
-const _hoisted_132$1 = { class: "grade-inline-actions" };
-const _hoisted_133$1 = ["disabled", "onClick"];
-const _hoisted_134$1 = ["onClick"];
-const _hoisted_135$1 = ["onClick"];
+const _hoisted_132 = { class: "grade-inline-actions" };
+const _hoisted_133 = ["disabled", "onClick"];
+const _hoisted_134 = ["onClick"];
+const _hoisted_135 = ["onClick"];
 const _hoisted_136 = {
   key: 2,
   class: "rendu-feedback"
@@ -67864,12 +68016,12 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                       class: "devoir-card devoir-card--submitted"
                     }, [
                       createBaseVNode("div", _hoisted_89$1, [
-                        createBaseVNode("div", _hoisted_90$1, [
+                        createBaseVNode("div", _hoisted_90, [
                           createBaseVNode("span", {
                             class: normalizeClass(["devoir-type-badge", `type-${t.type}`])
                           }, toDisplayString(typeLabel(t.type)), 3),
-                          t.category ? (openBlock(), createElementBlock("span", _hoisted_91$1, toDisplayString(unref(parseCategoryIcon)(t.category).label || t.category), 1)) : createCommentVNode("", true),
-                          t.channel_name ? (openBlock(), createElementBlock("span", _hoisted_92$1, "# " + toDisplayString(t.channel_name), 1)) : createCommentVNode("", true)
+                          t.category ? (openBlock(), createElementBlock("span", _hoisted_91, toDisplayString(unref(parseCategoryIcon)(t.category).label || t.category), 1)) : createCommentVNode("", true),
+                          t.channel_name ? (openBlock(), createElementBlock("span", _hoisted_92, "# " + toDisplayString(t.channel_name), 1)) : createCommentVNode("", true)
                         ]),
                         createBaseVNode("span", {
                           class: normalizeClass(["deadline-badge", unref(deadlineClass)(t.deadline)])
@@ -67878,19 +68030,19 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                           createTextVNode(toDisplayString(unref(deadlineLabel)(t.deadline)), 1)
                         ], 2)
                       ]),
-                      createBaseVNode("h3", _hoisted_93$1, toDisplayString(t.title), 1),
-                      t.description ? (openBlock(), createElementBlock("p", _hoisted_94$1, toDisplayString(t.description), 1)) : createCommentVNode("", true),
-                      createBaseVNode("div", _hoisted_95$1, [
+                      createBaseVNode("h3", _hoisted_93, toDisplayString(t.title), 1),
+                      t.description ? (openBlock(), createElementBlock("p", _hoisted_94, toDisplayString(t.description), 1)) : createCommentVNode("", true),
+                      createBaseVNode("div", _hoisted_95, [
                         createVNode(unref(CircleCheck), { size: 14 }),
                         _cache[48] || (_cache[48] = createBaseVNode("span", null, "Rendu déposé", -1))
                       ]),
-                      t.note ? (openBlock(), createElementBlock("div", _hoisted_96$1, [
+                      t.note ? (openBlock(), createElementBlock("div", _hoisted_96, [
                         createVNode(unref(Award), {
                           size: 13,
                           class: "devoir-grade-icon"
                         }),
-                        createBaseVNode("span", _hoisted_97$1, toDisplayString(t.note), 1),
-                        t.feedback ? (openBlock(), createElementBlock("span", _hoisted_98$1, toDisplayString(t.feedback), 1)) : createCommentVNode("", true)
+                        createBaseVNode("span", _hoisted_97, toDisplayString(t.note), 1),
+                        t.feedback ? (openBlock(), createElementBlock("span", _hoisted_98, toDisplayString(t.feedback), 1)) : createCommentVNode("", true)
                       ])) : createCommentVNode("", true)
                     ]);
                   }), 128))
@@ -67902,7 +68054,7 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
             "project-key": unref(appStore).activeProject,
             "promo-id": unref(appStore).activePromoId
           }, null, 8, ["project-key", "promo-id"])) : teacherView.value === "gantt" ? (openBlock(), createElementBlock(Fragment, { key: 2 }, [
-            unref(travauxStore).loading ? (openBlock(), createElementBlock("div", _hoisted_99$1, [
+            unref(travauxStore).loading ? (openBlock(), createElementBlock("div", _hoisted_99, [
               (openBlock(), createElementBlock(Fragment, null, renderList(5, (i) => {
                 return createBaseVNode("div", {
                   key: i,
@@ -67918,32 +68070,32 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                   }, null, -1)
                 ])]);
               }), 64))
-            ])) : ganttItems.value.items.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_100$1, [
+            ])) : ganttItems.value.items.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_100, [
               createVNode(unref(ChartNoAxesColumn), {
                 size: 48,
                 class: "empty-icon"
               }),
               _cache[50] || (_cache[50] = createBaseVNode("h3", null, "Aucun devoir créé", -1)),
               _cache[51] || (_cache[51] = createBaseVNode("p", null, "Créez un premier devoir pour visualiser le Gantt.", -1))
-            ])) : (openBlock(), createElementBlock("div", _hoisted_101$1, [
+            ])) : (openBlock(), createElementBlock("div", _hoisted_101, [
               _cache[52] || (_cache[52] = createStaticVNode('<div class="gantt-legend" data-v-93a581be><span class="legend-pill type-livrable" data-v-93a581be>Livrable</span><span class="legend-pill type-soutenance" data-v-93a581be>Soutenance</span><span class="legend-pill type-cctl" data-v-93a581be>CCTL</span><span class="legend-pill type-etude_de_cas" data-v-93a581be>Étude de cas</span><span class="legend-pill type-memoire" data-v-93a581be>Mémoire</span><span class="legend-pill type-autre" data-v-93a581be>Autre</span><span class="legend-separator" data-v-93a581be></span><span class="legend-today" data-v-93a581be><span class="legend-today-line" data-v-93a581be></span> Aujourd&#39;hui </span></div>', 1)),
-              createBaseVNode("div", _hoisted_102$1, [
+              createBaseVNode("div", _hoisted_102, [
                 (openBlock(true), createElementBlock(Fragment, null, renderList(ganttItems.value.items, (item) => {
                   return openBlock(), createElementBlock("div", {
                     key: item.id,
                     class: "gantt-row",
                     onClick: ($event) => openDevoir(item.id)
                   }, [
-                    createBaseVNode("div", _hoisted_104$1, [
+                    createBaseVNode("div", _hoisted_104, [
                       createBaseVNode("span", {
                         class: normalizeClass(["gantt-label-type devoir-type-badge", `type-${item.type}`])
                       }, toDisplayString(typeLabel(item.type)), 3),
-                      createBaseVNode("span", _hoisted_105$1, toDisplayString(item.title), 1),
+                      createBaseVNode("span", _hoisted_105, toDisplayString(item.title), 1),
                       createBaseVNode("span", {
                         class: normalizeClass(["deadline-badge", item.dlClass])
                       }, toDisplayString(unref(formatDate)(item.deadline)), 3)
                     ]),
-                    createBaseVNode("div", _hoisted_106$1, [
+                    createBaseVNode("div", _hoisted_106, [
                       createBaseVNode("div", {
                         class: "gantt-today-marker",
                         style: normalizeStyle({ left: ganttItems.value.todayPct + "%" })
@@ -67952,14 +68104,14 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                         class: normalizeClass(["gantt-bar", `type-${item.type}`]),
                         style: normalizeStyle({ left: item.left + "%", width: item.width + "%" }),
                         title: item.title
-                      }, null, 14, _hoisted_107$1)
+                      }, null, 14, _hoisted_107)
                     ])
-                  ], 8, _hoisted_103$1);
+                  ], 8, _hoisted_103);
                 }), 128))
               ])
             ]))
           ], 64)) : teacherView.value === "liste" ? (openBlock(), createElementBlock(Fragment, { key: 3 }, [
-            unref(travauxStore).loading ? (openBlock(), createElementBlock("div", _hoisted_108$1, [
+            unref(travauxStore).loading ? (openBlock(), createElementBlock("div", _hoisted_108, [
               (openBlock(), createElementBlock(Fragment, null, renderList(6, (i) => {
                 return createBaseVNode("div", {
                   key: i,
@@ -67983,21 +68135,21 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                   }, null, -1)
                 ])]);
               }), 64))
-            ])) : unref(travauxStore).ganttData.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_109$1, [
+            ])) : unref(travauxStore).ganttData.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_109, [
               createVNode(unref(Grid3x3), {
                 size: 48,
                 class: "empty-icon"
               }),
               _cache[54] || (_cache[54] = createBaseVNode("h3", null, "Aucun devoir créé", -1)),
               _cache[55] || (_cache[55] = createBaseVNode("p", null, "Créez un premier devoir pour le voir ici.", -1))
-            ])) : (openBlock(), createElementBlock("div", _hoisted_110$1, [
+            ])) : (openBlock(), createElementBlock("div", _hoisted_110, [
               (openBlock(true), createElementBlock(Fragment, null, renderList(unref(travauxStore).ganttData, (t) => {
                 return openBlock(), createElementBlock("div", {
                   key: t.id,
                   class: "liste-card",
                   onClick: ($event) => openDevoir(t.id)
                 }, [
-                  createBaseVNode("div", _hoisted_112$1, [
+                  createBaseVNode("div", _hoisted_112, [
                     createBaseVNode("span", {
                       class: normalizeClass(["devoir-type-badge", `type-${t.type}`])
                     }, toDisplayString(typeLabel(t.type)), 3),
@@ -68006,12 +68158,12 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                       class: "liste-card-chevron"
                     })
                   ]),
-                  createBaseVNode("h3", _hoisted_113$1, toDisplayString(t.title), 1),
-                  createBaseVNode("div", _hoisted_114$1, [
-                    t.channel_name ? (openBlock(), createElementBlock("span", _hoisted_115$1, "# " + toDisplayString(t.channel_name), 1)) : createCommentVNode("", true),
-                    t.category ? (openBlock(), createElementBlock("span", _hoisted_116$1, toDisplayString(unref(parseCategoryIcon)(t.category).label || t.category), 1)) : createCommentVNode("", true)
+                  createBaseVNode("h3", _hoisted_113, toDisplayString(t.title), 1),
+                  createBaseVNode("div", _hoisted_114, [
+                    t.channel_name ? (openBlock(), createElementBlock("span", _hoisted_115, "# " + toDisplayString(t.channel_name), 1)) : createCommentVNode("", true),
+                    t.category ? (openBlock(), createElementBlock("span", _hoisted_116, toDisplayString(unref(parseCategoryIcon)(t.category).label || t.category), 1)) : createCommentVNode("", true)
                   ]),
-                  createBaseVNode("div", _hoisted_117$1, [
+                  createBaseVNode("div", _hoisted_117, [
                     createBaseVNode("span", {
                       class: normalizeClass(["deadline-badge", unref(deadlineClass)(t.deadline)])
                     }, [
@@ -68019,11 +68171,11 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                       createTextVNode(toDisplayString(unref(deadlineLabel)(t.deadline)), 1)
                     ], 2)
                   ])
-                ], 8, _hoisted_111$1);
+                ], 8, _hoisted_111);
               }), 128))
             ]))
           ], 64)) : (openBlock(), createElementBlock(Fragment, { key: 4 }, [
-            unref(travauxStore).loading ? (openBlock(), createElementBlock("div", _hoisted_118$1, [
+            unref(travauxStore).loading ? (openBlock(), createElementBlock("div", _hoisted_118, [
               (openBlock(), createElementBlock(Fragment, null, renderList(3, (i) => {
                 return createBaseVNode("div", {
                   key: i,
@@ -68039,27 +68191,27 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                   }, null, -1)
                 ])]);
               }), 64))
-            ])) : rendusByDevoir.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_119$1, [
+            ])) : rendusByDevoir.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_119, [
               createVNode(unref(Users), {
                 size: 48,
                 class: "empty-icon"
               }),
               _cache[57] || (_cache[57] = createBaseVNode("h3", null, "Aucun rendu pour cette promotion", -1)),
               _cache[58] || (_cache[58] = createBaseVNode("p", null, "Les rendus des étudiants apparaîtront ici.", -1))
-            ])) : (openBlock(), createElementBlock("div", _hoisted_120$1, [
+            ])) : (openBlock(), createElementBlock("div", _hoisted_120, [
               (openBlock(true), createElementBlock(Fragment, null, renderList(rendusByDevoir.value, (group2) => {
                 return openBlock(), createElementBlock("div", {
                   key: group2.devoir.id,
                   class: "rendus-group"
                 }, [
-                  createBaseVNode("div", _hoisted_121$1, [
-                    createBaseVNode("div", _hoisted_122$1, [
+                  createBaseVNode("div", _hoisted_121, [
+                    createBaseVNode("div", _hoisted_122, [
                       group2.devoir.type ? (openBlock(), createElementBlock("span", {
                         key: 0,
                         class: normalizeClass(["devoir-type-badge", `type-${group2.devoir.type}`])
                       }, toDisplayString(typeLabel(group2.devoir.type)), 3)) : createCommentVNode("", true),
-                      createBaseVNode("span", _hoisted_123$1, toDisplayString(group2.devoir.title ?? `Devoir #${group2.devoir.id}`), 1),
-                      createBaseVNode("span", _hoisted_124$1, [
+                      createBaseVNode("span", _hoisted_123, toDisplayString(group2.devoir.title ?? `Devoir #${group2.devoir.id}`), 1),
+                      createBaseVNode("span", _hoisted_124, [
                         createTextVNode(toDisplayString(group2.rendus.length) + " rendu" + toDisplayString(group2.rendus.length > 1 ? "s" : "") + " ", 1),
                         group2.devoir.students_total ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
                           createTextVNode(" / " + toDisplayString(group2.devoir.students_total) + " attendu" + toDisplayString(group2.devoir.students_total > 1 ? "s" : ""), 1)
@@ -68072,9 +68224,9 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                     }, [
                       _cache[59] || (_cache[59] = createTextVNode(" Ouvrir ", -1)),
                       createVNode(unref(ChevronRight), { size: 13 })
-                    ], 8, _hoisted_125$1)
+                    ], 8, _hoisted_125)
                   ]),
-                  createBaseVNode("div", _hoisted_126$1, [
+                  createBaseVNode("div", _hoisted_126, [
                     (openBlock(true), createElementBlock(Fragment, null, renderList(group2.rendus, (r) => {
                       return openBlock(), createElementBlock("div", {
                         key: r.id,
@@ -68084,9 +68236,9 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                           class: "rendu-avatar",
                           style: normalizeStyle({ background: unref(avatarColor)(r.student_name) })
                         }, toDisplayString(unref(initials)(r.student_name)), 5),
-                        createBaseVNode("div", _hoisted_127$1, [
-                          createBaseVNode("span", _hoisted_128$1, toDisplayString(r.student_name), 1),
-                          createBaseVNode("span", _hoisted_129$1, [
+                        createBaseVNode("div", _hoisted_127, [
+                          createBaseVNode("span", _hoisted_128, toDisplayString(r.student_name), 1),
+                          createBaseVNode("span", _hoisted_129, [
                             r.type === "link" ? (openBlock(), createBlock(unref(Link2), {
                               key: 0,
                               size: 10
@@ -68097,8 +68249,8 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                             createTextVNode(" " + toDisplayString(r.type === "file" ? r.file_name ?? r.content : r.content), 1)
                           ])
                         ]),
-                        createBaseVNode("div", _hoisted_130$1, [
-                          editingDepotId.value === r.id ? (openBlock(), createElementBlock("div", _hoisted_131$1, [
+                        createBaseVNode("div", _hoisted_130, [
+                          editingDepotId.value === r.id ? (openBlock(), createElementBlock("div", _hoisted_131, [
                             withDirectives(createBaseVNode("input", {
                               "onUpdate:modelValue": _cache[11] || (_cache[11] = ($event) => pendingNoteValue.value = $event),
                               class: "form-input grade-input",
@@ -68116,7 +68268,7 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                             }, null, 512), [
                               [vModelText, pendingFeedbackValue.value]
                             ]),
-                            createBaseVNode("div", _hoisted_132$1, [
+                            createBaseVNode("div", _hoisted_132, [
                               createBaseVNode("button", {
                                 class: "btn-ghost",
                                 style: { "font-size": "11px", "padding": "3px 8px" },
@@ -68129,7 +68281,7 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                                 style: { "font-size": "11px", "padding": "3px 10px" },
                                 disabled: savingGrade.value,
                                 onClick: ($event) => saveGrade(r.id)
-                              }, toDisplayString(savingGrade.value ? "…" : "OK"), 9, _hoisted_133$1)
+                              }, toDisplayString(savingGrade.value ? "…" : "OK"), 9, _hoisted_133)
                             ])
                           ])) : (openBlock(), createElementBlock(Fragment, { key: 1 }, [
                             r.note ? (openBlock(), createElementBlock("span", {
@@ -68140,12 +68292,12 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
                             }, [
                               createVNode(unref(Award), { size: 11 }),
                               createTextVNode(" " + toDisplayString(r.note), 1)
-                            ], 8, _hoisted_134$1)) : (openBlock(), createElementBlock("span", {
+                            ], 8, _hoisted_134)) : (openBlock(), createElementBlock("span", {
                               key: 1,
                               class: "rendu-no-note rendu-no-note-clickable",
                               title: "Ajouter une note",
                               onClick: ($event) => startEditGrade(r.id, null, null)
-                            }, " Non noté ", 8, _hoisted_135$1)),
+                            }, " Non noté ", 8, _hoisted_135)),
                             r.feedback ? (openBlock(), createElementBlock("p", _hoisted_136, toDisplayString(r.feedback), 1)) : createCommentVNode("", true)
                           ], 64))
                         ])
@@ -68398,7 +68550,9 @@ const _sfc_main$p = /* @__PURE__ */ defineComponent({
           type: addType.value,
           pathOrUrl: addType.value === "link" ? addLink.value.trim() : addFile.value,
           category: addCategory.value.trim() || null,
-          description: null
+          description: null,
+          authorName: appStore.currentUser?.name ?? "Système",
+          authorType: appStore.currentUser?.type ?? "teacher"
         });
         if (ok) {
           showToast("Document ajouté.", "success");
@@ -68703,7 +68857,7 @@ const _sfc_main$p = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const DocumentsView = /* @__PURE__ */ _export_sfc(_sfc_main$p, [["__scopeId", "data-v-242914d2"]]);
+const DocumentsView = /* @__PURE__ */ _export_sfc(_sfc_main$p, [["__scopeId", "data-v-f2b98386"]]);
 const _hoisted_1$o = { class: "dashboard-shell" };
 const _hoisted_2$n = {
   key: 0,
@@ -68724,193 +68878,129 @@ const _hoisted_14$e = { class: "db-stat-value" };
 const _hoisted_15$e = { class: "db-stat-card db-stat-accent" };
 const _hoisted_16$e = { class: "db-stat-value" };
 const _hoisted_17$d = { class: "db-stat-label" };
-const _hoisted_18$d = {
+const _hoisted_18$d = { class: "db-tabs" };
+const _hoisted_19$d = {
   key: 0,
-  class: "db-projects-section"
+  class: "db-tab-content"
 };
-const _hoisted_19$d = { class: "db-section-header" };
-const _hoisted_20$c = { class: "db-section-title" };
-const _hoisted_21$c = { class: "db-project-grid" };
+const _hoisted_20$c = {
+  key: 0,
+  class: "db-empty-hint"
+};
+const _hoisted_21$c = {
+  key: 1,
+  class: "db-project-grid"
+};
 const _hoisted_22$b = ["onClick"];
 const _hoisted_23$b = { class: "db-project-icon" };
 const _hoisted_24$b = { class: "db-project-info" };
 const _hoisted_25$a = { class: "db-project-name" };
 const _hoisted_26$9 = { class: "db-project-stats" };
-const _hoisted_27$9 = { class: "db-body" };
-const _hoisted_28$6 = { class: "db-section db-section-left" };
-const _hoisted_29$5 = { class: "db-section-header" };
-const _hoisted_30$5 = { class: "db-section-title" };
-const _hoisted_31$5 = {
-  key: 0,
-  class: "db-section-badge db-badge-danger"
-};
-const _hoisted_32$4 = {
-  key: 0,
-  class: "db-empty"
-};
-const _hoisted_33$4 = {
+const _hoisted_27$9 = {
   key: 1,
-  class: "db-rendu-list"
+  class: "db-tab-content db-frise-outer"
 };
-const _hoisted_34$4 = ["onClick"];
-const _hoisted_35$3 = { class: "db-rendu-info" };
-const _hoisted_36$3 = { class: "db-rendu-student" };
-const _hoisted_37$2 = { class: "db-rendu-meta" };
-const _hoisted_38$2 = { class: "db-rendu-devoir" };
-const _hoisted_39$1 = { class: "db-rendu-channel" };
-const _hoisted_40$1 = { class: "db-rendu-right" };
-const _hoisted_41 = { class: "db-rendu-date" };
-const _hoisted_42 = { class: "db-col-right" };
-const _hoisted_43 = { class: "db-section" };
-const _hoisted_44 = { class: "db-section-header" };
-const _hoisted_45 = { class: "db-section-title" };
-const _hoisted_46 = {
+const _hoisted_28$6 = {
   key: 0,
-  class: "db-section-badge db-badge-warning"
+  class: "db-empty-hint"
 };
-const _hoisted_47 = {
-  key: 0,
-  class: "db-empty db-empty-sm"
-};
-const _hoisted_48 = {
+const _hoisted_29$5 = {
   key: 1,
-  class: "db-urgent-list"
+  class: "frise-wrap"
 };
-const _hoisted_49 = ["onClick"];
-const _hoisted_50 = { class: "db-urgent-top" };
-const _hoisted_51 = { class: "db-urgent-title" };
-const _hoisted_52 = { class: "db-urgent-sub" };
-const _hoisted_53 = { class: "db-urgent-channel" };
-const _hoisted_54 = { class: "db-urgent-count" };
-const _hoisted_55 = { class: "db-progress-track" };
-const _hoisted_56 = {
+const _hoisted_30$5 = { class: "frise-axis-row" };
+const _hoisted_31$5 = { class: "frise-bar-col frise-axis-months" };
+const _hoisted_32$4 = { class: "frise-promo-heading" };
+const _hoisted_33$4 = { class: "frise-label-col frise-promo-label-col" };
+const _hoisted_34$4 = { class: "frise-promo-name" };
+const _hoisted_35$3 = ["onClick"];
+const _hoisted_36$3 = { class: "frise-label-col frise-project-label" };
+const _hoisted_37$2 = { class: "frise-bar-col frise-timeline" };
+const _hoisted_38$2 = ["title", "onClick"];
+const _hoisted_39$1 = {
   key: 0,
-  class: "db-section"
+  class: "frise-ms-label"
 };
-const _hoisted_57 = { class: "db-section-header" };
-const _hoisted_58 = { class: "db-section-title" };
-const _hoisted_59 = { class: "db-section-badge db-badge-muted" };
-const _hoisted_60 = { class: "db-brouillon-list" };
-const _hoisted_61 = ["onClick"];
-const _hoisted_62 = { class: "db-brouillon-title" };
-const _hoisted_63 = { class: "db-brouillon-date" };
-const _hoisted_64 = { class: "db-section" };
-const _hoisted_65 = { class: "db-section-header" };
-const _hoisted_66 = { class: "db-section-title" };
-const _hoisted_67 = { class: "db-promo-list" };
-const _hoisted_68 = { class: "db-promo-name" };
-const _hoisted_69 = {
+const _hoisted_40$1 = { class: "frise-ms-title" };
+const _hoisted_41 = { class: "frise-ms-date" };
+const _hoisted_42 = {
+  key: 1,
+  class: "frise-ms-label"
+};
+const _hoisted_43 = { class: "frise-ms-title" };
+const _hoisted_44 = { class: "frise-ms-date" };
+const _hoisted_45 = {
   key: 0,
   class: "db-loading"
 };
-const _hoisted_70 = { class: "db-skel-content" };
-const _hoisted_71 = { class: "db-header" };
-const _hoisted_72 = { class: "db-header-left" };
-const _hoisted_73 = { class: "db-title" };
-const _hoisted_74 = { class: "db-date" };
-const _hoisted_75 = { class: "db-header-actions" };
-const _hoisted_76 = { class: "db-stats" };
-const _hoisted_77 = { class: "db-stat-card db-stat-warning" };
-const _hoisted_78 = { class: "db-stat-value" };
-const _hoisted_79 = { class: "db-stat-card db-stat-accent" };
-const _hoisted_80 = { class: "db-stat-value" };
-const _hoisted_81 = { class: "db-stat-card db-stat-success" };
-const _hoisted_82 = { class: "db-stat-value" };
-const _hoisted_83 = { class: "db-stat-card db-stat-neutral" };
-const _hoisted_84 = { class: "db-stat-value" };
-const _hoisted_85 = {
+const _hoisted_46 = { class: "db-skel-content" };
+const _hoisted_47 = { class: "db-header" };
+const _hoisted_48 = { class: "db-header-left" };
+const _hoisted_49 = { class: "db-title" };
+const _hoisted_50 = { class: "db-date" };
+const _hoisted_51 = { class: "db-header-actions" };
+const _hoisted_52 = { class: "db-stats" };
+const _hoisted_53 = { class: "db-stat-card db-stat-warning" };
+const _hoisted_54 = { class: "db-stat-value" };
+const _hoisted_55 = { class: "db-stat-card db-stat-accent" };
+const _hoisted_56 = { class: "db-stat-value" };
+const _hoisted_57 = { class: "db-stat-card db-stat-success" };
+const _hoisted_58 = { class: "db-stat-value" };
+const _hoisted_59 = { class: "db-stat-card db-stat-neutral" };
+const _hoisted_60 = { class: "db-stat-value" };
+const _hoisted_61 = { class: "db-tabs" };
+const _hoisted_62 = {
   key: 0,
-  class: "db-student-projects"
+  class: "db-tab-content"
 };
-const _hoisted_86 = { class: "db-section-header" };
-const _hoisted_87 = { class: "db-section-title" };
-const _hoisted_88 = { class: "db-project-grid" };
-const _hoisted_89 = ["onClick"];
-const _hoisted_90 = { class: "db-project-icon" };
-const _hoisted_91 = { class: "db-project-info" };
-const _hoisted_92 = { class: "db-project-name" };
-const _hoisted_93 = { class: "db-project-stats" };
-const _hoisted_94 = { style: { "color": "var(--color-danger)" } };
-const _hoisted_95 = { class: "db-student-proj-bar" };
-const _hoisted_96 = { class: "db-body" };
-const _hoisted_97 = { class: "db-section db-section-left" };
-const _hoisted_98 = { class: "db-section-header" };
-const _hoisted_99 = { class: "db-section-title" };
-const _hoisted_100 = {
+const _hoisted_63 = {
   key: 0,
-  class: "db-section-badge db-badge-warning"
+  class: "db-empty-hint"
 };
-const _hoisted_101 = {
-  key: 0,
-  class: "db-empty"
-};
-const _hoisted_102 = {
+const _hoisted_64 = {
   key: 1,
-  class: "db-rendu-list"
+  class: "db-project-grid db-student-grid"
 };
-const _hoisted_103 = ["onClick"];
-const _hoisted_104 = { class: "db-rendu-info" };
-const _hoisted_105 = { class: "db-rendu-top-row" };
-const _hoisted_106 = { class: "db-rendu-student" };
-const _hoisted_107 = { class: "db-rendu-meta" };
-const _hoisted_108 = {
-  key: 0,
-  class: "db-rendu-channel"
-};
-const _hoisted_109 = {
+const _hoisted_65 = ["onClick"];
+const _hoisted_66 = { class: "db-project-icon" };
+const _hoisted_67 = { class: "db-project-info" };
+const _hoisted_68 = { class: "db-project-name" };
+const _hoisted_69 = { class: "db-project-stats" };
+const _hoisted_70 = { style: { "color": "var(--color-danger)" } };
+const _hoisted_71 = { class: "db-student-bar" };
+const _hoisted_72 = {
   key: 1,
-  class: "db-rendu-proj"
+  class: "db-tab-content db-frise-outer"
 };
-const _hoisted_110 = { class: "db-rendu-right" };
-const _hoisted_111 = { class: "db-rendu-date" };
-const _hoisted_112 = {
+const _hoisted_73 = {
   key: 0,
-  class: "db-events-separator"
+  class: "db-empty-hint"
 };
-const _hoisted_113 = { class: "db-rendu-info" };
-const _hoisted_114 = { class: "db-rendu-top-row" };
-const _hoisted_115 = { class: "db-rendu-student" };
-const _hoisted_116 = {
-  key: 0,
-  class: "db-rendu-meta"
-};
-const _hoisted_117 = { class: "db-rendu-channel" };
-const _hoisted_118 = { class: "db-rendu-right" };
-const _hoisted_119 = { class: "db-rendu-date" };
-const _hoisted_120 = { class: "db-col-right" };
-const _hoisted_121 = { class: "db-section" };
-const _hoisted_122 = { class: "db-section-header" };
-const _hoisted_123 = { class: "db-section-title" };
-const _hoisted_124 = {
-  key: 0,
-  class: "db-section-badge db-badge-accent"
-};
-const _hoisted_125 = {
-  key: 0,
-  class: "db-empty db-empty-sm"
-};
-const _hoisted_126 = {
+const _hoisted_74 = {
   key: 1,
-  class: "db-submitted-list"
+  class: "frise-wrap"
 };
-const _hoisted_127 = { class: "db-submitted-left" };
-const _hoisted_128 = { class: "db-submitted-info" };
-const _hoisted_129 = { class: "db-submitted-title" };
-const _hoisted_130 = {
+const _hoisted_75 = { class: "frise-axis-row" };
+const _hoisted_76 = { class: "frise-bar-col frise-axis-months" };
+const _hoisted_77 = { class: "frise-promo-heading" };
+const _hoisted_78 = { class: "frise-label-col frise-promo-label-col" };
+const _hoisted_79 = { class: "frise-promo-name" };
+const _hoisted_80 = ["onClick"];
+const _hoisted_81 = { class: "frise-label-col frise-project-label" };
+const _hoisted_82 = { class: "frise-bar-col frise-timeline" };
+const _hoisted_83 = ["title", "onClick"];
+const _hoisted_84 = {
   key: 0,
-  class: "db-submitted-channel"
+  class: "frise-ms-label"
 };
-const _hoisted_131 = { class: "db-submitted-right" };
-const _hoisted_132 = {
+const _hoisted_85 = { class: "frise-ms-title" };
+const _hoisted_86 = { class: "frise-ms-date" };
+const _hoisted_87 = {
   key: 1,
-  class: "db-grade-pending"
+  class: "frise-ms-label"
 };
-const _hoisted_133 = {
-  key: 0,
-  class: "db-feedback-row"
-};
-const _hoisted_134 = { class: "db-feedback-label" };
-const _hoisted_135 = { class: "db-feedback-text" };
+const _hoisted_88 = { class: "frise-ms-title" };
+const _hoisted_89 = { class: "frise-ms-date" };
 const _sfc_main$o = /* @__PURE__ */ defineComponent({
   __name: "DashboardView",
   setup(__props) {
@@ -68919,13 +69009,13 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
     const travauxStore = useTravauxStore();
     const router2 = useRouter();
     const loadingTeacher = /* @__PURE__ */ ref(true);
-    const aNoter = /* @__PURE__ */ ref([]);
-    const brouillons = /* @__PURE__ */ ref([]);
+    const loadingStudent = /* @__PURE__ */ ref(true);
+    const aNoterCount = /* @__PURE__ */ ref(0);
+    const urgentsCount = /* @__PURE__ */ ref(0);
+    const brouillonsCount = /* @__PURE__ */ ref(0);
     const promos = /* @__PURE__ */ ref([]);
     const totalStudents = /* @__PURE__ */ ref(0);
-    const urgents = /* @__PURE__ */ ref([]);
     const ganttAll = /* @__PURE__ */ ref([]);
-    const loadingStudent = /* @__PURE__ */ ref(true);
     onMounted(async () => {
       if (appStore.isTeacher) {
         try {
@@ -68937,17 +69027,17 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
           ]);
           if (schedRes?.ok) {
             const d = schedRes.data;
-            aNoter.value = d.aNoter ?? [];
-            brouillons.value = d.brouillons ?? [];
+            aNoterCount.value = d.aNoter?.length ?? 0;
+            brouillonsCount.value = d.brouillons?.length ?? 0;
           }
           if (promosRes?.ok) promos.value = promosRes.data;
           if (studRes?.ok) totalStudents.value = studRes.data.length;
           if (ganttRes?.ok) {
-            const rows = ganttRes.data;
-            ganttAll.value = rows;
-            const now2 = Date.now();
-            const in7days = now2 + 7 * 864e5;
-            urgents.value = rows.filter((t) => t.published && new Date(t.deadline).getTime() >= now2 && new Date(t.deadline).getTime() <= in7days).sort((a, b2) => new Date(a.deadline).getTime() - new Date(b2.deadline).getTime()).slice(0, 10);
+            ganttAll.value = ganttRes.data;
+            const now2 = Date.now(), in7d = now2 + 7 * 864e5;
+            urgentsCount.value = ganttAll.value.filter(
+              (t) => t.published && new Date(t.deadline).getTime() >= now2 && new Date(t.deadline).getTime() <= in7d
+            ).length;
           }
         } finally {
           loadingTeacher.value = false;
@@ -68960,15 +69050,14 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
         }
       }
     });
-    function openDevoir(id) {
-      appStore.currentTravailId = id;
-      modals.gestionDevoir = true;
-    }
-    function goToProject(projectKey) {
-      appStore.activeProject = projectKey;
+    const greetingName = computed(() => (appStore.currentUser?.name ?? "").split(" ")[0]);
+    const today = computed(
+      () => (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    );
+    function goToProject(key) {
+      appStore.activeProject = key;
       router2.push("/devoirs");
     }
-    const greetingName = computed(() => (appStore.currentUser?.name ?? "").split(" ")[0]);
     const projectCards = computed(() => {
       const map2 = /* @__PURE__ */ new Map();
       for (const t of ganttAll.value) {
@@ -69000,13 +69089,6 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
         return new Date(a.nextDeadline).getTime() - new Date(b2.nextDeadline).getTime();
       });
     });
-    const today = computed(
-      () => (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
-    );
-    const aNoterDisplay = computed(() => aNoter.value.slice(0, 12));
-    function submitPct(row) {
-      return row.students_total ? Math.round(row.depots_count / row.students_total * 100) : 0;
-    }
     const isEventType = (t) => t.type === "soutenance" || t.type === "cctl";
     const studentStats = computed(() => {
       const all = travauxStore.devoirs;
@@ -69016,38 +69098,6 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
       const grades = graded.map((t) => parseFloat(t.note ?? "")).filter((n) => !isNaN(n));
       const avg = grades.length ? Math.round(grades.reduce((a, b2) => a + b2, 0) / grades.length * 10) / 10 : null;
       return { total: all.length, submitted: submitted.length, pending: pending.length, graded: graded.length, avg };
-    });
-    const studentEvents = computed(
-      () => travauxStore.devoirs.filter((t) => isEventType(t) && new Date(t.deadline).getTime() >= Date.now()).sort((a, b2) => new Date(a.deadline).getTime() - new Date(b2.deadline).getTime())
-    );
-    const studentSubmitted = computed(
-      () => travauxStore.devoirs.filter((t) => t.depot_id != null).sort((a, b2) => new Date(b2.deadline).getTime() - new Date(a.deadline).getTime()).slice(0, 6)
-    );
-    const typeLabels = {
-      livrable: "Livrable",
-      soutenance: "Soutenance",
-      cctl: "CCTL",
-      etude_de_cas: "Étude de cas",
-      memoire: "Mémoire",
-      autre: "Autre",
-      devoir: "Devoir",
-      projet: "Projet",
-      jalon: "Jalon"
-    };
-    function gradeColorClass(note) {
-      const n = parseFloat(note ?? "");
-      if (isNaN(n)) return "grade-na";
-      if (n >= 16) return "grade-a";
-      if (n >= 12) return "grade-b";
-      if (n >= 8) return "grade-c";
-      return "grade-d";
-    }
-    const firstFeedback = computed(
-      () => travauxStore.devoirs.find((t) => t.depot_id != null && t.feedback)
-    );
-    const studentDashboardUrgent = computed(() => {
-      const limit = Date.now() + 3 * 864e5;
-      return travauxStore.devoirs.filter((t) => t.depot_id == null && !isEventType(t) && new Date(t.deadline).getTime() <= limit).sort((a, b2) => new Date(a.deadline).getTime() - new Date(b2.deadline).getTime());
     });
     const studentProjectCards = computed(() => {
       const map2 = /* @__PURE__ */ new Map();
@@ -69077,6 +69127,123 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
         return new Date(a.nextDeadline).getTime() - new Date(b2.nextDeadline).getTime();
       });
     });
+    const dashTab = /* @__PURE__ */ ref("projets");
+    const ganttDateRange = computed(() => {
+      const rows = appStore.isTeacher ? ganttAll.value : travauxStore.devoirs;
+      if (!rows.length) return null;
+      let min2 = Infinity, max2 = -Infinity;
+      for (const t of rows) {
+        const e = new Date(t.deadline).getTime();
+        if (e < min2) min2 = e;
+        if (e > max2) max2 = e;
+      }
+      return { start: new Date(min2 - 28 * 864e5), end: new Date(max2 + 28 * 864e5) };
+    });
+    const ganttMonths = computed(() => {
+      const r = ganttDateRange.value;
+      if (!r) return [];
+      const total = r.end.getTime() - r.start.getTime();
+      const months2 = [];
+      let d = new Date(r.start.getFullYear(), r.start.getMonth(), 1);
+      while (d <= r.end) {
+        months2.push({
+          label: d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
+          left: Math.max(0, (d.getTime() - r.start.getTime()) / total * 100)
+        });
+        d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      }
+      return months2;
+    });
+    const ganttTodayPct = computed(() => {
+      const r = ganttDateRange.value;
+      if (!r) return -1;
+      return (Date.now() - r.start.getTime()) / (r.end.getTime() - r.start.getTime()) * 100;
+    });
+    const teacherFrise = computed(() => {
+      const promoMap = /* @__PURE__ */ new Map();
+      for (const t of ganttAll.value) {
+        const pName = t.promo_name || "Sans promo";
+        const pColor = t.promo_color || "#4a90d9";
+        const pKey = t.category?.trim() || "Sans projet";
+        if (!promoMap.has(pName)) promoMap.set(pName, { color: pColor, projects: /* @__PURE__ */ new Map() });
+        const promo = promoMap.get(pName);
+        if (!promo.projects.has(pKey)) promo.projects.set(pKey, []);
+        promo.projects.get(pKey).push({
+          id: t.id,
+          title: t.title,
+          type: t.type,
+          deadline: t.deadline,
+          published: Boolean(t.published),
+          done: t.students_total > 0 && (t.depots_count ?? 0) >= t.students_total
+        });
+      }
+      return Array.from(promoMap.entries()).sort(([a], [b2]) => a.localeCompare(b2)).map(([name, { color, projects }]) => ({
+        name,
+        color,
+        projects: Array.from(projects.entries()).map(([key, milestones]) => ({
+          key,
+          label: parseCategoryIcon(key).label,
+          icon: parseCategoryIcon(key).icon,
+          milestones: milestones.sort((a, b2) => new Date(a.deadline).getTime() - new Date(b2.deadline).getTime())
+        })).sort((a, b2) => {
+          const am = a.milestones[0]?.deadline ?? "";
+          const bm = b2.milestones[0]?.deadline ?? "";
+          return am.localeCompare(bm);
+        })
+      }));
+    });
+    const studentFrise = computed(() => {
+      const projMap = /* @__PURE__ */ new Map();
+      for (const t of travauxStore.devoirs) {
+        const key = t.category?.trim() || "Sans projet";
+        if (!projMap.has(key)) projMap.set(key, []);
+        projMap.get(key).push({
+          id: t.id,
+          title: t.title,
+          type: t.type ?? "autre",
+          deadline: t.deadline,
+          published: true,
+          done: t.depot_id != null
+        });
+      }
+      return [{
+        name: appStore.currentUser?.promo_name ?? "Ma promo",
+        color: "#9b87f5",
+        projects: Array.from(projMap.entries()).map(([key, milestones]) => ({
+          key,
+          label: parseCategoryIcon(key).label,
+          icon: parseCategoryIcon(key).icon,
+          milestones: milestones.sort((a, b2) => new Date(a.deadline).getTime() - new Date(b2.deadline).getTime())
+        })).sort((a, b2) => {
+          const am = a.milestones[0]?.deadline ?? "";
+          const bm = b2.milestones[0]?.deadline ?? "";
+          return am.localeCompare(bm);
+        })
+      }];
+    });
+    const frise = computed(() => appStore.isTeacher ? teacherFrise.value : studentFrise.value);
+    function milestoneLeft(deadline) {
+      const r = ganttDateRange.value;
+      if (!r) return "50%";
+      const total = r.end.getTime() - r.start.getTime();
+      const pos = (new Date(deadline).getTime() - r.start.getTime()) / total * 100;
+      return `${Math.max(0, Math.min(100, pos))}%`;
+    }
+    function projectLineStyle(milestones) {
+      if (milestones.length < 2) return { display: "none" };
+      const r = ganttDateRange.value;
+      if (!r) return {};
+      const total = r.end.getTime() - r.start.getTime();
+      const left = (new Date(milestones[0].deadline).getTime() - r.start.getTime()) / total * 100;
+      const right = (new Date(milestones[milestones.length - 1].deadline).getTime() - r.start.getTime()) / total * 100;
+      return { left: `${Math.max(0, left)}%`, width: `${Math.max(0, right - left)}%` };
+    }
+    function onMilestoneClick(ms) {
+      if (appStore.isTeacher) {
+        appStore.currentTravailId = ms.id;
+        modals.gestionDevoir = true;
+      } else router2.push("/devoirs");
+    }
     return (_ctx, _cache) => {
       return openBlock(), createElementBlock("div", _hoisted_1$o, [
         unref(appStore).isTeacher ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
@@ -69113,29 +69280,29 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
                 onClick: _cache[0] || (_cache[0] = ($event) => unref(modals).echeancier = true)
               }, [
                 createVNode(unref(Clock), { size: 14 }),
-                _cache[8] || (_cache[8] = createTextVNode(" Voir l'échéancier complet ", -1))
+                _cache[7] || (_cache[7] = createTextVNode(" Voir l'échéancier complet ", -1))
               ])
             ]),
             createBaseVNode("div", _hoisted_8$j, [
               createBaseVNode("div", _hoisted_9$i, [
-                createBaseVNode("span", _hoisted_10$i, toDisplayString(aNoter.value.length), 1),
-                _cache[9] || (_cache[9] = createBaseVNode("span", { class: "db-stat-label" }, "Rendus à noter", -1)),
+                createBaseVNode("span", _hoisted_10$i, toDisplayString(aNoterCount.value), 1),
+                _cache[8] || (_cache[8] = createBaseVNode("span", { class: "db-stat-label" }, "Rendus à noter", -1)),
                 createVNode(unref(PenLine), {
                   size: 18,
                   class: "db-stat-icon"
                 })
               ]),
               createBaseVNode("div", _hoisted_11$g, [
-                createBaseVNode("span", _hoisted_12$g, toDisplayString(urgents.value.length), 1),
-                _cache[10] || (_cache[10] = createBaseVNode("span", { class: "db-stat-label" }, "Devoirs cette semaine", -1)),
+                createBaseVNode("span", _hoisted_12$g, toDisplayString(urgentsCount.value), 1),
+                _cache[9] || (_cache[9] = createBaseVNode("span", { class: "db-stat-label" }, "Devoirs cette semaine", -1)),
                 createVNode(unref(TriangleAlert), {
                   size: 18,
                   class: "db-stat-icon"
                 })
               ]),
               createBaseVNode("div", _hoisted_13$e, [
-                createBaseVNode("span", _hoisted_14$e, toDisplayString(brouillons.value.length), 1),
-                _cache[11] || (_cache[11] = createBaseVNode("span", { class: "db-stat-label" }, "Brouillons", -1)),
+                createBaseVNode("span", _hoisted_14$e, toDisplayString(brouillonsCount.value), 1),
+                _cache[10] || (_cache[10] = createBaseVNode("span", { class: "db-stat-label" }, "Brouillons", -1)),
                 createVNode(unref(FileText), {
                   size: 18,
                   class: "db-stat-icon"
@@ -69150,18 +69317,30 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
                 })
               ])
             ]),
-            projectCards.value.length > 0 ? (openBlock(), createElementBlock("section", _hoisted_18$d, [
-              createBaseVNode("div", _hoisted_19$d, [
-                createBaseVNode("h2", _hoisted_20$c, [
-                  createVNode(unref(FolderOpen), { size: 15 }),
-                  _cache[12] || (_cache[12] = createTextVNode(" Projets", -1))
-                ]),
-                createBaseVNode("button", {
-                  class: "btn-ghost db-see-all-btn",
-                  onClick: _cache[1] || (_cache[1] = ($event) => unref(router2).push("/devoirs"))
-                }, "Voir tous les devoirs →")
-              ]),
-              createBaseVNode("div", _hoisted_21$c, [
+            createBaseVNode("div", _hoisted_18$d, [
+              createBaseVNode("button", {
+                class: normalizeClass(["db-tab", { active: dashTab.value === "projets" }]),
+                onClick: _cache[1] || (_cache[1] = ($event) => dashTab.value = "projets")
+              }, [
+                createVNode(unref(FolderOpen), { size: 13 }),
+                _cache[11] || (_cache[11] = createTextVNode(" Projets ", -1))
+              ], 2),
+              createBaseVNode("button", {
+                class: normalizeClass(["db-tab", { active: dashTab.value === "frise" }]),
+                onClick: _cache[2] || (_cache[2] = ($event) => dashTab.value = "frise")
+              }, [
+                createVNode(unref(ChartNoAxesColumn), { size: 13 }),
+                _cache[12] || (_cache[12] = createTextVNode(" Frise ", -1))
+              ], 2)
+            ]),
+            dashTab.value === "projets" ? (openBlock(), createElementBlock("div", _hoisted_19$d, [
+              !projectCards.value.length ? (openBlock(), createElementBlock("div", _hoisted_20$c, [
+                createVNode(unref(FolderOpen), {
+                  size: 36,
+                  style: { "opacity": ".2", "margin-bottom": "10px" }
+                }),
+                _cache[13] || (_cache[13] = createBaseVNode("p", null, "Aucun projet configuré. Créez des travaux avec une catégorie pour les voir ici.", -1))
+              ])) : (openBlock(), createElementBlock("div", _hoisted_21$c, [
                 (openBlock(true), createElementBlock(Fragment, null, renderList(projectCards.value, (p2) => {
                   return openBlock(), createElementBlock("div", {
                     key: p2.key,
@@ -69199,172 +69378,118 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
                     })
                   ], 8, _hoisted_22$b);
                 }), 128))
-              ])
-            ])) : createCommentVNode("", true),
-            createBaseVNode("div", _hoisted_27$9, [
-              createBaseVNode("section", _hoisted_28$6, [
-                createBaseVNode("div", _hoisted_29$5, [
-                  createBaseVNode("h2", _hoisted_30$5, [
-                    createVNode(unref(PenLine), { size: 15 }),
-                    _cache[13] || (_cache[13] = createTextVNode(" Rendus à noter ", -1)),
-                    aNoter.value.length ? (openBlock(), createElementBlock("span", _hoisted_31$5, toDisplayString(aNoter.value.length), 1)) : createCommentVNode("", true)
+              ]))
+            ])) : (openBlock(), createElementBlock("div", _hoisted_27$9, [
+              !ganttDateRange.value || !frise.value.length ? (openBlock(), createElementBlock("div", _hoisted_28$6, [
+                createVNode(unref(ChartNoAxesColumn), {
+                  size: 36,
+                  style: { "opacity": ".2", "margin-bottom": "10px" }
+                }),
+                _cache[14] || (_cache[14] = createBaseVNode("p", null, "Aucune donnée de planification disponible.", -1))
+              ])) : (openBlock(), createElementBlock("div", _hoisted_29$5, [
+                createBaseVNode("div", _hoisted_30$5, [
+                  _cache[15] || (_cache[15] = createBaseVNode("div", { class: "frise-label-col frise-axis-label" }, "Projet", -1)),
+                  createBaseVNode("div", _hoisted_31$5, [
+                    (openBlock(true), createElementBlock(Fragment, null, renderList(ganttMonths.value, (m2, i) => {
+                      return openBlock(), createElementBlock("div", {
+                        key: i,
+                        class: "frise-month-tick",
+                        style: normalizeStyle({ left: m2.left + "%" })
+                      }, toDisplayString(m2.label), 5);
+                    }), 128)),
+                    (openBlock(true), createElementBlock(Fragment, null, renderList(ganttMonths.value, (m2, i) => {
+                      return openBlock(), createElementBlock("div", {
+                        key: `bg${i}`,
+                        class: normalizeClass(["frise-month-bg", { even: i % 2 === 0 }]),
+                        style: normalizeStyle(i < ganttMonths.value.length - 1 ? { left: m2.left + "%", width: ganttMonths.value[i + 1].left - m2.left + "%" } : { left: m2.left + "%", right: "0" })
+                      }, null, 6);
+                    }), 128)),
+                    ganttTodayPct.value >= 0 && ganttTodayPct.value <= 100 ? (openBlock(), createElementBlock("div", {
+                      key: 0,
+                      class: "frise-today",
+                      style: normalizeStyle({ left: ganttTodayPct.value + "%" })
+                    }, null, 4)) : createCommentVNode("", true)
                   ])
                 ]),
-                aNoter.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_32$4, [
-                  createVNode(unref(CircleCheck), {
-                    size: 32,
-                    class: "db-empty-success"
-                  }),
-                  _cache[14] || (_cache[14] = createBaseVNode("p", null, "Tous les rendus sont notés.", -1))
-                ])) : (openBlock(), createElementBlock("div", _hoisted_33$4, [
-                  (openBlock(true), createElementBlock(Fragment, null, renderList(aNoterDisplay.value, (row) => {
-                    return openBlock(), createElementBlock("div", {
-                      key: row.depot_id,
-                      class: "db-rendu-row",
-                      onClick: ($event) => openDevoir(row.travail_id)
-                    }, [
-                      createBaseVNode("div", {
-                        class: "db-avatar",
-                        style: normalizeStyle({ background: unref(avatarColor)(row.student_name) })
-                      }, toDisplayString(row.avatar_initials), 5),
-                      createBaseVNode("div", _hoisted_35$3, [
-                        createBaseVNode("span", _hoisted_36$3, toDisplayString(row.student_name), 1),
-                        createBaseVNode("span", _hoisted_37$2, [
-                          createBaseVNode("span", _hoisted_38$2, toDisplayString(row.travail_title), 1),
-                          _cache[15] || (_cache[15] = createBaseVNode("span", { class: "db-rendu-sep" }, "·", -1)),
-                          createBaseVNode("span", _hoisted_39$1, "#" + toDisplayString(row.channel_name), 1)
-                        ])
-                      ]),
-                      createBaseVNode("div", _hoisted_40$1, [
-                        createBaseVNode("span", _hoisted_41, toDisplayString(new Date(row.submitted_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })), 1),
+                (openBlock(true), createElementBlock(Fragment, null, renderList(frise.value, (promo) => {
+                  return openBlock(), createElementBlock("div", {
+                    key: promo.name,
+                    class: "frise-promo"
+                  }, [
+                    createBaseVNode("div", _hoisted_32$4, [
+                      createBaseVNode("div", _hoisted_33$4, [
                         createBaseVNode("span", {
-                          class: "db-promo-pill",
-                          style: normalizeStyle({ background: (row.promo_color ?? "#4A90D9") + "22", color: row.promo_color ?? "#4A90D9" })
-                        }, toDisplayString(row.promo_name), 5)
-                      ]),
-                      createVNode(unref(ChevronRight), {
-                        size: 14,
-                        class: "db-row-chevron"
-                      })
-                    ], 8, _hoisted_34$4);
-                  }), 128)),
-                  aNoter.value.length > 12 ? (openBlock(), createElementBlock("div", {
-                    key: 0,
-                    class: "db-more-link",
-                    onClick: _cache[2] || (_cache[2] = ($event) => unref(modals).echeancier = true)
-                  }, " + " + toDisplayString(aNoter.value.length - 12) + " autres — ouvrir l'échéancier ", 1)) : createCommentVNode("", true)
-                ]))
-              ]),
-              createBaseVNode("div", _hoisted_42, [
-                createBaseVNode("section", _hoisted_43, [
-                  createBaseVNode("div", _hoisted_44, [
-                    createBaseVNode("h2", _hoisted_45, [
-                      createVNode(unref(TriangleAlert), { size: 15 }),
-                      _cache[16] || (_cache[16] = createTextVNode(" Devoirs cette semaine ", -1)),
-                      urgents.value.length ? (openBlock(), createElementBlock("span", _hoisted_46, toDisplayString(urgents.value.length), 1)) : createCommentVNode("", true)
-                    ])
-                  ]),
-                  urgents.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_47, [..._cache[17] || (_cache[17] = [
-                    createBaseVNode("p", null, "Aucun devoir à rendre dans les 7 jours.", -1)
-                  ])])) : (openBlock(), createElementBlock("div", _hoisted_48, [
-                    (openBlock(true), createElementBlock(Fragment, null, renderList(urgents.value, (t) => {
-                      return openBlock(), createElementBlock("div", {
-                        key: t.id,
-                        class: "db-urgent-row",
-                        onClick: ($event) => openDevoir(t.id)
-                      }, [
-                        createBaseVNode("div", _hoisted_50, [
-                          createBaseVNode("span", {
-                            class: normalizeClass(["db-type-badge", `type-${t.type}`])
-                          }, toDisplayString(typeLabels[t.type] ?? t.type), 3),
-                          createBaseVNode("span", _hoisted_51, toDisplayString(t.title), 1),
-                          createBaseVNode("span", {
-                            class: normalizeClass(["db-deadline-badge", unref(deadlineClass)(t.deadline)])
-                          }, [
-                            createVNode(unref(Clock), { size: 9 }),
-                            createTextVNode(toDisplayString(unref(deadlineLabel)(t.deadline)), 1)
-                          ], 2)
-                        ]),
-                        createBaseVNode("div", _hoisted_52, [
-                          createBaseVNode("span", _hoisted_53, "#" + toDisplayString(t.channel_name), 1),
-                          createBaseVNode("span", {
-                            class: "db-promo-pill",
-                            style: normalizeStyle({ background: (t.promo_color ?? "#4A90D9") + "22", color: t.promo_color ?? "#4A90D9" })
-                          }, toDisplayString(t.promo_name), 5),
-                          createBaseVNode("span", _hoisted_54, toDisplayString(t.depots_count) + "/" + toDisplayString(t.students_total), 1)
-                        ]),
-                        createBaseVNode("div", _hoisted_55, [
-                          createBaseVNode("div", {
-                            class: normalizeClass(["db-progress-fill", { "db-progress-full": submitPct(t) === 100 }]),
-                            style: normalizeStyle({ width: submitPct(t) + "%" })
-                          }, null, 6)
-                        ])
-                      ], 8, _hoisted_49);
-                    }), 128))
-                  ]))
-                ]),
-                brouillons.value.length > 0 ? (openBlock(), createElementBlock("section", _hoisted_56, [
-                  createBaseVNode("div", _hoisted_57, [
-                    createBaseVNode("h2", _hoisted_58, [
-                      createVNode(unref(FileText), { size: 15 }),
-                      _cache[18] || (_cache[18] = createTextVNode(" Brouillons à publier ", -1)),
-                      createBaseVNode("span", _hoisted_59, toDisplayString(brouillons.value.length), 1)
-                    ])
-                  ]),
-                  createBaseVNode("div", _hoisted_60, [
-                    (openBlock(true), createElementBlock(Fragment, null, renderList(brouillons.value.slice(0, 6), (b2) => {
-                      return openBlock(), createElementBlock("div", {
-                        key: b2.id,
-                        class: "db-brouillon-row",
-                        onClick: ($event) => openDevoir(b2.id)
-                      }, [
-                        createBaseVNode("span", {
-                          class: normalizeClass(["db-type-badge", `type-${b2.type}`])
-                        }, toDisplayString(typeLabels[b2.type] ?? b2.type), 3),
-                        createBaseVNode("span", _hoisted_62, toDisplayString(b2.title), 1),
-                        createBaseVNode("span", _hoisted_63, toDisplayString(unref(formatDate)(b2.deadline)), 1),
-                        createVNode(unref(Eye), {
-                          size: 12,
-                          class: "db-row-icon"
-                        })
-                      ], 8, _hoisted_61);
-                    }), 128))
-                  ])
-                ])) : createCommentVNode("", true),
-                createBaseVNode("section", _hoisted_64, [
-                  createBaseVNode("div", _hoisted_65, [
-                    createBaseVNode("h2", _hoisted_66, [
-                      createVNode(unref(BookOpen), { size: 15 }),
-                      _cache[19] || (_cache[19] = createTextVNode(" Promotions", -1))
-                    ])
-                  ]),
-                  createBaseVNode("div", _hoisted_67, [
-                    (openBlock(true), createElementBlock(Fragment, null, renderList(promos.value, (p2) => {
-                      return openBlock(), createElementBlock("div", {
-                        key: p2.id,
-                        class: "db-promo-row"
-                      }, [
-                        createBaseVNode("span", {
-                          class: "db-promo-dot",
-                          style: normalizeStyle({ background: p2.color ?? "#4A90D9" })
+                          class: "frise-promo-dot",
+                          style: normalizeStyle({ background: promo.color })
                         }, null, 4),
-                        createBaseVNode("span", _hoisted_68, toDisplayString(p2.name), 1)
-                      ]);
+                        createBaseVNode("span", _hoisted_34$4, toDisplayString(promo.name), 1)
+                      ]),
+                      _cache[16] || (_cache[16] = createBaseVNode("div", { class: "frise-bar-col frise-promo-bar-col" }, null, -1))
+                    ]),
+                    (openBlock(true), createElementBlock(Fragment, null, renderList(promo.projects, (proj) => {
+                      return openBlock(), createElementBlock("div", {
+                        key: proj.key,
+                        class: "frise-row",
+                        onClick: ($event) => goToProject(proj.key)
+                      }, [
+                        createBaseVNode("div", _hoisted_36$3, [
+                          proj.icon ? (openBlock(), createBlock(resolveDynamicComponent(proj.icon), {
+                            key: 0,
+                            size: 11,
+                            class: "frise-project-icon"
+                          })) : createCommentVNode("", true),
+                          createBaseVNode("span", null, toDisplayString(proj.label), 1),
+                          createVNode(unref(ChevronRight), {
+                            size: 10,
+                            class: "frise-project-arrow"
+                          })
+                        ]),
+                        createBaseVNode("div", _hoisted_37$2, [
+                          createBaseVNode("div", {
+                            class: "frise-proj-line",
+                            style: normalizeStyle(projectLineStyle(proj.milestones))
+                          }, null, 4),
+                          ganttTodayPct.value >= 0 && ganttTodayPct.value <= 100 ? (openBlock(), createElementBlock("div", {
+                            key: 0,
+                            class: "frise-today",
+                            style: normalizeStyle({ left: ganttTodayPct.value + "%" })
+                          }, null, 4)) : createCommentVNode("", true),
+                          (openBlock(true), createElementBlock(Fragment, null, renderList(proj.milestones, (ms, mi) => {
+                            return openBlock(), createElementBlock("div", {
+                              key: ms.id,
+                              class: normalizeClass(["frise-milestone", [`frise-ms-${ms.type}`, { "frise-ms-done": ms.done, "frise-ms-draft": !ms.published, "frise-ms-above": mi % 2 === 0 }]]),
+                              style: normalizeStyle({ left: milestoneLeft(ms.deadline) }),
+                              title: `${ms.title} — ${unref(formatDate)(ms.deadline)}`,
+                              onClick: withModifiers(($event) => onMilestoneClick(ms), ["stop"])
+                            }, [
+                              mi % 2 === 0 ? (openBlock(), createElementBlock("div", _hoisted_39$1, [
+                                createBaseVNode("span", _hoisted_40$1, toDisplayString(ms.title), 1),
+                                createBaseVNode("span", _hoisted_41, toDisplayString(unref(formatDate)(ms.deadline)), 1)
+                              ])) : createCommentVNode("", true),
+                              _cache[17] || (_cache[17] = createBaseVNode("div", { class: "frise-ms-dot" }, null, -1)),
+                              mi % 2 !== 0 ? (openBlock(), createElementBlock("div", _hoisted_42, [
+                                createBaseVNode("span", _hoisted_43, toDisplayString(ms.title), 1),
+                                createBaseVNode("span", _hoisted_44, toDisplayString(unref(formatDate)(ms.deadline)), 1)
+                              ])) : createCommentVNode("", true)
+                            ], 14, _hoisted_38$2);
+                          }), 128))
+                        ])
+                      ], 8, _hoisted_35$3);
                     }), 128))
-                  ])
-                ])
-              ])
-            ])
+                  ]);
+                }), 128))
+              ]))
+            ]))
           ], 64))
         ], 64)) : (openBlock(), createElementBlock(Fragment, { key: 1 }, [
-          loadingStudent.value ? (openBlock(), createElementBlock("div", _hoisted_69, [
+          loadingStudent.value ? (openBlock(), createElementBlock("div", _hoisted_45, [
             (openBlock(), createElementBlock(Fragment, null, renderList(4, (i) => {
               return createBaseVNode("div", {
                 key: i,
                 class: "skel db-skel-card"
               });
             }), 64)),
-            createBaseVNode("div", _hoisted_70, [
+            createBaseVNode("div", _hoisted_46, [
               (openBlock(), createElementBlock(Fragment, null, renderList(5, (i) => {
                 return createBaseVNode("div", {
                   key: i,
@@ -69374,87 +69499,99 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
               }), 64))
             ])
           ])) : (openBlock(), createElementBlock(Fragment, { key: 1 }, [
-            createBaseVNode("div", _hoisted_71, [
-              createBaseVNode("div", _hoisted_72, [
+            createBaseVNode("div", _hoisted_47, [
+              createBaseVNode("div", _hoisted_48, [
                 createVNode(unref(LayoutDashboard), {
                   size: 20,
                   class: "db-header-icon"
                 }),
                 createBaseVNode("div", null, [
-                  createBaseVNode("h1", _hoisted_73, "Bonjour, " + toDisplayString(greetingName.value), 1),
-                  createBaseVNode("p", _hoisted_74, toDisplayString(today.value), 1)
+                  createBaseVNode("h1", _hoisted_49, "Bonjour, " + toDisplayString(greetingName.value), 1),
+                  createBaseVNode("p", _hoisted_50, toDisplayString(today.value), 1)
                 ])
               ]),
-              createBaseVNode("div", _hoisted_75, [
+              createBaseVNode("div", _hoisted_51, [
                 createBaseVNode("button", {
                   class: "btn-ghost db-echeancier-btn",
                   onClick: _cache[3] || (_cache[3] = ($event) => unref(modals).studentTimeline = true)
                 }, [
                   createVNode(unref(CalendarDays), { size: 14 }),
-                  _cache[20] || (_cache[20] = createTextVNode(" Ma timeline ", -1))
+                  _cache[18] || (_cache[18] = createTextVNode(" Ma timeline ", -1))
                 ]),
                 createBaseVNode("button", {
                   class: "btn-ghost db-echeancier-btn",
                   onClick: _cache[4] || (_cache[4] = ($event) => unref(router2).push("/devoirs"))
                 }, [
                   createVNode(unref(BookOpen), { size: 14 }),
-                  _cache[21] || (_cache[21] = createTextVNode(" Tous mes devoirs ", -1))
+                  _cache[19] || (_cache[19] = createTextVNode(" Tous mes devoirs ", -1))
                 ])
               ])
             ]),
-            createBaseVNode("div", _hoisted_76, [
-              createBaseVNode("div", _hoisted_77, [
-                createBaseVNode("span", _hoisted_78, toDisplayString(studentStats.value.pending), 1),
-                _cache[22] || (_cache[22] = createBaseVNode("span", { class: "db-stat-label" }, "À rendre", -1)),
+            createBaseVNode("div", _hoisted_52, [
+              createBaseVNode("div", _hoisted_53, [
+                createBaseVNode("span", _hoisted_54, toDisplayString(studentStats.value.pending), 1),
+                _cache[20] || (_cache[20] = createBaseVNode("span", { class: "db-stat-label" }, "À rendre", -1)),
                 createVNode(unref(Clock), {
                   size: 18,
                   class: "db-stat-icon"
                 })
               ]),
-              createBaseVNode("div", _hoisted_79, [
-                createBaseVNode("span", _hoisted_80, toDisplayString(studentStats.value.submitted), 1),
-                _cache[23] || (_cache[23] = createBaseVNode("span", { class: "db-stat-label" }, "Rendus déposés", -1)),
+              createBaseVNode("div", _hoisted_55, [
+                createBaseVNode("span", _hoisted_56, toDisplayString(studentStats.value.submitted), 1),
+                _cache[21] || (_cache[21] = createBaseVNode("span", { class: "db-stat-label" }, "Rendus déposés", -1)),
                 createVNode(unref(CircleCheck), {
                   size: 18,
                   class: "db-stat-icon"
                 })
               ]),
-              createBaseVNode("div", _hoisted_81, [
-                createBaseVNode("span", _hoisted_82, toDisplayString(studentStats.value.graded), 1),
-                _cache[24] || (_cache[24] = createBaseVNode("span", { class: "db-stat-label" }, "Devoirs notés", -1)),
+              createBaseVNode("div", _hoisted_57, [
+                createBaseVNode("span", _hoisted_58, toDisplayString(studentStats.value.graded), 1),
+                _cache[22] || (_cache[22] = createBaseVNode("span", { class: "db-stat-label" }, "Devoirs notés", -1)),
                 createVNode(unref(Award), {
                   size: 18,
                   class: "db-stat-icon"
                 })
               ]),
-              createBaseVNode("div", _hoisted_83, [
-                createBaseVNode("span", _hoisted_84, toDisplayString(studentStats.value.avg ?? "—"), 1),
-                _cache[25] || (_cache[25] = createBaseVNode("span", { class: "db-stat-label" }, "Note moyenne", -1)),
+              createBaseVNode("div", _hoisted_59, [
+                createBaseVNode("span", _hoisted_60, toDisplayString(studentStats.value.avg ?? "—"), 1),
+                _cache[23] || (_cache[23] = createBaseVNode("span", { class: "db-stat-label" }, "Note moyenne", -1)),
                 createVNode(unref(TrendingUp), {
                   size: 18,
                   class: "db-stat-icon"
                 })
               ])
             ]),
-            studentProjectCards.value.length > 0 ? (openBlock(), createElementBlock("section", _hoisted_85, [
-              createBaseVNode("div", _hoisted_86, [
-                createBaseVNode("h2", _hoisted_87, [
-                  createVNode(unref(FolderOpen), { size: 15 }),
-                  _cache[26] || (_cache[26] = createTextVNode(" Mes projets", -1))
-                ]),
-                createBaseVNode("button", {
-                  class: "btn-ghost db-see-all-btn",
-                  onClick: _cache[5] || (_cache[5] = ($event) => unref(router2).push("/devoirs"))
-                }, "Tout voir →")
-              ]),
-              createBaseVNode("div", _hoisted_88, [
+            createBaseVNode("div", _hoisted_61, [
+              createBaseVNode("button", {
+                class: normalizeClass(["db-tab", { active: dashTab.value === "projets" }]),
+                onClick: _cache[5] || (_cache[5] = ($event) => dashTab.value = "projets")
+              }, [
+                createVNode(unref(FolderOpen), { size: 13 }),
+                _cache[24] || (_cache[24] = createTextVNode(" Mes projets ", -1))
+              ], 2),
+              createBaseVNode("button", {
+                class: normalizeClass(["db-tab", { active: dashTab.value === "frise" }]),
+                onClick: _cache[6] || (_cache[6] = ($event) => dashTab.value = "frise")
+              }, [
+                createVNode(unref(ChartNoAxesColumn), { size: 13 }),
+                _cache[25] || (_cache[25] = createTextVNode(" Frise ", -1))
+              ], 2)
+            ]),
+            dashTab.value === "projets" ? (openBlock(), createElementBlock("div", _hoisted_62, [
+              !studentProjectCards.value.length ? (openBlock(), createElementBlock("div", _hoisted_63, [
+                createVNode(unref(FolderOpen), {
+                  size: 36,
+                  style: { "opacity": ".2", "margin-bottom": "10px" }
+                }),
+                _cache[26] || (_cache[26] = createBaseVNode("p", null, "Aucun projet pour l'instant.", -1))
+              ])) : (openBlock(), createElementBlock("div", _hoisted_64, [
                 (openBlock(true), createElementBlock(Fragment, null, renderList(studentProjectCards.value, (p2) => {
                   return openBlock(), createElementBlock("div", {
                     key: p2.key,
-                    class: "db-project-card",
+                    class: "db-project-card db-student-card",
                     onClick: ($event) => goToProject(p2.key)
                   }, [
-                    createBaseVNode("div", _hoisted_90, [
+                    createBaseVNode("div", _hoisted_66, [
                       p2.icon ? (openBlock(), createBlock(resolveDynamicComponent(p2.icon), {
                         key: 0,
                         size: 18
@@ -69463,13 +69600,13 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
                         size: 18
                       }))
                     ]),
-                    createBaseVNode("div", _hoisted_91, [
-                      createBaseVNode("span", _hoisted_92, toDisplayString(p2.label), 1),
-                      createBaseVNode("span", _hoisted_93, [
+                    createBaseVNode("div", _hoisted_67, [
+                      createBaseVNode("span", _hoisted_68, toDisplayString(p2.label), 1),
+                      createBaseVNode("span", _hoisted_69, [
                         createTextVNode(toDisplayString(p2.submitted) + "/" + toDisplayString(p2.total) + " rendus ", 1),
                         p2.overdue ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
                           _cache[27] || (_cache[27] = createTextVNode(" · ", -1)),
-                          createBaseVNode("span", _hoisted_94, toDisplayString(p2.overdue) + " en retard", 1)
+                          createBaseVNode("span", _hoisted_70, toDisplayString(p2.overdue) + " en retard", 1)
                         ], 64)) : p2.avgGrade != null ? (openBlock(), createElementBlock(Fragment, { key: 1 }, [
                           createTextVNode(" · moy. " + toDisplayString(p2.avgGrade) + "/20", 1)
                         ], 64)) : createCommentVNode("", true)
@@ -69482,153 +69619,123 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
                         createTextVNode(" " + toDisplayString(unref(deadlineLabel)(p2.nextDeadline)), 1)
                       ], 2)) : createCommentVNode("", true)
                     ]),
-                    createBaseVNode("div", _hoisted_95, [
+                    createBaseVNode("div", _hoisted_71, [
                       createBaseVNode("div", {
-                        class: normalizeClass(["db-student-proj-fill", { "fill-done": p2.submitted === p2.total && p2.total > 0 }]),
+                        class: normalizeClass(["db-student-fill", { "fill-done": p2.submitted === p2.total && p2.total > 0 }]),
                         style: normalizeStyle({ width: (p2.total ? Math.round(p2.submitted / p2.total * 100) : 0) + "%" })
                       }, null, 6)
                     ])
-                  ], 8, _hoisted_89);
+                  ], 8, _hoisted_65);
                 }), 128))
-              ])
-            ])) : createCommentVNode("", true),
-            createBaseVNode("div", _hoisted_96, [
-              createBaseVNode("section", _hoisted_97, [
-                createBaseVNode("div", _hoisted_98, [
-                  createBaseVNode("h2", _hoisted_99, [
-                    createVNode(unref(TriangleAlert), { size: 15 }),
-                    _cache[28] || (_cache[28] = createTextVNode(" Urgent maintenant ", -1)),
-                    studentDashboardUrgent.value.length ? (openBlock(), createElementBlock("span", _hoisted_100, toDisplayString(studentDashboardUrgent.value.length), 1)) : createCommentVNode("", true)
+              ]))
+            ])) : (openBlock(), createElementBlock("div", _hoisted_72, [
+              !ganttDateRange.value || !frise.value.length ? (openBlock(), createElementBlock("div", _hoisted_73, [
+                createVNode(unref(ChartNoAxesColumn), {
+                  size: 36,
+                  style: { "opacity": ".2", "margin-bottom": "10px" }
+                }),
+                _cache[28] || (_cache[28] = createBaseVNode("p", null, "Aucune donnée de planification disponible.", -1))
+              ])) : (openBlock(), createElementBlock("div", _hoisted_74, [
+                createBaseVNode("div", _hoisted_75, [
+                  _cache[29] || (_cache[29] = createBaseVNode("div", { class: "frise-label-col frise-axis-label" }, "Projet", -1)),
+                  createBaseVNode("div", _hoisted_76, [
+                    (openBlock(true), createElementBlock(Fragment, null, renderList(ganttMonths.value, (m2, i) => {
+                      return openBlock(), createElementBlock("div", {
+                        key: i,
+                        class: "frise-month-tick",
+                        style: normalizeStyle({ left: m2.left + "%" })
+                      }, toDisplayString(m2.label), 5);
+                    }), 128)),
+                    (openBlock(true), createElementBlock(Fragment, null, renderList(ganttMonths.value, (m2, i) => {
+                      return openBlock(), createElementBlock("div", {
+                        key: `bg${i}`,
+                        class: normalizeClass(["frise-month-bg", { even: i % 2 === 0 }]),
+                        style: normalizeStyle(i < ganttMonths.value.length - 1 ? { left: m2.left + "%", width: ganttMonths.value[i + 1].left - m2.left + "%" } : { left: m2.left + "%", right: "0" })
+                      }, null, 6);
+                    }), 128)),
+                    ganttTodayPct.value >= 0 && ganttTodayPct.value <= 100 ? (openBlock(), createElementBlock("div", {
+                      key: 0,
+                      class: "frise-today",
+                      style: normalizeStyle({ left: ganttTodayPct.value + "%" })
+                    }, null, 4)) : createCommentVNode("", true)
                   ])
                 ]),
-                studentDashboardUrgent.value.length === 0 && studentEvents.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_101, [
-                  createVNode(unref(CircleCheck), {
-                    size: 32,
-                    class: "db-empty-success"
-                  }),
-                  _cache[29] || (_cache[29] = createBaseVNode("p", null, "Rien d'urgent pour les 3 prochains jours.", -1))
-                ])) : (openBlock(), createElementBlock("div", _hoisted_102, [
-                  (openBlock(true), createElementBlock(Fragment, null, renderList(studentDashboardUrgent.value, (t) => {
-                    return openBlock(), createElementBlock("div", {
-                      key: t.id,
-                      class: "db-rendu-row",
-                      onClick: ($event) => goToProject(t.category ?? "")
-                    }, [
-                      createBaseVNode("div", {
-                        class: normalizeClass(["db-pending-urgency", unref(deadlineClass)(t.deadline)])
-                      }, null, 2),
-                      createBaseVNode("div", _hoisted_104, [
-                        createBaseVNode("div", _hoisted_105, [
-                          createBaseVNode("span", {
-                            class: normalizeClass(["db-type-badge", `type-${t.type}`])
-                          }, toDisplayString(typeLabels[t.type] ?? t.type), 3),
-                          createBaseVNode("span", _hoisted_106, toDisplayString(t.title), 1)
-                        ]),
-                        createBaseVNode("span", _hoisted_107, [
-                          t.channel_name ? (openBlock(), createElementBlock("span", _hoisted_108, "#" + toDisplayString(t.channel_name), 1)) : createCommentVNode("", true),
-                          t.category ? (openBlock(), createElementBlock("span", _hoisted_109, toDisplayString(unref(parseCategoryIcon)(t.category).label), 1)) : createCommentVNode("", true)
-                        ])
-                      ]),
-                      createBaseVNode("div", _hoisted_110, [
+                (openBlock(true), createElementBlock(Fragment, null, renderList(frise.value, (promo) => {
+                  return openBlock(), createElementBlock("div", {
+                    key: promo.name,
+                    class: "frise-promo"
+                  }, [
+                    createBaseVNode("div", _hoisted_77, [
+                      createBaseVNode("div", _hoisted_78, [
                         createBaseVNode("span", {
-                          class: normalizeClass(["db-deadline-badge", unref(deadlineClass)(t.deadline)])
-                        }, [
-                          createVNode(unref(Clock), { size: 9 }),
-                          createTextVNode(toDisplayString(unref(deadlineLabel)(t.deadline)), 1)
-                        ], 2),
-                        createBaseVNode("span", _hoisted_111, toDisplayString(unref(formatDate)(t.deadline)), 1)
+                          class: "frise-promo-dot",
+                          style: normalizeStyle({ background: promo.color })
+                        }, null, 4),
+                        createBaseVNode("span", _hoisted_79, toDisplayString(promo.name), 1)
                       ]),
-                      createVNode(unref(ChevronRight), {
-                        size: 14,
-                        class: "db-row-chevron"
-                      })
-                    ], 8, _hoisted_103);
-                  }), 128)),
-                  studentEvents.value.length > 0 ? (openBlock(), createElementBlock("div", _hoisted_112, [..._cache[30] || (_cache[30] = [
-                    createBaseVNode("span", null, "Événements", -1)
-                  ])])) : createCommentVNode("", true),
-                  (openBlock(true), createElementBlock(Fragment, null, renderList(studentEvents.value, (t) => {
-                    return openBlock(), createElementBlock("div", {
-                      key: `ev-${t.id}`,
-                      class: "db-rendu-row db-event-row",
-                      onClick: _cache[6] || (_cache[6] = ($event) => unref(router2).push("/devoirs"))
-                    }, [
-                      createVNode(unref(Calendar), {
-                        size: 16,
-                        class: "db-event-icon"
-                      }),
-                      createBaseVNode("div", _hoisted_113, [
-                        createBaseVNode("div", _hoisted_114, [
-                          createBaseVNode("span", {
-                            class: normalizeClass(["db-type-badge", `type-${t.type}`])
-                          }, toDisplayString(typeLabels[t.type] ?? t.type), 3),
-                          createBaseVNode("span", _hoisted_115, toDisplayString(t.title), 1)
-                        ]),
-                        t.channel_name ? (openBlock(), createElementBlock("span", _hoisted_116, [
-                          createBaseVNode("span", _hoisted_117, "#" + toDisplayString(t.channel_name), 1)
-                        ])) : createCommentVNode("", true)
-                      ]),
-                      createBaseVNode("div", _hoisted_118, [
-                        createBaseVNode("span", _hoisted_119, toDisplayString(unref(formatDate)(t.deadline)), 1)
-                      ]),
-                      createVNode(unref(ChevronRight), {
-                        size: 14,
-                        class: "db-row-chevron"
-                      })
-                    ]);
-                  }), 128))
-                ]))
-              ]),
-              createBaseVNode("div", _hoisted_120, [
-                createBaseVNode("section", _hoisted_121, [
-                  createBaseVNode("div", _hoisted_122, [
-                    createBaseVNode("h2", _hoisted_123, [
-                      createVNode(unref(Award), { size: 15 }),
-                      _cache[31] || (_cache[31] = createTextVNode(" Derniers rendus ", -1)),
-                      studentStats.value.submitted ? (openBlock(), createElementBlock("span", _hoisted_124, toDisplayString(studentStats.value.submitted), 1)) : createCommentVNode("", true)
-                    ])
-                  ]),
-                  studentSubmitted.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_125, [..._cache[32] || (_cache[32] = [
-                    createBaseVNode("p", null, "Aucun dépôt effectué pour l'instant.", -1)
-                  ])])) : (openBlock(), createElementBlock("div", _hoisted_126, [
-                    (openBlock(true), createElementBlock(Fragment, null, renderList(studentSubmitted.value, (t) => {
+                      _cache[30] || (_cache[30] = createBaseVNode("div", { class: "frise-bar-col frise-promo-bar-col" }, null, -1))
+                    ]),
+                    (openBlock(true), createElementBlock(Fragment, null, renderList(promo.projects, (proj) => {
                       return openBlock(), createElementBlock("div", {
-                        key: `sub-${t.id}`,
-                        class: "db-submitted-row",
-                        onClick: _cache[7] || (_cache[7] = ($event) => unref(router2).push("/devoirs"))
+                        key: proj.key,
+                        class: "frise-row",
+                        onClick: ($event) => goToProject(proj.key)
                       }, [
-                        createBaseVNode("div", _hoisted_127, [
-                          createBaseVNode("span", {
-                            class: normalizeClass(["db-type-badge", `type-${t.type}`])
-                          }, toDisplayString(typeLabels[t.type] ?? t.type), 3),
-                          createBaseVNode("div", _hoisted_128, [
-                            createBaseVNode("span", _hoisted_129, toDisplayString(t.title), 1),
-                            t.channel_name ? (openBlock(), createElementBlock("span", _hoisted_130, "#" + toDisplayString(t.channel_name), 1)) : createCommentVNode("", true)
-                          ])
-                        ]),
-                        createBaseVNode("div", _hoisted_131, [
-                          t.note ? (openBlock(), createElementBlock("span", {
+                        createBaseVNode("div", _hoisted_81, [
+                          proj.icon ? (openBlock(), createBlock(resolveDynamicComponent(proj.icon), {
                             key: 0,
-                            class: normalizeClass(["db-grade-badge", gradeColorClass(t.note)])
-                          }, toDisplayString(t.note), 3)) : (openBlock(), createElementBlock("span", _hoisted_132, "En attente"))
+                            size: 11,
+                            class: "frise-project-icon"
+                          })) : createCommentVNode("", true),
+                          createBaseVNode("span", null, toDisplayString(proj.label), 1),
+                          createVNode(unref(ChevronRight), {
+                            size: 10,
+                            class: "frise-project-arrow"
+                          })
+                        ]),
+                        createBaseVNode("div", _hoisted_82, [
+                          createBaseVNode("div", {
+                            class: "frise-proj-line",
+                            style: normalizeStyle(projectLineStyle(proj.milestones))
+                          }, null, 4),
+                          ganttTodayPct.value >= 0 && ganttTodayPct.value <= 100 ? (openBlock(), createElementBlock("div", {
+                            key: 0,
+                            class: "frise-today",
+                            style: normalizeStyle({ left: ganttTodayPct.value + "%" })
+                          }, null, 4)) : createCommentVNode("", true),
+                          (openBlock(true), createElementBlock(Fragment, null, renderList(proj.milestones, (ms, mi) => {
+                            return openBlock(), createElementBlock("div", {
+                              key: ms.id,
+                              class: normalizeClass(["frise-milestone", [`frise-ms-${ms.type}`, { "frise-ms-done": ms.done, "frise-ms-draft": !ms.published, "frise-ms-above": mi % 2 === 0 }]]),
+                              style: normalizeStyle({ left: milestoneLeft(ms.deadline) }),
+                              title: `${ms.title} — ${unref(formatDate)(ms.deadline)}`,
+                              onClick: withModifiers(($event) => onMilestoneClick(ms), ["stop"])
+                            }, [
+                              mi % 2 === 0 ? (openBlock(), createElementBlock("div", _hoisted_84, [
+                                createBaseVNode("span", _hoisted_85, toDisplayString(ms.title), 1),
+                                createBaseVNode("span", _hoisted_86, toDisplayString(unref(formatDate)(ms.deadline)), 1)
+                              ])) : createCommentVNode("", true),
+                              _cache[31] || (_cache[31] = createBaseVNode("div", { class: "frise-ms-dot" }, null, -1)),
+                              mi % 2 !== 0 ? (openBlock(), createElementBlock("div", _hoisted_87, [
+                                createBaseVNode("span", _hoisted_88, toDisplayString(ms.title), 1),
+                                createBaseVNode("span", _hoisted_89, toDisplayString(unref(formatDate)(ms.deadline)), 1)
+                              ])) : createCommentVNode("", true)
+                            ], 14, _hoisted_83);
+                          }), 128))
                         ])
-                      ]);
-                    }), 128)),
-                    firstFeedback.value ? (openBlock(), createElementBlock("div", _hoisted_133, [
-                      createBaseVNode("span", _hoisted_134, "Retour · " + toDisplayString(firstFeedback.value.title), 1),
-                      createBaseVNode("p", _hoisted_135, "« " + toDisplayString(firstFeedback.value.feedback) + " »", 1)
-                    ])) : createCommentVNode("", true)
-                  ]))
-                ])
-              ])
-            ])
+                      ], 8, _hoisted_80);
+                    }), 128))
+                  ]);
+                }), 128))
+              ]))
+            ]))
           ], 64))
         ], 64))
       ]);
     };
   }
 });
-const DashboardView = /* @__PURE__ */ _export_sfc(_sfc_main$o, [["__scopeId", "data-v-16488ae8"]]);
+const DashboardView = /* @__PURE__ */ _export_sfc(_sfc_main$o, [["__scopeId", "data-v-a0a051a5"]]);
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [

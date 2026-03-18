@@ -2,15 +2,14 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   Clock, Edit3, Users, BookOpen, AlertTriangle,
-  ChevronRight, CheckCircle2, FileText, Eye, LayoutDashboard,
-  Award, Calendar, TrendingUp, FolderOpen, CalendarDays,
+  ChevronRight, CheckCircle2, FileText, LayoutDashboard,
+  Award, TrendingUp, FolderOpen, CalendarDays, BarChart2,
 } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
 import { useTravauxStore } from '@/stores/travaux'
 import { useRouter }      from 'vue-router'
 import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
-import { avatarColor }    from '@/utils/format'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
 import type { Component } from 'vue'
 import type { Devoir }    from '@/types'
@@ -20,28 +19,7 @@ const modals       = useModalsStore()
 const travauxStore = useTravauxStore()
 const router       = useRouter()
 
-// ── Types locaux (prof) ───────────────────────────────────────────────────────
-interface ANoterRow {
-  depot_id:        number
-  travail_id:      number
-  travail_title:   string
-  student_name:    string
-  avatar_initials: string
-  channel_name:    string
-  submitted_at:    string
-  deadline:        string
-  promo_name:      string
-  promo_color:     string
-}
-interface BrouillonRow {
-  id:           number
-  title:        string
-  deadline:     string
-  type:         string
-  channel_name: string
-  promo_name:   string
-  promo_color:  string
-}
+// ── Types locaux ──────────────────────────────────────────────────────────────
 interface GanttRow {
   id:             number
   title:          string
@@ -56,23 +34,26 @@ interface GanttRow {
   depots_count:   number
   students_total: number
 }
-interface Promotion {
-  id:    number
-  name:  string
-  color: string
+interface Promotion { id: number; name: string; color: string }
+interface ProjectCard {
+  key: string; label: string; icon: Component | null
+  total: number; published: number; depots: number; expected: number; nextDeadline: string | null
+}
+interface StudentProjectCard {
+  key: string; label: string; icon: Component | null
+  total: number; submitted: number; pending: number; overdue: number
+  nextDeadline: string | null; avgGrade: number | null
 }
 
-// ── État prof ─────────────────────────────────────────────────────────────────
+// ── État ─────────────────────────────────────────────────────────────────────
 const loadingTeacher = ref(true)
-const aNoter         = ref<ANoterRow[]>([])
-const brouillons     = ref<BrouillonRow[]>([])
+const loadingStudent = ref(true)
+const aNoterCount    = ref(0)
+const urgentsCount   = ref(0)
+const brouillonsCount = ref(0)
 const promos         = ref<Promotion[]>([])
 const totalStudents  = ref(0)
-const urgents        = ref<GanttRow[]>([])
 const ganttAll       = ref<GanttRow[]>([])
-
-// ── État étudiant ─────────────────────────────────────────────────────────────
-const loadingStudent = ref(true)
 
 // ── Chargement ────────────────────────────────────────────────────────────────
 onMounted(async () => {
@@ -85,21 +66,18 @@ onMounted(async () => {
         window.api.getGanttData(0 as number),
       ])
       if (schedRes?.ok) {
-        const d = schedRes.data as { aNoter: ANoterRow[]; brouillons: BrouillonRow[]; jalons: unknown[]; urgents: unknown[] }
-        aNoter.value     = d.aNoter     ?? []
-        brouillons.value = d.brouillons ?? []
+        const d = schedRes.data as { aNoter: unknown[]; brouillons: unknown[] }
+        aNoterCount.value     = d.aNoter?.length     ?? 0
+        brouillonsCount.value = d.brouillons?.length ?? 0
       }
       if (promosRes?.ok) promos.value       = promosRes.data as Promotion[]
       if (studRes?.ok)   totalStudents.value = (studRes.data as unknown[]).length
       if (ganttRes?.ok) {
-        const rows    = ganttRes.data as GanttRow[]
-        ganttAll.value = rows
-        const now     = Date.now()
-        const in7days = now + 7 * 86_400_000
-        urgents.value = rows
-          .filter(t => t.published && new Date(t.deadline).getTime() >= now && new Date(t.deadline).getTime() <= in7days)
-          .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
-          .slice(0, 10)
+        ganttAll.value = ganttRes.data as GanttRow[]
+        const now = Date.now(), in7d = now + 7 * 86_400_000
+        urgentsCount.value = ganttAll.value.filter(
+          t => t.published && new Date(t.deadline).getTime() >= now && new Date(t.deadline).getTime() <= in7d
+        ).length
       }
     } finally { loadingTeacher.value = false }
   } else {
@@ -109,31 +87,18 @@ onMounted(async () => {
   }
 })
 
-// ── Actions ───────────────────────────────────────────────────────────────────
-function openDevoir(id: number) {
-  appStore.currentTravailId = id
-  modals.gestionDevoir = true
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const greetingName = computed(() => (appStore.currentUser?.name ?? '').split(' ')[0])
+const today = computed(() =>
+  new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+)
 
-function goToProject(projectKey: string) {
-  appStore.activeProject = projectKey
+function goToProject(key: string) {
+  appStore.activeProject = key
   router.push('/devoirs')
 }
 
-// ── Computed prof ─────────────────────────────────────────────────────────────
-const greetingName = computed(() => (appStore.currentUser?.name ?? '').split(' ')[0])
-
-interface ProjectCard {
-  key:            string
-  label:          string
-  icon:           Component | null
-  total:          number
-  published:      number
-  depots:         number
-  expected:       number
-  nextDeadline:   string | null
-}
-
+// ── Projets prof ─────────────────────────────────────────────────────────────
 const projectCards = computed((): ProjectCard[] => {
   const map = new Map<string, GanttRow[]>()
   for (const t of ganttAll.value) {
@@ -150,9 +115,7 @@ const projectCards = computed((): ProjectCard[] => {
       .filter(r => new Date(r.deadline).getTime() >= now)
       .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     cards.push({
-      key,
-      label,
-      icon,
+      key, label, icon,
       total:        rows.length,
       published:    published.length,
       depots:       rows.reduce((s, r) => s + (r.depots_count ?? 0), 0),
@@ -162,20 +125,12 @@ const projectCards = computed((): ProjectCard[] => {
   }
   return cards.sort((a, b) => {
     if (!a.nextDeadline && !b.nextDeadline) return a.label.localeCompare(b.label)
-    if (!a.nextDeadline) return 1
-    if (!b.nextDeadline) return -1
+    if (!a.nextDeadline) return 1; if (!b.nextDeadline) return -1
     return new Date(a.nextDeadline).getTime() - new Date(b.nextDeadline).getTime()
   })
 })
-const today = computed(() =>
-  new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
-)
-const aNoterDisplay = computed(() => aNoter.value.slice(0, 12))
-function submitPct(row: GanttRow) {
-  return row.students_total ? Math.round((row.depots_count / row.students_total) * 100) : 0
-}
 
-// ── Computed étudiant ─────────────────────────────────────────────────────────
+// ── Projets étudiant ──────────────────────────────────────────────────────────
 const isEventType = (t: Devoir) => t.type === 'soutenance' || t.type === 'cctl'
 
 const studentStats = computed(() => {
@@ -187,66 +142,6 @@ const studentStats = computed(() => {
   const avg       = grades.length ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length * 10) / 10 : null
   return { total: all.length, submitted: submitted.length, pending: pending.length, graded: graded.length, avg }
 })
-
-const studentPending = computed(() => {
-  const now = Date.now()
-  return travauxStore.devoirs
-    .filter(t => t.depot_id == null && !isEventType(t))
-    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
-})
-
-const studentEvents = computed(() =>
-  travauxStore.devoirs
-    .filter(t => isEventType(t) && new Date(t.deadline).getTime() >= Date.now())
-    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()),
-)
-
-const studentSubmitted = computed(() =>
-  travauxStore.devoirs
-    .filter(t => t.depot_id != null)
-    .sort((a, b) => new Date(b.deadline).getTime() - new Date(a.deadline).getTime())
-    .slice(0, 6),
-)
-
-const typeLabels: Record<string, string> = {
-  livrable: 'Livrable', soutenance: 'Soutenance', cctl: 'CCTL',
-  etude_de_cas: 'Étude de cas', memoire: 'Mémoire', autre: 'Autre',
-  devoir: 'Devoir', projet: 'Projet', jalon: 'Jalon',
-}
-
-function gradeColorClass(note: string | null | undefined): string {
-  const n = parseFloat(note ?? '')
-  if (isNaN(n)) return 'grade-na'
-  if (n >= 16)  return 'grade-a'
-  if (n >= 12)  return 'grade-b'
-  if (n >= 8)   return 'grade-c'
-  return 'grade-d'
-}
-
-const firstFeedback = computed(() =>
-  travauxStore.devoirs.find(t => t.depot_id != null && t.feedback),
-)
-
-// Devoirs urgents pour le dashboard (retard + < 3 jours)
-const studentDashboardUrgent = computed(() => {
-  const limit = Date.now() + 3 * 86_400_000
-  return travauxStore.devoirs
-    .filter(t => t.depot_id == null && !isEventType(t) && new Date(t.deadline).getTime() <= limit)
-    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
-})
-
-// ── Cartes projet étudiant ─────────────────────────────────────────────────
-interface StudentProjectCard {
-  key:          string
-  label:        string
-  icon:         Component | null
-  total:        number
-  submitted:    number
-  pending:      number
-  overdue:      number
-  nextDeadline: string | null
-  avgGrade:     number | null
-}
 
 const studentProjectCards = computed((): StudentProjectCard[] => {
   const map = new Map<string, Devoir[]>()
@@ -260,24 +155,143 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
   const cards: StudentProjectCard[] = []
   for (const [key, rows] of map) {
     const { icon, label } = parseCategoryIcon(key)
-    const submitted  = rows.filter(r => r.depot_id != null)
-    const pending    = rows.filter(r => r.depot_id == null && r.type !== 'soutenance' && r.type !== 'cctl')
-    const overdue    = pending.filter(r => now >= new Date(r.deadline).getTime())
-    const upcoming   = pending
-      .filter(r => new Date(r.deadline).getTime() > now)
+    const submitted = rows.filter(r => r.depot_id != null)
+    const pending   = rows.filter(r => r.depot_id == null && r.type !== 'soutenance' && r.type !== 'cctl')
+    const overdue   = pending.filter(r => now >= new Date(r.deadline).getTime())
+    const upcoming  = pending.filter(r => new Date(r.deadline).getTime() > now)
       .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
-    const grades     = submitted.map(r => parseFloat(r.note ?? '')).filter(n => !isNaN(n))
-    const avgGrade   = grades.length ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length * 10) / 10 : null
+    const grades    = submitted.map(r => parseFloat(r.note ?? '')).filter(n => !isNaN(n))
+    const avgGrade  = grades.length ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length * 10) / 10 : null
     cards.push({ key, label, icon, total: rows.length, submitted: submitted.length, pending: pending.length, overdue: overdue.length, nextDeadline: upcoming[0]?.deadline ?? null, avgGrade })
   }
   return cards.sort((a, b) => {
     if (a.overdue !== b.overdue) return b.overdue - a.overdue
     if (!a.nextDeadline && !b.nextDeadline) return a.label.localeCompare(b.label)
-    if (!a.nextDeadline) return 1
-    if (!b.nextDeadline) return -1
+    if (!a.nextDeadline) return 1; if (!b.nextDeadline) return -1
     return new Date(a.nextDeadline).getTime() - new Date(b.nextDeadline).getTime()
   })
 })
+
+// ── Frise chronologique ────────────────────────────────────────────────────────
+const dashTab = ref<'projets' | 'frise'>('projets')
+
+interface FriseMilestone { id: number; title: string; type: string; deadline: string; published: boolean; done: boolean }
+interface FriseProject   { key: string; label: string; icon: Component | null; milestones: FriseMilestone[] }
+interface FrisePromo     { name: string; color: string; projects: FriseProject[] }
+
+const ganttDateRange = computed(() => {
+  const rows = (appStore.isTeacher ? ganttAll.value : travauxStore.devoirs) as { deadline: string }[]
+  if (!rows.length) return null
+  let min = Infinity, max = -Infinity
+  for (const t of rows) {
+    const e = new Date(t.deadline).getTime()
+    if (e < min) min = e
+    if (e > max) max = e
+  }
+  return { start: new Date(min - 28 * 86_400_000), end: new Date(max + 28 * 86_400_000) }
+})
+
+const ganttMonths = computed(() => {
+  const r = ganttDateRange.value
+  if (!r) return []
+  const total = r.end.getTime() - r.start.getTime()
+  const months: { label: string; left: number }[] = []
+  let d = new Date(r.start.getFullYear(), r.start.getMonth(), 1)
+  while (d <= r.end) {
+    months.push({
+      label: d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
+      left:  Math.max(0, (d.getTime() - r.start.getTime()) / total * 100),
+    })
+    d = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+  }
+  return months
+})
+
+const ganttTodayPct = computed(() => {
+  const r = ganttDateRange.value
+  if (!r) return -1
+  return (Date.now() - r.start.getTime()) / (r.end.getTime() - r.start.getTime()) * 100
+})
+
+const teacherFrise = computed((): FrisePromo[] => {
+  const promoMap = new Map<string, { color: string; projects: Map<string, FriseMilestone[]> }>()
+  for (const t of ganttAll.value) {
+    const pName  = t.promo_name  || 'Sans promo'
+    const pColor = t.promo_color || '#4a90d9'
+    const pKey   = t.category?.trim() || 'Sans projet'
+    if (!promoMap.has(pName)) promoMap.set(pName, { color: pColor, projects: new Map() })
+    const promo = promoMap.get(pName)!
+    if (!promo.projects.has(pKey)) promo.projects.set(pKey, [])
+    promo.projects.get(pKey)!.push({
+      id: t.id, title: t.title, type: t.type, deadline: t.deadline,
+      published: Boolean(t.published),
+      done: t.students_total > 0 && (t.depots_count ?? 0) >= t.students_total,
+    })
+  }
+  return Array.from(promoMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, { color, projects }]) => ({
+      name, color,
+      projects: Array.from(projects.entries())
+        .map(([key, milestones]) => ({
+          key, label: parseCategoryIcon(key).label, icon: parseCategoryIcon(key).icon,
+          milestones: milestones.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()),
+        }))
+        .sort((a, b) => {
+          const am = a.milestones[0]?.deadline ?? ''; const bm = b.milestones[0]?.deadline ?? ''
+          return am.localeCompare(bm)
+        }),
+    }))
+})
+
+const studentFrise = computed((): FrisePromo[] => {
+  const projMap = new Map<string, FriseMilestone[]>()
+  for (const t of travauxStore.devoirs) {
+    const key = t.category?.trim() || 'Sans projet'
+    if (!projMap.has(key)) projMap.set(key, [])
+    projMap.get(key)!.push({
+      id: t.id, title: t.title, type: (t as any).type ?? 'autre', deadline: t.deadline,
+      published: true, done: t.depot_id != null,
+    })
+  }
+  return [{
+    name: (appStore.currentUser as any)?.promo_name ?? 'Ma promo', color: '#9b87f5',
+    projects: Array.from(projMap.entries())
+      .map(([key, milestones]) => ({
+        key, label: parseCategoryIcon(key).label, icon: parseCategoryIcon(key).icon,
+        milestones: milestones.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()),
+      }))
+      .sort((a, b) => {
+        const am = a.milestones[0]?.deadline ?? ''; const bm = b.milestones[0]?.deadline ?? ''
+        return am.localeCompare(bm)
+      }),
+  }]
+})
+
+const frise = computed((): FrisePromo[] => appStore.isTeacher ? teacherFrise.value : studentFrise.value)
+
+function milestoneLeft(deadline: string): string {
+  const r = ganttDateRange.value
+  if (!r) return '50%'
+  const total = r.end.getTime() - r.start.getTime()
+  const pos   = (new Date(deadline).getTime() - r.start.getTime()) / total * 100
+  return `${Math.max(0, Math.min(100, pos))}%`
+}
+
+function projectLineStyle(milestones: FriseMilestone[]): Record<string, string> {
+  if (milestones.length < 2) return { display: 'none' }
+  const r = ganttDateRange.value
+  if (!r) return {}
+  const total = r.end.getTime() - r.start.getTime()
+  const left  = (new Date(milestones[0].deadline).getTime() - r.start.getTime()) / total * 100
+  const right = (new Date(milestones[milestones.length - 1].deadline).getTime() - r.start.getTime()) / total * 100
+  return { left: `${Math.max(0, left)}%`, width: `${Math.max(0, right - left)}%` }
+}
+
+function onMilestoneClick(ms: FriseMilestone) {
+  if (appStore.isTeacher) { appStore.currentTravailId = ms.id; modals.gestionDevoir = true }
+  else router.push('/devoirs')
+}
 </script>
 
 <template>
@@ -308,20 +322,20 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
           </button>
         </div>
 
-        <!-- Stats prof -->
+        <!-- Stats -->
         <div class="db-stats">
           <div class="db-stat-card db-stat-danger">
-            <span class="db-stat-value">{{ aNoter.length }}</span>
+            <span class="db-stat-value">{{ aNoterCount }}</span>
             <span class="db-stat-label">Rendus à noter</span>
             <Edit3 :size="18" class="db-stat-icon" />
           </div>
           <div class="db-stat-card db-stat-warning">
-            <span class="db-stat-value">{{ urgents.length }}</span>
+            <span class="db-stat-value">{{ urgentsCount }}</span>
             <span class="db-stat-label">Devoirs cette semaine</span>
             <AlertTriangle :size="18" class="db-stat-icon" />
           </div>
           <div class="db-stat-card db-stat-muted">
-            <span class="db-stat-value">{{ brouillons.length }}</span>
+            <span class="db-stat-value">{{ brouillonsCount }}</span>
             <span class="db-stat-label">Brouillons</span>
             <FileText :size="18" class="db-stat-icon" />
           </div>
@@ -332,13 +346,23 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
           </div>
         </div>
 
-        <!-- Projets -->
-        <section v-if="projectCards.length > 0" class="db-projects-section">
-          <div class="db-section-header">
-            <h2 class="db-section-title"><FolderOpen :size="15" /> Projets</h2>
-            <button class="btn-ghost db-see-all-btn" @click="router.push('/devoirs')">Voir tous les devoirs →</button>
+        <!-- Tabs -->
+        <div class="db-tabs">
+          <button class="db-tab" :class="{ active: dashTab === 'projets' }" @click="dashTab = 'projets'">
+            <FolderOpen :size="13" /> Projets
+          </button>
+          <button class="db-tab" :class="{ active: dashTab === 'frise' }" @click="dashTab = 'frise'">
+            <BarChart2 :size="13" /> Frise
+          </button>
+        </div>
+
+        <!-- Tab Projets -->
+        <div v-if="dashTab === 'projets'" class="db-tab-content">
+          <div v-if="!projectCards.length" class="db-empty-hint">
+            <FolderOpen :size="36" style="opacity:.2;margin-bottom:10px" />
+            <p>Aucun projet configuré. Créez des travaux avec une catégorie pour les voir ici.</p>
           </div>
-          <div class="db-project-grid">
+          <div v-else class="db-project-grid">
             <div
               v-for="p in projectCards"
               :key="p.key"
@@ -362,109 +386,69 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
               <ChevronRight :size="14" class="db-project-chevron" />
             </div>
           </div>
-        </section>
+        </div>
 
-        <!-- Corps prof -->
-        <div class="db-body">
-          <!-- Rendus à noter -->
-          <section class="db-section db-section-left">
-            <div class="db-section-header">
-              <h2 class="db-section-title">
-                <Edit3 :size="15" /> Rendus à noter
-                <span v-if="aNoter.length" class="db-section-badge db-badge-danger">{{ aNoter.length }}</span>
-              </h2>
+        <!-- Tab Frise -->
+        <div v-else class="db-tab-content db-frise-outer">
+          <div v-if="!ganttDateRange || !frise.length" class="db-empty-hint">
+            <BarChart2 :size="36" style="opacity:.2;margin-bottom:10px" />
+            <p>Aucune donnée de planification disponible.</p>
+          </div>
+          <div v-else class="frise-wrap">
+            <!-- Axe des mois -->
+            <div class="frise-axis-row">
+              <div class="frise-label-col frise-axis-label">Projet</div>
+              <div class="frise-bar-col frise-axis-months">
+                <div v-for="(m, i) in ganttMonths" :key="i" class="frise-month-tick" :style="{ left: m.left + '%' }">{{ m.label }}</div>
+                <div v-for="(m, i) in ganttMonths" :key="`bg${i}`" class="frise-month-bg" :class="{ even: i % 2 === 0 }"
+                  :style="i < ganttMonths.length - 1 ? { left: m.left + '%', width: (ganttMonths[i+1].left - m.left) + '%' } : { left: m.left + '%', right: '0' }" />
+                <div v-if="ganttTodayPct >= 0 && ganttTodayPct <= 100" class="frise-today" :style="{ left: ganttTodayPct + '%' }" />
+              </div>
             </div>
-            <div v-if="aNoter.length === 0" class="db-empty">
-              <CheckCircle2 :size="32" class="db-empty-success" />
-              <p>Tous les rendus sont notés.</p>
-            </div>
-            <div v-else class="db-rendu-list">
-              <div v-for="row in aNoterDisplay" :key="row.depot_id" class="db-rendu-row" @click="openDevoir(row.travail_id)">
-                <div class="db-avatar" :style="{ background: avatarColor(row.student_name) }">{{ row.avatar_initials }}</div>
-                <div class="db-rendu-info">
-                  <span class="db-rendu-student">{{ row.student_name }}</span>
-                  <span class="db-rendu-meta">
-                    <span class="db-rendu-devoir">{{ row.travail_title }}</span>
-                    <span class="db-rendu-sep">·</span>
-                    <span class="db-rendu-channel">#{{ row.channel_name }}</span>
-                  </span>
+            <!-- Promos -->
+            <div v-for="promo in frise" :key="promo.name" class="frise-promo">
+              <div class="frise-promo-heading">
+                <div class="frise-label-col frise-promo-label-col">
+                  <span class="frise-promo-dot" :style="{ background: promo.color }" />
+                  <span class="frise-promo-name">{{ promo.name }}</span>
                 </div>
-                <div class="db-rendu-right">
-                  <span class="db-rendu-date">{{ new Date(row.submitted_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) }}</span>
-                  <span class="db-promo-pill" :style="{ background: (row.promo_color ?? '#4A90D9') + '22', color: row.promo_color ?? '#4A90D9' }">{{ row.promo_name }}</span>
+                <div class="frise-bar-col frise-promo-bar-col" />
+              </div>
+              <!-- Lignes projet -->
+              <div v-for="proj in promo.projects" :key="proj.key" class="frise-row" @click="goToProject(proj.key)">
+                <div class="frise-label-col frise-project-label">
+                  <component :is="proj.icon" v-if="proj.icon" :size="11" class="frise-project-icon" />
+                  <span>{{ proj.label }}</span>
+                  <ChevronRight :size="10" class="frise-project-arrow" />
                 </div>
-                <ChevronRight :size="14" class="db-row-chevron" />
-              </div>
-              <div v-if="aNoter.length > 12" class="db-more-link" @click="modals.echeancier = true">
-                + {{ aNoter.length - 12 }} autres — ouvrir l'échéancier
-              </div>
-            </div>
-          </section>
-
-          <!-- Colonne droite prof -->
-          <div class="db-col-right">
-            <!-- Urgents -->
-            <section class="db-section">
-              <div class="db-section-header">
-                <h2 class="db-section-title">
-                  <AlertTriangle :size="15" /> Devoirs cette semaine
-                  <span v-if="urgents.length" class="db-section-badge db-badge-warning">{{ urgents.length }}</span>
-                </h2>
-              </div>
-              <div v-if="urgents.length === 0" class="db-empty db-empty-sm">
-                <p>Aucun devoir à rendre dans les 7 jours.</p>
-              </div>
-              <div v-else class="db-urgent-list">
-                <div v-for="t in urgents" :key="t.id" class="db-urgent-row" @click="openDevoir(t.id)">
-                  <div class="db-urgent-top">
-                    <span class="db-type-badge" :class="`type-${t.type}`">{{ typeLabels[t.type] ?? t.type }}</span>
-                    <span class="db-urgent-title">{{ t.title }}</span>
-                    <span class="db-deadline-badge" :class="deadlineClass(t.deadline)"><Clock :size="9" />{{ deadlineLabel(t.deadline) }}</span>
-                  </div>
-                  <div class="db-urgent-sub">
-                    <span class="db-urgent-channel">#{{ t.channel_name }}</span>
-                    <span class="db-promo-pill" :style="{ background: (t.promo_color ?? '#4A90D9') + '22', color: t.promo_color ?? '#4A90D9' }">{{ t.promo_name }}</span>
-                    <span class="db-urgent-count">{{ t.depots_count }}/{{ t.students_total }}</span>
-                  </div>
-                  <div class="db-progress-track">
-                    <div class="db-progress-fill" :class="{ 'db-progress-full': submitPct(t) === 100 }" :style="{ width: submitPct(t) + '%' }" />
+                <div class="frise-bar-col frise-timeline">
+                  <div class="frise-proj-line" :style="projectLineStyle(proj.milestones)" />
+                  <div v-if="ganttTodayPct >= 0 && ganttTodayPct <= 100" class="frise-today" :style="{ left: ganttTodayPct + '%' }" />
+                  <div
+                    v-for="(ms, mi) in proj.milestones"
+                    :key="ms.id"
+                    class="frise-milestone"
+                    :class="[`frise-ms-${ms.type}`, { 'frise-ms-done': ms.done, 'frise-ms-draft': !ms.published, 'frise-ms-above': mi % 2 === 0 }]"
+                    :style="{ left: milestoneLeft(ms.deadline) }"
+                    :title="`${ms.title} — ${formatDate(ms.deadline)}`"
+                    @click.stop="onMilestoneClick(ms)"
+                  >
+                    <div v-if="mi % 2 === 0" class="frise-ms-label">
+                      <span class="frise-ms-title">{{ ms.title }}</span>
+                      <span class="frise-ms-date">{{ formatDate(ms.deadline) }}</span>
+                    </div>
+                    <div class="frise-ms-dot" />
+                    <div v-if="mi % 2 !== 0" class="frise-ms-label">
+                      <span class="frise-ms-title">{{ ms.title }}</span>
+                      <span class="frise-ms-date">{{ formatDate(ms.deadline) }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </section>
-
-            <!-- Brouillons -->
-            <section v-if="brouillons.length > 0" class="db-section">
-              <div class="db-section-header">
-                <h2 class="db-section-title">
-                  <FileText :size="15" /> Brouillons à publier
-                  <span class="db-section-badge db-badge-muted">{{ brouillons.length }}</span>
-                </h2>
-              </div>
-              <div class="db-brouillon-list">
-                <div v-for="b in brouillons.slice(0, 6)" :key="b.id" class="db-brouillon-row" @click="openDevoir(b.id)">
-                  <span class="db-type-badge" :class="`type-${b.type}`">{{ typeLabels[b.type] ?? b.type }}</span>
-                  <span class="db-brouillon-title">{{ b.title }}</span>
-                  <span class="db-brouillon-date">{{ formatDate(b.deadline) }}</span>
-                  <Eye :size="12" class="db-row-icon" />
-                </div>
-              </div>
-            </section>
-
-            <!-- Promotions -->
-            <section class="db-section">
-              <div class="db-section-header">
-                <h2 class="db-section-title"><BookOpen :size="15" /> Promotions</h2>
-              </div>
-              <div class="db-promo-list">
-                <div v-for="p in promos" :key="p.id" class="db-promo-row">
-                  <span class="db-promo-dot" :style="{ background: p.color ?? '#4A90D9' }" />
-                  <span class="db-promo-name">{{ p.name }}</span>
-                </div>
-              </div>
-            </section>
+            </div>
           </div>
         </div>
+
       </template>
     </template>
 
@@ -522,17 +506,27 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
           </div>
         </div>
 
-        <!-- Cartes projet étudiant -->
-        <section v-if="studentProjectCards.length > 0" class="db-student-projects">
-          <div class="db-section-header">
-            <h2 class="db-section-title"><FolderOpen :size="15" /> Mes projets</h2>
-            <button class="btn-ghost db-see-all-btn" @click="router.push('/devoirs')">Tout voir →</button>
+        <!-- Tabs -->
+        <div class="db-tabs">
+          <button class="db-tab" :class="{ active: dashTab === 'projets' }" @click="dashTab = 'projets'">
+            <FolderOpen :size="13" /> Mes projets
+          </button>
+          <button class="db-tab" :class="{ active: dashTab === 'frise' }" @click="dashTab = 'frise'">
+            <BarChart2 :size="13" /> Frise
+          </button>
+        </div>
+
+        <!-- Tab Projets étudiant -->
+        <div v-if="dashTab === 'projets'" class="db-tab-content">
+          <div v-if="!studentProjectCards.length" class="db-empty-hint">
+            <FolderOpen :size="36" style="opacity:.2;margin-bottom:10px" />
+            <p>Aucun projet pour l'instant.</p>
           </div>
-          <div class="db-project-grid">
+          <div v-else class="db-project-grid db-student-grid">
             <div
               v-for="p in studentProjectCards"
               :key="p.key"
-              class="db-project-card"
+              class="db-project-card db-student-card"
               @click="goToProject(p.key)"
             >
               <div class="db-project-icon">
@@ -550,128 +544,75 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
                   <Clock :size="9" /> {{ deadlineLabel(p.nextDeadline) }}
                 </span>
               </div>
-              <div class="db-student-proj-bar">
+              <div class="db-student-bar">
                 <div
-                  class="db-student-proj-fill"
+                  class="db-student-fill"
                   :style="{ width: (p.total ? Math.round(p.submitted / p.total * 100) : 0) + '%' }"
                   :class="{ 'fill-done': p.submitted === p.total && p.total > 0 }"
                 />
               </div>
             </div>
           </div>
-        </section>
+        </div>
 
-        <!-- Corps étudiant -->
-        <div class="db-body">
-
-          <!-- Colonne gauche : Urgent maintenant -->
-          <section class="db-section db-section-left">
-            <div class="db-section-header">
-              <h2 class="db-section-title">
-                <AlertTriangle :size="15" /> Urgent maintenant
-                <span v-if="studentDashboardUrgent.length" class="db-section-badge db-badge-warning">{{ studentDashboardUrgent.length }}</span>
-              </h2>
-            </div>
-
-            <div v-if="studentDashboardUrgent.length === 0 && studentEvents.length === 0" class="db-empty">
-              <CheckCircle2 :size="32" class="db-empty-success" />
-              <p>Rien d'urgent pour les 3 prochains jours.</p>
-            </div>
-
-            <div v-else class="db-rendu-list">
-              <!-- Devoirs urgents -->
-              <div
-                v-for="t in studentDashboardUrgent"
-                :key="t.id"
-                class="db-rendu-row"
-                @click="goToProject(t.category ?? '')"
-              >
-                <div class="db-pending-urgency" :class="deadlineClass(t.deadline)" />
-                <div class="db-rendu-info">
-                  <div class="db-rendu-top-row">
-                    <span class="db-type-badge" :class="`type-${t.type}`">{{ typeLabels[t.type] ?? t.type }}</span>
-                    <span class="db-rendu-student">{{ t.title }}</span>
-                  </div>
-                  <span class="db-rendu-meta">
-                    <span v-if="t.channel_name" class="db-rendu-channel">#{{ t.channel_name }}</span>
-                    <span v-if="t.category" class="db-rendu-proj">{{ parseCategoryIcon(t.category).label }}</span>
-                  </span>
-                </div>
-                <div class="db-rendu-right">
-                  <span class="db-deadline-badge" :class="deadlineClass(t.deadline)">
-                    <Clock :size="9" />{{ deadlineLabel(t.deadline) }}
-                  </span>
-                  <span class="db-rendu-date">{{ formatDate(t.deadline) }}</span>
-                </div>
-                <ChevronRight :size="14" class="db-row-chevron" />
-              </div>
-
-              <!-- Événements (soutenance / CCTL) -->
-              <div v-if="studentEvents.length > 0" class="db-events-separator">
-                <span>Événements</span>
-              </div>
-              <div
-                v-for="t in studentEvents"
-                :key="`ev-${t.id}`"
-                class="db-rendu-row db-event-row"
-                @click="router.push('/devoirs')"
-              >
-                <Calendar :size="16" class="db-event-icon" />
-                <div class="db-rendu-info">
-                  <div class="db-rendu-top-row">
-                    <span class="db-type-badge" :class="`type-${t.type}`">{{ typeLabels[t.type] ?? t.type }}</span>
-                    <span class="db-rendu-student">{{ t.title }}</span>
-                  </div>
-                  <span v-if="t.channel_name" class="db-rendu-meta">
-                    <span class="db-rendu-channel">#{{ t.channel_name }}</span>
-                  </span>
-                </div>
-                <div class="db-rendu-right">
-                  <span class="db-rendu-date">{{ formatDate(t.deadline) }}</span>
-                </div>
-                <ChevronRight :size="14" class="db-row-chevron" />
+        <!-- Tab Frise étudiant -->
+        <div v-else class="db-tab-content db-frise-outer">
+          <div v-if="!ganttDateRange || !frise.length" class="db-empty-hint">
+            <BarChart2 :size="36" style="opacity:.2;margin-bottom:10px" />
+            <p>Aucune donnée de planification disponible.</p>
+          </div>
+          <div v-else class="frise-wrap">
+            <div class="frise-axis-row">
+              <div class="frise-label-col frise-axis-label">Projet</div>
+              <div class="frise-bar-col frise-axis-months">
+                <div v-for="(m, i) in ganttMonths" :key="i" class="frise-month-tick" :style="{ left: m.left + '%' }">{{ m.label }}</div>
+                <div v-for="(m, i) in ganttMonths" :key="`bg${i}`" class="frise-month-bg" :class="{ even: i % 2 === 0 }"
+                  :style="i < ganttMonths.length - 1 ? { left: m.left + '%', width: (ganttMonths[i+1].left - m.left) + '%' } : { left: m.left + '%', right: '0' }" />
+                <div v-if="ganttTodayPct >= 0 && ganttTodayPct <= 100" class="frise-today" :style="{ left: ganttTodayPct + '%' }" />
               </div>
             </div>
-          </section>
-
-          <!-- Colonne droite : Derniers rendus notés -->
-          <div class="db-col-right">
-            <section class="db-section">
-              <div class="db-section-header">
-                <h2 class="db-section-title">
-                  <Award :size="15" /> Derniers rendus
-                  <span v-if="studentStats.submitted" class="db-section-badge db-badge-accent">{{ studentStats.submitted }}</span>
-                </h2>
+            <div v-for="promo in frise" :key="promo.name" class="frise-promo">
+              <div class="frise-promo-heading">
+                <div class="frise-label-col frise-promo-label-col">
+                  <span class="frise-promo-dot" :style="{ background: promo.color }" />
+                  <span class="frise-promo-name">{{ promo.name }}</span>
+                </div>
+                <div class="frise-bar-col frise-promo-bar-col" />
               </div>
-
-              <div v-if="studentSubmitted.length === 0" class="db-empty db-empty-sm">
-                <p>Aucun dépôt effectué pour l'instant.</p>
-              </div>
-
-              <div v-else class="db-submitted-list">
-                <div v-for="t in studentSubmitted" :key="`sub-${t.id}`" class="db-submitted-row" @click="router.push('/devoirs')">
-                  <div class="db-submitted-left">
-                    <span class="db-type-badge" :class="`type-${t.type}`">{{ typeLabels[t.type] ?? t.type }}</span>
-                    <div class="db-submitted-info">
-                      <span class="db-submitted-title">{{ t.title }}</span>
-                      <span v-if="t.channel_name" class="db-submitted-channel">#{{ t.channel_name }}</span>
+              <div v-for="proj in promo.projects" :key="proj.key" class="frise-row" @click="goToProject(proj.key)">
+                <div class="frise-label-col frise-project-label">
+                  <component :is="proj.icon" v-if="proj.icon" :size="11" class="frise-project-icon" />
+                  <span>{{ proj.label }}</span>
+                  <ChevronRight :size="10" class="frise-project-arrow" />
+                </div>
+                <div class="frise-bar-col frise-timeline">
+                  <div class="frise-proj-line" :style="projectLineStyle(proj.milestones)" />
+                  <div v-if="ganttTodayPct >= 0 && ganttTodayPct <= 100" class="frise-today" :style="{ left: ganttTodayPct + '%' }" />
+                  <div
+                    v-for="(ms, mi) in proj.milestones"
+                    :key="ms.id"
+                    class="frise-milestone"
+                    :class="[`frise-ms-${ms.type}`, { 'frise-ms-done': ms.done, 'frise-ms-draft': !ms.published, 'frise-ms-above': mi % 2 === 0 }]"
+                    :style="{ left: milestoneLeft(ms.deadline) }"
+                    :title="`${ms.title} — ${formatDate(ms.deadline)}`"
+                    @click.stop="onMilestoneClick(ms)"
+                  >
+                    <div v-if="mi % 2 === 0" class="frise-ms-label">
+                      <span class="frise-ms-title">{{ ms.title }}</span>
+                      <span class="frise-ms-date">{{ formatDate(ms.deadline) }}</span>
+                    </div>
+                    <div class="frise-ms-dot" />
+                    <div v-if="mi % 2 !== 0" class="frise-ms-label">
+                      <span class="frise-ms-title">{{ ms.title }}</span>
+                      <span class="frise-ms-date">{{ formatDate(ms.deadline) }}</span>
                     </div>
                   </div>
-                  <div class="db-submitted-right">
-                    <span v-if="t.note" class="db-grade-badge" :class="gradeColorClass(t.note)">{{ t.note }}</span>
-                    <span v-else class="db-grade-pending">En attente</span>
-                  </div>
-                </div>
-
-                <!-- Feedback du dernier rendu noté -->
-                <div v-if="firstFeedback" class="db-feedback-row">
-                  <span class="db-feedback-label">Retour · {{ firstFeedback.title }}</span>
-                  <p class="db-feedback-text">« {{ firstFeedback.feedback }} »</p>
                 </div>
               </div>
-            </section>
+            </div>
           </div>
         </div>
+
       </template>
     </template>
 
@@ -679,127 +620,6 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
 </template>
 
 <style scoped>
-/* ── Projets ── */
-.db-projects-section {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.db-see-all-btn {
-  font-size: 11px;
-  padding: 4px 10px;
-  color: var(--text-muted);
-}
-.db-project-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px;
-}
-.db-project-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-sidebar);
-  cursor: pointer;
-  transition: background var(--t-fast), border-color var(--t-fast);
-}
-.db-project-card:hover {
-  background: var(--bg-hover);
-  border-color: var(--accent);
-}
-.db-project-icon {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: var(--accent-subtle);
-  color: var(--accent-light);
-}
-.db-project-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.db-project-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.db-project-stats {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-.db-project-next {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  font-weight: 600;
-}
-.db-project-next.deadline-ok     { color: var(--color-success); }
-.db-project-next.deadline-warning { color: #F39C12; }
-.db-project-next.deadline-soon    { color: var(--color-warning); }
-.db-project-next.deadline-critical,
-.db-project-next.deadline-passed  { color: var(--color-danger); }
-.db-project-chevron { color: var(--text-muted); flex-shrink: 0; }
-
-/* ── Cartes projet étudiant ── */
-.db-student-projects {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* Réutilise .db-project-grid et .db-project-card du prof mais avec barre de progression */
-.db-student-proj-bar {
-  grid-column: 1 / -1;
-  height: 3px;
-  border-radius: 3px;
-  background: rgba(255,255,255,.06);
-  overflow: hidden;
-  margin-top: 4px;
-  width: 100%;
-}
-.db-student-proj-fill {
-  height: 100%;
-  border-radius: 3px;
-  background: #9B87F5;
-  transition: width .3s ease;
-}
-.db-student-proj-fill.fill-done { background: var(--color-success); }
-
-/* On réorganise db-project-card en colonne pour la variante étudiant */
-.db-student-projects .db-project-card {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 12px 14px 10px;
-}
-.db-student-projects .db-project-card .db-project-icon {
-  margin-bottom: 2px;
-}
-
-/* Libellé projet dans les lignes urgentes */
-.db-rendu-proj {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: #9B87F5;
-  background: rgba(155,135,245,.12);
-  padding: 1px 6px;
-  border-radius: 10px;
-}
-
 /* ── Shell ── */
 .dashboard-shell {
   flex: 1;
@@ -807,7 +627,7 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
   padding: 28px 32px 40px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   min-height: 0;
 }
 
@@ -817,12 +637,7 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
 .db-skel-content { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
 
 /* ── En-tête ── */
-.db-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
+.db-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .db-header-left { display: flex; align-items: center; gap: 12px; }
 .db-header-icon { color: var(--accent); }
 .db-title { font-size: 20px; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
@@ -853,7 +668,7 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
 .db-stat-label { font-size: 11.5px; color: var(--text-secondary); }
 .db-stat-icon  { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); opacity: .18; }
 
-.db-stat-danger  { border-color: rgba(231,76,60,.2);  }
+.db-stat-danger  { border-color: rgba(231,76,60,.2); }
 .db-stat-danger  .db-stat-value { color: #ff7b6b; }
 .db-stat-danger  .db-stat-icon  { color: #E74C3C; opacity: .3; }
 .db-stat-warning { border-color: rgba(243,156,18,.2); }
@@ -868,295 +683,352 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
 .db-stat-success .db-stat-icon  { color: var(--color-success); opacity: .3; }
 .db-stat-neutral .db-stat-value { color: var(--text-primary); }
 
-/* ── Corps ── */
-.db-body {
-  display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 20px;
-  align-items: start;
-  min-width: 0;
-}
-@media (max-width: 1000px) { .db-body { grid-template-columns: 1fr; } }
-.db-col-right { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-
-/* ── Sections ── */
-.db-section {
-  background: var(--bg-sidebar);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.db-section-header { padding: 12px 16px 10px; border-bottom: 1px solid var(--border); }
-.db-section-title {
+/* ── Tabs ── */
+.db-tabs {
   display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  color: var(--text-secondary);
-}
-.db-section-badge { font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 8px; }
-.db-badge-danger  { background: rgba(231,76,60,.15);  color: #ff7b6b; }
-.db-badge-warning { background: rgba(243,156,18,.15); color: var(--color-warning); }
-.db-badge-muted   { background: rgba(255,255,255,.07); color: var(--text-muted); }
-.db-badge-accent  { background: rgba(74,144,217,.15); color: var(--accent-light); }
-
-/* ── Empty ── */
-.db-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 40px 20px;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-.db-empty-sm { padding: 20px 16px; }
-.db-empty-success { opacity: .5; color: var(--color-success); }
-
-/* ── Liste commune ── */
-.db-rendu-list { display: flex; flex-direction: column; }
-.db-rendu-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 16px;
+  gap: 4px;
   border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background var(--t-fast);
+  padding-bottom: 0;
 }
-.db-rendu-row:last-child { border-bottom: none; }
-.db-rendu-row:hover { background: var(--bg-hover); }
-
-/* Avatar (prof) */
-.db-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  flex-shrink: 0;
-  display: flex;
+.db-tab {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  font-weight: 700;
-  color: #fff;
-}
-
-/* Indicateur d'urgence (étudiant) */
-.db-pending-urgency {
-  width: 4px;
-  height: 32px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-.db-pending-urgency.deadline-passed,
-.db-pending-urgency.deadline-critical { background: var(--color-danger); }
-.db-pending-urgency.deadline-soon     { background: var(--color-warning); }
-.db-pending-urgency.deadline-warning  { background: #F39C12; }
-.db-pending-urgency.deadline-ok       { background: var(--color-success); }
-
-.db-rendu-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.db-rendu-top-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.db-rendu-student {
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font);
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: 0;
+  transition: color var(--t-fast), border-color var(--t-fast);
 }
-.db-rendu-meta {
+.db-tab:hover { color: var(--text-primary); }
+.db-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.db-tab-content { display: flex; flex-direction: column; gap: 0; }
+
+/* ── Grille projets ── */
+.db-project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  padding-top: 14px;
+}
+.db-project-card {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--text-muted);
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sidebar);
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast);
 }
-.db-rendu-devoir { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
-.db-rendu-sep    { flex-shrink: 0; }
-.db-rendu-channel { flex-shrink: 0; }
-
-.db-rendu-right {
+.db-project-card:hover {
+  background: rgba(74,144,217,.07);
+  border-color: rgba(74,144,217,.3);
+  box-shadow: 0 2px 12px rgba(0,0,0,.15);
+}
+.db-project-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--accent-subtle);
+  color: var(--accent-light);
+}
+.db-project-info {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
   gap: 3px;
-  flex-shrink: 0;
 }
-.db-rendu-date { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
-.db-row-chevron { color: var(--text-muted); flex-shrink: 0; transition: transform var(--t-fast); }
-.db-rendu-row:hover .db-row-chevron { transform: translateX(2px); color: var(--accent); }
+.db-project-name  { font-size: 13.5px; font-weight: 700; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-project-stats { font-size: 11px; color: var(--text-muted); }
+.db-project-next  { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 600; }
+.db-project-next.deadline-ok       { color: var(--color-success); }
+.db-project-next.deadline-warning  { color: #F39C12; }
+.db-project-next.deadline-soon     { color: var(--color-warning); }
+.db-project-next.deadline-critical,
+.db-project-next.deadline-passed   { color: var(--color-danger); }
+.db-project-chevron { color: var(--text-muted); flex-shrink: 0; transition: transform var(--t-fast), color var(--t-fast); }
+.db-project-card:hover .db-project-chevron { transform: translateX(2px); color: var(--accent); }
 
-.db-more-link {
-  padding: 10px 16px;
-  font-size: 12px;
-  color: var(--accent);
-  cursor: pointer;
+/* ── Cartes étudiant (avec barre de progression) ── */
+.db-student-grid .db-student-card {
+  flex-direction: column;
+  align-items: flex-start;
+  padding-bottom: 10px;
+  gap: 6px;
+}
+.db-student-bar {
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,255,255,.06);
+  overflow: hidden;
+}
+.db-student-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: #9B87F5;
+  transition: width .3s ease;
+}
+.db-student-fill.fill-done { background: var(--color-success); }
+
+/* ── Empty hint ── */
+.db-empty-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
   text-align: center;
-  transition: background var(--t-fast);
+  gap: 4px;
 }
-.db-more-link:hover { background: var(--bg-hover); }
 
-/* ── Séparateur Événements ── */
-.db-events-separator {
-  padding: 6px 16px;
-  background: rgba(155,135,245,.07);
+/* ════════════════════════════════════════════
+   FRISE CHRONOLOGIQUE
+════════════════════════════════════════════ */
+.db-frise-outer { flex: 1; min-height: 0; overflow: hidden; padding-top: 12px; }
+
+.frise-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 340px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sidebar);
+  min-width: 0;
+}
+
+/* ── Colonnes label / bar (partagées) ── */
+.frise-label-col {
+  width: 180px;
+  min-width: 180px;
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  background: var(--bg-sidebar);
+  z-index: 2;
+  border-right: 1px solid var(--border);
+}
+.frise-bar-col {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Axe des mois ── */
+.frise-axis-row {
+  display: flex;
+  align-items: stretch;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--bg-sidebar);
+}
+.frise-axis-label {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .5px;
-  color: #9b87f5;
+  color: var(--text-muted);
+  height: 32px;
+  z-index: 5;
 }
-.db-event-row { background: rgba(155,135,245,.04); }
-.db-event-icon { color: #9b87f5; flex-shrink: 0; }
-
-/* ── Devoirs urgents (prof) ── */
-.db-urgent-list { display: flex; flex-direction: column; }
-.db-urgent-row {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background var(--t-fast);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+.frise-axis-months {
+  height: 32px;
+  position: relative;
 }
-.db-urgent-row:last-child { border-bottom: none; }
-.db-urgent-row:hover { background: var(--bg-hover); }
-.db-urgent-top { display: flex; align-items: center; gap: 6px; }
-.db-urgent-title {
-  flex: 1;
-  font-size: 13px;
+.frise-month-tick {
+  position: absolute;
+  top: 8px;
+  font-size: 10px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-muted);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
+  transform: translateX(-50%);
+  pointer-events: none;
+  letter-spacing: .3px;
 }
-.db-urgent-sub { display: flex; align-items: center; gap: 6px; font-size: 11px; }
-.db-urgent-channel { color: var(--text-muted); }
-.db-urgent-count { margin-left: auto; font-size: 11px; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; }
+.frise-month-bg {
+  position: absolute;
+  top: 0; bottom: 0;
+}
+.frise-month-bg.even { background: rgba(255,255,255,.018); }
 
-.db-progress-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-.db-progress-fill  { height: 100%; background: var(--accent); border-radius: 2px; transition: width .3s ease; }
-.db-progress-fill.db-progress-full { background: var(--color-success); }
+/* ── Ligne aujourd'hui ── */
+.frise-today {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 1.5px;
+  background: rgba(74,144,217,.55);
+  z-index: 1;
+  pointer-events: none;
+}
 
-/* ── Brouillons ── */
-.db-brouillon-list { display: flex; flex-direction: column; }
-.db-brouillon-row {
+/* ── En-tête de promo ── */
+.frise-promo-heading {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+}
+.frise-promo-label-col {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background var(--t-fast);
-}
-.db-brouillon-row:last-child { border-bottom: none; }
-.db-brouillon-row:hover { background: var(--bg-hover); }
-.db-brouillon-title { flex: 1; font-size: 12.5px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.db-brouillon-date  { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
-.db-row-icon { color: var(--text-muted); flex-shrink: 0; }
-
-/* ── Promos ── */
-.db-promo-list { display: flex; flex-direction: column; padding: 8px 0; }
-.db-promo-row { display: flex; align-items: center; gap: 10px; padding: 7px 16px; }
-.db-promo-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.db-promo-name { font-size: 13px; color: var(--text-primary); font-weight: 500; }
-
-/* ── Rendus étudiant ── */
-.db-submitted-list { display: flex; flex-direction: column; }
-.db-submitted-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 9px 14px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background var(--t-fast);
-}
-.db-submitted-row:last-child { border-bottom: none; }
-.db-submitted-row:hover { background: var(--bg-hover); }
-.db-submitted-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
-.db-submitted-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.db-submitted-title { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.db-submitted-channel { font-size: 11px; color: var(--text-muted); }
-.db-submitted-right { flex-shrink: 0; }
-
-.db-grade-badge {
-  font-size: 13px;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 6px;
-}
-.grade-a { color: var(--color-success);  background: rgba(39,174,96,.12); }
-.grade-b { color: #27AE60;               background: rgba(39,174,96,.08); }
-.grade-c { color: var(--color-warning);  background: rgba(243,156,18,.12); }
-.grade-d { color: var(--color-danger);   background: rgba(231,76,60,.12); }
-.grade-na { color: var(--text-muted);    background: rgba(255,255,255,.06); }
-
-.db-grade-pending {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-/* Feedback bloc */
-.db-feedback-row {
-  padding: 10px 14px 12px;
-  background: rgba(155,135,245,.06);
-  border-top: 1px solid rgba(155,135,245,.1);
-}
-.db-feedback-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #9b87f5; margin-bottom: 4px; }
-.db-feedback-text  { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; font-style: italic; }
-
-/* ── Badges communs ── */
-.db-type-badge {
-  font-size: 9px;
+  padding: 7px 12px;
+  font-size: 10.5px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .4px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  white-space: nowrap;
+  color: var(--text-secondary);
 }
-.type-livrable     { background: rgba(74,144,217,.2);   color: var(--accent); }
-.type-soutenance   { background: rgba(243,156,18,.2);   color: var(--color-warning); }
-.type-cctl         { background: rgba(123,104,238,.2);  color: #9b87f5; }
-.type-etude_de_cas { background: rgba(39,174,96,.2);    color: var(--color-success); }
-.type-memoire      { background: rgba(231,76,60,.2);    color: #e74c3c; }
-.type-autre        { background: rgba(127,140,141,.2);  color: #95a5a6; }
+.frise-promo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+}
+.frise-promo-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.frise-promo-bar-col { background: rgba(255,255,255,.015); }
 
-.db-deadline-badge {
-  display: inline-flex;
+/* ── Ligne projet ── */
+.frise-row {
+  display: flex;
+  align-items: stretch;
+  height: 96px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  cursor: pointer;
+  transition: background var(--t-fast);
+  min-width: 700px;
+}
+.frise-row:hover { background: rgba(74,144,217,.04); }
+.frise-row:hover .frise-label-col { background: rgba(74,144,217,.06); }
+
+.frise-project-label {
+  display: flex;
   align-items: center;
-  gap: 3px;
-  font-size: 10px;
+  gap: 7px;
+  padding: 0 10px 0 14px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--t-fast);
+}
+.frise-row:hover .frise-project-label { color: var(--accent-light); }
+.frise-project-icon { color: var(--accent); flex-shrink: 0; }
+.frise-project-label > span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.frise-project-arrow { color: var(--text-muted); flex-shrink: 0; transition: transform var(--t-fast), color var(--t-fast); }
+.frise-row:hover .frise-project-arrow { transform: translateX(2px); color: var(--accent); }
+
+/* ── Zone timeline ── */
+.frise-timeline {
+  position: relative;
+}
+
+/* Trait horizontal reliant premier→dernier jalon */
+.frise-proj-line {
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: rgba(255,255,255,.12);
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+/* ── Jalons ── */
+.frise-milestone {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  z-index: 2;
+  transition: transform var(--t-fast);
+}
+.frise-milestone:hover { transform: translate(-50%, -50%) scale(1.15); }
+
+/* Dot (cercle par défaut) */
+.frise-ms-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-sidebar);
   flex-shrink: 0;
+  transition: box-shadow var(--t-fast);
+}
+.frise-milestone:hover .frise-ms-dot { box-shadow: 0 0 0 3px rgba(255,255,255,.15); }
+
+/* Diamond pour soutenance & cctl */
+.frise-ms-soutenance .frise-ms-dot,
+.frise-ms-cctl .frise-ms-dot {
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+/* Couleurs */
+.frise-ms-livrable .frise-ms-dot     { background: var(--accent); }
+.frise-ms-soutenance .frise-ms-dot   { background: var(--color-warning); }
+.frise-ms-cctl .frise-ms-dot         { background: #9b87f5; }
+.frise-ms-etude_de_cas .frise-ms-dot { background: var(--color-success); }
+.frise-ms-memoire .frise-ms-dot      { background: #e74c3c; }
+.frise-ms-autre .frise-ms-dot        { background: #95a5a6; }
+
+/* Brouillon */
+.frise-ms-draft .frise-ms-dot { opacity: .35; }
+
+/* Fait */
+.frise-ms-done .frise-ms-dot { filter: brightness(1.2); box-shadow: 0 0 0 2px rgba(255,255,255,.2); }
+
+/* ── Labels au-dessus / en-dessous ── */
+.frise-ms-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  pointer-events: none;
   white-space: nowrap;
 }
-.db-deadline-badge.deadline-passed,
-.db-deadline-badge.deadline-critical { background: rgba(231,76,60,.12); color: #ff7b6b; }
-.db-deadline-badge.deadline-soon     { background: rgba(243,156,18,.12); color: var(--color-warning); }
-.db-deadline-badge.deadline-warning  { background: rgba(243,156,18,.08); color: #F39C12; }
-.db-deadline-badge.deadline-ok       { background: rgba(39,174,96,.10); color: var(--color-success); }
+/* Label above: il vient AVANT le dot dans le DOM → margin-bottom */
+.frise-ms-above .frise-ms-label { margin-bottom: 5px; }
+/* Label below: il vient APRÈS le dot → margin-top */
+.frise-milestone:not(.frise-ms-above) .frise-ms-label { margin-top: 5px; }
 
-.db-promo-pill {
-  font-size: 10px;
+.frise-ms-title {
+  font-size: 9.5px;
   font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 10px;
-  flex-shrink: 0;
-  white-space: nowrap;
+  color: var(--text-secondary);
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.frise-ms-date {
+  font-size: 8.5px;
+  color: var(--text-muted);
+  font-weight: 500;
 }
 </style>
