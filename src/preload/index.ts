@@ -223,15 +223,73 @@ contextBridge.exposeInMainWorld('api', {
   resetAndSeed: () => post('/api/admin/reset-seed', {}),
 
   // ── Shell ───────────────────────────────────────────────────────────────────
-  openPath:     (filePath: string) => invoke('shell:openPath',     filePath),
-  openExternal: (url: string)      => invoke('shell:openExternal', url),
+  openPath: async (filePath: string) => {
+    if (filePath.startsWith('http://') || filePath.startsWith('https://'))
+      return invoke('shell:openExternal', filePath)
+    return invoke('shell:openPath', filePath)
+  },
+  openExternal: (url: string) => invoke('shell:openExternal', url),
 
-  // ── Fichiers & export (restent locaux — dialogue OS) ─────────────────────────
+  // ── Fichiers & export (dialogue OS) ──────────────────────────────────────────
   openImageDialog: () => invoke('dialog:openImage'),
   openFileDialog:  () => invoke('dialog:openFile'),
   exportCsv:       (travailId: number) => invoke('export:csv', travailId),
-  readFileBase64:  (filePath: string)  => invoke('fs:readFileBase64', filePath),
-  downloadFile:    (filePath: string)  => invoke('fs:downloadFile',   filePath),
+
+  // Upload d'un fichier local vers le serveur → retourne l'URL publique
+  uploadFile: async (localPath: string) => {
+    const b64Res = await invoke('fs:readFileBase64', localPath) as { ok: boolean; data?: { b64: string; mime: string; ext: string } }
+    if (!b64Res?.ok || !b64Res.data) return b64Res
+    const { b64, mime, ext } = b64Res.data
+    const fileName = localPath.split(/[/\\]/).pop() ?? `file.${ext}`
+    const byteChars = atob(b64)
+    const bytes = new Uint8Array(byteChars.length)
+    for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i)
+    const blob = new Blob([bytes], { type: mime })
+    const formData = new FormData()
+    formData.append('file', blob, fileName)
+    try {
+      const res = await fetch(`${SERVER_URL}/api/files/upload`, {
+        method: 'POST',
+        headers: jwtToken ? { Authorization: `Bearer ${jwtToken}` } : {},
+        body: formData,
+      })
+      const json = await res.json() as { ok: boolean; data?: string; error?: string }
+      if (json.ok && json.data) json.data = `${SERVER_URL}${json.data}`
+      return json
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
+  },
+
+  // Lecture base64 : supporte les URLs serveur en plus des chemins locaux
+  readFileBase64: async (filePath: string) => {
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      try {
+        const res  = await fetch(filePath)
+        const blob = await res.blob()
+        const ext  = filePath.split('/').pop()?.split('.').pop()?.toLowerCase() ?? 'bin'
+        return new Promise<unknown>((resolve) => {
+          const reader = new FileReader()
+          reader.onload  = () => {
+            const b64 = (reader.result as string).split(',')[1] ?? ''
+            resolve({ ok: true, data: { b64, mime: blob.type || 'application/octet-stream', ext } })
+          }
+          reader.onerror = () => resolve({ ok: false, error: 'Lecture distante échouée.' })
+          reader.readAsDataURL(blob)
+        })
+      } catch (err) {
+        return { ok: false, error: String(err) }
+      }
+    }
+    return invoke('fs:readFileBase64', filePath)
+  },
+
+  // Téléchargement : ouvre l'URL dans le navigateur si c'est une URL serveur
+  downloadFile: async (filePath: string) => {
+    if (filePath.startsWith('http://') || filePath.startsWith('https://'))
+      return invoke('shell:openExternal', filePath)
+    return invoke('fs:downloadFile', filePath)
+  },
 
   // ── PDF viewer (fenêtre native) ──────────────────────────────────────────────
   openPdf: (filePath: string) => invoke('window:openPdf', filePath),

@@ -47,6 +47,18 @@ app.use('/api/teachers',    require('./routes/teachers'))
 app.use('/api/rubrics',     require('./routes/rubrics'))
 app.use('/api/admin',       require('./routes/admin'))
 
+// ── Fichiers uploadés — servis sans auth (UUID suffisamment sécurisé) ─────────
+const path     = require('path')
+const fs       = require('fs')
+const UPLOAD_DIR = process.env.UPLOAD_DIR
+  ? path.join(process.env.UPLOAD_DIR, 'uploads')
+  : path.join(__dirname, '../uploads')
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
+app.use('/uploads', express.static(UPLOAD_DIR))
+
+// ── Route upload (nécessite auth — montée APRÈS authMiddleware global) ─────────
+app.use('/api/files', require('./routes/files'))
+
 // ── Web app (SPA statique) ────────────────────────────────────────────────────
 const path = require('path')
 const WEB_DIST = path.join(__dirname, '../dist-web')

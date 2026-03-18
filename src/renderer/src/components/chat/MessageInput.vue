@@ -204,8 +204,10 @@ async function attachFile() {
   try {
     const res = await window.api.openFileDialog()
     if (!res?.ok || !res.data) return
-    const filePath = res.data as string
-    content.value += content.value ? `\n${filePath}` : filePath
+    const uploadRes = await window.api.uploadFile(res.data as string)
+    if (!uploadRes?.ok) return
+    const url = uploadRes.data as string
+    content.value += content.value ? `\n${url}` : url
     nextTick(() => { autoResize(); inputEl.value?.focus() })
   } finally {
     attaching.value = false

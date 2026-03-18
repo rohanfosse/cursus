@@ -284,6 +284,28 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   // ── Admin ────────────────────────────────────────────────────────────────────
   resetAndSeed: () => post('/api/admin/reset-seed', {}),
 
+  // ── Upload fichier vers le serveur ────────────────────────────────────────────
+  async uploadFile(pseudoPath: string) {
+    const cached = fileCache.get(pseudoPath)
+    if (!cached) return { ok: false, error: 'Fichier non trouvé (cache expiré).' }
+    const bytes = Uint8Array.from(atob(cached.b64), c => c.charCodeAt(0))
+    const blob  = new Blob([bytes], { type: cached.mime })
+    const formData = new FormData()
+    formData.append('file', blob, cached.name)
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/files/upload`, {
+        method: 'POST',
+        headers: jwtToken ? { Authorization: `Bearer ${jwtToken}` } : {},
+        body: formData,
+      })
+      const json = await res.json() as { ok: boolean; data?: string; error?: string }
+      if (json.ok && json.data) json.data = `${SERVER_URL}${json.data}`
+      return json
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
+  },
+
   // ── Fichiers — implémentation browser ────────────────────────────────────────
   async openImageDialog() {
     const file = await pickFile('image/*')
@@ -305,27 +327,56 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
     return { ok: true, data: id }  // pseudo-path
   },
 
-  readFileBase64(filePath: string) {
+  async readFileBase64(filePath: string) {
     if (filePath.startsWith('__web__')) {
       const cached = fileCache.get(filePath)
-      return Promise.resolve(cached
+      return cached
         ? { ok: true, data: { mime: cached.mime, b64: cached.b64, ext: cached.ext } }
-        : { ok: false, error: 'Fichier introuvable (expiré)' })
+        : { ok: false, error: 'Fichier introuvable (expiré)' }
     }
-    return Promise.resolve({ ok: false, error: 'Chemin local non supporté sur le web.' })
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      try {
+        const res  = await fetch(filePath)
+        const blob = await res.blob()
+        const ext  = filePath.split('/').pop()?.split('.').pop()?.toLowerCase() ?? 'bin'
+        return new Promise<unknown>((resolve) => {
+          const reader = new FileReader()
+          reader.onload  = () => {
+            const b64 = (reader.result as string).split(',')[1] ?? ''
+            resolve({ ok: true, data: { b64, mime: blob.type || 'application/octet-stream', ext } })
+          }
+          reader.onerror = () => resolve({ ok: false, error: 'Lecture distante échouée.' })
+          reader.readAsDataURL(blob)
+        })
+      } catch (err) {
+        return { ok: false, error: String(err) }
+      }
+    }
+    return { ok: false, error: 'Chemin local non supporté sur le web.' }
   },
 
-  downloadFile(filePath: string) {
+  async downloadFile(filePath: string) {
     if (filePath.startsWith('__web__')) {
       const cached = fileCache.get(filePath)
       if (cached) {
-        const bytes  = Uint8Array.from(atob(cached.b64), c => c.charCodeAt(0))
-        const blob   = new Blob([bytes], { type: cached.mime })
-        triggerDownload(blob, cached.name)
-        return Promise.resolve({ ok: true, data: null })
+        const bytes = Uint8Array.from(atob(cached.b64), c => c.charCodeAt(0))
+        triggerDownload(new Blob([bytes], { type: cached.mime }), cached.name)
+        return { ok: true, data: null }
+      }
+      return { ok: false, error: 'Fichier non disponible.' }
+    }
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      try {
+        const res  = await fetch(filePath)
+        const blob = await res.blob()
+        const name = filePath.split('/').pop()?.replace(/^\d+_[a-f0-9]+_/, '') ?? 'fichier'
+        triggerDownload(blob, name)
+        return { ok: true, data: null }
+      } catch (err) {
+        return { ok: false, error: String(err) }
       }
     }
-    return Promise.resolve({ ok: false, error: 'Fichier non disponible.' })
+    return { ok: false, error: 'Fichier non disponible.' }
   },
 
   exportCsv: (travailId: number) => exportCsvBrowser(travailId),

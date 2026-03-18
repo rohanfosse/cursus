@@ -150,11 +150,21 @@ function startDeposit(t: Devoir) {
 }
 function cancelDeposit() { depositingDevoirId.value = null; dragOver.value = false }
 
+function displayName(pathOrUrl: string): string {
+  if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://'))
+    return pathOrUrl.split('/').pop()?.replace(/^\d+_[a-f0-9]+_/, '') ?? pathOrUrl
+  return pathOrUrl.split(/[\\/]/).pop() ?? pathOrUrl
+}
+
 async function pickFile() {
   const res = await window.api.openFileDialog()
-  if (res?.ok && res.data) {
-    depositFile.value     = res.data
-    depositFileName.value = res.data.split(/[\\/]/).pop() ?? res.data
+  if (!res?.ok || !res.data) return
+  const localPath = res.data
+  const localName = displayName(localPath)
+  const uploadRes = await window.api.uploadFile(localPath)
+  if (uploadRes?.ok) {
+    depositFile.value     = uploadRes.data as string
+    depositFileName.value = localName
   }
 }
 function clearDepositFile() { depositFile.value = null; depositFileName.value = null }
@@ -165,18 +175,18 @@ function onDragOver(e: DragEvent) {
   if (depositMode.value === 'file') dragOver.value = true
 }
 function onDragLeave() { dragOver.value = false }
-function onDrop(e: DragEvent) {
+async function onDrop(e: DragEvent) {
   e.preventDefault()
   dragOver.value = false
   if (depositMode.value !== 'file') return
   const file = e.dataTransfer?.files?.[0]
-  if (file) {
-    // Electron expose le chemin natif via file.path
-    const path = (file as File & { path?: string }).path ?? ''
-    if (path) {
-      depositFile.value     = path
-      depositFileName.value = file.name
-    }
+  if (!file) return
+  const filePath = (file as File & { path?: string }).path
+  if (!filePath) return  // web sans path natif → utiliser le sélecteur
+  const uploadRes = await window.api.uploadFile(filePath)
+  if (uploadRes?.ok) {
+    depositFile.value     = uploadRes.data as string
+    depositFileName.value = file.name
   }
 }
 

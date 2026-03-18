@@ -94,6 +94,9 @@ declare global {
       changePassword(userId: number, isTeacher: boolean, currentPwd: string, newPwd: string): Promise<IpcResponse<null>>
       exportPersonalData(studentId: number): Promise<IpcResponse<object>>
 
+      // Upload fichier vers le serveur → URL publique
+      uploadFile(localPath: string): Promise<IpcResponse<string>>
+
       // Shell
       openPath(filePath: string): Promise<IpcResponse<null>>
       openExternal(url: string): Promise<IpcResponse<null>>

@@ -43,8 +43,8 @@
   async function pickFile() {
     const res = await window.api.openFileDialog()
     if (res?.ok && res.data) {
-      addFile.value     = res.data
-      addFileName.value = res.data.split(/[\\/]/).pop() ?? res.data
+      addFile.value     = res.data  // chemin local ou pseudo-path web (sera uploadé au submit)
+      addFileName.value = res.data.split(/[\\/]/).pop()?.replace(/^__web__\S+/, '') || res.data.split(/[\\/]/).pop() || res.data
       if (!addName.value) addName.value = addFileName.value ?? ''
     }
   }
@@ -60,11 +60,17 @@
     if (addType.value === 'link' && !addLink.value.trim()) return
     adding.value = true
     try {
+      let pathOrUrl: string | null = addType.value === 'link' ? addLink.value.trim() : addFile.value
+      if (addType.value === 'file' && addFile.value) {
+        const uploadRes = await window.api.uploadFile(addFile.value)
+        if (!uploadRes?.ok) { showToast('Erreur lors de l\'upload.', 'error'); return }
+        pathOrUrl = uploadRes.data as string
+      }
       const res = await window.api.addRessource({
         travailId:  appStore.currentTravailId,
         type:       addType.value,
         name:       addName.value.trim(),
-        pathOrUrl:  addType.value === 'link' ? addLink.value.trim() : addFile.value,
+        pathOrUrl,
       })
       if (res?.ok) {
         showToast('Ressource ajoutée.', 'success')

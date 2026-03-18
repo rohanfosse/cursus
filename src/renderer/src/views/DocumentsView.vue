@@ -125,8 +125,8 @@
   async function pickFile() {
     const res = await api.openFileDialog()
     if (res?.ok && res.data) {
-      addFile.value     = res.data
-      addFileName.value = res.data.split(/[\\/]/).pop() ?? res.data
+      addFile.value     = res.data  // uploadé au submit
+      addFileName.value = res.data.split(/[\\/]/).pop()?.replace(/^__web__\S+/, '') || res.data.split(/[\\/]/).pop() || res.data
       if (!addName.value) addName.value = addFileName.value ?? ''
     }
   }
@@ -142,12 +142,18 @@
     if (addType.value === 'link' && !addLink.value.trim()) return
     adding.value = true
     try {
+      let pathOrUrl: string | null = addType.value === 'link' ? addLink.value.trim() : addFile.value
+      if (addType.value === 'file' && addFile.value) {
+        const uploadRes = await api.uploadFile(addFile.value)
+        if (!uploadRes?.ok) { showToast('Erreur lors de l\'upload.', 'error'); adding.value = false; return }
+        pathOrUrl = uploadRes.data as string
+      }
       const ok = await docStore.addDocument({
         promoId:     appStore.activePromoId ?? appStore.currentUser?.promo_id,
         project:     appStore.activeProject ?? null,
         name:        addName.value.trim(),
         type:        addType.value,
-        pathOrUrl:   addType.value === 'link' ? addLink.value.trim() : addFile.value,
+        pathOrUrl,
         category:    addCategory.value.trim() || null,
         description: null,
         authorName:  appStore.currentUser?.name ?? 'Système',
