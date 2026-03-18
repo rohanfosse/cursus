@@ -1,18 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
-import { Send, Type, Paperclip, Loader2, X as XIcon, Reply } from 'lucide-vue-next'
+import { Send, Paperclip, Loader2, X as XIcon, Reply, Bold, Italic, Code, SquareCode } from 'lucide-vue-next'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
 import { avatarColor, initials } from '@/utils/format'
-import FormatToolbar from './FormatToolbar.vue'
 
 const appStore      = useAppStore()
 const messagesStore = useMessagesStore()
 
-const inputEl     = ref<HTMLTextAreaElement | null>(null)
-const content     = ref('')
-const showToolbar = ref(false)
-const sending     = ref(false)
+const inputEl = ref<HTMLTextAreaElement | null>(null)
+const content = ref('')
+const sending = ref(false)
 
 // ── Brouillons (auto-save localStorage) ──────────────────────────────────────
 let _draftTimer: ReturnType<typeof setTimeout> | null = null
@@ -47,7 +45,6 @@ const mentionStart    = ref(-1)
 const mentionIndex    = ref(0)
 const mentionPopupEl  = ref<HTMLElement | null>(null)
 
-/** Supprime les accents pour une comparaison insensible (Élodie ↔ elo) */
 function normalize(s: string) {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
@@ -60,10 +57,7 @@ const mentionResults = computed(() => {
     .slice(0, 8)
 })
 
-// Réinitialiser l'index sélectionné dès que la recherche change
 watch(mentionSearch, () => { mentionIndex.value = 0 })
-
-// Vider le cache quand la promo active change
 watch(() => appStore.activePromoId, () => { allUsers.value = [] })
 
 async function loadUsers() {
@@ -80,7 +74,6 @@ async function loadUsers() {
     if (res?.ok) students = res.data.map((s) => ({ name: s.name, type: 'student' as const }))
   }
 
-  // Ajouter l'enseignant/TA courant s'il n'est pas dans la liste
   if (appStore.currentUser && appStore.currentUser.type !== 'student') {
     const myName = appStore.currentUser.name
     const myType = appStore.currentUser.type as 'teacher' | 'ta'
@@ -89,7 +82,6 @@ async function loadUsers() {
     }
   }
 
-  // @everyone en tête
   allUsers.value = [{ name: 'everyone', type: 'everyone' }, ...students]
 }
 
@@ -116,7 +108,7 @@ function closeMention() {
 // ── Placeholder ───────────────────────────────────────────────────────────
 const placeholder = computed(() => {
   if (appStore.isReadonly) return 'Canal d\'annonces — lecture seule'
-  if (appStore.activeChannelName) return `Envoyer dans #${appStore.activeChannelName}`
+  if (appStore.activeChannelName) return `Message dans #${appStore.activeChannelName}`
   return 'Votre message…'
 })
 
@@ -135,8 +127,6 @@ function onInput() {
   const cursor = inputEl.value.selectionStart ?? 0
   const before = content.value.slice(0, cursor)
 
-  // Détecte @query jusqu'au prochain espace ou @
-  // [^\s@]* → supporte les accents contrairement à \w
   const match = before.match(/@([^\s@]*)$/)
   if (match) {
     mentionSearch.value = match[1]
@@ -147,17 +137,45 @@ function onInput() {
     mentionActive.value = false
   }
 
-  // Brouillon — sauvegarde différée
   if (_draftTimer) clearTimeout(_draftTimer)
   _draftTimer = setTimeout(saveDraft, 500)
 }
 
-// Fermer la mention au clic ailleurs
 function onBlur() {
   setTimeout(closeMention, 150)
 }
 
-// ── Pièce jointe (Paperclip) ──────────────────────────────────────────────
+// ── Formatage inline ──────────────────────────────────────────────────────
+function fmtWrap(pre: string, post: string) {
+  const el = inputEl.value
+  if (!el) return
+  const start = el.selectionStart
+  const end   = el.selectionEnd
+  const sel   = el.value.slice(start, end) || 'texte'
+  el.value = el.value.slice(0, start) + pre + sel + post + el.value.slice(end)
+  content.value = el.value
+  el.focus()
+  el.selectionStart = start + pre.length
+  el.selectionEnd   = start + pre.length + sel.length
+  autoResize()
+}
+
+function fmtInsertBlock() {
+  const el = inputEl.value
+  if (!el) return
+  const start = el.selectionStart
+  const end   = el.selectionEnd
+  const sel   = el.value.slice(start, end) || 'code'
+  const block = '```\n' + sel + '\n```'
+  el.value = el.value.slice(0, start) + block + el.value.slice(end)
+  content.value = el.value
+  el.focus()
+  el.selectionStart = start + 4
+  el.selectionEnd   = start + 4 + sel.length
+  autoResize()
+}
+
+// ── Pièce jointe ──────────────────────────────────────────────────────────
 const attaching = ref(false)
 
 async function attachFile() {
@@ -167,8 +185,7 @@ async function attachFile() {
     const res = await window.api.openFileDialog()
     if (!res?.ok || !res.data) return
     const filePath = res.data as string
-    const insert = content.value ? `\n${filePath}` : filePath
-    content.value += insert
+    content.value += content.value ? `\n${filePath}` : filePath
     nextTick(() => { autoResize(); inputEl.value?.focus() })
   } finally {
     attaching.value = false
@@ -256,7 +273,7 @@ watch(
   <div id="message-input-area" class="message-input-area" :class="{ readonly: appStore.isReadonly }">
     <template v-if="!appStore.isReadonly">
 
-      <!-- Zone indicateur de frappe -->
+      <!-- Indicateur de frappe -->
       <div class="mi-typing" aria-live="polite">
         <span v-if="messagesStore.typingText" class="mi-typing-text">
           {{ messagesStore.typingText }}
@@ -277,24 +294,10 @@ watch(
         </div>
       </Transition>
 
-      <!-- Barre de formatage -->
-      <FormatToolbar v-if="showToolbar" :input-el="inputEl" />
-
-      <!-- Zone de saisie principale -->
+      <!-- Carte principale de saisie -->
       <div id="message-input-wrapper" class="message-input-wrapper">
 
-        <button
-          id="btn-toggle-format"
-          class="btn-icon"
-          :class="{ active: showToolbar }"
-          title="Mise en forme"
-          aria-label="Afficher la barre de mise en forme"
-          @click="showToolbar = !showToolbar"
-        >
-          <Type :size="16" />
-        </button>
-
-        <!-- Autocomplete mentions -->
+        <!-- Popup autocomplete mentions -->
         <Transition name="mention-pop">
           <div
             v-if="mentionActive && mentionResults.length"
@@ -317,7 +320,6 @@ watch(
               @mousedown.prevent="insertMention(user.name)"
               @mouseenter="mentionIndex = i"
             >
-              <!-- Avatar initiales -->
               <div
                 class="mi-mention-avatar"
                 :class="{ 'mi-mention-avatar-everyone': user.name === 'everyone' }"
@@ -325,9 +327,7 @@ watch(
               >
                 {{ user.name === 'everyone' ? '✦' : initials(user.name) }}
               </div>
-
               <span class="mi-mention-name">{{ user.name }}</span>
-
               <span v-if="user.name === 'everyone'" class="mi-mention-hint">Notifie tout le monde</span>
               <span v-else-if="user.type === 'teacher'" class="mi-mention-badge mi-badge-teacher">Resp. Péda.</span>
               <span v-else-if="user.type === 'ta'" class="mi-mention-badge mi-badge-ta">Intervenant</span>
@@ -335,6 +335,7 @@ watch(
           </div>
         </Transition>
 
+        <!-- Zone textarea -->
         <textarea
           id="message-input"
           ref="inputEl"
@@ -347,31 +348,72 @@ watch(
           @blur="onBlur"
         />
 
-        <!-- Paperclip -->
-        <button
-          class="btn-icon mi-attach-btn"
-          :class="{ attaching }"
-          title="Joindre un fichier"
-          aria-label="Joindre un fichier"
-          :disabled="attaching"
-          @click="attachFile"
-        >
-          <Loader2 v-if="attaching" :size="16" class="mi-spinner" />
-          <Paperclip v-else :size="16" />
-        </button>
+        <!-- Barre d'actions bas -->
+        <div class="mi-actions-row">
+          <!-- Boutons de formatage -->
+          <div class="mi-fmt-group" role="toolbar" aria-label="Mise en forme">
+            <button class="mi-fmt-btn" title="Gras (Ctrl+B)" aria-label="Gras" @mousedown.prevent="fmtWrap('**', '**')">
+              <Bold :size="13" />
+            </button>
+            <button class="mi-fmt-btn" title="Italique (Ctrl+I)" aria-label="Italique" @mousedown.prevent="fmtWrap('*', '*')">
+              <Italic :size="13" />
+            </button>
+            <button class="mi-fmt-btn" title="Code inline" aria-label="Code inline" @mousedown.prevent="fmtWrap('`', '`')">
+              <Code :size="13" />
+            </button>
+            <button class="mi-fmt-btn" title="Bloc de code" aria-label="Bloc de code" @mousedown.prevent="fmtInsertBlock">
+              <SquareCode :size="13" />
+            </button>
 
-        <button
-          id="btn-send"
-          class="btn-primary mi-send-btn"
-          :disabled="!content.trim() || sending"
-          aria-label="Envoyer le message"
-          @click="send"
-        >
-          <Loader2 v-if="sending" :size="16" class="mi-spinner" />
-          <Send v-else :size="16" />
-        </button>
+            <div class="mi-fmt-divider" />
+
+            <!-- Mention rapide -->
+            <button
+              class="mi-fmt-btn mi-fmt-mention"
+              title="Mentionner quelqu'un"
+              aria-label="Mentionner"
+              @mousedown.prevent="() => {
+                if (!inputEl) return
+                content += '@'
+                nextTick(() => { inputEl?.dispatchEvent(new Event('input')); inputEl?.focus() })
+              }"
+            >@</button>
+          </div>
+
+          <!-- Actions droite -->
+          <div class="mi-actions-right">
+            <button
+              class="mi-icon-btn"
+              :class="{ attaching }"
+              title="Joindre un fichier"
+              aria-label="Joindre un fichier"
+              :disabled="attaching"
+              @click="attachFile"
+            >
+              <Loader2 v-if="attaching" :size="14" class="mi-spinner" />
+              <Paperclip v-else :size="14" />
+            </button>
+
+            <button
+              id="btn-send"
+              class="mi-send-btn"
+              :disabled="!content.trim() || sending"
+              aria-label="Envoyer le message (Entrée)"
+              @click="send"
+            >
+              <Loader2 v-if="sending" :size="14" class="mi-spinner" />
+              <Send v-else :size="14" />
+              <span class="mi-send-label">Envoyer</span>
+            </button>
+          </div>
+        </div>
 
       </div>
+
+      <p class="mi-hint">
+        <kbd>Entrée</kbd> pour envoyer · <kbd>Shift+Entrée</kbd> pour un saut de ligne
+      </p>
+
     </template>
 
     <p v-else class="readonly-notice">Ce canal est en lecture seule.</p>
@@ -405,10 +447,10 @@ watch(
   align-items: flex-start;
   gap: 8px;
   padding: 6px 12px;
-  margin: 0 0 2px;
+  margin: 0 0 4px;
   background: rgba(74, 144, 217, .07);
   border-left: 3px solid var(--accent);
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 6px 6px 0;
 }
 .mi-quote-icon { color: var(--accent); flex-shrink: 0; margin-top: 2px; }
 .mi-quote-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -435,16 +477,15 @@ watch(
 }
 .mi-quote-close:hover { opacity: 1; }
 
-/* Transition entrée/sortie quote */
+/* Transition quote */
 .quote-slide-enter-active,
 .quote-slide-leave-active { transition: all .15s ease; }
 .quote-slide-enter-from,
 .quote-slide-leave-to     { opacity: 0; transform: translateY(-4px); max-height: 0; }
 
-/* ── Wrapper (nécessaire pour le positionnement du popup) ── */
+/* ── Popup autocomplete mention ── */
 .message-input-wrapper { position: relative; }
 
-/* ── Autocomplete mention ── */
 .mi-mention-popup {
   position: absolute;
   bottom: calc(100% + 6px);
@@ -492,7 +533,6 @@ watch(
   color: var(--text-primary);
 }
 
-/* Avatar ── */
 .mi-mention-avatar {
   width: 26px;
   height: 26px;
@@ -507,13 +547,10 @@ watch(
   letter-spacing: -.3px;
   user-select: none;
 }
-
 .mi-mention-avatar-everyone {
   background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
   font-size: 12px;
 }
-
-/* Nom ── */
 .mi-mention-name {
   flex: 1;
   font-weight: 500;
@@ -522,14 +559,10 @@ watch(
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-/* @everyone — nom en rouge */
 .mi-mention-everyone .mi-mention-name {
   color: var(--color-danger, #e74c3c);
   font-weight: 700;
 }
-
-/* Hint "Notifie tout le monde" ── */
 .mi-mention-hint {
   margin-left: auto;
   font-size: 10.5px;
@@ -538,8 +571,6 @@ watch(
   white-space: nowrap;
   flex-shrink: 0;
 }
-
-/* Badges type ── */
 .mi-mention-badge {
   font-size: 9.5px;
   font-weight: 700;
@@ -550,33 +581,147 @@ watch(
   flex-shrink: 0;
   white-space: nowrap;
 }
-.mi-badge-teacher {
-  background: rgba(123, 104, 238, .2);
-  color: #9b87f5;
-}
-.mi-badge-ta {
-  background: rgba(39, 174, 96, .2);
-  color: var(--color-success);
-}
+.mi-badge-teacher { background: rgba(123, 104, 238, .2); color: #9b87f5; }
+.mi-badge-ta      { background: rgba(39, 174, 96, .2); color: var(--color-success); }
 
-/* Transition d'apparition du popup ── */
+/* Transition popup mention */
 .mention-pop-enter-active { transition: opacity .1s ease, transform .1s ease; }
 .mention-pop-leave-active { transition: opacity .08s ease, transform .08s ease; }
 .mention-pop-enter-from,
 .mention-pop-leave-to     { opacity: 0; transform: translateY(4px); }
 
-/* ── Bouton paperclip ── */
-.mi-attach-btn { transition: color .15s, opacity .15s; }
-.mi-attach-btn:not(:disabled):hover { color: var(--accent); }
-.mi-attach-btn:disabled:not(.attaching) { opacity: .4; cursor: not-allowed; }
+/* ── Barre d'actions bas ── */
+.mi-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px 4px 10px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
 
-/* ── Bouton envoi ── */
-.mi-send-btn { transition: opacity .15s, transform .15s, background .15s; }
-.mi-send-btn:not(:disabled):hover { transform: scale(1.06); }
+/* Groupe de boutons de formatage */
+.mi-fmt-group {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.mi-fmt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 700;
+  transition: background .1s, color .1s;
+  flex-shrink: 0;
+}
+.mi-fmt-btn:hover {
+  background: rgba(255, 255, 255, .08);
+  color: var(--text-secondary);
+}
+
+.mi-fmt-mention {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -.5px;
+}
+
+.mi-fmt-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+
+/* Actions droite */
+.mi-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.mi-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background .1s, color .1s;
+}
+.mi-icon-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, .08);
+  color: var(--text-secondary);
+}
+.mi-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Bouton Envoyer */
+.mi-send-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 13px 5px 10px;
+  border: none;
+  border-radius: 7px;
+  background: var(--accent, #4a90d9);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s, background .15s, transform .12s;
+  white-space: nowrap;
+}
+.mi-send-btn:not(:disabled):hover {
+  background: var(--accent-hover, #5a9fe6);
+  transform: scale(1.02);
+}
+.mi-send-btn:disabled {
+  opacity: .38;
+  cursor: not-allowed;
+  transform: none;
+}
+.mi-send-label {
+  line-height: 1;
+}
+
+/* ── Hint clavier ── */
+.mi-hint {
+  margin: 4px 2px 0;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  opacity: .7;
+  user-select: none;
+}
+.mi-hint kbd {
+  font-family: var(--font);
+  font-size: 9.5px;
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
 
 /* ── Spinner ── */
 @keyframes mi-spin { to { transform: rotate(360deg); } }
-.mi-spinner { animation: mi-spin .65s linear infinite; }
+.mi-spinner { animation: mi-spin .65s linear infinite; flex-shrink: 0; }
 
 @keyframes mi-pulse {
   0%, 100% { opacity: .4; transform: scale(.85); }
