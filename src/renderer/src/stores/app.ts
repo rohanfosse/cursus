@@ -24,6 +24,7 @@ export const useAppStore = defineStore('app', () => {
   const pendingNoteDepotId = ref<number | null>(null)
   const rubricDepotId     = ref<number | null>(null)   // null = édition rubric, number = scoring dépôt
   const unread            = ref<Record<number, number>>({})
+  const mentionChannels   = ref<Record<number, number>>({})
 
   // ── Calculs ───────────────────────────────────────────────────────────────
   const isStudent    = computed(() => currentUser.value?.type === 'student')
@@ -102,6 +103,10 @@ export const useAppStore = defineStore('app', () => {
     const next = { ...unread.value }
     delete next[channelId]
     unread.value = next
+    // Effacer aussi les pings de mention pour ce canal
+    const nextM = { ...mentionChannels.value }
+    delete nextM[channelId]
+    mentionChannels.value = nextM
   }
 
   // ── Statut réseau ─────────────────────────────────────────────────────────
@@ -118,10 +123,33 @@ export const useAppStore = defineStore('app', () => {
 
   // Listener temps-réel — appelé une seule fois au démarrage (App.vue onMounted)
   function initUnreadListener(): () => void {
-    return window.api.onNewMessage(({ channelId }) => {
+    return window.api.onNewMessage(({ channelId, authorName, mentionEveryone, mentionNames }) => {
       if (!channelId) return
-      if (channelId === activeChannelId.value) return
-      unread.value = { ...unread.value, [channelId]: (unread.value[channelId] ?? 0) + 1 }
+      // Ne pas compter ses propres messages
+      if (authorName && authorName === currentUser.value?.name) return
+
+      // Badge unread standard — uniquement si on n'est pas dans ce canal
+      if (channelId !== activeChannelId.value) {
+        unread.value = { ...unread.value, [channelId]: (unread.value[channelId] ?? 0) + 1 }
+      }
+
+      // Badge mention @ — détecte si l'utilisateur courant est mentionné
+      if (currentUser.value) {
+        const myName = currentUser.value.name.toLowerCase()
+        // Vérifie @everyone OU si l'un des noms mentionnés correspond (match partiel sur les mots du nom)
+        const isMentioned =
+          mentionEveryone ||
+          mentionNames.some((n) => {
+            const lowerN = n.toLowerCase()
+            return myName.split(/\s+/).some((part) => part.startsWith(lowerN))
+          })
+        if (isMentioned) {
+          mentionChannels.value = {
+            ...mentionChannels.value,
+            [channelId]: (mentionChannels.value[channelId] ?? 0) + 1,
+          }
+        }
+      }
     })
   }
 
@@ -145,7 +173,7 @@ export const useAppStore = defineStore('app', () => {
     // état
     isOnline, currentUser, activeChannelId, activeDmStudentId, activePromoId,
     activeChannelType, activeChannelName, activeProject, pendingChannelCategory, rightPanel, currentTravailId,
-    pendingNoteDepotId, rubricDepotId, unread,
+    pendingNoteDepotId, rubricDepotId, unread, mentionChannels,
     // calculs
     isStudent, isTeacher, isStaff, isSimulating, isReadonly,
     // actions

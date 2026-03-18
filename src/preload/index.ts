@@ -122,8 +122,20 @@ contextBridge.exposeInMainWorld('api', {
 
   // ── Temps réel ─────────────────────────────────────────────────────────────
   // Retourne une fonction de désabonnement pour le cleanup Vue.
-  onNewMessage: (cb: (data: { channelId: number | null; dmStudentId: number | null }) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, data: { channelId: number | null; dmStudentId: number | null }) => cb(data)
+  onNewMessage: (cb: (data: {
+    channelId:      number | null
+    dmStudentId:    number | null
+    authorName:     string | null
+    mentionEveryone: boolean
+    mentionNames:   string[]
+  }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: {
+      channelId:      number | null
+      dmStudentId:    number | null
+      authorName:     string | null
+      mentionEveryone: boolean
+      mentionNames:   string[]
+    }) => cb(data)
     ipcRenderer.on('msg:new', listener)
     return () => ipcRenderer.removeListener('msg:new', listener)
   },

@@ -29,14 +29,29 @@ const mentionResults = computed(() => {
 
 async function loadUsers() {
   if (allUsers.value.length) return
-  const res = await window.api.getAllStudents()
-  if (res?.ok) {
-    allUsers.value = res.data.map((s) => ({ name: s.name }))
+
+  let students: MentionUser[] = []
+  const promoId = appStore.activePromoId
+
+  if (promoId) {
+    // Étudiants de la promo active — liste ciblée
+    const res = await window.api.getStudents(promoId)
+    if (res?.ok) students = res.data.map((s) => ({ name: s.name }))
+  } else {
+    const res = await window.api.getAllStudents()
+    if (res?.ok) students = res.data.map((s) => ({ name: s.name }))
   }
-  // Ajouter @everyone comme option spéciale
-  if (!allUsers.value.some((u) => u.name === 'everyone')) {
-    allUsers.value = [{ name: 'everyone' }, ...allUsers.value]
+
+  // Ajouter le professeur/TA courant s'il n'est pas dans la liste
+  if (appStore.currentUser && appStore.currentUser.type !== 'student') {
+    const myName = appStore.currentUser.name
+    if (!students.some((u) => u.name === myName)) {
+      students = [{ name: myName }, ...students]
+    }
   }
+
+  // @everyone en tête de liste
+  allUsers.value = [{ name: 'everyone' }, ...students]
 }
 
 function insertMention(name: string) {
@@ -90,10 +105,8 @@ function onInput() {
     mentionActive.value = false
   }
 
-  // Indicateur de frappe (infrastructure prête pour temps-réel)
-  if (appStore.currentUser?.name) {
-    messagesStore.setTyping(appStore.currentUser.name)
-  }
+  // Indicateur de frappe — setTyping() est appelé côté récepteur (push temps-réel futur)
+  // Ne pas l'appeler ici car on ne veut pas s'afficher à soi-même
 }
 
 // Fermer la mention au clic ailleurs
@@ -136,7 +149,6 @@ async function send() {
     await messagesStore.sendMessage(content.value)
     content.value = ''
     if (inputEl.value) inputEl.value.style.height = 'auto'
-    if (appStore.currentUser?.name) messagesStore.stopTyping(appStore.currentUser.name)
   } finally {
     sending.value = false
     inputEl.value?.focus()
@@ -217,10 +229,12 @@ watch(
             v-for="user in mentionResults"
             :key="user.name"
             class="mi-mention-item"
+            :class="{ 'mi-mention-everyone': user.name === 'everyone' }"
             @mousedown.prevent="insertMention(user.name)"
           >
             <span class="mi-mention-at">@</span>
             <span class="mi-mention-name">{{ user.name }}</span>
+            <span v-if="user.name === 'everyone'" class="mi-mention-hint">Notifie tout le monde</span>
           </button>
         </div>
 
@@ -369,8 +383,23 @@ watch(
   font-weight: 700;
   color: var(--accent);
   font-size: 13px;
+  flex-shrink: 0;
 }
-.mi-mention-name { font-weight: 500; }
+.mi-mention-name { font-weight: 500; flex-shrink: 0; }
+.mi-mention-hint {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+/* @everyone — style légèrement distinct */
+.mi-mention-everyone .mi-mention-at { color: var(--color-danger, #e74c3c); }
+.mi-mention-everyone .mi-mention-name {
+  color: var(--color-danger, #e74c3c);
+  font-weight: 700;
+}
 
 /* ── Bouton paperclip actif ── */
 .mi-attach-btn {

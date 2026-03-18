@@ -11114,6 +11114,7 @@ const useAppStore = /* @__PURE__ */ defineStore("app", () => {
   const pendingNoteDepotId = /* @__PURE__ */ ref(null);
   const rubricDepotId = /* @__PURE__ */ ref(null);
   const unread = /* @__PURE__ */ ref({});
+  const mentionChannels = /* @__PURE__ */ ref({});
   const isStudent = computed(() => currentUser.value?.type === "student");
   const isTeacher = computed(() => currentUser.value?.type === "teacher");
   const isStaff = computed(() => currentUser.value?.type === "teacher" || currentUser.value?.type === "ta");
@@ -11186,6 +11187,9 @@ const useAppStore = /* @__PURE__ */ defineStore("app", () => {
     const next = { ...unread.value };
     delete next[channelId];
     unread.value = next;
+    const nextM = { ...mentionChannels.value };
+    delete nextM[channelId];
+    mentionChannels.value = nextM;
   }
   function initOnlineListener() {
     const onOnline = () => {
@@ -11202,10 +11206,25 @@ const useAppStore = /* @__PURE__ */ defineStore("app", () => {
     };
   }
   function initUnreadListener() {
-    return window.api.onNewMessage(({ channelId }) => {
+    return window.api.onNewMessage(({ channelId, authorName, mentionEveryone, mentionNames }) => {
       if (!channelId) return;
-      if (channelId === activeChannelId.value) return;
-      unread.value = { ...unread.value, [channelId]: (unread.value[channelId] ?? 0) + 1 };
+      if (authorName && authorName === currentUser.value?.name) return;
+      if (channelId !== activeChannelId.value) {
+        unread.value = { ...unread.value, [channelId]: (unread.value[channelId] ?? 0) + 1 };
+      }
+      if (currentUser.value) {
+        const myName = currentUser.value.name.toLowerCase();
+        const isMentioned = mentionEveryone || mentionNames.some((n) => {
+          const lowerN = n.toLowerCase();
+          return myName.split(/\s+/).some((part) => part.startsWith(lowerN));
+        });
+        if (isMentioned) {
+          mentionChannels.value = {
+            ...mentionChannels.value,
+            [channelId]: (mentionChannels.value[channelId] ?? 0) + 1
+          };
+        }
+      }
     });
   }
   async function api(call, errorMsg) {
@@ -11238,6 +11257,7 @@ const useAppStore = /* @__PURE__ */ defineStore("app", () => {
     pendingNoteDepotId,
     rubricDepotId,
     unread,
+    mentionChannels,
     // calculs
     isStudent,
     isTeacher,
@@ -65062,7 +65082,7 @@ const _hoisted_2$w = {
   class: "msg-avatar-placeholder"
 };
 const _hoisted_3$t = { class: "msg-body" };
-const _hoisted_4$s = {
+const _hoisted_4$t = {
   key: 0,
   class: "msg-meta"
 };
@@ -65089,7 +65109,7 @@ const _hoisted_14$l = {
   key: 3,
   class: "msg-edit-box"
 };
-const _hoisted_15$k = { class: "msg-edit-footer" };
+const _hoisted_15$l = { class: "msg-edit-footer" };
 const _hoisted_16$k = {
   key: 4,
   class: "msg-reactions-row"
@@ -65268,7 +65288,7 @@ const _sfc_main$y = /* @__PURE__ */ defineComponent({
           "photo-data": __props.msg.author_photo
         }, null, 8, ["initials", "color", "photo-data"])) : (openBlock(), createElementBlock("div", _hoisted_2$w)),
         createBaseVNode("div", _hoisted_3$t, [
-          !__props.grouped ? (openBlock(), createElementBlock("div", _hoisted_4$s, [
+          !__props.grouped ? (openBlock(), createElementBlock("div", _hoisted_4$t, [
             createBaseVNode("span", _hoisted_5$s, toDisplayString(__props.msg.author_name), 1),
             createBaseVNode("span", _hoisted_6$r, toDisplayString(unref(formatTime)(__props.msg.created_at)), 1),
             isEdited.value ? (openBlock(), createElementBlock("span", _hoisted_7$r, "(modifié)")) : createCommentVNode("", true),
@@ -65311,7 +65331,7 @@ const _sfc_main$y = /* @__PURE__ */ defineComponent({
             }, null, 544), [
               [vModelText, editContent.value]
             ]),
-            createBaseVNode("div", _hoisted_15$k, [
+            createBaseVNode("div", _hoisted_15$l, [
               _cache[7] || (_cache[7] = createBaseVNode("span", { class: "msg-edit-hint" }, "Entrée · valider  ·  Échap · annuler", -1)),
               createBaseVNode("button", {
                 class: "btn-icon msg-edit-save",
@@ -65471,7 +65491,7 @@ const _hoisted_3$s = {
   key: 0,
   class: "skel skel-line skel-w70"
 };
-const _hoisted_4$r = {
+const _hoisted_4$s = {
   key: 0,
   class: "load-more-indicator"
 };
@@ -65620,7 +65640,7 @@ const _sfc_main$x = /* @__PURE__ */ defineComponent({
               class: "scroll-sentinel",
               "aria-hidden": "true"
             }, [
-              unref(store).loadingMore ? (openBlock(), createElementBlock("div", _hoisted_4$r, [..._cache[3] || (_cache[3] = [
+              unref(store).loadingMore ? (openBlock(), createElementBlock("div", _hoisted_4$s, [..._cache[3] || (_cache[3] = [
                 createBaseVNode("span", { class: "load-more-dots" }, [
                   createBaseVNode("span"),
                   createBaseVNode("span"),
@@ -65773,7 +65793,7 @@ const _hoisted_3$r = {
   key: 0,
   class: "mi-quote-preview"
 };
-const _hoisted_4$q = { class: "mi-quote-body" };
+const _hoisted_4$r = { class: "mi-quote-body" };
 const _hoisted_5$q = { class: "mi-quote-author" };
 const _hoisted_6$p = { class: "mi-quote-text" };
 const _hoisted_7$p = {
@@ -65786,10 +65806,14 @@ const _hoisted_8$p = {
 };
 const _hoisted_9$o = ["onMousedown"];
 const _hoisted_10$o = { class: "mi-mention-name" };
-const _hoisted_11$m = ["placeholder"];
-const _hoisted_12$m = ["disabled"];
+const _hoisted_11$m = {
+  key: 0,
+  class: "mi-mention-hint"
+};
+const _hoisted_12$m = ["placeholder"];
 const _hoisted_13$k = ["disabled"];
-const _hoisted_14$k = {
+const _hoisted_14$k = ["disabled"];
+const _hoisted_15$k = {
   key: 1,
   class: "readonly-notice"
 };
@@ -65813,13 +65837,22 @@ const _sfc_main$v = /* @__PURE__ */ defineComponent({
     });
     async function loadUsers() {
       if (allUsers.value.length) return;
-      const res = await window.api.getAllStudents();
-      if (res?.ok) {
-        allUsers.value = res.data.map((s) => ({ name: s.name }));
+      let students = [];
+      const promoId = appStore.activePromoId;
+      if (promoId) {
+        const res = await window.api.getStudents(promoId);
+        if (res?.ok) students = res.data.map((s) => ({ name: s.name }));
+      } else {
+        const res = await window.api.getAllStudents();
+        if (res?.ok) students = res.data.map((s) => ({ name: s.name }));
       }
-      if (!allUsers.value.some((u3) => u3.name === "everyone")) {
-        allUsers.value = [{ name: "everyone" }, ...allUsers.value];
+      if (appStore.currentUser && appStore.currentUser.type !== "student") {
+        const myName = appStore.currentUser.name;
+        if (!students.some((u3) => u3.name === myName)) {
+          students = [{ name: myName }, ...students];
+        }
       }
+      allUsers.value = [{ name: "everyone" }, ...students];
     }
     function insertMention(name) {
       if (!inputEl.value) return;
@@ -65862,9 +65895,6 @@ const _sfc_main$v = /* @__PURE__ */ defineComponent({
       } else {
         mentionActive.value = false;
       }
-      if (appStore.currentUser?.name) {
-        messagesStore.setTyping(appStore.currentUser.name);
-      }
     }
     function onBlur() {
       setTimeout(closeMention, 150);
@@ -65896,7 +65926,6 @@ ${filePath}` : filePath;
         await messagesStore.sendMessage(content.value);
         content.value = "";
         if (inputEl.value) inputEl.value.style.height = "auto";
-        if (appStore.currentUser?.name) messagesStore.stopTyping(appStore.currentUser.name);
       } finally {
         sending.value = false;
         inputEl.value?.focus();
@@ -65940,7 +65969,7 @@ ${filePath}` : filePath;
                   size: 13,
                   class: "mi-quote-icon"
                 }),
-                createBaseVNode("div", _hoisted_4$q, [
+                createBaseVNode("div", _hoisted_4$r, [
                   createBaseVNode("span", _hoisted_5$q, toDisplayString(unref(messagesStore).quotedMessage.author_name), 1),
                   createBaseVNode("span", _hoisted_6$p, toDisplayString(unref(messagesStore).quotedMessage.content.slice(0, 100)), 1)
                 ]),
@@ -65973,12 +66002,13 @@ ${filePath}` : filePath;
               (openBlock(true), createElementBlock(Fragment, null, renderList(mentionResults.value, (user) => {
                 return openBlock(), createElementBlock("button", {
                   key: user.name,
-                  class: "mi-mention-item",
+                  class: normalizeClass(["mi-mention-item", { "mi-mention-everyone": user.name === "everyone" }]),
                   onMousedown: withModifiers(($event) => insertMention(user.name), ["prevent"])
                 }, [
                   _cache[3] || (_cache[3] = createBaseVNode("span", { class: "mi-mention-at" }, "@", -1)),
-                  createBaseVNode("span", _hoisted_10$o, toDisplayString(user.name), 1)
-                ], 40, _hoisted_9$o);
+                  createBaseVNode("span", _hoisted_10$o, toDisplayString(user.name), 1),
+                  user.name === "everyone" ? (openBlock(), createElementBlock("span", _hoisted_11$m, "Notifie tout le monde")) : createCommentVNode("", true)
+                ], 42, _hoisted_9$o);
               }), 128))
             ])) : createCommentVNode("", true),
             withDirectives(createBaseVNode("textarea", {
@@ -65995,7 +66025,7 @@ ${filePath}` : filePath;
                 withKeys(closeMention, ["esc"])
               ],
               onBlur
-            }, null, 40, _hoisted_11$m), [
+            }, null, 40, _hoisted_12$m), [
               [vModelText, content.value]
             ]),
             createBaseVNode("button", {
@@ -66013,7 +66043,7 @@ ${filePath}` : filePath;
                 key: 1,
                 size: 16
               }))
-            ], 10, _hoisted_12$m),
+            ], 10, _hoisted_13$k),
             createBaseVNode("button", {
               id: "btn-send",
               class: "btn-primary mi-send-btn",
@@ -66029,14 +66059,14 @@ ${filePath}` : filePath;
                 key: 1,
                 size: 16
               }))
-            ], 8, _hoisted_13$k)
+            ], 8, _hoisted_14$k)
           ])
-        ], 64)) : (openBlock(), createElementBlock("p", _hoisted_14$k, "Ce canal est en lecture seule."))
+        ], 64)) : (openBlock(), createElementBlock("p", _hoisted_15$k, "Ce canal est en lecture seule."))
       ], 2);
     };
   }
 });
-const MessageInput = /* @__PURE__ */ _export_sfc(_sfc_main$v, [["__scopeId", "data-v-b2eaa755"]]);
+const MessageInput = /* @__PURE__ */ _export_sfc(_sfc_main$v, [["__scopeId", "data-v-2af72dcc"]]);
 const _hoisted_1$u = {
   key: 0,
   class: "pinned-messages-banner"
@@ -66046,7 +66076,7 @@ const _hoisted_3$q = {
   key: 0,
   class: "pinned-list"
 };
-const _hoisted_4$p = { class: "pinned-author" };
+const _hoisted_4$q = { class: "pinned-author" };
 const _hoisted_5$p = ["innerHTML"];
 const _sfc_main$u = /* @__PURE__ */ defineComponent({
   __name: "PinnedBanner",
@@ -66076,7 +66106,7 @@ const _sfc_main$u = /* @__PURE__ */ defineComponent({
                   key: m2.id,
                   class: "pinned-item"
                 }, [
-                  createBaseVNode("strong", _hoisted_4$p, toDisplayString(m2.author_name), 1),
+                  createBaseVNode("strong", _hoisted_4$q, toDisplayString(m2.author_name), 1),
                   createBaseVNode("span", {
                     class: "pinned-text",
                     innerHTML: unref(renderMessageContent)(m2.content)
@@ -66099,7 +66129,7 @@ const _hoisted_1$t = {
 };
 const _hoisted_2$s = { class: "channel-header-left" };
 const _hoisted_3$p = { id: "channel-icon" };
-const _hoisted_4$o = {
+const _hoisted_4$p = {
   id: "channel-name",
   class: "channel-name"
 };
@@ -66264,7 +66294,7 @@ const _sfc_main$t = /* @__PURE__ */ defineComponent({
         unref(appStore).activeChannelId || unref(appStore).activeDmStudentId ? (openBlock(), createElementBlock("header", _hoisted_1$t, [
           createBaseVNode("div", _hoisted_2$s, [
             createBaseVNode("span", _hoisted_3$p, toDisplayString(unref(appStore).activeDmStudentId ? "@" : "#"), 1),
-            createBaseVNode("span", _hoisted_4$o, toDisplayString(unref(appStore).activeChannelName), 1),
+            createBaseVNode("span", _hoisted_4$p, toDisplayString(unref(appStore).activeChannelName), 1),
             channelHeader.value?.type === "annonce" ? (openBlock(), createElementBlock("span", _hoisted_5$o, " Annonce ")) : createCommentVNode("", true)
           ]),
           createBaseVNode("div", _hoisted_6$o, [
@@ -66513,7 +66543,7 @@ const useDocumentsStore = /* @__PURE__ */ defineStore("documents", () => {
 const _hoisted_1$s = { class: "pf-shell" };
 const _hoisted_2$r = { class: "pf-header" };
 const _hoisted_3$o = { class: "pf-header-top" };
-const _hoisted_4$n = { class: "pf-header-identity" };
+const _hoisted_4$o = { class: "pf-header-identity" };
 const _hoisted_5$n = { class: "pf-icon-wrap" };
 const _hoisted_6$n = { class: "pf-header-text" };
 const _hoisted_7$n = { class: "pf-project-name" };
@@ -66726,7 +66756,7 @@ const _sfc_main$s = /* @__PURE__ */ defineComponent({
               _cache[2] || (_cache[2] = createTextVNode(" Nouveau travail ", -1))
             ])
           ]),
-          createBaseVNode("div", _hoisted_4$n, [
+          createBaseVNode("div", _hoisted_4$o, [
             createBaseVNode("div", _hoisted_5$n, [
               unref(parseCategoryIcon)(__props.projectKey).icon ? (openBlock(), createBlock(resolveDynamicComponent(unref(parseCategoryIcon)(__props.projectKey).icon), {
                 key: 0,
@@ -66926,7 +66956,7 @@ const ProjetFiche = /* @__PURE__ */ _export_sfc(_sfc_main$s, [["__scopeId", "dat
 const _hoisted_1$r = { class: "spf-shell" };
 const _hoisted_2$q = { class: "spf-header" };
 const _hoisted_3$n = { class: "spf-header-top" };
-const _hoisted_4$m = { class: "spf-header-identity" };
+const _hoisted_4$n = { class: "spf-header-identity" };
 const _hoisted_5$m = { class: "spf-icon-wrap" };
 const _hoisted_6$m = { class: "spf-header-text" };
 const _hoisted_7$m = { class: "spf-project-name" };
@@ -67366,7 +67396,7 @@ const _sfc_main$r = /* @__PURE__ */ defineComponent({
               _cache[4] || (_cache[4] = createTextVNode(" Tous mes projets ", -1))
             ])
           ]),
-          createBaseVNode("div", _hoisted_4$m, [
+          createBaseVNode("div", _hoisted_4$n, [
             createBaseVNode("div", _hoisted_5$m, [
               unref(parseCategoryIcon)(__props.projectKey).icon ? (openBlock(), createBlock(resolveDynamicComponent(unref(parseCategoryIcon)(__props.projectKey).icon), {
                 key: 0,
@@ -67795,7 +67825,7 @@ const StudentProjetFiche = /* @__PURE__ */ _export_sfc(_sfc_main$r, [["__scopeId
 const _hoisted_1$q = { class: "devoirs-area" };
 const _hoisted_2$p = { class: "devoirs-header" };
 const _hoisted_3$m = { class: "devoirs-header-title" };
-const _hoisted_4$l = { class: "header-project-ctx" };
+const _hoisted_4$m = { class: "header-project-ctx" };
 const _hoisted_5$l = {
   key: 1,
   class: "header-channel-ctx"
@@ -68287,7 +68317,7 @@ const _sfc_main$q = /* @__PURE__ */ defineComponent({
             _cache[14] || (_cache[14] = createBaseVNode("span", null, "Devoirs", -1)),
             unref(appStore).activeProject ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
               _cache[13] || (_cache[13] = createBaseVNode("span", { class: "header-breadcrumb-sep" }, "›", -1)),
-              createBaseVNode("span", _hoisted_4$l, toDisplayString(unref(appStore).activeProject.replace(/^\S+\s/, "")), 1),
+              createBaseVNode("span", _hoisted_4$m, toDisplayString(unref(appStore).activeProject.replace(/^\S+\s/, "")), 1),
               createBaseVNode("button", {
                 class: "header-project-clear",
                 title: "Voir tous les devoirs",
@@ -69092,7 +69122,7 @@ const _hoisted_1$o = {
 };
 const _hoisted_2$n = { class: "docs-header" };
 const _hoisted_3$l = { class: "docs-header-left" };
-const _hoisted_4$k = { class: "docs-header-title-block" };
+const _hoisted_4$l = { class: "docs-header-title-block" };
 const _hoisted_5$k = {
   key: 0,
   class: "docs-header-channel"
@@ -69286,7 +69316,7 @@ const _sfc_main$o = /* @__PURE__ */ defineComponent({
               size: 18,
               class: "docs-header-icon"
             }),
-            createBaseVNode("div", _hoisted_4$k, [
+            createBaseVNode("div", _hoisted_4$l, [
               _cache[11] || (_cache[11] = createBaseVNode("h1", { class: "docs-header-title" }, "Documents", -1)),
               unref(appStore).activeProject ? (openBlock(), createElementBlock("span", _hoisted_5$k, toDisplayString(unref(parseCategoryIcon)(unref(appStore).activeProject).label), 1)) : (openBlock(), createElementBlock("span", _hoisted_6$k, "Tous les projets"))
             ])
@@ -69578,7 +69608,7 @@ const _hoisted_2$m = {
   class: "db-loading"
 };
 const _hoisted_3$k = { class: "db-skel-content" };
-const _hoisted_4$j = { class: "db-header" };
+const _hoisted_4$k = { class: "db-header" };
 const _hoisted_5$j = { class: "db-header-left" };
 const _hoisted_6$j = { class: "db-title" };
 const _hoisted_7$j = { class: "db-date" };
@@ -69978,7 +70008,7 @@ const _sfc_main$n = /* @__PURE__ */ defineComponent({
               }), 64))
             ])
           ])) : (openBlock(), createElementBlock(Fragment, { key: 1 }, [
-            createBaseVNode("div", _hoisted_4$j, [
+            createBaseVNode("div", _hoisted_4$k, [
               createBaseVNode("div", _hoisted_5$j, [
                 createVNode(unref(LayoutDashboard), {
                   size: 20,
@@ -70526,7 +70556,7 @@ const _hoisted_1$l = {
 };
 const _hoisted_2$l = { class: "nav-logo" };
 const _hoisted_3$j = ["src", "title"];
-const _hoisted_4$i = {
+const _hoisted_4$j = {
   key: 0,
   id: "nav-badge-devoirs",
   class: "nav-badge"
@@ -70620,7 +70650,7 @@ const _sfc_main$l = /* @__PURE__ */ defineComponent({
         }, [
           createVNode(unref(BookOpen), { size: 20 }),
           _cache[11] || (_cache[11] = createBaseVNode("span", { class: "nav-label" }, "Devoirs", -1)),
-          unref(appStore).isStudent && pendingCount.value > 0 ? (openBlock(), createElementBlock("span", _hoisted_4$i, toDisplayString(pendingCount.value > 9 ? "9+" : pendingCount.value), 1)) : createCommentVNode("", true)
+          unref(appStore).isStudent && pendingCount.value > 0 ? (openBlock(), createElementBlock("span", _hoisted_4$j, toDisplayString(pendingCount.value > 9 ? "9+" : pendingCount.value), 1)) : createCommentVNode("", true)
         ], 2),
         createBaseVNode("button", {
           class: normalizeClass(["nav-btn", { active: unref(route).name === "documents" }]),
@@ -70709,7 +70739,7 @@ const NavRail = /* @__PURE__ */ _export_sfc(_sfc_main$l, [["__scopeId", "data-v-
 const _hoisted_1$k = { style: { "padding": "16px", "display": "flex", "flex-direction": "column", "gap": "14px" } };
 const _hoisted_2$k = { class: "form-group" };
 const _hoisted_3$i = { class: "np-icon-grid" };
-const _hoisted_4$h = ["title", "onClick"];
+const _hoisted_4$i = ["title", "onClick"];
 const _hoisted_5$h = { class: "form-group" };
 const _hoisted_6$h = { style: { "display": "flex", "align-items": "center", "gap": "8px" } };
 const _hoisted_7$h = { class: "form-group" };
@@ -70821,7 +70851,7 @@ const _sfc_main$k = /* @__PURE__ */ defineComponent({
                     onClick: ($event) => selectedIconKey.value = ic.key
                   }, [
                     (openBlock(), createBlock(resolveDynamicComponent(ic.component), { size: 16 }))
-                  ], 10, _hoisted_4$h);
+                  ], 10, _hoisted_4$i);
                 }), 128))
               ])
             ]),
@@ -70940,6 +70970,11 @@ const _hoisted_1$i = { class: "channel-prefix" };
 const _hoisted_2$i = { class: "channel-name" };
 const _hoisted_3$h = {
   key: 0,
+  class: "mention-ping-badge",
+  "aria-label": "Vous êtes mentionné"
+};
+const _hoisted_4$h = {
+  key: 1,
   class: "unread-badge"
 };
 const _sfc_main$i = /* @__PURE__ */ defineComponent({
@@ -70958,20 +70993,26 @@ const _sfc_main$i = /* @__PURE__ */ defineComponent({
     const appStore = useAppStore();
     const isActive = computed(() => appStore.activeChannelId === props2.channelId);
     const unread = computed(() => props2.muted ? 0 : appStore.unread[props2.channelId] ?? 0);
+    const mentionPing = computed(() => props2.muted ? 0 : appStore.mentionChannels[props2.channelId] ?? 0);
     return (_ctx, _cache) => {
       return openBlock(), createElementBlock("button", {
-        class: normalizeClass(["sidebar-item", { active: isActive.value, "has-unread": unread.value > 0, "is-muted": __props.muted }]),
+        class: normalizeClass(["sidebar-item", {
+          active: isActive.value,
+          "has-unread": unread.value > 0,
+          "has-mention": mentionPing.value > 0,
+          "is-muted": __props.muted
+        }]),
         onClick: _cache[0] || (_cache[0] = ($event) => emit2("click")),
         onContextmenu: _cache[1] || (_cache[1] = withModifiers(($event) => emit2("contextmenu", $event), ["prevent"]))
       }, [
         createBaseVNode("span", _hoisted_1$i, toDisplayString(__props.muted ? "🔇" : __props.prefix), 1),
         createBaseVNode("span", _hoisted_2$i, toDisplayString(__props.name), 1),
-        unread.value > 0 ? (openBlock(), createElementBlock("span", _hoisted_3$h, toDisplayString(unread.value > 9 ? "9+" : unread.value), 1)) : createCommentVNode("", true)
+        mentionPing.value > 0 ? (openBlock(), createElementBlock("span", _hoisted_3$h, "@")) : unread.value > 0 ? (openBlock(), createElementBlock("span", _hoisted_4$h, toDisplayString(unread.value > 9 ? "9+" : unread.value), 1)) : createCommentVNode("", true)
       ], 34);
     };
   }
 });
-const ChannelItem = /* @__PURE__ */ _export_sfc(_sfc_main$i, [["__scopeId", "data-v-e3a4cb38"]]);
+const ChannelItem = /* @__PURE__ */ _export_sfc(_sfc_main$i, [["__scopeId", "data-v-97bd2130"]]);
 const _hoisted_1$h = {
   id: "sidebar",
   class: "sidebar"

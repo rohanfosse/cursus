@@ -58,9 +58,24 @@ function register() {
     try {
       const result = queries.sendMessage(payload)
       const { BrowserWindow } = require('electron')
+
+      // ── Parsing des mentions dans le contenu ─────────────────────────────
+      const rawContent      = payload.content ?? ''
+      const mentionEveryone = /@everyone\b/i.test(rawContent)
+      const mentionNames    = []
+      const re = /@([\w][\w.\-]*)/g
+      let m
+      while ((m = re.exec(rawContent)) !== null) {
+        const name = m[1].toLowerCase()
+        if (name !== 'everyone') mentionNames.push(m[1])
+      }
+
       const push = {
-        channelId:   payload.channelId   ?? null,
-        dmStudentId: payload.dmStudentId ?? null,
+        channelId:      payload.channelId   ?? null,
+        dmStudentId:    payload.dmStudentId ?? null,
+        authorName:     payload.authorName  ?? null,
+        mentionEveryone,
+        mentionNames,
       }
       for (const win of BrowserWindow.getAllWindows()) {
         if (!win.isDestroyed()) win.webContents.send('msg:new', push)

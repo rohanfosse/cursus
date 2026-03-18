@@ -578,14 +578,14 @@ to   { opacity: 1; transform: none;
 }
 
 /* ── Indicateur de frappe ── */
-.mi-typing[data-v-b2eaa755] {
+.mi-typing[data-v-2af72dcc] {
   min-height: 18px;
   padding: 0 4px 2px 4px;
   font-size: 11px;
   color: var(--text-muted);
   font-style: italic;
 }
-.mi-typing-text[data-v-b2eaa755]::before {
+.mi-typing-text[data-v-2af72dcc]::before {
   content: '';
   display: inline-block;
   width: 6px;
@@ -594,11 +594,11 @@ to   { opacity: 1; transform: none;
   background: var(--accent);
   margin-right: 5px;
   vertical-align: middle;
-  animation: mi-pulse-b2eaa755 1.4s ease-in-out infinite;
+  animation: mi-pulse-2af72dcc 1.4s ease-in-out infinite;
 }
 
 /* ── Prévisualisation citation ── */
-.mi-quote-preview[data-v-b2eaa755] {
+.mi-quote-preview[data-v-2af72dcc] {
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -608,11 +608,11 @@ to   { opacity: 1; transform: none;
   border-left: 3px solid var(--accent);
   border-radius: 0 4px 4px 0;
 }
-.mi-quote-icon[data-v-b2eaa755] { color: var(--accent); flex-shrink: 0; margin-top: 2px;
+.mi-quote-icon[data-v-2af72dcc] { color: var(--accent); flex-shrink: 0; margin-top: 2px;
 }
-.mi-quote-body[data-v-b2eaa755] { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;
+.mi-quote-body[data-v-2af72dcc] { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;
 }
-.mi-quote-author[data-v-b2eaa755] {
+.mi-quote-author[data-v-2af72dcc] {
   font-size: 11px;
   font-weight: 700;
   color: var(--accent-light, #7db8f0);
@@ -620,32 +620,32 @@ to   { opacity: 1; transform: none;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.mi-quote-text[data-v-b2eaa755] {
+.mi-quote-text[data-v-2af72dcc] {
   font-size: 11.5px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.mi-quote-close[data-v-b2eaa755] {
+.mi-quote-close[data-v-2af72dcc] {
   flex-shrink: 0;
   padding: 3px;
   opacity: .6;
   transition: opacity var(--t-fast);
 }
-.mi-quote-close[data-v-b2eaa755]:hover { opacity: 1;
+.mi-quote-close[data-v-2af72dcc]:hover { opacity: 1;
 }
 
 /* Transition entrée/sortie quote */
-.quote-slide-enter-active[data-v-b2eaa755],
-.quote-slide-leave-active[data-v-b2eaa755] { transition: all .15s ease;
+.quote-slide-enter-active[data-v-2af72dcc],
+.quote-slide-leave-active[data-v-2af72dcc] { transition: all .15s ease;
 }
-.quote-slide-enter-from[data-v-b2eaa755],
-.quote-slide-leave-to[data-v-b2eaa755]     { opacity: 0; transform: translateY(-4px); max-height: 0;
+.quote-slide-enter-from[data-v-2af72dcc],
+.quote-slide-leave-to[data-v-2af72dcc]     { opacity: 0; transform: translateY(-4px); max-height: 0;
 }
 
 /* ── Autocomplete mention ── */
-.mi-mention-popup[data-v-b2eaa755] {
+.mi-mention-popup[data-v-2af72dcc] {
   position: absolute;
   bottom: calc(100% + 6px);
   left: 0;
@@ -659,7 +659,7 @@ to   { opacity: 1; transform: none;
   max-height: 260px;
   overflow-y: auto;
 }
-.mi-mention-item[data-v-b2eaa755] {
+.mi-mention-item[data-v-2af72dcc] {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -674,42 +674,58 @@ to   { opacity: 1; transform: none;
   text-align: left;
   transition: background .1s, color .1s;
 }
-.mi-mention-item[data-v-b2eaa755]:hover {
+.mi-mention-item[data-v-2af72dcc]:hover {
   background: rgba(255,255,255,.07);
   color: var(--text-primary);
 }
-.mi-mention-at[data-v-b2eaa755] {
+.mi-mention-at[data-v-2af72dcc] {
   font-weight: 700;
   color: var(--accent);
   font-size: 13px;
+  flex-shrink: 0;
 }
-.mi-mention-name[data-v-b2eaa755] { font-weight: 500;
+.mi-mention-name[data-v-2af72dcc] { font-weight: 500; flex-shrink: 0;
+}
+.mi-mention-hint[data-v-2af72dcc] {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+/* @everyone — style légèrement distinct */
+.mi-mention-everyone .mi-mention-at[data-v-2af72dcc] { color: var(--color-danger, #e74c3c);
+}
+.mi-mention-everyone .mi-mention-name[data-v-2af72dcc] {
+  color: var(--color-danger, #e74c3c);
+  font-weight: 700;
 }
 
 /* ── Bouton paperclip actif ── */
-.mi-attach-btn[data-v-b2eaa755] {
+.mi-attach-btn[data-v-2af72dcc] {
   transition: color .15s, opacity .15s;
 }
-.mi-attach-btn[data-v-b2eaa755]:not(:disabled):hover { color: var(--accent);
+.mi-attach-btn[data-v-2af72dcc]:not(:disabled):hover { color: var(--accent);
 }
-.mi-attach-btn[data-v-b2eaa755]:disabled:not(.attaching) { opacity: .4; cursor: not-allowed;
+.mi-attach-btn[data-v-2af72dcc]:disabled:not(.attaching) { opacity: .4; cursor: not-allowed;
 }
 
 /* ── Bouton envoi ── */
-.mi-send-btn[data-v-b2eaa755] {
+.mi-send-btn[data-v-2af72dcc] {
   transition: opacity .15s, transform .15s, background .15s;
 }
-.mi-send-btn[data-v-b2eaa755]:not(:disabled):hover { transform: scale(1.06);
+.mi-send-btn[data-v-2af72dcc]:not(:disabled):hover { transform: scale(1.06);
 }
 
 /* ── Spinner ── */
-@keyframes mi-spin-b2eaa755 {
+@keyframes mi-spin-2af72dcc {
 to { transform: rotate(360deg);
 }
 }
-.mi-spinner[data-v-b2eaa755] { animation: mi-spin-b2eaa755 .65s linear infinite;
+.mi-spinner[data-v-2af72dcc] { animation: mi-spin-2af72dcc .65s linear infinite;
 }
-@keyframes mi-pulse-b2eaa755 {
+@keyframes mi-pulse-2af72dcc {
 0%, 100% { opacity: .4; transform: scale(.85);
 }
 50%       { opacity: 1;  transform: scale(1.1);
@@ -3861,9 +3877,40 @@ to { transform: rotate(360deg);
   color: var(--accent);
 }
 
-.is-muted[data-v-e3a4cb38] { opacity: .55;
+.is-muted[data-v-97bd2130] { opacity: .55;
 }
-.is-muted[data-v-e3a4cb38]:hover { opacity: .8;
+.is-muted[data-v-97bd2130]:hover { opacity: .8;
+}
+
+/* Badge mention @ */
+.mention-ping-badge[data-v-97bd2130] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--color-danger, #e74c3c);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: -.5px;
+  line-height: 1;
+  flex-shrink: 0;
+  animation: mention-pulse-97bd2130 2.2s ease-in-out infinite;
+}
+@keyframes mention-pulse-97bd2130 {
+0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, .55);
+}
+50%       { box-shadow: 0 0 0 5px rgba(231, 76, 60, 0);
+}
+}
+
+/* Quand il y a une mention, le nom du canal est mis en avant */
+.has-mention .channel-name[data-v-97bd2130] {
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 /* ── Indicateur de section ── */

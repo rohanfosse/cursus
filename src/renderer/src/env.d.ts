@@ -140,9 +140,13 @@ declare global {
       resetAndSeed(): Promise<IpcResponse<null>>
 
       // Temps réel — push du Main process
-      onNewMessage(
-        cb: (data: { channelId: number | null; dmStudentId: number | null }) => void,
-      ): () => void
+      onNewMessage(cb: (data: {
+        channelId:       number | null
+        dmStudentId:     number | null
+        authorName:      string | null
+        mentionEveryone: boolean
+        mentionNames:    string[]
+      }) => void): () => void
     }
   }
 }
