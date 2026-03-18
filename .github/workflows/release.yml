@@ -30,6 +30,7 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_SERVER_URL: ${{ secrets.VITE_SERVER_URL }}
         run: npm run build:win
 
       - name: Upload .exe to release
@@ -61,6 +62,7 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_SERVER_URL: ${{ secrets.VITE_SERVER_URL }}
         run: npm run build:mac
 
       - name: Upload .dmg to release
