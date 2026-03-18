@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [vue()],
 
   root: resolve(__dirname, 'src/web'),
+  envDir: __dirname,  // Lire .env / .env.production depuis la racine du projet
 
   build: {
     outDir:   resolve(__dirname, 'dist-web'),
