@@ -166,7 +166,7 @@ export const useMessagesStore = defineStore('messages', () => {
   // ── Réactions ─────────────────────────────────────────────────────────────
   function initReactions(msgId: number, dbJson: string | null) {
     if (reactions[msgId]) return
-    const base: Record<string, number> = { check: 0, thumb: 0, bulb: 0, question: 0, eye: 0 }
+    const base: Record<string, number> = { check: 0, thumb: 0, fire: 0, heart: 0, think: 0, eyes: 0 }
     if (dbJson) { try { Object.assign(base, JSON.parse(dbJson)) } catch { /* invalid JSON */ } }
     reactions[msgId] = base
     if (!userVotes[msgId]) userVotes[msgId] = new Set()
@@ -182,6 +182,21 @@ export const useMessagesStore = defineStore('messages', () => {
     window.api.updateReactions(msgId, JSON.stringify(r))
   }
 
+  async function deleteMessage(id: number) {
+    await window.api.deleteMessage(id)
+    messages.value = messages.value.filter((m) => m.id !== id)
+    // Nettoyer le cache de réactions
+    delete reactions[id]
+    delete userVotes[id]
+  }
+
+  async function editMessage(id: number, content: string) {
+    const res = await window.api.editMessage(id, content)
+    if (!res?.ok) return
+    const msg = messages.value.find((m) => m.id === id)
+    if (msg) { msg.content = content; msg.edited = 1 }
+  }
+
   function clearSearch() {
     searchTerm.value = ''
   }
@@ -193,5 +208,6 @@ export const useMessagesStore = defineStore('messages', () => {
     isGrouped, fetchMessages, loadOlderMessages, fetchPinned,
     sendMessage, togglePin,
     initReactions, toggleReaction, clearSearch,
+    deleteMessage, editMessage,
   }
 })

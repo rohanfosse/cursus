@@ -89,6 +89,8 @@ electron.contextBridge.exposeInMainWorld("api", {
   // ── Messages épinglés ──────────────────────────────────────────────────────
   getPinnedMessages: (channelId) => invoke("db:getPinnedMessages", channelId),
   togglePinMessage: (payload) => invoke("db:togglePinMessage", payload),
+  deleteMessage: (id) => invoke("db:deleteMessage", id),
+  editMessage: (id, content) => invoke("db:editMessage", id, content),
   // ── Actions de masse ───────────────────────────────────────────────────────
   markNonSubmittedAsD: (travailId) => invoke("db:markNonSubmittedAsD", travailId),
   // ── Fichiers ───────────────────────────────────────────────────────────────

@@ -110,6 +110,8 @@ contextBridge.exposeInMainWorld('api', {
   // ── Messages épinglés ──────────────────────────────────────────────────────
   getPinnedMessages: (channelId: number) => invoke('db:getPinnedMessages', channelId),
   togglePinMessage:  (payload: unknown)  => invoke('db:togglePinMessage',  payload),
+  deleteMessage:     (id: number)        => invoke('db:deleteMessage',     id),
+  editMessage:       (id: number, content: string) => invoke('db:editMessage', id, content),
 
   // ── Actions de masse ───────────────────────────────────────────────────────
   markNonSubmittedAsD: (travailId: number) => invoke('db:markNonSubmittedAsD', travailId),

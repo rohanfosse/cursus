@@ -31,7 +31,7 @@ function requireSchema() {
   if (hasRequiredSchema) return schema;
   hasRequiredSchema = 1;
   const { getDb } = requireConnection();
-  const CURRENT_VERSION = 12;
+  const CURRENT_VERSION = 13;
   function initSchema() {
     const db2 = getDb();
     db2.exec(`
@@ -351,6 +351,10 @@ function requireSchema() {
         INSERT OR IGNORE INTO teachers (name, email, password, role)
           VALUES ('Assistant TA', 'ta@cesi.fr', 'admin', 'ta');
       `);
+      },
+      // v13 : colonne edited sur messages (suivi des modifications)
+      (db3) => {
+        tryAlter(db3, "ALTER TABLE messages ADD COLUMN edited INTEGER NOT NULL DEFAULT 0");
       }
     ];
     db2.transaction(() => {
@@ -1538,6 +1542,12 @@ function requireMessages() {
   function updateReactions(msgId, reactionsJson) {
     return getDb().prepare("UPDATE messages SET reactions = ? WHERE id = ?").run(reactionsJson, msgId).changes;
   }
+  function deleteMessage(id) {
+    return getDb().prepare("DELETE FROM messages WHERE id = ?").run(id).changes;
+  }
+  function editMessage(id, content) {
+    return getDb().prepare("UPDATE messages SET content = ?, edited = 1 WHERE id = ?").run(content.trim(), id).changes;
+  }
   function getPinnedMessages(channelId) {
     return getDb().prepare(`
     SELECT id, author_name, content, created_at
@@ -1557,7 +1567,9 @@ function requireMessages() {
     sendMessage,
     getPinnedMessages,
     togglePinMessage,
-    updateReactions
+    updateReactions,
+    deleteMessage,
+    editMessage
   };
   return messages;
 }
@@ -2268,6 +2280,8 @@ function requireIpc() {
     handle("db:getPinnedMessages", (channelId) => queries.getPinnedMessages(channelId));
     handle("db:togglePinMessage", (payload) => queries.togglePinMessage(payload.messageId, payload.pinned));
     handle("db:updateReactions", (msgId, reactionsJson) => queries.updateReactions(msgId, reactionsJson));
+    handle("db:deleteMessage", (id) => queries.deleteMessage(id));
+    handle("db:editMessage", (id, content) => queries.editMessage(id, content));
     handle("db:markNonSubmittedAsD", (travailId) => queries.markNonSubmittedAsD(travailId));
     handle("db:getRubric", (travailId) => queries.getRubric(travailId));
     handle("db:upsertRubric", (payload) => queries.upsertRubric(payload));

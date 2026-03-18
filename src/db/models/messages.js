@@ -63,6 +63,15 @@ function updateReactions(msgId, reactionsJson) {
     .run(reactionsJson, msgId).changes;
 }
 
+function deleteMessage(id) {
+  return getDb().prepare('DELETE FROM messages WHERE id = ?').run(id).changes;
+}
+
+function editMessage(id, content) {
+  return getDb().prepare('UPDATE messages SET content = ?, edited = 1 WHERE id = ?')
+    .run(content.trim(), id).changes;
+}
+
 function getPinnedMessages(channelId) {
   return getDb().prepare(`
     SELECT id, author_name, content, created_at
@@ -81,4 +90,5 @@ module.exports = {
   getDmMessages, getDmMessagesPage,
   searchMessages, sendMessage,
   getPinnedMessages, togglePinMessage, updateReactions,
+  deleteMessage, editMessage,
 };

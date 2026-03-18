@@ -119,6 +119,8 @@ declare global {
       // Messages épinglés
       getPinnedMessages(channelId: number): Promise<IpcResponse<Message[]>>
       togglePinMessage(payload: { messageId: number; pinned: boolean }): Promise<IpcResponse<null>>
+      deleteMessage(id: number): Promise<IpcResponse<number>>
+      editMessage(id: number, content: string): Promise<IpcResponse<number>>
 
       // Rubrics
       getRubric(travailId: number): Promise<IpcResponse<Rubric | null>>

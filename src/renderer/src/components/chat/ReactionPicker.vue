@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { ref, onMounted, onUnmounted } from 'vue'
-  import { Smile } from 'lucide-vue-next'
+  import { SmilePlus } from 'lucide-vue-next'
   import { useMessagesStore } from '@/stores/messages'
 
   interface Props { msgId: number }
@@ -8,11 +8,12 @@
   const messagesStore = useMessagesStore()
 
   const REACT_TYPES = [
-    { type: 'check',    emoji: '✅' },
-    { type: 'thumb',    emoji: '👍' },
-    { type: 'bulb',     emoji: '💡' },
-    { type: 'question', emoji: '❓' },
-    { type: 'eye',      emoji: '👁️' },
+    { type: 'check', emoji: '✅' },
+    { type: 'thumb', emoji: '👍' },
+    { type: 'fire',  emoji: '🔥' },
+    { type: 'heart', emoji: '❤️' },
+    { type: 'think', emoji: '🤔' },
+    { type: 'eyes',  emoji: '👀' },
   ]
 
   const open = ref(false)
@@ -41,7 +42,7 @@
       aria-label="Ajouter une réaction"
       @click.stop="toggle"
     >
-      <Smile :size="14" />
+      <SmilePlus :size="14" />
     </button>
     <div v-if="open" class="reaction-picker" style="position:absolute;bottom:28px;left:0;z-index:200">
       <button

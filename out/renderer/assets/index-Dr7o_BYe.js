@@ -9795,6 +9795,22 @@ const Award = createLucideIcon("award", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const BookCheck = createLucideIcon("book-check", [
+  [
+    "path",
+    {
+      d: "M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20",
+      key: "k3hazp"
+    }
+  ],
+  ["path", { d: "m9 9.5 2 2 4-4", key: "1dth82" }]
+]);
+/**
+ * @license lucide-vue-next v0.577.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const BookOpen = createLucideIcon("book-open", [
   ["path", { d: "M12 7v14", key: "1akyts" }],
   [
@@ -9847,6 +9863,22 @@ const CalendarDays = createLucideIcon("calendar-days", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const CalendarRange = createLucideIcon("calendar-range", [
+  ["rect", { width: "18", height: "18", x: "3", y: "4", rx: "2", key: "1hopcy" }],
+  ["path", { d: "M16 2v4", key: "4m81vk" }],
+  ["path", { d: "M3 10h18", key: "8toen8" }],
+  ["path", { d: "M8 2v4", key: "1cmpym" }],
+  ["path", { d: "M17 14h-6", key: "bkmgh3" }],
+  ["path", { d: "M13 18H7", key: "bb0bb7" }],
+  ["path", { d: "M7 14h.01", key: "1qa3f1" }],
+  ["path", { d: "M17 18h.01", key: "1bdyru" }]
+]);
+/**
+ * @license lucide-vue-next v0.577.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const Calendar = createLucideIcon("calendar", [
   ["path", { d: "M8 2v4", key: "1cmpym" }],
   ["path", { d: "M16 2v4", key: "4m81vk" }],
@@ -9880,6 +9912,13 @@ const ChartNoAxesColumn = createLucideIcon("chart-no-axes-column", [
   ["path", { d: "M12 21V3", key: "1lcnhd" }],
   ["path", { d: "M19 21V9", key: "unv183" }]
 ]);
+/**
+ * @license lucide-vue-next v0.577.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const Check = createLucideIcon("check", [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]]);
 /**
  * @license lucide-vue-next v0.577.0 - ISC
  *
@@ -9938,26 +9977,6 @@ const CircleX = createLucideIcon("circle-x", [
   ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
   ["path", { d: "m15 9-6 6", key: "1uzhvr" }],
   ["path", { d: "m9 9 6 6", key: "z0biqf" }]
-]);
-/**
- * @license lucide-vue-next v0.577.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-const ClipboardList = createLucideIcon("clipboard-list", [
-  ["rect", { width: "8", height: "4", x: "8", y: "2", rx: "1", ry: "1", key: "tgr4d6" }],
-  [
-    "path",
-    {
-      d: "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2",
-      key: "116196"
-    }
-  ],
-  ["path", { d: "M12 11h4", key: "1jrz19" }],
-  ["path", { d: "M12 16h4", key: "n85exb" }],
-  ["path", { d: "M8 11h.01", key: "1dfujw" }],
-  ["path", { d: "M8 16h.01", key: "18s6g9" }]
 ]);
 /**
  * @license lucide-vue-next v0.577.0 - ISC
@@ -10575,11 +10594,13 @@ const Settings = createLucideIcon("settings", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
-const Smile = createLucideIcon("smile", [
-  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+const SmilePlus = createLucideIcon("smile-plus", [
+  ["path", { d: "M22 11v1a10 10 0 1 1-9-10", key: "ew0xw9" }],
   ["path", { d: "M8 14s1.5 2 4 2 4-2 4-2", key: "1y1vjs" }],
   ["line", { x1: "9", x2: "9.01", y1: "9", y2: "9", key: "yxxnd0" }],
-  ["line", { x1: "15", x2: "15.01", y1: "9", y2: "9", key: "1p4y9e" }]
+  ["line", { x1: "15", x2: "15.01", y1: "9", y2: "9", key: "1p4y9e" }],
+  ["path", { d: "M16 5h6", key: "1vod17" }],
+  ["path", { d: "M19 2v6", key: "4bpg5p" }]
 ]);
 /**
  * @license lucide-vue-next v0.577.0 - ISC
@@ -11168,7 +11189,7 @@ const useMessagesStore = /* @__PURE__ */ defineStore("messages", () => {
   }
   function initReactions(msgId, dbJson) {
     if (reactions[msgId]) return;
-    const base = { check: 0, thumb: 0, bulb: 0, question: 0, eye: 0 };
+    const base = { check: 0, thumb: 0, fire: 0, heart: 0, think: 0, eyes: 0 };
     if (dbJson) {
       try {
         Object.assign(base, JSON.parse(dbJson));
@@ -11191,6 +11212,21 @@ const useMessagesStore = /* @__PURE__ */ defineStore("messages", () => {
     }
     window.api.updateReactions(msgId, JSON.stringify(r));
   }
+  async function deleteMessage(id) {
+    await window.api.deleteMessage(id);
+    messages.value = messages.value.filter((m2) => m2.id !== id);
+    delete reactions[id];
+    delete userVotes[id];
+  }
+  async function editMessage(id, content) {
+    const res = await window.api.editMessage(id, content);
+    if (!res?.ok) return;
+    const msg = messages.value.find((m2) => m2.id === id);
+    if (msg) {
+      msg.content = content;
+      msg.edited = 1;
+    }
+  }
   function clearSearch() {
     searchTerm.value = "";
   }
@@ -11212,7 +11248,9 @@ const useMessagesStore = /* @__PURE__ */ defineStore("messages", () => {
     togglePin,
     initReactions,
     toggleReaction,
-    clearSearch
+    clearSearch,
+    deleteMessage,
+    editMessage
   };
 });
 function formatTime(isoStr) {
@@ -11501,9 +11539,10 @@ const _sfc_main$A = /* @__PURE__ */ defineComponent({
     const REACT_TYPES = [
       { type: "check", emoji: "✅" },
       { type: "thumb", emoji: "👍" },
-      { type: "bulb", emoji: "💡" },
-      { type: "question", emoji: "❓" },
-      { type: "eye", emoji: "👁️" }
+      { type: "fire", emoji: "🔥" },
+      { type: "heart", emoji: "❤️" },
+      { type: "think", emoji: "🤔" },
+      { type: "eyes", emoji: "👀" }
     ];
     const open = /* @__PURE__ */ ref(false);
     function toggle() {
@@ -11527,7 +11566,7 @@ const _sfc_main$A = /* @__PURE__ */ defineComponent({
           "aria-label": "Ajouter une réaction",
           onClick: withModifiers(toggle, ["stop"])
         }, [
-          createVNode(unref(Smile), { size: 14 })
+          createVNode(unref(SmilePlus), { size: 14 })
         ]),
         open.value ? (openBlock(), createElementBlock("div", _hoisted_2$y, [
           (openBlock(), createElementBlock(Fragment, null, renderList(REACT_TYPES, (r) => {
@@ -64789,28 +64828,37 @@ const _hoisted_2$x = {
   class: "msg-avatar-placeholder"
 };
 const _hoisted_3$t = { class: "msg-body" };
-const _hoisted_4$s = { class: "msg-author" };
-const _hoisted_5$r = { class: "msg-time" };
-const _hoisted_6$q = {
+const _hoisted_4$s = {
   key: 0,
+  class: "msg-meta"
+};
+const _hoisted_5$s = { class: "msg-author" };
+const _hoisted_6$r = { class: "msg-time" };
+const _hoisted_7$r = {
+  key: 0,
+  class: "msg-edited-tag"
+};
+const _hoisted_8$q = {
+  key: 1,
   class: "pin-badge",
   title: "Message épinglé"
 };
-const _hoisted_7$q = ["innerHTML"];
-const _hoisted_8$p = {
-  key: 1,
-  class: "msg-reactions"
-};
-const _hoisted_9$o = ["aria-label", "onClick"];
-const _hoisted_10$o = { class: "reaction-emoji" };
-const _hoisted_11$m = { class: "reaction-count" };
-const _hoisted_12$m = {
+const _hoisted_9$o = ["innerHTML"];
+const _hoisted_10$o = {
   key: 2,
-  class: "msg-thread-btn"
+  class: "msg-edit-box"
 };
-const _hoisted_13$k = { class: "msg-actions" };
-const _hoisted_14$k = ["title", "aria-label"];
-const _hoisted_15$k = {
+const _hoisted_11$m = { class: "msg-edit-actions" };
+const _hoisted_12$m = {
+  key: 3,
+  class: "msg-reactions-row"
+};
+const _hoisted_13$k = ["aria-label", "onClick"];
+const _hoisted_14$k = { class: "reaction-emoji" };
+const _hoisted_15$k = { class: "reaction-count" };
+const _hoisted_16$k = { class: "msg-actions" };
+const _hoisted_17$j = ["title"];
+const _hoisted_18$j = {
   key: 0,
   class: "msg-menu",
   role: "menu"
@@ -64828,12 +64876,20 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
     const messagesStore = useMessagesStore();
     const { openExternal } = useOpenExternal();
     const showMenu = /* @__PURE__ */ ref(false);
+    const editing = /* @__PURE__ */ ref(false);
+    const editContent = /* @__PURE__ */ ref("");
+    const editEl = /* @__PURE__ */ ref(null);
     const content = computed(
       () => renderMessageContent(props2.msg.content, props2.searchTerm, appStore.currentUser?.name ?? "")
     );
     const color = computed(() => avatarColor(props2.msg.author_name));
     const isPinned = computed(() => !!props2.msg.is_pinned);
-    const replyCount = computed(() => props2.msg.reply_count ?? 0);
+    const isEdited = computed(() => !!props2.msg.edited);
+    const isMine = computed(
+      () => props2.msg.author_name === appStore.currentUser?.name
+    );
+    const canEdit = computed(() => isMine.value);
+    const canDelete = computed(() => appStore.isTeacher || isMine.value);
     function togglePin() {
       messagesStore.togglePin(props2.msg.id, !isPinned.value);
       showMenu.value = false;
@@ -64845,6 +64901,42 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
       }
       showMenu.value = false;
     }
+    async function startEdit() {
+      showMenu.value = false;
+      editing.value = true;
+      editContent.value = props2.msg.content;
+      await nextTick();
+      editEl.value?.focus();
+      editEl.value?.select();
+    }
+    async function commitEdit() {
+      const trimmed = editContent.value.trim();
+      if (!trimmed || trimmed === props2.msg.content) {
+        cancelEdit();
+        return;
+      }
+      await messagesStore.editMessage(props2.msg.id, trimmed);
+      editing.value = false;
+    }
+    function cancelEdit() {
+      editing.value = false;
+      editContent.value = "";
+    }
+    function onEditKeydown(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        commitEdit();
+      }
+      if (e.key === "Escape") cancelEdit();
+    }
+    async function deleteMessage() {
+      if (!confirm("Supprimer ce message définitivement ?")) {
+        showMenu.value = false;
+        return;
+      }
+      showMenu.value = false;
+      await messagesStore.deleteMessage(props2.msg.id);
+    }
     function onMsgClick(e) {
       const a = e.target.closest("a[data-url]");
       if (!a) return;
@@ -64852,33 +64944,27 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
       const url = a.dataset.url;
       if (url) openExternal(url);
     }
-    const EMOJI_MAP = {
-      check: "✅",
-      thumb: "👍",
-      bulb: "💡",
-      question: "❓",
-      eye: "👀"
-    };
     const REACT_TYPES = [
-      { type: "check", icon: "check" },
-      { type: "thumb", icon: "thumbs-up" },
-      { type: "bulb", icon: "lightbulb" },
-      { type: "question", icon: "help-circle" },
-      { type: "eye", icon: "eye" }
+      { type: "check", emoji: "✅" },
+      { type: "thumb", emoji: "👍" },
+      { type: "fire", emoji: "🔥" },
+      { type: "heart", emoji: "❤️" },
+      { type: "think", emoji: "🤔" },
+      { type: "eyes", emoji: "👀" }
     ];
+    Object.fromEntries(REACT_TYPES.map((r) => [r.type, r.emoji]));
     const reactionsToShow = computed(() => {
       const r = messagesStore.reactions[props2.msg.id] ?? {};
       const mine = messagesStore.userVotes[props2.msg.id] ?? /* @__PURE__ */ new Set();
       return REACT_TYPES.filter((t) => (r[t.type] ?? 0) > 0).map((t) => ({
         ...t,
-        emoji: EMOJI_MAP[t.type] ?? "",
         count: r[t.type],
         isMine: mine.has(t.type)
       }));
     });
     return (_ctx, _cache) => {
       return openBlock(), createElementBlock("div", {
-        class: normalizeClass(["msg-row", { grouped: __props.grouped, pinned: isPinned.value }]),
+        class: normalizeClass(["msg-row", { grouped: __props.grouped, pinned: isPinned.value, editing: editing.value }]),
         "data-msg-id": __props.msg.id,
         onClick: _cache[3] || (_cache[3] = withModifiers(($event) => showMenu.value = false, ["self"]))
       }, [
@@ -64889,43 +64975,62 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
           "photo-data": __props.msg.author_photo
         }, null, 8, ["initials", "color", "photo-data"])) : (openBlock(), createElementBlock("div", _hoisted_2$x)),
         createBaseVNode("div", _hoisted_3$t, [
-          !__props.grouped ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
-            createBaseVNode("span", _hoisted_4$s, toDisplayString(__props.msg.author_name), 1),
-            createBaseVNode("span", _hoisted_5$r, toDisplayString(unref(formatTime)(__props.msg.created_at)), 1),
-            isPinned.value ? (openBlock(), createElementBlock("span", _hoisted_6$q, "📌")) : createCommentVNode("", true)
-          ], 64)) : createCommentVNode("", true),
-          createBaseVNode("p", {
+          !__props.grouped ? (openBlock(), createElementBlock("div", _hoisted_4$s, [
+            createBaseVNode("span", _hoisted_5$s, toDisplayString(__props.msg.author_name), 1),
+            createBaseVNode("span", _hoisted_6$r, toDisplayString(unref(formatTime)(__props.msg.created_at)), 1),
+            isEdited.value ? (openBlock(), createElementBlock("span", _hoisted_7$r, "(modifié)")) : createCommentVNode("", true),
+            isPinned.value ? (openBlock(), createElementBlock("span", _hoisted_8$q, "📌")) : createCommentVNode("", true)
+          ])) : createCommentVNode("", true),
+          !editing.value ? (openBlock(), createElementBlock("p", {
+            key: 1,
             class: "msg-text",
             innerHTML: content.value,
             onClick: onMsgClick
-          }, null, 8, _hoisted_7$q),
-          reactionsToShow.value.length ? (openBlock(), createElementBlock("div", _hoisted_8$p, [
+          }, null, 8, _hoisted_9$o)) : (openBlock(), createElementBlock("div", _hoisted_10$o, [
+            withDirectives(createBaseVNode("textarea", {
+              ref_key: "editEl",
+              ref: editEl,
+              "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => editContent.value = $event),
+              class: "msg-edit-input",
+              rows: "1",
+              onKeydown: onEditKeydown
+            }, null, 544), [
+              [vModelText, editContent.value]
+            ]),
+            createBaseVNode("div", _hoisted_11$m, [
+              _cache[4] || (_cache[4] = createBaseVNode("span", { class: "msg-edit-hint" }, "Entrée pour valider · Échap pour annuler", -1)),
+              createBaseVNode("button", {
+                class: "btn-icon msg-edit-save",
+                title: "Valider",
+                onClick: commitEdit
+              }, [
+                createVNode(unref(Check), { size: 13 })
+              ])
+            ])
+          ])),
+          !editing.value ? (openBlock(), createElementBlock("div", _hoisted_12$m, [
             (openBlock(true), createElementBlock(Fragment, null, renderList(reactionsToShow.value, (r) => {
               return openBlock(), createElementBlock("button", {
                 key: r.type,
                 class: normalizeClass(["msg-reaction-pill", { mine: r.isMine }]),
-                "aria-label": `Réaction ${r.type}`,
+                "aria-label": `Réagir ${r.emoji}`,
                 onClick: ($event) => unref(messagesStore).toggleReaction(__props.msg.id, r.type)
               }, [
-                createBaseVNode("span", _hoisted_10$o, toDisplayString(r.emoji), 1),
-                createBaseVNode("span", _hoisted_11$m, toDisplayString(r.count), 1)
-              ], 10, _hoisted_9$o);
-            }), 128))
-          ])) : createCommentVNode("", true),
-          replyCount.value > 0 ? (openBlock(), createElementBlock("button", _hoisted_12$m, [
-            createVNode(unref(MessageSquare), { size: 12 }),
-            createBaseVNode("span", null, toDisplayString(replyCount.value) + " réponse" + toDisplayString(replyCount.value > 1 ? "s" : ""), 1)
+                createBaseVNode("span", _hoisted_14$k, toDisplayString(r.emoji), 1),
+                createBaseVNode("span", _hoisted_15$k, toDisplayString(r.count), 1)
+              ], 10, _hoisted_13$k);
+            }), 128)),
+            createVNode(_sfc_main$A, {
+              "msg-id": __props.msg.id,
+              class: normalizeClass([{ "reaction-picker-visible": reactionsToShow.value.length > 0 }, "inline-picker"])
+            }, null, 8, ["msg-id", "class"])
           ])) : createCommentVNode("", true)
         ]),
-        createBaseVNode("div", _hoisted_13$k, [
-          createVNode(_sfc_main$A, {
-            "msg-id": __props.msg.id
-          }, null, 8, ["msg-id"]),
-          unref(appStore).isTeacher ? (openBlock(), createElementBlock("button", {
+        createBaseVNode("div", _hoisted_16$k, [
+          unref(appStore).isTeacher && !editing.value ? (openBlock(), createElementBlock("button", {
             key: 0,
             class: "btn-icon msg-action-btn",
             title: isPinned.value ? "Désépingler" : "Épingler",
-            "aria-label": isPinned.value ? "Désépingler le message" : "Épingler le message",
             onClick: togglePin
           }, [
             isPinned.value ? (openBlock(), createBlock(unref(PinOff), {
@@ -64935,30 +65040,39 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
               key: 1,
               size: 14
             }))
-          ], 8, _hoisted_14$k)) : createCommentVNode("", true),
-          createBaseVNode("div", {
+          ], 8, _hoisted_17$j)) : createCommentVNode("", true),
+          !editing.value ? (openBlock(), createElementBlock("div", {
+            key: 1,
             class: "msg-menu-wrap",
             onMouseleave: _cache[2] || (_cache[2] = ($event) => showMenu.value = false)
           }, [
             createBaseVNode("button", {
               class: "btn-icon msg-action-btn",
               title: "Plus d'options",
-              "aria-label": "Plus d'options",
-              onClick: _cache[0] || (_cache[0] = withModifiers(($event) => showMenu.value = !showMenu.value, ["stop"]))
+              onClick: _cache[1] || (_cache[1] = withModifiers(($event) => showMenu.value = !showMenu.value, ["stop"]))
             }, [
               createVNode(unref(Ellipsis), { size: 14 })
             ]),
-            showMenu.value ? (openBlock(), createElementBlock("div", _hoisted_15$k, [
+            showMenu.value ? (openBlock(), createElementBlock("div", _hoisted_18$j, [
               createBaseVNode("button", {
                 class: "msg-menu-item",
                 role: "menuitem",
                 onClick: copyMessage
               }, [
                 createVNode(unref(Copy), { size: 12 }),
-                _cache[4] || (_cache[4] = createTextVNode(" Copier le texte ", -1))
+                _cache[5] || (_cache[5] = createTextVNode(" Copier ", -1))
               ]),
-              unref(appStore).isTeacher ? (openBlock(), createElementBlock("button", {
+              canEdit.value ? (openBlock(), createElementBlock("button", {
                 key: 0,
+                class: "msg-menu-item",
+                role: "menuitem",
+                onClick: startEdit
+              }, [
+                createVNode(unref(Pencil), { size: 12 }),
+                _cache[6] || (_cache[6] = createTextVNode(" Modifier ", -1))
+              ])) : createCommentVNode("", true),
+              unref(appStore).isTeacher ? (openBlock(), createElementBlock("button", {
+                key: 1,
                 class: "msg-menu-item",
                 role: "menuitem",
                 onClick: togglePin
@@ -64966,17 +65080,17 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
                 createVNode(unref(Pin), { size: 12 }),
                 createTextVNode(" " + toDisplayString(isPinned.value ? "Désépingler" : "Épingler"), 1)
               ])) : createCommentVNode("", true),
-              unref(appStore).isTeacher ? (openBlock(), createElementBlock("button", {
-                key: 1,
+              canDelete.value ? (openBlock(), createElementBlock("button", {
+                key: 2,
                 class: "msg-menu-item msg-menu-danger",
                 role: "menuitem",
-                onClick: _cache[1] || (_cache[1] = ($event) => showMenu.value = false)
+                onClick: deleteMessage
               }, [
                 createVNode(unref(Trash2), { size: 12 }),
-                _cache[5] || (_cache[5] = createTextVNode(" Supprimer ", -1))
+                _cache[7] || (_cache[7] = createTextVNode(" Supprimer ", -1))
               ])) : createCommentVNode("", true)
             ])) : createCommentVNode("", true)
-          ], 32)
+          ], 32)) : createCommentVNode("", true)
         ])
       ], 10, _hoisted_1$z);
     };
@@ -64989,19 +65103,32 @@ const _export_sfc = (sfc, props2) => {
   }
   return target;
 };
-const MessageBubble = /* @__PURE__ */ _export_sfc(_sfc_main$z, [["__scopeId", "data-v-631e121a"]]);
+const MessageBubble = /* @__PURE__ */ _export_sfc(_sfc_main$z, [["__scopeId", "data-v-a398ed25"]]);
 const _hoisted_1$y = {
+  key: 0,
+  class: "skel-container"
+};
+const _hoisted_2$w = { class: "skel-msg-body" };
+const _hoisted_3$s = {
+  key: 0,
+  class: "skel skel-line skel-w70"
+};
+const _hoisted_4$r = {
   key: 0,
   class: "load-more-indicator"
 };
-const _hoisted_2$w = { class: "date-separator" };
-const _hoisted_3$s = {
+const _hoisted_5$r = { class: "date-separator" };
+const _hoisted_6$q = {
   key: 0,
   class: "unread-divider"
 };
-const _hoisted_4$r = {
-  key: 2,
+const _hoisted_7$q = {
+  key: 1,
   class: "empty-state"
+};
+const _hoisted_8$p = {
+  key: 0,
+  class: "scroll-badge"
 };
 const _sfc_main$y = /* @__PURE__ */ defineComponent({
   __name: "MessageList",
@@ -65013,6 +65140,19 @@ const _sfc_main$y = /* @__PURE__ */ defineComponent({
       (msgs) => msgs.forEach((m2) => store.initReactions(m2.id, m2.reactions)),
       { immediate: true }
     );
+    const showScrollBtn = /* @__PURE__ */ ref(false);
+    const unreadBelowCount = /* @__PURE__ */ ref(0);
+    function onScroll() {
+      if (!listEl.value) return;
+      const el = listEl.value;
+      const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      showScrollBtn.value = distFromBottom > 200;
+    }
+    function scrollToBottom() {
+      if (!listEl.value) return;
+      listEl.value.scrollTop = listEl.value.scrollHeight;
+      unreadBelowCount.value = 0;
+    }
     let initialScrollDone = false;
     watch(
       () => store.messages.length,
@@ -65027,15 +65167,22 @@ const _sfc_main$y = /* @__PURE__ */ defineComponent({
             return;
           }
         }
-        const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+        const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+        const atBottom = distFromBottom < 120;
         if (atBottom || !initialScrollDone) {
           el.scrollTop = el.scrollHeight;
           initialScrollDone = true;
+          unreadBelowCount.value = 0;
+        } else {
+          unreadBelowCount.value++;
         }
       })
     );
     watch(() => store.loading, (loading) => {
-      if (loading) initialScrollDone = false;
+      if (loading) {
+        initialScrollDone = false;
+        unreadBelowCount.value = 0;
+      }
     });
     const sentinelEl = /* @__PURE__ */ ref(null);
     let observer = null;
@@ -65049,6 +65196,7 @@ const _sfc_main$y = /* @__PURE__ */ defineComponent({
       el.scrollTop = prevTop + (el.scrollHeight - prevHeight);
     }
     onMounted(() => {
+      listEl.value?.addEventListener("scroll", onScroll, { passive: true });
       if (!sentinelEl.value) return;
       observer = new IntersectionObserver(
         ([entry]) => {
@@ -65059,6 +65207,7 @@ const _sfc_main$y = /* @__PURE__ */ defineComponent({
       observer.observe(sentinelEl.value);
     });
     onBeforeUnmount(() => {
+      listEl.value?.removeEventListener("scroll", onScroll);
       observer?.disconnect();
       observer = null;
     });
@@ -65089,59 +65238,89 @@ const _sfc_main$y = /* @__PURE__ */ defineComponent({
         id: "messages-list",
         class: "messages-list"
       }, [
-        unref(store).loading ? (openBlock(), createElementBlock(Fragment, { key: 0 }, renderList(5, (i) => {
-          return createBaseVNode("div", {
-            key: i,
-            class: "skel-msg-row"
-          }, [..._cache[0] || (_cache[0] = [
-            createStaticVNode('<div class="skel skel-avatar" data-v-2fbd1929></div><div class="skel-msg-body" data-v-2fbd1929><div class="skel skel-line skel-w30" data-v-2fbd1929></div><div class="skel skel-line skel-w90" data-v-2fbd1929></div><div class="skel skel-line skel-w70" data-v-2fbd1929></div></div>', 2)
-          ])]);
-        }), 64)) : unref(store).messages.length ? (openBlock(), createElementBlock(Fragment, { key: 1 }, [
-          createBaseVNode("div", {
-            ref_key: "sentinelEl",
-            ref: sentinelEl,
-            class: "scroll-sentinel",
-            "aria-hidden": "true"
-          }, [
-            unref(store).loadingMore ? (openBlock(), createElementBlock("div", _hoisted_1$y, [..._cache[1] || (_cache[1] = [
-              createBaseVNode("span", { class: "load-more-dots" }, [
-                createBaseVNode("span"),
-                createBaseVNode("span"),
-                createBaseVNode("span")
-              ], -1)
-            ])])) : createCommentVNode("", true)
-          ], 512),
-          (openBlock(true), createElementBlock(Fragment, null, renderList(dateGroups.value, (group2) => {
-            return openBlock(), createElementBlock(Fragment, {
-              key: group2.date
-            }, [
-              createBaseVNode("div", _hoisted_2$w, [
-                createBaseVNode("span", null, toDisplayString(group2.date), 1)
-              ]),
-              (openBlock(true), createElementBlock(Fragment, null, renderList(group2.messages, ({ msg, grouped, isFirstUnread }) => {
-                return openBlock(), createElementBlock(Fragment, {
-                  key: msg.id
+        createVNode(Transition, { name: "skel-fade" }, {
+          default: withCtx(() => [
+            unref(store).loading ? (openBlock(), createElementBlock("div", _hoisted_1$y, [
+              (openBlock(), createElementBlock(Fragment, null, renderList(6, (i) => {
+                return createBaseVNode("div", {
+                  key: i,
+                  class: "skel-msg-row"
                 }, [
-                  isFirstUnread ? (openBlock(), createElementBlock("div", _hoisted_3$s, [..._cache[2] || (_cache[2] = [
-                    createBaseVNode("span", { class: "unread-divider-label" }, "Nouveaux messages", -1)
-                  ])])) : createCommentVNode("", true),
-                  createVNode(MessageBubble, {
-                    msg,
-                    grouped,
-                    "search-term": unref(store).searchTerm
-                  }, null, 8, ["msg", "grouped", "search-term"])
-                ], 64);
-              }), 128))
-            ], 64);
-          }), 128))
-        ], 64)) : (openBlock(), createElementBlock("div", _hoisted_4$r, [
-          createBaseVNode("p", null, toDisplayString(unref(store).searchTerm ? "Aucun message ne correspond à cette recherche." : "Aucun message pour l'instant."), 1)
-        ]))
+                  _cache[2] || (_cache[2] = createBaseVNode("div", { class: "skel skel-avatar" }, null, -1)),
+                  createBaseVNode("div", _hoisted_2$w, [
+                    _cache[0] || (_cache[0] = createBaseVNode("div", { class: "skel skel-line skel-w30" }, null, -1)),
+                    _cache[1] || (_cache[1] = createBaseVNode("div", { class: "skel skel-line skel-w90" }, null, -1)),
+                    i % 3 !== 0 ? (openBlock(), createElementBlock("div", _hoisted_3$s)) : createCommentVNode("", true)
+                  ])
+                ]);
+              }), 64))
+            ])) : createCommentVNode("", true)
+          ]),
+          _: 1
+        }),
+        !unref(store).loading ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
+          unref(store).messages.length ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
+            createBaseVNode("div", {
+              ref_key: "sentinelEl",
+              ref: sentinelEl,
+              class: "scroll-sentinel",
+              "aria-hidden": "true"
+            }, [
+              unref(store).loadingMore ? (openBlock(), createElementBlock("div", _hoisted_4$r, [..._cache[3] || (_cache[3] = [
+                createBaseVNode("span", { class: "load-more-dots" }, [
+                  createBaseVNode("span"),
+                  createBaseVNode("span"),
+                  createBaseVNode("span")
+                ], -1)
+              ])])) : createCommentVNode("", true)
+            ], 512),
+            (openBlock(true), createElementBlock(Fragment, null, renderList(dateGroups.value, (group2) => {
+              return openBlock(), createElementBlock(Fragment, {
+                key: group2.date
+              }, [
+                createBaseVNode("div", _hoisted_5$r, [
+                  createBaseVNode("span", null, toDisplayString(group2.date), 1)
+                ]),
+                (openBlock(true), createElementBlock(Fragment, null, renderList(group2.messages, ({ msg, grouped, isFirstUnread }) => {
+                  return openBlock(), createElementBlock(Fragment, {
+                    key: msg.id
+                  }, [
+                    isFirstUnread ? (openBlock(), createElementBlock("div", _hoisted_6$q, [..._cache[4] || (_cache[4] = [
+                      createBaseVNode("span", { class: "unread-divider-label" }, "Nouveaux messages", -1)
+                    ])])) : createCommentVNode("", true),
+                    createVNode(MessageBubble, {
+                      msg,
+                      grouped,
+                      "search-term": unref(store).searchTerm,
+                      class: normalizeClass({ "msg-highlight": unref(store).searchTerm && msg.content.toLowerCase().includes(unref(store).searchTerm.toLowerCase()) })
+                    }, null, 8, ["msg", "grouped", "search-term", "class"])
+                  ], 64);
+                }), 128))
+              ], 64);
+            }), 128))
+          ], 64)) : (openBlock(), createElementBlock("div", _hoisted_7$q, [
+            createBaseVNode("p", null, toDisplayString(unref(store).searchTerm ? "Aucun message ne correspond à cette recherche." : "Aucun message pour l'instant."), 1)
+          ]))
+        ], 64)) : createCommentVNode("", true),
+        createVNode(Transition, { name: "scroll-btn-fade" }, {
+          default: withCtx(() => [
+            showScrollBtn.value ? (openBlock(), createElementBlock("button", {
+              key: 0,
+              class: normalizeClass(["scroll-to-bottom-btn", { "has-badge": unreadBelowCount.value > 0 }]),
+              "aria-label": "Retourner en bas",
+              onClick: scrollToBottom
+            }, [
+              createVNode(unref(ChevronDown), { size: 18 }),
+              unreadBelowCount.value > 0 ? (openBlock(), createElementBlock("span", _hoisted_8$p, toDisplayString(unreadBelowCount.value > 99 ? "99+" : unreadBelowCount.value), 1)) : createCommentVNode("", true)
+            ], 2)) : createCommentVNode("", true)
+          ]),
+          _: 1
+        })
       ], 512);
     };
   }
 });
-const MessageList = /* @__PURE__ */ _export_sfc(_sfc_main$y, [["__scopeId", "data-v-2fbd1929"]]);
+const MessageList = /* @__PURE__ */ _export_sfc(_sfc_main$y, [["__scopeId", "data-v-6e3d9dca"]]);
 const _hoisted_1$x = {
   id: "chat-format-toolbar",
   class: "chat-format-toolbar"
@@ -65420,9 +65599,9 @@ const _hoisted_7$o = {
   id: "search-results-count",
   class: "search-results-count"
 };
-const _hoisted_8$o = { key: 0 };
+const _hoisted_8$o = { class: "banner-text" };
 const _hoisted_9$n = {
-  key: 3,
+  key: 2,
   class: "messages-container",
   id: "messages-container"
 };
@@ -65435,7 +65614,7 @@ const _hoisted_12$l = { class: "doc-drop-channel" };
 const _hoisted_13$j = ["disabled"];
 const _hoisted_14$j = ["disabled"];
 const _hoisted_15$j = {
-  key: 4,
+  key: 3,
   class: "no-channel-hint",
   id: "no-channel-hint"
 };
@@ -65454,6 +65633,7 @@ const _sfc_main$u = /* @__PURE__ */ defineComponent({
     const modals = useModalsStore();
     const { showToast } = useToast();
     const searchInput = /* @__PURE__ */ ref("");
+    const bannerDismissed = /* @__PURE__ */ ref(false);
     const isDragOver = /* @__PURE__ */ ref(false);
     const pendingDoc = /* @__PURE__ */ ref(null);
     const docAddName = /* @__PURE__ */ ref("");
@@ -65520,6 +65700,7 @@ const _sfc_main$u = /* @__PURE__ */ defineComponent({
       async ([chId]) => {
         messagesStore.clearSearch();
         searchInput.value = "";
+        bannerDismissed.value = false;
         await messagesStore.fetchMessages();
         if (chId) {
           await messagesStore.fetchPinned(chId);
@@ -65607,32 +65788,48 @@ const _sfc_main$u = /* @__PURE__ */ defineComponent({
               key: 0,
               id: "btn-timeline",
               class: "btn-icon",
-              title: "Timeline",
-              "aria-label": "Ouvrir la timeline",
+              title: "Échéancier",
+              "aria-label": "Ouvrir l'échéancier",
               onClick: _cache[1] || (_cache[1] = ($event) => unref(modals).timeline = true)
             }, [
-              createVNode(unref(BookOpen), { size: 16 })
+              createVNode(unref(CalendarRange), { size: 16 })
             ])) : createCommentVNode("", true)
           ])
         ])) : createCommentVNode("", true),
         unref(appStore).activeChannelId ? (openBlock(), createBlock(PinnedBanner, { key: 1 })) : createCommentVNode("", true),
-        pendingForChannel.value.length ? (openBlock(), createElementBlock("div", {
-          key: 2,
-          class: normalizeClass(["channel-pending-banner", { "channel-pending-urgent": bannerUrgent.value }])
-        }, [
-          createBaseVNode("span", null, [
-            createVNode(unref(ClipboardList), {
-              size: 14,
-              class: "icon-inline"
-            }),
-            createTextVNode(" " + toDisplayString(pendingForChannel.value.length) + " devoir" + toDisplayString(pendingForChannel.value.length > 1 ? "s" : "") + " à rendre dans ce canal" + toDisplayString(bannerUrgent.value ? " — " : "") + " ", 1),
-            bannerUrgent.value ? (openBlock(), createElementBlock("strong", _hoisted_8$o, "urgent !")) : createCommentVNode("", true)
+        createVNode(Transition, { name: "banner-slide" }, {
+          default: withCtx(() => [
+            pendingForChannel.value.length && !bannerDismissed.value ? (openBlock(), createElementBlock("div", {
+              key: 0,
+              class: normalizeClass(["channel-pending-banner", { "channel-pending-urgent": bannerUrgent.value }])
+            }, [
+              createVNode(unref(BookCheck), {
+                size: 14,
+                class: "icon-inline banner-icon"
+              }),
+              createBaseVNode("span", _hoisted_8$o, [
+                createBaseVNode("strong", null, toDisplayString(pendingForChannel.value.length) + " devoir" + toDisplayString(pendingForChannel.value.length > 1 ? "s" : ""), 1),
+                _cache[8] || (_cache[8] = createTextVNode(" à rendre dans ce canal", -1)),
+                bannerUrgent.value ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
+                  _cache[6] || (_cache[6] = createTextVNode(" — ", -1)),
+                  _cache[7] || (_cache[7] = createBaseVNode("span", { class: "banner-urgent" }, "urgent !", -1))
+                ], 64)) : createCommentVNode("", true)
+              ]),
+              createBaseVNode("button", {
+                class: "btn-primary btn-xs",
+                onClick: _cache[2] || (_cache[2] = ($event) => _ctx.$router.push("/devoirs"))
+              }, " Voir mes devoirs "),
+              createBaseVNode("button", {
+                class: "btn-icon banner-close-btn",
+                "aria-label": "Fermer",
+                onClick: _cache[3] || (_cache[3] = ($event) => bannerDismissed.value = true)
+              }, [
+                createVNode(unref(X$1), { size: 13 })
+              ])
+            ], 2)) : createCommentVNode("", true)
           ]),
-          createBaseVNode("button", {
-            class: "btn-primary btn-xs",
-            onClick: _cache[2] || (_cache[2] = ($event) => _ctx.$router.push("/devoirs"))
-          }, " Voir mes devoirs ")
-        ], 2)) : createCommentVNode("", true),
+          _: 1
+        }),
         unref(appStore).activeChannelId || unref(appStore).activeDmStudentId ? (openBlock(), createElementBlock("div", _hoisted_9$n, [
           createVNode(MessageList),
           pendingDoc.value ? (openBlock(), createElementBlock("div", _hoisted_10$n, [
@@ -65642,7 +65839,7 @@ const _sfc_main$u = /* @__PURE__ */ defineComponent({
             }),
             createBaseVNode("div", _hoisted_11$l, [
               withDirectives(createBaseVNode("input", {
-                "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => docAddName.value = $event),
+                "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => docAddName.value = $event),
                 type: "text",
                 class: "doc-drop-input",
                 placeholder: "Nom du document",
@@ -65654,7 +65851,7 @@ const _sfc_main$u = /* @__PURE__ */ defineComponent({
                 [vModelText, docAddName.value]
               ]),
               withDirectives(createBaseVNode("input", {
-                "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => docAddCat.value = $event),
+                "onUpdate:modelValue": _cache[5] || (_cache[5] = ($event) => docAddCat.value = $event),
                 type: "text",
                 class: "doc-drop-input doc-drop-cat",
                 placeholder: "Catégorie (optionnel)",
@@ -65673,7 +65870,7 @@ const _sfc_main$u = /* @__PURE__ */ defineComponent({
               onClick: confirmDocAdd
             }, [
               createVNode(unref(FolderPlus), { size: 13 }),
-              _cache[5] || (_cache[5] = createTextVNode(" Ajouter ", -1))
+              _cache[9] || (_cache[9] = createTextVNode(" Ajouter ", -1))
             ], 8, _hoisted_13$j),
             createBaseVNode("button", {
               class: "btn-ghost doc-drop-cancel",
@@ -65684,7 +65881,7 @@ const _sfc_main$u = /* @__PURE__ */ defineComponent({
             ], 8, _hoisted_14$j)
           ])) : createCommentVNode("", true),
           createVNode(MessageInput)
-        ])) : (openBlock(), createElementBlock("div", _hoisted_15$j, [..._cache[6] || (_cache[6] = [
+        ])) : (openBlock(), createElementBlock("div", _hoisted_15$j, [..._cache[10] || (_cache[10] = [
           createBaseVNode("p", null, "Sélectionnez un canal dans la barre latérale pour commencer.", -1)
         ])])),
         createVNode(Transition, { name: "drop-fade" }, {
@@ -65695,7 +65892,7 @@ const _sfc_main$u = /* @__PURE__ */ defineComponent({
                   size: 40,
                   class: "drop-overlay-icon"
                 }),
-                _cache[7] || (_cache[7] = createBaseVNode("p", { class: "drop-overlay-title" }, "Déposer pour ajouter aux documents", -1)),
+                _cache[11] || (_cache[11] = createBaseVNode("p", { class: "drop-overlay-title" }, "Déposer pour ajouter aux documents", -1)),
                 createBaseVNode("p", _hoisted_18$i, "#" + toDisplayString(unref(appStore).activeChannelName), 1)
               ])
             ])) : createCommentVNode("", true)
@@ -65706,7 +65903,7 @@ const _sfc_main$u = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const MessagesView = /* @__PURE__ */ _export_sfc(_sfc_main$u, [["__scopeId", "data-v-e63224c3"]]);
+const MessagesView = /* @__PURE__ */ _export_sfc(_sfc_main$u, [["__scopeId", "data-v-cc4ec5fe"]]);
 const CATEGORY_ICONS = [
   { key: "monitor", component: Monitor, label: "Informatique" },
   { key: "cog", component: Cog, label: "Technique" },

@@ -218,6 +218,10 @@ function register() {
   // ── Réactions (persistance) ───────────────────────────────────────────────
   handle('db:updateReactions', (msgId, reactionsJson) => queries.updateReactions(msgId, reactionsJson))
 
+  // ── Suppression / modification de messages ────────────────────────────────
+  handle('db:deleteMessage', (id) => queries.deleteMessage(id))
+  handle('db:editMessage',   (id, content) => queries.editMessage(id, content))
+
   // ── Action de masse ───────────────────────────────────────────────────────
   handle('db:markNonSubmittedAsD', (travailId) => queries.markNonSubmittedAsD(travailId))
 

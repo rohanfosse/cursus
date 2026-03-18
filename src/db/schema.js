@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 12;
+const CURRENT_VERSION = 13;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -345,6 +345,11 @@ function runMigrations(db) {
         INSERT OR IGNORE INTO teachers (name, email, password, role)
           VALUES ('Assistant TA', 'ta@cesi.fr', 'admin', 'ta');
       `);
+    },
+
+    // v13 : colonne edited sur messages (suivi des modifications)
+    (db) => {
+      tryAlter(db, 'ALTER TABLE messages ADD COLUMN edited INTEGER NOT NULL DEFAULT 0');
     },
   ];
 

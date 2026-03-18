@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { computed, watch, ref } from 'vue'
-  import { Search, X as XIcon, ClipboardList, BookOpen, FileText, FolderPlus, X as Close } from 'lucide-vue-next'
+  import { Search, X as XIcon, ClipboardList, BookCheck, FileText, FolderPlus, X as Close, CalendarRange } from 'lucide-vue-next'
   import { useAppStore }      from '@/stores/app'
   import { useMessagesStore } from '@/stores/messages'
   import { useTravauxStore }  from '@/stores/travaux'
@@ -17,7 +17,8 @@
   const modals        = useModalsStore()
   const { showToast } = useToast()
 
-  const searchInput = ref('')
+  const searchInput      = ref('')
+  const bannerDismissed  = ref(false)
 
   // ── Drag & drop → Documents ───────────────────────────────────────────────
   const isDragOver    = ref(false)
@@ -90,7 +91,8 @@
     () => [appStore.activeChannelId, appStore.activeDmStudentId],
     async ([chId]) => {
       messagesStore.clearSearch()
-      searchInput.value = ''
+      searchInput.value    = ''
+      bannerDismissed.value = false
       await messagesStore.fetchMessages()
       if (chId) {
         await messagesStore.fetchPinned(chId as number)
@@ -184,11 +186,11 @@
           v-if="appStore.isTeacher"
           id="btn-timeline"
           class="btn-icon"
-          title="Timeline"
-          aria-label="Ouvrir la timeline"
+          title="Échéancier"
+          aria-label="Ouvrir l'échéancier"
           @click="modals.timeline = true"
         >
-          <BookOpen :size="16" />
+          <CalendarRange :size="16" />
         </button>
       </div>
     </header>
@@ -197,21 +199,25 @@
     <PinnedBanner v-if="appStore.activeChannelId" />
 
     <!-- Bannière travaux en attente (étudiant) -->
-    <div
-      v-if="pendingForChannel.length"
-      class="channel-pending-banner"
-      :class="{ 'channel-pending-urgent': bannerUrgent }"
-    >
-      <span>
-        <ClipboardList :size="14" class="icon-inline" />
-        {{ pendingForChannel.length }} devoir{{ pendingForChannel.length > 1 ? 's' : '' }}
-        à rendre dans ce canal{{ bannerUrgent ? ' — ' : '' }}
-        <strong v-if="bannerUrgent">urgent !</strong>
-      </span>
-      <button class="btn-primary btn-xs" @click="$router.push('/devoirs')">
-        Voir mes devoirs
-      </button>
-    </div>
+    <Transition name="banner-slide">
+      <div
+        v-if="pendingForChannel.length && !bannerDismissed"
+        class="channel-pending-banner"
+        :class="{ 'channel-pending-urgent': bannerUrgent }"
+      >
+        <BookCheck :size="14" class="icon-inline banner-icon" />
+        <span class="banner-text">
+          <strong>{{ pendingForChannel.length }} devoir{{ pendingForChannel.length > 1 ? 's' : '' }}</strong>
+          à rendre dans ce canal<template v-if="bannerUrgent"> — <span class="banner-urgent">urgent !</span></template>
+        </span>
+        <button class="btn-primary btn-xs" @click="$router.push('/devoirs')">
+          Voir mes devoirs
+        </button>
+        <button class="btn-icon banner-close-btn" aria-label="Fermer" @click="bannerDismissed = true">
+          <XIcon :size="13" />
+        </button>
+      </div>
+    </Transition>
 
     <!-- Liste des messages + zone de saisie -->
     <div v-if="appStore.activeChannelId || appStore.activeDmStudentId" class="messages-container" id="messages-container">
@@ -309,6 +315,23 @@
 .drop-fade-leave-active { transition: opacity .15s ease; }
 .drop-fade-enter-from,
 .drop-fade-leave-to     { opacity: 0; }
+
+/* ── Transition bannière ── */
+.banner-slide-enter-active { transition: all .2s ease; }
+.banner-slide-leave-active { transition: all .18s ease; }
+.banner-slide-enter-from, .banner-slide-leave-to { opacity: 0; transform: translateY(-6px); max-height: 0; }
+
+/* ── Amélioration bannière ── */
+.banner-icon { flex-shrink: 0; }
+.banner-text { flex: 1; min-width: 0; }
+.banner-urgent { color: var(--color-danger); font-weight: 700; }
+.banner-close-btn {
+  padding: 3px;
+  flex-shrink: 0;
+  opacity: .6;
+  transition: opacity var(--t-fast);
+}
+.banner-close-btn:hover { opacity: 1; }
 
 /* ── Barre de confirmation ── */
 .doc-drop-confirm {

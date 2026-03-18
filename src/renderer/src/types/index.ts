@@ -65,6 +65,7 @@ export interface Message {
   created_at: string
   reactions: string | null
   is_pinned: boolean | 0 | 1
+  edited:    0 | 1 | boolean
 }
 
 export interface Devoir {
