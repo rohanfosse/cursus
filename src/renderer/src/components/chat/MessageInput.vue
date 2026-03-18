@@ -175,6 +175,26 @@ function fmtInsertBlock() {
   autoResize()
 }
 
+// ── Bouton mention @ ──────────────────────────────────────────────────────
+function triggerMention() {
+  const el = inputEl.value
+  if (!el) return
+  const pos    = el.selectionStart ?? content.value.length
+  const before = content.value.slice(0, pos)
+  const after  = content.value.slice(pos)
+  content.value = before + '@' + after
+  nextTick(() => {
+    const newPos = pos + 1
+    el.setSelectionRange(newPos, newPos)
+    el.focus()
+    mentionSearch.value = ''
+    mentionStart.value  = newPos - 1
+    mentionActive.value = true
+    loadUsers()
+    autoResize()
+  })
+}
+
 // ── Pièce jointe ──────────────────────────────────────────────────────────
 const attaching = ref(false)
 
@@ -372,11 +392,7 @@ watch(
               class="mi-fmt-btn mi-fmt-mention"
               title="Mentionner quelqu'un"
               aria-label="Mentionner"
-              @mousedown.prevent="() => {
-                if (!inputEl) return
-                content += '@'
-                nextTick(() => { inputEl?.dispatchEvent(new Event('input')); inputEl?.focus() })
-              }"
+              @mousedown.prevent="triggerMention"
             >@</button>
           </div>
 
