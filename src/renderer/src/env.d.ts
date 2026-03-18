@@ -77,6 +77,8 @@ declare global {
       deleteChannel(id: number): Promise<IpcResponse<null>>
       renameCategory(promoId: number, oldCategory: string, newCategory: string): Promise<IpcResponse<null>>
       deleteCategory(promoId: number, category: string): Promise<IpcResponse<null>>
+      updateChannelMembers(payload: object): Promise<IpcResponse<null>>
+      updateChannelCategory(channelId: number, category: string | null): Promise<IpcResponse<null>>
 
       // Inscription
       getStudentByEmail(email: string): Promise<IpcResponse<Student>>
@@ -86,6 +88,8 @@ declare global {
       // Identité / login
       getIdentities(): Promise<IpcResponse<Student[]>>
       loginWithCredentials(email: string, password: string): Promise<IpcResponse<User>>
+      changePassword(userId: number, isTeacher: boolean, currentPwd: string, newPwd: string): Promise<IpcResponse<null>>
+      exportPersonalData(studentId: number): Promise<IpcResponse<object>>
 
       // Shell
       openPath(filePath: string): Promise<IpcResponse<null>>

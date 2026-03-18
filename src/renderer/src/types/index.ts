@@ -156,6 +156,8 @@ export interface SendMessagePayload {
   authorName: string
   authorType: 'teacher' | 'ta' | 'student'
   content: string
+  channelName?: string | null
+  promoId?: number | null
   replyToId?:      number | null
   replyToAuthor?:  string | null
   replyToPreview?: string | null

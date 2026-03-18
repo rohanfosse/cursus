@@ -131,7 +131,7 @@ async function loadStudents() {
   studentsLoading.value = true
   try {
     const res = await window.api.getStudents(promoId)
-    students.value = res?.ok ? res.data : []
+    students.value = res?.ok ? (res.data as unknown as typeof students.value) : []
   } finally {
     studentsLoading.value = false
   }

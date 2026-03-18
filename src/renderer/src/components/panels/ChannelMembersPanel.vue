@@ -45,7 +45,7 @@
         window.api.getStudents(appStore.activePromoId!),
       ])
       if (chRes?.ok) {
-        channel.value = (chRes.data as ChannelData[]).find(c => c.id === appStore.activeChannelId) ?? null
+        channel.value = (chRes.data as unknown as ChannelData[]).find(c => c.id === appStore.activeChannelId) ?? null
       }
       if (studRes?.ok) allStudents.value = studRes.data as Student[]
     } finally {

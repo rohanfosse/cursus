@@ -4,7 +4,7 @@ const PREFS_KEY = 'cc_prefs'
 
 interface Prefs {
   docsOpenByDefault: boolean
-  theme: 'dark' | 'light'
+  theme: 'dark' | 'light' | 'night' | 'marine'
 }
 
 const DEFAULTS: Prefs = {

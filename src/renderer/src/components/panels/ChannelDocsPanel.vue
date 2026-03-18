@@ -47,7 +47,7 @@
     loading.value = true
     try {
       const res = await window.api.getChannelDocuments(appStore.activeChannelId)
-      if (res) docs.value = res as ChannelDoc[]
+      if (res?.ok) docs.value = res.data as unknown as ChannelDoc[]
     } finally {
       loading.value = false
     }

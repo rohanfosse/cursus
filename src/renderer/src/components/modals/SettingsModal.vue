@@ -25,7 +25,7 @@
   const pendingPhoto   = ref<string | null>(null)
   const photoChanged   = ref(false)
 
-  const THEMES = [
+  const THEMES: { id: 'dark' | 'light' | 'night' | 'marine'; label: string; colors: string[] }[] = [
     { id: 'dark',   label: 'Sombre',  colors: ['#1a1d21', '#1d2128', '#222529'] },
     { id: 'light',  label: 'Clair',   colors: ['#E8EAED', '#F0F2F5', '#FFFFFF'] },
     { id: 'night',  label: 'Nuit',    colors: ['#08090c', '#0b0d11', '#0f1115'] },
@@ -48,7 +48,7 @@
 
   watch(docsDefault, (v) => setPref('docsOpenByDefault', v))
 
-  function setTheme(theme: string) {
+  function setTheme(theme: 'dark' | 'light' | 'night' | 'marine') {
     currentTheme.value = theme
     setPref('theme', theme)
     applyTheme(theme)
