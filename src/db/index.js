@@ -8,6 +8,7 @@ const messages    = require('./models/messages');
 const assignments = require('./models/assignments');
 const submissions = require('./models/submissions');
 const documents   = require('./models/documents');
+const rubrics     = require('./models/rubrics');
 
 // Initialisation complète : schema + migrations + seed
 function init() {
@@ -25,4 +26,5 @@ module.exports = {
   ...assignments,
   ...submissions,
   ...documents,
+  ...rubrics,
 };

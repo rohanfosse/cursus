@@ -98,6 +98,13 @@ contextBridge.exposeInMainWorld('api', {
   // Action de masse
   markNonSubmittedAsD: (travailId) => invoke('db:markNonSubmittedAsD', travailId),
 
+  // Rubrics
+  getRubric:      (travailId) => invoke('db:getRubric',      travailId),
+  upsertRubric:   (payload)   => invoke('db:upsertRubric',   payload),
+  deleteRubric:   (travailId) => invoke('db:deleteRubric',   travailId),
+  getDepotScores: (depotId)   => invoke('db:getDepotScores', depotId),
+  setDepotScores: (payload)   => invoke('db:setDepotScores', payload),
+
   // Fichiers
   readFileBase64: (filePath) => invoke('fs:readFileBase64', filePath),
   downloadFile:   (filePath) => invoke('fs:downloadFile',   filePath),

@@ -47,10 +47,21 @@ function getStudentByEmail(email) {
 }
 
 function loginWithCredentials(email, password) {
-  const TEACHER_EMAIL    = 'rfosse@cesi.fr';
-  const TEACHER_PASSWORD = 'admin';
-  if (email.trim().toLowerCase() === TEACHER_EMAIL && password === TEACHER_PASSWORD) {
-    return { id: 0, name: 'Rohan Fosse', avatar_initials: 'RF', photo_data: null, type: 'teacher', promo_name: null, promo_id: null };
+  // Vérifie d'abord la table teachers (rôles teacher + ta)
+  const teacher = getDb().prepare(
+    'SELECT * FROM teachers WHERE LOWER(email) = LOWER(?) AND password = ?'
+  ).get(email.trim(), password);
+  if (teacher) {
+    const initials = teacher.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    return {
+      id:              -(teacher.id),  // IDs négatifs pour distinguer des étudiants
+      name:            teacher.name,
+      avatar_initials: initials,
+      photo_data:      null,
+      type:            teacher.role,   // 'teacher' ou 'ta'
+      promo_name:      null,
+      promo_id:        null,
+    };
   }
   return getDb().prepare(`
     SELECT s.id, s.name, s.email, s.avatar_initials, s.photo_data, 'student' AS type,
@@ -74,15 +85,25 @@ function registerStudent({ name, email, promoId, photoData, password }) {
 }
 
 function getIdentities() {
-  const students = getDb().prepare(`
+  const db       = getDb();
+  const students = db.prepare(`
     SELECT s.id, s.name, s.avatar_initials, s.photo_data, 'student' AS type,
            p.name AS promo_name, p.id AS promo_id
     FROM students s JOIN promotions p ON s.promo_id = p.id
     ORDER BY p.name, s.name
   `).all();
 
-  const teacher = { id: 0, name: 'Rohan Fosse', avatar_initials: 'RF', photo_data: null, type: 'teacher', promo_name: null, promo_id: null };
-  return [teacher, ...students];
+  const teachers = db.prepare('SELECT * FROM teachers ORDER BY id ASC').all().map(t => ({
+    id:              -(t.id),
+    name:            t.name,
+    avatar_initials: t.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2),
+    photo_data:      null,
+    type:            t.role,
+    promo_name:      null,
+    promo_id:        null,
+  }));
+
+  return [...teachers, ...students];
 }
 
 module.exports = {

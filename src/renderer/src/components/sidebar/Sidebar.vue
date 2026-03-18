@@ -79,13 +79,13 @@
   }
 
   async function load() {
-    if (appStore.isTeacher) await loadTeacherSidebar()
+    if (appStore.isStaff) await loadTeacherSidebar()
     else await loadStudentSidebar()
   }
 
   // Filtrer les canaux visibles pour un étudiant (privés → vérifier membership)
   const visibleChannels = computed(() => {
-    if (appStore.isTeacher) return channels.value
+    if (appStore.isStaff) return channels.value
     return channels.value.filter((ch) => {
       if (!ch.is_private) return true
       try {
@@ -331,7 +331,7 @@
   const ctx = ref<CtxState | null>(null)
 
   function openCtxCategory(e: MouseEvent, group: { key: string; label: string }) {
-    if (!appStore.isTeacher) return
+    if (!appStore.isStaff) return
     ctx.value = {
       x: e.clientX, y: e.clientY,
       items: [
@@ -366,7 +366,7 @@
   }
 
   function openCtxChannel(e: MouseEvent, ch: Channel) {
-    if (!appStore.isTeacher) return
+    if (!appStore.isStaff) return
     ctx.value = {
       x: e.clientX, y: e.clientY,
       items: [
@@ -421,7 +421,7 @@
         <div
           class="avatar teacher-avatar"
           :style="{
-            background: user.type === 'teacher' ? 'var(--accent)' : avatarColor(user.name),
+            background: user.type === 'teacher' ? 'var(--accent)' : user.type === 'ta' ? '#7B5EA7' : avatarColor(user.name),
             color: '#fff',
           }"
         >
@@ -430,7 +430,7 @@
         <div class="sidebar-user-info">
           <span class="sidebar-user-name">{{ user.name }}</span>
           <span class="sidebar-user-role">
-            {{ user.type === 'teacher' ? 'Professeur' : user.promo_name ?? '' }}
+            {{ user.type === 'teacher' ? 'Professeur' : user.type === 'ta' ? 'Assistant (TA)' : user.promo_name ?? '' }}
           </span>
         </div>
       </div>
@@ -454,9 +454,9 @@
 
     <!-- Section Messages -->
     <div id="sidebar-section-messages">
-      <!-- Rail des promos (prof) -->
+      <!-- Rail des promos (prof/TA) -->
       <PromoRail
-        v-if="appStore.isTeacher && promotions.length"
+        v-if="appStore.isStaff && promotions.length"
         :promotions="promotions"
         @select="selectPromo"
       />
@@ -592,7 +592,7 @@
             <span v-else class="project-bullet" />
             <span class="channel-name">{{ parseCategoryIcon(proj).label }}</span>
             <span
-              v-if="appStore.isTeacher && projectStats[proj]"
+              v-if="appStore.isStaff && projectStats[proj]"
               class="project-rendus-badge"
               :class="{ 'badge-complete': projectStats[proj].depots >= projectStats[proj].expected && projectStats[proj].expected > 0 }"
             >{{ projectStats[proj].depots }}/{{ projectStats[proj].expected }}</span>

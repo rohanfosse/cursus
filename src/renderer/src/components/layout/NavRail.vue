@@ -19,9 +19,9 @@
 
   const avatarStyle = computed(() => {
     if (!user.value) return {}
-    return user.value.type === 'teacher'
-      ? { background: 'var(--accent)' }
-      : { background: avatarColor(user.value.name) }
+    if (user.value.type === 'teacher') return { background: 'var(--accent)' }
+    if (user.value.type === 'ta')      return { background: '#7B5EA7' }
+    return { background: avatarColor(user.value.name) }
   })
 
   const pendingCount = computed(() => travauxStore.pendingDevoirs.length)
@@ -30,7 +30,7 @@
   const quickStudent = ref<User | null>(null)
 
   onMounted(async () => {
-    if (!appStore.isTeacher) return
+    if (!appStore.isStaff) return
     const res = await window.api.getAllStudents()
     const list = res?.ok ? res.data : []
     if (list.length) {
@@ -65,9 +65,9 @@
         :src="logoUrl"
         class="nav-logo-img"
         alt="CESIA"
-        :style="appStore.isTeacher ? { cursor: 'pointer' } : {}"
-        :title="appStore.isTeacher ? 'Tableau de bord' : undefined"
-        @click="appStore.isTeacher && router.push('/dashboard')"
+        :style="appStore.isStaff ? { cursor: 'pointer' } : {}"
+        :title="appStore.isStaff ? 'Tableau de bord' : undefined"
+        @click="appStore.isStaff && router.push('/dashboard')"
       />
     </div>
 
@@ -127,8 +127,8 @@
     <!-- Espaceur -->
     <div style="flex:1" />
 
-    <!-- ── Outils professeur ── -->
-    <template v-if="appStore.isTeacher">
+    <!-- ── Outils professeur / TA ── -->
+    <template v-if="appStore.isStaff">
       <div class="nav-divider" />
 
       <button
@@ -152,8 +152,8 @@
       </button>
     </template>
 
-    <!-- ── Bascule rapide étudiant (prof uniquement) ── -->
-    <template v-if="appStore.isTeacher && quickStudent">
+    <!-- ── Bascule rapide étudiant (prof/TA uniquement) ── -->
+    <template v-if="appStore.isStaff && quickStudent">
       <button
         class="nav-quick-student"
         :class="{ simulating: appStore.isSimulating }"

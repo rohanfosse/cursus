@@ -22,6 +22,7 @@
   import DocumentPreviewModal from '@/components/modals/DocumentPreviewModal.vue'
   import ImpersonateModal        from '@/components/modals/ImpersonateModal.vue'
   import StudentTimelineModal    from '@/components/modals/StudentTimelineModal.vue'
+  import RubricModal             from '@/components/modals/RubricModal.vue'
 
   const appStore = useAppStore()
   const modals   = useModalsStore()
@@ -101,6 +102,7 @@
     <DocumentPreviewModal v-model="modals.documentPreview" />
     <ImpersonateModal        v-model="modals.impersonate"        />
     <StudentTimelineModal    v-model="modals.studentTimeline"    />
+    <RubricModal             v-model="modals.rubric"             />
   </template>
 </template>
 

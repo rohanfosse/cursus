@@ -5,9 +5,36 @@ export interface User {
   name: string
   avatar_initials: string
   photo_data: string | null
-  type: 'teacher' | 'student'
+  type: 'teacher' | 'ta' | 'student'
   promo_id: number | null
   promo_name: string | null
+}
+
+export interface RubricCriterion {
+  id: number
+  rubric_id: number
+  label: string
+  max_pts: number
+  weight: number
+  position: number
+}
+
+export interface Rubric {
+  id: number
+  travail_id: number
+  title: string
+  criteria: RubricCriterion[]
+}
+
+export interface RubricScore {
+  id?: number
+  depot_id: number
+  criterion_id: number
+  points: number
+  label?: string
+  max_pts?: number
+  weight?: number
+  position?: number
 }
 
 export interface Promotion {
@@ -122,6 +149,6 @@ export interface SendMessagePayload {
   channelId?: number | null
   dmStudentId?: number | null
   authorName: string
-  authorType: 'teacher' | 'student'
+  authorType: 'teacher' | 'ta' | 'student'
   content: string
 }

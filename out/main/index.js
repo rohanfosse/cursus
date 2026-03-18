@@ -31,7 +31,7 @@ function requireSchema() {
   if (hasRequiredSchema) return schema;
   hasRequiredSchema = 1;
   const { getDb } = requireConnection();
-  const CURRENT_VERSION = 9;
+  const CURRENT_VERSION = 12;
   function initSchema() {
     const db2 = getDb();
     db2.exec(`
@@ -305,6 +305,51 @@ function requireSchema() {
           FROM travaux;
         DROP TABLE travaux;
         ALTER TABLE travaux_v9 RENAME TO travaux;
+      `);
+      },
+      // v10 : canal privé lié au groupe
+      (db3) => {
+        tryAlter(db3, "ALTER TABLE channels ADD COLUMN group_id INTEGER DEFAULT NULL");
+      },
+      // v11 : rubrics (grilles d'évaluation multi-critères)
+      (db3) => {
+        db3.exec(`
+        CREATE TABLE IF NOT EXISTS rubrics (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          travail_id INTEGER NOT NULL UNIQUE REFERENCES travaux(id) ON DELETE CASCADE,
+          title      TEXT NOT NULL DEFAULT 'Grille d''évaluation'
+        );
+        CREATE TABLE IF NOT EXISTS rubric_criteria (
+          id        INTEGER PRIMARY KEY AUTOINCREMENT,
+          rubric_id INTEGER NOT NULL REFERENCES rubrics(id) ON DELETE CASCADE,
+          label     TEXT    NOT NULL,
+          max_pts   INTEGER NOT NULL DEFAULT 4,
+          weight    REAL    NOT NULL DEFAULT 1.0,
+          position  INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS rubric_scores (
+          id           INTEGER PRIMARY KEY AUTOINCREMENT,
+          depot_id     INTEGER NOT NULL REFERENCES depots(id) ON DELETE CASCADE,
+          criterion_id INTEGER NOT NULL REFERENCES rubric_criteria(id) ON DELETE CASCADE,
+          points       INTEGER NOT NULL DEFAULT 0,
+          UNIQUE(depot_id, criterion_id)
+        );
+      `);
+      },
+      // v12 : table teachers avec rôles (teacher / ta)
+      (db3) => {
+        db3.exec(`
+        CREATE TABLE IF NOT EXISTS teachers (
+          id       INTEGER PRIMARY KEY AUTOINCREMENT,
+          name     TEXT NOT NULL,
+          email    TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL DEFAULT 'admin',
+          role     TEXT NOT NULL DEFAULT 'teacher' CHECK(role IN ('teacher','ta'))
+        );
+        INSERT OR IGNORE INTO teachers (name, email, password, role)
+          VALUES ('Rohan Fosse', 'rfosse@cesi.fr', 'admin', 'teacher');
+        INSERT OR IGNORE INTO teachers (name, email, password, role)
+          VALUES ('Assistant TA', 'ta@cesi.fr', 'admin', 'ta');
       `);
       }
     ];
@@ -1288,10 +1333,22 @@ function requireStudents() {
   `).get(email);
   }
   function loginWithCredentials(email, password) {
-    const TEACHER_EMAIL = "rfosse@cesi.fr";
-    const TEACHER_PASSWORD = "admin";
-    if (email.trim().toLowerCase() === TEACHER_EMAIL && password === TEACHER_PASSWORD) {
-      return { id: 0, name: "Rohan Fosse", avatar_initials: "RF", photo_data: null, type: "teacher", promo_name: null, promo_id: null };
+    const teacher = getDb().prepare(
+      "SELECT * FROM teachers WHERE LOWER(email) = LOWER(?) AND password = ?"
+    ).get(email.trim(), password);
+    if (teacher) {
+      const initials = teacher.name.split(/\s+/).map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+      return {
+        id: -teacher.id,
+        // IDs négatifs pour distinguer des étudiants
+        name: teacher.name,
+        avatar_initials: initials,
+        photo_data: null,
+        type: teacher.role,
+        // 'teacher' ou 'ta'
+        promo_name: null,
+        promo_id: null
+      };
     }
     return getDb().prepare(`
     SELECT s.id, s.name, s.email, s.avatar_initials, s.photo_data, 'student' AS type,
@@ -1312,14 +1369,23 @@ function requireStudents() {
   `).run(promoId, name.trim(), email.trim().toLowerCase(), initials, photoData ?? null, pwd);
   }
   function getIdentities() {
-    const students2 = getDb().prepare(`
+    const db2 = getDb();
+    const students2 = db2.prepare(`
     SELECT s.id, s.name, s.avatar_initials, s.photo_data, 'student' AS type,
            p.name AS promo_name, p.id AS promo_id
     FROM students s JOIN promotions p ON s.promo_id = p.id
     ORDER BY p.name, s.name
   `).all();
-    const teacher = { id: 0, name: "Rohan Fosse", avatar_initials: "RF", photo_data: null, type: "teacher", promo_name: null, promo_id: null };
-    return [teacher, ...students2];
+    const teachers = db2.prepare("SELECT * FROM teachers ORDER BY id ASC").all().map((t) => ({
+      id: -t.id,
+      name: t.name,
+      avatar_initials: t.name.split(/\s+/).map((w) => w[0]).join("").toUpperCase().slice(0, 2),
+      photo_data: null,
+      type: t.role,
+      promo_name: null,
+      promo_id: null
+    }));
+    return [...teachers, ...students2];
   }
   students = {
     getStudents,
@@ -1341,19 +1407,33 @@ function requireGroups() {
   function getGroups(promoId) {
     return getDb().prepare(`
     SELECT g.*,
-      (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) AS members_count
+      (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) AS members_count,
+      ch.id AS channel_id
     FROM groups g
+    LEFT JOIN channels ch ON ch.group_id = g.id
     WHERE g.promo_id = ?
     ORDER BY g.name
   `).all(promoId);
   }
   function createGroup({ promoId, name }) {
-    return getDb().prepare(
-      "INSERT INTO groups (promo_id, name) VALUES (?, ?)"
-    ).run(promoId, name);
+    const db2 = getDb();
+    return db2.transaction(() => {
+      const groupResult = db2.prepare(
+        "INSERT INTO groups (promo_id, name) VALUES (?, ?)"
+      ).run(promoId, name);
+      const groupId = groupResult.lastInsertRowid;
+      db2.prepare(
+        "INSERT INTO channels (promo_id, name, description, type, is_private, group_id) VALUES (?, ?, ?, ?, 1, ?)"
+      ).run(promoId, `🔒 ${name}`, `Canal privé — groupe ${name}`, "chat", groupId);
+      return groupResult;
+    })();
   }
   function deleteGroup(groupId) {
-    return getDb().prepare("DELETE FROM groups WHERE id = ?").run(groupId);
+    const db2 = getDb();
+    return db2.transaction(() => {
+      db2.prepare("DELETE FROM channels WHERE group_id = ?").run(groupId);
+      return db2.prepare("DELETE FROM groups WHERE id = ?").run(groupId);
+    })();
   }
   function getGroupMembers(groupId) {
     return getDb().prepare(`
@@ -1369,6 +1449,8 @@ function requireGroups() {
       db2.prepare("DELETE FROM group_members WHERE group_id = ?").run(groupId);
       const ins = db2.prepare("INSERT INTO group_members (group_id, student_id) VALUES (?, ?)");
       for (const sid of studentIds) ins.run(groupId, sid);
+      const membersJson = studentIds.length ? JSON.stringify(studentIds) : null;
+      db2.prepare("UPDATE channels SET members = ? WHERE group_id = ?").run(membersJson, groupId);
     })();
   }
   groups = { getGroups, createGroup, deleteGroup, getGroupMembers, setGroupMembers };
@@ -1693,6 +1775,18 @@ function requireAssignments() {
   `).all(promoId);
     return rows.map((r) => r.category);
   }
+  function getUpcomingNotifications() {
+    return getDb().prepare(`
+    SELECT t.id, t.title, t.deadline, t.type, p.name AS promo_name
+    FROM travaux t
+    JOIN promotions p ON t.promo_id = p.id
+    WHERE t.published = 1
+      AND t.type NOT IN ('soutenance', 'cctl')
+      AND datetime(t.deadline) > datetime('now')
+      AND datetime(t.deadline) <= datetime('now', '+25 hours')
+    ORDER BY t.deadline ASC
+  `).all();
+  }
   assignments = {
     getTravaux,
     getTravailById,
@@ -1706,7 +1800,8 @@ function requireAssignments() {
     getAllRendus,
     getTeacherSchedule,
     markNonSubmittedAsD,
-    getTravailCategories
+    getTravailCategories,
+    getUpcomingNotifications
   };
   return assignments;
 }
@@ -1870,6 +1965,71 @@ function requireDocuments() {
   };
   return documents;
 }
+var rubrics;
+var hasRequiredRubrics;
+function requireRubrics() {
+  if (hasRequiredRubrics) return rubrics;
+  hasRequiredRubrics = 1;
+  const { getDb } = requireConnection();
+  function getRubric(travailId) {
+    const db2 = getDb();
+    const rubric = db2.prepare("SELECT * FROM rubrics WHERE travail_id = ?").get(travailId);
+    if (!rubric) return null;
+    const criteria = db2.prepare(
+      "SELECT * FROM rubric_criteria WHERE rubric_id = ? ORDER BY position ASC"
+    ).all(rubric.id);
+    return { ...rubric, criteria };
+  }
+  function upsertRubric({ travailId, title, criteria }) {
+    const db2 = getDb();
+    return db2.transaction(() => {
+      let rubric = db2.prepare("SELECT id FROM rubrics WHERE travail_id = ?").get(travailId);
+      if (!rubric) {
+        const res = db2.prepare(
+          "INSERT INTO rubrics (travail_id, title) VALUES (?, ?)"
+        ).run(travailId, title ?? "Grille d'évaluation");
+        rubric = { id: res.lastInsertRowid };
+      } else {
+        db2.prepare("UPDATE rubrics SET title = ? WHERE id = ?").run(title ?? "Grille d'évaluation", rubric.id);
+      }
+      db2.prepare("DELETE FROM rubric_criteria WHERE rubric_id = ?").run(rubric.id);
+      const ins = db2.prepare(
+        "INSERT INTO rubric_criteria (rubric_id, label, max_pts, weight, position) VALUES (?, ?, ?, ?, ?)"
+      );
+      for (let i = 0; i < (criteria ?? []).length; i++) {
+        const c = criteria[i];
+        ins.run(rubric.id, c.label, c.max_pts ?? 4, c.weight ?? 1, i);
+      }
+      return rubric.id;
+    })();
+  }
+  function deleteRubric(travailId) {
+    return getDb().prepare("DELETE FROM rubrics WHERE travail_id = ?").run(travailId);
+  }
+  function getDepotScores(depotId) {
+    return getDb().prepare(`
+    SELECT rs.*, rc.label, rc.max_pts, rc.weight, rc.position
+    FROM rubric_scores rs
+    JOIN rubric_criteria rc ON rs.criterion_id = rc.id
+    WHERE rs.depot_id = ?
+    ORDER BY rc.position ASC
+  `).all(depotId);
+  }
+  function setDepotScores({ depotId, scores }) {
+    const db2 = getDb();
+    db2.transaction(() => {
+      const upsert = db2.prepare(`
+      INSERT INTO rubric_scores (depot_id, criterion_id, points) VALUES (?, ?, ?)
+      ON CONFLICT(depot_id, criterion_id) DO UPDATE SET points = excluded.points
+    `);
+      for (const s of scores ?? []) {
+        upsert.run(depotId, s.criterion_id, s.points ?? 0);
+      }
+    })();
+  }
+  rubrics = { getRubric, upsertRubric, deleteRubric, getDepotScores, setDepotScores };
+  return rubrics;
+}
 var db$1;
 var hasRequiredDb;
 function requireDb() {
@@ -1884,6 +2044,7 @@ function requireDb() {
   const assignments2 = requireAssignments();
   const submissions2 = requireSubmissions();
   const documents2 = requireDocuments();
+  const rubrics2 = requireRubrics();
   function init() {
     initSchema();
     seedIfEmpty();
@@ -1897,7 +2058,8 @@ function requireDb() {
     ...messages2,
     ...assignments2,
     ...submissions2,
-    ...documents2
+    ...documents2,
+    ...rubrics2
   };
   return db$1;
 }
@@ -2051,6 +2213,11 @@ function requireIpc() {
     handle("db:getPinnedMessages", (channelId) => queries.getPinnedMessages(channelId));
     handle("db:togglePinMessage", (payload) => queries.togglePinMessage(payload.messageId, payload.pinned));
     handle("db:markNonSubmittedAsD", (travailId) => queries.markNonSubmittedAsD(travailId));
+    handle("db:getRubric", (travailId) => queries.getRubric(travailId));
+    handle("db:upsertRubric", (payload) => queries.upsertRubric(payload));
+    handle("db:deleteRubric", (travailId) => queries.deleteRubric(travailId));
+    handle("db:getDepotScores", (depotId) => queries.getDepotScores(depotId));
+    handle("db:setDepotScores", (payload) => queries.setDepotScores(payload));
     ipcMain.handle("export:csv", async (_event, travailId) => {
       try {
         const travail = queries.getTravailById(travailId);
@@ -2186,8 +2353,49 @@ function requireIpc() {
 }
 var ipcExports = requireIpc();
 const ipcRaw = /* @__PURE__ */ getDefaultExportFromCjs(ipcExports);
+var notifications$1;
+var hasRequiredNotifications;
+function requireNotifications() {
+  if (hasRequiredNotifications) return notifications$1;
+  hasRequiredNotifications = 1;
+  const { Notification } = require("electron");
+  const queries = requireDb();
+  const notifiedIds = /* @__PURE__ */ new Set();
+  function formatHoursLeft(deadlineStr) {
+    const ms = new Date(deadlineStr).getTime() - Date.now();
+    const h = Math.round(ms / 36e5);
+    if (h >= 24) return `${Math.floor(h / 24)}j ${h % 24}h`;
+    if (h >= 1) return `${h}h`;
+    return "moins d'1h";
+  }
+  function checkAndNotify() {
+    try {
+      const travaux = queries.getUpcomingNotifications();
+      for (const t of travaux) {
+        if (notifiedIds.has(t.id)) continue;
+        notifiedIds.add(t.id);
+        new Notification({
+          title: `⏰ Rendu demain — ${t.title}`,
+          body: `${t.promo_name} · encore ${formatHoursLeft(t.deadline)}`,
+          urgency: "normal"
+        }).show();
+      }
+    } catch (err) {
+      console.error("[Notifications]", err.message);
+    }
+  }
+  function start() {
+    setTimeout(checkAndNotify, 5e3);
+    setInterval(checkAndNotify, 30 * 60 * 1e3);
+  }
+  notifications$1 = { start };
+  return notifications$1;
+}
+var notificationsExports = requireNotifications();
+const notificationsRaw = /* @__PURE__ */ getDefaultExportFromCjs(notificationsExports);
 const db = dbRaw;
 const ipc = ipcRaw;
+const notifications = notificationsRaw;
 function createWindow() {
   const win = new electron.BrowserWindow({
     width: 1280,
@@ -2218,6 +2426,7 @@ function createWindow() {
 electron.app.whenReady().then(() => {
   db.init();
   ipc.register();
+  notifications.start();
   createWindow();
   electron.app.on("activate", () => {
     if (electron.BrowserWindow.getAllWindows().length === 0) createWindow();

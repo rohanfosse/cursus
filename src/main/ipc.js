@@ -195,6 +195,13 @@ function register() {
   // ── Action de masse ───────────────────────────────────────────────────────
   handle('db:markNonSubmittedAsD', (travailId) => queries.markNonSubmittedAsD(travailId))
 
+  // ── Rubrics ───────────────────────────────────────────────────────────────
+  handle('db:getRubric',      (travailId) => queries.getRubric(travailId))
+  handle('db:upsertRubric',   (payload)   => queries.upsertRubric(payload))
+  handle('db:deleteRubric',   (travailId) => queries.deleteRubric(travailId))
+  handle('db:getDepotScores', (depotId)   => queries.getDepotScores(depotId))
+  handle('db:setDepotScores', (payload)   => queries.setDepotScores(payload))
+
   // ── Export CSV des notes ──────────────────────────────────────────────────
   ipcMain.handle('export:csv', async (_event, travailId) => {
     try {

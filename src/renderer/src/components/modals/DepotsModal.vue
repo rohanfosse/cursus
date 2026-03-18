@@ -1,8 +1,9 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
-  import { AlertTriangle, Download, FileText, Link2, MessageSquare, X } from 'lucide-vue-next'
+  import { AlertTriangle, Download, FileText, Link2, MessageSquare, X, LayoutList, Star } from 'lucide-vue-next'
   import { useTravauxStore } from '@/stores/travaux'
   import { useAppStore }     from '@/stores/app'
+  import { useModalsStore }  from '@/stores/modals'
   import { useToast }        from '@/composables/useToast'
   import { useOpenExternal } from '@/composables/useOpenExternal'
   import { avatarColor, initials, formatGrade, gradeClass } from '@/utils/format'
@@ -15,6 +16,7 @@
 
   const travauxStore = useTravauxStore()
   const appStore     = useAppStore()
+  const modals       = useModalsStore()
   const { showToast }    = useToast()
   const { openExternal } = useOpenExternal()
 
@@ -142,6 +144,61 @@
     const res = await window.api.exportCsv(appStore.currentTravailId)
     if (res?.ok && res.data) showToast(`Export : ${res.data}`, 'success')
   }
+
+  // ── Rubric ────────────────────────────────────────────────────────────────
+  function openRubricEditor() {
+    appStore.rubricDepotId = null
+    modals.rubric = true
+  }
+
+  function openRubricScoring(d: Depot) {
+    appStore.rubricDepotId = d.id
+    modals.rubric = true
+  }
+
+  // ── GitHub CI (#10) ───────────────────────────────────────────────────────
+  type CiState = 'success' | 'failure' | 'pending' | 'unknown'
+  const ciStatus = ref<Record<string, CiState>>({})
+
+  function parseGithubRepo(url: string): { owner: string; repo: string } | null {
+    try {
+      const u = new URL(url)
+      if (!u.hostname.endsWith('github.com')) return null
+      const parts = u.pathname.replace(/^\//, '').split('/')
+      if (parts.length < 2) return null
+      return { owner: parts[0], repo: parts[1].replace(/\.git$/, '') }
+    } catch { return null }
+  }
+
+  async function fetchCiStatus(url: string) {
+    const gh = parseGithubRepo(url)
+    if (!gh) return
+    if (ciStatus.value[url] !== undefined) return  // déjà chargé
+    ciStatus.value[url] = 'pending'
+    try {
+      const apiUrl = `https://api.github.com/repos/${gh.owner}/${gh.repo}/commits/HEAD/status`
+      const res = await fetch(apiUrl, { headers: { Accept: 'application/vnd.github+json' } })
+      if (!res.ok) { ciStatus.value[url] = 'unknown'; return }
+      const json = await res.json() as { state: string }
+      ciStatus.value[url] = (json.state === 'success' ? 'success' : json.state === 'failure' || json.state === 'error' ? 'failure' : 'pending') as CiState
+    } catch {
+      ciStatus.value[url] = 'unknown'
+    }
+  }
+
+  const CI_ICON: Record<CiState, string> = {
+    success: '✅', failure: '❌', pending: '🔄', unknown: '❓',
+  }
+  const CI_TITLE: Record<CiState, string> = {
+    success: 'CI : succès', failure: 'CI : échec', pending: 'CI : en cours', unknown: 'CI : statut inconnu',
+  }
+
+  // Charger CI pour tous les dépôts de type link avec URL GitHub
+  watch(() => travauxStore.depots, (depots) => {
+    for (const d of depots) {
+      if (d.type === 'link') fetchCiStatus(d.content)
+    }
+  }, { immediate: true })
 </script>
 
 <template>
@@ -220,10 +277,18 @@
           </div>
 
           <!-- Fichier / lien -->
-          <button class="depot-file-btn" @click="openDepot(d)">
-            <component :is="d.type === 'link' ? Link2 : FileText" :size="12" />
-            {{ d.type === 'file' ? (d.file_name ?? d.content) : d.content }}
-          </button>
+          <div class="depot-file-row">
+            <button class="depot-file-btn" @click="openDepot(d)">
+              <component :is="d.type === 'link' ? Link2 : FileText" :size="12" />
+              {{ d.type === 'file' ? (d.file_name ?? d.content) : d.content }}
+            </button>
+            <!-- Badge CI GitHub (#10) -->
+            <span
+              v-if="d.type === 'link' && parseGithubRepo(d.content) && ciStatus[d.content]"
+              class="depot-ci-badge"
+              :title="CI_TITLE[ciStatus[d.content]]"
+            >{{ CI_ICON[ciStatus[d.content]] }}</span>
+          </div>
 
           <!-- Feedback affiché -->
           <p v-if="d.feedback && editingFeedbackId !== d.id" class="depot-feedback-text">
@@ -317,6 +382,16 @@
             <MessageSquare :size="13" />
           </button>
 
+          <!-- Évaluer avec la grille (#8) -->
+          <button
+            class="btn-icon"
+            title="Évaluer avec la grille de critères"
+            style="margin-top:4px"
+            @click="openRubricScoring(d)"
+          >
+            <Star :size="13" />
+          </button>
+
           <!-- Télécharger (fichier seulement) -->
           <button
             v-if="d.type === 'file'"
@@ -336,6 +411,9 @@
         Marquer non soumis → D
       </button>
       <div style="display:flex;gap:8px">
+        <button class="btn-ghost" style="font-size:13px;display:flex;align-items:center;gap:5px" @click="openRubricEditor">
+          <LayoutList :size="13" /> Grille
+        </button>
         <button class="btn-ghost" style="font-size:13px" @click="exportCsv">
           Export CSV
         </button>
@@ -441,6 +519,13 @@
   white-space: nowrap;
 }
 
+.depot-file-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .depot-file-btn {
   display: inline-flex;
   align-items: center;
@@ -453,12 +538,19 @@
   font-family: var(--font);
   padding: 0;
   text-align: left;
-  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
 }
 .depot-file-btn:hover { text-decoration: underline; }
+
+.depot-ci-badge {
+  font-size: 13px;
+  flex-shrink: 0;
+  cursor: default;
+}
 
 .depot-feedback-text {
   font-size: 12px;

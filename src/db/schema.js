@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 10;
+const CURRENT_VERSION = 12;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -302,6 +302,49 @@ function runMigrations(db) {
     // v10 : canal privé lié au groupe
     (db) => {
       tryAlter(db, 'ALTER TABLE channels ADD COLUMN group_id INTEGER DEFAULT NULL');
+    },
+
+    // v11 : rubrics (grilles d'évaluation multi-critères)
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS rubrics (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          travail_id INTEGER NOT NULL UNIQUE REFERENCES travaux(id) ON DELETE CASCADE,
+          title      TEXT NOT NULL DEFAULT 'Grille d''évaluation'
+        );
+        CREATE TABLE IF NOT EXISTS rubric_criteria (
+          id        INTEGER PRIMARY KEY AUTOINCREMENT,
+          rubric_id INTEGER NOT NULL REFERENCES rubrics(id) ON DELETE CASCADE,
+          label     TEXT    NOT NULL,
+          max_pts   INTEGER NOT NULL DEFAULT 4,
+          weight    REAL    NOT NULL DEFAULT 1.0,
+          position  INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS rubric_scores (
+          id           INTEGER PRIMARY KEY AUTOINCREMENT,
+          depot_id     INTEGER NOT NULL REFERENCES depots(id) ON DELETE CASCADE,
+          criterion_id INTEGER NOT NULL REFERENCES rubric_criteria(id) ON DELETE CASCADE,
+          points       INTEGER NOT NULL DEFAULT 0,
+          UNIQUE(depot_id, criterion_id)
+        );
+      `);
+    },
+
+    // v12 : table teachers avec rôles (teacher / ta)
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS teachers (
+          id       INTEGER PRIMARY KEY AUTOINCREMENT,
+          name     TEXT NOT NULL,
+          email    TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL DEFAULT 'admin',
+          role     TEXT NOT NULL DEFAULT 'teacher' CHECK(role IN ('teacher','ta'))
+        );
+        INSERT OR IGNORE INTO teachers (name, email, password, role)
+          VALUES ('Rohan Fosse', 'rfosse@cesi.fr', 'admin', 'teacher');
+        INSERT OR IGNORE INTO teachers (name, email, password, role)
+          VALUES ('Assistant TA', 'ta@cesi.fr', 'admin', 'ta');
+      `);
     },
   ];
 

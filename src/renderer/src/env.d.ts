@@ -3,6 +3,7 @@
 import type {
   User, Promotion, Channel, Message, Devoir, Depot,
   AppDocument, Ressource, Group, Student, SendMessagePayload,
+  Rubric, RubricScore,
 } from './types'
 
 // ─── Typage du pont IPC (window.api exposé par preload.ts) ──────────────────
@@ -116,6 +117,13 @@ declare global {
       // Messages épinglés
       getPinnedMessages(channelId: number): Promise<IpcResponse<Message[]>>
       togglePinMessage(payload: { messageId: number; pinned: boolean }): Promise<IpcResponse<null>>
+
+      // Rubrics
+      getRubric(travailId: number): Promise<IpcResponse<Rubric | null>>
+      upsertRubric(payload: object): Promise<IpcResponse<number>>
+      deleteRubric(travailId: number): Promise<IpcResponse<null>>
+      getDepotScores(depotId: number): Promise<IpcResponse<RubricScore[]>>
+      setDepotScores(payload: object): Promise<IpcResponse<null>>
 
       // Actions de masse
       markNonSubmittedAsD(travailId: number): Promise<IpcResponse<null>>

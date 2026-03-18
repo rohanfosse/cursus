@@ -24,7 +24,7 @@ export default defineConfig({
     // ignore : garde les require() de electron/Node/node_modules en natif.
     plugins: [
       commonjs({
-        include: [/src\/db\//, /src\/main\/ipc/],
+        include: [/src\/db\//, /src\/main\/ipc/, /src\/main\/notifications/],
         ignore:  cjsIgnore,
       }),
     ],

@@ -22,11 +22,13 @@ export const useAppStore = defineStore('app', () => {
   const rightPanel        = ref<'travaux' | 'profil' | null>(null)
   const currentTravailId  = ref<number | null>(null)
   const pendingNoteDepotId = ref<number | null>(null)
+  const rubricDepotId     = ref<number | null>(null)   // null = édition rubric, number = scoring dépôt
   const unread            = ref<Record<number, number>>({})
 
   // ── Calculs ───────────────────────────────────────────────────────────────
   const isStudent    = computed(() => currentUser.value?.type === 'student')
   const isTeacher    = computed(() => currentUser.value?.type === 'teacher')
+  const isStaff      = computed(() => currentUser.value?.type === 'teacher' || currentUser.value?.type === 'ta')
   const isSimulating = computed(() => teacherUser.value !== null)
   const isReadonly   = computed(
     () => activeChannelType.value === 'annonce' && isStudent.value,
@@ -143,9 +145,9 @@ export const useAppStore = defineStore('app', () => {
     // état
     isOnline, currentUser, activeChannelId, activeDmStudentId, activePromoId,
     activeChannelType, activeChannelName, activeProject, pendingChannelCategory, rightPanel, currentTravailId,
-    pendingNoteDepotId, unread,
+    pendingNoteDepotId, rubricDepotId, unread,
     // calculs
-    isStudent, isTeacher, isSimulating, isReadonly,
+    isStudent, isTeacher, isStaff, isSimulating, isReadonly,
     // actions
     restoreSession, login, logout, impersonate,
     startSimulation, stopSimulation,
