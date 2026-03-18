@@ -28,7 +28,8 @@
   const router   = useRouter()
   const { getPref } = usePrefs()
 
-  let unsubUnread: (() => void) | null = null
+  let unsubUnread:  (() => void) | null = null
+  let unsubOnline:  (() => void) | null = null
 
   onMounted(() => {
     // Appliquer le thème sauvegardé
@@ -40,9 +41,12 @@
 
     // Écouter les messages temps-réel (IPC push)
     unsubUnread = appStore.initUnreadListener()
+
+    // Écouter les changements de connectivité réseau
+    unsubOnline = appStore.initOnlineListener()
   })
 
-  onUnmounted(() => { unsubUnread?.() })
+  onUnmounted(() => { unsubUnread?.(); unsubOnline?.() })
 </script>
 
 <template>
@@ -56,8 +60,13 @@
   <div v-else id="app-shell" class="app-shell">
     <NavRail />
 
+    <!-- Bandeau hors-ligne -->
+    <div v-if="!appStore.isOnline" class="offline-banner">
+      <span>⚡ Mode hors-ligne — les données locales restent accessibles, les liens externes sont indisponibles.</span>
+    </div>
+
     <!-- Bandeau simulation étudiant -->
-    <div v-if="appStore.isSimulating" id="simulation-banner" class="simulation-banner">
+    <div v-if="appStore.isSimulating" id="simulation-banner" class="simulation-banner" :class="{ 'banner-shift': !appStore.isOnline }">
       <span>
         Simulation : <strong>{{ appStore.currentUser?.name }}</strong>
         — vous voyez l'app comme cet étudiant
@@ -67,11 +76,11 @@
       </button>
     </div>
 
-    <aside class="sidebar-wrapper" :class="{ 'sidebar-with-banner': appStore.isSimulating }">
+    <aside class="sidebar-wrapper" :class="{ 'sidebar-with-banner': appStore.isSimulating || !appStore.isOnline }">
       <Sidebar />
     </aside>
 
-    <main class="main-wrapper" :class="{ 'main-with-banner': appStore.isSimulating }">
+    <main class="main-wrapper" :class="{ 'main-with-banner': appStore.isSimulating || !appStore.isOnline }">
       <!-- Vue active (messages / travaux / documents) -->
       <RouterView />
     </main>
@@ -125,6 +134,27 @@
     border-radius: var(--radius-sm) !important;
   }
   .simulation-stop-btn:hover { background: rgba(255,255,255,.15) !important; }
+
+  /* Bandeau hors-ligne */
+  .offline-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 201;
+    height: 36px;
+    background: #2c2c2e;
+    color: #a0a0a8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    font-size: 12.5px;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+
+  .simulation-banner.banner-shift { top: 36px; }
 
   /* Décaler le shell quand le bandeau est visible */
   .sidebar-with-banner,

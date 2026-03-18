@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 9;
+const CURRENT_VERSION = 10;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -297,6 +297,11 @@ function runMigrations(db) {
         DROP TABLE travaux;
         ALTER TABLE travaux_v9 RENAME TO travaux;
       `);
+    },
+
+    // v10 : canal privé lié au groupe
+    (db) => {
+      tryAlter(db, 'ALTER TABLE channels ADD COLUMN group_id INTEGER DEFAULT NULL');
     },
   ];
 

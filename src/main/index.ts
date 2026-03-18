@@ -4,12 +4,15 @@ import { join } from 'path'
 // Modules CommonJS — import default : Rollup + @rollup/plugin-commonjs convertit
 // module.exports en export default, ce qui permet le bundling correct.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-import dbRaw  from '../db/index'
+import dbRaw            from '../db/index'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-import ipcRaw from './ipc'
+import ipcRaw           from './ipc'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import notificationsRaw from './notifications'
 
-const db  = dbRaw  as unknown as { init:     () => void }
-const ipc = ipcRaw as unknown as { register: () => void }
+const db            = dbRaw            as unknown as { init:     () => void }
+const ipc           = ipcRaw           as unknown as { register: () => void }
+const notifications = notificationsRaw as unknown as { start:    () => void }
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -44,6 +47,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   db.init()
   ipc.register()
+  notifications.start()
   createWindow()
 
   app.on('activate', () => {

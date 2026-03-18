@@ -270,10 +270,25 @@ function getTravailCategories(promoId) {
   return rows.map(r => r.category);
 }
 
+// ─── Notifications ────────────────────────────────────────────────────────────
+// Renvoie les travaux dont l'échéance tombe dans les prochaines 25h (fenêtre J-1).
+function getUpcomingNotifications() {
+  return getDb().prepare(`
+    SELECT t.id, t.title, t.deadline, t.type, p.name AS promo_name
+    FROM travaux t
+    JOIN promotions p ON t.promo_id = p.id
+    WHERE t.published = 1
+      AND t.type NOT IN ('soutenance', 'cctl')
+      AND datetime(t.deadline) > datetime('now')
+      AND datetime(t.deadline) <= datetime('now', '+25 hours')
+    ORDER BY t.deadline ASC
+  `).all();
+}
+
 module.exports = {
   getTravaux, getTravailById, createTravail, updateTravailPublished,
   getTravauxSuivi, getStudentTravaux,
   getTravailGroupMembers, setTravailGroupMember,
   getGanttData, getAllRendus, getTeacherSchedule, markNonSubmittedAsD,
-  getTravailCategories,
+  getTravailCategories, getUpcomingNotifications,
 };

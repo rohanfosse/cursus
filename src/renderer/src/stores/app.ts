@@ -9,6 +9,7 @@ export const useAppStore = defineStore('app', () => {
   const { showToast } = useToast()
 
   // ── État ──────────────────────────────────────────────────────────────────
+  const isOnline          = ref<boolean>(navigator.onLine)
   const currentUser       = ref<User | null>(null)
   const teacherUser       = ref<User | null>(null)   // sauvegarde pendant simulation
   const activeChannelId   = ref<number | null>(null)
@@ -101,6 +102,18 @@ export const useAppStore = defineStore('app', () => {
     unread.value = next
   }
 
+  // ── Statut réseau ─────────────────────────────────────────────────────────
+  function initOnlineListener(): () => void {
+    const onOnline  = () => { isOnline.value = true  }
+    const onOffline = () => { isOnline.value = false }
+    window.addEventListener('online',  onOnline)
+    window.addEventListener('offline', onOffline)
+    return () => {
+      window.removeEventListener('online',  onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
+  }
+
   // Listener temps-réel — appelé une seule fois au démarrage (App.vue onMounted)
   function initUnreadListener(): () => void {
     return window.api.onNewMessage(({ channelId }) => {
@@ -128,7 +141,7 @@ export const useAppStore = defineStore('app', () => {
 
   return {
     // état
-    currentUser, activeChannelId, activeDmStudentId, activePromoId,
+    isOnline, currentUser, activeChannelId, activeDmStudentId, activePromoId,
     activeChannelType, activeChannelName, activeProject, pendingChannelCategory, rightPanel, currentTravailId,
     pendingNoteDepotId, unread,
     // calculs
@@ -136,7 +149,7 @@ export const useAppStore = defineStore('app', () => {
     // actions
     restoreSession, login, logout, impersonate,
     startSimulation, stopSimulation,
-    openChannel, openDm, markRead, initUnreadListener,
+    openChannel, openDm, markRead, initUnreadListener, initOnlineListener,
     api,
   }
 })

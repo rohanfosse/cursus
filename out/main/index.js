@@ -1718,14 +1718,28 @@ function requireSubmissions() {
   const { getDb } = requireConnection();
   function getDepots(travailId) {
     return getDb().prepare(`
-    SELECT d.*, s.name AS student_name, s.avatar_initials
-    FROM depots d JOIN students s ON d.student_id = s.id
+    SELECT d.*, s.name AS student_name, s.avatar_initials,
+      CASE
+        WHEN d.submitted_at > t.deadline
+        THEN CAST((julianday(d.submitted_at) - julianday(t.deadline)) * 86400 AS INTEGER)
+        ELSE 0
+      END AS late_seconds
+    FROM depots d
+    JOIN students s ON d.student_id = s.id
+    JOIN travaux t  ON d.travail_id = t.id
     WHERE d.travail_id = ?
     ORDER BY d.submitted_at DESC
   `).all(travailId);
   }
   function addDepot(payload) {
     const travailId = payload.travail_id ?? payload.travailId;
+    const NO_DEPOT_TYPES = ["soutenance", "cctl"];
+    const travail = getDb().prepare("SELECT deadline, type FROM travaux WHERE id = ?").get(travailId);
+    if (travail && !NO_DEPOT_TYPES.includes(travail.type)) {
+      if (Date.now() > new Date(travail.deadline).getTime()) {
+        throw new Error("Délai expiré — dépôt refusé.");
+      }
+    }
     const studentId = payload.student_id ?? payload.studentId;
     const type = payload.type ?? "file";
     const content = payload.content ?? payload.filePath ?? payload.linkUrl ?? "";
