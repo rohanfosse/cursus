@@ -1,16 +1,18 @@
 <script setup lang="ts">
   import { computed } from 'vue'
+  import { Lock } from 'lucide-vue-next'
   import { useAppStore } from '@/stores/app'
 
   interface Props {
-    channelId: number
-    name:      string
-    prefix?:   string
-    type?:     'chat' | 'annonce' | 'dm'
-    muted?:    boolean
+    channelId:  number
+    name:       string
+    prefix?:    string
+    type?:      'chat' | 'annonce' | 'dm'
+    muted?:     boolean
+    isPrivate?: boolean
   }
 
-  const props  = withDefaults(defineProps<Props>(), { prefix: '#', type: 'chat', muted: false })
+  const props  = withDefaults(defineProps<Props>(), { prefix: '#', type: 'chat', muted: false, isPrivate: false })
   const emit   = defineEmits<{ click: []; contextmenu: [e: MouseEvent] }>()
   const appStore = useAppStore()
 
@@ -33,6 +35,7 @@
   >
     <span class="channel-prefix">{{ muted ? '🔇' : prefix }}</span>
     <span class="channel-name">{{ name }}</span>
+    <Lock v-if="isPrivate" :size="10" class="channel-lock" />
 
     <!-- Badge mention @ — prioritaire sur le badge unread -->
     <span v-if="mentionPing > 0" class="mention-ping-badge" aria-label="Vous êtes mentionné">@</span>
@@ -43,6 +46,15 @@
 <style scoped>
 .is-muted { opacity: .55; }
 .is-muted:hover { opacity: .8; }
+
+/* Cadenas canal privé */
+.channel-lock {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  opacity: .6;
+  margin-left: 2px;
+}
+.sidebar-item.active .channel-lock { opacity: .9; color: var(--accent-light); }
 
 /* Badge mention @ */
 .mention-ping-badge {
@@ -68,7 +80,6 @@
   50%       { box-shadow: 0 0 0 5px rgba(231, 76, 60, 0);  }
 }
 
-/* Quand il y a une mention, le nom du canal est mis en avant */
 .has-mention .channel-name {
   color: var(--text-primary);
   font-weight: 600;

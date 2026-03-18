@@ -44,11 +44,10 @@
         window.api.getChannels(appStore.activePromoId!),
         window.api.getStudents(appStore.activePromoId!),
       ])
-      if (chRes) {
-        const chList = chRes as ChannelData[]
-        channel.value = chList.find(c => c.id === appStore.activeChannelId) ?? null
+      if (chRes?.ok) {
+        channel.value = (chRes.data as ChannelData[]).find(c => c.id === appStore.activeChannelId) ?? null
       }
-      if (studRes) allStudents.value = studRes as Student[]
+      if (studRes?.ok) allStudents.value = studRes.data as Student[]
     } finally {
       loading.value = false
     }

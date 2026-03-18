@@ -56,7 +56,12 @@ function updateChannelMembers({ channelId, members }) {
   return getDb().prepare('UPDATE channels SET members = ? WHERE id = ?').run(membersJson, channelId);
 }
 
+function updateChannelCategory(channelId, category) {
+  return getDb().prepare('UPDATE channels SET category = ? WHERE id = ?').run(category ?? null, channelId);
+}
+
 module.exports = {
   getPromotions, getChannels, createPromotion, deletePromotion, createChannel,
-  renameChannel, deleteChannel, renameCategory, deleteCategory, updateChannelMembers,
+  renameChannel, deleteChannel, renameCategory, deleteCategory,
+  updateChannelMembers, updateChannelCategory,
 };

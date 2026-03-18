@@ -62,9 +62,10 @@ contextBridge.exposeInMainWorld('api', {
   createChannel:    (payload: unknown)                           => invoke('db:createChannel',    payload),
   renameChannel:    (id: number, name: string)                   => invoke('db:renameChannel',    id, name),
   deleteChannel:    (id: number)                                 => invoke('db:deleteChannel',    id),
-  renameCategory:        (promoId: number, old: string, next: string) => invoke('db:renameCategory',        promoId, old, next),
-  deleteCategory:        (promoId: number, category: string)          => invoke('db:deleteCategory',        promoId, category),
-  updateChannelMembers:  (payload: unknown)                           => invoke('db:updateChannelMembers',  payload),
+  renameCategory:         (promoId: number, old: string, next: string)    => invoke('db:renameCategory',        promoId, old, next),
+  deleteCategory:         (promoId: number, category: string)             => invoke('db:deleteCategory',        promoId, category),
+  updateChannelMembers:   (payload: unknown)                              => invoke('db:updateChannelMembers',  payload),
+  updateChannelCategory:  (channelId: number, category: string | null)    => invoke('db:updateChannelCategory', channelId, category),
 
   // ── Inscription ────────────────────────────────────────────────────────────
   getStudentByEmail: (email: string)   => invoke('db:getStudentByEmail', email),

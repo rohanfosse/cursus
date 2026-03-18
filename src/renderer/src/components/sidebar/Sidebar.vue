@@ -444,6 +444,49 @@
     }
   }
 
+  // ── Drag & drop canaux entre catégories ──────────────────────────────────
+  const draggingChannel  = ref<Channel | null>(null)
+  const dragOverCategory = ref<string | null>(null)
+
+  function onDragStart(e: DragEvent, ch: Channel) {
+    draggingChannel.value = ch
+    e.dataTransfer!.effectAllowed = 'move'
+    e.dataTransfer!.setData('text/plain', String(ch.id))
+  }
+
+  function onDragEnd() {
+    draggingChannel.value  = null
+    dragOverCategory.value = null
+  }
+
+  function onDragOver(e: DragEvent, groupKey: string) {
+    e.preventDefault()
+    e.dataTransfer!.dropEffect = 'move'
+    dragOverCategory.value = groupKey
+  }
+
+  function onDragLeave(e: DragEvent, groupKey: string) {
+    // Only clear if leaving to outside the group element
+    const related = e.relatedTarget as Node | null
+    const target  = e.currentTarget as HTMLElement
+    if (!related || !target.contains(related)) {
+      if (dragOverCategory.value === groupKey) dragOverCategory.value = null
+    }
+  }
+
+  async function onDrop(e: DragEvent, groupKey: string) {
+    e.preventDefault()
+    const ch = draggingChannel.value
+    draggingChannel.value  = null
+    dragOverCategory.value = null
+    if (!ch) return
+    const newCategory = groupKey === NO_CAT ? null : groupKey
+    if ((ch.category ?? null) === newCategory) return  // no change
+    const res = await window.api.updateChannelCategory(ch.id, newCategory)
+    if ((res as any)?.ok === false) { showToast('Erreur lors du déplacement.', 'error'); return }
+    await loadTeacherChannels()
+  }
+
   // ── Réactivité ────────────────────────────────────────────────────────────
   onMounted(() => {
     load(); loadCustomProjects()
@@ -732,6 +775,10 @@
           v-for="group in channelGroups"
           :key="group.key"
           class="sidebar-category"
+          :class="{ 'drag-over': appStore.isStaff && dragOverCategory === group.key }"
+          @dragover="appStore.isStaff ? onDragOver($event, group.key) : undefined"
+          @dragleave="appStore.isStaff ? onDragLeave($event, group.key) : undefined"
+          @drop="appStore.isStaff ? onDrop($event, group.key) : undefined"
         >
           <!-- En-tête de catégorie (affiché seulement s'il y a plusieurs groupes) -->
           <div
@@ -788,16 +835,25 @@
                   @blur="commitRenameChannel"
                 />
               </div>
-              <ChannelItem
+              <div
                 v-else
-                :channel-id="ch.id"
-                :name="ch.name"
-                :prefix="ch.type === 'annonce' ? '📢' : '#'"
-                :type="ch.type"
-                :muted="isMuted(ch.id)"
-                @click="selectChannel(ch)"
-                @contextmenu="openCtxChannel($event, ch)"
-              />
+                :draggable="appStore.isStaff"
+                class="channel-drag-wrap"
+                :class="{ 'is-dragging': draggingChannel?.id === ch.id }"
+                @dragstart="appStore.isStaff ? onDragStart($event, ch) : undefined"
+                @dragend="appStore.isStaff ? onDragEnd() : undefined"
+              >
+                <ChannelItem
+                  :channel-id="ch.id"
+                  :name="ch.name"
+                  :prefix="ch.type === 'annonce' ? '📢' : '#'"
+                  :type="ch.type"
+                  :muted="isMuted(ch.id)"
+                  :is-private="!!ch.is_private"
+                  @click="selectChannel(ch)"
+                  @contextmenu="openCtxChannel($event, ch)"
+                />
+              </div>
             </template>
           </nav>
         </div>
@@ -1177,5 +1233,19 @@
   font-style: italic;
 }
 
+/* ── Drag & drop canaux ── */
+.channel-drag-wrap {
+  cursor: grab;
+  transition: opacity .15s;
+}
+.channel-drag-wrap:active { cursor: grabbing; }
+.channel-drag-wrap.is-dragging { opacity: .4; }
+
+.sidebar-category.drag-over {
+  background: rgba(74, 144, 217, .07);
+  border-radius: 6px;
+  outline: 1.5px dashed rgba(74, 144, 217, .35);
+  outline-offset: -1px;
+}
 
 </style>

@@ -1294,6 +1294,10 @@ function requirePromotions() {
   function deleteCategory(promoId, category) {
     return getDb().prepare("UPDATE channels SET category = NULL WHERE promo_id = ? AND category = ?").run(promoId, category);
   }
+  function updateChannelMembers({ channelId, members }) {
+    const membersJson = members?.length ? JSON.stringify(members) : null;
+    return getDb().prepare("UPDATE channels SET members = ? WHERE id = ?").run(membersJson, channelId);
+  }
   promotions = {
     getPromotions,
     getChannels,
@@ -1303,7 +1307,8 @@ function requirePromotions() {
     renameChannel,
     deleteChannel,
     renameCategory,
-    deleteCategory
+    deleteCategory,
+    updateChannelMembers
   };
   return promotions;
 }
@@ -2413,6 +2418,7 @@ function requireIpc() {
     handle("db:deleteChannel", (id) => queries.deleteChannel(id));
     handle("db:renameCategory", (promoId, old, next) => queries.renameCategory(promoId, old, next));
     handle("db:deleteCategory", (promoId, category) => queries.deleteCategory(promoId, category));
+    handle("db:updateChannelMembers", (payload) => queries.updateChannelMembers(payload));
     handle("db:resetAndSeed", () => {
       queries.resetAndSeed();
       return null;

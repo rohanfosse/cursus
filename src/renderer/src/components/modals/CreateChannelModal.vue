@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { ref, watch, computed } from 'vue'
+  import { MessageSquare, Megaphone, Globe, Lock } from 'lucide-vue-next'
   import { useAppStore } from '@/stores/app'
   import { useToast }    from '@/composables/useToast'
   import { CATEGORY_ICONS, parseCategoryIcon } from '@/utils/categoryIcon'
@@ -19,23 +20,20 @@
   const students            = ref<Student[]>([])
   const creating            = ref(false)
 
-  // Catégorie — liste déroulante
+  // Catégorie
   const existingCategories  = ref<string[]>([])
-  const selectedCategory    = ref<string>('')   // '' = aucune, '__new__' = créer, sinon valeur existante
+  const selectedCategory    = ref<string>('')
   const newCategoryIconKey  = ref('')
   const newCategoryText     = ref('')
-
-  const isCreatingNew = computed(() => selectedCategory.value === '__new__')
+  const isCreatingNew       = computed(() => selectedCategory.value === '__new__')
 
   watch(() => props.modelValue, async (open) => {
     if (!open) return
     if (!appStore.activePromoId) {
-      // Retenter dans 200 ms si le store n'est pas encore initialisé
       await new Promise(r => setTimeout(r, 200))
       if (!appStore.activePromoId) return
     }
 
-    // Reset immédiat pour éviter que l'ancien état reste visible
     channelName.value        = ''
     channelType.value        = 'chat'
     visibility.value         = 'public'
@@ -60,10 +58,8 @@
       const pending = appStore.pendingChannelCategory
       if (pending) {
         appStore.pendingChannelCategory = null
-        if (cats.includes(pending)) {
-          selectedCategory.value = pending
-        } else {
-          selectedCategory.value   = '__new__'
+        selectedCategory.value = cats.includes(pending) ? pending : '__new__'
+        if (selectedCategory.value === '__new__') {
           const { label }          = parseCategoryIcon(pending)
           newCategoryIconKey.value = pending.includes(' ') ? pending.split(' ')[0] : ''
           newCategoryText.value    = label || pending
@@ -83,7 +79,6 @@
       return
     }
 
-    // Calculer la catégorie finale
     let category: string | null = null
     if (selectedCategory.value && selectedCategory.value !== '__new__') {
       category = selectedCategory.value
@@ -99,13 +94,10 @@
         promoId:   appStore.activePromoId,
         type:      channelType.value,
         isPrivate: visibility.value === 'private',
-        members:   visibility.value === 'private' ? members.value : [],
+        members:   visibility.value === 'private' ? [...members.value] : [],
         category,
       })
-      if (!res?.ok) {
-        showToast(res?.error ?? 'Erreur lors de la création.')
-        return
-      }
+      if (!res?.ok) { showToast(res?.error ?? 'Erreur lors de la création.'); return }
       showToast('Canal créé.', 'success')
       emit('update:modelValue', false)
     } catch (e: any) {
@@ -124,162 +116,375 @@
 
 <template>
   <Modal :model-value="modelValue" title="Créer un canal" @update:model-value="emit('update:modelValue', $event)">
-    <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+    <div class="cc-form">
 
       <!-- Nom -->
-      <div class="form-group">
-        <label class="form-label">Nom du canal</label>
-        <input
-          id="new-channel-name"
-          v-model="channelName"
-          type="text"
-          class="form-input"
-          placeholder="ex : général, tp-réseaux…"
-          autofocus
-        />
+      <div class="cc-field">
+        <label class="cc-label">Nom du canal</label>
+        <div class="cc-input-wrap">
+          <span class="cc-input-prefix">#</span>
+          <input
+            id="new-channel-name"
+            v-model="channelName"
+            type="text"
+            class="cc-input"
+            placeholder="ex : général, tp-réseaux…"
+            autofocus
+          />
+        </div>
       </div>
 
-      <!-- Catégorie — liste déroulante -->
-      <div class="form-group">
-        <label class="form-label">Catégorie <span style="opacity:.55;font-weight:400">(optionnelle)</span></label>
+      <!-- Type — pills -->
+      <div class="cc-field">
+        <label class="cc-label">Type</label>
+        <div class="cc-pills">
+          <button
+            class="cc-pill"
+            :class="{ active: channelType === 'chat' }"
+            type="button"
+            @click="channelType = 'chat'"
+          >
+            <MessageSquare :size="13" />
+            Chat
+          </button>
+          <button
+            class="cc-pill"
+            :class="{ active: channelType === 'annonce' }"
+            type="button"
+            @click="channelType = 'annonce'"
+          >
+            <Megaphone :size="13" />
+            Annonces
+            <span class="cc-pill-hint">lecture seule</span>
+          </button>
+        </div>
+      </div>
 
-        <select v-model="selectedCategory" class="form-input cc-cat-select">
+      <!-- Visibilité — pills -->
+      <div class="cc-field">
+        <label class="cc-label">Visibilité</label>
+        <div class="cc-pills">
+          <button
+            class="cc-pill"
+            :class="{ active: visibility === 'public' }"
+            type="button"
+            @click="visibility = 'public'"
+          >
+            <Globe :size="13" />
+            Public
+            <span class="cc-pill-hint">toute la promo</span>
+          </button>
+          <button
+            class="cc-pill cc-pill-private"
+            :class="{ active: visibility === 'private' }"
+            type="button"
+            @click="visibility = 'private'"
+          >
+            <Lock :size="13" />
+            Privé
+            <span class="cc-pill-hint">membres choisis</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Membres (canal privé) -->
+      <Transition name="cc-expand">
+        <div v-if="visibility === 'private'" class="cc-field cc-members-field">
+          <label class="cc-label">
+            Membres autorisés
+            <span class="cc-members-count">{{ members.length }} sélectionné{{ members.length > 1 ? 's' : '' }}</span>
+          </label>
+          <div class="cc-members-list">
+            <label
+              v-for="s in students"
+              :key="s.id"
+              class="cc-member-row"
+              :class="{ checked: members.includes(s.id) }"
+            >
+              <input
+                type="checkbox"
+                :checked="members.includes(s.id)"
+                class="cc-checkbox"
+                @change="toggleMember(s.id)"
+              />
+              <div class="cc-member-avatar">{{ s.name.slice(0, 2).toUpperCase() }}</div>
+              <span class="cc-member-name">{{ s.name }}</span>
+            </label>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- Catégorie -->
+      <div class="cc-field">
+        <label class="cc-label">Catégorie <span class="cc-label-opt">(optionnelle)</span></label>
+        <select v-model="selectedCategory" class="cc-select">
           <option value="">— Aucune catégorie —</option>
           <optgroup v-if="existingCategories.length" label="Catégories existantes">
-            <option
-              v-for="cat in existingCategories"
-              :key="cat"
-              :value="cat"
-            >
+            <option v-for="cat in existingCategories" :key="cat" :value="cat">
               {{ parseCategoryIcon(cat).label }}
             </option>
           </optgroup>
           <option value="__new__">+ Créer une nouvelle catégorie…</option>
         </select>
 
-        <!-- Formulaire catégorie nouvelle -->
-        <div v-if="isCreatingNew" class="cc-new-cat">
-          <div class="cc-icon-grid">
-            <button
-              v-for="ic in CATEGORY_ICONS"
-              :key="ic.key"
-              class="cc-icon-btn"
-              :class="{ selected: newCategoryIconKey === ic.key }"
-              type="button"
-              :title="ic.label"
-              @click="newCategoryIconKey = newCategoryIconKey === ic.key ? '' : ic.key"
-            >
-              <component :is="ic.component" :size="15" />
-            </button>
+        <!-- Nouvelle catégorie -->
+        <Transition name="cc-expand">
+          <div v-if="isCreatingNew" class="cc-new-cat">
+            <div class="cc-icon-grid">
+              <button
+                v-for="ic in CATEGORY_ICONS"
+                :key="ic.key"
+                class="cc-icon-btn"
+                :class="{ selected: newCategoryIconKey === ic.key }"
+                type="button"
+                :title="ic.label"
+                @click="newCategoryIconKey = newCategoryIconKey === ic.key ? '' : ic.key"
+              >
+                <component :is="ic.component" :size="14" />
+              </button>
+            </div>
+            <div class="cc-icon-input-row">
+              <component
+                v-if="newCategoryIconKey"
+                :is="CATEGORY_ICONS.find(i => i.key === newCategoryIconKey)!.component"
+                :size="15"
+                class="cc-icon-preview"
+              />
+              <input
+                v-model="newCategoryText"
+                type="text"
+                class="cc-input"
+                placeholder="Nom de la catégorie…"
+              />
+            </div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-            <component
-              v-if="newCategoryIconKey"
-              :is="CATEGORY_ICONS.find(i => i.key === newCategoryIconKey)!.component"
-              :size="16"
-              class="cc-icon-preview"
-            />
-            <input
-              v-model="newCategoryText"
-              type="text"
-              class="form-input"
-              style="flex:1"
-              placeholder="Nom de la catégorie…"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Type -->
-      <div class="form-group">
-        <label class="form-label">Type</label>
-        <div style="display:flex;gap:16px">
-          <label class="radio-label">
-            <input v-model="channelType" type="radio" value="chat" />
-            Chat
-          </label>
-          <label class="radio-label">
-            <input v-model="channelType" type="radio" value="annonce" />
-            Annonces (lecture seule pour les étudiants)
-          </label>
-        </div>
-      </div>
-
-      <!-- Visibilité -->
-      <div class="form-group">
-        <label class="form-label">Visibilité</label>
-        <div style="display:flex;gap:16px">
-          <label class="radio-label">
-            <input v-model="visibility" type="radio" value="public" />
-            Public
-          </label>
-          <label class="radio-label">
-            <input v-model="visibility" type="radio" value="private" />
-            Privé (membres restreints)
-          </label>
-        </div>
-      </div>
-
-      <!-- Membres (canal privé) -->
-      <div v-if="visibility === 'private'" class="form-group">
-        <label class="form-label">Membres autorisés</label>
-        <div id="channel-members-checkboxes" style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
-          <label
-            v-for="s in students"
-            :key="s.id"
-            class="checkbox-label"
-            style="display:flex;align-items:center;gap:8px;padding:4px"
-          >
-            <input
-              type="checkbox"
-              :checked="members.includes(s.id)"
-              @change="toggleMember(s.id)"
-            />
-            <span>{{ s.name }}</span>
-          </label>
-        </div>
+        </Transition>
       </div>
 
     </div>
 
-    <div class="modal-footer" style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
+    <div class="cc-footer">
       <button class="btn-ghost" @click="emit('update:modelValue', false)">Annuler</button>
       <button class="btn-primary" :disabled="!channelName.trim() || creating" @click="create">
-        {{ creating ? 'Création…' : 'Créer' }}
+        {{ creating ? 'Création…' : 'Créer le canal' }}
       </button>
     </div>
   </Modal>
 </template>
 
 <style scoped>
-/* Select catégorie */
-.cc-cat-select {
-  cursor: pointer;
+/* ── Formulaire ── */
+.cc-form {
+  padding: 20px 20px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
-.cc-cat-select option,
-.cc-cat-select optgroup {
+
+.cc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cc-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cc-label-opt { font-weight: 400; text-transform: none; letter-spacing: 0; opacity: .7; font-size: 10.5px; }
+
+/* Input avec préfixe # */
+.cc-input-wrap {
+  display: flex;
+  align-items: center;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  transition: border-color .15s;
+}
+.cc-input-wrap:focus-within { border-color: var(--accent); }
+.cc-input-prefix {
+  padding: 0 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.cc-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 13.5px;
+  padding: 9px 12px;
+}
+/* input seul (hors wrap) */
+.cc-field > .cc-input,
+.cc-icon-input-row .cc-input {
+  background: var(--bg-input);
+  border: 1.5px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  transition: border-color .15s;
+  padding: 8px 12px;
+}
+.cc-field > .cc-input:focus,
+.cc-icon-input-row .cc-input:focus { border-color: var(--accent); }
+
+/* ── Pills Type / Visibilité ── */
+.cc-pills {
+  display: flex;
+  gap: 8px;
+}
+
+.cc-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border-input);
+  border-radius: var(--radius);
+  background: rgba(255,255,255,.03);
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+  flex-direction: column;
+  gap: 3px;
+}
+.cc-pill > svg { flex-shrink: 0; }
+.cc-pill:hover {
+  background: rgba(255,255,255,.07);
+  border-color: rgba(255,255,255,.2);
+  color: var(--text-primary);
+}
+.cc-pill.active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--accent-light);
+}
+.cc-pill-private.active {
+  border-color: #9b87f5;
+  background: rgba(155,135,245,.12);
+  color: #b8a8f7;
+}
+.cc-pill-hint {
+  font-size: 10px;
+  opacity: .65;
+  font-weight: 400;
+}
+
+/* ── Membres ── */
+.cc-members-count {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #9b87f5;
+}
+.cc-members-field { overflow: hidden; }
+.cc-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+.cc-member-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background .1s;
+}
+.cc-member-row:hover { background: rgba(255,255,255,.05); }
+.cc-member-row.checked { background: rgba(155,135,245,.08); }
+
+.cc-checkbox { display: none; }
+.cc-member-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.08);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .1s, color .1s;
+}
+.cc-member-row.checked .cc-member-avatar {
+  background: rgba(155,135,245,.25);
+  color: #b8a8f7;
+}
+.cc-member-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-member-row.checked .cc-member-name { color: var(--text-primary); font-weight: 500; }
+
+/* ── Select catégorie ── */
+.cc-select {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .15s;
+  appearance: auto;
+}
+.cc-select:focus { border-color: var(--accent); }
+.cc-select option, .cc-select optgroup {
   background: var(--bg-modal, #1e2127);
   color: var(--text-primary);
 }
 
-/* Nouvelle catégorie */
+/* ── Nouvelle catégorie ── */
 .cc-new-cat {
-  margin-top: 10px;
+  margin-top: 8px;
   padding: 12px;
   background: rgba(74,144,217,.05);
-  border: 1px solid rgba(74,144,217,.18);
-  border-radius: 6px;
+  border: 1px solid rgba(74,144,217,.15);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-
 .cc-icon-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 3px;
 }
-
 .cc-icon-btn {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -293,8 +498,24 @@
 .cc-icon-btn:hover    { background: var(--bg-hover); border-color: var(--border-input); color: var(--text-primary); }
 .cc-icon-btn.selected { border-color: var(--accent); background: rgba(74,144,217,.15); color: var(--accent); }
 
-.cc-icon-preview {
-  flex-shrink: 0;
-  color: var(--accent);
+.cc-icon-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
+.cc-icon-preview { flex-shrink: 0; color: var(--accent); }
+
+/* ── Footer ── */
+.cc-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ── Transition expand ── */
+.cc-expand-enter-active { transition: max-height .2s ease, opacity .15s ease; max-height: 300px; overflow: hidden; }
+.cc-expand-leave-active { transition: max-height .15s ease, opacity .12s ease; overflow: hidden; }
+.cc-expand-enter-from, .cc-expand-leave-to { max-height: 0 !important; opacity: 0; }
 </style>
