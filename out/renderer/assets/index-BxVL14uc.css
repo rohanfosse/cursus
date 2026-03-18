@@ -1,113 +1,122 @@
 
-/* ── Métadonnées auteur ── */
-.msg-meta[data-v-a398ed25] {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.msg-edited-tag[data-v-a398ed25] {
-  font-size: 10px;
-  color: var(--text-muted);
-  font-style: italic;
-}
+/* ════════════════════════════════════════════
+   PILL D'ACTIONS — style Slack
+════════════════════════════════════════════ */
+.msg-action-pill[data-v-7ce39326] {
+  /* Positionnée en absolu en haut à droite de la row */
+  position: absolute;
+  top: -14px;
+  right: 16px;
 
-/* ── Édition inline ── */
-.msg-edit-box[data-v-a398ed25] {
-  margin-top: 2px;
-}
-.msg-edit-input[data-v-a398ed25] {
-  width: 100%;
-  background: var(--bg-input, rgba(255,255,255,.06));
-  border: 1.5px solid var(--accent);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-size: 13.5px;
-  font-family: var(--font);
-  padding: 7px 10px;
-  resize: none;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(74,144,217,.15);
-  line-height: 1.5;
-  min-height: 40px;
-}
-.msg-edit-actions[data-v-a398ed25] {
+  /* Invisible par défaut */
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  margin-top: 4px;
-}
-.msg-edit-hint[data-v-a398ed25] {
-  font-size: 10.5px;
-  color: var(--text-muted);
-}
-.msg-edit-save[data-v-a398ed25] {
-  color: var(--color-success);
-}
-.msg-edit-save[data-v-a398ed25]:hover { background: rgba(39,174,96,.12);
-}
-
-/* ── Zone réactions — inline sous le texte (style Slack) ── */
-.msg-reactions-row[data-v-a398ed25] {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  min-height: 0;
-}
-
-/* Le picker inline est caché par défaut, visible au survol de la row ou si réactions présentes */
-.inline-picker[data-v-a398ed25] {
+  gap: 1px;
   opacity: 0;
-  transition: opacity var(--t-fast);
-}
-.msg-row:hover .inline-picker[data-v-a398ed25],
-.inline-picker.reaction-picker-visible[data-v-a398ed25] {
-  opacity: 1;
-}
-.msg-reaction-pill[data-v-a398ed25] {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 42px;
-  min-height: 26px;
-  padding: 3px 9px;
-  border-radius: 13px;
+  pointer-events: none;
+  transition: opacity .12s ease, transform .12s ease;
+  transform: translateY(4px);
+
+  /* Apparence pill */
+  background: var(--bg-modal);
   border: 1px solid var(--border);
-  background: rgba(255,255,255,.04);
-  color: var(--text-secondary);
-  font-size: 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.04) inset;
+  padding: 2px 4px;
+  z-index: 30;
+}
+
+/* Affichage au survol de la row */
+.msg-row:hover .msg-action-pill[data-v-7ce39326] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* Bouton générique de la pill */
+.pill-btn[data-v-7ce39326] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 5px;
   cursor: pointer;
-  transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
+  font-size: 15px;
   line-height: 1;
+  transition: background .1s, color .1s, transform .1s;
+  padding: 0;
 }
-.msg-reaction-pill[data-v-a398ed25]:hover {
+.pill-btn[data-v-7ce39326]:hover:not(:disabled) {
   background: rgba(255,255,255,.09);
-  border-color: rgba(255,255,255,.18);
-  transform: translateY(-1px);
+  color: var(--text-primary);
+  transform: scale(1.1);
 }
-.msg-reaction-pill.mine[data-v-a398ed25] {
-  background: rgba(74,144,217,.18);
-  border-color: rgba(74,144,217,.5);
-  color: var(--accent-light);
-  font-weight: 700;
+.pill-btn[data-v-7ce39326]:disabled { opacity: .35; cursor: default;
 }
-.reaction-emoji[data-v-a398ed25] { font-size: 14px; line-height: 1;
+
+/* Emoji rapide — légèrement plus large */
+.pill-emoji-btn[data-v-7ce39326] { width: 32px; font-size: 16px;
 }
-.reaction-count[data-v-a398ed25] { font-size: 11.5px; font-weight: 600;
+.pill-emoji-btn[data-v-7ce39326]:hover:not(:disabled) { transform: scale(1.25); background: rgba(255,255,255,.07);
+}
+
+/* Séparateur vertical */
+.pill-sep[data-v-7ce39326] {
+  display: block;
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+
+/* ── Picker complet ── */
+.pill-picker-wrap[data-v-7ce39326] { position: relative;
+}
+.full-picker[data-v-7ce39326] {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 3px;
+  padding: 6px 8px;
+  background: var(--bg-modal);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.4);
+  z-index: 40;
+  white-space: nowrap;
+}
+.full-picker-btn[data-v-7ce39326] {
+  font-size: 18px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .1s, transform .1s;
+}
+.full-picker-btn[data-v-7ce39326]:hover { background: rgba(255,255,255,.1); transform: scale(1.2);
 }
 
 /* ── Menu ··· ── */
-.msg-menu-wrap[data-v-a398ed25] { position: relative;
+.pill-menu-wrap[data-v-7ce39326] { position: relative;
 }
-.msg-menu[data-v-a398ed25] {
+.msg-menu[data-v-7ce39326] {
   position: absolute;
   right: 0;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   z-index: 60;
-  min-width: 160px;
+  min-width: 168px;
   background: var(--bg-modal);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -117,10 +126,10 @@
   flex-direction: column;
   gap: 1px;
 }
-.msg-menu-item[data-v-a398ed25] {
+.msg-menu-item[data-v-7ce39326] {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   padding: 7px 10px;
   border: none;
   background: transparent;
@@ -131,19 +140,95 @@
   cursor: pointer;
   width: 100%;
   text-align: left;
-  transition: background var(--t-fast), color var(--t-fast);
+  transition: background .1s, color .1s;
 }
-.msg-menu-item[data-v-a398ed25]:hover {
-  background: rgba(255,255,255,.07);
-  color: var(--text-primary);
+.msg-menu-item[data-v-7ce39326]:hover { background: rgba(255,255,255,.07); color: var(--text-primary);
 }
-.msg-menu-danger[data-v-a398ed25]       { color: var(--color-danger);
+.msg-menu-danger[data-v-7ce39326]       { color: var(--color-danger);
 }
-.msg-menu-danger[data-v-a398ed25]:hover { background: rgba(231,76,60,.12); color: #ff8070;
+.msg-menu-danger[data-v-7ce39326]:hover { background: rgba(231,76,60,.12); color: #ff8070;
 }
 
-/* État édition en cours */
-.msg-row.editing[data-v-a398ed25] { background: rgba(74,144,217,.04);
+/* ════════════════════════════════════════════
+   RÉACTIONS affichées sous le texte
+════════════════════════════════════════════ */
+.msg-reactions-row[data-v-7ce39326] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+.msg-reaction-pill[data-v-7ce39326] {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 44px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 13px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.04);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .1s, border-color .1s, transform .1s;
+  line-height: 1;
+}
+.msg-reaction-pill[data-v-7ce39326]:hover { background: rgba(255,255,255,.09); transform: translateY(-1px);
+}
+.msg-reaction-pill.mine[data-v-7ce39326] {
+  background: rgba(74,144,217,.18);
+  border-color: rgba(74,144,217,.5);
+  color: var(--accent-light);
+  font-weight: 700;
+}
+.reaction-emoji[data-v-7ce39326] { font-size: 14px; line-height: 1;
+}
+.reaction-count[data-v-7ce39326] { font-size: 11.5px; font-weight: 600;
+}
+
+/* ════════════════════════════════════════════
+   MÉTADONNÉES & ÉDITION
+════════════════════════════════════════════ */
+.msg-meta[data-v-7ce39326] {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.msg-edited-tag[data-v-7ce39326] { font-size: 10px; color: var(--text-muted); font-style: italic;
+}
+.msg-edit-box[data-v-7ce39326] { margin-top: 2px;
+}
+.msg-edit-input[data-v-7ce39326] {
+  width: 100%;
+  background: rgba(255,255,255,.05);
+  border: 1.5px solid var(--accent);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-family: var(--font);
+  padding: 7px 10px;
+  resize: none;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(74,144,217,.15);
+  line-height: 1.5;
+}
+.msg-edit-footer[data-v-7ce39326] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+}
+.msg-edit-hint[data-v-7ce39326] { font-size: 10.5px; color: var(--text-muted);
+}
+.msg-edit-save[data-v-7ce39326] { color: var(--color-success);
+}
+.msg-edit-save[data-v-7ce39326]:hover { background: rgba(39,174,96,.12);
+}
+.msg-row.editing[data-v-7ce39326] { background: rgba(74,144,217,.04); border-radius: 6px;
 }
 
 /* ── Messages list doit être position:relative pour le bouton scroll ── */
@@ -8029,10 +8114,6 @@ button { font-family: var(--font); }
   background: rgba(255,255,255,.04);
 }
 
-.msg-row:hover .msg-actions {
-  opacity: 1;
-  pointer-events: auto;
-}
 
 .msg-row.pinned {
   background: rgba(74,144,217,.05);
@@ -8197,29 +8278,7 @@ button { font-family: var(--font); }
 .msg-reaction-pill.mine:hover { background: rgba(74,144,217,.3); }
 
 /* Boutons d'action au survol — flottent au-dessus du message (style Slack) */
-.msg-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  position: absolute;
-  right: 16px;
-  top: -4px;
-  transform: translateY(-50%);
-  background: var(--bg-sidebar);
-  border: 1px solid var(--border-input);
-  border-radius: 8px;
-  padding: 3px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--t-fast);
-  box-shadow: var(--shadow-md);
-}
-
-.msg-action-btn {
-  width: 26px;
-  height: 26px;
-  padding: 3px;
-}
+/* .msg-actions remplacé par .msg-action-pill dans MessageBubble.vue */
 
 /* Séparateur de date */
 .date-separator {

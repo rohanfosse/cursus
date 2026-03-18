@@ -9827,6 +9827,21 @@ const BookOpen = createLucideIcon("book-open", [
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const Bookmark = createLucideIcon("bookmark", [
+  [
+    "path",
+    {
+      d: "M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z",
+      key: "oz39mx"
+    }
+  ]
+]);
+/**
+ * @license lucide-vue-next v0.577.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const Calculator = createLucideIcon("calculator", [
   ["rect", { width: "16", height: "20", x: "4", y: "2", rx: "2", key: "1nb95v" }],
   ["line", { x1: "8", x2: "16", y1: "6", y2: "6", key: "x4nwl0" }],
@@ -11479,9 +11494,9 @@ const useModalsStore = /* @__PURE__ */ defineStore("modals", () => {
     closeAll
   };
 });
-const _hoisted_1$B = ["src", "alt"];
-const _hoisted_2$z = { key: 1 };
-const _sfc_main$B = /* @__PURE__ */ defineComponent({
+const _hoisted_1$A = ["src", "alt"];
+const _hoisted_2$y = { key: 1 };
+const _sfc_main$A = /* @__PURE__ */ defineComponent({
   __name: "Avatar",
   props: {
     initials: {},
@@ -11513,72 +11528,8 @@ const _sfc_main$B = /* @__PURE__ */ defineComponent({
           src: props2.photoData,
           alt: props2.initials,
           style: { "width": "100%", "height": "100%", "object-fit": "cover" }
-        }, null, 8, _hoisted_1$B)) : (openBlock(), createElementBlock("span", _hoisted_2$z, toDisplayString(props2.initials), 1))
+        }, null, 8, _hoisted_1$A)) : (openBlock(), createElementBlock("span", _hoisted_2$y, toDisplayString(props2.initials), 1))
       ], 4);
-    };
-  }
-});
-const _hoisted_1$A = {
-  class: "reaction-picker-root",
-  style: { "position": "relative", "display": "inline-flex" }
-};
-const _hoisted_2$y = {
-  key: 0,
-  class: "reaction-picker",
-  style: { "position": "absolute", "bottom": "28px", "left": "0", "z-index": "200" }
-};
-const _hoisted_3$u = ["aria-label", "onClick"];
-const _sfc_main$A = /* @__PURE__ */ defineComponent({
-  __name: "ReactionPicker",
-  props: {
-    msgId: {}
-  },
-  setup(__props) {
-    const props2 = __props;
-    const messagesStore = useMessagesStore();
-    const REACT_TYPES = [
-      { type: "check", emoji: "✅" },
-      { type: "thumb", emoji: "👍" },
-      { type: "fire", emoji: "🔥" },
-      { type: "heart", emoji: "❤️" },
-      { type: "think", emoji: "🤔" },
-      { type: "eyes", emoji: "👀" }
-    ];
-    const open = /* @__PURE__ */ ref(false);
-    function toggle() {
-      open.value = !open.value;
-    }
-    function pick2(type) {
-      messagesStore.toggleReaction(props2.msgId, type);
-      open.value = false;
-    }
-    function onDocClick(e) {
-      const el = e.target.closest(".reaction-picker-root");
-      if (!el) open.value = false;
-    }
-    onMounted(() => document.addEventListener("click", onDocClick));
-    onUnmounted(() => document.removeEventListener("click", onDocClick));
-    return (_ctx, _cache) => {
-      return openBlock(), createElementBlock("div", _hoisted_1$A, [
-        createBaseVNode("button", {
-          class: "btn-icon msg-action-btn add-reaction-btn",
-          title: "Ajouter une réaction",
-          "aria-label": "Ajouter une réaction",
-          onClick: withModifiers(toggle, ["stop"])
-        }, [
-          createVNode(unref(SmilePlus), { size: 14 })
-        ]),
-        open.value ? (openBlock(), createElementBlock("div", _hoisted_2$y, [
-          (openBlock(), createElementBlock(Fragment, null, renderList(REACT_TYPES, (r) => {
-            return createBaseVNode("button", {
-              key: r.type,
-              class: "reaction-picker-btn",
-              "aria-label": r.type,
-              onClick: withModifiers(($event) => pick2(r.type), ["stop"])
-            }, toDisplayString(r.emoji), 9, _hoisted_3$u);
-          }), 64))
-        ])) : createCommentVNode("", true)
-      ]);
     };
   }
 });
@@ -64848,7 +64799,7 @@ const _hoisted_10$o = {
   key: 2,
   class: "msg-edit-box"
 };
-const _hoisted_11$m = { class: "msg-edit-actions" };
+const _hoisted_11$m = { class: "msg-edit-footer" };
 const _hoisted_12$m = {
   key: 3,
   class: "msg-reactions-row"
@@ -64856,9 +64807,23 @@ const _hoisted_12$m = {
 const _hoisted_13$k = ["aria-label", "onClick"];
 const _hoisted_14$k = { class: "reaction-emoji" };
 const _hoisted_15$k = { class: "reaction-count" };
-const _hoisted_16$k = { class: "msg-actions" };
-const _hoisted_17$j = ["title"];
+const _hoisted_16$k = {
+  key: 2,
+  class: "msg-action-pill"
+};
+const _hoisted_17$j = ["title", "onClick"];
 const _hoisted_18$j = {
+  key: 0,
+  class: "full-picker"
+};
+const _hoisted_19$i = ["title", "onClick"];
+const _hoisted_20$h = ["title"];
+const _hoisted_21$h = {
+  class: "pill-btn",
+  title: "Sauvegarder",
+  disabled: ""
+};
+const _hoisted_22$g = {
   key: 0,
   class: "msg-menu",
   role: "menu"
@@ -64876,6 +64841,7 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
     const messagesStore = useMessagesStore();
     const { openExternal } = useOpenExternal();
     const showMenu = /* @__PURE__ */ ref(false);
+    const showPicker = /* @__PURE__ */ ref(false);
     const editing = /* @__PURE__ */ ref(false);
     const editContent = /* @__PURE__ */ ref("");
     const editEl = /* @__PURE__ */ ref(null);
@@ -64885,11 +64851,34 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
     const color = computed(() => avatarColor(props2.msg.author_name));
     const isPinned = computed(() => !!props2.msg.is_pinned);
     const isEdited = computed(() => !!props2.msg.edited);
-    const isMine = computed(
-      () => props2.msg.author_name === appStore.currentUser?.name
-    );
+    const isMine = computed(() => props2.msg.author_name === appStore.currentUser?.name);
     const canEdit = computed(() => isMine.value);
     const canDelete = computed(() => appStore.isTeacher || isMine.value);
+    const REACT_TYPES = [
+      { type: "check", emoji: "✅" },
+      { type: "thumb", emoji: "👍" },
+      { type: "fire", emoji: "🔥" },
+      { type: "heart", emoji: "❤️" },
+      { type: "think", emoji: "🤔" },
+      { type: "eyes", emoji: "👀" }
+    ];
+    const QUICK_REACTS = REACT_TYPES.slice(0, 4);
+    function quickReact(type) {
+      messagesStore.toggleReaction(props2.msg.id, type);
+    }
+    function pickReact(type) {
+      messagesStore.toggleReaction(props2.msg.id, type);
+      showPicker.value = false;
+    }
+    const reactionsToShow = computed(() => {
+      const r = messagesStore.reactions[props2.msg.id] ?? {};
+      const mine = messagesStore.userVotes[props2.msg.id] ?? /* @__PURE__ */ new Set();
+      return REACT_TYPES.filter((t) => (r[t.type] ?? 0) > 0).map((t) => ({
+        ...t,
+        count: r[t.type],
+        isMine: mine.has(t.type)
+      }));
+    });
     function togglePin() {
       messagesStore.togglePin(props2.msg.id, !isPinned.value);
       showMenu.value = false;
@@ -64944,31 +64933,17 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
       const url = a.dataset.url;
       if (url) openExternal(url);
     }
-    const REACT_TYPES = [
-      { type: "check", emoji: "✅" },
-      { type: "thumb", emoji: "👍" },
-      { type: "fire", emoji: "🔥" },
-      { type: "heart", emoji: "❤️" },
-      { type: "think", emoji: "🤔" },
-      { type: "eyes", emoji: "👀" }
-    ];
-    Object.fromEntries(REACT_TYPES.map((r) => [r.type, r.emoji]));
-    const reactionsToShow = computed(() => {
-      const r = messagesStore.reactions[props2.msg.id] ?? {};
-      const mine = messagesStore.userVotes[props2.msg.id] ?? /* @__PURE__ */ new Set();
-      return REACT_TYPES.filter((t) => (r[t.type] ?? 0) > 0).map((t) => ({
-        ...t,
-        count: r[t.type],
-        isMine: mine.has(t.type)
-      }));
-    });
+    function closeAll() {
+      showMenu.value = false;
+      showPicker.value = false;
+    }
     return (_ctx, _cache) => {
       return openBlock(), createElementBlock("div", {
         class: normalizeClass(["msg-row", { grouped: __props.grouped, pinned: isPinned.value, editing: editing.value }]),
         "data-msg-id": __props.msg.id,
-        onClick: _cache[3] || (_cache[3] = withModifiers(($event) => showMenu.value = false, ["self"]))
+        onClick: withModifiers(closeAll, ["self"])
       }, [
-        !__props.grouped ? (openBlock(), createBlock(_sfc_main$B, {
+        !__props.grouped ? (openBlock(), createBlock(_sfc_main$A, {
           key: 0,
           initials: __props.msg.author_initials || __props.msg.author_name.slice(0, 2).toUpperCase(),
           color: color.value,
@@ -64992,13 +64967,13 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
               ref: editEl,
               "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => editContent.value = $event),
               class: "msg-edit-input",
-              rows: "1",
+              rows: "2",
               onKeydown: onEditKeydown
             }, null, 544), [
               [vModelText, editContent.value]
             ]),
             createBaseVNode("div", _hoisted_11$m, [
-              _cache[4] || (_cache[4] = createBaseVNode("span", { class: "msg-edit-hint" }, "Entrée pour valider · Échap pour annuler", -1)),
+              _cache[5] || (_cache[5] = createBaseVNode("span", { class: "msg-edit-hint" }, "Entrée · valider  ·  Échap · annuler", -1)),
               createBaseVNode("button", {
                 class: "btn-icon msg-edit-save",
                 title: "Valider",
@@ -65008,7 +64983,7 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
               ])
             ])
           ])),
-          !editing.value ? (openBlock(), createElementBlock("div", _hoisted_12$m, [
+          reactionsToShow.value.length && !editing.value ? (openBlock(), createElementBlock("div", _hoisted_12$m, [
             (openBlock(true), createElementBlock(Fragment, null, renderList(reactionsToShow.value, (r) => {
               return openBlock(), createElementBlock("button", {
                 key: r.type,
@@ -65019,48 +64994,77 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
                 createBaseVNode("span", _hoisted_14$k, toDisplayString(r.emoji), 1),
                 createBaseVNode("span", _hoisted_15$k, toDisplayString(r.count), 1)
               ], 10, _hoisted_13$k);
-            }), 128)),
-            createVNode(_sfc_main$A, {
-              "msg-id": __props.msg.id,
-              class: normalizeClass([{ "reaction-picker-visible": reactionsToShow.value.length > 0 }, "inline-picker"])
-            }, null, 8, ["msg-id", "class"])
+            }), 128))
           ])) : createCommentVNode("", true)
         ]),
-        createBaseVNode("div", _hoisted_16$k, [
-          unref(appStore).isTeacher && !editing.value ? (openBlock(), createElementBlock("button", {
+        !editing.value ? (openBlock(), createElementBlock("div", _hoisted_16$k, [
+          (openBlock(true), createElementBlock(Fragment, null, renderList(unref(QUICK_REACTS), (r) => {
+            return openBlock(), createElementBlock("button", {
+              key: r.type,
+              class: "pill-btn pill-emoji-btn",
+              title: r.emoji,
+              onClick: withModifiers(($event) => quickReact(r.type), ["stop"])
+            }, toDisplayString(r.emoji), 9, _hoisted_17$j);
+          }), 128)),
+          createBaseVNode("div", {
+            class: "pill-picker-wrap",
+            onMouseleave: _cache[2] || (_cache[2] = ($event) => showPicker.value = false)
+          }, [
+            createBaseVNode("button", {
+              class: "pill-btn",
+              title: "Ajouter une réaction",
+              onClick: _cache[1] || (_cache[1] = withModifiers(($event) => showPicker.value = !showPicker.value, ["stop"]))
+            }, [
+              createVNode(unref(SmilePlus), { size: 15 })
+            ]),
+            showPicker.value ? (openBlock(), createElementBlock("div", _hoisted_18$j, [
+              (openBlock(), createElementBlock(Fragment, null, renderList(REACT_TYPES, (r) => {
+                return createBaseVNode("button", {
+                  key: r.type,
+                  class: "full-picker-btn",
+                  title: r.emoji,
+                  onClick: withModifiers(($event) => pickReact(r.type), ["stop"])
+                }, toDisplayString(r.emoji), 9, _hoisted_19$i);
+              }), 64))
+            ])) : createCommentVNode("", true)
+          ], 32),
+          _cache[9] || (_cache[9] = createBaseVNode("span", { class: "pill-sep" }, null, -1)),
+          unref(appStore).isTeacher ? (openBlock(), createElementBlock("button", {
             key: 0,
-            class: "btn-icon msg-action-btn",
+            class: "pill-btn",
             title: isPinned.value ? "Désépingler" : "Épingler",
-            onClick: togglePin
+            onClick: withModifiers(togglePin, ["stop"])
           }, [
             isPinned.value ? (openBlock(), createBlock(unref(PinOff), {
               key: 0,
-              size: 14
+              size: 15
             })) : (openBlock(), createBlock(unref(Pin), {
               key: 1,
-              size: 14
+              size: 15
             }))
-          ], 8, _hoisted_17$j)) : createCommentVNode("", true),
-          !editing.value ? (openBlock(), createElementBlock("div", {
-            key: 1,
-            class: "msg-menu-wrap",
-            onMouseleave: _cache[2] || (_cache[2] = ($event) => showMenu.value = false)
+          ], 8, _hoisted_20$h)) : createCommentVNode("", true),
+          createBaseVNode("button", _hoisted_21$h, [
+            createVNode(unref(Bookmark), { size: 15 })
+          ]),
+          createBaseVNode("div", {
+            class: "pill-menu-wrap",
+            onMouseleave: _cache[4] || (_cache[4] = ($event) => showMenu.value = false)
           }, [
             createBaseVNode("button", {
-              class: "btn-icon msg-action-btn",
+              class: "pill-btn",
               title: "Plus d'options",
-              onClick: _cache[1] || (_cache[1] = withModifiers(($event) => showMenu.value = !showMenu.value, ["stop"]))
+              onClick: _cache[3] || (_cache[3] = withModifiers(($event) => showMenu.value = !showMenu.value, ["stop"]))
             }, [
-              createVNode(unref(Ellipsis), { size: 14 })
+              createVNode(unref(Ellipsis), { size: 15 })
             ]),
-            showMenu.value ? (openBlock(), createElementBlock("div", _hoisted_18$j, [
+            showMenu.value ? (openBlock(), createElementBlock("div", _hoisted_22$g, [
               createBaseVNode("button", {
                 class: "msg-menu-item",
                 role: "menuitem",
                 onClick: copyMessage
               }, [
                 createVNode(unref(Copy), { size: 12 }),
-                _cache[5] || (_cache[5] = createTextVNode(" Copier ", -1))
+                _cache[6] || (_cache[6] = createTextVNode(" Copier le texte ", -1))
               ]),
               canEdit.value ? (openBlock(), createElementBlock("button", {
                 key: 0,
@@ -65069,7 +65073,7 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
                 onClick: startEdit
               }, [
                 createVNode(unref(Pencil), { size: 12 }),
-                _cache[6] || (_cache[6] = createTextVNode(" Modifier ", -1))
+                _cache[7] || (_cache[7] = createTextVNode(" Modifier ", -1))
               ])) : createCommentVNode("", true),
               unref(appStore).isTeacher ? (openBlock(), createElementBlock("button", {
                 key: 1,
@@ -65087,11 +65091,11 @@ const _sfc_main$z = /* @__PURE__ */ defineComponent({
                 onClick: deleteMessage
               }, [
                 createVNode(unref(Trash2), { size: 12 }),
-                _cache[7] || (_cache[7] = createTextVNode(" Supprimer ", -1))
+                _cache[8] || (_cache[8] = createTextVNode(" Supprimer ", -1))
               ])) : createCommentVNode("", true)
             ])) : createCommentVNode("", true)
-          ], 32)) : createCommentVNode("", true)
-        ])
+          ], 32)
+        ])) : createCommentVNode("", true)
       ], 10, _hoisted_1$z);
     };
   }
@@ -65103,7 +65107,7 @@ const _export_sfc = (sfc, props2) => {
   }
   return target;
 };
-const MessageBubble = /* @__PURE__ */ _export_sfc(_sfc_main$z, [["__scopeId", "data-v-a398ed25"]]);
+const MessageBubble = /* @__PURE__ */ _export_sfc(_sfc_main$z, [["__scopeId", "data-v-7ce39326"]]);
 const _hoisted_1$y = {
   key: 0,
   class: "skel-container"

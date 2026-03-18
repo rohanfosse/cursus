@@ -198,10 +198,6 @@ button { font-family: var(--font); }
   background: rgba(255,255,255,.04);
 }
 
-.msg-row:hover .msg-actions {
-  opacity: 1;
-  pointer-events: auto;
-}
 
 .msg-row.pinned {
   background: rgba(74,144,217,.05);
@@ -366,29 +362,7 @@ button { font-family: var(--font); }
 .msg-reaction-pill.mine:hover { background: rgba(74,144,217,.3); }
 
 /* Boutons d'action au survol — flottent au-dessus du message (style Slack) */
-.msg-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  position: absolute;
-  right: 16px;
-  top: -4px;
-  transform: translateY(-50%);
-  background: var(--bg-sidebar);
-  border: 1px solid var(--border-input);
-  border-radius: 8px;
-  padding: 3px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--t-fast);
-  box-shadow: var(--shadow-md);
-}
-
-.msg-action-btn {
-  width: 26px;
-  height: 26px;
-  padding: 3px;
-}
+/* .msg-actions remplacé par .msg-action-pill dans MessageBubble.vue */
 
 /* Séparateur de date */
 .date-separator {
