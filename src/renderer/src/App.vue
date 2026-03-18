@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { onMounted, onUnmounted } from 'vue'
+  import { onMounted, onUnmounted, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
@@ -27,11 +27,15 @@
   import ImportStudentsModal     from '@/components/modals/ImportStudentsModal.vue'
   import IntervenantsModal       from '@/components/modals/IntervenantsModal.vue'
   import ClasseModal             from '@/components/modals/ClasseModal.vue'
+  import CreatePromoModal        from '@/components/modals/CreatePromoModal.vue'
 
   const appStore = useAppStore()
   const modals   = useModalsStore()
   const router   = useRouter()
   const { getPref } = usePrefs()
+
+  const promoCreatedKey = ref(0)
+  function onPromoCreated() { promoCreatedKey.value++ }
 
   let unsubUnread:  (() => void) | null = null
   let unsubOnline:  (() => void) | null = null
@@ -121,6 +125,7 @@
     <ImportStudentsModal     v-model="modals.importStudents"    />
     <IntervenantsModal       v-model="modals.intervenants"      />
     <ClasseModal             v-model="modals.classe"            />
+    <CreatePromoModal        v-model="modals.createPromo"       @created="onPromoCreated" />
   </template>
 </template>
 

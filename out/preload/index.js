@@ -90,6 +90,7 @@ electron.contextBridge.exposeInMainWorld("api", {
   // ── Messages épinglés ──────────────────────────────────────────────────────
   getPinnedMessages: (channelId) => invoke("db:getPinnedMessages", channelId),
   togglePinMessage: (payload) => invoke("db:togglePinMessage", payload),
+  updateReactions: (msgId, reactionsJson) => invoke("db:updateReactions", msgId, reactionsJson),
   deleteMessage: (id) => invoke("db:deleteMessage", id),
   editMessage: (id, content) => invoke("db:editMessage", id, content),
   // ── Actions de masse ───────────────────────────────────────────────────────
@@ -97,6 +98,14 @@ electron.contextBridge.exposeInMainWorld("api", {
   // ── Fichiers ───────────────────────────────────────────────────────────────
   readFileBase64: (filePath) => invoke("fs:readFileBase64", filePath),
   downloadFile: (filePath) => invoke("fs:downloadFile", filePath),
+  // ── Intervenants ──────────────────────────────────────────────────────────
+  getClasseStats: (promoId) => invoke("db:getClasseStats", promoId),
+  updateStudentPhoto: (payload) => invoke("db:updateStudentPhoto", payload),
+  getIntervenants: () => invoke("db:getIntervenants"),
+  createIntervenant: (payload) => invoke("db:createIntervenant", payload),
+  deleteIntervenant: (id) => invoke("db:deleteIntervenant", id),
+  getTeacherChannels: (id) => invoke("db:getTeacherChannels", id),
+  setTeacherChannels: (payload) => invoke("db:setTeacherChannels", payload),
   // ── Contrôles de fenêtre ──────────────────────────────────────────────────
   windowMinimize: () => invoke("window:minimize"),
   windowMaximize: () => invoke("window:maximize"),

@@ -24,6 +24,7 @@ export const useModalsStore = defineStore('modals', () => {
   const importStudents    = ref(false)
   const intervenants      = ref(false)
   const classe            = ref(false)
+  const createPromo       = ref(false)
 
   function closeAll() {
     depots.value            = false
@@ -44,13 +45,14 @@ export const useModalsStore = defineStore('modals', () => {
     importStudents.value    = false
     intervenants.value      = false
     classe.value            = false
+    createPromo.value       = false
   }
 
   return {
     depots, suivi, gestionDevoir, ressources,
     timeline, echeancier, settings, documentPreview,
     newDevoir, createChannel, cmdPalette, impersonate, newProject,
-    studentTimeline, rubric, importStudents, intervenants, classe,
+    studentTimeline, rubric, importStudents, intervenants, classe, createPromo,
     closeAll,
   }
 })

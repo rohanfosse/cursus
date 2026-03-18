@@ -31,7 +31,7 @@ function requireSchema() {
   if (hasRequiredSchema) return schema;
   hasRequiredSchema = 1;
   const { getDb } = requireConnection();
-  const CURRENT_VERSION = 14;
+  const CURRENT_VERSION = 15;
   function initSchema() {
     const db2 = getDb();
     db2.exec(`
@@ -361,6 +361,16 @@ function requireSchema() {
         tryAlter(db3, "ALTER TABLE messages ADD COLUMN reply_to_id      INTEGER DEFAULT NULL");
         tryAlter(db3, "ALTER TABLE messages ADD COLUMN reply_to_author  TEXT    DEFAULT NULL");
         tryAlter(db3, "ALTER TABLE messages ADD COLUMN reply_to_preview TEXT    DEFAULT NULL");
+      },
+      // v15 : table pivot teacher_channels (assignation canaux aux intervenants)
+      (db3) => {
+        db3.exec(`
+        CREATE TABLE IF NOT EXISTS teacher_channels (
+          teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+          channel_id INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+          PRIMARY KEY (teacher_id, channel_id)
+        );
+      `);
       }
     ];
     db2.transaction(() => {
@@ -1323,14 +1333,14 @@ function requireStudents() {
     WHERE s.id = ?
   `).get(studentId);
     const travaux = db2.prepare(`
-    SELECT t.id, t.title, t.deadline,
+    SELECT t.id, t.title, t.deadline, t.type, t.published, t.category,
       ch.name AS channel_name,
       d.id AS depot_id, d.file_name, d.note, d.feedback, d.submitted_at
     FROM channels ch
-    JOIN students s  ON s.promo_id = ch.promo_id
-    JOIN travaux t   ON t.channel_id = ch.id
+    JOIN students s ON s.promo_id = ch.promo_id
+    JOIN travaux t ON t.channel_id = ch.id
     LEFT JOIN depots d ON d.travail_id = t.id AND d.student_id = s.id
-    WHERE s.id = ?
+    WHERE s.id = ? AND t.published = 1
     ORDER BY t.deadline DESC
   `).all(studentId);
     return { student, travaux };
@@ -1386,7 +1396,7 @@ function requireStudents() {
     FROM students s JOIN promotions p ON s.promo_id = p.id
     ORDER BY p.name, s.name
   `).all();
-    const teachers = db2.prepare("SELECT * FROM teachers ORDER BY id ASC").all().map((t) => ({
+    const teachers2 = db2.prepare("SELECT * FROM teachers ORDER BY id ASC").all().map((t) => ({
       id: -t.id,
       name: t.name,
       email: t.email,
@@ -1396,7 +1406,7 @@ function requireStudents() {
       promo_name: null,
       promo_id: null
     }));
-    return [...teachers, ...students2];
+    return [...teachers2, ...students2];
   }
   function bulkImportStudents(promoId, rows) {
     const db2 = getDb();
@@ -1424,6 +1434,53 @@ function requireStudents() {
     })();
     return { imported, errors };
   }
+  function getClasseStats(promoId) {
+    return getDb().prepare(`
+    SELECT
+      s.id,
+      s.name,
+      s.avatar_initials,
+      s.photo_data,
+      (
+        SELECT COUNT(*)
+        FROM depots d
+        WHERE d.student_id = s.id
+      ) AS submitted_count,
+      (
+        SELECT COUNT(*)
+        FROM travaux t
+        WHERE t.promo_id = s.promo_id
+          AND t.published = 1
+          AND t.type NOT IN ('soutenance', 'cctl')
+      ) AS total_count,
+      (
+        SELECT COUNT(*)
+        FROM depots d
+        WHERE d.student_id = s.id
+          AND d.note IS NOT NULL
+          AND d.note != ''
+      ) AS graded_count,
+      (
+        SELECT AVG(CAST(d.note AS REAL))
+        FROM depots d
+        WHERE d.student_id = s.id
+          AND d.note IS NOT NULL
+          AND d.note != ''
+      ) AS avg_grade,
+      (
+        SELECT MAX(m.created_at)
+        FROM messages m
+        WHERE m.author_name = s.name
+          AND m.channel_id IS NOT NULL
+      ) AS last_message_at
+    FROM students s
+    WHERE s.promo_id = ?
+    ORDER BY s.name
+  `).all(promoId);
+  }
+  function updateStudentPhoto(studentId, photoData) {
+    return getDb().prepare("UPDATE students SET photo_data = ? WHERE id = ?").run(photoData, studentId).changes;
+  }
   students = {
     getStudents,
     getAllStudents,
@@ -1432,7 +1489,9 @@ function requireStudents() {
     loginWithCredentials,
     registerStudent,
     getIdentities,
-    bulkImportStudents
+    bulkImportStudents,
+    getClasseStats,
+    updateStudentPhoto
   };
   return students;
 }
@@ -1503,32 +1562,47 @@ function requireMessages() {
   const PAGE_SIZE = 50;
   function getChannelMessages(channelId) {
     return getDb().prepare(
-      "SELECT * FROM messages WHERE channel_id = ? ORDER BY created_at ASC"
+      `SELECT m.*,
+  COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
+  s.photo_data AS author_photo
+FROM messages m
+LEFT JOIN students s ON s.name = m.author_name
+WHERE m.channel_id = ? ORDER BY m.created_at ASC`
     ).all(channelId);
   }
   function getChannelMessagesPage(channelId, beforeId) {
     if (beforeId) {
       return getDb().prepare(
-        "SELECT * FROM messages WHERE channel_id = ? AND id < ? ORDER BY id DESC LIMIT ?"
+        `SELECT m.*, COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials, s.photo_data AS author_photo
+FROM messages m LEFT JOIN students s ON s.name = m.author_name
+WHERE m.channel_id = ? AND m.id < ? ORDER BY m.id DESC LIMIT ?`
       ).all(channelId, beforeId, PAGE_SIZE);
     }
     return getDb().prepare(
-      "SELECT * FROM messages WHERE channel_id = ? ORDER BY id DESC LIMIT ?"
+      `SELECT m.*, COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials, s.photo_data AS author_photo
+FROM messages m LEFT JOIN students s ON s.name = m.author_name
+WHERE m.channel_id = ? ORDER BY m.id DESC LIMIT ?`
     ).all(channelId, PAGE_SIZE);
   }
   function getDmMessages(studentId) {
     return getDb().prepare(
-      "SELECT * FROM messages WHERE dm_student_id = ? ORDER BY created_at ASC"
+      `SELECT m.*, COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials, s.photo_data AS author_photo
+FROM messages m LEFT JOIN students s ON s.name = m.author_name
+WHERE m.dm_student_id = ? ORDER BY m.created_at ASC`
     ).all(studentId);
   }
   function getDmMessagesPage(studentId, beforeId) {
     if (beforeId) {
       return getDb().prepare(
-        "SELECT * FROM messages WHERE dm_student_id = ? AND id < ? ORDER BY id DESC LIMIT ?"
+        `SELECT m.*, COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials, s.photo_data AS author_photo
+FROM messages m LEFT JOIN students s ON s.name = m.author_name
+WHERE m.dm_student_id = ? AND m.id < ? ORDER BY m.id DESC LIMIT ?`
       ).all(studentId, beforeId, PAGE_SIZE);
     }
     return getDb().prepare(
-      "SELECT * FROM messages WHERE dm_student_id = ? ORDER BY id DESC LIMIT ?"
+      `SELECT m.*, COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials, s.photo_data AS author_photo
+FROM messages m LEFT JOIN students s ON s.name = m.author_name
+WHERE m.dm_student_id = ? ORDER BY m.id DESC LIMIT ?`
     ).all(studentId, PAGE_SIZE);
   }
   function searchMessages(channelId, query) {
@@ -1579,9 +1653,12 @@ function requireMessages() {
     if (promoId) {
       return getDb().prepare(`
       SELECT m.id, m.content, m.author_name, m.created_at,
-             c.id AS channel_id, c.name AS channel_name, c.promo_id
+             c.id AS channel_id, c.name AS channel_name, c.promo_id,
+             COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
+             s.photo_data AS author_photo
       FROM messages m
       JOIN channels c ON m.channel_id = c.id
+      LEFT JOIN students s ON s.name = m.author_name
       WHERE c.promo_id = ?
         AND m.dm_student_id IS NULL
         AND m.content LIKE '%' || ? || '%'
@@ -1591,9 +1668,12 @@ function requireMessages() {
     }
     return getDb().prepare(`
     SELECT m.id, m.content, m.author_name, m.created_at,
-           c.id AS channel_id, c.name AS channel_name, c.promo_id
+           c.id AS channel_id, c.name AS channel_name, c.promo_id,
+           COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
+           s.photo_data AS author_photo
     FROM messages m
     JOIN channels c ON m.channel_id = c.id
+    LEFT JOIN students s ON s.name = m.author_name
     WHERE m.dm_student_id IS NULL
       AND m.content LIKE '%' || ? || '%'
     ORDER BY m.created_at DESC
@@ -2118,6 +2198,60 @@ function requireRubrics() {
   rubrics = { getRubric, upsertRubric, deleteRubric, getDepotScores, setDepotScores };
   return rubrics;
 }
+var teachers;
+var hasRequiredTeachers;
+function requireTeachers() {
+  if (hasRequiredTeachers) return teachers;
+  hasRequiredTeachers = 1;
+  const { getDb } = requireConnection();
+  function getIntervenants() {
+    return getDb().prepare(
+      "SELECT id, name, email, role FROM teachers WHERE role = 'ta' ORDER BY name"
+    ).all();
+  }
+  function createIntervenant({ name, email, password }) {
+    const db2 = getDb();
+    const existing = db2.prepare("SELECT id FROM teachers WHERE LOWER(email) = LOWER(?)").get(email.trim());
+    if (existing) throw new Error("Cette adresse email est déjà utilisée.");
+    const pwd = (password ?? "").trim() || "admin";
+    return db2.prepare(
+      "INSERT INTO teachers (name, email, password, role) VALUES (?, ?, ?, 'ta')"
+    ).run(name.trim(), email.trim().toLowerCase(), pwd).lastInsertRowid;
+  }
+  function deleteIntervenant(teacherId) {
+    const realId = Math.abs(teacherId);
+    const t = getDb().prepare("SELECT role FROM teachers WHERE id = ?").get(realId);
+    if (!t) throw new Error("Intervenant introuvable.");
+    if (t.role === "teacher") throw new Error("Impossible de supprimer un Responsable Pédagogique.");
+    return getDb().prepare("DELETE FROM teachers WHERE id = ?").run(realId);
+  }
+  function getTeacherChannels(teacherId) {
+    return getDb().prepare(
+      "SELECT channel_id FROM teacher_channels WHERE teacher_id = ?"
+    ).all(Math.abs(teacherId)).map((r) => r.channel_id);
+  }
+  function setTeacherChannels({ teacherId, channelIds }) {
+    const db2 = getDb();
+    const realId = Math.abs(teacherId);
+    db2.transaction(() => {
+      db2.prepare("DELETE FROM teacher_channels WHERE teacher_id = ?").run(realId);
+      const ins = db2.prepare(
+        "INSERT OR IGNORE INTO teacher_channels (teacher_id, channel_id) VALUES (?, ?)"
+      );
+      for (const cid of channelIds ?? []) {
+        ins.run(realId, Number(cid));
+      }
+    })();
+  }
+  teachers = {
+    getIntervenants,
+    createIntervenant,
+    deleteIntervenant,
+    getTeacherChannels,
+    setTeacherChannels
+  };
+  return teachers;
+}
 var db$1;
 var hasRequiredDb;
 function requireDb() {
@@ -2133,6 +2267,7 @@ function requireDb() {
   const submissions2 = requireSubmissions();
   const documents2 = requireDocuments();
   const rubrics2 = requireRubrics();
+  const teachers2 = requireTeachers();
   function init() {
     initSchema();
     seedIfEmpty();
@@ -2147,7 +2282,8 @@ function requireDb() {
     ...assignments2,
     ...submissions2,
     ...documents2,
-    ...rubrics2
+    ...rubrics2,
+    ...teachers2
   };
   return db$1;
 }
@@ -2216,6 +2352,7 @@ function requireIpc() {
           authorName: payload.authorName ?? null,
           channelName: payload.channelName ?? null,
           promoId: payload.promoId ?? null,
+          preview: rawContent.replace(/[*_`>#[\]!]/g, "").slice(0, 80),
           mentionEveryone,
           mentionNames
         };
@@ -2340,6 +2477,13 @@ function requireIpc() {
     handle("db:updateReactions", (msgId, reactionsJson) => queries.updateReactions(msgId, reactionsJson));
     handle("db:deleteMessage", (id) => queries.deleteMessage(id));
     handle("db:editMessage", (id, content) => queries.editMessage(id, content));
+    handle("db:getClasseStats", (promoId) => queries.getClasseStats(promoId));
+    handle("db:updateStudentPhoto", (payload) => queries.updateStudentPhoto(payload.studentId, payload.photoData));
+    handle("db:getIntervenants", () => queries.getIntervenants());
+    handle("db:createIntervenant", (payload) => queries.createIntervenant(payload));
+    handle("db:deleteIntervenant", (id) => queries.deleteIntervenant(id));
+    handle("db:getTeacherChannels", (id) => queries.getTeacherChannels(id));
+    handle("db:setTeacherChannels", (payload) => queries.setTeacherChannels(payload));
     handle("db:markNonSubmittedAsD", (travailId) => queries.markNonSubmittedAsD(travailId));
     handle("db:getRubric", (travailId) => queries.getRubric(travailId));
     handle("db:upsertRubric", (payload) => queries.upsertRubric(payload));

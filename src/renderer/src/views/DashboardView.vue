@@ -4,6 +4,7 @@ import {
   Clock, Edit3, Users, BookOpen, AlertTriangle,
   ChevronRight, CheckCircle2, FileText, LayoutDashboard,
   Award, TrendingUp, FolderOpen, CalendarDays, BarChart2,
+  PlusCircle,
 } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
@@ -47,14 +48,13 @@ interface StudentProjectCard {
 }
 
 // ── État ─────────────────────────────────────────────────────────────────────
-const loadingTeacher = ref(true)
-const loadingStudent = ref(true)
-const aNoterCount    = ref(0)
-const urgentsCount   = ref(0)
+const loadingTeacher  = ref(true)
+const loadingStudent  = ref(true)
+const aNoterCount     = ref(0)
 const brouillonsCount = ref(0)
-const promos         = ref<Promotion[]>([])
-const totalStudents  = ref(0)
-const ganttAll       = ref<GanttRow[]>([])
+const promos          = ref<Promotion[]>([])
+const allStudents     = ref<{ id: number; promo_id: number }[]>([])
+const ganttAll        = ref<GanttRow[]>([])
 
 // ── Chargement ────────────────────────────────────────────────────────────────
 onMounted(async () => {
@@ -71,21 +71,62 @@ onMounted(async () => {
         aNoterCount.value     = d.aNoter?.length     ?? 0
         brouillonsCount.value = d.brouillons?.length ?? 0
       }
-      if (promosRes?.ok) promos.value       = promosRes.data as Promotion[]
-      if (studRes?.ok)   totalStudents.value = (studRes.data as unknown[]).length
-      if (ganttRes?.ok) {
-        ganttAll.value = ganttRes.data as GanttRow[]
-        const now = Date.now(), in7d = now + 7 * 86_400_000
-        urgentsCount.value = ganttAll.value.filter(
-          t => t.published && new Date(t.deadline).getTime() >= now && new Date(t.deadline).getTime() <= in7d
-        ).length
+      if (promosRes?.ok) {
+        promos.value = promosRes.data as Promotion[]
+        if (promos.value.length && !appStore.activePromoId) {
+          appStore.activePromoId = promos.value[0].id
+        }
       }
+      if (studRes?.ok) allStudents.value = studRes.data as { id: number; promo_id: number }[]
+      if (ganttRes?.ok) ganttAll.value = ganttRes.data as GanttRow[]
     } finally { loadingTeacher.value = false }
   } else {
     try {
       if (!travauxStore.devoirs.length) await travauxStore.fetchStudentDevoirs()
     } finally { loadingStudent.value = false }
   }
+})
+
+// ── Promo active + données filtrées ──────────────────────────────────────────
+const activePromo = computed(() =>
+  promos.value.find(p => p.id === appStore.activePromoId) ?? null,
+)
+
+const ganttFiltered = computed(() =>
+  activePromo.value
+    ? ganttAll.value.filter(t => t.promo_name === activePromo.value!.name)
+    : ganttAll.value,
+)
+
+const studentsForPromo = computed(() =>
+  activePromo.value
+    ? allStudents.value.filter(s => s.promo_id === activePromo.value!.id)
+    : allStudents.value,
+)
+
+const totalStudents = computed(() => studentsForPromo.value.length)
+
+const urgentsCount = computed(() => {
+  const now = Date.now()
+  const week = now + 7 * 86_400_000
+  return ganttFiltered.value.filter(t => {
+    const d = new Date(t.deadline).getTime()
+    return t.published && d >= now && d <= week
+  }).length
+})
+
+async function reloadPromos() {
+  const [promosRes, ganttRes] = await Promise.all([
+    window.api.getPromotions(),
+    window.api.getGanttData(0 as number),
+  ])
+  if (promosRes?.ok) promos.value = promosRes.data as Promotion[]
+  if (ganttRes?.ok) ganttAll.value = ganttRes.data as GanttRow[]
+}
+
+// Recharger quand la modale de création de promo se ferme
+watch(() => modals.createPromo, (open) => {
+  if (!open && appStore.isTeacher) reloadPromos()
 })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -102,7 +143,7 @@ function goToProject(key: string) {
 // ── Projets prof ─────────────────────────────────────────────────────────────
 const projectCards = computed((): ProjectCard[] => {
   const map = new Map<string, GanttRow[]>()
-  for (const t of ganttAll.value) {
+  for (const t of ganttFiltered.value) {
     if (!t.category?.trim()) continue
     if (!map.has(t.category)) map.set(t.category, [])
     map.get(t.category)!.push(t)
@@ -182,7 +223,7 @@ interface FriseProject   { key: string; label: string; icon: Component | null; m
 interface FrisePromo     { name: string; color: string; projects: FriseProject[] }
 
 const ganttDateRange = computed(() => {
-  const rows = (appStore.isTeacher ? ganttAll.value : travauxStore.devoirs) as { deadline: string }[]
+  const rows = (appStore.isTeacher ? ganttFiltered.value : travauxStore.devoirs) as { deadline: string }[]
   if (!rows.length) return null
   let min = Infinity, max = -Infinity
   for (const t of rows) {
@@ -217,7 +258,7 @@ const ganttTodayPct = computed(() => {
 
 const teacherFrise = computed((): FrisePromo[] => {
   const promoMap = new Map<string, { color: string; projects: Map<string, FriseMilestone[]> }>()
-  for (const t of ganttAll.value) {
+  for (const t of ganttFiltered.value) {
     const pName  = t.promo_name  || 'Sans promo'
     const pColor = t.promo_color || '#4a90d9'
     const pKey   = t.category?.trim() || 'Sans projet'
@@ -319,8 +360,30 @@ function onMilestoneClick(ms: FriseMilestone) {
               <p class="db-date">{{ today }}</p>
             </div>
           </div>
-          <button class="btn-ghost db-echeancier-btn" @click="modals.echeancier = true">
-            <Clock :size="14" /> Voir l'échéancier complet
+          <div class="db-header-actions">
+            <button class="btn-ghost db-echeancier-btn" @click="modals.echeancier = true">
+              <Clock :size="14" /> Échéancier
+            </button>
+          </div>
+        </div>
+
+        <!-- Sélecteur de promo -->
+        <div class="db-promo-bar">
+          <div class="db-promo-pills">
+            <button
+              v-for="p in promos"
+              :key="p.id"
+              class="db-promo-pill"
+              :class="{ active: appStore.activePromoId === p.id }"
+              :style="appStore.activePromoId === p.id ? { background: p.color, borderColor: p.color } : { borderColor: p.color + '55' }"
+              @click="appStore.activePromoId = p.id"
+            >
+              <span class="db-promo-dot" :style="{ background: appStore.activePromoId === p.id ? '#fff' : p.color }" />
+              {{ p.name }}
+            </button>
+          </div>
+          <button class="db-new-promo-btn btn-ghost" @click="modals.createPromo = true">
+            <PlusCircle :size="13" /> Nouvelle promo
           </button>
         </div>
 
@@ -1033,4 +1096,59 @@ function onMilestoneClick(ms: FriseMilestone) {
   color: var(--text-muted);
   font-weight: 500;
 }
+
+/* ── Barre sélecteur promo ── */
+.db-promo-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.db-promo-pills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.db-promo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1.5px solid transparent;
+  background: var(--bg-sidebar);
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.db-promo-pill:hover { background: rgba(255,255,255,.07); color: var(--text-primary); }
+.db-promo-pill.active { color: #fff; font-weight: 700; }
+
+.db-promo-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.db-new-promo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 5px 12px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  border: 1.5px dashed var(--border-input);
+  border-radius: 20px;
+  transition: all .15s ease;
+}
+.db-new-promo-btn:hover { color: var(--accent); border-color: var(--accent); background: rgba(74,144,217,.07); }
 </style>

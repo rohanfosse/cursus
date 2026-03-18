@@ -158,7 +158,8 @@ function register() {
   handle('db:renameChannel',    (id, name)           => queries.renameChannel(id, name))
   handle('db:deleteChannel',    (id)                 => queries.deleteChannel(id))
   handle('db:renameCategory',   (promoId, old, next) => queries.renameCategory(promoId, old, next))
-  handle('db:deleteCategory',   (promoId, category)  => queries.deleteCategory(promoId, category))
+  handle('db:deleteCategory',        (promoId, category)  => queries.deleteCategory(promoId, category))
+  handle('db:updateChannelMembers',  (payload)            => queries.updateChannelMembers(payload))
 
   // ── Réinitialisation des données ─────────────────────────────────────────
   handle('db:resetAndSeed', () => { queries.resetAndSeed(); return null })

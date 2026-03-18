@@ -51,7 +51,12 @@ function deleteCategory(promoId, category) {
     .run(promoId, category);
 }
 
+function updateChannelMembers({ channelId, members }) {
+  const membersJson = members?.length ? JSON.stringify(members) : null;
+  return getDb().prepare('UPDATE channels SET members = ? WHERE id = ?').run(membersJson, channelId);
+}
+
 module.exports = {
   getPromotions, getChannels, createPromotion, deletePromotion, createChannel,
-  renameChannel, deleteChannel, renameCategory, deleteCategory,
+  renameChannel, deleteChannel, renameCategory, deleteCategory, updateChannelMembers,
 };

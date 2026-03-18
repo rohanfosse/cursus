@@ -1,14 +1,16 @@
 <script setup lang="ts">
   import { computed, watch, ref, nextTick } from 'vue'
-  import { Search, X as XIcon, ClipboardList, BookCheck, FileText, FolderPlus, X as Close, CalendarRange } from 'lucide-vue-next'
+  import { Search, X as XIcon, ClipboardList, BookCheck, FileText, FolderPlus, X as Close, CalendarRange, Users, FolderOpen } from 'lucide-vue-next'
   import { useAppStore }      from '@/stores/app'
   import { useMessagesStore } from '@/stores/messages'
   import { useTravauxStore }  from '@/stores/travaux'
   import { useModalsStore }   from '@/stores/modals'
   import { useToast }         from '@/composables/useToast'
-  import MessageList  from '@/components/chat/MessageList.vue'
-  import MessageInput from '@/components/chat/MessageInput.vue'
-  import PinnedBanner from '@/components/chat/PinnedBanner.vue'
+  import MessageList         from '@/components/chat/MessageList.vue'
+  import MessageInput        from '@/components/chat/MessageInput.vue'
+  import PinnedBanner        from '@/components/chat/PinnedBanner.vue'
+  import ChannelMembersPanel from '@/components/panels/ChannelMembersPanel.vue'
+  import ChannelDocsPanel    from '@/components/panels/ChannelDocsPanel.vue'
   import { deadlineClass } from '@/utils/date'
 
   const appStore      = useAppStore()
@@ -19,6 +21,14 @@
 
   const searchInput      = ref('')
   const bannerDismissed  = ref(false)
+  const rightPanel       = ref<'members' | 'docs' | null>(null)
+
+  function togglePanel(panel: 'members' | 'docs') {
+    rightPanel.value = rightPanel.value === panel ? null : panel
+  }
+
+  // Fermer le panel quand on change de canal
+  watch(() => appStore.activeChannelId, () => { rightPanel.value = null })
 
   // ── Drag & drop → Documents ───────────────────────────────────────────────
   const isDragOver    = ref(false)
@@ -211,6 +221,30 @@
         >
           <CalendarRange :size="16" />
         </button>
+
+        <!-- Membres du canal -->
+        <button
+          id="btn-members"
+          class="btn-icon header-panel-btn"
+          :class="{ active: rightPanel === 'members' }"
+          title="Membres du canal"
+          aria-label="Afficher les membres"
+          @click="togglePanel('members')"
+        >
+          <Users :size="16" />
+        </button>
+
+        <!-- Documents du canal -->
+        <button
+          id="btn-docs"
+          class="btn-icon header-panel-btn"
+          :class="{ active: rightPanel === 'docs' }"
+          title="Documents du canal"
+          aria-label="Afficher les documents"
+          @click="togglePanel('docs')"
+        >
+          <FolderOpen :size="16" />
+        </button>
       </div>
     </header>
 
@@ -238,41 +272,58 @@
       </div>
     </Transition>
 
-    <!-- Liste des messages + zone de saisie -->
-    <div v-if="appStore.activeChannelId || appStore.activeDmStudentId" class="messages-container" id="messages-container">
-      <MessageList />
+    <!-- Corps principal : messages + panels latéraux -->
+    <div v-if="appStore.activeChannelId || appStore.activeDmStudentId" class="channel-body">
+      <!-- Liste des messages + zone de saisie -->
+      <div class="messages-container" id="messages-container">
+        <MessageList />
 
-      <!-- Barre de confirmation drag & drop -->
-      <div v-if="pendingDoc" class="doc-drop-confirm">
-        <FileText :size="18" class="doc-drop-icon" />
-        <div class="doc-drop-fields">
-          <input
-            v-model="docAddName"
-            type="text"
-            class="doc-drop-input"
-            placeholder="Nom du document"
-            @keydown.enter="confirmDocAdd"
-            @keydown.escape="cancelDocAdd"
-          />
-          <input
-            v-model="docAddCat"
-            type="text"
-            class="doc-drop-input doc-drop-cat"
-            placeholder="Catégorie (optionnel)"
-            @keydown.enter="confirmDocAdd"
-            @keydown.escape="cancelDocAdd"
-          />
+        <!-- Barre de confirmation drag & drop -->
+        <div v-if="pendingDoc" class="doc-drop-confirm">
+          <FileText :size="18" class="doc-drop-icon" />
+          <div class="doc-drop-fields">
+            <input
+              v-model="docAddName"
+              type="text"
+              class="doc-drop-input"
+              placeholder="Nom du document"
+              @keydown.enter="confirmDocAdd"
+              @keydown.escape="cancelDocAdd"
+            />
+            <input
+              v-model="docAddCat"
+              type="text"
+              class="doc-drop-input doc-drop-cat"
+              placeholder="Catégorie (optionnel)"
+              @keydown.enter="confirmDocAdd"
+              @keydown.escape="cancelDocAdd"
+            />
+          </div>
+          <span class="doc-drop-channel">→ #{{ appStore.activeChannelName }}</span>
+          <button class="btn-primary doc-drop-btn" :disabled="docAdding" @click="confirmDocAdd">
+            <FolderPlus :size="13" /> Ajouter
+          </button>
+          <button class="btn-ghost doc-drop-cancel" :disabled="docAdding" @click="cancelDocAdd">
+            <Close :size="13" />
+          </button>
         </div>
-        <span class="doc-drop-channel">→ #{{ appStore.activeChannelName }}</span>
-        <button class="btn-primary doc-drop-btn" :disabled="docAdding" @click="confirmDocAdd">
-          <FolderPlus :size="13" /> Ajouter
-        </button>
-        <button class="btn-ghost doc-drop-cancel" :disabled="docAdding" @click="cancelDocAdd">
-          <Close :size="13" />
-        </button>
+
+        <MessageInput />
       </div>
 
-      <MessageInput />
+      <!-- Panels latéraux (slide depuis la droite) -->
+      <Transition name="panel-slide">
+        <ChannelMembersPanel
+          v-if="rightPanel === 'members' && appStore.activeChannelId"
+          @close="rightPanel = null"
+        />
+      </Transition>
+      <Transition name="panel-slide">
+        <ChannelDocsPanel
+          v-if="rightPanel === 'docs' && appStore.activeChannelId"
+          @close="rightPanel = null"
+        />
+      </Transition>
     </div>
 
     <!-- Aucun canal sélectionné -->
@@ -304,7 +355,32 @@
 
 <style scoped>
 /* ── #main-area doit être position:relative pour l'overlay ── */
-#main-area { position: relative; }
+#main-area { position: relative; display: flex; flex-direction: column; min-height: 0; }
+
+/* ── Corps canal (messages + panels) ── */
+.channel-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+.channel-body .messages-container {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Boutons header avec état actif ── */
+.header-panel-btn.active {
+  color: var(--accent) !important;
+  background: var(--accent-subtle);
+  border-radius: 6px;
+}
+
+/* ── Transition panel latéral ── */
+.panel-slide-enter-active,
+.panel-slide-leave-active { transition: width .2s ease, opacity .15s ease; overflow: hidden; }
+.panel-slide-enter-from,
+.panel-slide-leave-to     { width: 0 !important; opacity: 0; min-width: 0 !important; }
 
 /* ── Overlay drag ── */
 .drop-overlay {
