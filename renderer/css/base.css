@@ -123,6 +123,72 @@ body.light {
 }
 
 /* ════════════════════════════════════════════
+   THÈME NUIT  (body.night)
+════════════════════════════════════════════ */
+body.night {
+  --bg-rail:    #08090c;
+  --bg-sidebar: #0b0d11;
+  --bg-main:    #0f1115;
+  --bg-input:   #07080b;
+  --bg-hover:   rgba(255,255,255,.05);
+  --bg-active:  rgba(74,144,217,.13);
+  --bg-modal:   #0b0d11;
+
+  --bg-darkest: #040506;
+  --bg-dark:    #0b0d11;
+  --bg-medium:  #0f1115;
+  --bg-light:   #15181e;
+  --bg-primary: #040506;
+
+  --text-primary:   #E2E3E5;
+  --text-secondary: #898C90;
+  --text-muted:     #4E5155;
+
+  --border:       rgba(255,255,255,.055);
+  --border-input: rgba(255,255,255,.10);
+
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.5);
+  --shadow-md: 0 4px 20px rgba(0,0,0,.7);
+  --shadow-lg: 0 12px 48px rgba(0,0,0,.85);
+}
+
+/* ════════════════════════════════════════════
+   THÈME MARINE  (body.marine)
+════════════════════════════════════════════ */
+body.marine {
+  --bg-rail:    #0e1829;
+  --bg-sidebar: #132036;
+  --bg-main:    #192840;
+  --bg-input:   #0e1829;
+  --bg-hover:   rgba(100,170,240,.08);
+  --bg-active:  rgba(74,144,217,.22);
+  --bg-modal:   #132036;
+
+  --bg-darkest: #090f1c;
+  --bg-dark:    #132036;
+  --bg-medium:  #192840;
+  --bg-light:   #1f3050;
+  --bg-primary: #090f1c;
+
+  --text-primary:   #C6D8EE;
+  --text-secondary: #6D94B8;
+  --text-muted:     #3E5E7A;
+
+  --accent:        #5AABF0;
+  --accent-hover:  #72bcf7;
+  --accent-dark:   #3886cc;
+  --accent-light:  #90CAFF;
+  --accent-subtle: rgba(90,171,240,.16);
+
+  --border:       rgba(80,140,200,.1);
+  --border-input: rgba(80,140,200,.18);
+
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.4);
+  --shadow-md: 0 4px 20px rgba(0,0,0,.55);
+  --shadow-lg: 0 12px 48px rgba(0,0,0,.7);
+}
+
+/* ════════════════════════════════════════════
    BASE
 ════════════════════════════════════════════ */
 html, body {

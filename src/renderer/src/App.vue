@@ -42,7 +42,9 @@
 
   onMounted(() => {
     // Appliquer le thème sauvegardé
-    document.body.classList.toggle('light', getPref('theme') === 'light')
+    const theme = getPref('theme') ?? 'dark'
+    document.body.classList.remove('light', 'night', 'marine')
+    if (theme !== 'dark') document.body.classList.add(theme)
 
     // Demander la permission pour les notifications natives
     if ('Notification' in window && Notification.permission === 'default') {

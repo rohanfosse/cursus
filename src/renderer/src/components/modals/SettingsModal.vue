@@ -20,14 +20,26 @@
 
   const activeSection  = ref<Section>('general')
   const docsDefault    = ref(getPref('docsOpenByDefault'))
-  const lightMode      = ref(getPref('theme') === 'light')
+  const currentTheme   = ref(getPref('theme') ?? 'dark')
   const pendingPhoto   = ref<string | null>(null)
   const photoChanged   = ref(false)
+
+  const THEMES = [
+    { id: 'dark',   label: 'Sombre',  colors: ['#1a1d21', '#1d2128', '#222529'] },
+    { id: 'light',  label: 'Clair',   colors: ['#E8EAED', '#F0F2F5', '#FFFFFF'] },
+    { id: 'night',  label: 'Nuit',    colors: ['#08090c', '#0b0d11', '#0f1115'] },
+    { id: 'marine', label: 'Marine',  colors: ['#0e1829', '#132036', '#192840'] },
+  ]
+
+  function applyTheme(theme: string) {
+    document.body.classList.remove('light', 'night', 'marine')
+    if (theme !== 'dark') document.body.classList.add(theme)
+  }
 
   watch(() => props.modelValue, (open) => {
     if (open) {
       activeSection.value = 'general'
-      lightMode.value     = getPref('theme') === 'light'
+      currentTheme.value  = getPref('theme') ?? 'dark'
       pendingPhoto.value  = appStore.currentUser?.photo_data ?? null
       photoChanged.value  = false
     }
@@ -35,10 +47,11 @@
 
   watch(docsDefault, (v) => setPref('docsOpenByDefault', v))
 
-  watch(lightMode, (v) => {
-    setPref('theme', v ? 'light' : 'dark')
-    document.body.classList.toggle('light', v)
-  })
+  function setTheme(theme: string) {
+    currentTheme.value = theme
+    setPref('theme', theme)
+    applyTheme(theme)
+  }
 
   async function pickPhoto() {
     const res = await window.api.openImageDialog()
@@ -154,15 +167,24 @@
 
           <div class="stg-group">
             <h4 class="stg-group-title">Interface</h4>
-            <label class="stg-toggle-row">
-              <div class="stg-toggle-info">
-                <span class="stg-toggle-label">Mode clair</span>
-                <span class="stg-toggle-desc">Bascule l'interface vers un thème fond blanc.</span>
-              </div>
-              <div class="stg-switch" :class="{ on: lightMode }" @click="lightMode = !lightMode">
-                <div class="stg-switch-thumb" />
-              </div>
-            </label>
+            <div class="stg-theme-grid">
+              <button
+                v-for="t in THEMES"
+                :key="t.id"
+                class="stg-theme-card"
+                :class="{ active: currentTheme === t.id }"
+                :title="t.label"
+                @click="setTheme(t.id)"
+              >
+                <div class="stg-theme-preview">
+                  <div class="stg-theme-rail"   :style="{ background: t.colors[0] }" />
+                  <div class="stg-theme-sidebar" :style="{ background: t.colors[1] }" />
+                  <div class="stg-theme-main"    :style="{ background: t.colors[2] }" />
+                </div>
+                <span class="stg-theme-label">{{ t.label }}</span>
+                <span v-if="currentTheme === t.id" class="stg-theme-check">✓</span>
+              </button>
+            </div>
             <div class="stg-info-row">
               <span class="stg-info-label">Langue</span>
               <span class="stg-info-value">Français</span>
@@ -517,5 +539,66 @@
   background: rgba(255,255,255,.02);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+}
+
+/* Sélecteur de thème */
+.stg-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.stg-theme-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 6px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255,255,255,.02);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: border-color .15s, background .15s, box-shadow .15s;
+  position: relative;
+}
+.stg-theme-card:hover {
+  border-color: rgba(255,255,255,.18);
+  background: rgba(255,255,255,.05);
+}
+.stg-theme-card.active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  box-shadow: 0 0 0 2px rgba(74,144,217,.18);
+}
+
+.stg-theme-preview {
+  width: 100%;
+  height: 44px;
+  border-radius: 5px;
+  overflow: hidden;
+  display: flex;
+  border: 1px solid rgba(0,0,0,.2);
+}
+.stg-theme-rail    { width: 22%; flex-shrink: 0; }
+.stg-theme-sidebar { width: 35%; flex-shrink: 0; }
+.stg-theme-main    { flex: 1; }
+
+.stg-theme-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+}
+.stg-theme-card.active .stg-theme-label { color: var(--accent-light); }
+
+.stg-theme-check {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
 }
 </style>
