@@ -1,0 +1,72 @@
+%PDF-1.4
+1 0 obj
+<</Type /Catalog /Pages 2 0 R>>
+endobj
+2 0 obj
+<</Type /Pages /Kids [3 0 R] /Count 1>>
+endobj
+3 0 obj
+<</Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources <</Font <</F1 5 0 R>>>>>>
+endobj
+4 0 obj
+<</Length 865>>
+stream
+BT
+/F1 15 Tf
+50 790 Td
+(TP Programmation S7-1200   Quentin ROUX) Tj
+0 -22 TD
+/F1 10 Tf
+(Quentin Roux   FISAA4 24-27) Tj
+0 -20 TD
+(Sujet : Controle d'un convoyeur simule avec TIA Portal V17) Tj
+0 -16 TD
+() Tj
+0 -16 TD
+(1. Analyse fonctionnelle) Tj
+0 -16 TD
+(   GRAFCET de niveau 1 et niveau 2 realises.) Tj
+0 -16 TD
+(   Etapes, transitions et actions documentees.) Tj
+0 -16 TD
+() Tj
+0 -16 TD
+(2. Programmation Ladder) Tj
+0 -16 TD
+(   Blocs OB1, FC1 \(demarrage\), FC2 \(arret urgence\)) Tj
+0 -16 TD
+(   Gestion des defauts avec diagnostic.) Tj
+0 -16 TD
+() Tj
+0 -16 TD
+(3. Supervision basique) Tj
+0 -16 TD
+(   Table de variables TIA Portal configuree.) Tj
+0 -16 TD
+(   Test avec simulateur PLCSIM.) Tj
+0 -16 TD
+() Tj
+0 -16 TD
+(Resultats : convoyeur fonctionnel, arret urgence OK.) Tj
+0 -16 TD
+(Points a ameliorer : gestion du redemarrage apres defaut.) Tj
+0 -16 TD
+ET
+endstream
+endobj
+5 0 obj
+<</Type /Font /Subtype /Type1 /BaseFont /Helvetica>>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000056 00000 n 
+0000000111 00000 n 
+0000000231 00000 n 
+0000001145 00000 n 
+trailer
+<</Size 6 /Root 1 0 R>>
+startxref
+1213
+%%EOF

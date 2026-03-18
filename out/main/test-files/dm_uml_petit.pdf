@@ -1,0 +1,72 @@
+%PDF-1.4
+1 0 obj
+<</Type /Catalog /Pages 2 0 R>>
+endobj
+2 0 obj
+<</Type /Pages /Kids [3 0 R] /Count 1>>
+endobj
+3 0 obj
+<</Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources <</Font <</F1 5 0 R>>>>>>
+endobj
+4 0 obj
+<</Length 975>>
+stream
+BT
+/F1 15 Tf
+50 790 Td
+(DM Modelisation UML   Jade PETIT) Tj
+0 -22 TD
+/F1 10 Tf
+(Jade Petit   CPIA2 25-26) Tj
+0 -20 TD
+(Sujet : Systeme de reservation de bibliotheque) Tj
+0 -16 TD
+() Tj
+0 -16 TD
+(Diagramme de cas d'utilisation :) Tj
+0 -16 TD
+(  Acteurs : Adherent, Bibliothecaire, Systeme) Tj
+0 -16 TD
+(  CU : Rechercher ouvrage, Reserver, Emprunter, Rendre, Gerer catalogues) Tj
+0 -16 TD
+(  Relations : include \(authentification\), extend \(alertes retard\)) Tj
+0 -16 TD
+() Tj
+0 -16 TD
+(Diagramme de classes :) Tj
+0 -16 TD
+(  Ouvrage \(isbn, titre, auteur, disponible\)) Tj
+0 -16 TD
+(  Exemplaire \(id, etat, ouvrage[1..*]\)) Tj
+0 -16 TD
+(  Adherent \(id, nom, email, actif\)) Tj
+0 -16 TD
+(  Emprunt \(id, dateDebut, dateFin, exemplaire, adherent\)) Tj
+0 -16 TD
+(  Reservation \(id, dateDemande, ouvrage, adherent\)) Tj
+0 -16 TD
+() Tj
+0 -16 TD
+(Diagramme de sequence : Emprunter un ouvrage) Tj
+0 -16 TD
+(  Adherent -> IHM -> Bibliothecaire -> Systeme -> BDD) Tj
+0 -16 TD
+ET
+endstream
+endobj
+5 0 obj
+<</Type /Font /Subtype /Type1 /BaseFont /Helvetica>>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000056 00000 n 
+0000000111 00000 n 
+0000000231 00000 n 
+0000001255 00000 n 
+trailer
+<</Size 6 /Root 1 0 R>>
+startxref
+1323
+%%EOF

@@ -1,0 +1,86 @@
+%PDF-1.4
+1 0 obj
+<</Type /Catalog /Pages 2 0 R>>
+endobj
+2 0 obj
+<</Type /Pages /Kids [3 0 R] /Count 1>>
+endobj
+3 0 obj
+<</Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources <</Font <</F1 5 0 R>>>>>>
+endobj
+4 0 obj
+<</Length 1266>>
+stream
+BT
+/F1 15 Tf
+50 790 Td
+(Dossier E5   Alexandre MOREAU) Tj
+0 -22 TD
+/F1 10 Tf
+(Alexandre Moreau   FISAA4 24-27) Tj
+0 -20 TD
+(Contexte professionnel   Projet E5) Tj
+0 -16 TD
+() Tj
+0 -16 TD
+(1. Presentation de l'entreprise) Tj
+0 -16 TD
+(   Schneider Electric   Site de Grenoble \(fabrication tableaux electriques\)) Tj
+0 -16 TD
+(   Effectif : 850 personnes, CA : 2.1 Md EUR) Tj
+0 -16 TD
+() Tj
+0 -16 TD
+(2. Contexte du projet) Tj
+0 -16 TD
+(   Modernisation de la ligne de production L7 :) Tj
+0 -16 TD
+(   remplacement des automates Siemens S5 par des S7-1500,) Tj
+0 -16 TD
+(   integration d'une supervision SCADA WinCC Unified.) Tj
+0 -16 TD
+() Tj
+0 -16 TD
+(3. Missions realisees) Tj
+0 -16 TD
+(   - Analyse fonctionnelle de la ligne existante \(GRAFCET\)) Tj
+0 -16 TD
+(   - Redaction des specifications techniques) Tj
+0 -16 TD
+(   - Programmation des blocs fonctionnels TIA Portal V17) Tj
+0 -16 TD
+(   - Tests en FAT \(Factory Acceptance Test\)) Tj
+0 -16 TD
+(   - Formation des operateurs \(2 sessions\)) Tj
+0 -16 TD
+() Tj
+0 -16 TD
+(4. Livrables produits) Tj
+0 -16 TD
+(   - Dossier d'analyse fonctionnelle \(50 pages\)) Tj
+0 -16 TD
+(   - Programme automate valide \(3 000 blocs\)) Tj
+0 -16 TD
+(   - Manuel operateur) Tj
+0 -16 TD
+(   - Rapport de tests FAT) Tj
+0 -16 TD
+ET
+endstream
+endobj
+5 0 obj
+<</Type /Font /Subtype /Type1 /BaseFont /Helvetica>>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000056 00000 n 
+0000000111 00000 n 
+0000000231 00000 n 
+0000001547 00000 n 
+trailer
+<</Size 6 /Root 1 0 R>>
+startxref
+1615
+%%EOF
