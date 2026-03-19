@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { computed, watch, ref, nextTick } from 'vue'
-  import { Search, X as XIcon, ClipboardList, BookCheck, FileText, FolderPlus, X as Close, CalendarRange, Users, FolderOpen, Menu } from 'lucide-vue-next'
+  import { Search, X as XIcon, ClipboardList, BookCheck, FileText, FolderPlus, X as Close, CalendarRange, Users, FolderOpen, Menu, MessageSquare } from 'lucide-vue-next'
   import { useAppStore }      from '@/stores/app'
   import { useMessagesStore } from '@/stores/messages'
   import { useTravauxStore }  from '@/stores/travaux'
@@ -333,7 +333,9 @@
 
     <!-- Aucun canal sélectionné -->
     <div v-else class="no-channel-hint" id="no-channel-hint">
-      <p>Sélectionnez un canal dans la barre latérale pour commencer.</p>
+      <MessageSquare :size="40" style="opacity:.2;margin-bottom:12px" />
+      <h3 style="font-size:16px;font-weight:700;color:var(--text-secondary);margin-bottom:4px">Bienvenue !</h3>
+      <p>Choisissez un canal dans la barre latérale pour commencer à discuter.</p>
     </div>
 
     <!-- Overlay drag & drop -->

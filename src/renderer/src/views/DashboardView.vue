@@ -573,7 +573,7 @@ function onMilestoneClick(ms: FriseMilestone) {
             <Award :size="18" class="db-stat-icon" />
           </div>
           <div class="db-stat-card db-stat-neutral">
-            <span class="db-stat-value">{{ studentStats.avg ?? '—' }}</span>
+            <span class="db-stat-value">{{ studentStats.avg != null ? studentStats.avg + '/20' : 'Pas encore' }}</span>
             <span class="db-stat-label">Note moyenne</span>
             <TrendingUp :size="18" class="db-stat-icon" />
           </div>

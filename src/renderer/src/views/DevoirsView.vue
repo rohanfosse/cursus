@@ -8,6 +8,7 @@ import {
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { useModalsStore }  from '@/stores/modals'
+import { useToast }        from '@/composables/useToast'
 import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
 import { avatarColor, initials } from '@/utils/format'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
@@ -16,6 +17,7 @@ import ProjetFiche        from '@/components/projet/ProjetFiche.vue'
 import StudentProjetFiche from '@/components/projet/StudentProjetFiche.vue'
 
 const props = defineProps<{ toggleSidebar?: () => void }>()
+const { showToast } = useToast()
 
 const appStore     = useAppStore()
 const travauxStore = useTravauxStore()
@@ -181,8 +183,11 @@ async function submitDeposit(devoir: Devoir) {
       file_name:  depositMode.value === 'file' ? depositFileName.value : null,
     })
     if (ok) {
+      showToast('Dépôt enregistré avec succès.', 'success')
       cancelDeposit()
       await travauxStore.fetchStudentDevoirs()
+    } else {
+      showToast('Erreur lors du dépôt. Veuillez réessayer.', 'error')
     }
   } finally {
     depositing.value = false
@@ -446,7 +451,7 @@ function typeLabel(t: string): string {
 
           <!-- ▸ EN RETARD -->
           <template v-if="studentGroups.overdue.length">
-            <div class="group-header group-header--danger">
+            <div class="group-header group-header--danger" title="Deadline dépassée — dépôt verrouillé">
               <Lock :size="12" /> En retard
               <span class="group-count">{{ studentGroups.overdue.length }}</span>
             </div>
@@ -478,7 +483,7 @@ function typeLabel(t: string): string {
 
           <!-- ▸ URGENT -->
           <template v-if="studentGroups.urgent.length">
-            <div class="group-header group-header--warning">
+            <div class="group-header group-header--warning" title="Moins de 3 jours avant la deadline">
               <AlertTriangle :size="12" /> Urgent
               <span class="group-count">{{ studentGroups.urgent.length }}</span>
             </div>
@@ -565,7 +570,7 @@ function typeLabel(t: string): string {
 
           <!-- ▸ À RENDRE -->
           <template v-if="studentGroups.pending.length">
-            <div class="group-header group-header--accent">
+            <div class="group-header group-header--accent" title="Plus de 3 jours avant la deadline">
               <Clock :size="12" /> À rendre
               <span class="group-count">{{ studentGroups.pending.length }}</span>
             </div>
@@ -685,9 +690,9 @@ function typeLabel(t: string): string {
 
           <!-- ▸ RENDUS -->
           <template v-if="submittedDevoirs.length">
-            <div class="group-header group-header--success">
+            <div class="group-header group-header--success" title="Devoirs soumis">
               <CheckCircle2 :size="12" /> Rendus
-              <span class="group-count">{{ submittedDevoirs.length }}</span>
+              <span class="group-count">{{ submittedDevoirs.length }} / {{ filteredDevoirs.length }}</span>
             </div>
             <div class="devoirs-list">
               <div v-for="t in submittedDevoirs" :key="t.id" class="devoir-card devoir-card--submitted">
@@ -708,6 +713,8 @@ function typeLabel(t: string): string {
                 <div class="devoir-submitted-info">
                   <CheckCircle2 :size="14" />
                   <span>Rendu déposé</span>
+                  <span v-if="t.note" class="devoir-graded-badge">Noté</span>
+                  <span v-else class="devoir-pending-badge">En attente de note</span>
                 </div>
                 <!-- Note & feedback si disponibles -->
                 <div v-if="t.note" class="devoir-grade-row">
@@ -1311,6 +1318,24 @@ function typeLabel(t: string): string {
   font-weight: 600;
   color: var(--color-success);
   margin-top: 8px;
+}
+.devoir-graded-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(46,204,113,.15);
+  color: var(--color-success);
+  margin-left: 4px;
+}
+.devoir-pending-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.08);
+  color: var(--text-muted);
+  margin-left: 4px;
 }
 
 /* Grade dans la carte rendu (étudiant) */

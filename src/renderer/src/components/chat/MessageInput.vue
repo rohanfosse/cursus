@@ -3,10 +3,12 @@ import { ref, computed, nextTick, watch } from 'vue'
 import { Send, Paperclip, Loader2, X as XIcon, Reply, Bold, Italic, Code, SquareCode } from 'lucide-vue-next'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
+import { useToast }         from '@/composables/useToast'
 import { avatarColor, initials } from '@/utils/format'
 
 const appStore      = useAppStore()
 const messagesStore = useMessagesStore()
+const { showToast } = useToast()
 
 const inputEl = ref<HTMLTextAreaElement | null>(null)
 const content = ref('')
@@ -205,7 +207,10 @@ async function attachFile() {
     const res = await window.api.openFileDialog()
     if (!res?.ok || !res.data) return
     const uploadRes = await window.api.uploadFile(res.data as string)
-    if (!uploadRes?.ok) return
+    if (!uploadRes?.ok) {
+      showToast('Erreur lors du chargement du fichier.', 'error')
+      return
+    }
     const url = uploadRes.data as string
     content.value += content.value ? `\n${url}` : url
     nextTick(() => { autoResize(); inputEl.value?.focus() })
@@ -217,6 +222,10 @@ async function attachFile() {
 // ── Envoi ──────────────────────────────────────────────────────────────────
 async function send() {
   if (!content.value.trim() || sending.value || appStore.isReadonly) return
+  if (!appStore.isOnline) {
+    showToast('Hors-ligne — message non envoyé.', 'error')
+    return
+  }
   mentionActive.value = false
   sending.value = true
   try {
@@ -434,7 +443,7 @@ watch(
 
     </template>
 
-    <p v-else class="readonly-notice">Ce canal est en lecture seule.</p>
+    <p v-else class="readonly-notice">Canal d'annonces — seuls les enseignants peuvent publier ici.</p>
   </div>
 </template>
 

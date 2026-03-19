@@ -64,7 +64,12 @@ export const useAppStore = defineStore('app', () => {
         if (currentUser.value?.type === 'ta') loadTaChannels()
         return true
       }
-    } catch {}
+    } catch {
+      // Session corrompue — nettoyer et avertir
+      localStorage.removeItem(SESSION_KEY)
+      const { showToast } = useToast()
+      showToast('Session expirée ou corrompue. Veuillez vous reconnecter.', 'error')
+    }
     return false
   }
 
@@ -76,7 +81,12 @@ export const useAppStore = defineStore('app', () => {
 
   function login(user: User): void {
     currentUser.value = user
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify(user)) } catch {}
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(user))
+    } catch {
+      const { showToast } = useToast()
+      showToast('Impossible de sauvegarder la session localement.', 'error')
+    }
     if (user.type === 'ta') loadTaChannels()
   }
 

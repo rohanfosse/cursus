@@ -319,7 +319,12 @@
         <FolderOpen :size="40" class="docs-empty-icon" />
         <p class="docs-empty-title">Aucun document</p>
         <p class="docs-empty-sub">
-          {{ docStore.searchQuery ? 'Aucun résultat pour cette recherche.' : 'Ce canal ne contient pas encore de document.' }}
+          {{ docStore.searchQuery
+            ? 'Aucun résultat pour cette recherche. Essayez d\'autres mots-clés.'
+            : appStore.isStudent
+              ? 'Aucun document pour le moment. Les documents seront ajoutés par votre enseignant.'
+              : 'Ce canal ne contient pas encore de document.'
+          }}
         </p>
         <button v-if="appStore.isTeacher && !docStore.searchQuery" class="btn-primary" @click="openAddModal">
           <Plus :size="14" /> Ajouter un document

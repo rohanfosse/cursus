@@ -165,6 +165,8 @@ async function pickFile() {
   if (uploadRes?.ok) {
     depositFile.value     = uploadRes.data as string
     depositFileName.value = localName
+  } else {
+    showToast('Erreur lors du chargement du fichier.', 'error')
   }
 }
 function clearDepositFile() { depositFile.value = null; depositFileName.value = null }
@@ -187,6 +189,8 @@ async function onDrop(e: DragEvent) {
   if (uploadRes?.ok) {
     depositFile.value     = uploadRes.data as string
     depositFileName.value = file.name
+  } else {
+    showToast('Erreur lors du chargement du fichier.', 'error')
   }
 }
 
