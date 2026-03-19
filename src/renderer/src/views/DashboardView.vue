@@ -4,7 +4,7 @@ import {
   Clock, Edit3, Users, BookOpen, AlertTriangle,
   ChevronRight, CheckCircle2, FileText, LayoutDashboard,
   Award, TrendingUp, FolderOpen, CalendarDays, BarChart2,
-  PlusCircle, Menu,
+  PlusCircle, Menu, GraduationCap,
 } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
@@ -392,6 +392,12 @@ function onMilestoneClick(ms: FriseMilestone) {
             </div>
           </div>
           <div class="db-header-actions">
+            <button class="btn-ghost db-echeancier-btn" @click="modals.classe = true">
+              <GraduationCap :size="14" /> Classe
+            </button>
+            <button class="btn-ghost db-echeancier-btn" @click="modals.intervenants = true">
+              <Users :size="14" /> Intervenants
+            </button>
             <button class="btn-ghost db-echeancier-btn" @click="modals.echeancier = true">
               <Clock :size="14" /> Échéancier
             </button>
