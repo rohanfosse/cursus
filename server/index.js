@@ -75,11 +75,17 @@ app.get('/health', (_req, res) => res.json({ ok: true, version: '2.0.0' }))
 // ── Webhook de déploiement (pas d'auth JWT, validé par DEPLOY_SECRET) ─────────
 app.use('/webhook/deploy', require('./routes/deploy'))
 
-// SPA web — fallback en dernier pour ne pas écraser les routes API/health
+// ── Landing page vitrine (page d'accueil) ──────────────────────────────────
+const LANDING = path.join(__dirname, '../landing/index.html')
+if (fs.existsSync(LANDING)) {
+  app.get('/', (_req, res) => res.sendFile(LANDING))
+}
+
+// ── SPA web — servie sous /app et en fallback ────────────────────────────────
 const WEB_DIST = path.join(__dirname, '../dist-web')
 if (fs.existsSync(WEB_DIST)) {
   app.use(express.static(WEB_DIST))
-  app.get(/^(?!\/api|\/socket\.io|\/uploads|\/health).*/, (_req, res) => {
+  app.get(/^(?!\/api|\/socket\.io|\/uploads|\/health|\/$).*/, (_req, res) => {
     res.sendFile(path.join(WEB_DIST, 'index.html'))
   })
 }
