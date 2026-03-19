@@ -30,7 +30,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 960,
     minHeight: 640,
-    title: 'CESIA',
+    title: 'Cursus',
     icon: join(__dirname, '../../resources/icon.png'),
     backgroundColor: '#111214',
     titleBarStyle: 'hidden',

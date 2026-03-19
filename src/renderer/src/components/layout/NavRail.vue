@@ -74,7 +74,7 @@
       <img
         :src="logoUrl"
         class="nav-logo-img"
-        alt="CESIA"
+        alt="Cursus"
         :style="appStore.isStaff ? { cursor: 'pointer' } : {}"
         :title="appStore.isStaff ? 'Tableau de bord' : undefined"
         @click="appStore.isStaff && router.push('/dashboard')"
