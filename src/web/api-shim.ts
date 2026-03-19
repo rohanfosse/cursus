@@ -390,8 +390,17 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   importStudents: (promoId: number) => importStudentsBrowser(promoId),
 
   // ── Shell → browser ──────────────────────────────────────────────────────────
-  openPath    (url: string) { window.open(url, '_blank'); return Promise.resolve({ ok: true, data: null }) },
-  openExternal(url: string) { window.open(url, '_blank'); return Promise.resolve({ ok: true, data: null }) },
+  // Open synchronously to avoid popup blocker (must be in user gesture call stack)
+  openPath(url: string) {
+    const w = window.open(url, '_blank', 'noopener,noreferrer')
+    if (!w) return Promise.resolve({ ok: false, error: 'Popup bloqué par le navigateur. Autorisez les popups pour ce site.' })
+    return Promise.resolve({ ok: true, data: null })
+  },
+  openExternal(url: string) {
+    const w = window.open(url, '_blank', 'noopener,noreferrer')
+    if (!w) return Promise.resolve({ ok: false, error: 'Popup bloqué par le navigateur. Autorisez les popups pour ce site.' })
+    return Promise.resolve({ ok: true, data: null })
+  },
   openPdf     (path: string) {
     if (path.startsWith('__web__')) {
       const cached = fileCache.get(path)

@@ -11,7 +11,7 @@ export function useOpenExternal() {
   const { showToast } = useToast()
   const appStore = useAppStore()
 
-  async function openExternal(rawUrl: string): Promise<boolean> {
+  function openExternal(rawUrl: string): boolean {
     const url = normalizeUrl(rawUrl)
     if (!url) {
       showToast('Lien vide.')
@@ -21,12 +21,14 @@ export function useOpenExternal() {
       showToast('Hors-ligne — impossible d\'ouvrir le lien externe.', 'error')
       return false
     }
-    const res = await window.api.openExternal(url)
-    if (!res?.ok) {
-      showToast(res?.error ?? 'Impossible d\'ouvrir le lien.')
-      return false
-    }
-    showToast('Lien ouvert dans le navigateur.', 'success')
+    // Call synchronously to stay within the user gesture for popup blocker
+    const res = window.api.openExternal(url)
+    // Handle the promise result asynchronously for error feedback
+    Promise.resolve(res).then((r) => {
+      if (!r?.ok) {
+        showToast(r?.error ?? 'Impossible d\'ouvrir le lien.', 'error')
+      }
+    })
     return true
   }
 

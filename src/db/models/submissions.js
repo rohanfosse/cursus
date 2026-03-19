@@ -63,7 +63,7 @@ function setFeedback({ depotId, feedback }) {
 
 function getRessources(travailId) {
   return getDb().prepare(
-    'SELECT * FROM ressources WHERE travail_id = ? ORDER BY created_at ASC'
+    'SELECT *, path_or_url AS content FROM ressources WHERE travail_id = ? ORDER BY created_at ASC'
   ).all(travailId);
 }
 

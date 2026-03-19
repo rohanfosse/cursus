@@ -20,6 +20,7 @@
     type: 'file' | 'link'
     name: string
     path_or_url: string
+    content: string
     category: string | null
     description: string | null
     created_at: string
@@ -56,10 +57,11 @@
   }
 
   async function openDoc(doc: ChannelDoc) {
+    const url = doc.content || doc.path_or_url
     if (doc.type === 'link') {
-      await window.api.openExternal(doc.path_or_url)
+      await window.api.openExternal(url)
     } else {
-      await window.api.openPath(doc.path_or_url)
+      await window.api.openPath(url)
     }
   }
 
