@@ -1,4 +1,4 @@
-// ─── Serveur Express + Socket.io — CeSlack ────────────────────────────────────
+// ─── Serveur Express + Socket.io — Cursus ─────────────────────────────────────
 require('dotenv').config({ path: require('path').join(__dirname, '.env') })
 
 const express    = require('express')
@@ -124,12 +124,12 @@ console.log('[DB] Base de données initialisée')
 
 // ── Démarrage ─────────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
-  console.log(`[CeSlack] Serveur démarré → http://localhost:${PORT}`)
+  console.log(`[Cursus] Serveur démarré → http://localhost:${PORT}`)
 })
 
 // ── Arrêt gracieux ────────────────────────────────────────────────────────────
 function shutdown() {
-  console.log('[CeSlack] Arrêt en cours...')
+  console.log('[Cursus] Arrêt en cours...')
   server.close(() => {
     try { queries.close() } catch {}
     process.exit(0)

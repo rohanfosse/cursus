@@ -1,7 +1,7 @@
-// ─── Service Worker — CeSlack PWA ────────────────────────────────────────────
+// ─── Service Worker — Cursus PWA ─────────────────────────────────────────────
 // Stratégie : Cache-First pour les assets statiques, Network-First pour les API
 
-const CACHE_NAME = 'ceslack-v1'
+const CACHE_NAME = 'cursus-v1'
 
 // Assets à précacher lors de l'installation
 const PRECACHE_URLS = [

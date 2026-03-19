@@ -1,8 +1,8 @@
-// ─── Configuration PM2 — CeSlack Serveur ─────────────────────────────────────
+// ─── Configuration PM2 — Cursus Serveur ──────────────────────────────────────
 module.exports = {
   apps: [
     {
-      name:        'ceslack-server',
+      name:        'cursus-server',
       script:      'server/index.js',
       instances:   1,           // SQLite ne supporte pas plusieurs instances
       autorestart: true,
