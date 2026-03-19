@@ -292,7 +292,7 @@
           <div class="stg-profile-card">
             <div class="stg-profile-top">
               <div class="stg-avatar" :style="{ background: pendingPhoto ? 'transparent' : avatarBg }">
-                <img v-if="pendingPhoto" :src="pendingPhoto" class="stg-avatar-img" />
+                <img v-if="pendingPhoto" :src="pendingPhoto" class="stg-avatar-img" alt="Photo de profil" />
                 <span v-else class="stg-avatar-initials">{{ appStore.currentUser?.avatar_initials }}</span>
               </div>
               <div class="stg-profile-info">

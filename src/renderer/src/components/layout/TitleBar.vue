@@ -124,6 +124,10 @@ onUnmounted(() => { unsubMaximize?.() })
   border-radius: 0;
   outline: none;
 }
+.wctrl-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
 
 /* Hover neutre pour min/max */
 .wctrl-min:hover,

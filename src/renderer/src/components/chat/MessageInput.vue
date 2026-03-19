@@ -595,6 +595,7 @@ watch(
           v-model="content"
           class="message-input"
           :placeholder="placeholder"
+          aria-label="Écrire un message"
           rows="1"
           @input="onInput"
           @keydown="onKeydown"
@@ -799,7 +800,7 @@ watch(
 
 .mi-mention-header {
   padding: 6px 14px 5px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .6px;
@@ -868,7 +869,7 @@ watch(
   flex-shrink: 0;
 }
 .mi-mention-badge {
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .4px;
@@ -1058,7 +1059,7 @@ watch(
 }
 .mi-hint kbd {
   font-family: var(--font);
-  font-size: 9.5px;
+  font-size: 10.5px;
   background: rgba(255, 255, 255, .07);
   border: 1px solid var(--border);
   border-radius: 3px;

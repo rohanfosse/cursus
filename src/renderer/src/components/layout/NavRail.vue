@@ -71,14 +71,16 @@
   <nav class="nav-rail" aria-label="Navigation principale">
     <!-- Logo — cliquable pour le prof -->
     <div class="nav-logo">
-      <img
-        :src="logoUrl"
-        class="nav-logo-img"
-        alt="Cursus"
-        :style="appStore.isStaff ? { cursor: 'pointer' } : {}"
-        :title="appStore.isStaff ? 'Tableau de bord' : undefined"
-        @click="appStore.isStaff && router.push('/dashboard')"
-      />
+      <button
+        v-if="appStore.isStaff"
+        class="nav-logo-btn"
+        title="Tableau de bord"
+        aria-label="Accueil — Tableau de bord"
+        @click="router.push('/dashboard')"
+      >
+        <img :src="logoUrl" class="nav-logo-img" alt="Cursus" />
+      </button>
+      <img v-else :src="logoUrl" class="nav-logo-img" alt="Cursus" />
     </div>
 
     <!-- ── Tableau de bord ── -->
@@ -293,7 +295,7 @@
   position: absolute;
   bottom: 2px;
   right: 2px;
-  font-size: 8px;
+  font-size: 10px;
   font-family: var(--font);
   font-weight: 600;
   color: var(--text-muted);
@@ -329,6 +331,16 @@
 .notif-panel-fade-leave-to     { opacity: 0; transform: translateX(-6px); }
 
 /* ── Logo ── */
+.nav-logo-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 8px;
+}
 .nav-logo-img {
   width: 36px;
   height: 36px;
@@ -343,8 +355,8 @@
 
 /* ── Bascule rapide étudiant ── */
 .nav-quick-student {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
   border: 1.5px solid rgba(230, 126, 34, .35);
   background: rgba(230, 126, 34, .08);
