@@ -90,6 +90,9 @@ export interface Devoir {
   group_name?: string | null
   note?: string | null
   feedback?: string | null
+  room?: string | null
+  aavs?: string | null
+  requires_submission?: number | 0 | 1
 }
 
 // backward compat alias — le backend renvoie toujours Travail, on l'aliase ici

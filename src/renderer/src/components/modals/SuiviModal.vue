@@ -117,6 +117,12 @@
   <Modal :model-value="modelValue" title="Suivi du travail" max-width="760px" @update:model-value="emit('update:modelValue', $event)">
     <div class="suivi-body">
 
+      <!-- Infos salle et AAVs -->
+      <div v-if="travauxStore.currentDevoir?.room || travauxStore.currentDevoir?.aavs" class="suivi-meta">
+        <span v-if="travauxStore.currentDevoir?.room" class="suivi-room">Salle {{ travauxStore.currentDevoir.room }}</span>
+        <span v-for="a in (travauxStore.currentDevoir?.aavs ?? '').split('\n').filter(Boolean)" :key="a" class="suivi-aav">{{ a.trim() }}</span>
+      </div>
+
       <!-- Barre de progression -->
       <div class="suivi-progress-header">
         <div class="suivi-progress-labels">
@@ -244,6 +250,28 @@
   flex-direction: column;
   gap: 0;
   min-height: 260px;
+}
+
+/* ── Meta (salle + AAVs) ── */
+.suivi-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px 0;
+  align-items: center;
+}
+.suivi-room {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.suivi-aav {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: rgba(74,144,217,.12);
+  color: var(--accent);
 }
 
 /* ── Barre de progression ── */

@@ -39,6 +39,11 @@ function isEventType(type: string): boolean {
   return type === 'soutenance' || type === 'cctl'
 }
 
+/** Vérifie si un devoir nécessite un rendu (basé sur requires_submission du backend) */
+function needsSubmission(devoir: Devoir): boolean {
+  return devoir.requires_submission !== 0
+}
+
 // ── Dépôt inline (étudiant) ───────────────────────────────────────────────────
 const depositingDevoirId = ref<number | null>(null)
 const depositMode        = ref<'file' | 'link'>('file')
@@ -96,17 +101,17 @@ const studentGroups = computed(() => {
     ? travauxStore.devoirs.filter(t => t.category === appStore.activeProject)
     : travauxStore.devoirs
   return {
-    overdue:   all.filter(t => t.depot_id == null && !isEventType(t.type) && isExpired(t.deadline)),
+    overdue:   all.filter(t => t.depot_id == null && needsSubmission(t) && isExpired(t.deadline)),
     urgent:    all.filter(t => {
-      if (t.depot_id != null || isExpired(t.deadline) || isEventType(t.type)) return false
+      if (t.depot_id != null || isExpired(t.deadline) || !needsSubmission(t)) return false
       return new Date(t.deadline).getTime() - now.value < 3 * 86_400_000
     }),
     pending:   all.filter(t => {
-      if (t.depot_id != null || isExpired(t.deadline) || isEventType(t.type)) return false
+      if (t.depot_id != null || isExpired(t.deadline) || !needsSubmission(t)) return false
       return new Date(t.deadline).getTime() - now.value >= 3 * 86_400_000
     }),
-    event:     all.filter(t => isEventType(t.type) && t.depot_id == null),
-    submitted: all.filter(t => t.depot_id != null || isEventType(t.type) && !isExpired(t.deadline) === false),
+    event:     all.filter(t => !needsSubmission(t) && t.depot_id == null),
+    submitted: all.filter(t => t.depot_id != null || (!needsSubmission(t) && isExpired(t.deadline))),
   }
 })
 
@@ -118,9 +123,9 @@ const filteredDevoirs  = computed(() =>
 )
 const submittedDevoirs = computed(() => filteredDevoirs.value.filter(t => t.depot_id != null))
 const pendingDeposit   = computed(() =>
-  filteredDevoirs.value.filter(t => t.depot_id == null && !isEventType(t.type)),
+  filteredDevoirs.value.filter(t => t.depot_id == null && needsSubmission(t)),
 )
-const eventDevoirs     = computed(() => filteredDevoirs.value.filter(t => isEventType(t.type)))
+const eventDevoirs     = computed(() => filteredDevoirs.value.filter(t => !needsSubmission(t)))
 
 const studentStats = computed(() => ({
   total:     filteredDevoirs.value.length,
@@ -459,6 +464,8 @@ function typeLabel(t: string): string {
                 </div>
                 <h3 class="devoir-card-title">{{ t.title }}</h3>
                 <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <p v-if="t.room" class="devoir-card-room">Salle {{ t.room }}</p>
+                <div v-if="t.aavs" class="devoir-card-aavs"><span v-for="a in t.aavs.split('\n').filter(Boolean)" :key="a" class="aav-tag">{{ a.trim() }}</span></div>
                 <div class="devoir-card-footer">
                   <span class="devoir-deadline-date">Échéance : {{ formatDate(t.deadline) }}</span>
                   <button class="btn-deposit-expired" disabled>
@@ -489,6 +496,8 @@ function typeLabel(t: string): string {
                 </div>
                 <h3 class="devoir-card-title">{{ t.title }}</h3>
                 <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <p v-if="t.room" class="devoir-card-room">Salle {{ t.room }}</p>
+                <div v-if="t.aavs" class="devoir-card-aavs"><span v-for="a in t.aavs.split('\n').filter(Boolean)" :key="a" class="aav-tag">{{ a.trim() }}</span></div>
                 <template v-if="depositingDevoirId === t.id">
                   <div class="deposit-form">
                     <div class="deposit-type-toggle">
@@ -574,6 +583,8 @@ function typeLabel(t: string): string {
                 </div>
                 <h3 class="devoir-card-title">{{ t.title }}</h3>
                 <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <p v-if="t.room" class="devoir-card-room">Salle {{ t.room }}</p>
+                <div v-if="t.aavs" class="devoir-card-aavs"><span v-for="a in t.aavs.split('\n').filter(Boolean)" :key="a" class="aav-tag">{{ a.trim() }}</span></div>
                 <template v-if="depositingDevoirId === t.id">
                   <div class="deposit-form">
                     <div class="deposit-type-toggle">
@@ -659,6 +670,8 @@ function typeLabel(t: string): string {
                 </div>
                 <h3 class="devoir-card-title">{{ t.title }}</h3>
                 <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <p v-if="t.room" class="devoir-card-room">Salle {{ t.room }}</p>
+                <div v-if="t.aavs" class="devoir-card-aavs"><span v-for="a in t.aavs.split('\n').filter(Boolean)" :key="a" class="aav-tag">{{ a.trim() }}</span></div>
                 <div class="devoir-presence-notice">
                   <Calendar :size="14" class="devoir-presence-icon" />
                   <span>Présence requise — pas de dépôt fichier</span>
@@ -690,6 +703,8 @@ function typeLabel(t: string): string {
                 </div>
                 <h3 class="devoir-card-title">{{ t.title }}</h3>
                 <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <p v-if="t.room" class="devoir-card-room">Salle {{ t.room }}</p>
+                <div v-if="t.aavs" class="devoir-card-aavs"><span v-for="a in t.aavs.split('\n').filter(Boolean)" :key="a" class="aav-tag">{{ a.trim() }}</span></div>
                 <div class="devoir-submitted-info">
                   <CheckCircle2 :size="14" />
                   <span>Rendu déposé</span>
@@ -1248,6 +1263,26 @@ function typeLabel(t: string): string {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.devoir-card-room {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.devoir-card-aavs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.aav-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(74,144,217,.12);
+  color: var(--accent);
+  white-space: nowrap;
 }
 
 /* Présence requise */

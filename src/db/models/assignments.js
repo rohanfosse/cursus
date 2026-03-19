@@ -24,15 +24,17 @@ function getTravailById(travailId) {
   return getDb().prepare('SELECT * FROM travaux WHERE id = ?').get(travailId);
 }
 
-function createTravail({ promoId, channelId, groupId, title, description, startDate, deadline, category, type, published }) {
+function createTravail({ promoId, channelId, groupId, title, description, startDate, deadline, category, type, published, room, aavs, requiresSubmission }) {
   const db = getDb();
+  const reqSub = requiresSubmission != null ? (requiresSubmission ? 1 : 0) : 1;
   const result = db.prepare(`
-    INSERT INTO travaux (promo_id, channel_id, group_id, title, description, start_date, deadline, category, type, published)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO travaux (promo_id, channel_id, group_id, title, description, start_date, deadline, category, type, published, room, aavs, requires_submission)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     promoId, channelId ?? null, groupId ?? null, title, description, startDate ?? null,
     deadline, category ?? null, type ?? 'livrable',
-    published != null ? (published ? 1 : 0) : 1
+    published != null ? (published ? 1 : 0) : 1,
+    room ?? null, aavs ?? null, reqSub
   );
   if (groupId) {
     const travailId = result.lastInsertRowid;
@@ -78,6 +80,7 @@ function getStudentTravaux(studentId) {
   return getDb().prepare(`
     SELECT
       t.id, t.title, t.description, t.deadline, t.group_id, t.category, t.type,
+      t.room, t.aavs, t.requires_submission,
       tgm_g.name AS group_name,
       d.id    AS depot_id, d.file_name, d.link_url, d.deploy_url, d.note, d.feedback, d.submitted_at
     FROM students s
@@ -129,6 +132,7 @@ function getGanttData(promoId) {
   const base = `
     SELECT t.id, t.title, t.category, t.type, t.published,
            t.start_date, t.deadline, t.group_id,
+           t.room, t.aavs, t.requires_submission,
            g.name AS group_name,
            ch.name AS channel_name, ch.id AS channel_id,
            p.name AS promo_name, p.color AS promo_color, p.id AS promo_id,
@@ -191,13 +195,13 @@ function getTeacherSchedule() {
   `).all();
 
   const jalons = db.prepare(`
-    SELECT t.id, t.title, t.deadline, t.description, t.category,
+    SELECT t.id, t.title, t.deadline, t.description, t.category, t.room, t.aavs,
            ch.name AS channel_name,
            p.name  AS promo_name, p.color AS promo_color
     FROM travaux t
     JOIN promotions p ON p.id = t.promo_id
     LEFT JOIN channels ch ON ch.id = t.channel_id
-    WHERE t.type = 'soutenance'
+    WHERE t.requires_submission = 0
       AND t.published = 1
       AND t.deadline >= datetime('now')
       AND t.deadline <= datetime('now', '+30 days')
@@ -241,8 +245,10 @@ function getTeacherSchedule() {
 
 function markNonSubmittedAsD(travailId) {
   const db      = getDb();
-  const travail = db.prepare('SELECT promo_id FROM travaux WHERE id = ?').get(travailId);
+  const travail = db.prepare('SELECT promo_id, requires_submission FROM travaux WHERE id = ?').get(travailId);
   if (!travail) return 0;
+  // Ne pas marquer les événements sans soumission requise
+  if (!travail.requires_submission) return 0;
 
   const students = db.prepare(`
     SELECT s.id FROM students s
