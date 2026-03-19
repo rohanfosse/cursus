@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed, ref } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
-  import { MessageSquare, BookOpen, FileText, LayoutDashboard, UserPlus, Bell, Flame, Search } from 'lucide-vue-next'
+  import { MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame, Search } from 'lucide-vue-next'
   import logoUrl from '@/assets/logo.svg'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
@@ -151,21 +151,6 @@
 
     <!-- Espaceur -->
     <div style="flex:1" />
-
-    <!-- ── Outils professeur / TA ── -->
-    <template v-if="appStore.isStaff">
-      <div class="nav-divider" />
-
-      <button
-        class="nav-btn"
-        title="Importer des étudiants (CSV)"
-        aria-label="Importer des étudiants"
-        @click="modals.importStudents = true"
-      >
-        <UserPlus :size="20" />
-        <span class="nav-label">Importer</span>
-      </button>
-    </template>
 
     <!-- ── Avatar / Paramètres ── -->
     <div class="nav-divider" />

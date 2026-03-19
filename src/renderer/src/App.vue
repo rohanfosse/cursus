@@ -57,8 +57,10 @@
     localStorage.setItem(PRIVACY_KEY, '1')
     showPrivacy.value = false
   }
+  function openPrivacy() { showPrivacy.value = true }
+  ;(window as any).__cursusShowPrivacy = openPrivacy
 
-  // Réinitialiser après déconnexion/reconnexion
+  // Afficher uniquement la premiere fois (revoir via Settings)
   watch(() => appStore.currentUser, (user) => {
     if (user && !localStorage.getItem(PRIVACY_KEY)) {
       showPrivacy.value = true
@@ -198,30 +200,57 @@
     />
   </template>
 
-  <!-- Bannière RGPD (première utilisation) -->
+  <!-- Banniere RGPD (premiere utilisation ou via Settings) -->
   <Transition name="privacy-fade">
     <div v-if="showPrivacy && appStore.currentUser" class="privacy-overlay" role="dialog" aria-modal="true" aria-label="Politique de confidentialité">
       <div class="privacy-box">
-        <div class="privacy-icon">🔒</div>
-        <h3 class="privacy-title">Vos données &amp; confidentialité</h3>
-        <div class="privacy-body">
-          <p>Cursus stocke localement les données suivantes :</p>
-          <ul>
-            <li><strong>Messages</strong> — conservés dans la base de données locale de l'établissement.</li>
-            <li><strong>Rendus &amp; notes</strong> — accessibles à votre responsable pédagogique.</li>
-            <li><strong>Photo de profil</strong> — visible par les membres de votre promotion.</li>
-            <li><strong>Mot de passe</strong> — stocké de façon chiffrée (bcrypt), jamais transmis en clair.</li>
-          </ul>
-          <p>Conformément au <strong>RGPD (Art. 17 &amp; 20)</strong>, vous pouvez à tout moment :</p>
-          <ul>
-            <li>Supprimer vos propres messages</li>
-            <li>Exporter vos données personnelles (Paramètres → Compte)</li>
-            <li>Demander la suppression de votre compte à l'administrateur</li>
-          </ul>
-          <p class="privacy-note">Ces données sont exclusivement utilisées dans le cadre de votre formation et ne sont jamais transmises à des tiers.</p>
+        <div class="privacy-header">
+          <div class="privacy-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <div>
+            <h3 class="privacy-title">Confidentialité &amp; données</h3>
+            <p class="privacy-subtitle">Comment Cursus protège vos informations</p>
+          </div>
         </div>
+
+        <div class="privacy-body">
+          <div class="privacy-section">
+            <h4 class="privacy-section-title">Données collectées</h4>
+            <div class="privacy-grid">
+              <div class="privacy-item">
+                <span class="privacy-item-icon">💬</span>
+                <div><strong>Messages</strong><span>Base de données locale</span></div>
+              </div>
+              <div class="privacy-item">
+                <span class="privacy-item-icon">📝</span>
+                <div><strong>Rendus &amp; notes</strong><span>Accessibles au responsable</span></div>
+              </div>
+              <div class="privacy-item">
+                <span class="privacy-item-icon">📷</span>
+                <div><strong>Photo de profil</strong><span>Visible par votre promo</span></div>
+              </div>
+              <div class="privacy-item">
+                <span class="privacy-item-icon">🔑</span>
+                <div><strong>Mot de passe</strong><span>Chiffré (bcrypt)</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="privacy-section">
+            <h4 class="privacy-section-title">Vos droits <span class="privacy-badge">RGPD</span></h4>
+            <div class="privacy-rights">
+              <div class="privacy-right">🗑️ Supprimer vos messages</div>
+              <div class="privacy-right">📦 Exporter vos données <span class="privacy-path">Paramètres → Compte</span></div>
+              <div class="privacy-right">✉️ Demander la suppression du compte</div>
+            </div>
+          </div>
+
+          <p class="privacy-note">Données utilisées uniquement dans le cadre de votre formation, jamais transmises à des tiers.</p>
+        </div>
+
         <button class="btn-primary privacy-accept" @click="acceptPrivacy">
-          J'ai compris
+          Compris, continuer
         </button>
       </div>
     </div>
@@ -316,8 +345,8 @@
     position: fixed;
     inset: 0;
     z-index: 2000;
-    background: rgba(0, 0, 0, .65);
-    backdrop-filter: blur(6px);
+    background: rgba(0, 0, 0, .7);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -327,50 +356,82 @@
   .privacy-box {
     background: var(--bg-modal);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 28px 32px;
-    max-width: 520px;
+    border-radius: 20px;
+    padding: 0;
+    max-width: 480px;
     width: 100%;
     box-shadow: 0 32px 80px rgba(0, 0, 0, .7);
+    overflow: hidden;
   }
 
-  .privacy-icon {
-    font-size: 32px;
-    margin-bottom: 12px;
-    line-height: 1;
+  .privacy-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 24px 28px 20px;
+    background: linear-gradient(135deg, rgba(74,144,217,.1) 0%, rgba(155,135,245,.06) 100%);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .privacy-icon-wrap {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
 
   .privacy-title {
-    font-size: 17px;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0 0 14px;
+    font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0; line-height: 1.3;
+  }
+
+  .privacy-subtitle {
+    font-size: 12px; color: var(--text-muted); margin: 2px 0 0; font-weight: 500;
   }
 
   .privacy-body {
-    font-size: 13px;
-    color: var(--text-secondary);
-    line-height: 1.6;
+    padding: 20px 28px 24px; display: flex; flex-direction: column; gap: 18px;
   }
-  .privacy-body p { margin: 0 0 8px; }
-  .privacy-body ul { margin: 0 0 8px; padding-left: 20px; }
-  .privacy-body li { margin-bottom: 4px; }
+
+  .privacy-section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--text-muted); margin: 0 0 10px; display: flex; align-items: center; gap: 8px;
+  }
+
+  .privacy-badge {
+    font-size: 9px; font-weight: 800; background: var(--accent); color: #fff;
+    padding: 2px 7px; border-radius: 4px; letter-spacing: .5px;
+  }
+
+  .privacy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .privacy-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 12px; background: rgba(255,255,255,.03);
+    border: 1px solid var(--border); border-radius: 10px;
+  }
+
+  .privacy-item-icon { font-size: 16px; line-height: 1; margin-top: 1px; flex-shrink: 0; }
+  .privacy-item div { display: flex; flex-direction: column; gap: 1px; }
+  .privacy-item strong { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+  .privacy-item span { font-size: 10.5px; color: var(--text-muted); line-height: 1.3; }
+
+  .privacy-rights { display: flex; flex-direction: column; gap: 6px; }
+
+  .privacy-right {
+    display: flex; align-items: center; gap: 8px; font-size: 12.5px;
+    color: var(--text-secondary); padding: 8px 12px; background: rgba(255,255,255,.02);
+    border-radius: 8px; border: 1px solid var(--border);
+  }
+
+  .privacy-path {
+    font-size: 10px; color: var(--accent); font-weight: 600; margin-left: auto; opacity: .8;
+  }
 
   .privacy-note {
-    font-size: 11.5px !important;
-    color: var(--text-muted) !important;
-    font-style: italic;
-    border-top: 1px solid var(--border);
-    padding-top: 10px;
-    margin-top: 10px !important;
+    font-size: 11px; color: var(--text-muted); font-style: italic; text-align: center;
+    padding-top: 4px; border-top: 1px solid var(--border); margin: 0; line-height: 1.5;
   }
 
   .privacy-accept {
-    margin-top: 18px;
-    width: 100%;
-    justify-content: center;
-    padding: 10px;
-    font-size: 14px;
+    margin: 0 28px 24px; width: calc(100% - 56px); justify-content: center;
+    padding: 11px; font-size: 13.5px; font-weight: 600; border-radius: 10px;
   }
 
   .privacy-fade-enter-active, .privacy-fade-leave-active { transition: opacity .2s ease; }

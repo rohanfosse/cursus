@@ -2,7 +2,7 @@
   import { ref, watch, computed } from 'vue'
   import {
     LogOut, Settings, User, Info, Camera, X, RotateCcw, KeyRound,
-    Download, Palette, Monitor, Moon, Sunset, Waves, Globe,
+    Download, Palette, Monitor, Moon, Sunset, Waves, Globe, Lock,
     FileText, ChevronRight, Github, Heart, Shield, Mail, BookOpen,
     ExternalLink,
   } from 'lucide-vue-next'
@@ -109,6 +109,13 @@
   })
 
   const showChangePwd = ref(false)
+
+  function openPrivacyFromSettings() {
+    emit('update:modelValue', false)
+    setTimeout(() => {
+      if ((window as any).__cursusShowPrivacy) (window as any).__cursusShowPrivacy()
+    }, 200)
+  }
 
   const exporting = ref(false)
   async function exportData() {
@@ -332,6 +339,23 @@
               </div>
               <button class="stg-btn stg-btn-ghost" @click="showChangePwd = true">
                 <KeyRound :size="13" /> Modifier
+              </button>
+            </div>
+          </div>
+
+          <!-- Confidentialité -->
+          <div class="stg-group">
+            <div class="stg-group-header">
+              <Lock :size="13" class="stg-group-icon" />
+              <h4 class="stg-group-title">Confidentialité</h4>
+            </div>
+            <div class="stg-action-row">
+              <div class="stg-toggle-info">
+                <span class="stg-toggle-label">Politique de confidentialité</span>
+                <span class="stg-toggle-desc">Consultez comment vos données sont protégées et vos droits RGPD.</span>
+              </div>
+              <button class="stg-btn stg-btn-ghost" @click="openPrivacyFromSettings">
+                <Shield :size="13" /> Consulter
               </button>
             </div>
           </div>
