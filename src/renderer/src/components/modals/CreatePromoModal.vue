@@ -59,7 +59,7 @@
   <Teleport to="body">
     <Transition name="modal-fade">
       <div v-if="modelValue" class="modal-overlay" @click.self="close">
-        <div class="cp-modal">
+        <div class="cp-modal" role="dialog" aria-modal="true" aria-label="Créer une promotion">
 
           <!-- En-tête -->
           <div class="cp-header">
@@ -191,6 +191,7 @@
   outline: none;
   transition: border-color .15s, box-shadow .15s;
 }
+.cp-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .cp-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(74,144,217,.14);

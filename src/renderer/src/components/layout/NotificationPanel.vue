@@ -46,7 +46,7 @@ function formatTime(ts: number): string {
 </script>
 
 <template>
-  <div class="notif-panel" role="dialog" aria-label="Centre de notifications">
+  <div class="notif-panel" role="dialog" aria-label="Centre de notifications" aria-live="polite">
     <!-- En-tête -->
     <div class="notif-header">
       <span class="notif-title">Notifications</span>
@@ -214,7 +214,7 @@ function formatTime(ts: number): string {
   align-items: center;
   gap: 5px;
   padding: 6px 12px 4px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .6px;
@@ -279,7 +279,7 @@ function formatTime(ts: number): string {
 }
 
 .notif-item-time {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
   flex-shrink: 0;

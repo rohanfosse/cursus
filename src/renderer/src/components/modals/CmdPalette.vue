@@ -236,6 +236,7 @@
               type="text"
               placeholder="Canaux, contacts, messages…"
               class="cmd-search-input"
+              aria-label="Rechercher des canaux, contacts ou messages"
               @keydown.escape="modals.cmdPalette = false"
               @keydown.arrow-down.prevent="moveSelection(+1)"
               @keydown.arrow-up.prevent="moveSelection(-1)"
@@ -334,6 +335,7 @@
   font-family: var(--font);
   font-size: 14px;
 }
+.cmd-search-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .cmd-search-input::placeholder { color: var(--text-muted); }
 
 /* Point de chargement ── */
@@ -352,7 +354,7 @@
 
 .cmd-kbd {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 11px;
   font-family: var(--font);
   color: var(--text-muted);
   background: rgba(255, 255, 255, .07);
@@ -367,7 +369,7 @@
   align-items: center;
   gap: 8px;
   padding: 5px 14px 4px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .6px;

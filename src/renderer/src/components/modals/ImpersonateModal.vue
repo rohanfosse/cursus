@@ -69,6 +69,7 @@
           type="text"
           class="form-input impersonate-search-input"
           placeholder="Rechercher un étudiant…"
+          aria-label="Rechercher un étudiant"
           autofocus
         />
       </div>
@@ -81,7 +82,9 @@
           v-for="s in filtered"
           :key="s.id"
           class="impersonate-student"
+          role="button"
           tabindex="0"
+          :aria-label="`Simuler la vue de ${s.name}`"
           @click="simulate(s)"
           @keydown.enter="simulate(s)"
           @keydown.space.prevent="simulate(s)"
@@ -174,7 +177,8 @@
 .impersonate-student:hover,
 .impersonate-student:focus-visible {
   background: var(--accent-subtle);
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .impersonate-avatar {

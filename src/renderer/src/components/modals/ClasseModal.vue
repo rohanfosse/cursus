@@ -232,6 +232,7 @@
                 class="classe-search-input"
                 type="text"
                 placeholder="Filtrer par nom…"
+                aria-label="Filtrer les étudiants par nom"
               />
             </div>
             <div class="classe-sort-btns">
@@ -468,6 +469,7 @@
   font-size: 13px;
   color: var(--text-primary);
 }
+.classe-search-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .classe-search-input::placeholder { color: var(--text-muted); }
 
 .classe-sort-btns { display: flex; gap: 4px; flex-shrink: 0; }

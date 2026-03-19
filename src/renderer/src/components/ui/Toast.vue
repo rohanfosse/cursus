@@ -9,6 +9,9 @@
         v-if="toastState.visible"
         :id="'app-toast'"
         :class="`toast-${toastState.type}`"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
       >
         <span class="toast-msg">{{ toastState.message }}</span>
         <button

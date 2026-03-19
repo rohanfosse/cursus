@@ -136,7 +136,7 @@
       <div v-if="showForm && appStore.isTeacher" class="ress-form">
         <div class="ress-form-header">
           <span class="ress-form-title">Nouvelle ressource</span>
-          <button class="btn-icon" @click="showForm = false"><X :size="14" /></button>
+          <button class="btn-icon" aria-label="Fermer le formulaire" @click="showForm = false"><X :size="14" /></button>
         </div>
 
         <!-- Toggle type -->
@@ -172,7 +172,7 @@
             <div v-if="addFile" class="ress-file-selected">
               <CheckCircle2 :size="15" class="ress-file-selected-icon" />
               <span class="ress-file-selected-name">{{ addFileName }}</span>
-              <button class="ress-file-clear" type="button" @click="clearFile"><X :size="12" /></button>
+              <button class="ress-file-clear" type="button" aria-label="Retirer le fichier" @click="clearFile"><X :size="12" /></button>
             </div>
             <button v-else class="ress-file-picker" type="button" @click="pickFile">
               <Upload :size="16" />

@@ -498,6 +498,7 @@
   outline: none;
   transition: border-color .15s, box-shadow .15s;
 }
+.docs-search-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 .docs-search-input:focus {
   border-color: var(--accent);

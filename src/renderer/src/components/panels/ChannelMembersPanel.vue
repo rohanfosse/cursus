@@ -89,7 +89,7 @@
     <div class="ch-panel-header">
       <Users :size="15" class="ch-panel-hicon" />
       <span class="ch-panel-title">Membres</span>
-      <button class="btn-icon ch-panel-close" @click="emit('close')"><X :size="15" /></button>
+      <button class="btn-icon ch-panel-close" aria-label="Fermer le panneau membres" @click="emit('close')"><X :size="15" /></button>
     </div>
 
     <div v-if="loading" class="ch-panel-body ch-loading">
@@ -144,6 +144,7 @@
             class="ch-search-input"
             type="text"
             placeholder="Rechercher un étudiant…"
+            aria-label="Rechercher un membre"
           />
         </div>
 
@@ -339,6 +340,7 @@
   outline: none;
   transition: border-color .15s;
 }
+.ch-search-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .ch-search-input:focus { border-color: var(--accent); }
 .ch-search-input::placeholder { color: var(--text-muted); }
 

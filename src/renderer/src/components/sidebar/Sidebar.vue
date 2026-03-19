@@ -799,6 +799,7 @@
                 ref="renameInputEl"
                 v-model="renameValue"
                 class="sidebar-rename-input"
+                aria-label="Renommer"
                 @keydown.enter.prevent="commitRenameCategory"
                 @keydown.escape.prevent="cancelRename"
                 @blur="commitRenameCategory"
@@ -838,6 +839,7 @@
                   ref="renameInputEl"
                   v-model="renameValue"
                   class="sidebar-rename-input"
+                aria-label="Renommer"
                   @keydown.enter.prevent="commitRenameChannel"
                   @keydown.escape.prevent="cancelRename"
                   @blur="commitRenameChannel"
@@ -1038,6 +1040,7 @@
   outline: none;
   box-shadow: 0 0 0 2px rgba(74,144,217,.2);
 }
+.sidebar-rename-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 /* ── Catégories de canaux ── */
 .sidebar-category {
@@ -1067,7 +1070,7 @@
 
 .sidebar-category-icon {
   flex-shrink: 0;
-  opacity: .7;
+  opacity: .85;
 }
 
 .sidebar-category-chevron {
@@ -1085,7 +1088,7 @@
 }
 
 .sidebar-category-count {
-  font-size: 10px;
+  font-size: 11px;
   opacity: .5;
   font-weight: 400;
 }
@@ -1093,7 +1096,7 @@
 /* ── Projets (section Devoirs) ── */
 .project-icon {
   flex-shrink: 0;
-  opacity: .6;
+  opacity: .8;
 }
 
 .project-bullet {
@@ -1128,6 +1131,7 @@
   outline: none;
   min-width: 0;
 }
+.project-add-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .project-add-input:focus { border-color: #9B87F5; box-shadow: 0 0 0 2px rgba(155,135,245,.2); }
 
 /* ── Badge DM non lus ── */
@@ -1252,7 +1256,7 @@
 .sidebar-category.drag-over {
   background: rgba(74, 144, 217, .07);
   border-radius: 6px;
-  outline: 1.5px dashed rgba(74, 144, 217, .35);
+  outline: 1.5px dashed rgba(74, 144, 217, .6);
   outline-offset: -1px;
 }
 

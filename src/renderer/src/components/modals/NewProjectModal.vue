@@ -824,6 +824,10 @@ async function save() {
   font-family: var(--font);
   min-width: 0;
 }
+.np-group-name-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
 
 .np-group-remove {
   flex-shrink: 0;
@@ -910,6 +914,7 @@ async function save() {
   cursor: pointer;
   outline: none;
 }
+.np-add-select:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .np-add-select:focus { border-color: var(--accent); color: var(--text-primary); }
 
 /* Pied de groupe */

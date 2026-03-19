@@ -35,7 +35,7 @@
   >
     <span class="channel-prefix">{{ muted ? '🔇' : prefix }}</span>
     <span class="channel-name">{{ name }}</span>
-    <Lock v-if="isPrivate" :size="10" class="channel-lock" />
+    <Lock v-if="isPrivate" :size="10" class="channel-lock" aria-label="Canal privé" />
 
     <!-- Badge mention @ — prioritaire sur le badge unread -->
     <span v-if="mentionPing > 0" class="mention-ping-badge" aria-label="Vous êtes mentionné">@</span>

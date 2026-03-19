@@ -64,7 +64,7 @@ const avg = computed(() => {
 }
 
 .grade-label {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
@@ -94,7 +94,7 @@ const avg = computed(() => {
 }
 
 .grade-count {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   text-align: center;
 }

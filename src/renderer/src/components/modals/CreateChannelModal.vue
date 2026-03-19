@@ -326,6 +326,7 @@
   font-size: 13.5px;
   padding: 9px 12px;
 }
+.cc-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 /* input seul (hors wrap) */
 .cc-field > .cc-input,
 .cc-icon-input-row .cc-input {
@@ -460,6 +461,7 @@
   transition: border-color .15s;
   appearance: auto;
 }
+.cc-select:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .cc-select:focus { border-color: var(--accent); }
 .cc-select option, .cc-select optgroup {
   background: var(--bg-modal, #1e2127);

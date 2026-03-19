@@ -156,7 +156,7 @@
             class="suivi-avatar"
             :style="{ background: r.photo_data ? 'transparent' : avatarColor(r.student_name) }"
           >
-            <img v-if="r.photo_data" :src="r.photo_data" class="suivi-avatar-img" />
+            <img v-if="r.photo_data" :src="r.photo_data" :alt="r.student_name" class="suivi-avatar-img" />
             <span v-else>{{ r.avatar_initials }}</span>
           </div>
 
@@ -474,6 +474,8 @@
   font-family: var(--font);
   outline: none;
 }
+.suivi-note-input:focus-visible,
+.suivi-feedback-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .suivi-note-input:focus,
 .suivi-feedback-input:focus { border-color: var(--accent); }
 .suivi-feedback-input { width: 120px; }

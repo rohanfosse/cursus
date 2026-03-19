@@ -240,7 +240,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
       </template>
 
       <!-- Citation (reply-to) -->
-      <div v-if="hasQuote" class="msg-quote" @click="closeAll">
+      <div v-if="hasQuote" class="msg-quote" role="button" tabindex="0" @click="closeAll" @keydown.enter="closeAll">
         <Reply :size="11" class="msg-quote-icon" />
         <span class="msg-quote-author">{{ msg.reply_to_author }}</span>
         <span class="msg-quote-preview">{{ msg.reply_to_preview }}</span>
@@ -269,7 +269,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
         />
         <div class="msg-edit-footer">
           <span class="msg-edit-hint">Entrée · valider &nbsp;·&nbsp; Échap · annuler</span>
-          <button class="btn-icon msg-edit-save" title="Valider" @click="commitEdit">
+          <button class="btn-icon msg-edit-save" title="Valider" aria-label="Valider la modification" @click="commitEdit">
             <Check :size="13" />
           </button>
         </div>
@@ -307,7 +307,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
     <div v-if="!editing" class="msg-action-pill">
 
       <!-- Répondre -->
-      <button class="pill-btn" title="Répondre" @click.stop="onReply">
+      <button class="pill-btn" title="Répondre" aria-label="Répondre au message" @click.stop="onReply">
         <Reply :size="15" />
       </button>
 
@@ -317,6 +317,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
         :key="r.type"
         class="pill-btn pill-emoji-btn"
         :title="r.emoji"
+        :aria-label="`Réagir avec ${r.emoji}`"
         @click.stop="quickReact(r.type)"
       >{{ r.emoji }}</button>
 
@@ -325,6 +326,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
         <button
           class="pill-btn"
           title="Ajouter une réaction"
+          aria-label="Ouvrir le sélecteur de réactions"
           @click.stop="showPicker = !showPicker"
         >
           <SmilePlus :size="15" />
@@ -335,6 +337,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
             :key="r.type"
             class="full-picker-btn"
             :title="r.emoji"
+            :aria-label="`Réagir avec ${r.emoji}`"
             @click.stop="pickReact(r.type)"
           >{{ r.emoji }}</button>
         </div>
@@ -348,6 +351,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
         v-if="appStore.isTeacher"
         class="pill-btn"
         :title="isPinned ? 'Désépingler' : 'Épingler'"
+        :aria-label="isPinned ? 'Désépingler le message' : 'Épingler le message'"
         @click.stop="togglePin"
       >
         <PinOff v-if="isPinned" :size="15" />
@@ -359,6 +363,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
         class="pill-btn"
         :class="{ 'pill-bookmarked': isBookmarked }"
         :title="isBookmarked ? 'Retirer des favoris' : 'Sauvegarder dans les favoris'"
+        :aria-label="isBookmarked ? 'Retirer des favoris' : 'Sauvegarder dans les favoris'"
         @click.stop="toggleBookmark"
       >
         <BookmarkCheck v-if="isBookmarked" :size="15" />
@@ -370,6 +375,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
         <button
           class="pill-btn"
           title="Plus d'options"
+          aria-label="Plus d'options"
           @click.stop="showMenu = !showMenu"
         >
           <MoreHorizontal :size="15" />
@@ -446,7 +452,6 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
   font-size: 10.5px;
   color: var(--text-muted);
   font-weight: 400;
-  opacity: .75;
 }
 .msg-edited-tag { font-size: 10px; color: var(--text-muted); font-style: italic; }
 
@@ -466,7 +471,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
   overflow: hidden;
   cursor: default;
 }
-.msg-quote-icon   { color: var(--accent); flex-shrink: 0; opacity: .7; }
+.msg-quote-icon   { color: var(--accent); flex-shrink: 0; }
 .msg-quote-author {
   font-size: 11.5px;
   font-weight: 700;
@@ -589,8 +594,8 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 28px;
+  width: 34px;
+  height: 32px;
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -639,8 +644,8 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
 }
 .full-picker-btn {
   font-size: 18px;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -765,6 +770,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
   box-shadow: 0 0 0 3px rgba(74,144,217,.15);
   line-height: 1.5;
 }
+.msg-edit-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .msg-edit-footer {
   display: flex;
   align-items: center;

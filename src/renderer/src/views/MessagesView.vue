@@ -477,6 +477,7 @@
   outline: none;
   transition: border-color var(--t-fast);
 }
+.doc-drop-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .doc-drop-input:focus { border-color: var(--accent); }
 .doc-drop-cat { max-width: 160px; }
 

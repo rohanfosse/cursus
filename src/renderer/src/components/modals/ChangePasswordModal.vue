@@ -101,7 +101,7 @@ function tryClose() {
         :class="{ forced }"
         @click.self="tryClose"
       >
-        <div class="cpw-box">
+        <div class="cpw-box" role="dialog" aria-modal="true" aria-label="Changer le mot de passe">
           <!-- En-tête -->
           <div class="cpw-header">
             <div class="cpw-header-icon">
@@ -132,7 +132,7 @@ function tryClose() {
                   autocomplete="current-password"
                   @keydown.enter="save"
                 />
-                <button class="cpw-eye" type="button" @click="showCurrent = !showCurrent">
+                <button class="cpw-eye" type="button" :aria-label="showCurrent ? 'Masquer le mot de passe actuel' : 'Afficher le mot de passe actuel'" @click="showCurrent = !showCurrent">
                   <EyeOff v-if="showCurrent" :size="15" />
                   <Eye    v-else             :size="15" />
                 </button>
@@ -150,7 +150,7 @@ function tryClose() {
                   placeholder="••••••••"
                   autocomplete="new-password"
                 />
-                <button class="cpw-eye" type="button" @click="showNew = !showNew">
+                <button class="cpw-eye" type="button" :aria-label="showNew ? 'Masquer le nouveau mot de passe' : 'Afficher le nouveau mot de passe'" @click="showNew = !showNew">
                   <EyeOff v-if="showNew" :size="15" />
                   <Eye    v-else         :size="15" />
                 </button>
@@ -199,7 +199,7 @@ function tryClose() {
                   autocomplete="new-password"
                   @keydown.enter="save"
                 />
-                <button class="cpw-eye" type="button" @click="showConfirm = !showConfirm">
+                <button class="cpw-eye" type="button" :aria-label="showConfirm ? 'Masquer la confirmation' : 'Afficher la confirmation'" @click="showConfirm = !showConfirm">
                   <EyeOff v-if="showConfirm" :size="15" />
                   <Eye    v-else             :size="15" />
                 </button>

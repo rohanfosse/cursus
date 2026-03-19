@@ -1,8 +1,13 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { AlertTriangle } from 'lucide-vue-next'
 import { useConfirm } from '@/composables/useConfirm'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 
 const { visible, options, resolve } = useConfirm()
+
+const cfmBoxRef = ref<HTMLElement | null>(null)
+useFocusTrap(cfmBoxRef, visible)
 </script>
 
 <template>
@@ -13,7 +18,7 @@ const { visible, options, resolve } = useConfirm()
         class="cfm-overlay"
         @click.self="resolve(false)"
       >
-        <div class="cfm-box" role="alertdialog" aria-modal="true">
+        <div ref="cfmBoxRef" class="cfm-box" role="alertdialog" aria-modal="true">
           <div class="cfm-icon" :class="options.variant ?? 'danger'">
             <AlertTriangle :size="20" />
           </div>

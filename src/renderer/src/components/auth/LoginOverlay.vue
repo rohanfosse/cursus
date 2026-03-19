@@ -200,7 +200,7 @@
                 class="auth-avatar-preview"
                 :style="{ background: pendingPhoto ? 'transparent' : previewColor() }"
               >
-                <img v-if="pendingPhoto" :src="pendingPhoto" class="auth-avatar-img" />
+                <img v-if="pendingPhoto" :src="pendingPhoto" alt="Photo de profil" class="auth-avatar-img" />
                 <span v-else>{{ previewInitials() }}</span>
               </div>
               <div class="auth-avatar-actions">
@@ -436,6 +436,7 @@
   transition: border-color .15s, box-shadow .15s;
   box-sizing: border-box;
 }
+.auth-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .auth-input:focus {
   border-color: var(--accent, #4A90D9);
   box-shadow: 0 0 0 3px rgba(74,144,217,.15);
