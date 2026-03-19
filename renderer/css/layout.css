@@ -27,7 +27,6 @@
   width: var(--rail-width);
   min-width: var(--rail-width);
   background: var(--bg-rail);
-  background-image: linear-gradient(180deg, #1e2538 0%, var(--bg-rail) 35%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -48,7 +47,7 @@
 .logo-mark {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--accent);
   color: #fff;
   font-size: 11px;
@@ -81,7 +80,7 @@
   justify-content: center;
   gap: 4px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
@@ -100,7 +99,7 @@
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;

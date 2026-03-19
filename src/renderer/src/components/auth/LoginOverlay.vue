@@ -3,7 +3,7 @@
   import { useRouter } from 'vue-router'
   import { useAppStore } from '@/stores/app'
   import { avatarColor }  from '@/utils/format'
-  import logoUrl from '@/assets/logo.png'
+  import logoUrl from '@/assets/logo.svg'
 
   const appStore = useAppStore()
   const router   = useRouter()
@@ -279,7 +279,7 @@
 /* ── Panneau gauche (branding) ── */
 .auth-brand {
   flex: 0 0 42%;
-  background: linear-gradient(155deg, #1a2a4a 0%, #111827 55%, #0d1d38 100%);
+  background: linear-gradient(155deg, #1a2535 0%, #141618 55%, #111827 100%);
   display: flex;
   align-items: center;
   justify-content: center;

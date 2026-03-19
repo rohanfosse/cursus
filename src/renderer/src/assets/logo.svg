@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="arc" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#7EB8FF"/>
+      <stop offset="50%" stop-color="#4A90D9"/>
+      <stop offset="100%" stop-color="#2e6dae"/>
+    </linearGradient>
+    <linearGradient id="l1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5da3f0"/>
+      <stop offset="100%" stop-color="#98999d"/>
+    </linearGradient>
+    <linearGradient id="l2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4A90D9"/>
+      <stop offset="100%" stop-color="#7d7e82"/>
+    </linearGradient>
+    <linearGradient id="l3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2e6dae"/>
+      <stop offset="100%" stop-color="#606164"/>
+    </linearGradient>
+  </defs>
+  <!-- Arc du C — ouvert à droite -->
+  <path d="M300 80 C180 30, 50 100, 50 256 C50 412, 180 482, 300 432"
+        stroke="url(#arc)" stroke-width="54" stroke-linecap="round" fill="none"/>
+  <!-- Petit accent en haut du C -->
+  <rect x="290" y="50" width="75" height="28" rx="14" fill="#7EB8FF" opacity="0.55"
+        transform="rotate(-18 327 64)"/>
+  <!-- 3 barres horizontales (parcours / communication) -->
+  <rect x="270" y="180" width="180" height="32" rx="16" fill="url(#l1)"/>
+  <rect x="235" y="274" width="195" height="32" rx="16" fill="url(#l2)"/>
+  <rect x="265" y="368" width="145" height="32" rx="16" fill="url(#l3)"/>
+</svg>

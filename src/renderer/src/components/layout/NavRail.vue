@@ -2,7 +2,7 @@
   import { computed, ref, onMounted } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
   import { MessageSquare, BookOpen, FileText, Calendar, UserCheck, LayoutDashboard, X, UserPlus, Bell, Users, GraduationCap, Flame, Search } from 'lucide-vue-next'
-  import logoUrl from '@/assets/logo.png'
+  import logoUrl from '@/assets/logo.svg'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
   import { useTravauxStore } from '@/stores/travaux'

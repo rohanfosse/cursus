@@ -7,25 +7,26 @@
    VARIABLES
 ════════════════════════════════════════════ */
 :root {
-  /* Fonds — thème sombre chaleureux (Slack-inspired) */
-  --bg-rail:    #1a1d21;   /* Rail de navigation — near-black chaud */
-  --bg-sidebar: #1d2128;   /* Sidebar canaux — légèrement plus clair */
-  --bg-main:    #222529;   /* Zone principale — gris foncé chaud */
-  --bg-input:   #1c1f24;   /* Zone de saisie */
-  --bg-hover:   rgba(255,255,255,.06);
+  /* Fonds — thème sombre neutre (moderne, épuré) */
+  --bg-rail:    #161819;   /* Rail de navigation — near-black neutre */
+  --bg-sidebar: #1c1d1f;   /* Sidebar canaux — gris neutre */
+  --bg-main:    #232425;   /* Zone principale — gris pur */
+  --bg-input:   #1a1b1d;   /* Zone de saisie */
+  --bg-hover:   rgba(255,255,255,.05);
   --bg-active:  rgba(74,144,217,.16);
-  --bg-modal:   #1e2127;
+  --bg-modal:   #1e1f21;
+  --bg-elevated: #272829;  /* Cartes / éléments en relief */
 
   /* Alias legacy (composants existants) */
-  --bg-darkest: #141618;
-  --bg-dark:    #1d2128;
-  --bg-medium:  #222529;
-  --bg-light:   #2a2e35;
-  --bg-primary: #141618;
+  --bg-darkest: #121314;
+  --bg-dark:    #1c1d1f;
+  --bg-medium:  #232425;
+  --bg-light:   #2a2b2d;
+  --bg-primary: #121314;
 
-  /* Texte — contraste soigné sans éblouir */
-  --text-primary:   #D1D2D3;   /* Blanc légèrement chaud */
-  --text-secondary: #97999C;   /* Gris moyen chaleureux */
+  /* Texte — contraste soigné */
+  --text-primary:   #E8E9EA;   /* Blanc neutre, lisible */
+  --text-secondary: #8B8D91;   /* Gris moyen neutre */
   --text-muted:     #616467;   /* Gris discret */
 
   /* Accent */
@@ -35,10 +36,10 @@
   --accent-light:  #7EB8FF;
   --accent-subtle: rgba(74,144,217,.14);
 
-  /* Ombres */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.35);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.50);
-  --shadow-lg: 0 12px 40px rgba(0,0,0,.65);
+  /* Ombres — légères, modernes */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.25);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,.35);
 
   /* Timings de transition */
   --t-fast: .12s;
@@ -46,8 +47,8 @@
   --t-slow: .28s;
 
   /* Bordures */
-  --border:       rgba(255,255,255,.07);
-  --border-input: rgba(255,255,255,.13);
+  --border:       rgba(255,255,255,.06);
+  --border-input: rgba(255,255,255,.12);
 
   /* États sémantiques */
   --color-danger:  #E74C3C;
@@ -66,10 +67,10 @@
   --font:      'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-base: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
-  /* Rayons */
-  --radius-sm: 4px;
-  --radius:    8px;
-  --radius-lg: 12px;
+  /* Rayons — coins arrondis modernes */
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 14px;
 
   /* Dimensions de layout */
   --rail-width:    72px;
@@ -83,35 +84,36 @@
    THÈME CLAIR  (body.light)
 ════════════════════════════════════════════ */
 body.light {
-  /* Fonds */
-  --bg-rail:    #E8EAED;
-  --bg-sidebar: #F0F2F5;
+  /* Fonds — tons Apple-like */
+  --bg-rail:    #F5F5F7;
+  --bg-sidebar: #F9F9FB;
   --bg-main:    #FFFFFF;
-  --bg-input:   #F0F2F5;
-  --bg-hover:   rgba(0,0,0,.05);
-  --bg-active:  rgba(0,0,0,.09);
+  --bg-input:   #F2F2F4;
+  --bg-hover:   rgba(0,0,0,.04);
+  --bg-active:  rgba(0,0,0,.08);
   --bg-modal:   #FFFFFF;
+  --bg-elevated: #FFFFFF;
 
   /* Alias legacy */
-  --bg-darkest: #D1D5DB;
-  --bg-dark:    #F0F2F5;
+  --bg-darkest: #E5E5E7;
+  --bg-dark:    #F9F9FB;
   --bg-medium:  #FFFFFF;
-  --bg-light:   #E8EAED;
-  --bg-primary: #D1D5DB;
+  --bg-light:   #F5F5F7;
+  --bg-primary: #E5E5E7;
 
   /* Texte */
-  --text-primary:   #111827;
-  --text-secondary: #4B5563;
-  --text-muted:     #9CA3AF;
+  --text-primary:   #1D1D1F;
+  --text-secondary: #6E6E73;
+  --text-muted:     #AEAEB2;
 
   /* Bordures */
-  --border:       rgba(0,0,0,.09);
-  --border-input: rgba(0,0,0,.15);
+  --border:       rgba(0,0,0,.08);
+  --border-input: rgba(0,0,0,.12);
 
-  /* Ombres */
-  --shadow-sm: 0 1px 4px rgba(0,0,0,.08);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.10);
-  --shadow-lg: 0 12px 40px rgba(0,0,0,.15);
+  /* Ombres — subtiles */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,.12);
 
   /* Deadlines */
   --deadline-ok-bg:     rgba(39, 174, 96, .14);
@@ -147,9 +149,9 @@ body.night {
   --border:       rgba(255,255,255,.055);
   --border-input: rgba(255,255,255,.10);
 
-  --shadow-sm: 0 1px 4px rgba(0,0,0,.5);
-  --shadow-md: 0 4px 20px rgba(0,0,0,.7);
-  --shadow-lg: 0 12px 48px rgba(0,0,0,.85);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.4);
+  --shadow-md: 0 4px 14px rgba(0,0,0,.5);
+  --shadow-lg: 0 8px 36px rgba(0,0,0,.65);
 }
 
 /* ════════════════════════════════════════════
@@ -183,9 +185,9 @@ body.marine {
   --border:       rgba(80,140,200,.1);
   --border-input: rgba(80,140,200,.18);
 
-  --shadow-sm: 0 1px 4px rgba(0,0,0,.4);
-  --shadow-md: 0 4px 20px rgba(0,0,0,.55);
-  --shadow-lg: 0 12px 48px rgba(0,0,0,.7);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
+  --shadow-md: 0 4px 14px rgba(0,0,0,.4);
+  --shadow-lg: 0 8px 36px rgba(0,0,0,.55);
 }
 
 /* ════════════════════════════════════════════
@@ -217,7 +219,7 @@ html, body {
 }
 
 /* Scrollbars */
-::-webkit-scrollbar         { width: 6px; height: 6px; }
+::-webkit-scrollbar         { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track   { background: transparent; }
 ::-webkit-scrollbar-thumb   { background: rgba(255,255,255,.15); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.25); }

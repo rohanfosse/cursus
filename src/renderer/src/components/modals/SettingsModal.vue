@@ -14,7 +14,7 @@
   import { useConfirm }  from '@/composables/useConfirm'
   import { avatarColor } from '@/utils/format'
   import Modal from '@/components/ui/Modal.vue'
-  import logoUrl from '@/assets/logo.png'
+  import logoUrl from '@/assets/logo.svg'
 
   const props = defineProps<{ modelValue: boolean }>()
   const emit  = defineEmits<{ 'update:modelValue': [v: boolean] }>()
