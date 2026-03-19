@@ -43,8 +43,8 @@ function _showEmailForm(onLogin, prefillEmail = '') {
   overlay.innerHTML = `
     <div id="login-panel">
       <div id="login-logo">
-        <div class="logo-mark">CC</div>
-        <span class="logo-text">CESI Cours</span>
+        <div class="logo-mark">Cu</div>
+        <span class="logo-text">Cursus</span>
       </div>
       <h2 id="login-title">Connexion</h2>
       <p id="login-subtitle">Entrez vos identifiants pour continuer</p>
@@ -216,11 +216,11 @@ async function _showRegisterForm(onLogin) {
   overlay.innerHTML = `
     <div id="login-panel" style="max-width:480px;">
       <div id="login-logo">
-        <div class="logo-mark">CC</div>
-        <span class="logo-text">CESI Cours</span>
+        <div class="logo-mark">Cu</div>
+        <span class="logo-text">Cursus</span>
       </div>
       <h2 id="login-title">Nouveau compte étudiant</h2>
-      <p id="login-subtitle">Seules les adresses @viacesi.fr sont acceptées</p>
+      <p id="login-subtitle">Utilisez votre adresse @viacesi.fr</p>
 
       <form id="register-form" style="width:100%;display:flex;flex-direction:column;gap:12px;margin-top:8px;">
 
@@ -246,7 +246,7 @@ async function _showRegisterForm(onLogin) {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Adresse email CESI</label>
+          <label class="form-label">Adresse email</label>
           <input type="email" id="reg-email" class="form-input" placeholder="prenom.nom@viacesi.fr" required autocomplete="off"/>
           <span id="reg-email-error" class="field-error"></span>
         </div>

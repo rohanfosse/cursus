@@ -228,7 +228,7 @@
         <div class="cmd-palette-box">
           <!-- Barre de recherche -->
           <div class="cmd-search-bar">
-            <img :src="logoUrl" class="cmd-logo" alt="CESIA" />
+            <img :src="logoUrl" class="cmd-logo" alt="Cursus" />
             <Search :size="15" class="cmd-search-icon" />
             <input
               ref="inputEl"

@@ -114,7 +114,7 @@ function register() {
       const { BrowserWindow } = require('electron');
       const win = new BrowserWindow({
         width: 960, height: 780,
-        title: 'Visualisation — CESI Classroom',
+        title: 'Visualisation — Cursus',
         backgroundColor: '#111214',
         webPreferences: { nodeIntegration: false, contextIsolation: true },
       });

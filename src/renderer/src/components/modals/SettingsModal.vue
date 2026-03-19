@@ -340,11 +340,11 @@
             <h4 class="stg-group-title">Application</h4>
             <div class="stg-info-row">
               <span class="stg-info-label">Nom</span>
-              <span class="stg-info-value">CESI Cours</span>
+              <span class="stg-info-value">Cursus</span>
             </div>
             <div class="stg-info-row">
               <span class="stg-info-label">Version</span>
-              <span class="stg-info-value">1.0.0</span>
+              <span class="stg-info-value">2.0.0</span>
             </div>
             <div class="stg-info-row">
               <span class="stg-info-label">Plateforme</span>
@@ -355,9 +355,9 @@
           <div class="stg-group">
             <h4 class="stg-group-title">Description</h4>
             <p class="stg-about-text">
-              Plateforme pédagogique pour la gestion des cours, travaux et documents
-              entre enseignants et étudiants CESI. Messagerie en temps réel, suivi
-              des rendus, gestion des ressources et planification Gantt.
+              Plateforme pédagogique open-source par Rohan Fossé. Messagerie en temps
+              réel, suivi des devoirs et rendus, gestion des documents et planification
+              Gantt — tout en un seul endroit.
             </p>
           </div>
         </section>

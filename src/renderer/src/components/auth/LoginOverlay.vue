@@ -191,7 +191,7 @@
         <!-- ── Inscription ── -->
         <div v-else key="register" class="auth-card auth-card-wide">
           <h2 class="auth-card-title">Créer un compte</h2>
-          <p class="auth-card-sub">Réservé aux adresses <strong>@viacesi.fr</strong></p>
+          <p class="auth-card-sub">Utilisez votre adresse <strong>@viacesi.fr</strong></p>
 
           <form class="auth-form" @submit.prevent="handleRegister">
             <!-- Avatar -->
@@ -226,7 +226,7 @@
             </div>
 
             <div class="auth-field">
-              <label class="auth-label">Email CESI</label>
+              <label class="auth-label">Adresse email</label>
               <input v-model="regEmail" type="email" class="auth-input" placeholder="prenom.nom@viacesi.fr" required />
               <Transition name="err-pop">
                 <span v-if="regEmailErr" class="auth-field-error">{{ regEmailErr }}</span>

@@ -205,7 +205,7 @@
         <div class="privacy-icon">🔒</div>
         <h3 class="privacy-title">Vos données &amp; confidentialité</h3>
         <div class="privacy-body">
-          <p>CESIA stocke localement les données suivantes :</p>
+          <p>Cursus stocke localement les données suivantes :</p>
           <ul>
             <li><strong>Messages</strong> — conservés dans la base de données locale de l'établissement.</li>
             <li><strong>Rendus &amp; notes</strong> — accessibles à votre responsable pédagogique.</li>
