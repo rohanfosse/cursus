@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
   import { Search, Hash, MessageSquare, User, LayoutGrid } from 'lucide-vue-next'
-  import logoUrl from '@/assets/logo.png'
+  import logoUrl from '@/assets/logo.svg'
   import { useAppStore }      from '@/stores/app'
   import { useModalsStore }   from '@/stores/modals'
   import { useMessagesStore } from '@/stores/messages'
