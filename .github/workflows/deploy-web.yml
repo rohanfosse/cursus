@@ -3,10 +3,14 @@ name: Deploy Web
 on:
   push:
     branches: [main]
-    # Ignorer les commits automatiques du CI (dist-web)
     paths-ignore:
       - 'dist-web/**'
-  workflow_dispatch:  # Permet le déclenchement manuel
+  workflow_dispatch:
+
+# Un seul déploiement à la fois — annule l'ancien si un nouveau arrive
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -41,16 +45,23 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f dist-web/
-          git diff --cached --quiet && echo "No changes in dist-web" || \
+          if git diff --cached --quiet; then
+            echo "No changes in dist-web, skipping commit"
+          else
             git commit -m "chore: build dist-web [skip ci]"
-          git push
+            # Rebase si quelqu'un a pushé entre-temps (runs parallèles)
+            git pull --rebase origin main
+            git push
+          fi
 
       - name: Trigger deploy webhook
         env:
           DEPLOY_SECRET: ${{ secrets.DEPLOY_SECRET }}
           SERVER_URL:    ${{ secrets.VITE_SERVER_URL }}
         run: |
-          curl -s -X POST \
+          curl -sf -X POST \
             -H "x-deploy-secret: $DEPLOY_SECRET" \
             -H "Content-Type: application/json" \
-            "${SERVER_URL}/webhook/deploy" | cat
+            "${SERVER_URL}/webhook/deploy" \
+            && echo " Deploy webhook OK" \
+            || echo " Webhook unreachable (HTTP error)"
