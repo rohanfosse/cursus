@@ -584,7 +584,7 @@ function onMilestoneClick(ms: FriseMilestone) {
         <!-- Bannière onboarding (première visite) -->
         <div v-if="showOnboarding" class="db-onboarding">
           <div class="db-onboarding-content">
-            <strong>Bienvenue sur CeSlack !</strong>
+            <strong>Bienvenue sur Cursus !</strong>
             <span>Consultez vos <b>devoirs</b> dans la section Devoirs, discutez dans les <b>canaux</b>, et suivez votre <b>progression</b> ici.</span>
           </div>
           <button class="btn-ghost db-onboarding-close" @click="dismissOnboarding">C'est compris</button>

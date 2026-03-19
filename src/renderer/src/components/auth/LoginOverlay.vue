@@ -111,9 +111,9 @@
     <!-- Panneau gauche — branding -->
     <div class="auth-brand">
       <div class="auth-brand-inner">
-        <img :src="logoUrl" class="auth-brand-logo" alt="CeSlack" />
-        <h1 class="auth-brand-name">CeSlack</h1>
-        <p class="auth-brand-tagline">La plateforme pédagogique<br>de votre formation CESI</p>
+        <img :src="logoUrl" class="auth-brand-logo" alt="Cursus" />
+        <h1 class="auth-brand-name">Cursus</h1>
+        <p class="auth-brand-tagline">Suivez votre parcours<br>de formation</p>
 
         <ul class="auth-feature-list">
           <li><span class="auth-feature-dot" />Messagerie par promotion &amp; canal</li>
