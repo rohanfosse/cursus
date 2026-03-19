@@ -1,8 +1,9 @@
-// ─── Routes d'authentification (publiques) ────────────────────────────────────
-const router  = require('express').Router()
-const jwt     = require('jsonwebtoken')
-const queries = require('../../src/db/index')
-const auth    = require('../middleware/auth')
+// ─── Routes d'authentification ──────────────────────────────────────────────
+const router    = require('express').Router()
+const jwt       = require('jsonwebtoken')
+const rateLimit = require('express-rate-limit')
+const queries   = require('../../src/db/index')
+const auth      = require('../middleware/auth')
 
 function wrap(fn) {
   return async (req, res) => {
@@ -15,8 +16,17 @@ function wrap(fn) {
   }
 }
 
+// ── Rate-limiter pour le login (anti brute-force) ───────────────────────────
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,                   // 5 tentatives max par IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' },
+})
+
 // POST /api/auth/login
-router.post('/login', wrap(async (req) => {
+router.post('/login', loginLimiter, wrap(async (req) => {
   const { email, password } = req.body
   const user = queries.loginWithCredentials(email, password)
   if (!user) throw new Error('Email ou mot de passe incorrect')
@@ -24,16 +34,25 @@ router.post('/login', wrap(async (req) => {
   const token  = jwt.sign(
     { id: user.id, name: user.name, type: user.type, promo_id: user.promo_id },
     secret,
-    { expiresIn: '30d' },
+    { expiresIn: '7d' },
   )
   return { ...user, token }
 }))
 
-// GET /api/auth/identities  (outil de dev — accès libre)
-router.get('/identities', wrap(() => queries.getIdentities()))
+// GET /api/auth/identities  (dev uniquement, ou enseignant authentifié)
+router.get('/identities', (req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') return next()
+  auth(req, res, (err) => {
+    if (err) return
+    if (req.user?.type !== 'teacher') {
+      return res.status(403).json({ ok: false, error: 'Accès réservé aux enseignants.' })
+    }
+    next()
+  })
+}, wrap(() => queries.getIdentities()))
 
-// GET /api/auth/student-by-email?email=X
-router.get('/student-by-email', wrap((req) => queries.getStudentByEmail(req.query.email)))
+// GET /api/auth/student-by-email?email=X  (requiert JWT)
+router.get('/student-by-email', auth, wrap((req) => queries.getStudentByEmail(req.query.email)))
 
 // POST /api/auth/register
 router.post('/register', wrap((req) => queries.registerStudent(req.body)))

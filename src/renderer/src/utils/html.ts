@@ -1,5 +1,6 @@
 import { marked } from 'marked'
 import hljs from 'highlight.js'
+import DOMPurify from 'dompurify'
 
 // ─── Sécurité HTML ───────────────────────────────────────────────────────────
 
@@ -72,11 +73,38 @@ function highlightInHtml(html: string, term: string): string {
   })
 }
 
+// ─── Références #canal ──────────────────────────────────────────────────────
+
+export function applyChannelRefs(html: string): string {
+  return html.replace(/#([\w][\w.\-]*)/g, (match) => {
+    return `<span class="channel-ref" data-channel="${escapeHtml(match.slice(1))}">${match}</span>`
+  })
+}
+
+// ─── Références 📋 devoirs et 📄 documents ─────────────────────────────────
+
+export function applyInlineRefs(html: string): string {
+  // 📋 [Titre du devoir]
+  html = html.replace(/📋\s*\[([^\]]+)\]/g, (_m, title) => {
+    return `<span class="devoir-ref">📋 ${escapeHtml(title)}</span>`
+  })
+  // 📄 [Nom du document]
+  html = html.replace(/📄\s*\[([^\]]+)\]/g, (_m, title) => {
+    return `<span class="doc-ref">📄 ${escapeHtml(title)}</span>`
+  })
+  return html
+}
+
 // ─── Formatage du contenu d'un message ───────────────────────────────────────
 
 export function renderMessageContent(raw: string, searchTerm = '', currentUserName = ''): string {
   let html = marked.parse(raw) as string
   html = applyMentions(html, currentUserName)
+  html = applyChannelRefs(html)
+  html = applyInlineRefs(html)
   if (searchTerm) html = highlightInHtml(html, searchTerm)
-  return html
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'a', 'span', 'div', 'mark', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'img', 'del', 's'],
+    ALLOWED_ATTR: ['class', 'data-url', 'data-channel', 'href', 'tabindex', 'style', 'src', 'alt'],
+  })
 }

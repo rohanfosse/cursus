@@ -10,11 +10,14 @@
   import { useModalsStore } from '@/stores/modals'
   import { useMessagesStore } from '@/stores/messages'
   import { useTravauxStore } from '@/stores/travaux'
-  import { useToast } from '@/composables/useToast'
+  import { useToast }   from '@/composables/useToast'
+  import { useConfirm } from '@/composables/useConfirm'
   import PromoRail    from './PromoRail.vue'
   import ChannelItem  from './ChannelItem.vue'
   import { avatarColor }  from '@/utils/format'
   import type { Channel, Student, Promotion } from '@/types'
+
+  const emit = defineEmits<{ navigate: [] }>()
 
   const CUSTOM_PROJECTS_KEY = 'cc_custom_projects'
 
@@ -25,6 +28,7 @@
   const route         = useRoute()
   const router        = useRouter()
   const { showToast } = useToast()
+  const { confirm }   = useConfirm()
 
   // ── État local ────────────────────────────────────────────────────────────
   const promotions  = ref<Promotion[]>([])
@@ -289,11 +293,13 @@
       router.push(`/${route.name as string}`)
     }
     // MessagesView, TravauxView, DocumentsView ont chacun leur watcher sur activeChannelId
+    emit('navigate')
   }
 
   function selectDm(s: Student) {
     appStore.openDm(s.id, s.promo_id, s.name)
     if (route.name !== 'messages') router.push('/messages')
+    emit('navigate')
   }
 
   async function selectPromo(promoId: number) {
@@ -402,6 +408,7 @@
           separator: true,
           action: async () => {
             if (!appStore.activePromoId) return
+            if (!await confirm(`Dissoudre la catégorie « ${group.key} » ? Les canaux seront déplacés hors catégorie.`, 'warning', 'Dissoudre')) return
             const res = await window.api.deleteCategory(appStore.activePromoId, group.key)
             if ((res as any)?.ok === false) { showToast('Erreur.', 'error'); return }
             await loadTeacherChannels()
@@ -433,6 +440,7 @@
           danger: true,
           separator: true,
           action: async () => {
+            if (!await confirm(`Supprimer le canal « #${ch.name} » et tous ses messages ? Cette action est irréversible.`, 'danger', 'Supprimer')) return
             const res = await window.api.deleteChannel(ch.id)
             if ((res as any)?.ok === false) { showToast('Erreur.', 'error'); return }
             if (appStore.activeChannelId === ch.id) appStore.activeChannelId = null
@@ -549,7 +557,7 @@
       v-if="sectionShortcut"
       class="sidebar-all-docs-btn"
       :class="{ active: sectionShortcut.active, [`section-${route.name as string}`]: true }"
-      @click="sectionShortcut.action()"
+      @click="sectionShortcut.action(); emit('navigate')"
     >
       <component :is="sectionShortcut.icon" :size="13" class="sidebar-all-docs-icon" />
       {{ sectionShortcut.label }}

@@ -4,6 +4,7 @@
   import { useTravauxStore } from '@/stores/travaux'
   import { useAppStore }     from '@/stores/app'
   import { useToast }        from '@/composables/useToast'
+  import { useConfirm }      from '@/composables/useConfirm'
   import { useOpenExternal } from '@/composables/useOpenExternal'
   import Modal from '@/components/ui/Modal.vue'
 
@@ -13,6 +14,7 @@
   const travauxStore  = useTravauxStore()
   const appStore      = useAppStore()
   const { showToast }    = useToast()
+  const { confirm }      = useConfirm()
   const { openExternal } = useOpenExternal()
 
   // ── Formulaire d'ajout ────────────────────────────────────────────────────
@@ -90,7 +92,7 @@
   }
 
   async function removeResource(id: number) {
-    if (!confirm('Supprimer cette ressource ?')) return
+    if (!await confirm('Supprimer cette ressource ?', 'danger', 'Supprimer')) return
     await window.api.deleteRessource(id)
     if (appStore.currentTravailId) await travauxStore.fetchRessources(appStore.currentTravailId)
   }

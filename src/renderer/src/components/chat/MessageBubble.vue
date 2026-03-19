@@ -178,11 +178,30 @@ async function confirmDelete() {
 function cancelDelete() { confirmingDelete.value = false }
 
 function onMsgClick(e: MouseEvent) {
+  // Liens externes
   const a = (e.target as HTMLElement).closest('a[data-url]') as HTMLAnchorElement | null
-  if (!a) return
-  e.preventDefault()
-  const url = a.dataset.url
-  if (url) openExternal(url)
+  if (a) {
+    e.preventDefault()
+    const url = a.dataset.url
+    if (url) openExternal(url)
+    return
+  }
+  // Références #canal — naviguer vers le canal
+  const chanRef = (e.target as HTMLElement).closest('.channel-ref') as HTMLElement | null
+  if (chanRef) {
+    e.preventDefault()
+    const channelName = chanRef.dataset.channel
+    if (channelName) {
+      // Chercher le canal par nom et naviguer
+      const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id
+      if (promoId) {
+        window.api.getChannels(promoId).then((res) => {
+          const ch = res?.ok ? res.data.find((c: { name: string }) => c.name === channelName) : null
+          if (ch) appStore.openChannel((ch as any).id, (ch as any).promo_id, (ch as any).name, (ch as any).type)
+        })
+      }
+    }
+  }
 }
 
 function closeAll() { showMenu.value = false; showPicker.value = false; confirmingDelete.value = false }

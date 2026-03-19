@@ -10,6 +10,7 @@ export const useAppStore = defineStore('app', () => {
 
   // ── État ──────────────────────────────────────────────────────────────────
   const isOnline          = ref<boolean>(navigator.onLine)
+  const socketConnected   = ref<boolean>(false)
   const currentUser       = ref<User | null>(null)
   const teacherUser       = ref<User | null>(null)   // sauvegarde pendant simulation
   const activeChannelId   = ref<number | null>(null)
@@ -63,7 +64,12 @@ export const useAppStore = defineStore('app', () => {
         if (currentUser.value?.type === 'ta') loadTaChannels()
         return true
       }
-    } catch {}
+    } catch {
+      // Session corrompue — nettoyer et avertir
+      localStorage.removeItem(SESSION_KEY)
+      const { showToast } = useToast()
+      showToast('Session expirée ou corrompue. Veuillez vous reconnecter.', 'error')
+    }
     return false
   }
 
@@ -75,7 +81,12 @@ export const useAppStore = defineStore('app', () => {
 
   function login(user: User): void {
     currentUser.value = user
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify(user)) } catch {}
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(user))
+    } catch {
+      const { showToast } = useToast()
+      showToast('Impossible de sauvegarder la session localement.', 'error')
+    }
     if (user.type === 'ta') loadTaChannels()
   }
 
@@ -164,6 +175,13 @@ export const useAppStore = defineStore('app', () => {
     mentionChannels.value = {}
     unreadDms.value = {}
     notificationHistory.value = notificationHistory.value.map((n) => ({ ...n, read: true }))
+  }
+
+  // ── Statut socket temps-réel ──────────────────────────────────────────────
+  function initSocketListener(): () => void {
+    return window.api.onSocketStateChange((connected: boolean) => {
+      socketConnected.value = connected
+    })
   }
 
   // ── Statut réseau ─────────────────────────────────────────────────────────
@@ -287,7 +305,7 @@ export const useAppStore = defineStore('app', () => {
 
   return {
     // état
-    isOnline, currentUser, activeChannelId, activeDmStudentId, activePromoId,
+    isOnline, socketConnected, currentUser, activeChannelId, activeDmStudentId, activePromoId,
     activeChannelType, activeChannelName, activeProject, pendingChannelCategory, rightPanel, currentTravailId,
     pendingNoteDepotId, rubricDepotId, unread, mentionChannels, unreadDms, notificationHistory, taChannelIds,
     // calculs
@@ -295,7 +313,8 @@ export const useAppStore = defineStore('app', () => {
     // actions
     restoreSession, login, logout, impersonate, clearMustChangePassword,
     startSimulation, stopSimulation,
-    openChannel, openDm, markRead, markDmRead, markAllRead, loadTaChannels, initUnreadListener, initOnlineListener,
+    openChannel, openDm, markRead, markDmRead, markAllRead, loadTaChannels,
+    initUnreadListener, initOnlineListener, initSocketListener,
     api,
   }
 })

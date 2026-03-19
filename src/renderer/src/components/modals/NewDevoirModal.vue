@@ -39,6 +39,9 @@
   const startDate   = ref(isoForDatetimeLocal())
   const isDraft     = ref(false)
   const isGraded    = ref(false)
+  const room        = ref('')
+  const aavs        = ref('')
+  const requiresSubmission = ref(true)
   const assignTo    = ref<'all' | 'group'>('all')
   const channelId   = ref<number | null>(null)
   const channels    = ref<{ id: number; name: string }[]>([])
@@ -55,10 +58,23 @@
 
   // ── Comportements selon le type ───────────────────────────────────────────
   /** Pour soutenance et cctl : pas de date de début (présence à une date fixe) */
-  const isEventType = computed(() => type.value === 'soutenance' || type.value === 'cctl')
+  const isEventType = computed(() => type.value === 'soutenance' || type.value === 'cctl' || type.value === 'etude_de_cas')
+
+  /** Afficher le champ salle pour les événements */
+  const showRoomField = computed(() => isEventType.value)
+
+  /** Pour étude de cas : le prof peut activer/désactiver le rendu */
+  const showSubmissionToggle = computed(() => type.value === 'etude_de_cas')
 
   /** Pour livrable et autre : afficher "Ce devoir est noté" */
   const needsGradedToggle = computed(() => type.value === 'livrable' || type.value === 'autre')
+
+  // Quand le type change, ajuster requiresSubmission automatiquement
+  watch(type, (t) => {
+    if (t === 'soutenance' || t === 'cctl') requiresSubmission.value = false
+    else if (t === 'etude_de_cas') requiresSubmission.value = false  // défaut, modifiable
+    else requiresSubmission.value = true
+  })
 
   // ── Gestion des groupes ────────────────────────────────────────────────────
   const students        = ref<Student[]>([])
@@ -100,6 +116,9 @@
       assignTo.value = 'all'
       isDraft.value  = false
       isGraded.value = false
+      room.value     = ''
+      aavs.value     = ''
+      requiresSubmission.value = true
       deadline.value = startDate.value = isoForDatetimeLocal()
       selectedGroupId.value = null
       showGroupForm.value   = false
@@ -148,6 +167,11 @@
     if (!title.value.trim() || !channelId.value) return
     creating.value = true
     try {
+      // Validation : startDate doit être avant deadline
+      if (!isEventType.value && startDate.value && startDate.value > deadline.value) {
+        showToast('La date de début doit être avant la deadline.', 'error')
+        return
+      }
       const res = await travauxStore.createTravail({
         title:        title.value.trim(),
         description:  description.value.trim() || null,
@@ -160,6 +184,9 @@
         assignedTo:   assignTo.value,
         groupId:      assignTo.value === 'group' ? selectedGroupId.value : null,
         channelId:    channelId.value,
+        room:         room.value.trim() || null,
+        aavs:         aavs.value.trim() || null,
+        requiresSubmission: requiresSubmission.value,
       })
       if (!res) return
       showToast('Devoir créé.', 'success')
@@ -241,6 +268,24 @@
         <input v-model="isGraded" type="checkbox" />
         Ce devoir est noté
       </label>
+
+      <!-- Rendu attendu toggle (étude de cas uniquement) -->
+      <label v-if="showSubmissionToggle" class="checkbox-label" style="display:flex;align-items:center;gap:8px">
+        <input v-model="requiresSubmission" type="checkbox" />
+        Rendu attendu (fichier ou lien à déposer)
+      </label>
+
+      <!-- Salle (événements : soutenance, CCTL, étude de cas) -->
+      <div v-if="showRoomField" class="form-group">
+        <label class="form-label">Salle (optionnel)</label>
+        <input v-model="room" type="text" class="form-input" placeholder="ex : B204, Amphi A…" />
+      </div>
+
+      <!-- AAVs (tous les types) -->
+      <div class="form-group">
+        <label class="form-label">AAVs — Acquis d'Apprentissage Visés (optionnel)</label>
+        <textarea v-model="aavs" class="form-textarea" rows="2" placeholder="ex : AAV1 — Concevoir une architecture&#10;AAV2 — Développer un prototype" />
+      </div>
 
       <!-- ── Constructeur de groupes ──────────────────────────────────── -->
       <div v-if="assignTo === 'group' && !isEventType" class="group-builder">

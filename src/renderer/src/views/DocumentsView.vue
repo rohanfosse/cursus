@@ -2,23 +2,27 @@
   import { ref, computed, onMounted, watch } from 'vue'
   import {
     FileText, Image, Link2, Video, File, Plus, Trash2,
-    ExternalLink, Download, Search, X, Upload, FolderOpen, Eye, CheckCircle2,
+    ExternalLink, Download, Search, X, Upload, FolderOpen, Eye, CheckCircle2, Menu,
   } from 'lucide-vue-next'
   import { useAppStore }       from '@/stores/app'
   import { useDocumentsStore } from '@/stores/documents'
   import { useModalsStore }    from '@/stores/modals'
   import { useToast }          from '@/composables/useToast'
+  import { useConfirm }        from '@/composables/useConfirm'
   import { useOpenExternal }   from '@/composables/useOpenExternal'
   import Modal     from '@/components/ui/Modal.vue'
   import { formatDate } from '@/utils/date'
   import { parseCategoryIcon } from '@/utils/categoryIcon'
   import type { AppDocument } from '@/types'
 
+  const props = defineProps<{ toggleSidebar?: () => void }>()
+
   const api      = window.api
   const appStore = useAppStore()
   const docStore = useDocumentsStore()
   const modals   = useModalsStore()
   const { showToast }    = useToast()
+  const { confirm: confirmAction } = useConfirm()
   const { openExternal } = useOpenExternal()
 
   // ── Add modal ────────────────────────────────────────────────────────────
@@ -107,7 +111,7 @@
   }
 
   async function deleteDoc(id: number) {
-    if (!confirm('Supprimer ce document ?')) return
+    if (!await confirmAction('Supprimer ce document ?', 'danger', 'Supprimer')) return
     await docStore.deleteDocument(id)
   }
 
@@ -177,6 +181,9 @@
     <!-- ── Header ─────────────────────────────────────────────────────── -->
     <header class="docs-header">
       <div class="docs-header-left">
+        <button v-if="props.toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="props.toggleSidebar">
+          <Menu :size="22" />
+        </button>
         <FolderOpen :size="18" class="docs-header-icon" />
         <div class="docs-header-title-block">
           <h1 class="docs-header-title">Documents</h1>
@@ -312,7 +319,12 @@
         <FolderOpen :size="40" class="docs-empty-icon" />
         <p class="docs-empty-title">Aucun document</p>
         <p class="docs-empty-sub">
-          {{ docStore.searchQuery ? 'Aucun résultat pour cette recherche.' : 'Ce canal ne contient pas encore de document.' }}
+          {{ docStore.searchQuery
+            ? 'Aucun résultat pour cette recherche. Essayez d\'autres mots-clés.'
+            : appStore.isStudent
+              ? 'Aucun document pour le moment. Les documents seront ajoutés par votre enseignant.'
+              : 'Ce canal ne contient pas encore de document.'
+          }}
         </p>
         <button v-if="appStore.isTeacher && !docStore.searchQuery" class="btn-primary" @click="openAddModal">
           <Plus :size="14" /> Ajouter un document

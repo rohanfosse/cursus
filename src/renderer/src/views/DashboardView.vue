@@ -4,7 +4,7 @@ import {
   Clock, Edit3, Users, BookOpen, AlertTriangle,
   ChevronRight, CheckCircle2, FileText, LayoutDashboard,
   Award, TrendingUp, FolderOpen, CalendarDays, BarChart2,
-  PlusCircle,
+  PlusCircle, Menu,
 } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
@@ -15,11 +15,21 @@ import { parseCategoryIcon } from '@/utils/categoryIcon'
 import type { Component } from 'vue'
 import type { Devoir }    from '@/types'
 
+const props = defineProps<{ toggleSidebar?: () => void }>()
+
 const appStore     = useAppStore()
 const modals       = useModalsStore()
 const travauxStore = useTravauxStore()
 const router       = useRouter()
 const route        = useRoute()
+
+// ── Onboarding première visite ──────────────────────────────────────────────
+const ONBOARDING_KEY = 'cc_onboarding_seen'
+const showOnboarding = ref(!localStorage.getItem(ONBOARDING_KEY) && appStore.isStudent)
+function dismissOnboarding() {
+  showOnboarding.value = false
+  localStorage.setItem(ONBOARDING_KEY, '1')
+}
 
 // ── Types locaux ──────────────────────────────────────────────────────────────
 interface GanttRow {
@@ -173,16 +183,34 @@ const projectCards = computed((): ProjectCard[] => {
 })
 
 // ── Projets étudiant ──────────────────────────────────────────────────────────
-const isEventType = (t: Devoir) => t.type === 'soutenance' || t.type === 'cctl'
+const needsSub = (t: Devoir) => t.requires_submission !== 0
 
 const studentStats = computed(() => {
   const all       = travauxStore.devoirs
   const submitted = all.filter(t => t.depot_id != null)
-  const pending   = all.filter(t => t.depot_id == null && !isEventType(t))
+  const pending   = all.filter(t => t.depot_id == null && needsSub(t))
   const graded    = all.filter(t => t.note != null)
   const grades    = graded.map(t => parseFloat(t.note ?? '')).filter(n => !isNaN(n))
   const avg       = grades.length ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length * 10) / 10 : null
   return { total: all.length, submitted: submitted.length, pending: pending.length, graded: graded.length, avg }
+})
+
+// ── Prochaine action (devoir le plus urgent non soumis) ─────────────────────
+const nextAction = computed(() => {
+  const now = Date.now()
+  const pending = travauxStore.devoirs.filter(t => t.depot_id == null && needsSub(t) && t.deadline)
+  if (!pending.length) return null
+  // Trier par urgence : overdue d'abord (par deadline), puis les futurs par deadline
+  const sorted = pending.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+  const next = sorted[0]
+  const diffMs = new Date(next.deadline).getTime() - now
+  const diffDays = Math.ceil(diffMs / 86_400_000)
+  let urgency: string
+  if (diffMs < 0) urgency = `En retard de ${Math.abs(diffDays)} jour(s)`
+  else if (diffDays <= 1) urgency = "Aujourd'hui ou demain"
+  else if (diffDays <= 3) urgency = `Dans ${diffDays} jours`
+  else urgency = `Dans ${diffDays} jours`
+  return { ...next, urgency, isOverdue: diffMs < 0 }
 })
 
 const studentProjectCards = computed((): StudentProjectCard[] => {
@@ -198,7 +226,7 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
   for (const [key, rows] of map) {
     const { icon, label } = parseCategoryIcon(key)
     const submitted = rows.filter(r => r.depot_id != null)
-    const pending   = rows.filter(r => r.depot_id == null && r.type !== 'soutenance' && r.type !== 'cctl')
+    const pending   = rows.filter(r => r.depot_id == null && needsSub(r))
     const overdue   = pending.filter(r => now >= new Date(r.deadline).getTime())
     const upcoming  = pending.filter(r => new Date(r.deadline).getTime() > now)
       .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
@@ -354,6 +382,9 @@ function onMilestoneClick(ms: FriseMilestone) {
         <!-- En-tête -->
         <div class="db-header">
           <div class="db-header-left">
+            <button v-if="props.toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="props.toggleSidebar">
+              <Menu :size="22" />
+            </button>
             <LayoutDashboard :size="20" class="db-header-icon" />
             <div>
               <h1 class="db-title">Bonjour, {{ greetingName }}</h1>
@@ -531,6 +562,9 @@ function onMilestoneClick(ms: FriseMilestone) {
         <!-- En-tête étudiant -->
         <div class="db-header">
           <div class="db-header-left">
+            <button v-if="props.toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="props.toggleSidebar">
+              <Menu :size="22" />
+            </button>
             <LayoutDashboard :size="20" class="db-header-icon" />
             <div>
               <h1 class="db-title">Bonjour, {{ greetingName }}</h1>
@@ -545,6 +579,35 @@ function onMilestoneClick(ms: FriseMilestone) {
               <BookOpen :size="14" /> Tous mes devoirs
             </button>
           </div>
+        </div>
+
+        <!-- Bannière onboarding (première visite) -->
+        <div v-if="showOnboarding" class="db-onboarding">
+          <div class="db-onboarding-content">
+            <strong>Bienvenue sur CeSlack !</strong>
+            <span>Consultez vos <b>devoirs</b> dans la section Devoirs, discutez dans les <b>canaux</b>, et suivez votre <b>progression</b> ici.</span>
+          </div>
+          <button class="btn-ghost db-onboarding-close" @click="dismissOnboarding">C'est compris</button>
+        </div>
+
+        <!-- Carte prochaine action -->
+        <div v-if="nextAction" class="db-next-action" :class="{ 'db-next-action--overdue': nextAction.isOverdue }">
+          <div class="db-next-action-left">
+            <AlertTriangle v-if="nextAction.isOverdue" :size="18" class="db-next-icon db-next-icon--danger" />
+            <Clock v-else :size="18" class="db-next-icon" />
+            <div>
+              <span class="db-next-label">Prochaine action</span>
+              <span class="db-next-title">{{ nextAction.title }}</span>
+              <span class="db-next-urgency">{{ nextAction.urgency }}</span>
+            </div>
+          </div>
+          <button class="btn-primary db-next-btn" @click="goToProject(nextAction.category ?? '')">
+            Voir le devoir
+          </button>
+        </div>
+        <div v-else-if="travauxStore.devoirs.length" class="db-all-done">
+          <CheckCircle2 :size="18" style="color:var(--color-success)" />
+          <span>Tout est à jour ! Aucun devoir en attente.</span>
         </div>
 
         <!-- Stats étudiant -->
@@ -565,7 +628,7 @@ function onMilestoneClick(ms: FriseMilestone) {
             <Award :size="18" class="db-stat-icon" />
           </div>
           <div class="db-stat-card db-stat-neutral">
-            <span class="db-stat-value">{{ studentStats.avg ?? '—' }}</span>
+            <span class="db-stat-value">{{ studentStats.avg != null ? studentStats.avg + '/20' : 'Pas encore' }}</span>
             <span class="db-stat-label">Note moyenne</span>
             <TrendingUp :size="18" class="db-stat-icon" />
           </div>
@@ -613,7 +676,7 @@ function onMilestoneClick(ms: FriseMilestone) {
                 <div
                   class="db-student-fill"
                   :style="{ width: (p.total ? Math.round(p.submitted / p.total * 100) : 0) + '%' }"
-                  :class="{ 'fill-done': p.submitted === p.total && p.total > 0 }"
+                  :class="{ 'fill-done': p.submitted === p.total && p.total > 0, 'fill-overdue': p.overdue > 0 }"
                 />
               </div>
             </div>
@@ -850,6 +913,99 @@ function onMilestoneClick(ms: FriseMilestone) {
   transition: width .3s ease;
 }
 .db-student-fill.fill-done { background: var(--color-success); }
+.db-student-fill.fill-overdue { background: var(--color-danger); }
+
+/* ── Onboarding ── */
+.db-onboarding {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  background: rgba(74,144,217,.1);
+  border: 1px solid rgba(74,144,217,.25);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.db-onboarding-content {
+  flex: 1;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.db-onboarding-content strong {
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 2px;
+}
+.db-onboarding-close {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ── Prochaine action ── */
+.db-next-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  background: rgba(243,156,18,.08);
+  border: 1px solid rgba(243,156,18,.2);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.db-next-action--overdue {
+  background: rgba(231,76,60,.08);
+  border-color: rgba(231,76,60,.25);
+}
+.db-next-action-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.db-next-icon {
+  color: var(--color-warning);
+  flex-shrink: 0;
+}
+.db-next-icon--danger { color: var(--color-danger); }
+.db-next-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-muted);
+  display: block;
+}
+.db-next-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-next-urgency {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: block;
+}
+.db-next-btn { flex-shrink: 0; }
+
+.db-all-done {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: rgba(46,204,113,.08);
+  border: 1px solid rgba(46,204,113,.2);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
 
 /* ── Empty hint ── */
 .db-empty-hint {

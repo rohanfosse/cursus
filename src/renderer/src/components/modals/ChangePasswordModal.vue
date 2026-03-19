@@ -57,8 +57,7 @@ const strengthInfo = computed(() => {
 const mismatch  = computed(() => confirmPwd.value.length > 0 && newPwd.value !== confirmPwd.value)
 const canSubmit = computed(() =>
   currentPwd.value.length > 0 &&
-  criteria.value.length &&
-  score.value >= 2 &&
+  score.value === 4 &&
   newPwd.value === confirmPwd.value &&
   newPwd.value !== currentPwd.value,
 )

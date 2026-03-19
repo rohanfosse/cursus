@@ -9,8 +9,16 @@ const jwt        = require('jsonwebtoken')
 const queries    = require('../src/db/index')
 
 const PORT   = process.env.PORT       ?? 3001
+const ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:5173'
+
+// ── Vérification JWT_SECRET en production ───────────────────────────────────
 const SECRET = process.env.JWT_SECRET ?? 'changeme-dev-secret'
-const ORIGIN = process.env.CORS_ORIGIN ?? '*'
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    console.error('[SECURITY] JWT_SECRET absent ou trop court (min 32 caractères). Arrêt du serveur.')
+    process.exit(1)
+  }
+}
 
 const app    = express()
 const server = http.createServer(app)
@@ -67,11 +75,17 @@ app.get('/health', (_req, res) => res.json({ ok: true, version: '2.0.0' }))
 // ── Webhook de déploiement (pas d'auth JWT, validé par DEPLOY_SECRET) ─────────
 app.use('/webhook/deploy', require('./routes/deploy'))
 
-// SPA web — fallback en dernier pour ne pas écraser les routes API/health
+// ── Landing page vitrine (page d'accueil) ──────────────────────────────────
+const LANDING = path.join(__dirname, '../landing/index.html')
+if (fs.existsSync(LANDING)) {
+  app.get('/', (_req, res) => res.sendFile(LANDING))
+}
+
+// ── SPA web — servie sous /app et en fallback ────────────────────────────────
 const WEB_DIST = path.join(__dirname, '../dist-web')
 if (fs.existsSync(WEB_DIST)) {
   app.use(express.static(WEB_DIST))
-  app.get(/^(?!\/api|\/socket\.io|\/uploads|\/health).*/, (_req, res) => {
+  app.get(/^(?!\/api|\/socket\.io|\/uploads|\/health|\/$).*/, (_req, res) => {
     res.sendFile(path.join(WEB_DIST, 'index.html'))
   })
 }
@@ -95,6 +109,11 @@ io.on('connection', (socket) => {
   // Rejoindre la salle de la promo pour les broadcasts ciblés
   if (socket.user?.promo_id) socket.join(`promo:${socket.user.promo_id}`)
   socket.join('all')
+
+  // Indicateur de frappe — re-broadcast aux autres du même canal
+  socket.on('typing', ({ channelId }) => {
+    if (channelId) socket.to('all').emit('typing', { channelId, userName: socket.user?.name })
+  })
 
   socket.on('disconnect', () => console.log(`[WS] - ${name}`))
 })

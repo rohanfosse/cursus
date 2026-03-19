@@ -6,11 +6,13 @@
   } from 'lucide-vue-next'
   import { useAppStore } from '@/stores/app'
   import { useToast }    from '@/composables/useToast'
+  import { useConfirm }  from '@/composables/useConfirm'
 
   const emit = defineEmits<{ (e: 'close'): void }>()
 
   const appStore      = useAppStore()
   const { showToast } = useToast()
+  const { confirm }   = useConfirm()
 
   interface ChannelDoc {
     id: number
@@ -18,6 +20,7 @@
     type: 'file' | 'link'
     name: string
     path_or_url: string
+    content: string
     category: string | null
     description: string | null
     created_at: string
@@ -54,14 +57,16 @@
   }
 
   async function openDoc(doc: ChannelDoc) {
+    const url = doc.content || doc.path_or_url
     if (doc.type === 'link') {
-      await window.api.openExternal(doc.path_or_url)
+      await window.api.openExternal(url)
     } else {
-      await window.api.openPath(doc.path_or_url)
+      await window.api.openPath(url)
     }
   }
 
   async function deleteDoc(doc: ChannelDoc) {
+    if (!await confirm(`Supprimer « ${doc.name} » ?`, 'danger', 'Supprimer')) return
     await window.api.deleteChannelDocument(doc.id)
     docs.value = docs.value.filter(d => d.id !== doc.id)
     showToast(`"${doc.name}" supprimé.`, 'success')

@@ -4,6 +4,7 @@ import { Plus, Trash2, ChevronDown, ChevronRight, Check, X as XIcon } from 'luci
 import Modal from '@/components/ui/Modal.vue'
 import { useAppStore }  from '@/stores/app'
 import { useToast }     from '@/composables/useToast'
+import { useConfirm }   from '@/composables/useConfirm'
 import type { Channel, Promotion } from '@/types'
 
 const props = defineProps<{ modelValue: boolean }>()
@@ -11,6 +12,7 @@ const emit  = defineEmits<{ 'update:modelValue': [boolean] }>()
 
 const appStore      = useAppStore()
 const { showToast } = useToast()
+const { confirm }   = useConfirm()
 
 // ── État ────────────────────────────────────────────────────────────────────
 interface Intervenant { id: number; name: string; email: string }
@@ -85,7 +87,7 @@ async function create() {
 
 // ── Suppression ──────────────────────────────────────────────────────────────
 async function remove(ta: Intervenant) {
-  if (!confirm(`Supprimer l'intervenant "${ta.name}" ? Cette action est irréversible.`)) return
+  if (!await confirm(`Supprimer l'intervenant « ${ta.name} » ? Cette action est irréversible.`, 'danger', 'Supprimer')) return
   const res = await window.api.deleteIntervenant(ta.id)
   if (!res?.ok) { showToast(res?.error ?? 'Erreur', 'error'); return }
   showToast('Intervenant supprimé.', 'success')

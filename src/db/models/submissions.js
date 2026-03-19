@@ -23,9 +23,8 @@ function addDepot(payload) {
   const travailId  = payload.travail_id  ?? payload.travailId
 
   // ── Guard : blocage strict post-échéance ─────────────────────────────────
-  const NO_DEPOT_TYPES = ['soutenance', 'cctl']
-  const travail = getDb().prepare('SELECT deadline, type FROM travaux WHERE id = ?').get(travailId)
-  if (travail && !NO_DEPOT_TYPES.includes(travail.type)) {
+  const travail = getDb().prepare('SELECT deadline, type, requires_submission FROM travaux WHERE id = ?').get(travailId)
+  if (travail && travail.requires_submission) {
     if (Date.now() > new Date(travail.deadline).getTime()) {
       throw new Error('Délai expiré — dépôt refusé.')
     }
@@ -63,7 +62,7 @@ function setFeedback({ depotId, feedback }) {
 
 function getRessources(travailId) {
   return getDb().prepare(
-    'SELECT * FROM ressources WHERE travail_id = ? ORDER BY created_at ASC'
+    'SELECT *, path_or_url AS content FROM ressources WHERE travail_id = ? ORDER BY created_at ASC'
   ).all(travailId);
 }
 

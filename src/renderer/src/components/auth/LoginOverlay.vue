@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref } from 'vue'
+  import { ref, computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { useAppStore } from '@/stores/app'
   import { avatarColor }  from '@/utils/format'
@@ -64,6 +64,15 @@
     if (res?.ok && res.data) pendingPhoto.value = res.data
   }
 
+  // Validation mot de passe inscription
+  const regPwdCriteria = computed(() => ({
+    length:    regPassword.value.length >= 8,
+    uppercase: /[A-Z]/.test(regPassword.value),
+    number:    /[0-9]/.test(regPassword.value),
+    special:   /[^A-Za-z0-9]/.test(regPassword.value),
+  }))
+  const regPwdValid = computed(() => Object.values(regPwdCriteria.value).every(Boolean))
+
   async function handleRegister() {
     regEmailErr.value = ''
     if (!regEmail.value.endsWith('@viacesi.fr')) {
@@ -71,6 +80,10 @@
       return
     }
     if (!regPromoId.value) return
+    if (!regPwdValid.value) {
+      regEmailErr.value = 'Le mot de passe doit contenir au moins 8 caractères, 1 majuscule, 1 chiffre et 1 caractère spécial.'
+      return
+    }
     regSubmitting.value = true
     try {
       const fullName = `${firstName.value.trim()} ${lastName.value.trim()}`

@@ -210,12 +210,20 @@ export const useMessagesStore = defineStore('messages', () => {
     searchTerm.value = ''
   }
 
+  // ── Typing indicator listener ─────────────────────────────────────────────
+  function initTypingListener(): () => void {
+    if (!window.api.onTyping) return () => {}
+    return window.api.onTyping(({ userName }) => {
+      if (userName) setTyping(userName)
+    })
+  }
+
   return {
     messages, pinned, loading, loadingMore, hasMore,
     searchTerm, firstUnreadId, highlightMessageId,
     reactions, userVotes,
     quotedMessage, setQuote, clearQuote,
-    typingText, setTyping, stopTyping,
+    typingText, setTyping, stopTyping, initTypingListener,
     isGrouped, fetchMessages, loadOlderMessages, fetchPinned,
     sendMessage, togglePin,
     initReactions, toggleReaction, clearSearch,

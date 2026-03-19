@@ -20,6 +20,7 @@ type MsgNewPayload = {
   mentionNames:    string[]
 }
 const msgCallbacks: Array<(data: MsgNewPayload) => void> = []
+const socketStateCallbacks: Array<(connected: boolean) => void> = []
 
 // ─── Socket.io ────────────────────────────────────────────────────────────────
 function connectSocket(token: string): void {
@@ -32,8 +33,15 @@ function connectSocket(token: string): void {
   socket.on('msg:new', (data: MsgNewPayload) => {
     msgCallbacks.forEach((cb) => cb(data))
   })
+  socket.on('connect', () => {
+    socketStateCallbacks.forEach((cb) => cb(true))
+  })
+  socket.on('disconnect', () => {
+    socketStateCallbacks.forEach((cb) => cb(false))
+  })
   socket.on('connect_error', (err) => {
     console.warn('[Socket.io] Erreur connexion:', err.message)
+    socketStateCallbacks.forEach((cb) => cb(false))
   })
 }
 
@@ -316,4 +324,16 @@ contextBridge.exposeInMainWorld('api', {
       if (idx !== -1) msgCallbacks.splice(idx, 1)
     }
   },
+
+  onSocketStateChange: (cb: (connected: boolean) => void) => {
+    socketStateCallbacks.push(cb)
+    return () => {
+      const idx = socketStateCallbacks.indexOf(cb)
+      if (idx !== -1) socketStateCallbacks.splice(idx, 1)
+    }
+  },
+
+  // Typing indicator (stub — Electron desktop doesn't use Socket.io directly)
+  emitTyping: (_channelId: number) => {},
+  onTyping: (_cb: (data: { channelId: number; userName: string }) => void) => () => {},
 })

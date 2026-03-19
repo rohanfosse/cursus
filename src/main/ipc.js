@@ -189,8 +189,11 @@ function register() {
 
   ipcMain.handle('shell:openExternal', async (_event, url) => {
     try {
-      if (typeof url !== 'string' || !/^(https?:\/\/|mailto:)/i.test(url)) {
-        return { ok: false, error: 'URL invalide.' }
+      if (typeof url !== 'string') return { ok: false, error: 'URL invalide.' }
+      let parsed
+      try { parsed = new URL(url) } catch { return { ok: false, error: 'URL invalide.' } }
+      if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) {
+        return { ok: false, error: 'Protocole non autorisé.' }
       }
       await shell.openExternal(url)
       return { ok: true, data: null }

@@ -194,6 +194,7 @@
               <div class="ech-row-info">
                 <span class="ech-row-main">{{ r.title }}</span>
                 <span v-if="r.description" class="ech-row-sub">{{ r.description }}</span>
+                <span v-if="(r as any).room" class="ech-row-sub" style="font-weight:600">Salle {{ (r as any).room }}</span>
                 <span class="ech-row-sub">#{{ r.channel_name }}</span>
               </div>
               <div class="ech-row-right">

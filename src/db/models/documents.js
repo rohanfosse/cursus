@@ -3,13 +3,13 @@ const { getDb } = require('../connection');
 function getProjectDocuments(promoId, project) {
   if (project) {
     return getDb().prepare(`
-      SELECT * FROM channel_documents
+      SELECT *, path_or_url AS content FROM channel_documents
       WHERE promo_id = ? AND project = ?
       ORDER BY category ASC, created_at ASC
     `).all(promoId, project);
   }
   return getDb().prepare(`
-    SELECT * FROM channel_documents
+    SELECT *, path_or_url AS content FROM channel_documents
     WHERE promo_id = ?
     ORDER BY category ASC, created_at ASC
   `).all(promoId);
@@ -18,13 +18,13 @@ function getProjectDocuments(promoId, project) {
 // Alias kept for IPC backwards compat
 function getChannelDocuments(channelId) {
   return getDb().prepare(`
-    SELECT * FROM channel_documents WHERE channel_id = ? ORDER BY category ASC, created_at ASC
+    SELECT *, path_or_url AS content FROM channel_documents WHERE channel_id = ? ORDER BY category ASC, created_at ASC
   `).all(channelId);
 }
 
 function getPromoDocuments(promoId) {
   return getDb().prepare(`
-    SELECT * FROM channel_documents WHERE promo_id = ?
+    SELECT *, path_or_url AS content FROM channel_documents WHERE promo_id = ?
     ORDER BY category ASC, created_at ASC
   `).all(promoId);
 }

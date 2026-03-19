@@ -6,6 +6,7 @@
   import { useRouter }   from 'vue-router'
   import { usePrefs }    from '@/composables/usePrefs'
   import { useToast }    from '@/composables/useToast'
+  import { useConfirm }  from '@/composables/useConfirm'
   import { avatarColor } from '@/utils/format'
   import Modal from '@/components/ui/Modal.vue'
 
@@ -18,6 +19,7 @@
   const router   = useRouter()
   const { getPref, setPref } = usePrefs()
   const { showToast }        = useToast()
+  const { confirm: confirmAction } = useConfirm()
 
   const activeSection  = ref<Section>('general')
   const docsDefault    = ref(getPref('docsOpenByDefault'))
@@ -118,7 +120,7 @@
 
   const resetting = ref(false)
   async function resetDemoData() {
-    if (!confirm('Réinitialiser toutes les données de démonstration ? Cette action est irréversible.')) return
+    if (!await confirmAction('Réinitialiser toutes les données de démonstration ? Cette action est irréversible.', 'danger', 'Réinitialiser')) return
     resetting.value = true
     try {
       const res = await window.api.resetAndSeed()

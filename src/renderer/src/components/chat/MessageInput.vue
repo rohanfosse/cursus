@@ -1,16 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
-import { Send, Paperclip, Loader2, X as XIcon, Reply, Bold, Italic, Code, SquareCode } from 'lucide-vue-next'
+import { Send, Paperclip, Loader2, X as XIcon, Reply, Bold, Italic, Code, SquareCode, Strikethrough, Quote, List, ListOrdered, Smile, Eye, EyeOff } from 'lucide-vue-next'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
+import { useToast }         from '@/composables/useToast'
 import { avatarColor, initials } from '@/utils/format'
 
 const appStore      = useAppStore()
 const messagesStore = useMessagesStore()
+const { showToast } = useToast()
 
 const inputEl = ref<HTMLTextAreaElement | null>(null)
 const content = ref('')
 const sending = ref(false)
+const showPreview = ref(false)
+const showEmojiPicker = ref(false)
+
+// ── Preview markdown ──────────────────────────────────────────────────────
+import { renderMessageContent } from '@/utils/html'
+const previewHtml = computed(() => showPreview.value ? renderMessageContent(content.value) : '')
 
 // ── Brouillons (auto-save localStorage) ──────────────────────────────────────
 let _draftTimer: ReturnType<typeof setTimeout> | null = null
@@ -32,10 +40,78 @@ function clearDraft() {
   if (draftKey.value) localStorage.removeItem(draftKey.value)
 }
 
-// ── Mention autocomplete (@) ──────────────────────────────────────────────
+// ── Autocomplete unifié (@mention, #canal, /devoir, /doc) ─────────────────
+type RefType = 'mention' | 'channel' | 'devoir' | 'doc'
+
 interface MentionUser {
   name: string
   type: 'student' | 'teacher' | 'ta' | 'everyone'
+}
+
+interface RefChannel { name: string; type: string }
+interface RefDevoir { title: string; type: string; deadline: string }
+interface RefDoc    { name: string; type: string; category: string | null }
+
+const channelList = ref<RefChannel[]>([])
+const devoirList  = ref<RefDevoir[]>([])
+const docList     = ref<RefDoc[]>([])
+const activeRef   = ref<RefType | null>(null)
+const refSearch   = ref('')
+const refStart    = ref(-1)
+const refIndex    = ref(0)
+
+const refResults = computed(() => {
+  if (!activeRef.value || activeRef.value === 'mention') return []
+  const q = normalize(refSearch.value)
+  if (activeRef.value === 'channel') {
+    return channelList.value.filter(c => normalize(c.name).includes(q)).slice(0, 8)
+  }
+  if (activeRef.value === 'devoir') {
+    return devoirList.value.filter(d => normalize(d.title).includes(q)).slice(0, 8)
+  }
+  if (activeRef.value === 'doc') {
+    return docList.value.filter(d => normalize(d.name).includes(q)).slice(0, 8)
+  }
+  return []
+})
+
+watch(refSearch, () => { refIndex.value = 0 })
+
+async function loadChannels() {
+  if (channelList.value.length) return
+  const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id
+  if (!promoId) return
+  const res = await window.api.getChannels(promoId)
+  channelList.value = res?.ok ? (res.data as RefChannel[]) : []
+}
+
+async function loadDevoirs() {
+  const channelId = appStore.activeChannelId
+  if (!channelId) return
+  const res = await window.api.getTravaux(channelId)
+  devoirList.value = res?.ok ? (res.data as RefDevoir[]) : []
+}
+
+async function loadDocs() {
+  const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id
+  if (!promoId) return
+  const res = await window.api.getProjectDocuments(promoId)
+  docList.value = res?.ok ? (res.data as RefDoc[]) : []
+}
+
+function insertRef(text: string) {
+  const el = inputEl.value
+  if (!el) return
+  const end  = el.selectionStart
+  const pre  = content.value.slice(0, refStart.value)
+  const post = content.value.slice(end)
+  content.value = pre + text + ' ' + post
+  activeRef.value = null
+  nextTick(() => {
+    el.focus()
+    el.selectionStart = el.selectionEnd = refStart.value + text.length + 1
+    autoResize()
+  })
 }
 
 const allUsers        = ref<MentionUser[]>([])
@@ -120,21 +196,57 @@ function autoResize() {
 }
 
 // ── Détection mention ─────────────────────────────────────────────────────
+// ── Typing indicator emission ───────────────────────────────────────────
+let _lastTypingEmit = 0
+function emitTyping() {
+  const now = Date.now()
+  if (now - _lastTypingEmit < 2000) return  // max 1 event / 2s
+  _lastTypingEmit = now
+  const channelId = appStore.activeChannelId
+  if (channelId && window.api.emitTyping) window.api.emitTyping(channelId)
+}
+
 function onInput() {
   autoResize()
+  emitTyping()
 
   if (!inputEl.value) return
   const cursor = inputEl.value.selectionStart ?? 0
   const before = content.value.slice(0, cursor)
 
-  const match = before.match(/@([^\s@]*)$/)
-  if (match) {
-    mentionSearch.value = match[1]
-    mentionStart.value  = cursor - match[0].length
+  // ── Détection des différents triggers ──────────────────────────────────
+  const matchMention = before.match(/@([^\s@]*)$/)
+  const matchChannel = before.match(/#([^\s#]*)$/)
+  const matchDevoir  = before.match(/\/devoir\s?(.*)$/i)
+  const matchDoc     = before.match(/\/doc\s?(.*)$/i)
+
+  if (matchMention) {
+    mentionSearch.value = matchMention[1]
+    mentionStart.value  = cursor - matchMention[0].length
     mentionActive.value = true
+    activeRef.value = null
     loadUsers()
+  } else if (matchChannel) {
+    activeRef.value = 'channel'
+    refSearch.value = matchChannel[1]
+    refStart.value  = cursor - matchChannel[0].length
+    mentionActive.value = false
+    loadChannels()
+  } else if (matchDevoir) {
+    activeRef.value = 'devoir'
+    refSearch.value = matchDevoir[1]
+    refStart.value  = cursor - matchDevoir[0].length
+    mentionActive.value = false
+    loadDevoirs()
+  } else if (matchDoc) {
+    activeRef.value = 'doc'
+    refSearch.value = matchDoc[1]
+    refStart.value  = cursor - matchDoc[0].length
+    mentionActive.value = false
+    loadDocs()
   } else {
     mentionActive.value = false
+    activeRef.value = null
   }
 
   if (_draftTimer) clearTimeout(_draftTimer)
@@ -157,6 +269,33 @@ function fmtWrap(pre: string, post: string) {
   el.focus()
   el.selectionStart = start + pre.length
   el.selectionEnd   = start + pre.length + sel.length
+  autoResize()
+}
+
+/** Insère un préfixe en début de la ligne courante (ou de chaque ligne sélectionnée) */
+function fmtLinePrefix(prefix: string) {
+  const el = inputEl.value
+  if (!el) return
+  const start = el.selectionStart
+  const end   = el.selectionEnd
+  const lines = el.value.slice(start, end || start)
+
+  if (start === end) {
+    // Pas de sélection : trouver le début de la ligne courante
+    const lineStart = el.value.lastIndexOf('\n', start - 1) + 1
+    el.value = el.value.slice(0, lineStart) + prefix + el.value.slice(lineStart)
+    content.value = el.value
+    el.focus()
+    el.selectionStart = el.selectionEnd = start + prefix.length
+  } else {
+    // Sélection : préfixer chaque ligne
+    const prefixed = lines.split('\n').map(l => prefix + l).join('\n')
+    el.value = el.value.slice(0, start) + prefixed + el.value.slice(end)
+    content.value = el.value
+    el.focus()
+    el.selectionStart = start
+    el.selectionEnd = start + prefixed.length
+  }
   autoResize()
 }
 
@@ -205,7 +344,10 @@ async function attachFile() {
     const res = await window.api.openFileDialog()
     if (!res?.ok || !res.data) return
     const uploadRes = await window.api.uploadFile(res.data as string)
-    if (!uploadRes?.ok) return
+    if (!uploadRes?.ok) {
+      showToast('Erreur lors du chargement du fichier.', 'error')
+      return
+    }
     const url = uploadRes.data as string
     content.value += content.value ? `\n${url}` : url
     nextTick(() => { autoResize(); inputEl.value?.focus() })
@@ -217,6 +359,10 @@ async function attachFile() {
 // ── Envoi ──────────────────────────────────────────────────────────────────
 async function send() {
   if (!content.value.trim() || sending.value || appStore.isReadonly) return
+  if (!appStore.isOnline) {
+    showToast('Hors-ligne — message non envoyé.', 'error')
+    return
+  }
   mentionActive.value = false
   sending.value = true
   try {
@@ -263,6 +409,33 @@ function onKeydown(e: KeyboardEvent) {
       e.preventDefault()
       return
     }
+  }
+
+  // ── Navigation ref popup (#canal, /devoir, /doc) ──────────────────────────
+  if (activeRef.value && refResults.value.length) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); refIndex.value = (refIndex.value + 1) % refResults.value.length; return }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); refIndex.value = (refIndex.value - 1 + refResults.value.length) % refResults.value.length; return }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const item = refResults.value[refIndex.value] as any
+      if (activeRef.value === 'channel') insertRef('#' + item.name)
+      else if (activeRef.value === 'devoir') insertRef('📋 [' + item.title + ']')
+      else if (activeRef.value === 'doc') insertRef('📄 [' + item.name + ']')
+      return
+    }
+    if (e.key === 'Escape') { e.preventDefault(); activeRef.value = null; return }
+  }
+
+  // ── Raccourcis de formatage ───────────────────────────────────────────────
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
+    if (e.key === 'b') { e.preventDefault(); fmtWrap('**', '**'); return }
+    if (e.key === 'i') { e.preventDefault(); fmtWrap('*', '*'); return }
+    if (e.key === 'e') { e.preventDefault(); fmtWrap('`', '`'); return }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+    if (e.key === 'X' || e.key === 'x') { e.preventDefault(); fmtWrap('~~', '~~'); return }
+    if (e.key === 'C' || e.key === 'c') { e.preventDefault(); fmtInsertBlock(); return }
+    if (e.key === '>' || e.key === '.') { e.preventDefault(); fmtLinePrefix('> '); return }
   }
 
   if (e.key === 'Enter' && !e.shiftKey) {
@@ -357,8 +530,66 @@ watch(
           </div>
         </Transition>
 
-        <!-- Zone textarea -->
+        <!-- Popup autocomplete #canal, /devoir, /doc -->
+        <Transition name="mention-pop">
+          <div
+            v-if="activeRef && refResults.length"
+            class="mi-mention-popup"
+            role="listbox"
+            :aria-label="activeRef === 'channel' ? 'Canaux' : activeRef === 'devoir' ? 'Devoirs' : 'Documents'"
+          >
+            <div class="mi-mention-header">
+              {{ activeRef === 'channel' ? 'Canaux' : activeRef === 'devoir' ? 'Devoirs' : 'Documents' }}
+            </div>
+            <template v-if="activeRef === 'channel'">
+              <button
+                v-for="(ch, i) in refResults"
+                :key="(ch as RefChannel).name"
+                class="mi-mention-item"
+                :class="{ 'mi-mention-selected': i === refIndex }"
+                @mousedown.prevent="insertRef('#' + (ch as RefChannel).name)"
+                @mouseenter="refIndex = i"
+              >
+                <span class="mi-ref-icon">#</span>
+                <span class="mi-mention-name">{{ (ch as RefChannel).name }}</span>
+                <span v-if="(ch as RefChannel).type === 'annonce'" class="mi-mention-badge" style="background:rgba(243,156,18,.2);color:#e67e22">Annonce</span>
+              </button>
+            </template>
+            <template v-else-if="activeRef === 'devoir'">
+              <button
+                v-for="(d, i) in refResults"
+                :key="(d as RefDevoir).title"
+                class="mi-mention-item"
+                :class="{ 'mi-mention-selected': i === refIndex }"
+                @mousedown.prevent="insertRef('📋 [' + (d as RefDevoir).title + ']')"
+                @mouseenter="refIndex = i"
+              >
+                <span class="mi-ref-icon">📋</span>
+                <span class="mi-mention-name">{{ (d as RefDevoir).title }}</span>
+              </button>
+            </template>
+            <template v-else-if="activeRef === 'doc'">
+              <button
+                v-for="(d, i) in refResults"
+                :key="(d as RefDoc).name"
+                class="mi-mention-item"
+                :class="{ 'mi-mention-selected': i === refIndex }"
+                @mousedown.prevent="insertRef('📄 [' + (d as RefDoc).name + ']')"
+                @mouseenter="refIndex = i"
+              >
+                <span class="mi-ref-icon">📄</span>
+                <span class="mi-mention-name">{{ (d as RefDoc).name }}</span>
+                <span v-if="(d as RefDoc).category" class="mi-mention-hint">{{ (d as RefDoc).category }}</span>
+              </button>
+            </template>
+          </div>
+        </Transition>
+
+        <!-- Zone textarea / preview -->
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <div v-if="showPreview && content.trim()" class="mi-preview msg-text" v-html="previewHtml" />
         <textarea
+          v-else
           id="message-input"
           ref="inputEl"
           v-model="content"
@@ -383,8 +614,23 @@ watch(
             <button class="mi-fmt-btn" title="Code inline" aria-label="Code inline" @mousedown.prevent="fmtWrap('`', '`')">
               <Code :size="13" />
             </button>
-            <button class="mi-fmt-btn" title="Bloc de code" aria-label="Bloc de code" @mousedown.prevent="fmtInsertBlock">
+            <button class="mi-fmt-btn" title="Bloc de code (Ctrl+Shift+C)" aria-label="Bloc de code" @mousedown.prevent="fmtInsertBlock">
               <SquareCode :size="13" />
+            </button>
+            <button class="mi-fmt-btn" title="Barré (Ctrl+Shift+X)" aria-label="Barré" @mousedown.prevent="fmtWrap('~~', '~~')">
+              <Strikethrough :size="13" />
+            </button>
+
+            <div class="mi-fmt-divider" />
+
+            <button class="mi-fmt-btn" title="Citation (Ctrl+Shift+.)" aria-label="Citation" @mousedown.prevent="fmtLinePrefix('> ')">
+              <Quote :size="13" />
+            </button>
+            <button class="mi-fmt-btn" title="Liste à puces" aria-label="Liste à puces" @mousedown.prevent="fmtLinePrefix('- ')">
+              <List :size="13" />
+            </button>
+            <button class="mi-fmt-btn" title="Liste numérotée" aria-label="Liste numérotée" @mousedown.prevent="fmtLinePrefix('1. ')">
+              <ListOrdered :size="13" />
             </button>
 
             <div class="mi-fmt-divider" />
@@ -400,6 +646,38 @@ watch(
 
           <!-- Actions droite -->
           <div class="mi-actions-right">
+            <!-- Emoji picker inline -->
+            <div class="mi-emoji-wrapper">
+              <button
+                class="mi-icon-btn"
+                title="Insérer un emoji"
+                aria-label="Emoji"
+                @click="showEmojiPicker = !showEmojiPicker"
+              >
+                <Smile :size="14" />
+              </button>
+              <div v-if="showEmojiPicker" class="mi-emoji-panel">
+                <button
+                  v-for="e in ['😊','😂','🤣','😍','🤔','😮','😢','👍','👏','🔥','❤️','✅','🎉','💯','🙏','👋','⭐','💡','🎯','⚡']"
+                  :key="e"
+                  class="mi-emoji-btn"
+                  @mousedown.prevent="content += e; showEmojiPicker = false; inputEl?.focus()"
+                >{{ e }}</button>
+              </div>
+            </div>
+
+            <!-- Aperçu markdown -->
+            <button
+              class="mi-icon-btn"
+              :class="{ active: showPreview }"
+              :title="showPreview ? 'Modifier' : 'Aperçu du message'"
+              aria-label="Aperçu"
+              @click="showPreview = !showPreview"
+            >
+              <EyeOff v-if="showPreview" :size="14" />
+              <Eye v-else :size="14" />
+            </button>
+
             <button
               class="mi-icon-btn"
               :class="{ attaching }"
@@ -434,7 +712,7 @@ watch(
 
     </template>
 
-    <p v-else class="readonly-notice">Ce canal est en lecture seule.</p>
+    <p v-else class="readonly-notice">Canal d'annonces — seuls les enseignants peuvent publier ici.</p>
   </div>
 </template>
 
@@ -660,6 +938,56 @@ watch(
   background: var(--border);
   margin: 0 3px;
   flex-shrink: 0;
+}
+
+/* ── Preview markdown ── */
+.mi-preview {
+  padding: 10px 14px;
+  min-height: 42px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: rgba(74,144,217,.04);
+  border-top: 1px dashed rgba(74,144,217,.2);
+}
+
+/* ── Emoji picker ── */
+.mi-emoji-wrapper {
+  position: relative;
+}
+.mi-emoji-panel {
+  position: absolute;
+  bottom: 32px;
+  right: 0;
+  background: var(--bg-modal);
+  border: 1px solid var(--border-input);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  z-index: 500;
+  width: 210px;
+}
+.mi-emoji-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background .1s, transform .1s;
+}
+.mi-emoji-btn:hover {
+  background: var(--bg-hover);
+  transform: scale(1.15);
 }
 
 /* Actions droite */

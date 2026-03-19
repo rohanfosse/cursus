@@ -31,6 +31,20 @@ router.get('/pinned/:channelId', wrap((req) => queries.getPinnedMessages(Number(
 router.post('/', (req, res) => {
   try {
     const payload = req.body
+
+    // ── Sécurité : forcer l'identité depuis le JWT (anti-usurpation) ────────
+    payload.authorName = req.user.name
+    payload.authorType = req.user.type === 'ta' ? 'teacher' : req.user.type
+
+    // ── Sécurité : bloquer les étudiants sur les canaux d'annonce ───────────
+    if (payload.channelId && req.user.type === 'student') {
+      const { getDb } = require('../../src/db/connection')
+      const ch = getDb().prepare('SELECT type FROM channels WHERE id = ?').get(payload.channelId)
+      if (ch?.type === 'annonce') {
+        return res.status(403).json({ ok: false, error: 'Les étudiants ne peuvent pas poster dans les canaux d\'annonce.' })
+      }
+    }
+
     const result  = queries.sendMessage(payload)
 
     // ── Parsing des mentions ─────────────────────────────────────────────────
@@ -47,7 +61,7 @@ router.post('/', (req, res) => {
     const push = {
       channelId:       payload.channelId   ?? null,
       dmStudentId:     payload.dmStudentId ?? null,
-      authorName:      payload.authorName  ?? null,
+      authorName:      req.user.name       ?? null,
       channelName:     payload.channelName ?? null,
       promoId:         payload.promoId     ?? null,
       preview:         rawContent.replace(/[*_`>#[\]!]/g, '').slice(0, 80),

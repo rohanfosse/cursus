@@ -332,6 +332,38 @@ button { font-family: var(--font); }
   cursor: default;
 }
 
+/* Référence #canal dans les messages */
+.channel-ref {
+  background: rgba(74,144,217,.12);
+  color: var(--accent);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.channel-ref:hover {
+  background: rgba(74,144,217,.25);
+  text-decoration: underline;
+}
+
+/* Référence 📋 devoir dans les messages */
+.devoir-ref {
+  background: rgba(243,156,18,.12);
+  color: var(--color-warning);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-weight: 600;
+}
+
+/* Référence 📄 document dans les messages */
+.doc-ref {
+  background: rgba(46,204,113,.12);
+  color: var(--color-success);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-weight: 600;
+}
+
 /* Mention de l'utilisateur courant ou @everyone */
 .mention-me {
   background: rgba(243,156,18,.2);
@@ -1485,3 +1517,205 @@ button { font-family: var(--font); }
   transition: background .1s, color .1s;
 }
 .format-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* ════════════════════════════════════════════
+   RESPONSIVE — Hamburger button (hidden by default)
+════════════════════════════════════════════ */
+.mobile-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.mobile-hamburger:hover,
+.mobile-hamburger:active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Backdrop for sidebar drawer (hidden by default) */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 399;
+  background: rgba(0,0,0,.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ════════════════════════════════════════════
+   RESPONSIVE — Touch targets & mobile (≤ 768px)
+════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Agrandir les cibles tactiles */
+  .btn-icon {
+    width: 40px;
+    height: 40px;
+    padding: 8px;
+  }
+
+  .modal-close {
+    width: 40px;
+    height: 40px;
+  }
+
+  .reaction-picker-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .reaction-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .btn-close-modal {
+    width: 38px;
+    height: 38px;
+  }
+
+  /* Modales plein écran sur mobile */
+  .modal-sm,
+  .modal-md,
+  .modal-lg {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .modal {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    height: 100%;
+  }
+
+  .modal-overlay {
+    padding: 0;
+  }
+
+  /* Command palette full width */
+  .cmd-panel {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+  }
+
+  .cmd-overlay {
+    padding-top: 0;
+    align-items: stretch;
+  }
+
+  /* Login panel */
+  .login-panel,
+  #login-panel {
+    border-radius: 12px;
+    max-width: 95vw;
+  }
+
+  .login-body,
+  .login-header {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  /* Toast */
+  .toast-container {
+    left: 12px;
+    right: 12px;
+    transform: none;
+    width: auto;
+  }
+
+  .toast {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Sidebar items — larger touch targets */
+  .sidebar-item {
+    padding: 8px 12px 8px 16px;
+    min-height: 40px;
+  }
+
+  /* Depot rows */
+  .depot-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .depot-actions {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+  }
+
+  /* Settings row */
+  .settings-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  /* Privacy box */
+  .privacy-box {
+    padding: 20px;
+    max-width: 100%;
+  }
+
+  /* Document cards */
+  .doc-card {
+    padding: 10px 12px;
+  }
+
+  /* Checkbox — larger for touch */
+  .check-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Disable hover effects on touch */
+  @media (hover: none) {
+    .nav-btn:hover,
+    .nav-btn-icon:hover,
+    .sidebar-item:hover,
+    .msg-row:hover,
+    .btn-icon:hover {
+      background: transparent;
+    }
+  }
+}
+
+/* ════════════════════════════════════════════
+   RESPONSIVE — Small mobile (≤ 480px)
+════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .modal-header { padding: 14px 16px 12px; }
+  .modal-body   { padding: 14px 16px; }
+  .modal-footer { padding: 12px 16px; }
+
+  .identity-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+
+  .login-panel,
+  #login-panel {
+    padding: 24px 16px 20px;
+  }
+
+  #login-panel {
+    max-width: 100%;
+    border-radius: 10px;
+  }
+}

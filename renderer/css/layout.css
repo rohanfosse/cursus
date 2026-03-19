@@ -10,6 +10,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh; /* Mobile-safe viewport height */
   overflow: hidden;
 }
 
@@ -791,6 +792,131 @@ nav[aria-label="Messages directs"] {
   flex-direction: column;
   overflow: hidden;
   height: 100%;
+}
+
+/* ════════════════════════════════════════════
+   RESPONSIVE — Tablette (≤ 1024px)
+════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  #right-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 300;
+    width: 340px;
+    min-width: 0;
+    box-shadow: -4px 0 24px rgba(0,0,0,.5);
+  }
+}
+
+/* ════════════════════════════════════════════
+   RESPONSIVE — Mobile (≤ 768px)
+════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* ── Hamburger button ── */
+  .mobile-hamburger {
+    display: flex !important;
+  }
+
+  /* ── Masquer le rail de navigation ── */
+  .nav-rail {
+    display: none;
+  }
+
+  /* ── Sidebar en drawer overlay ── */
+  .sidebar-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 400;
+    width: 280px;
+    max-width: 85vw;
+    transform: translateX(-100%);
+    transition: transform .25s cubic-bezier(.4, 0, .2, 1);
+    box-shadow: none;
+  }
+
+  .sidebar-wrapper.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,.5);
+  }
+
+  /* ── Backdrop derrière le drawer ── */
+  .sidebar-backdrop {
+    display: block !important;
+  }
+
+  .sidebar-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* ── Zone principale prend toute la largeur ── */
+  .main-wrapper {
+    width: 100%;
+  }
+
+  /* ── Header compact ── */
+  .channel-header {
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  /* ── Barre de recherche adaptative ── */
+  .search-input {
+    width: 120px;
+  }
+
+  /* ── Messages — réduire le padding ── */
+  .msg-row {
+    padding: 7px 12px;
+  }
+  .msg-row.pinned { padding-left: 10px; }
+  .date-separator { margin: 16px 12px 6px; }
+  .message-input-area { padding: 8px 12px 14px; }
+
+  /* ── Panel droit en plein écran mobile ── */
+  #right-panel {
+    width: 100%;
+    max-width: 100%;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 500;
+  }
+
+  /* ── Bannières ── */
+  .pinned-banner,
+  .channel-pending-banner {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* ════════════════════════════════════════════
+   RESPONSIVE — Petit mobile (≤ 480px)
+════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .channel-header {
+    padding: 0 8px;
+    height: 44px;
+  }
+
+  .channel-header-left .channel-name {
+    font-size: 14px;
+  }
+
+  .channel-type-badge { display: none; }
+
+  .search-wrapper { display: none; }
+
+  .msg-row { padding: 5px 8px; gap: 8px; }
+  .msg-avatar, .msg-avatar-placeholder { width: 30px; height: 30px; }
+  .msg-text { font-size: 14px; }
+  .message-input-area { padding: 6px 8px 10px; }
+
+  .sidebar-wrapper { width: 260px; }
 }
 
 /* ════════════════════════════════════════════

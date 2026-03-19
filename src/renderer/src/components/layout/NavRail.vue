@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed, ref, onMounted } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
-  import { MessageSquare, BookOpen, FileText, Calendar, UserCheck, LayoutDashboard, X, UserPlus, Bell, Users, GraduationCap, Flame } from 'lucide-vue-next'
+  import { MessageSquare, BookOpen, FileText, Calendar, UserCheck, LayoutDashboard, X, UserPlus, Bell, Users, GraduationCap, Flame, Search } from 'lucide-vue-next'
   import logoUrl from '@/assets/logo.png'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
@@ -166,6 +166,17 @@
       </Transition>
     </div>
 
+    <!-- Recherche rapide (Ctrl+K) -->
+    <button
+      class="nav-btn nav-search-hint"
+      title="Recherche rapide (Ctrl+K)"
+      aria-label="Recherche rapide"
+      @click="modals.cmdPalette = true"
+    >
+      <Search :size="18" />
+      <kbd class="nav-kbd">⌘K</kbd>
+    </button>
+
     <!-- Espaceur -->
     <div style="flex:1" />
 
@@ -274,6 +285,26 @@
 </template>
 
 <style scoped>
+/* ── Bouton recherche rapide ── */
+.nav-search-hint {
+  position: relative;
+}
+.nav-kbd {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 8px;
+  font-family: var(--font);
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 14px;
+  pointer-events: none;
+}
+
 /* ── Wrapper notifications (positioning du panel) ── */
 .nav-notif-wrapper {
   position: relative;

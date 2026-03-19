@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 16;
+const CURRENT_VERSION = 17;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -76,7 +76,10 @@ function initSchema() {
       category    TEXT,
       type        TEXT NOT NULL DEFAULT 'devoir' CHECK(type IN ('devoir', 'jalon', 'projet')),
       published   INTEGER NOT NULL DEFAULT 1,
-      start_date  TEXT
+      start_date  TEXT,
+      room        TEXT DEFAULT NULL,
+      aavs        TEXT DEFAULT NULL,
+      requires_submission INTEGER NOT NULL DEFAULT 1
     );
 
     CREATE TABLE IF NOT EXISTS travail_group_members (
@@ -392,6 +395,15 @@ function runMigrations(db) {
           updateTeacher.run(bcrypt.hashSync(t.password, 10), t.id);
         }
       }
+    },
+
+    // v17 : salle, AAVs, flag requires_submission
+    (db) => {
+      tryAlter(db, 'ALTER TABLE travaux ADD COLUMN room TEXT DEFAULT NULL');
+      tryAlter(db, 'ALTER TABLE travaux ADD COLUMN aavs TEXT DEFAULT NULL');
+      tryAlter(db, 'ALTER TABLE travaux ADD COLUMN requires_submission INTEGER NOT NULL DEFAULT 1');
+      // Les événements existants n'attendent pas de dépôt
+      db.prepare("UPDATE travaux SET requires_submission = 0 WHERE type IN ('soutenance', 'cctl', 'etude_de_cas')").run();
     },
   ];
 

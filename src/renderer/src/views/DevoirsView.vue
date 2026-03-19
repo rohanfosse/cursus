@@ -3,17 +3,21 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import {
   BookOpen, BarChart2, List, Grid, Plus, Upload, Link2, X,
   FileText, CheckCircle2, Clock, Lock, AlertTriangle, ChevronRight,
-  Users, Award, Calendar, LayoutList,
+  Users, Award, Calendar, LayoutList, Menu,
 } from 'lucide-vue-next'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { useModalsStore }  from '@/stores/modals'
+import { useToast }        from '@/composables/useToast'
 import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
 import { avatarColor, initials } from '@/utils/format'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
 import type { Devoir, Rubric } from '@/types'
 import ProjetFiche        from '@/components/projet/ProjetFiche.vue'
 import StudentProjetFiche from '@/components/projet/StudentProjetFiche.vue'
+
+const props = defineProps<{ toggleSidebar?: () => void }>()
+const { showToast } = useToast()
 
 const appStore     = useAppStore()
 const travauxStore = useTravauxStore()
@@ -27,13 +31,19 @@ const now = ref(Date.now())
 let clockInterval: ReturnType<typeof setInterval> | null = null
 
 /** Renvoie true si la deadline est passée (verrouille le bouton Déposer) */
-function isExpired(deadline: string): boolean {
+function isExpired(deadline: string | null | undefined): boolean {
+  if (!deadline) return false
   return now.value >= new Date(deadline).getTime()
 }
 
 /** Types qui n'ont pas de dépôt fichier (présence requise) */
 function isEventType(type: string): boolean {
   return type === 'soutenance' || type === 'cctl'
+}
+
+/** Vérifie si un devoir nécessite un rendu (basé sur requires_submission du backend) */
+function needsSubmission(devoir: Devoir): boolean {
+  return devoir.requires_submission !== 0
 }
 
 // ── Dépôt inline (étudiant) ───────────────────────────────────────────────────
@@ -93,17 +103,17 @@ const studentGroups = computed(() => {
     ? travauxStore.devoirs.filter(t => t.category === appStore.activeProject)
     : travauxStore.devoirs
   return {
-    overdue:   all.filter(t => t.depot_id == null && !isEventType(t.type) && isExpired(t.deadline)),
+    overdue:   all.filter(t => t.depot_id == null && needsSubmission(t) && isExpired(t.deadline)),
     urgent:    all.filter(t => {
-      if (t.depot_id != null || isExpired(t.deadline) || isEventType(t.type)) return false
+      if (t.depot_id != null || isExpired(t.deadline) || !needsSubmission(t)) return false
       return new Date(t.deadline).getTime() - now.value < 3 * 86_400_000
     }),
     pending:   all.filter(t => {
-      if (t.depot_id != null || isExpired(t.deadline) || isEventType(t.type)) return false
+      if (t.depot_id != null || isExpired(t.deadline) || !needsSubmission(t)) return false
       return new Date(t.deadline).getTime() - now.value >= 3 * 86_400_000
     }),
-    event:     all.filter(t => isEventType(t.type) && t.depot_id == null),
-    submitted: all.filter(t => t.depot_id != null || isEventType(t.type) && !isExpired(t.deadline) === false),
+    event:     all.filter(t => !needsSubmission(t) && t.depot_id == null),
+    submitted: all.filter(t => t.depot_id != null || (!needsSubmission(t) && isExpired(t.deadline))),
   }
 })
 
@@ -115,9 +125,9 @@ const filteredDevoirs  = computed(() =>
 )
 const submittedDevoirs = computed(() => filteredDevoirs.value.filter(t => t.depot_id != null))
 const pendingDeposit   = computed(() =>
-  filteredDevoirs.value.filter(t => t.depot_id == null && !isEventType(t.type)),
+  filteredDevoirs.value.filter(t => t.depot_id == null && needsSubmission(t)),
 )
-const eventDevoirs     = computed(() => filteredDevoirs.value.filter(t => isEventType(t.type)))
+const eventDevoirs     = computed(() => filteredDevoirs.value.filter(t => !needsSubmission(t)))
 
 const studentStats = computed(() => ({
   total:     filteredDevoirs.value.length,
@@ -173,8 +183,11 @@ async function submitDeposit(devoir: Devoir) {
       file_name:  depositMode.value === 'file' ? depositFileName.value : null,
     })
     if (ok) {
+      showToast('Dépôt enregistré avec succès.', 'success')
       cancelDeposit()
       await travauxStore.fetchStudentDevoirs()
+    } else {
+      showToast('Erreur lors du dépôt. Veuillez réessayer.', 'error')
     }
   } finally {
     depositing.value = false
@@ -308,6 +321,9 @@ function typeLabel(t: string): string {
     <!-- ── En-tête ─────────────────────────────────────────────────────────── -->
     <header class="devoirs-header">
       <div class="devoirs-header-title">
+        <button v-if="props.toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="props.toggleSidebar">
+          <Menu :size="22" />
+        </button>
         <BookOpen :size="18" />
         <span>Devoirs</span>
         <template v-if="appStore.activeProject">
@@ -435,9 +451,10 @@ function typeLabel(t: string): string {
 
           <!-- ▸ EN RETARD -->
           <template v-if="studentGroups.overdue.length">
-            <div class="group-header group-header--danger">
+            <div class="group-header group-header--danger" title="Deadline dépassée — dépôt verrouillé">
               <Lock :size="12" /> En retard
               <span class="group-count">{{ studentGroups.overdue.length }}</span>
+              <span class="group-subtitle">La deadline est dépassée — le dépôt n'est plus possible</span>
             </div>
             <div class="devoirs-list">
               <div v-for="t in studentGroups.overdue" :key="t.id" class="devoir-card devoir-card--overdue">
@@ -453,6 +470,8 @@ function typeLabel(t: string): string {
                 </div>
                 <h3 class="devoir-card-title">{{ t.title }}</h3>
                 <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <p v-if="t.room" class="devoir-card-room">Salle {{ t.room }}</p>
+                <div v-if="t.aavs" class="devoir-card-aavs"><span v-for="a in t.aavs.split('\n').filter(Boolean)" :key="a" class="aav-tag">{{ a.trim() }}</span></div>
                 <div class="devoir-card-footer">
                   <span class="devoir-deadline-date">Échéance : {{ formatDate(t.deadline) }}</span>
                   <button class="btn-deposit-expired" disabled>
@@ -465,9 +484,10 @@ function typeLabel(t: string): string {
 
           <!-- ▸ URGENT -->
           <template v-if="studentGroups.urgent.length">
-            <div class="group-header group-header--warning">
+            <div class="group-header group-header--warning" title="Moins de 3 jours avant la deadline">
               <AlertTriangle :size="12" /> Urgent
               <span class="group-count">{{ studentGroups.urgent.length }}</span>
+              <span class="group-subtitle">Moins de 3 jours avant la deadline</span>
             </div>
             <div class="devoirs-list">
               <div v-for="t in studentGroups.urgent" :key="t.id" class="devoir-card devoir-card--urgent">
@@ -483,6 +503,8 @@ function typeLabel(t: string): string {
                 </div>
                 <h3 class="devoir-card-title">{{ t.title }}</h3>
                 <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <p v-if="t.room" class="devoir-card-room">Salle {{ t.room }}</p>
+                <div v-if="t.aavs" class="devoir-card-aavs"><span v-for="a in t.aavs.split('\n').filter(Boolean)" :key="a" class="aav-tag">{{ a.trim() }}</span></div>
                 <template v-if="depositingDevoirId === t.id">
                   <div class="deposit-form">
                     <div class="deposit-type-toggle">
@@ -550,9 +572,10 @@ function typeLabel(t: string): string {
 
           <!-- ▸ À RENDRE -->
           <template v-if="studentGroups.pending.length">
-            <div class="group-header group-header--accent">
+            <div class="group-header group-header--accent" title="Plus de 3 jours avant la deadline">
               <Clock :size="12" /> À rendre
               <span class="group-count">{{ studentGroups.pending.length }}</span>
+              <span class="group-subtitle">Vous avez encore du temps, mais pensez-y</span>
             </div>
             <div class="devoirs-list">
               <div v-for="t in studentGroups.pending" :key="t.id" class="devoir-card devoir-card--pending">
@@ -568,6 +591,8 @@ function typeLabel(t: string): string {
                 </div>
                 <h3 class="devoir-card-title">{{ t.title }}</h3>
                 <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <p v-if="t.room" class="devoir-card-room">Salle {{ t.room }}</p>
+                <div v-if="t.aavs" class="devoir-card-aavs"><span v-for="a in t.aavs.split('\n').filter(Boolean)" :key="a" class="aav-tag">{{ a.trim() }}</span></div>
                 <template v-if="depositingDevoirId === t.id">
                   <div class="deposit-form">
                     <div class="deposit-type-toggle">
@@ -653,6 +678,8 @@ function typeLabel(t: string): string {
                 </div>
                 <h3 class="devoir-card-title">{{ t.title }}</h3>
                 <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <p v-if="t.room" class="devoir-card-room">Salle {{ t.room }}</p>
+                <div v-if="t.aavs" class="devoir-card-aavs"><span v-for="a in t.aavs.split('\n').filter(Boolean)" :key="a" class="aav-tag">{{ a.trim() }}</span></div>
                 <div class="devoir-presence-notice">
                   <Calendar :size="14" class="devoir-presence-icon" />
                   <span>Présence requise — pas de dépôt fichier</span>
@@ -666,9 +693,9 @@ function typeLabel(t: string): string {
 
           <!-- ▸ RENDUS -->
           <template v-if="submittedDevoirs.length">
-            <div class="group-header group-header--success">
+            <div class="group-header group-header--success" title="Devoirs soumis">
               <CheckCircle2 :size="12" /> Rendus
-              <span class="group-count">{{ submittedDevoirs.length }}</span>
+              <span class="group-count">{{ submittedDevoirs.length }} / {{ filteredDevoirs.length }}</span>
             </div>
             <div class="devoirs-list">
               <div v-for="t in submittedDevoirs" :key="t.id" class="devoir-card devoir-card--submitted">
@@ -684,9 +711,13 @@ function typeLabel(t: string): string {
                 </div>
                 <h3 class="devoir-card-title">{{ t.title }}</h3>
                 <p v-if="t.description" class="devoir-card-desc">{{ t.description }}</p>
+                <p v-if="t.room" class="devoir-card-room">Salle {{ t.room }}</p>
+                <div v-if="t.aavs" class="devoir-card-aavs"><span v-for="a in t.aavs.split('\n').filter(Boolean)" :key="a" class="aav-tag">{{ a.trim() }}</span></div>
                 <div class="devoir-submitted-info">
                   <CheckCircle2 :size="14" />
                   <span>Rendu déposé</span>
+                  <span v-if="t.note" class="devoir-graded-badge">Noté</span>
+                  <span v-else class="devoir-pending-badge">En attente de note</span>
                 </div>
                 <!-- Note & feedback si disponibles -->
                 <div v-if="t.note" class="devoir-grade-row">
@@ -1154,7 +1185,8 @@ function typeLabel(t: string): string {
 }
 
 .group-header {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   font-size: 11px;
@@ -1162,6 +1194,15 @@ function typeLabel(t: string): string {
   text-transform: uppercase;
   letter-spacing: 0.6px;
   margin-bottom: 4px;
+}
+.group-subtitle {
+  width: 100%;
+  font-size: 11.5px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-muted);
+  margin-top: -2px;
 }
 
 .group-count {
@@ -1243,6 +1284,26 @@ function typeLabel(t: string): string {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.devoir-card-room {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.devoir-card-aavs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.aav-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(74,144,217,.12);
+  color: var(--accent);
+  white-space: nowrap;
+}
 
 /* Présence requise */
 .devoir-presence-notice {
@@ -1270,6 +1331,24 @@ function typeLabel(t: string): string {
   font-weight: 600;
   color: var(--color-success);
   margin-top: 8px;
+}
+.devoir-graded-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(46,204,113,.15);
+  color: var(--color-success);
+  margin-left: 4px;
+}
+.devoir-pending-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.08);
+  color: var(--text-muted);
+  margin-left: 4px;
 }
 
 /* Grade dans la carte rendu (étudiant) */
