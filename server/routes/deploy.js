@@ -16,22 +16,28 @@ router.post('/', (req, res) => {
   console.log('[Deploy] Déploiement déclenché par webhook...')
   res.json({ ok: true, message: 'Déploiement en cours...' })
 
-  // Exécuté en arrière-plan après la réponse
-  const cmd = [
+  // 1. git pull + npm install (synchrone, dans ce processus)
+  const updateCmd = [
     `cd ${ROOT_DIR}`,
     'git fetch origin main',
     'git reset --hard origin/main',
     'npm install --omit=dev --ignore-scripts 2>&1 | tail -3',
-    'pm2 restart ceslack-server',
   ].join(' && ')
 
-  exec(cmd, { timeout: 120_000 }, (err, stdout, stderr) => {
+  exec(updateCmd, { timeout: 120_000 }, (err, stdout, stderr) => {
     if (err) {
-      console.error('[Deploy] Erreur :', err.message)
+      console.error('[Deploy] Erreur update :', err.message)
       console.error('[Deploy] Stderr :', stderr?.slice(0, 500))
-    } else {
-      console.log('[Deploy] Succès :', stdout?.slice(-300) || 'OK')
+      return
     }
+    console.log('[Deploy] Update OK :', stdout?.slice(-200) || 'OK')
+
+    // 2. Reload PM2 en tâche de fond détachée (évite le suicide de processus)
+    exec(`sleep 1 && pm2 reload ecosystem.config.js --update-env`, {
+      detached: true,
+      timeout: 30_000,
+    }).unref()
+    console.log('[Deploy] Reload PM2 planifié...')
   })
 })
 
