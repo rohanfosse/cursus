@@ -1,7 +1,7 @@
 // ─── Service Worker — Cursus PWA ─────────────────────────────────────────────
-// Stratégie : Cache-First pour les assets statiques, Network-First pour les API
+// Stratégie : Network-First pour HTML/navigation, Cache-First pour assets statiques
 
-const CACHE_NAME = 'cursus-v2'
+const CACHE_NAME = 'cursus-v3'
 
 // Assets à précacher lors de l'installation
 const PRECACHE_URLS = [
@@ -61,7 +61,23 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Assets statiques → Cache-First (cache, sinon réseau)
+  // Pages HTML (navigation) → Network-First (toujours chercher la dernière version)
+  if (request.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('.html')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
+          }
+          return response
+        })
+        .catch(() => caches.match(request))
+    )
+    return
+  }
+
+  // Assets statiques (JS/CSS/images) → Cache-First (cache, sinon réseau)
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached
