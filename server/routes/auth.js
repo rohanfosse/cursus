@@ -25,11 +25,25 @@ const loginLimiter = rateLimit({
   message: { ok: false, error: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' },
 })
 
+// ── Helper : enregistrer une tentative de connexion ──────────────────────────
+function logLoginAttempt(email, success, req) {
+  try {
+    const { getDb } = require('../../src/db/connection')
+    getDb().prepare(
+      `INSERT INTO login_attempts (email, success, ip, user_agent) VALUES (?, ?, ?, ?)`
+    ).run(email || '', success ? 1 : 0, req.ip, req.get('user-agent') || '')
+  } catch { /* table pas encore créée — ignoré */ }
+}
+
 // POST /api/auth/login
 router.post('/login', loginLimiter, wrap(async (req) => {
   const { email, password } = req.body
   const user = queries.loginWithCredentials(email, password)
-  if (!user) throw new Error('Email ou mot de passe incorrect')
+  if (!user) {
+    logLoginAttempt(email, false, req)
+    throw new Error('Email ou mot de passe incorrect')
+  }
+  logLoginAttempt(email, true, req)
   const secret = req.app.get('jwtSecret')
   const token  = jwt.sign(
     { id: user.id, name: user.name, type: user.type, promo_id: user.promo_id },

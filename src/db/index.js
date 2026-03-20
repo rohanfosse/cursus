@@ -11,6 +11,7 @@ const submissions = require('./models/submissions');
 const documents   = require('./models/documents');
 const rubrics     = require('./models/rubrics');
 const teachers    = require('./models/teachers');
+const admin       = require('./models/admin');
 
 // Initialisation complète : schema + migrations + seed
 function init() {
@@ -31,4 +32,5 @@ module.exports = {
   ...documents,
   ...rubrics,
   ...teachers,
+  ...admin,
 };

@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 17;
+const CURRENT_VERSION = 18;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -404,6 +404,36 @@ function runMigrations(db) {
       tryAlter(db, 'ALTER TABLE travaux ADD COLUMN requires_submission INTEGER NOT NULL DEFAULT 1');
       // Les événements existants n'attendent pas de dépôt
       db.prepare("UPDATE travaux SET requires_submission = 0 WHERE type IN ('soutenance', 'cctl', 'etude_de_cas')").run();
+    },
+
+    // v18 : audit_log + login_attempts (admin console)
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS audit_log (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          actor_id   INTEGER NOT NULL,
+          actor_name TEXT NOT NULL,
+          actor_type TEXT NOT NULL,
+          action     TEXT NOT NULL,
+          target     TEXT,
+          details    TEXT,
+          ip         TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
+        CREATE INDEX IF NOT EXISTS idx_audit_action  ON audit_log(action);
+
+        CREATE TABLE IF NOT EXISTS login_attempts (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          email      TEXT NOT NULL,
+          success    INTEGER NOT NULL DEFAULT 0,
+          ip         TEXT,
+          user_agent TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_login_email   ON login_attempts(email);
+        CREATE INDEX IF NOT EXISTS idx_login_created ON login_attempts(created_at);
+      `);
     },
   ];
 

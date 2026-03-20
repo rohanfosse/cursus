@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cursus — Admin Monitor</title>
+  <title>Cursus — Console Admin</title>
   <link rel="icon" type="image/png" href="/assets/icon-192.png" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -18,8 +18,8 @@
     a { color: var(--accent); text-decoration: none; }
 
     /* ── Layout ── */
-    .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
-    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }
+    .container { max-width: 1280px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
     .header h1 { font-size: 1.5rem; font-weight: 700; }
     .header .status { display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: var(--text-secondary); }
     .header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
@@ -34,6 +34,14 @@
     .login-box button { width: 100%; padding: .75rem; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-size: .9rem; font-weight: 600; cursor: pointer; }
     .login-box button:hover { opacity: .9; }
     .login-box .error-msg { color: var(--red); font-size: .8rem; margin-top: .5rem; text-align: center; }
+
+    /* ── Tabs ── */
+    .tab-bar { display: flex; gap: .25rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; }
+    .tab-btn { background: none; border: none; color: var(--text-muted); font-size: .85rem; font-weight: 500; padding: .75rem 1.25rem; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all .2s; }
+    .tab-btn:hover { color: var(--text-secondary); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
 
     /* ── Grid ── */
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
@@ -58,19 +66,25 @@
     .svc .dot.ok { background: var(--green); }
     .svc .dot.ko { background: var(--red); }
 
-    /* ── PM2 table ── */
-    .pm2-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
-    .pm2-table th { text-align: left; color: var(--text-muted); font-weight: 500; padding: .5rem .5rem; border-bottom: 1px solid var(--border); }
-    .pm2-table td { padding: .5rem; }
-    .badge { padding: 2px 8px; border-radius: 10px; font-size: .7rem; font-weight: 600; text-transform: uppercase; }
-    .badge.online { background: rgba(46,204,113,.15); color: var(--green); }
-    .badge.stopped { background: rgba(231,76,60,.15); color: var(--red); }
+    /* ── Tables ── */
+    .data-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    .data-table th { text-align: left; color: var(--text-muted); font-weight: 500; padding: .5rem .5rem; border-bottom: 1px solid var(--border); }
+    .data-table td { padding: .5rem; border-bottom: 1px solid var(--border); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--bg-card-hover); }
+
+    .badge { padding: 2px 8px; border-radius: 10px; font-size: .7rem; font-weight: 600; text-transform: uppercase; display: inline-block; }
+    .badge.online, .badge.teacher { background: rgba(46,204,113,.15); color: var(--green); }
+    .badge.stopped, .badge.danger { background: rgba(231,76,60,.15); color: var(--red); }
+    .badge.student { background: rgba(74,144,217,.15); color: var(--accent); }
+    .badge.ta      { background: rgba(243,156,18,.15); color: var(--orange); }
+    .badge.info    { background: rgba(74,144,217,.1); color: var(--accent); }
+    .badge.warn    { background: rgba(243,156,18,.1); color: var(--orange); }
 
     /* ── Certs ── */
     .cert { display: flex; justify-content: space-between; align-items: center; padding: .5rem 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
     .cert:last-child { border-bottom: none; }
     .cert-name { font-weight: 500; }
-    .cert-exp { color: var(--text-secondary); }
 
     /* ── Git ── */
     .git-info { font-size: .85rem; line-height: 1.8; }
@@ -79,13 +93,62 @@
     /* ── Wide card ── */
     .wide { grid-column: 1 / -1; }
 
-    /* ── Refresh btn ── */
+    /* ── Buttons ── */
     .refresh-btn { background: none; border: 1px solid var(--border); color: var(--text-secondary); padding: .4rem .8rem; border-radius: var(--radius-sm); font-size: .8rem; cursor: pointer; }
     .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn { padding: .5rem 1rem; border: none; border-radius: var(--radius-sm); font-size: .8rem; font-weight: 600; cursor: pointer; transition: opacity .2s; }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-danger  { background: var(--red); color: #fff; }
+    .btn-sm { padding: .3rem .6rem; font-size: .7rem; }
 
     /* ── Back link ── */
     .back-link { font-size: .85rem; color: var(--text-secondary); }
     .back-link:hover { color: var(--accent); }
+
+    /* ── Filters ── */
+    .filters { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .filters input, .filters select {
+      padding: .5rem .75rem; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text); font-size: .8rem; outline: none;
+    }
+    .filters input:focus, .filters select:focus { border-color: var(--accent); }
+    .filters input { min-width: 180px; }
+
+    /* ── Chart ── */
+    .chart-container { display: flex; align-items: flex-end; gap: 2px; height: 120px; padding: .5rem 0; }
+    .chart-bar { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; min-width: 4px; transition: height .3s; position: relative; }
+    .chart-bar:hover { background: #6ab0ff; }
+    .chart-bar:hover::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px;
+      font-size: .65rem; white-space: nowrap; color: var(--text); pointer-events: none; }
+    .chart-label { font-size: .6rem; color: var(--text-muted); text-align: center; margin-top: .25rem; }
+
+    /* ── Stats counters ── */
+    .counter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .75rem; margin-bottom: 1.5rem; }
+    .counter { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; text-align: center; }
+    .counter-value { font-size: 1.6rem; font-weight: 700; }
+    .counter-label { font-size: .7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-top: .25rem; }
+
+    /* ── Modal ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 200; display: flex; align-items: center; justify-content: center; }
+    .modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; min-width: 400px; max-width: 500px; }
+    .modal h3 { margin-bottom: 1rem; }
+    .modal input, .modal select, .modal textarea {
+      width: 100%; padding: .5rem .75rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text); font-size: .85rem; margin-bottom: .5rem; outline: none;
+    }
+    .modal-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+
+    /* ── Pagination ── */
+    .pagination { display: flex; align-items: center; gap: .5rem; justify-content: center; margin-top: 1rem; font-size: .8rem; color: var(--text-secondary); }
+    .pagination button { background: var(--bg-card); border: 1px solid var(--border); color: var(--text); padding: .3rem .6rem; border-radius: var(--radius-sm); cursor: pointer; font-size: .75rem; }
+    .pagination button:disabled { opacity: .3; cursor: default; }
+
+    /* ── Alert banner ── */
+    .alert { padding: .75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: .8rem; }
+    .alert-warn { background: rgba(243,156,18,.1); border: 1px solid rgba(243,156,18,.2); color: var(--orange); }
+    .alert-danger { background: rgba(231,76,60,.1); border: 1px solid rgba(231,76,60,.2); color: var(--red); }
   </style>
 </head>
 <body>
@@ -93,7 +156,7 @@
 <!-- Login overlay -->
 <div id="login-overlay" class="login-overlay">
   <div class="login-box">
-    <h2>Admin Monitor</h2>
+    <h2>Console Admin</h2>
     <input type="email" id="login-email" placeholder="Email" autocomplete="email" />
     <input type="password" id="login-password" placeholder="Mot de passe" autocomplete="current-password" />
     <button id="login-btn" onclick="doLogin()">Connexion</button>
@@ -106,24 +169,103 @@
   <div class="header">
     <div>
       <a href="/" class="back-link">&larr; Retour au site</a>
-      <h1>Monitoring Serveur</h1>
+      <h1>Console d'administration</h1>
     </div>
     <div style="display:flex;align-items:center;gap:1rem">
-      <div class="status"><div id="status-dot" class="dot"></div><span id="status-text">Connecté</span></div>
-      <button class="refresh-btn" onclick="refresh()">Rafraîchir</button>
+      <div class="status"><div id="status-dot" class="dot"></div><span id="status-text">Connect&eacute;</span></div>
+      <button class="refresh-btn" onclick="refreshActiveTab()">Rafra&icirc;chir</button>
     </div>
   </div>
 
-  <div class="grid" id="metrics-grid">
-    <!-- Filled by JS -->
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="serveur" onclick="switchTab('serveur')">Serveur</button>
+    <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">Statistiques</button>
+    <button class="tab-btn" data-tab="users" onclick="switchTab('users')">Utilisateurs</button>
+    <button class="tab-btn" data-tab="moderation" onclick="switchTab('moderation')">Mod&eacute;ration</button>
+    <button class="tab-btn" data-tab="audit" onclick="switchTab('audit')">Audit</button>
+    <button class="tab-btn" data-tab="security" onclick="switchTab('security')">S&eacute;curit&eacute;</button>
+    <button class="tab-btn" data-tab="maintenance" onclick="switchTab('maintenance')">Maintenance</button>
+  </div>
+
+  <!-- Tab panels -->
+  <div id="tab-serveur" class="tab-panel active">
+    <div class="grid" id="metrics-grid"></div>
+  </div>
+
+  <div id="tab-stats" class="tab-panel">
+    <div id="stats-content">Chargement...</div>
+  </div>
+
+  <div id="tab-users" class="tab-panel">
+    <div class="filters">
+      <input type="text" id="user-search" placeholder="Rechercher un nom ou email..." />
+      <select id="user-type-filter">
+        <option value="">Tous les types</option>
+        <option value="student">&Eacute;tudiants</option>
+        <option value="teacher">Enseignants</option>
+        <option value="ta">Intervenants</option>
+      </select>
+      <select id="user-promo-filter"><option value="">Toutes les promos</option></select>
+      <button class="btn btn-primary btn-sm" onclick="loadUsers()">Filtrer</button>
+    </div>
+    <div id="users-content">Chargement...</div>
+  </div>
+
+  <div id="tab-moderation" class="tab-panel">
+    <div class="filters">
+      <input type="text" id="mod-search" placeholder="Rechercher dans les messages..." />
+      <input type="text" id="mod-author" placeholder="Auteur..." />
+      <select id="mod-promo-filter"><option value="">Toutes les promos</option></select>
+      <input type="date" id="mod-from" />
+      <input type="date" id="mod-to" />
+      <button class="btn btn-primary btn-sm" onclick="loadModeration()">Rechercher</button>
+    </div>
+    <div id="moderation-content">Chargement...</div>
+  </div>
+
+  <div id="tab-audit" class="tab-panel">
+    <div class="filters">
+      <select id="audit-action-filter">
+        <option value="">Toutes les actions</option>
+        <option value="message.delete">Suppression message</option>
+        <option value="grade.update">Changement note</option>
+        <option value="user.create">Cr&eacute;ation utilisateur</option>
+        <option value="user.delete">Suppression utilisateur</option>
+        <option value="password.reset">Reset mot de passe</option>
+        <option value="db.reset">Reset BDD</option>
+      </select>
+      <input type="text" id="audit-actor" placeholder="Acteur..." />
+      <input type="date" id="audit-from" />
+      <input type="date" id="audit-to" />
+      <button class="btn btn-primary btn-sm" onclick="loadAudit()">Filtrer</button>
+    </div>
+    <div id="audit-content">Chargement...</div>
+  </div>
+
+  <div id="tab-security" class="tab-panel">
+    <div id="security-content">Chargement...</div>
+  </div>
+
+  <div id="tab-maintenance" class="tab-panel">
+    <div id="maintenance-content">Chargement...</div>
   </div>
 </div>
+
+<!-- Modal container -->
+<div id="modal-root"></div>
 
 <script>
 const API = window.location.origin
 let token = localStorage.getItem('admin_token')
+let activeTab = 'serveur'
+let serverInterval = null
+const tabLoaded = {}
 
-// ── Login ──
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════════════════════
+
 async function doLogin() {
   const email = document.getElementById('login-email').value
   const pwd   = document.getElementById('login-password').value
@@ -131,35 +273,68 @@ async function doLogin() {
   errEl.style.display = 'none'
   try {
     const r = await fetch(`${API}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: pwd }),
     })
     const json = await r.json()
     if (!json.ok) throw new Error(json.error)
-    if (json.data.type !== 'teacher') throw new Error('Accès réservé aux enseignants')
+    if (json.data.type !== 'teacher') throw new Error('Acces reserve aux enseignants')
     token = json.data.token
     localStorage.setItem('admin_token', token)
     showDashboard()
   } catch (e) {
-    errEl.textContent = e.message
-    errEl.style.display = 'block'
+    errEl.textContent = e.message; errEl.style.display = 'block'
   }
 }
-
-// Enter key
 document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin() })
 
 function showDashboard() {
   document.getElementById('login-overlay').style.display = 'none'
   document.getElementById('dashboard').style.display = 'block'
-  refresh()
-  setInterval(refresh, 15000) // auto-refresh every 15s
+  switchTab('serveur')
 }
 
-// ── Format helpers ──
+async function apiFetch(url, opts = {}) {
+  const r = await fetch(`${API}${url}`, {
+    ...opts,
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+  })
+  if (r.status === 401 || r.status === 403) { localStorage.removeItem('admin_token'); location.reload(); return null }
+  return r.json()
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function switchTab(tab) {
+  activeTab = tab
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab))
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`))
+
+  if (serverInterval) { clearInterval(serverInterval); serverInterval = null }
+  if (tab === 'serveur') {
+    refreshServer()
+    serverInterval = setInterval(refreshServer, 15000)
+  } else {
+    refreshActiveTab()
+  }
+}
+
+function refreshActiveTab() {
+  const loaders = {
+    serveur: refreshServer, stats: loadStats, users: loadUsers,
+    moderation: loadModeration, audit: loadAudit, security: loadSecurity, maintenance: loadMaintenance,
+  }
+  if (loaders[activeTab]) loaders[activeTab]()
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
 function fmtBytes(b) {
-  if (b == null) return '—'
+  if (b == null) return '\u2014'
   if (b < 1024) return b + ' B'
   if (b < 1048576) return (b / 1024).toFixed(1) + ' KB'
   if (b < 1073741824) return (b / 1048576).toFixed(1) + ' MB'
@@ -172,85 +347,80 @@ function fmtDuration(seconds) {
   return Math.floor(seconds / 86400) + 'j ' + Math.floor((seconds % 86400) / 3600) + 'h'
 }
 function barColor(pct) { return pct > 85 ? 'red' : pct > 60 ? 'orange' : 'green' }
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML }
+function fmtDate(d) { if (!d) return '\u2014'; return new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }
 
-// ── Fetch & render ──
-async function refresh() {
+function showModal(html) { document.getElementById('modal-root').innerHTML = html }
+function closeModal() { document.getElementById('modal-root').innerHTML = '' }
+
+function pagination(total, page, limit, loadFn) {
+  const pages = Math.ceil(total / limit) || 1
+  return `<div class="pagination">
+    <button ${page <= 1 ? 'disabled' : ''} onclick="${loadFn}(${page - 1})">&laquo;</button>
+    <span>Page ${page} / ${pages} (${total} r\u00e9sultats)</span>
+    <button ${page >= pages ? 'disabled' : ''} onclick="${loadFn}(${page + 1})">&raquo;</button>
+  </div>`
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SERVEUR (existant)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function refreshServer() {
   const dot = document.getElementById('status-dot')
   const txt = document.getElementById('status-text')
   try {
-    const r = await fetch(`${API}/api/admin/monitor`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-    })
-    if (r.status === 401 || r.status === 403) {
-      localStorage.removeItem('admin_token')
-      location.reload()
-      return
-    }
-    const json = await r.json()
+    const json = await apiFetch('/api/admin/monitor')
+    if (!json) return
     if (!json.ok) throw new Error(json.error)
-    dot.className = 'dot'
-    txt.textContent = 'Live — ' + new Date().toLocaleTimeString('fr-FR')
-    render(json.data)
+    dot.className = 'dot'; txt.textContent = 'Live \u2014 ' + new Date().toLocaleTimeString('fr-FR')
+    renderServer(json.data)
   } catch (e) {
-    dot.className = 'dot error'
-    txt.textContent = 'Erreur: ' + e.message
+    dot.className = 'dot error'; txt.textContent = 'Erreur: ' + e.message
   }
 }
 
-function render(d) {
+function renderServer(d) {
   const grid = document.getElementById('metrics-grid')
   const memPct = d.memory.percent
   const diskPct = d.disk?.percent ?? 0
   const swapPct = d.swap?.total ? Math.round((d.swap.used / d.swap.total) * 100) : 0
 
   grid.innerHTML = `
-    <!-- CPU -->
     <div class="card">
       <div class="card-title">CPU</div>
       <div class="card-value">${d.cpu.usage}%</div>
-      <div class="card-sub">${d.cpu.cores} cores — Load: ${d.system.loadAvg.join(' / ')}</div>
+      <div class="card-sub">${d.cpu.cores} cores \u2014 Load: ${d.system.loadAvg.join(' / ')}</div>
       <div class="bar-bg"><div class="bar-fill ${barColor(d.cpu.usage)}" style="width:${d.cpu.usage}%"></div></div>
     </div>
-
-    <!-- RAM -->
     <div class="card">
-      <div class="card-title">Mémoire RAM</div>
+      <div class="card-title">M\u00e9moire RAM</div>
       <div class="card-value">${fmtBytes(d.memory.used)} <span style="font-size:.9rem;color:var(--text-muted)">/ ${fmtBytes(d.memory.total)}</span></div>
-      <div class="card-sub">${memPct}% utilisé — ${fmtBytes(d.memory.free)} libre</div>
+      <div class="card-sub">${memPct}% utilis\u00e9 \u2014 ${fmtBytes(d.memory.free)} libre</div>
       <div class="bar-bg"><div class="bar-fill ${barColor(memPct)}" style="width:${memPct}%"></div></div>
     </div>
-
-    <!-- Disk -->
     <div class="card">
       <div class="card-title">Disque</div>
       <div class="card-value">${fmtBytes(d.disk?.used)} <span style="font-size:.9rem;color:var(--text-muted)">/ ${fmtBytes(d.disk?.total)}</span></div>
-      <div class="card-sub">${diskPct}% utilisé — ${fmtBytes(d.disk?.free)} libre</div>
+      <div class="card-sub">${diskPct}% utilis\u00e9 \u2014 ${fmtBytes(d.disk?.free)} libre</div>
       <div class="bar-bg"><div class="bar-fill ${barColor(diskPct)}" style="width:${diskPct}%"></div></div>
     </div>
-
-    <!-- Swap -->
     <div class="card">
       <div class="card-title">Swap</div>
-      <div class="card-value">${d.swap ? fmtBytes(d.swap.used) : 'N/A'} <span style="font-size:.9rem;color:var(--text-muted)">/ ${d.swap ? fmtBytes(d.swap.total) : '—'}</span></div>
-      <div class="card-sub">${d.swap ? swapPct + '% utilisé' : 'Aucun swap configuré'}</div>
+      <div class="card-value">${d.swap ? fmtBytes(d.swap.used) : 'N/A'} <span style="font-size:.9rem;color:var(--text-muted)">/ ${d.swap ? fmtBytes(d.swap.total) : '\u2014'}</span></div>
+      <div class="card-sub">${d.swap ? swapPct + '% utilis\u00e9' : 'Aucun swap configur\u00e9'}</div>
       ${d.swap ? `<div class="bar-bg"><div class="bar-fill ${barColor(swapPct)}" style="width:${swapPct}%"></div></div>` : ''}
     </div>
-
-    <!-- Uptime -->
     <div class="card">
-      <div class="card-title">Uptime Système</div>
+      <div class="card-title">Uptime Syst\u00e8me</div>
       <div class="card-value">${fmtDuration(d.system.uptime)}</div>
-      <div class="card-sub">${d.system.hostname} — Node ${d.system.nodeVersion}</div>
+      <div class="card-sub">${d.system.hostname} \u2014 Node ${d.system.nodeVersion}</div>
     </div>
-
-    <!-- DB & Logs -->
     <div class="card">
-      <div class="card-title">Base de données & Logs</div>
+      <div class="card-title">Base de donn\u00e9es & Logs</div>
       <div class="card-value">${fmtBytes(d.db.size)}</div>
-      <div class="card-sub">DB SQLite — Logs: ${fmtBytes(d.logs.size)}</div>
+      <div class="card-sub">DB SQLite \u2014 Logs: ${fmtBytes(d.logs.size)}</div>
     </div>
-
-    <!-- Services -->
     <div class="card">
       <div class="card-title">Services</div>
       <div class="svc-grid">
@@ -261,53 +431,453 @@ function render(d) {
       </div>
       <div class="card-sub" style="margin-top:.75rem">IPs bannies: <strong>${d.security.bannedIPs}</strong></div>
     </div>
-
-    <!-- SSL Certs -->
     <div class="card">
       <div class="card-title">Certificats SSL</div>
       ${d.security.certs.length ? d.security.certs.map(c => `
         <div class="cert">
-          <span class="cert-name">${c.name}</span>
-          <span class="cert-exp" style="color:${c.valid ? 'var(--green)' : 'var(--red)'}">
-            ${c.valid ? '✓' : '✗'} ${c.expiry || '—'}
+          <span class="cert-name">${escHtml(c.name)}</span>
+          <span style="color:${c.valid ? 'var(--green)' : 'var(--red)'}">
+            ${c.valid ? '\u2713' : '\u2717'} ${escHtml(c.expiry || '\u2014')}
           </span>
         </div>
-      `).join('') : '<div class="card-sub">Aucun certificat détecté</div>'}
+      `).join('') : '<div class="card-sub">Aucun certificat d\u00e9tect\u00e9</div>'}
     </div>
-
-    <!-- PM2 Processes -->
     <div class="card wide">
       <div class="card-title">Processus PM2</div>
-      <table class="pm2-table">
+      <table class="data-table">
         <tr><th>Nom</th><th>Status</th><th>CPU</th><th>RAM</th><th>Uptime</th><th>Restarts</th><th>PID</th></tr>
-        ${d.pm2.map(p => `
-          <tr>
-            <td><strong>${p.name}</strong></td>
-            <td><span class="badge ${p.status}">${p.status}</span></td>
-            <td>${p.cpu ?? 0}%</td>
-            <td>${fmtBytes(p.memory)}</td>
-            <td>${fmtDuration(p.uptime / 1000)}</td>
-            <td>${p.restart}</td>
-            <td style="color:var(--text-muted)">${p.pid}</td>
-          </tr>
-        `).join('')}
+        ${d.pm2.map(p => `<tr>
+          <td><strong>${escHtml(p.name)}</strong></td>
+          <td><span class="badge ${p.status}">${p.status}</span></td>
+          <td>${p.cpu ?? 0}%</td><td>${fmtBytes(p.memory)}</td>
+          <td>${fmtDuration(p.uptime / 1000)}</td><td>${p.restart}</td>
+          <td style="color:var(--text-muted)">${p.pid}</td>
+        </tr>`).join('')}
       </table>
     </div>
-
-    <!-- Git -->
     <div class="card wide">
-      <div class="card-title">Déploiement Git</div>
+      <div class="card-title">D\u00e9ploiement Git</div>
       <div class="git-info">
-        Branche: <code>${d.git.branch}</code> &nbsp;
-        Commit: <code>${d.git.commit}</code> &nbsp;
-        <span style="color:var(--text-secondary)">${d.git.message}</span><br>
-        Dernière mise à jour: <span style="color:var(--text-secondary)">${d.git.date || '—'}</span>
+        Branche: <code>${escHtml(d.git.branch || '\u2014')}</code> &nbsp;
+        Commit: <code>${escHtml(d.git.commit || '\u2014')}</code> &nbsp;
+        <span style="color:var(--text-secondary)">${escHtml(d.git.message || '')}</span><br>
+        Derni\u00e8re MAJ: <span style="color:var(--text-secondary)">${escHtml(d.git.date || '\u2014')}</span>
       </div>
-    </div>
-  `
+    </div>`
 }
 
-// ── Init ──
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATISTIQUES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function loadStats() {
+  const el = document.getElementById('stats-content')
+  el.innerHTML = 'Chargement...'
+  const json = await apiFetch('/api/admin/stats')
+  if (!json?.ok) { el.innerHTML = 'Erreur de chargement'; return }
+  const d = json.data
+
+  // Messages chart
+  const maxMsg = Math.max(...d.messagesPerDay.map(x => x.count), 1)
+  const msgBars = d.messagesPerDay.map(x =>
+    `<div class="chart-bar" style="height:${Math.max((x.count / maxMsg) * 100, 2)}%" data-tip="${x.day}: ${x.count} msg"></div>`
+  ).join('')
+
+  // Grade distribution
+  const maxGrade = Math.max(...d.gradeDistribution.map(x => x.count), 1)
+  const gradeBars = d.gradeDistribution.map(x =>
+    `<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">
+      <span style="font-size:.7rem;width:70px;color:var(--text-secondary)">${escHtml(x.range)}</span>
+      <div style="flex:1;height:14px;background:rgba(255,255,255,.04);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${(x.count / maxGrade) * 100}%;background:var(--accent);border-radius:3px"></div>
+      </div>
+      <span style="font-size:.7rem;width:30px;text-align:right">${x.count}</span>
+    </div>`
+  ).join('')
+
+  el.innerHTML = `
+    <div class="counter-grid">
+      <div class="counter"><div class="counter-value">${d.counts.students}</div><div class="counter-label">\u00c9tudiants</div></div>
+      <div class="counter"><div class="counter-value">${d.counts.teachers}</div><div class="counter-label">Enseignants</div></div>
+      <div class="counter"><div class="counter-value">${d.counts.promotions}</div><div class="counter-label">Promotions</div></div>
+      <div class="counter"><div class="counter-value">${d.counts.channels}</div><div class="counter-label">Canaux</div></div>
+      <div class="counter"><div class="counter-value">${d.counts.messages}</div><div class="counter-label">Messages</div></div>
+      <div class="counter"><div class="counter-value">${d.counts.travaux}</div><div class="counter-label">Travaux</div></div>
+      <div class="counter"><div class="counter-value">${d.counts.depots}</div><div class="counter-label">D\u00e9p\u00f4ts</div></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">Activit\u00e9 24h</div>
+        <div class="card-value">${d.activity24h.messages_24h}</div>
+        <div class="card-sub">messages envoy\u00e9s \u2014 ${d.activity24h.depots_24h} d\u00e9p\u00f4ts soumis</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Moyenne g\u00e9n\u00e9rale</div>
+        <div class="card-value">${d.avgGrade ?? '\u2014'}<span style="font-size:.9rem;color:var(--text-muted)"> /20</span></div>
+        <div class="card-sub">${d.ungradedCount} d\u00e9p\u00f4ts non not\u00e9s \u2014 ${d.lateCount} en retard</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card wide">
+        <div class="card-title">Messages par jour (30j)</div>
+        <div class="chart-container">${msgBars || '<span style="color:var(--text-muted)">Aucune donn\u00e9e</span>'}</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">Distribution des notes</div>
+        ${gradeBars || '<div class="card-sub">Aucune note</div>'}
+      </div>
+      <div class="card">
+        <div class="card-title">Top 10 canaux</div>
+        ${d.topChannels.length ? `<table class="data-table">
+          <tr><th>Canal</th><th>Promo</th><th>Messages</th></tr>
+          ${d.topChannels.map(c => `<tr><td>${escHtml(c.name)}</td><td style="color:var(--text-secondary)">${escHtml(c.promo_name)}</td><td><strong>${c.message_count}</strong></td></tr>`).join('')}
+        </table>` : '<div class="card-sub">Aucun canal</div>'}
+      </div>
+    </div>
+
+    <div class="card wide" style="margin-top:1rem">
+      <div class="card-title">R\u00e9sum\u00e9 par promotion</div>
+      <table class="data-table">
+        <tr><th>Promotion</th><th>\u00c9tudiants</th><th>Canaux</th><th>Travaux</th><th>Moyenne</th></tr>
+        ${d.promosSummary.map(p => `<tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:.5rem"></span>${escHtml(p.name)}</td>
+          <td>${p.student_count}</td><td>${p.channel_count}</td><td>${p.travaux_count}</td>
+          <td>${p.avg_grade ? (Math.round(p.avg_grade * 100) / 100) + '/20' : '\u2014'}</td>
+        </tr>`).join('')}
+      </table>
+    </div>`
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UTILISATEURS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let usersPage = 1
+async function loadUsers(page) {
+  usersPage = page || 1
+  const el = document.getElementById('users-content')
+  el.innerHTML = 'Chargement...'
+
+  // Load promo filter options
+  if (!tabLoaded.usersPromos) {
+    try {
+      const sJson = await apiFetch('/api/admin/stats')
+      if (sJson?.ok) {
+        const sel = document.getElementById('user-promo-filter')
+        const sel2 = document.getElementById('mod-promo-filter')
+        sJson.data.promosSummary.forEach(p => {
+          sel.innerHTML += `<option value="${p.id}">${escHtml(p.name)}</option>`
+          sel2.innerHTML += `<option value="${p.id}">${escHtml(p.name)}</option>`
+        })
+        tabLoaded.usersPromos = true
+      }
+    } catch {}
+  }
+
+  const search  = document.getElementById('user-search').value
+  const type    = document.getElementById('user-type-filter').value
+  const promoId = document.getElementById('user-promo-filter').value
+  const params  = new URLSearchParams({ page: usersPage, limit: 50 })
+  if (search)  params.set('search', search)
+  if (type)    params.set('type', type)
+  if (promoId) params.set('promo_id', promoId)
+
+  const json = await apiFetch(`/api/admin/users?${params}`)
+  if (!json?.ok) { el.innerHTML = 'Erreur de chargement'; return }
+  const { users, total, page: pg, limit } = json.data
+
+  el.innerHTML = `
+    <table class="data-table">
+      <tr><th>Nom</th><th>Email</th><th>Type</th><th>Promotion</th><th>Actions</th></tr>
+      ${users.map(u => `<tr>
+        <td><strong>${escHtml(u.name)}</strong></td>
+        <td style="color:var(--text-secondary)">${escHtml(u.email)}</td>
+        <td><span class="badge ${u.type}">${u.type}</span></td>
+        <td>${u.promo_name ? escHtml(u.promo_name) : '\u2014'}</td>
+        <td>
+          <button class="btn btn-primary btn-sm" onclick="showUserDetail(${u.id})">D\u00e9tail</button>
+          <button class="btn btn-sm" style="background:var(--orange);color:#fff" onclick="resetUserPassword(${u.id}, '${escHtml(u.name)}')">Reset MDP</button>
+          ${u.type !== 'teacher' ? `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${escHtml(u.name)}')">Suppr.</button>` : ''}
+        </td>
+      </tr>`).join('')}
+    </table>
+    ${pagination(total, pg, limit, 'loadUsers')}`
+}
+
+async function showUserDetail(userId) {
+  const json = await apiFetch(`/api/admin/users/${userId}`)
+  if (!json?.ok) return
+  const u = json.data
+  showModal(`<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <h3>${escHtml(u.name)}</h3>
+      <table class="data-table" style="margin-bottom:1rem">
+        <tr><td style="color:var(--text-muted)">Email</td><td>${escHtml(u.email)}</td></tr>
+        <tr><td style="color:var(--text-muted)">Type</td><td><span class="badge ${u.type}">${u.type}</span></td></tr>
+        <tr><td style="color:var(--text-muted)">Promotion</td><td>${u.promo_name || '\u2014'}</td></tr>
+        <tr><td style="color:var(--text-muted)">Messages</td><td>${u.messageCount}</td></tr>
+        <tr><td style="color:var(--text-muted)">D\u00e9p\u00f4ts</td><td>${u.depotCount}</td></tr>
+        <tr><td style="color:var(--text-muted)">Dernier message</td><td>${fmtDate(u.lastMessageAt)}</td></tr>
+      </table>
+      <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Fermer</button></div>
+    </div>
+  </div>`)
+}
+
+async function resetUserPassword(userId, name) {
+  if (!confirm(`R\u00e9initialiser le mot de passe de ${name} ?`)) return
+  const json = await apiFetch(`/api/admin/users/${userId}/reset-password`, { method: 'POST' })
+  if (json?.ok) {
+    alert(`Nouveau mot de passe temporaire :\n\n${json.data.tempPassword}\n\nL'utilisateur devra le changer \u00e0 la prochaine connexion.`)
+  } else {
+    alert('Erreur: ' + (json?.error || 'inconnue'))
+  }
+}
+
+async function deleteUser(userId, name) {
+  if (!confirm(`Supprimer d\u00e9finitivement ${name} ? Cette action est irr\u00e9versible.`)) return
+  const json = await apiFetch(`/api/admin/users/${userId}`, { method: 'DELETE' })
+  if (json?.ok) loadUsers(usersPage)
+  else alert('Erreur: ' + (json?.error || 'inconnue'))
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODERATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let modPage = 1
+async function loadModeration(page) {
+  modPage = page || 1
+  const el = document.getElementById('moderation-content')
+  el.innerHTML = 'Chargement...'
+
+  const params = new URLSearchParams({ page: modPage, limit: 50 })
+  const search = document.getElementById('mod-search').value
+  const author = document.getElementById('mod-author').value
+  const promoId = document.getElementById('mod-promo-filter').value
+  const from = document.getElementById('mod-from').value
+  const to   = document.getElementById('mod-to').value
+  if (search)  params.set('search', search)
+  if (author)  params.set('author', author)
+  if (promoId) params.set('promo_id', promoId)
+  if (from)    params.set('from', from)
+  if (to)      params.set('to', to)
+
+  const json = await apiFetch(`/api/admin/messages?${params}`)
+  if (!json?.ok) { el.innerHTML = 'Erreur de chargement'; return }
+  const { messages, total, page: pg, limit } = json.data
+
+  el.innerHTML = `
+    <table class="data-table">
+      <tr><th>Date</th><th>Auteur</th><th>Canal</th><th>Message</th><th>Actions</th></tr>
+      ${messages.map(m => `<tr>
+        <td style="white-space:nowrap;font-size:.75rem">${fmtDate(m.created_at)}</td>
+        <td><span class="badge ${m.author_type}">${escHtml(m.author_name)}</span></td>
+        <td style="color:var(--text-secondary);font-size:.75rem">${escHtml(m.channel_name || 'DM')} ${m.promo_name ? '(' + escHtml(m.promo_name) + ')' : ''}</td>
+        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(m.content.substring(0, 150))}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteMessage(${m.id})">Supprimer</button></td>
+      </tr>`).join('')}
+    </table>
+    ${pagination(total, pg, limit, 'loadModeration')}`
+}
+
+async function deleteMessage(id) {
+  const reason = prompt('Raison de la suppression (optionnel) :')
+  if (reason === null) return
+  const json = await apiFetch(`/api/admin/messages/${id}`, {
+    method: 'DELETE', body: JSON.stringify({ reason }),
+  })
+  if (json?.ok) loadModeration(modPage)
+  else alert('Erreur: ' + (json?.error || 'inconnue'))
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUDIT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let auditPage = 1
+async function loadAudit(page) {
+  auditPage = page || 1
+  const el = document.getElementById('audit-content')
+  el.innerHTML = 'Chargement...'
+
+  const params = new URLSearchParams({ page: auditPage, limit: 100 })
+  const action = document.getElementById('audit-action-filter').value
+  const actor  = document.getElementById('audit-actor').value
+  const from   = document.getElementById('audit-from').value
+  const to     = document.getElementById('audit-to').value
+  if (action) params.set('action', action)
+  if (actor)  params.set('actor', actor)
+  if (from)   params.set('from', from)
+  if (to)     params.set('to', to)
+
+  const json = await apiFetch(`/api/admin/audit?${params}`)
+  if (!json?.ok) { el.innerHTML = 'Erreur de chargement'; return }
+  const { entries, total, page: pg, limit } = json.data
+
+  if (!entries.length) { el.innerHTML = '<div class="card"><div class="card-sub">Aucune entr\u00e9e d\'audit</div></div>'; return }
+
+  const actionColors = { 'message.delete': 'danger', 'grade.update': 'warn', 'user.delete': 'danger', 'db.reset': 'danger', 'password.reset': 'warn', 'user.create': 'info' }
+
+  el.innerHTML = `
+    <table class="data-table">
+      <tr><th>Date</th><th>Acteur</th><th>Action</th><th>Cible</th><th>D\u00e9tails</th></tr>
+      ${entries.map(e => `<tr>
+        <td style="white-space:nowrap;font-size:.75rem">${fmtDate(e.created_at)}</td>
+        <td>${escHtml(e.actor_name)} <span class="badge ${e.actor_type}">${e.actor_type}</span></td>
+        <td><span class="badge ${actionColors[e.action] || 'info'}">${escHtml(e.action)}</span></td>
+        <td style="color:var(--text-secondary);font-size:.75rem">${escHtml(e.target || '\u2014')}</td>
+        <td style="font-size:.7rem;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml((e.details || '').substring(0, 100))}</td>
+      </tr>`).join('')}
+    </table>
+    ${pagination(total, pg, limit, 'loadAudit')}`
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECURITE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function loadSecurity() {
+  const el = document.getElementById('security-content')
+  el.innerHTML = 'Chargement...'
+
+  const json = await apiFetch('/api/admin/security')
+  if (!json?.ok) { el.innerHTML = 'Erreur de chargement'; return }
+  const { recentLogins, failedByEmail } = json.data
+
+  const alerts = failedByEmail.filter(f => f.fail_count >= 3)
+
+  el.innerHTML = `
+    ${alerts.length ? `<div class="alert alert-danger">
+      <strong>Alerte brute force :</strong> ${alerts.map(a => `${escHtml(a.email)} (${a.fail_count} \u00e9checs)`).join(', ')}
+    </div>` : ''}
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">\u00c9checs par email (24h)</div>
+        ${failedByEmail.length ? `<table class="data-table">
+          <tr><th>Email</th><th>\u00c9checs</th></tr>
+          ${failedByEmail.map(f => `<tr>
+            <td>${escHtml(f.email)}</td>
+            <td><span class="badge ${f.fail_count >= 3 ? 'danger' : 'warn'}">${f.fail_count}</span></td>
+          </tr>`).join('')}
+        </table>` : '<div class="card-sub">Aucun \u00e9chec</div>'}
+      </div>
+
+      <div class="card">
+        <div class="card-title">Derni\u00e8res connexions</div>
+        ${recentLogins.length ? `<table class="data-table">
+          <tr><th>Date</th><th>Email</th><th>Status</th><th>IP</th></tr>
+          ${recentLogins.slice(0, 20).map(l => `<tr>
+            <td style="white-space:nowrap;font-size:.75rem">${fmtDate(l.created_at)}</td>
+            <td style="font-size:.8rem">${escHtml(l.email)}</td>
+            <td><span class="badge ${l.success ? 'online' : 'stopped'}">${l.success ? 'OK' : '\u00c9chec'}</span></td>
+            <td style="color:var(--text-muted);font-size:.75rem">${escHtml(l.ip || '\u2014')}</td>
+          </tr>`).join('')}
+        </table>` : '<div class="card-sub">Aucune tentative</div>'}
+      </div>
+    </div>`
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAINTENANCE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function loadMaintenance() {
+  const el = document.getElementById('maintenance-content')
+  el.innerHTML = 'Chargement...'
+
+  const [backupsJson, dbInfoJson] = await Promise.all([
+    apiFetch('/api/admin/backups'),
+    apiFetch('/api/admin/db-info'),
+  ])
+
+  const backups = backupsJson?.ok ? backupsJson.data : []
+  const dbInfo  = dbInfoJson?.ok ? dbInfoJson.data : []
+
+  el.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">Sauvegardes</div>
+        <button class="btn btn-primary" onclick="createBackup()" style="margin-bottom:1rem">Cr\u00e9er un backup</button>
+        ${backups.length ? `<table class="data-table">
+          <tr><th>Fichier</th><th>Taille</th><th>Date</th><th>Actions</th></tr>
+          ${backups.map(b => `<tr>
+            <td style="font-size:.8rem">${escHtml(b.filename)}</td>
+            <td>${fmtBytes(b.size)}</td>
+            <td style="font-size:.75rem">${fmtDate(b.created)}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteBackup('${escHtml(b.filename)}')">Suppr.</button></td>
+          </tr>`).join('')}
+        </table>` : '<div class="card-sub">Aucun backup</div>'}
+      </div>
+
+      <div class="card">
+        <div class="card-title">Tables de la base</div>
+        <table class="data-table">
+          <tr><th>Table</th><th>Lignes</th></tr>
+          ${dbInfo.map(t => `<tr><td>${escHtml(t.name)}</td><td><strong>${t.rowCount}</strong></td></tr>`).join('')}
+        </table>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:1rem">
+      <div class="card">
+        <div class="card-title">Actions de maintenance</div>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+          <button class="btn" style="background:var(--orange);color:#fff" onclick="cleanupLogs()">Nettoyer les logs</button>
+          <button class="btn btn-danger" onclick="resetSeed()">Reset & Seed BDD</button>
+        </div>
+        <div class="card-sub" style="margin-top:.75rem;color:var(--red)">
+          Reset & Seed supprimera toutes les donn\u00e9es et recr\u00e9era les donn\u00e9es de d\u00e9mo.
+        </div>
+      </div>
+    </div>`
+}
+
+async function createBackup() {
+  const json = await apiFetch('/api/admin/backup', { method: 'POST' })
+  if (json?.ok) {
+    alert(`Backup cr\u00e9\u00e9 : ${json.data.filename} (${fmtBytes(json.data.size)})`)
+    loadMaintenance()
+  } else {
+    alert('Erreur: ' + (json?.error || 'inconnue'))
+  }
+}
+
+async function deleteBackup(filename) {
+  if (!confirm(`Supprimer le backup ${filename} ?`)) return
+  const json = await apiFetch(`/api/admin/backups/${encodeURIComponent(filename)}`, { method: 'DELETE' })
+  if (json?.ok) loadMaintenance()
+  else alert('Erreur: ' + (json?.error || 'inconnue'))
+}
+
+async function cleanupLogs() {
+  if (!confirm('Supprimer tous les fichiers de logs ?')) return
+  const json = await apiFetch('/api/admin/cleanup-logs', { method: 'POST' })
+  if (json?.ok) { alert(`${json.data.deleted} fichiers supprim\u00e9s`); loadMaintenance() }
+  else alert('Erreur: ' + (json?.error || 'inconnue'))
+}
+
+async function resetSeed() {
+  if (!confirm('ATTENTION : Ceci va supprimer TOUTES les donn\u00e9es.\n\nContinuer ?')) return
+  if (!confirm('Derni\u00e8re chance. \u00cates-vous absolument s\u00fbr ?')) return
+  const json = await apiFetch('/api/admin/reset-seed', { method: 'POST' })
+  if (json?.ok) { alert('Base de donn\u00e9es r\u00e9initialis\u00e9e.'); location.reload() }
+  else alert('Erreur: ' + (json?.error || 'inconnue'))
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+document.getElementById('user-search').addEventListener('keydown', e => { if (e.key === 'Enter') loadUsers() })
+document.getElementById('mod-search').addEventListener('keydown', e => { if (e.key === 'Enter') loadModeration() })
+
 if (token) {
   showDashboard()
 } else {
