@@ -79,6 +79,11 @@ app.use('/download', require('./routes/download'))
 // ── Webhook de déploiement (pas d'auth JWT, validé par DEPLOY_SECRET) ─────────
 app.use('/webhook/deploy', require('./routes/deploy'))
 
+// ── Page admin monitoring ─────────────────────────────────────────────────────
+app.get('/admin-monitor', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'admin-monitor.html'))
+})
+
 // ── Landing page vitrine (page d'accueil) ──────────────────────────────────
 const LANDING = path.join(__dirname, '../landing/index.html')
 if (fs.existsSync(LANDING)) {
