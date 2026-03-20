@@ -22,6 +22,11 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason) => {
   console.error('[Main] unhandledRejection:', reason)
+  const msg = reason instanceof Error ? reason.message : String(reason)
+  dialog.showErrorBox(
+    'Erreur au démarrage',
+    `${msg}\n\nSi le problème persiste, supprimez le dossier :\n%APPDATA%\\Cursus`
+  )
 })
 
 function createWindow(): void {
@@ -49,6 +54,14 @@ function createWindow(): void {
     win.show()
     win.focus()
   })
+
+  // Fallback : forcer l'affichage si ready-to-show ne se déclenche pas dans les 5s
+  setTimeout(() => {
+    if (!win.isDestroyed() && !win.isVisible()) {
+      win.show()
+      win.focus()
+    }
+  }, 5000)
 
   // Diagnostic : échec de chargement du renderer
   win.webContents.on('did-fail-load', (_event, code, desc, url) => {
@@ -89,6 +102,13 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+}).catch((err: Error) => {
+  console.error('[Main] startup error:', err)
+  dialog.showErrorBox(
+    'Erreur au démarrage',
+    `${err.message}\n\nSi le problème persiste, supprimez le dossier :\n%APPDATA%\\Cursus`
+  )
+  app.quit()
 })
 
 app.on('window-all-closed', () => {
