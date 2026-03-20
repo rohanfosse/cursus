@@ -170,8 +170,7 @@ const dateGroups = computed<DateGroup[]>(() => {
             </span>
           </div>
           <div v-else-if="!store.hasMore && store.messages.length > 0" class="conversation-start">
-            <span class="conversation-start-icon">💬</span>
-            <span class="conversation-start-text">Début de la conversation</span>
+            <div class="conversation-start-line" />
           </div>
         </div>
 
@@ -242,11 +241,12 @@ const dateGroups = computed<DateGroup[]>(() => {
 
 /* ── Début de conversation ── */
 .conversation-start {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 24px 20px 12px; color: var(--text-muted); user-select: none;
+  display: flex; align-items: center; padding: 16px 20px 8px; user-select: none;
 }
-.conversation-start-icon { font-size: 28px; opacity: .6; }
-.conversation-start-text { font-size: 12px; font-weight: 600; letter-spacing: .3px; }
+.conversation-start-line {
+  flex: 1; height: 1px;
+  background: var(--border, rgba(255,255,255,.06));
+}
 
 /* ── Indicateur chargement anciens messages ── */
 .load-more-indicator { display: flex; justify-content: center; padding: 8px 0 4px; }

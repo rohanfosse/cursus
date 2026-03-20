@@ -999,7 +999,7 @@
                   <span v-else class="presence-dot presence-offline" title="Hors ligne"></span>
                 </span>
                 <span class="dm-info">
-                  <span class="channel-name">{{ s.name }} <span v-if="s.id < 0" class="dm-teacher-tag">Prof</span> <span v-if="appStore.isDmMuted(s.name)" class="dm-muted-icon" title="Notifications d\u00e9sactiv\u00e9es">\uD83D\uDD07</span></span>
+                  <span class="channel-name">{{ s.name }} <span v-if="appStore.isDmMuted(s.name)" class="dm-muted-icon" title="Notifications d\u00e9sactiv\u00e9es">\uD83D\uDD07</span></span>
                   <span v-if="getDmPreview(s.name)" class="dm-preview">{{ getDmPreview(s.name) }}</span>
                 </span>
                 <span

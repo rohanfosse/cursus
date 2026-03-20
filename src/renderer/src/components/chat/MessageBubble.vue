@@ -287,7 +287,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
             @click="openDmWithAuthor"
             @keydown.enter="openDmWithAuthor"
           >{{ msg.author_name }}</span>
-          <span v-if="msg.author_type === 'teacher'" class="msg-role-badge">Prof</span>
+          <!-- badge rôle retiré pour plus de sobriété -->
           <span class="msg-time">{{ formatTime(msg.created_at) }}</span>
           <span v-if="isEdited" class="msg-edited-tag">(modifié)</span>
           <span v-if="isPinned" class="pin-badge" title="Message épinglé">📌</span>
