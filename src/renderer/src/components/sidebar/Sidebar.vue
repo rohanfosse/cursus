@@ -601,12 +601,8 @@
 
 <template>
   <div id="sidebar" class="sidebar">
-    <!-- En-tête sidebar : nom de la promo -->
-    <div id="sidebar-header" class="sidebar-header-compact">
-      <span v-if="appStore.isStaff && activePromoName" class="sidebar-promo-title">{{ activePromoName }}</span>
-      <span v-else-if="user?.promo_name" class="sidebar-promo-title">{{ user.promo_name }}</span>
-      <span v-else class="sidebar-promo-title">Cursus</span>
-    </div>
+    <!-- Espacement haut -->
+    <div style="height:6px" />
 
     <!-- Section Messages -->
     <div id="sidebar-section-messages">

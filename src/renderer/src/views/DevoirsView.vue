@@ -85,6 +85,46 @@ const unifiedGrouped = computed(() => {
   return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))
 })
 
+// Liste plate pour le tableau (quand on filtre par catégorie via onglets)
+type UnifiedFlatRow = UnifiedRow & { hasSubmission: boolean }
+const unifiedFlat = computed((): UnifiedFlatRow[] => {
+  const raw = travauxStore.ganttData as (Devoir & { depots_count?: number; students_total?: number })[]
+  const now = Date.now()
+
+  return raw
+    .filter(t => {
+      if (filterCategory.value && t.category?.trim() !== filterCategory.value) return false
+      if (teacherSearch.value) {
+        const q = teacherSearch.value.toLowerCase().trim()
+        if (!t.title.toLowerCase().includes(q)) return false
+      }
+      return true
+    })
+    .map(t => {
+      const dc = t.depots_count ?? 0
+      const st = t.students_total ?? 0
+      const noted = travauxStore.allRendus.filter(r => r.travail_id === t.id && r.note != null).length
+      const isEvent = t.type === 'soutenance' || t.type === 'cctl'
+
+      let statusLabel = 'Publié'
+      let statusCls = 'status-pub'
+      if (!t.is_published) { statusLabel = 'Brouillon'; statusCls = 'status-draft' }
+      else if (!isEvent && st > 0 && dc >= st) { statusLabel = 'Complet'; statusCls = 'status-complete' }
+      else if (new Date(t.deadline).getTime() < now) { statusLabel = 'Passé'; statusCls = 'status-expired' }
+
+      return {
+        ...t,
+        depots_count: dc,
+        students_total: st,
+        noted_count: noted,
+        statusLabel,
+        statusCls,
+        hasSubmission: !isEvent,
+      } as UnifiedFlatRow
+    })
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+})
+
 // ── Horloge temps réel pour verrouillage des deadlines ────────────────────────
 const now = ref(Date.now())
 let clockInterval: ReturnType<typeof setInterval> | null = null
@@ -428,22 +468,20 @@ function typeLabel(t: string): string {
         </template>
       </div>
 
-      <!-- Barre de recherche + filtres prof -->
-      <div v-if="appStore.isTeacher && !appStore.activeProject" class="teacher-toolbar">
-        <div class="teacher-search-wrap">
-          <Search :size="14" class="teacher-search-icon" />
-          <input v-model="teacherSearch" class="teacher-search" placeholder="Rechercher un devoir..." />
-        </div>
-        <select v-model="filterCategory" class="teacher-filter-select">
-          <option value="">Tous les projets</option>
-          <option v-for="cat in teacherCategories" :key="cat" :value="cat">{{ cat }}</option>
-        </select>
-        <select v-model="filterStatus" class="teacher-filter-select">
-          <option value="all">Tous les statuts</option>
-          <option value="draft">Brouillons</option>
-          <option value="pending">En cours</option>
-          <option value="expired">Expirés</option>
-        </select>
+      <!-- Onglets catégories prof -->
+      <div v-if="appStore.isTeacher && !appStore.activeProject" class="teacher-cat-tabs">
+        <button
+          class="teacher-cat-tab"
+          :class="{ active: !filterCategory }"
+          @click="filterCategory = ''"
+        >Tout</button>
+        <button
+          v-for="cat in teacherCategories"
+          :key="cat"
+          class="teacher-cat-tab"
+          :class="{ active: filterCategory === cat }"
+          @click="filterCategory = filterCategory === cat ? '' : cat"
+        >{{ cat }}</button>
       </div>
     </header>
 
@@ -814,52 +852,53 @@ function typeLabel(t: string): string {
         <ProjetFiche :project-key="appStore.activeProject" :promo-id="appStore.activePromoId" />
       </template>
 
-      <!-- ════════════════════════ Tableau unifié (prof) ════════════════════════ -->
+      <!-- ════════════════════════ Tableau devoirs (prof) ════════════════════════ -->
       <template v-else-if="appStore.isTeacher">
 
         <div v-if="travauxStore.loading" class="ut-loading">
           <div v-for="i in 6" :key="i" class="skel skel-line" style="height:40px;margin-bottom:6px;border-radius:8px" />
         </div>
 
-        <div v-else-if="!unifiedGrouped.length" class="empty-state-custom">
+        <div v-else-if="!unifiedFlat.length" class="empty-state-custom">
           <BookOpen :size="48" class="empty-icon" />
-          <h3>Aucun devoir trouvé</h3>
-          <p v-if="teacherSearch || filterCategory || filterStatus !== 'all'">Essayez d'ajuster vos filtres.</p>
+          <h3>{{ filterCategory ? 'Aucun devoir dans ce projet' : 'Aucun devoir créé' }}</h3>
+          <p v-if="filterCategory">Sélectionnez un autre projet ou créez un devoir.</p>
           <p v-else>Créez un premier devoir avec le bouton "Nouveau".</p>
         </div>
 
         <div v-else class="ut-table">
-          <div v-for="[project, rows] in unifiedGrouped" :key="project" class="ut-group">
-            <!-- En-tête de groupe (catégorie) -->
-            <button class="ut-group-header" @click="toggleProjectCollapse(project)">
-              <ChevronRight :size="13" class="ut-group-chevron" :class="{ rotated: !collapsedProjects.has(project) }" />
-              <span class="ut-group-name">{{ project }}</span>
-              <span class="ut-group-count">{{ rows.length }} devoir{{ rows.length > 1 ? 's' : '' }}</span>
-            </button>
+          <!-- En-tête du tableau -->
+          <div class="ut-thead">
+            <span class="ut-th ut-th-type">Type</span>
+            <span class="ut-th ut-th-title">Titre</span>
+            <span class="ut-th ut-th-deadline">Échéance</span>
+            <span class="ut-th ut-th-progress">Soumissions</span>
+            <span class="ut-th ut-th-status">Statut</span>
+            <span class="ut-th ut-th-action"></span>
+          </div>
 
-            <!-- Lignes -->
-            <div v-show="!collapsedProjects.has(project)" class="ut-rows">
-              <div
-                v-for="t in rows"
-                :key="t.id"
-                class="ut-row"
-                :class="{ 'ut-row--draft': !t.is_published }"
-                @click="openDevoir(t.id)"
-              >
-                <span class="ut-type devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
-                <span class="ut-title">{{ t.title }}</span>
-                <span class="ut-deadline deadline-badge" :class="deadlineClass(t.deadline)">{{ deadlineLabel(t.deadline) }}</span>
-                <span class="ut-progress">
-                  <span v-if="t.students_total > 0" class="ut-progress-bar">
-                    <span class="ut-progress-fill" :style="{ width: Math.round((t.depots_count / t.students_total) * 100) + '%' }" />
-                  </span>
-                  <span class="ut-progress-text">{{ t.depots_count }}/{{ t.students_total }} soumis</span>
+          <!-- Lignes -->
+          <div
+            v-for="t in unifiedFlat"
+            :key="t.id"
+            class="ut-row"
+            :class="{ 'ut-row--draft': !t.is_published }"
+            @click="openDevoir(t.id)"
+          >
+            <span class="ut-type devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
+            <span class="ut-title">{{ t.title }}</span>
+            <span class="ut-deadline deadline-badge" :class="deadlineClass(t.deadline)">{{ deadlineLabel(t.deadline) }}</span>
+            <span class="ut-progress">
+              <template v-if="t.hasSubmission && t.students_total > 0">
+                <span class="ut-progress-bar">
+                  <span class="ut-progress-fill" :style="{ width: Math.round((t.depots_count / t.students_total) * 100) + '%' }" />
                 </span>
-                <span class="ut-noted">{{ t.noted_count }} noté{{ t.noted_count > 1 ? 's' : '' }}</span>
-                <span class="ut-status" :class="t.statusCls">{{ t.statusLabel }}</span>
-                <ChevronRight :size="13" class="ut-chevron" />
-              </div>
-            </div>
+                <span class="ut-progress-text">{{ t.depots_count }}/{{ t.students_total }}</span>
+              </template>
+              <span v-else class="ut-progress-text ut-no-submit">Pas de rendu</span>
+            </span>
+            <span class="ut-status" :class="t.statusCls">{{ t.statusLabel }}</span>
+            <ChevronRight :size="13" class="ut-chevron" />
           </div>
         </div>
       </template>
@@ -1114,6 +1153,40 @@ function typeLabel(t: string): string {
 /* ══════════════════════════════════════════════════════════════════════════════
    TABLEAU UNIFIÉ PROF
 ═══════════════════════════════════════════════════════════════════════════════ */
+/* ── Onglets catégories prof ── */
+.teacher-cat-tabs {
+  display: flex; gap: 2px; padding: 0 20px; overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+.teacher-cat-tab {
+  padding: 8px 14px; font-size: 12px; font-weight: 600; color: var(--text-muted);
+  background: none; border: none; cursor: pointer;
+  border-bottom: 2px solid transparent; white-space: nowrap;
+  font-family: var(--font); transition: all var(--t-fast);
+}
+.teacher-cat-tab:hover { color: var(--text-secondary); }
+.teacher-cat-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── En-tête tableau ── */
+.ut-thead {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 12px; margin-bottom: 2px;
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.ut-th-type { width: 70px; flex-shrink: 0; }
+.ut-th-title { flex: 1; min-width: 0; }
+.ut-th-deadline { width: 90px; flex-shrink: 0; }
+.ut-th-progress { width: 120px; flex-shrink: 0; }
+.ut-th-status { width: 70px; flex-shrink: 0; }
+.ut-th-action { width: 20px; flex-shrink: 0; }
+
+.ut-no-submit { font-style: italic; opacity: .5; }
+
+@media (max-width: 768px) {
+  .ut-thead { display: none; }
+}
+
 .teacher-toolbar {
   display: flex; gap: 8px; padding: 0 20px 10px; flex-wrap: wrap; align-items: center;
 }
