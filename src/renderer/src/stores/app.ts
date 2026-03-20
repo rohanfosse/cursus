@@ -24,6 +24,7 @@ export const useAppStore = defineStore('app', () => {
   const rightPanel        = ref<'travaux' | 'profil' | null>(null)
   const currentTravailId  = ref<number | null>(null)
   const duplicateDevoirData = ref<{ title: string; type: string; category: string | null; description: string | null; channelId: number | null } | null>(null)
+  const pendingDevoirType = ref<string | null>(null)
   const pendingNoteDepotId = ref<number | null>(null)
   const rubricDepotId     = ref<number | null>(null)   // null = édition rubric, number = scoring dépôt
   const unread            = ref<Record<number, number>>({})
@@ -470,7 +471,7 @@ export const useAppStore = defineStore('app', () => {
   return {
     // état
     isOnline, socketConnected, currentUser, activeChannelId, activeDmStudentId, activeDmPeerId, activePromoId,
-    activeChannelType, activeChannelName, activeChannelDescription, activeProject, pendingChannelCategory, rightPanel, currentTravailId, duplicateDevoirData,
+    activeChannelType, activeChannelName, activeChannelDescription, activeProject, pendingChannelCategory, rightPanel, currentTravailId, duplicateDevoirData, pendingDevoirType,
     pendingNoteDepotId, rubricDepotId, unread, mentionChannels, unreadDms, notificationHistory, taChannelIds,
     // calculs
     isStudent, isTeacher, isStaff, isSimulating, isReadonly,

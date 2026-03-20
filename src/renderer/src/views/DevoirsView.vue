@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import {
   BookOpen, BarChart2, List, Grid, Plus, Upload, Link2, X,
   FileText, CheckCircle2, Clock, Lock, AlertTriangle, ChevronRight,
-  Users, Award, Calendar, LayoutList, Menu,
+  Users, Award, Calendar, LayoutList, Menu, Eye,
 } from 'lucide-vue-next'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
@@ -83,6 +83,31 @@ const unifiedGrouped = computed(() => {
     rows.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
   }
   return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))
+})
+
+// ── Publish inline + ajout par type ──────────────────────────────────────────
+async function publishDevoir(id: number, event: Event) {
+  event.stopPropagation()
+  try {
+    await window.api.updateTravailPublished({ travailId: id, published: true })
+    showToast('Devoir publié.', 'success')
+    loadView()
+  } catch { showToast('Erreur.', 'error') }
+}
+
+function addDevoirOfType(type: string) {
+  // Pré-sélectionner le type dans la modale
+  appStore.pendingDevoirType = type
+  modals.newDevoir = true
+}
+
+// ── Prochains événements (tous types, triés par deadline) ───────────────────
+const upcomingDevoirs = computed(() => {
+  const now = Date.now()
+  return (travauxStore.ganttData as Devoir[])
+    .filter(t => t.is_published && new Date(t.deadline).getTime() > now)
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+    .slice(0, 5)
 })
 
 // ── Helpers pour la page d'accueil projets ──────────────────────────────────
@@ -919,7 +944,27 @@ function typeLabel(t: string): string {
           <p>Créez un devoir avec une catégorie pour voir vos projets ici.</p>
         </div>
 
-        <div v-else class="proj-grid">
+        <!-- Prochains événements -->
+        <div v-if="upcomingDevoirs.length" class="upcoming-section">
+          <h4 class="upcoming-title"><Clock :size="14" /> Prochains événements</h4>
+          <div class="upcoming-list">
+            <div
+              v-for="d in upcomingDevoirs"
+              :key="d.id"
+              class="upcoming-item"
+              @click="openDevoir(d.id)"
+            >
+              <span class="devoir-type-badge" :class="`type-${d.type}`" style="font-size:9px">{{ typeLabel(d.type) }}</span>
+              <span class="upcoming-item-title">{{ d.title }}</span>
+              <span v-if="extractDuration(d.description)" class="upcoming-item-dur">{{ extractDuration(d.description) }}</span>
+              <span class="upcoming-item-deadline deadline-badge" :class="deadlineClass(d.deadline)">{{ deadlineLabel(d.deadline) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="!teacherCategories.length" />
+
+        <div v-if="teacherCategories.length" class="proj-grid">
           <div
             v-for="cat in teacherCategories"
             :key="cat"
@@ -991,52 +1036,72 @@ function typeLabel(t: string): string {
             </div>
           </div>
 
-          <!-- Devoirs groupés par type avec séparation initiales/rattrapages -->
-          <div class="ut-by-type">
+          <!-- Devoirs par type : cartes visuelles -->
+          <div class="dc-sections">
             <template v-for="group in devoirsByType" :key="group.type">
-              <div class="ut-type-section">
-                <div class="ut-type-header">
+              <div class="dc-section" :class="`dc-section--${group.type}`">
+                <div class="dc-section-header">
                   <span class="devoir-type-badge" :class="`type-${group.type}`">{{ typeLabel(group.type) }}</span>
-                  <span class="ut-type-count">{{ group.total }}</span>
+                  <span class="dc-section-count">{{ group.total }}</span>
                 </div>
 
-                <!-- Sessions initiales -->
-                <div v-if="group.initiales.length" class="ut-type-rows">
-                  <div v-if="group.rattrapages.length" class="ut-session-label">Session initiale</div>
+                <!-- Cartes initiales -->
+                <div class="dc-cards">
                   <div
                     v-for="t in group.initiales"
                     :key="t.id"
-                    class="ut-row"
-                    :class="{ 'ut-row--draft': !t.is_published }"
+                    class="dc-card"
+                    :class="{ 'dc-card--draft': !t.is_published, [`dc-card--${group.type}`]: true }"
                     @click="openDevoir(t.id)"
                   >
-                    <span class="ut-title">{{ t.title }}</span>
-                    <span v-if="extractDuration(t.description)" class="ut-duration">{{ extractDuration(t.description) }}</span>
-                    <span class="ut-deadline deadline-badge" :class="deadlineClass(t.deadline)">{{ deadlineLabel(t.deadline) }}</span>
-                    <span class="ut-status" :class="t.statusCls">{{ t.statusLabel }}</span>
-                    <ChevronRight :size="13" class="ut-chevron" />
+                    <div class="dc-card-top">
+                      <span class="dc-card-title">{{ t.title }}</span>
+                      <button v-if="!t.is_published" class="dc-publish-btn" title="Publier" @click="publishDevoir(t.id, $event)">
+                        <Eye :size="12" />
+                      </button>
+                    </div>
+                    <div class="dc-card-meta">
+                      <span class="dc-card-date deadline-badge" :class="deadlineClass(t.deadline)">{{ deadlineLabel(t.deadline) }}</span>
+                      <span v-if="extractDuration(t.description)" class="dc-card-duration">{{ extractDuration(t.description) }}</span>
+                    </div>
+                    <span v-if="!t.is_published" class="dc-card-draft-tag">Brouillon</span>
                   </div>
                 </div>
 
                 <!-- Rattrapages -->
-                <div v-if="group.rattrapages.length" class="ut-type-rows ut-rattrapages">
-                  <div class="ut-session-label ut-session-ratt">Rattrapage</div>
-                  <div
-                    v-for="t in group.rattrapages"
-                    :key="t.id"
-                    class="ut-row ut-row--ratt"
-                    :class="{ 'ut-row--draft': !t.is_published }"
-                    @click="openDevoir(t.id)"
-                  >
-                    <span class="ut-title">{{ t.title }}</span>
-                    <span v-if="extractDuration(t.description)" class="ut-duration">{{ extractDuration(t.description) }}</span>
-                    <span class="ut-deadline deadline-badge" :class="deadlineClass(t.deadline)">{{ deadlineLabel(t.deadline) }}</span>
-                    <span class="ut-status" :class="t.statusCls">{{ t.statusLabel }}</span>
-                    <ChevronRight :size="13" class="ut-chevron" />
+                <template v-if="group.rattrapages.length">
+                  <div class="dc-ratt-label">Rattrapages</div>
+                  <div class="dc-cards dc-cards--ratt">
+                    <div
+                      v-for="t in group.rattrapages"
+                      :key="t.id"
+                      class="dc-card dc-card--ratt"
+                      :class="{ 'dc-card--draft': !t.is_published, [`dc-card--${group.type}`]: true }"
+                      @click="openDevoir(t.id)"
+                    >
+                      <span class="dc-card-title">{{ t.title }}</span>
+                      <div class="dc-card-meta">
+                        <span class="dc-card-date deadline-badge" :class="deadlineClass(t.deadline)">{{ deadlineLabel(t.deadline) }}</span>
+                        <span v-if="extractDuration(t.description)" class="dc-card-duration">{{ extractDuration(t.description) }}</span>
+                      </div>
+                      <button v-if="!t.is_published" class="dc-publish-btn" title="Publier" @click="publishDevoir(t.id, $event)">
+                        <Eye :size="12" />
+                      </button>
+                    </div>
                   </div>
-                </div>
+                </template>
+
+                <!-- Bouton ajouter -->
+                <button class="dc-add-btn" @click="addDevoirOfType(group.type)">
+                  <Plus :size="13" /> Ajouter {{ typeLabel(group.type).toLowerCase().startsWith('é') ? 'une' : 'un' }} {{ typeLabel(group.type) }}
+                </button>
               </div>
             </template>
+
+            <!-- Bouton ajouter si aucun type encore -->
+            <button v-if="!devoirsByType.length" class="dc-add-btn dc-add-btn--first" @click="modals.newDevoir = true">
+              <Plus :size="14" /> Créer un devoir
+            </button>
           </div>
         </template>
       </template>
@@ -1342,6 +1407,100 @@ function typeLabel(t: string): string {
 /* ══════════════════════════════════════════════════════════════════════════════
    VUE PROJET PAR TYPE
 ═══════════════════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════════════
+   PROCHAINS ÉVÉNEMENTS (accueil devoirs)
+═══════════════════════════════════════════════════════════════════════════════ */
+.upcoming-section { padding: 12px 20px 0; }
+.upcoming-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;
+}
+.upcoming-list { display: flex; flex-direction: column; gap: 3px; margin-bottom: 16px; }
+.upcoming-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  transition: background var(--t-fast);
+}
+.upcoming-item:hover { background: rgba(255,255,255,.04); }
+.upcoming-item-title { flex: 1; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upcoming-item-dur { font-size: 10px; color: var(--text-muted); background: rgba(255,255,255,.05); padding: 1px 5px; border-radius: 6px; }
+.upcoming-item-deadline { font-size: 10px; flex-shrink: 0; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CARTES DEVOIRS PAR TYPE (vue projet)
+═══════════════════════════════════════════════════════════════════════════════ */
+.dc-sections { padding: 0 20px 20px; }
+.dc-section {
+  margin-bottom: 20px;
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px; background: rgba(255,255,255,.015);
+}
+.dc-section-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.dc-section-count {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  background: rgba(255,255,255,.06); padding: 1px 6px; border-radius: 8px;
+}
+
+.dc-cards {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px; margin-bottom: 8px;
+}
+.dc-cards--ratt { opacity: .65; }
+
+.dc-card {
+  padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border); background: rgba(255,255,255,.02);
+  transition: all var(--t-fast); position: relative;
+}
+.dc-card:hover { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.15); }
+.dc-card--draft { border-style: dashed; opacity: .7; }
+.dc-card--cctl { border-left: 3px solid #a569bd; }
+.dc-card--soutenance { border-left: 3px solid var(--color-warning); }
+.dc-card--etude_de_cas { border-left: 3px solid var(--color-success); }
+.dc-card--livrable { border-left: 3px solid var(--accent); }
+.dc-card--memoire { border-left: 3px solid #e74c3c; }
+.dc-card--autre { border-left: 3px solid #95a5a6; }
+
+.dc-card-top { display: flex; align-items: flex-start; gap: 6px; }
+.dc-card-title { font-size: 12px; font-weight: 600; color: var(--text-primary); flex: 1; line-height: 1.3; }
+.dc-card-meta { display: flex; align-items: center; gap: 5px; margin-top: 6px; }
+.dc-card-date { font-size: 10px; }
+.dc-card-duration { font-size: 10px; color: var(--text-muted); background: rgba(255,255,255,.05); padding: 1px 5px; border-radius: 6px; }
+.dc-card-draft-tag {
+  position: absolute; top: 4px; right: 4px;
+  font-size: 8px; font-weight: 700; text-transform: uppercase;
+  padding: 1px 4px; border-radius: 3px;
+  background: rgba(255,255,255,.06); color: var(--text-muted); border: 1px dashed var(--border-input);
+}
+
+.dc-publish-btn {
+  background: none; border: none; cursor: pointer; padding: 2px;
+  color: var(--text-muted); transition: color var(--t-fast);
+}
+.dc-publish-btn:hover { color: var(--color-success); }
+
+.dc-ratt-label {
+  font-size: 10px; font-weight: 700; color: var(--color-warning);
+  text-transform: uppercase; letter-spacing: .3px;
+  padding: 4px 0 2px; border-top: 1px dashed var(--border); margin-top: 4px;
+}
+
+.dc-add-btn {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  background: none; border: 1px dashed var(--border-input); border-radius: 6px;
+  padding: 6px 12px; cursor: pointer; font-family: var(--font);
+  transition: all var(--t-fast); margin-top: 6px;
+}
+.dc-add-btn:hover { background: rgba(74,144,217,.06); border-color: var(--accent); }
+.dc-add-btn--first { padding: 14px; justify-content: center; font-size: 13px; }
+
+@media (max-width: 600px) {
+  .dc-cards { grid-template-columns: 1fr; }
+}
+
 /* ── Résumé projet ── */
 .proj-summary {
   padding: 16px 20px; border-bottom: 1px solid var(--border); margin-bottom: 8px;
