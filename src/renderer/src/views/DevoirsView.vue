@@ -927,11 +927,6 @@ function typeLabel(t: string): string {
         </div><!-- /devoirs-grouped -->
       </template>
 
-      <!-- ════════════════════════ Fiche Projet (prof + projet actif) ════════════════════════ -->
-      <template v-else-if="appStore.activeProject && appStore.activePromoId">
-        <ProjetFiche :project-key="appStore.activeProject" :promo-id="appStore.activePromoId" />
-      </template>
-
       <!-- ════════════════════════ ACCUEIL PROJETS (prof, pas de projet sélectionné) ════════════════════════ -->
       <template v-else-if="appStore.isTeacher && !appStore.activeProject">
         <div v-if="travauxStore.loading" class="ut-loading">
