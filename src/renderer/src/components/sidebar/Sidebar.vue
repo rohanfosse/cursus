@@ -826,7 +826,6 @@
             :class="{ rotated: channelsCollapsed }"
           />
           <span>{{ channelSectionLabel }}</span>
-          <span class="sidebar-section-count">{{ visibleChannels.length }}</span>
           <button
             v-if="appStore.isTeacher"
             class="btn-icon"
@@ -885,7 +884,6 @@
                 class="sidebar-category-icon"
               />
               <span class="sidebar-category-label">{{ parseCategoryIcon(group.label).label }}</span>
-              <span class="sidebar-category-count">{{ group.channels.length }}</span>
             </button>
           </div>
 
@@ -939,7 +937,6 @@
               :class="{ rotated: dmCollapsed }"
             />
             <span>Messages directs</span>
-            <span class="sidebar-section-count">{{ dmContactsToShow.length }}</span>
             <button
               class="dm-toggle-btn"
               style="margin-left:auto"
