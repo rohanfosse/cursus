@@ -5,7 +5,9 @@
 import { io, Socket } from 'socket.io-client'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
-const SERVER_URL: string = (import.meta.env.VITE_SERVER_URL as string) ?? 'http://localhost:3001'
+const SERVER_URL: string = import.meta.env.DEV
+  ? 'http://localhost:3001'
+  : 'https://cursus.devrohan.cloud'
 
 // ─── État ────────────────────────────────────────────────────────────────────
 let jwtToken: string | null = null

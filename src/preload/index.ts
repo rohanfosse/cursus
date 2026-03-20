@@ -2,11 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { io, Socket } from 'socket.io-client'
 
 // ─── Configuration serveur ────────────────────────────────────────────────────
-const SERVER_URL: string = (import.meta.env.VITE_SERVER_URL as string) ?? 'http://localhost:3001'
-
-if (!import.meta.env.VITE_SERVER_URL && import.meta.env.PROD) {
-  console.warn('[Preload] VITE_SERVER_URL non définie en production — fallback vers localhost:3001')
-}
+const SERVER_URL: string = import.meta.env.DEV
+  ? 'http://localhost:3001'
+  : 'https://cursus.devrohan.cloud'
 
 /** Décodage base64 protégé contre les données corrompues */
 function safeAtob(b64: string): string {
