@@ -976,17 +976,17 @@ async function importRappels() {
   const resultEl = document.getElementById('rappels-result')
   resultEl.innerHTML = 'Import en cours...'
   try {
-    const json = await fetch(\`\${API}/api/admin/import-rappels\`, {
+    const json = await fetch(`${API}/api/admin/import-rappels`, {
       method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body: '{}',
     }).then(r => r.json())
     if (json.ok) {
-      resultEl.innerHTML = \`<span style="color:var(--green)">\${json.data.message}</span>\`
+      resultEl.innerHTML = `<span style="color:var(--green)">${json.data.message}</span>`
     } else {
-      resultEl.innerHTML = \`<span style="color:var(--red)">\${json.error}</span>\`
+      resultEl.innerHTML = `<span style="color:var(--red)">${json.error}</span>`
     }
   } catch (err) {
-    resultEl.innerHTML = \`<span style="color:var(--red)">Erreur : \${err.message}</span>\`
+    resultEl.innerHTML = `<span style="color:var(--red)">Erreur : ${err.message}</span>`
   }
 }
 
@@ -997,17 +997,17 @@ async function importExamens() {
   if (!promoId) { resultEl.innerHTML = '<span style="color:var(--red)">Entrez l\'ID de la promo.</span>'; return }
   resultEl.innerHTML = 'Import en cours...'
   try {
-    const json = await fetch(\`\${API}/api/admin/import-examens\`, {
+    const json = await fetch(`${API}/api/admin/import-examens`, {
       method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ promoId: Number(promoId), promoTag }),
     }).then(r => r.json())
     if (json.ok) {
-      resultEl.innerHTML = \`<span style="color:var(--green)">\${json.data.message}</span>\`
+      resultEl.innerHTML = `<span style="color:var(--green)">${json.data.message}</span>`
     } else {
-      resultEl.innerHTML = \`<span style="color:var(--red)">\${json.error}</span>\`
+      resultEl.innerHTML = `<span style="color:var(--red)">${json.error}</span>`
     }
   } catch (err) {
-    resultEl.innerHTML = \`<span style="color:var(--red)">Erreur : \${err.message}</span>\`
+    resultEl.innerHTML = `<span style="color:var(--red)">Erreur : ${err.message}</span>`
   }
 }
 
