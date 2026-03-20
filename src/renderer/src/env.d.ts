@@ -36,6 +36,7 @@ declare global {
       getTeachers(): Promise<IpcResponse<Student[]>>
       getRecentDmContacts(studentId: number, limit?: number): Promise<IpcResponse<{ name: string; last_message_at: string; last_message_preview: string }[]>>
       searchMessages(channelId: number, q: string): Promise<IpcResponse<Message[]>>
+      searchDmMessages(studentId: number, q: string, peer?: number): Promise<IpcResponse<Message[]>>
       searchAllMessages(args: { promoId: number | null; query: string; limit?: number }): Promise<IpcResponse<{ id: number; content: string; author_name: string; created_at: string; channel_id: number; channel_name: string; promo_id: number }[]>>
       sendMessage(payload: SendMessagePayload): Promise<IpcResponse<{ id: number }>>
       updateReactions(msgId: number, reactionsJson: string): Promise<IpcResponse<number>>
@@ -181,6 +182,7 @@ declare global {
       }) => void): () => void
       onSocketStateChange(cb: (connected: boolean) => void): () => void
       emitTyping?(channelId: number): void
+      emitDmTyping?(dmStudentId: number): void
       onTyping?(cb: (data: { channelId: number; userName: string }) => void): () => void
       getClasseStats(promoId: number): Promise<IpcResponse<{
         id: number; name: string; avatar_initials: string; photo_data: string | null

@@ -86,6 +86,11 @@ export const useMessagesStore = defineStore('messages', () => {
         const res = await window.api.searchMessages(activeChannelId, searchTerm.value)
         fetched       = res?.ok ? res.data : []
         hasMore.value = false
+      } else if (searchTerm.value && activeDmStudentId) {
+        const peer = appStore.activeDmPeerId ?? undefined
+        const res = await window.api.searchDmMessages(activeDmStudentId, searchTerm.value, peer)
+        fetched       = res?.ok ? res.data : []
+        hasMore.value = false
       } else if (activeChannelId) {
         const res    = await window.api.getChannelMessagesPage(activeChannelId)
         const page   = res?.ok ? (res.data as Message[]) : []

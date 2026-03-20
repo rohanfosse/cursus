@@ -28,6 +28,10 @@ router.post('/search-all', wrap((req) => {
 }))
 router.get('/pinned/:channelId', wrap((req) => queries.getPinnedMessages(Number(req.params.channelId))))
 router.get('/dm-contacts/:studentId', wrap((req) => queries.getRecentDmContacts(Number(req.params.studentId), Number(req.query.limit) || 15)))
+router.get('/dm/:studentId/search', wrap((req) => {
+  const peer = req.query.peer ? Number(req.query.peer) : null
+  return queries.searchDmMessages(Number(req.params.studentId), req.query.q, peer)
+}))
 
 // ── Écriture ──────────────────────────────────────────────────────────────────
 router.post('/', (req, res) => {
@@ -37,6 +41,15 @@ router.post('/', (req, res) => {
     // ── Sécurité : forcer l'identité depuis le JWT (anti-usurpation) ────────
     payload.authorName = req.user.name
     payload.authorType = req.user.type === 'ta' ? 'teacher' : req.user.type
+
+    // ── Sécurité : valider le destinataire DM ────────────────────────────────
+    if (payload.dmStudentId) {
+      const { getDb } = require('../../src/db/connection')
+      const exists = getDb().prepare('SELECT id FROM students WHERE id = ?').get(payload.dmStudentId)
+      if (!exists) {
+        return res.status(400).json({ ok: false, error: 'Destinataire introuvable.' })
+      }
+    }
 
     // ── Sécurité : bloquer les étudiants sur les canaux d'annonce ───────────
     if (payload.channelId && req.user.type === 'student') {
@@ -70,8 +83,21 @@ router.post('/', (req, res) => {
       mentionEveryone,
       mentionNames,
     }
-    // Broadcast via Socket.io
-    req.app.get('io')?.emit('msg:new', push)
+    // Envoi ciblé via Socket.io (pas de broadcast global)
+    const io = req.app.get('io')
+    if (io) {
+      if (payload.dmStudentId) {
+        // DM → envoyer uniquement aux deux participants
+        io.to(`user:${payload.dmStudentId}`).emit('msg:new', push)
+        io.to(`user:${req.user.id}`).emit('msg:new', push)
+      } else if (payload.promoId) {
+        // Canal → envoyer à la promo
+        io.to(`promo:${payload.promoId}`).emit('msg:new', push)
+      } else {
+        // Fallback
+        io.to('all').emit('msg:new', push)
+      }
+    }
 
     res.json({ ok: true, data: result })
   } catch (err) {

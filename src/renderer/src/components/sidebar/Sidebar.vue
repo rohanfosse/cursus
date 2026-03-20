@@ -177,8 +177,6 @@
 
   async function loadRecentDmContacts() {
     if (!user.value?.id) return
-    // Pour le prof : pas de contacts récents (pas de student_id), on montre la liste directement
-    if (appStore.isStaff) { recentDmContacts.value = []; return }
     try {
       const res = await window.api.getRecentDmContacts(user.value.id, DM_RECENT_LIMIT)
       recentDmContacts.value = res?.ok ? res.data : []
@@ -187,9 +185,15 @@
 
   // Les contacts récents + ceux avec unread, avec infos student pour pouvoir cliquer
   const dmContactsToShow = computed(() => {
-    // Prof/TA : montrer les étudiants de la promo active (limité à DM_RECENT_LIMIT)
+    // Prof/TA : contacts récents en premier, puis compléter avec les étudiants de la promo
     if (appStore.isStaff) {
-      return dmStudents.value.slice(0, DM_RECENT_LIMIT)
+      const recentNames = new Set(recentDmContacts.value.map(c => c.name))
+      const recentStudents = dmStudents.value.filter(s => recentNames.has(s.name))
+      const orderMap = new Map(recentDmContacts.value.map((c, i) => [c.name, i]))
+      recentStudents.sort((a, b) => (orderMap.get(a.name) ?? 999) - (orderMap.get(b.name) ?? 999))
+      // Compléter avec les autres étudiants si la liste est courte
+      const remaining = dmStudents.value.filter(s => !recentNames.has(s.name))
+      return [...recentStudents, ...remaining].slice(0, DM_RECENT_LIMIT)
     }
 
     // Enseignants toujours visibles en premier pour les étudiants

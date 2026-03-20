@@ -203,7 +203,12 @@ function emitTyping() {
   if (now - _lastTypingEmit < 2000) return  // max 1 event / 2s
   _lastTypingEmit = now
   const channelId = appStore.activeChannelId
-  if (channelId && window.api.emitTyping) window.api.emitTyping(channelId)
+  const dmStudentId = appStore.activeDmStudentId
+  if (channelId && window.api.emitTyping) {
+    window.api.emitTyping(channelId)
+  } else if (dmStudentId && window.api.emitDmTyping) {
+    window.api.emitDmTyping(dmStudentId)
+  }
 }
 
 function onInput() {

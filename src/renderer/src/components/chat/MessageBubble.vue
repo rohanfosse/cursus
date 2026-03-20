@@ -11,6 +11,7 @@ import Avatar       from '@/components/ui/Avatar.vue'
 import ContextMenu  from '@/components/ui/ContextMenu.vue'
 import type { ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 import { avatarColor }          from '@/utils/format'
+import { useToast }             from '@/composables/useToast'
 import { formatTime }           from '@/utils/date'
 import { renderMessageContent } from '@/utils/html'
 import { useOpenExternal }      from '@/composables/useOpenExternal'
@@ -28,6 +29,7 @@ const router        = useRouter()
 const appStore      = useAppStore()
 const messagesStore = useMessagesStore()
 const { openExternal } = useOpenExternal()
+const { showToast }    = useToast()
 
 // ── Clic sur le nom de l'auteur → ouvrir un DM
 const isOwnMessage = computed(() => props.msg.author_name === appStore.currentUser?.name)
@@ -39,8 +41,12 @@ async function openDmWithAuthor() {
     if (res?.ok && res.data) {
       appStore.openDm(res.data.id, res.data.promo_id ?? appStore.activePromoId ?? 0, res.data.name)
       if (router.currentRoute.value.name !== 'messages') router.push('/messages')
+    } else {
+      showToast('Utilisateur introuvable.', 'error')
     }
-  } catch {}
+  } catch {
+    showToast('Impossible d\'ouvrir la conversation.', 'error')
+  }
 }
 
 // ── State

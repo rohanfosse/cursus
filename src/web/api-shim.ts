@@ -224,6 +224,11 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   },
   searchMessages:    (channelId: number, q: string) =>
     get(`/api/messages/search?channelId=${channelId}&q=${encodeURIComponent(q)}`),
+  searchDmMessages:  (studentId: number, q: string, peer?: number) => {
+    const params = new URLSearchParams({ q })
+    if (peer != null) params.set('peer', String(peer))
+    return get(`/api/messages/dm/${studentId}/search?${params}`)
+  },
   searchAllMessages: (args: { promoId: number | null; query: string; limit?: number }) =>
     post('/api/messages/search-all', args),
   sendMessage:       (payload: unknown) => post('/api/messages', payload),
@@ -436,6 +441,9 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   // ── Typing indicator ───────────────────────────────────────────────────────
   emitTyping(channelId: number) {
     socket?.emit('typing', { channelId })
+  },
+  emitDmTyping(dmStudentId: number) {
+    socket?.emit('typing', { dmStudentId })
   },
 
   // ── Temps réel (Socket.io) ───────────────────────────────────────────────────

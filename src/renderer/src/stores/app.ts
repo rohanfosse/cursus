@@ -230,8 +230,7 @@ export const useAppStore = defineStore('app', () => {
         // Déterminer si on est dans cette conversation
         const inThisConversation =
           activeDmStudentId.value === dmStudentId ||
-          activeDmPeerId.value === dmStudentId ||
-          (activeDmStudentId.value != null && dmStudentId === activeDmStudentId.value)
+          activeDmPeerId.value === dmStudentId
 
         if (inThisConversation) {
           // On est dans la conversation → rafraîchir les messages en temps réel

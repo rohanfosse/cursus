@@ -127,6 +127,31 @@ function searchMessages(channelId, query) {
   `).all(channelId, query);
 }
 
+function searchDmMessages(studentId, query, peerId) {
+  const params = [studentId, `%${query}%`]
+  let where = `m.dm_student_id = ? AND m.content LIKE ?`
+
+  // Filtrer par peer si fourni (conversation bidirectionnelle)
+  if (peerId) {
+    const selfName = resolveUserName(studentId)
+    const peerName = resolveUserName(peerId)
+    if (selfName && peerName) {
+      where += ` AND m.author_name IN (?, ?)`
+      params.push(selfName, peerName)
+    }
+  }
+
+  return getDb().prepare(`
+    SELECT m.*, COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
+           COALESCE(s.photo_data, t.photo_data) AS author_photo
+    FROM messages m
+    LEFT JOIN students s ON s.name = m.author_name
+    LEFT JOIN teachers t ON t.name = m.author_name
+    WHERE ${where}
+    ORDER BY m.created_at ASC LIMIT 200
+  `).all(...params);
+}
+
 function sendMessage({ channelId, dmStudentId, authorName, authorType, content, replyToId, replyToAuthor, replyToPreview }) {
   // 'ta' n'est pas dans le CHECK constraint de la table — on le stocke comme 'teacher'
   const safeType = authorType === 'ta' ? 'teacher' : authorType;
@@ -215,15 +240,35 @@ function searchAllMessages(promoId, query, limit = 8) {
  * On extrait les auteurs distincts (hors l'étudiant lui-même) pour lister les contacts.
  */
 function getRecentDmContacts(studentId, limit = 15) {
-  const student = getDb().prepare('SELECT name FROM students WHERE id = ?').get(studentId);
-  if (!student) return [];
+  const myName = resolveUserName(studentId)
+  if (!myName) return [];
 
+  // Pour les enseignants (id négatif) : chercher les étudiants à qui ils ont envoyé des DMs
+  if (studentId < 0) {
+    return getDb().prepare(`
+      SELECT
+        s.id, s.name, s.avatar_initials, s.photo_data, s.promo_id,
+        MAX(m.created_at) AS last_message_at,
+        (SELECT content FROM messages m2
+         WHERE m2.dm_student_id = s.id AND m2.author_name IN (?, s.name)
+         ORDER BY m2.created_at DESC LIMIT 1
+        ) AS last_message_preview
+      FROM messages m
+      JOIN students s ON m.dm_student_id = s.id
+      WHERE m.author_name = ?
+      GROUP BY s.id
+      ORDER BY last_message_at DESC
+      LIMIT ?
+    `).all(myName, myName, limit);
+  }
+
+  // Pour les étudiants : chercher les contacts (envoyés ET reçus)
   return getDb().prepare(`
     SELECT
       author_name AS name,
       MAX(created_at) AS last_message_at,
       (SELECT content FROM messages m2
-       WHERE m2.dm_student_id = ? AND m2.author_name = m.author_name
+       WHERE m2.dm_student_id = ? AND (m2.author_name = m.author_name OR m2.author_name = ?)
        ORDER BY m2.created_at DESC LIMIT 1
       ) AS last_message_preview
     FROM messages m
@@ -231,13 +276,13 @@ function getRecentDmContacts(studentId, limit = 15) {
     GROUP BY m.author_name
     ORDER BY last_message_at DESC
     LIMIT ?
-  `).all(studentId, studentId, student.name, limit);
+  `).all(studentId, myName, studentId, myName, limit);
 }
 
 module.exports = {
   getChannelMessages, getChannelMessagesPage,
   getDmMessages, getDmMessagesPage,
-  searchMessages, searchAllMessages, sendMessage,
+  searchMessages, searchDmMessages, searchAllMessages, sendMessage,
   getPinnedMessages, togglePinMessage, updateReactions,
   deleteMessage, editMessage, getRecentDmContacts,
 };

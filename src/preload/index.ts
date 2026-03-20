@@ -164,6 +164,11 @@ contextBridge.exposeInMainWorld('api', {
     get(`/api/messages/dm-contacts/${studentId}?limit=${limit ?? 15}`),
   searchMessages:    (channelId: number, q: string) =>
     get(`/api/messages/search?channelId=${channelId}&q=${encodeURIComponent(q)}`),
+  searchDmMessages:  (studentId: number, q: string, peer?: number) => {
+    const params = new URLSearchParams({ q })
+    if (peer != null) params.set('peer', String(peer))
+    return get(`/api/messages/dm/${studentId}/search?${params}`)
+  },
   searchAllMessages: (args: { promoId: number | null; query: string; limit?: number }) =>
     post('/api/messages/search-all', args),
   sendMessage:       (payload: unknown) => post('/api/messages', payload),
@@ -344,5 +349,6 @@ contextBridge.exposeInMainWorld('api', {
 
   // Typing indicator (stub — Electron desktop doesn't use Socket.io directly)
   emitTyping: (_channelId: number) => {},
-  onTyping: (_cb: (data: { channelId: number; userName: string }) => void) => () => {},
+  emitDmTyping: (_dmStudentId: number) => {},
+  onTyping: (_cb: (data: { channelId?: number; dmStudentId?: number; userName: string }) => void) => () => {},
 })

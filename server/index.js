@@ -161,20 +161,45 @@ io.use((socket, next) => {
   }
 })
 
+// ── Map userId → Set<socketId> pour envoi ciblé ─────────────────────────────
+const userSockets = new Map()  // userId (number) → Set<string>
+
+function userRoom(userId) { return `user:${userId}` }
+
 io.on('connection', (socket) => {
   const name = socket.user?.name ?? socket.id
+  const userId = socket.user?.id
   console.log(`[WS] + ${name}`)
 
   // Rejoindre la salle de la promo pour les broadcasts ciblés
   if (socket.user?.promo_id) socket.join(`promo:${socket.user.promo_id}`)
   socket.join('all')
 
-  // Indicateur de frappe — re-broadcast aux autres du même canal
-  socket.on('typing', ({ channelId }) => {
-    if (channelId) socket.to('all').emit('typing', { channelId, userName: socket.user?.name })
+  // Salle personnelle pour envoi ciblé (DMs, typing DM)
+  if (userId != null) {
+    socket.join(userRoom(userId))
+    if (!userSockets.has(userId)) userSockets.set(userId, new Set())
+    userSockets.get(userId).add(socket.id)
+  }
+
+  // Indicateur de frappe
+  socket.on('typing', ({ channelId, dmStudentId }) => {
+    if (channelId) {
+      // Canal — envoyer à la promo du canal
+      socket.to('all').emit('typing', { channelId, userName: socket.user?.name })
+    } else if (dmStudentId) {
+      // DM — envoyer uniquement au destinataire
+      socket.to(userRoom(dmStudentId)).emit('typing', { dmStudentId, userName: socket.user?.name })
+    }
   })
 
-  socket.on('disconnect', () => console.log(`[WS] - ${name}`))
+  socket.on('disconnect', () => {
+    console.log(`[WS] - ${name}`)
+    if (userId != null && userSockets.has(userId)) {
+      userSockets.get(userId).delete(socket.id)
+      if (userSockets.get(userId).size === 0) userSockets.delete(userId)
+    }
+  })
 })
 
 // ── Initialisation DB ─────────────────────────────────────────────────────────
@@ -193,8 +218,12 @@ setInterval(() => {
           authorType: sm.author_type, content: sm.content,
         })
         markScheduledSent(sm.id)
-        io.emit('msg:new', {
+        // Envoi ciblé à la promo du canal
+        const { getDb } = require('../src/db/connection')
+        const ch = getDb().prepare('SELECT promo_id FROM channels WHERE id = ?').get(sm.channel_id)
+        if (ch) io.to(`promo:${ch.promo_id}`).emit('msg:new', {
           channelId: sm.channel_id, authorName: sm.author_name,
+          promoId: ch.promo_id,
           preview: sm.content.replace(/[*_`>#[\]!]/g, '').slice(0, 80),
         })
         console.log(`[Scheduled] Message #${sm.id} envoyé dans canal ${sm.channel_id}`)
