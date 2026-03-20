@@ -77,6 +77,7 @@
       ])
       channels.value = chRes?.ok ? chRes.data : []
       students.value  = stuRes?.ok ? stuRes.data : []
+      await loadRecentDmContacts()
     } finally {
       loading.value = false
     }
@@ -153,6 +154,44 @@
   const dmStudents = computed(() =>
     students.value.filter((s) => s.id !== user.value?.id),
   )
+
+  // ── Conversations DM récentes ──────────────────────────────────────────────
+  interface DmContact { name: string; last_message_at: string; last_message_preview: string }
+  const recentDmContacts = ref<DmContact[]>([])
+  const showAllDmStudents = ref(false)
+  const DM_RECENT_LIMIT = 10
+
+  async function loadRecentDmContacts() {
+    if (!user.value?.id || appStore.isStaff) return
+    try {
+      const res = await window.api.getRecentDmContacts(user.value.id, DM_RECENT_LIMIT)
+      recentDmContacts.value = res?.ok ? res.data : []
+    } catch { recentDmContacts.value = [] }
+  }
+
+  // Les contacts récents + ceux avec unread, avec infos student pour pouvoir cliquer
+  const dmContactsToShow = computed(() => {
+    const recentNames = new Set(recentDmContacts.value.map(c => c.name))
+    // Ajouter les noms avec unread
+    for (const name of Object.keys(appStore.unreadDms)) {
+      recentNames.add(name)
+    }
+    // Mapper vers les objets Student pour avoir l'id
+    const contactStudents = dmStudents.value.filter(s => recentNames.has(s.name))
+    // Trier par date de dernier message (les récents d'abord)
+    const orderMap = new Map(recentDmContacts.value.map((c, i) => [c.name, i]))
+    contactStudents.sort((a, b) => {
+      const ai = orderMap.get(a.name) ?? 999
+      const bi = orderMap.get(b.name) ?? 999
+      return ai - bi
+    })
+    return contactStudents
+  })
+
+  function getDmPreview(name: string) {
+    const c = recentDmContacts.value.find(c => c.name === name)
+    return c?.last_message_preview?.substring(0, 40) || ''
+  }
 
   // ── Projets (section Devoirs) ─────────────────────────────────────────────
   const dbProjects     = ref<string[]>([])
@@ -300,6 +339,8 @@
     appStore.openDm(s.id, s.promo_id, s.name)
     if (route.name !== 'messages') router.push('/messages')
     emit('navigate')
+    // Rafraîchir les contacts récents après un petit délai
+    setTimeout(() => loadRecentDmContacts(), 500)
   }
 
   async function selectPromo(promoId: number) {
@@ -870,20 +911,34 @@
 
         <!-- Messages directs (étudiant) -->
         <template v-if="appStore.isStudent && dmStudents.length">
-          <div class="sidebar-section-header" style="margin-top:12px">Messages directs</div>
+          <div class="sidebar-section-header" style="margin-top:12px;display:flex;align-items:center;justify-content:space-between">
+            <span>Messages directs</span>
+            <button
+              class="dm-toggle-btn"
+              :title="showAllDmStudents ? 'Masquer' : 'Nouvelle conversation'"
+              @click="showAllDmStudents = !showAllDmStudents"
+            >
+              <Plus :size="14" />
+            </button>
+          </div>
+
+          <!-- Conversations récentes -->
           <nav aria-label="Messages directs">
             <button
-              v-for="s in dmStudents"
+              v-for="s in dmContactsToShow"
               :key="s.id"
-              class="sidebar-item"
+              class="sidebar-item dm-item"
               :class="{
                 active:    appStore.activeDmStudentId === s.id,
                 'dm-has-unread': !!appStore.unreadDms[s.name],
               }"
               @click="selectDm(s)"
             >
-              <span class="channel-prefix">@</span>
-              <span class="channel-name">{{ s.name }}</span>
+              <span class="dm-avatar" :style="{ background: avatarColor(s.name) }">{{ s.avatar_initials }}</span>
+              <span class="dm-info">
+                <span class="channel-name">{{ s.name }}</span>
+                <span v-if="getDmPreview(s.name)" class="dm-preview">{{ getDmPreview(s.name) }}</span>
+              </span>
               <span
                 v-if="appStore.unreadDms[s.name]"
                 class="dm-unread-badge"
@@ -891,7 +946,29 @@
                 {{ (appStore.unreadDms[s.name] as number) > 9 ? '9+' : appStore.unreadDms[s.name] }}
               </span>
             </button>
+
+            <!-- Aucune conversation récente -->
+            <div v-if="!dmContactsToShow.length && !showAllDmStudents" class="dm-empty">
+              Aucune conversation
+            </div>
           </nav>
+
+          <!-- Liste complète (toggle) -->
+          <template v-if="showAllDmStudents">
+            <div class="dm-all-header">Tous les étudiants</div>
+            <nav aria-label="Tous les étudiants">
+              <button
+                v-for="s in dmStudents"
+                :key="'all-' + s.id"
+                class="sidebar-item"
+                :class="{ active: appStore.activeDmStudentId === s.id }"
+                @click="selectDm(s); showAllDmStudents = false"
+              >
+                <span class="channel-prefix">@</span>
+                <span class="channel-name">{{ s.name }}</span>
+              </button>
+            </nav>
+          </template>
         </template>
       </template>
     </div>
@@ -1153,6 +1230,37 @@
 .dm-has-unread .channel-name {
   font-weight: 700;
   color: var(--text-primary);
+}
+
+/* ── DM récents ── */
+.dm-toggle-btn {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  padding: 2px; border-radius: 4px; display: flex; align-items: center;
+  opacity: 0; transition: opacity .15s;
+}
+.sidebar-section-header:hover .dm-toggle-btn { opacity: 1; }
+.dm-toggle-btn:hover { color: var(--accent, #4a90d9); background: rgba(255,255,255,.06); }
+
+.dm-item {
+  display: flex !important; align-items: center; gap: 8px; padding: 5px 12px !important;
+}
+.dm-avatar {
+  width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0; text-transform: uppercase;
+}
+.dm-info {
+  display: flex; flex-direction: column; min-width: 0; flex: 1;
+}
+.dm-preview {
+  font-size: 10px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  line-height: 1.3; margin-top: 1px;
+}
+.dm-empty {
+  font-size: 11px; color: var(--text-muted); padding: 6px 16px; font-style: italic;
+}
+.dm-all-header {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--text-muted); padding: 8px 16px 4px; font-weight: 600;
 }
 
 /* ── Badge rendus par projet ── */

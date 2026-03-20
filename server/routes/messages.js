@@ -26,6 +26,7 @@ router.post('/search-all', wrap((req) => {
   return queries.searchAllMessages(promoId ?? null, query, limit ?? 8)
 }))
 router.get('/pinned/:channelId', wrap((req) => queries.getPinnedMessages(Number(req.params.channelId))))
+router.get('/dm-contacts/:studentId', wrap((req) => queries.getRecentDmContacts(Number(req.params.studentId), Number(req.query.limit) || 15)))
 
 // ── Écriture ──────────────────────────────────────────────────────────────────
 router.post('/', (req, res) => {

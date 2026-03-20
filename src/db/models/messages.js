@@ -144,10 +144,35 @@ function searchAllMessages(promoId, query, limit = 8) {
   `).all(query, limit);
 }
 
+/**
+ * Contacts DM récents pour un étudiant donné.
+ * dm_student_id = studentId signifie "messages dans la boîte de cet étudiant".
+ * On extrait les auteurs distincts (hors l'étudiant lui-même) pour lister les contacts.
+ */
+function getRecentDmContacts(studentId, limit = 15) {
+  const student = getDb().prepare('SELECT name FROM students WHERE id = ?').get(studentId);
+  if (!student) return [];
+
+  return getDb().prepare(`
+    SELECT
+      author_name AS name,
+      MAX(created_at) AS last_message_at,
+      (SELECT content FROM messages m2
+       WHERE m2.dm_student_id = ? AND m2.author_name = m.author_name
+       ORDER BY m2.created_at DESC LIMIT 1
+      ) AS last_message_preview
+    FROM messages m
+    WHERE m.dm_student_id = ? AND m.author_name != ?
+    GROUP BY m.author_name
+    ORDER BY last_message_at DESC
+    LIMIT ?
+  `).all(studentId, studentId, student.name, limit);
+}
+
 module.exports = {
   getChannelMessages, getChannelMessagesPage,
   getDmMessages, getDmMessagesPage,
   searchMessages, searchAllMessages, sendMessage,
   getPinnedMessages, togglePinMessage, updateReactions,
-  deleteMessage, editMessage,
+  deleteMessage, editMessage, getRecentDmContacts,
 };

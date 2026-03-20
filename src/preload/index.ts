@@ -153,6 +153,8 @@ contextBridge.exposeInMainWorld('api', {
     const qs = beforeId != null ? `?before=${beforeId}` : ''
     return get(`/api/messages/dm/${studentId}/page${qs}`)
   },
+  getRecentDmContacts: (studentId: number, limit?: number) =>
+    get(`/api/messages/dm-contacts/${studentId}?limit=${limit ?? 15}`),
   searchMessages:    (channelId: number, q: string) =>
     get(`/api/messages/search?channelId=${channelId}&q=${encodeURIComponent(q)}`),
   searchAllMessages: (args: { promoId: number | null; query: string; limit?: number }) =>
