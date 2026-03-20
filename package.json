@@ -82,6 +82,7 @@
     "directories": {
       "output": "dist"
     },
+    "asar": false,
     "files": [
       "out/**/*",
       "resources/**/*",
@@ -92,9 +93,6 @@
       "!**/*.pdb",
       "!**/*.map",
       "!**/*.ts"
-    ],
-    "asarUnpack": [
-      "node_modules/better-sqlite3/**/*"
     ],
     "win": {
       "target": "nsis",
