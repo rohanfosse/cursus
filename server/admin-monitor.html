@@ -26,14 +26,50 @@
     .header .dot.error { background: var(--red); }
 
     /* ── Login ── */
-    .login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; }
-    .login-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 2.5rem; width: 360px; }
-    .login-box h2 { margin-bottom: 1.5rem; text-align: center; }
-    .login-box input { width: 100%; padding: .75rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: .9rem; margin-bottom: .75rem; outline: none; }
-    .login-box input:focus { border-color: var(--accent); }
-    .login-box button { width: 100%; padding: .75rem; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-size: .9rem; font-weight: 600; cursor: pointer; }
-    .login-box button:hover { opacity: .9; }
-    .login-box .error-msg { color: var(--red); font-size: .8rem; margin-top: .5rem; text-align: center; }
+    .login-overlay {
+      position: fixed; inset: 0; background: var(--bg); display: flex;
+      align-items: center; justify-content: center; z-index: 100;
+      background-image: radial-gradient(ellipse at 30% 20%, rgba(74,144,217,.08) 0%, transparent 60%),
+                        radial-gradient(ellipse at 70% 80%, rgba(46,204,113,.05) 0%, transparent 50%);
+    }
+    .login-box {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 2.5rem; width: 380px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+    .login-header { text-align: center; margin-bottom: 1.5rem; }
+    .login-logo { width: 48px; height: 48px; margin-bottom: 10px; border-radius: 10px; }
+    .login-header h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
+    .login-header p { font-size: .8rem; color: var(--text-secondary); }
+    .login-field { position: relative; margin-bottom: .75rem; }
+    .login-field label {
+      display: block; font-size: .75rem; font-weight: 600; color: var(--text-secondary);
+      text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px;
+    }
+    .login-box input {
+      width: 100%; padding: .7rem .9rem; background: var(--bg);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--text); font-size: .9rem; outline: none;
+      font-family: var(--font); transition: border-color .2s;
+    }
+    .login-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(74,144,217,.15); }
+    .login-box input::placeholder { color: var(--text-muted); }
+    .login-submit {
+      width: 100%; padding: .75rem; background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius-sm); font-size: .9rem;
+      font-weight: 600; cursor: pointer; font-family: var(--font);
+      transition: opacity .15s, transform .1s; margin-top: .25rem;
+    }
+    .login-submit:hover { opacity: .9; }
+    .login-submit:active { transform: scale(.98); }
+    .login-submit:disabled { opacity: .5; cursor: not-allowed; }
+    .login-box .error-msg {
+      color: var(--red); font-size: .8rem; margin-top: .6rem;
+      text-align: center; padding: 6px 10px; border-radius: 6px;
+      background: rgba(231,76,60,.08);
+    }
+    .login-footer { text-align: center; margin-top: 1rem; font-size: .75rem; color: var(--text-muted); }
+    .login-footer a { color: var(--accent); }
 
     /* ── Tabs ── */
     .tab-bar { display: flex; gap: .25rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; }
@@ -183,11 +219,26 @@
 <!-- Login overlay -->
 <div id="login-overlay" class="login-overlay">
   <div class="login-box">
-    <h2>Console Admin</h2>
-    <input type="email" id="login-email" placeholder="Email" autocomplete="email" />
-    <input type="password" id="login-password" placeholder="Mot de passe" autocomplete="current-password" />
-    <button id="login-btn" onclick="doLogin()">Connexion</button>
+    <div class="login-header">
+      <img src="/assets/icon-192.png" alt="Cursus" class="login-logo" />
+      <h2>Console d'administration</h2>
+      <p>Connectez-vous avec votre compte enseignant</p>
+    </div>
+    <form id="login-form" onsubmit="event.preventDefault(); doLogin()">
+      <div class="login-field">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" placeholder="prenom.nom@viacesi.fr" autocomplete="email" required autofocus />
+      </div>
+      <div class="login-field">
+        <label for="login-password">Mot de passe</label>
+        <input type="password" id="login-password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="current-password" required />
+      </div>
+      <button type="submit" id="login-btn" class="login-submit">Connexion</button>
+    </form>
     <div id="login-error" class="error-msg" style="display:none"></div>
+    <div class="login-footer">
+      <a href="/">&larr; Retour au site</a>
+    </div>
   </div>
 </div>
 
@@ -201,6 +252,7 @@
     <div style="display:flex;align-items:center;gap:1rem">
       <div class="status"><div id="status-dot" class="dot"></div><span id="status-text">Connect&eacute;</span></div>
       <button class="refresh-btn" onclick="refreshActiveTab()">Rafra&icirc;chir</button>
+      <button class="refresh-btn" style="background:rgba(231,76,60,.15);color:#e74c3c;border-color:rgba(231,76,60,.3)" onclick="logout()">D&eacute;connexion</button>
     </div>
   </div>
 
@@ -337,26 +389,55 @@ const tabLoaded = {}
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function doLogin() {
-  const email = document.getElementById('login-email').value
+  const email = document.getElementById('login-email').value.trim()
   const pwd   = document.getElementById('login-password').value
   const errEl = document.getElementById('login-error')
+  const btn   = document.getElementById('login-btn')
   errEl.style.display = 'none'
+
+  if (!email || !pwd) {
+    errEl.textContent = 'Veuillez remplir tous les champs.'
+    errEl.style.display = 'block'
+    return
+  }
+
+  btn.disabled = true
+  btn.textContent = 'Connexion…'
   try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 10000)
     const r = await fetch(`${API}/api/auth/login`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: pwd }),
+      signal: ctrl.signal,
     })
+    clearTimeout(timer)
     const json = await r.json()
-    if (!json.ok) throw new Error(json.error)
-    if (json.data.type !== 'teacher') throw new Error('Acces reserve aux enseignants')
+    if (!json.ok) throw new Error(json.error || 'Identifiants incorrects.')
+    if (json.data.type !== 'teacher') throw new Error('Accès réservé aux enseignants.')
     token = json.data.token
     localStorage.setItem('admin_token', token)
     showDashboard()
   } catch (e) {
-    errEl.textContent = e.message; errEl.style.display = 'block'
+    const msg = e.name === 'AbortError' ? 'Serveur injoignable — vérifiez votre connexion.' : e.message
+    errEl.textContent = msg
+    errEl.style.display = 'block'
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Connexion'
   }
 }
-document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin() })
+
+function logout() {
+  token = null
+  localStorage.removeItem('admin_token')
+  document.getElementById('dashboard').style.display = 'none'
+  document.getElementById('login-overlay').style.display = 'flex'
+  document.getElementById('login-email').value = ''
+  document.getElementById('login-password').value = ''
+  document.getElementById('login-error').style.display = 'none'
+}
 
 function showDashboard() {
   document.getElementById('login-overlay').style.display = 'none'
@@ -365,12 +446,24 @@ function showDashboard() {
 }
 
 async function apiFetch(url, opts = {}) {
-  const r = await fetch(`${API}${url}`, {
-    ...opts,
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers || {}) },
-  })
-  if (r.status === 401 || r.status === 403) { localStorage.removeItem('admin_token'); location.reload(); return null }
-  return r.json()
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 15000)
+    const r = await fetch(`${API}${url}`, {
+      ...opts, signal: ctrl.signal,
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    })
+    clearTimeout(timer)
+    if (r.status === 401 || r.status === 403) { logout(); return null }
+    return r.json()
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      console.warn('[Admin] Timeout sur', url)
+      return { ok: false, error: 'Timeout — serveur lent ou injoignable' }
+    }
+    console.error('[Admin] Fetch error:', e)
+    return { ok: false, error: 'Erreur réseau' }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1600,8 +1693,17 @@ async function checkFeedbackBadge() {
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML }
 
+// Vérifier que le token sauvegardé est encore valide
 if (token) {
-  showDashboard()
+  fetch(`${API}/api/admin/feedback/stats`, { headers: { Authorization: `Bearer ${token}` } })
+    .then(r => {
+      if (r.ok) { showDashboard() }
+      else { logout() }
+    })
+    .catch(() => {
+      // Serveur injoignable mais token existe — tenter quand même
+      showDashboard()
+    })
 } else {
   document.getElementById('login-overlay').style.display = 'flex'
 }
