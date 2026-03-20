@@ -136,6 +136,8 @@ declare global {
       togglePinMessage(payload: { messageId: number; pinned: boolean }): Promise<IpcResponse<null>>
       deleteMessage(id: number): Promise<IpcResponse<number>>
       reportMessage(messageId: number, reason: string): Promise<IpcResponse<null>>
+      submitFeedback(type: string, title: string, description: string): Promise<IpcResponse<{ id: number }>>
+      getMyFeedback(): Promise<IpcResponse<{ id: number; type: string; title: string; description: string; status: string; admin_reply: string | null; created_at: string }[]>>
       editMessage(id: number, content: string): Promise<IpcResponse<number>>
 
       // Rubrics

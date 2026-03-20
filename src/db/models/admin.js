@@ -396,6 +396,52 @@ function togglePromoArchive(promoId, archived) {
   return getDb().prepare('UPDATE promotions SET archived = ? WHERE id = ?').run(archived ? 1 : 0, promoId)
 }
 
+// ── Feedback étudiants ───────────────────────────────────────────────────────
+
+function createFeedback({ userId, userName, userType, type, title, description }) {
+  return getDb().prepare(`
+    INSERT INTO feedback (user_id, user_name, user_type, type, title, description)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(userId, userName, userType, type, title, description || '').lastInsertRowid
+}
+
+function getFeedbackList({ status, type, limit = 50, offset = 0 }) {
+  const db = getDb()
+  let where = '1=1'
+  const params = []
+  if (status) { where += ' AND f.status = ?'; params.push(status) }
+  if (type)   { where += ' AND f.type = ?';   params.push(type) }
+  const total = db.prepare(`SELECT COUNT(*) AS c FROM feedback f WHERE ${where}`).get(...params).c
+  const items = db.prepare(`
+    SELECT f.* FROM feedback f
+    WHERE ${where}
+    ORDER BY f.created_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, limit, offset)
+  return { total, items }
+}
+
+function updateFeedbackStatus(id, status, adminReply) {
+  const resolvedAt = (status === 'resolved' || status === 'wontfix') ? new Date().toISOString() : null
+  return getDb().prepare(`
+    UPDATE feedback SET status = ?, admin_reply = ?, resolved_at = ? WHERE id = ?
+  `).run(status, adminReply || null, resolvedAt, id)
+}
+
+function getFeedbackStats() {
+  const db = getDb()
+  return {
+    open:        db.prepare(`SELECT COUNT(*) AS c FROM feedback WHERE status = 'open'`).get().c,
+    in_progress: db.prepare(`SELECT COUNT(*) AS c FROM feedback WHERE status = 'in_progress'`).get().c,
+    resolved:    db.prepare(`SELECT COUNT(*) AS c FROM feedback WHERE status = 'resolved'`).get().c,
+    total:       db.prepare(`SELECT COUNT(*) AS c FROM feedback`).get().c,
+  }
+}
+
+function getUserFeedback(userId) {
+  return getDb().prepare(`SELECT * FROM feedback WHERE user_id = ? ORDER BY created_at DESC`).all(userId)
+}
+
 // ── Politique de rétention ───────────────────────────────────────────────────
 
 function purgeOldData({ auditDays = 90, loginDays = 30, sessionDays = 30 }) {
@@ -427,4 +473,6 @@ module.exports = {
   togglePromoArchive,
   // Rétention
   purgeOldData,
+  // Feedback
+  createFeedback, getFeedbackList, updateFeedbackStatus, getFeedbackStats, getUserFeedback,
 }

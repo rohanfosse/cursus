@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 20;
+const CURRENT_VERSION = 21;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -500,6 +500,29 @@ function runMigrations(db) {
     // v20 : photo de profil enseignants
     (db) => {
       tryAlter(db, 'ALTER TABLE teachers ADD COLUMN photo_data TEXT DEFAULT NULL');
+    },
+
+    // v21 : feedback étudiants (bugs + améliorations)
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS feedback (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id     INTEGER NOT NULL,
+          user_name   TEXT NOT NULL,
+          user_type   TEXT NOT NULL DEFAULT 'student',
+          type        TEXT NOT NULL DEFAULT 'bug'
+              CHECK(type IN ('bug','improvement','question')),
+          title       TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          status      TEXT NOT NULL DEFAULT 'open'
+              CHECK(status IN ('open','in_progress','resolved','wontfix')),
+          admin_reply TEXT,
+          created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+          resolved_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status);
+        CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id);
+      `);
     },
   ];
 

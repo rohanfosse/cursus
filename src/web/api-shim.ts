@@ -274,6 +274,11 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   editMessage:    (id: number, content: string) => patch(`/api/messages/${id}`, { content }),
   reportMessage:  (messageId: number, reason: string) => post(`/api/messages/${messageId}/report`, { reason }),
 
+  // Feedback
+  submitFeedback: (type: string, title: string, description: string) =>
+    post('/api/admin/feedback', { type, title, description }),
+  getMyFeedback: () => get('/api/admin/feedback/mine'),
+
   // ── Travaux ─────────────────────────────────────────────────────────────────
   getTravaux:             (channelId: number) => get(`/api/assignments?channelId=${channelId}`),
   getTravailById:         (travailId: number) => get(`/api/assignments/${travailId}`),
