@@ -797,4 +797,68 @@ router.post('/feedback/:id/status', (req, res) => {
   }
 })
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// IMPORT EXAMENS DEPUIS JSON
+// ═══════════════════════════════════════════════════════════════════════════════
+
+router.post('/import-examens', (req, res) => {
+  try {
+    const { promoId, promoTag } = req.body // promoTag: 'CPIA2' ou 'FISA4'
+    if (!promoId || !promoTag) return res.status(400).json({ ok: false, error: 'promoId et promoTag requis.' })
+
+    const path = require('path')
+    const fs = require('fs')
+    const dataPath = path.join(__dirname, '..', 'examens-data.json')
+    if (!fs.existsSync(dataPath)) return res.status(404).json({ ok: false, error: 'examens-data.json introuvable.' })
+
+    const examens = JSON.parse(fs.readFileSync(dataPath, 'utf8'))
+    const filtered = examens.filter(e => e.promoTag === promoTag)
+    if (!filtered.length) return res.json({ ok: true, data: { imported: 0, message: 'Aucun examen trouvé pour ' + promoTag } })
+
+    const { getDb } = require('../../src/db/connection')
+    const db = getDb()
+
+    // Trouver ou créer les canaux correspondants aux projets
+    const channelCache = {}
+    function getOrCreateChannel(project) {
+      if (channelCache[project]) return channelCache[project]
+      let ch = db.prepare('SELECT id FROM channels WHERE promo_id = ? AND category = ?').get(promoId, project)
+      if (!ch) {
+        // Créer un canal avec le nom du projet comme catégorie
+        const chName = project.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+        const chId = db.prepare("INSERT INTO channels (promo_id, name, description, type, category) VALUES (?, ?, ?, 'chat', ?)").run(
+          promoId, chName, 'Canal ' + project, project
+        ).lastInsertRowid
+        channelCache[project] = chId
+        return chId
+      }
+      channelCache[project] = ch.id
+      return ch.id
+    }
+
+    let imported = 0
+    const insert = db.prepare(`
+      INSERT INTO travaux (channel_id, title, description, type, category, deadline, start_date, published, requires_submission, room)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, NULL)
+    `)
+
+    for (const e of filtered) {
+      const channelId = getOrCreateChannel(e.project)
+      const deadline = e.date ? e.date + 'T' + (e.hDebut ? e.hDebut.replace('h', ':') : '23:59') + ':00' : null
+      if (!deadline) continue
+
+      // Vérifier si l'examen existe déjà (même titre + même date)
+      const existing = db.prepare('SELECT id FROM travaux WHERE channel_id = ? AND title = ? AND deadline LIKE ?').get(channelId, e.title, e.date + '%')
+      if (existing) continue
+
+      insert.run(channelId, e.title, e.description, e.type, e.project, deadline, null)
+      imported++
+    }
+
+    res.json({ ok: true, data: { imported, total: filtered.length, message: `${imported} examens importés pour ${promoTag}.` } })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
 module.exports = router

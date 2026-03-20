@@ -948,7 +948,42 @@ async function loadMaintenance() {
           Reset & Seed supprimera toutes les donn\u00e9es et recr\u00e9era les donn\u00e9es de d\u00e9mo.
         </div>
       </div>
+
+      <div class="card">
+        <div class="card-title">Import examens</div>
+        <div class="card-sub" style="margin-bottom:.75rem">Importe les examens depuis le calendrier (examens-data.json) dans une promo.</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+          <input id="import-promo-id" type="number" placeholder="ID de la promo" style="background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;width:120px;font-size:.85rem" />
+          <select id="import-promo-tag" style="background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:.85rem">
+            <option value="CPIA2">CPI A2 Informatique</option>
+            <option value="FISA4">FISA Informatique A4</option>
+          </select>
+          <button class="btn btn-primary" onclick="importExamens()">Importer</button>
+        </div>
+        <div id="import-result" style="margin-top:.5rem;font-size:.85rem"></div>
+      </div>
     </div>`
+}
+
+async function importExamens() {
+  const promoId = document.getElementById('import-promo-id').value
+  const promoTag = document.getElementById('import-promo-tag').value
+  const resultEl = document.getElementById('import-result')
+  if (!promoId) { resultEl.innerHTML = '<span style="color:var(--red)">Entrez l\'ID de la promo.</span>'; return }
+  resultEl.innerHTML = 'Import en cours...'
+  try {
+    const json = await fetch(\`\${API}/api/admin/import-examens\`, {
+      method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ promoId: Number(promoId), promoTag }),
+    }).then(r => r.json())
+    if (json.ok) {
+      resultEl.innerHTML = \`<span style="color:var(--green)">\${json.data.message}</span>\`
+    } else {
+      resultEl.innerHTML = \`<span style="color:var(--red)">\${json.error}</span>\`
+    }
+  } catch (err) {
+    resultEl.innerHTML = \`<span style="color:var(--red)">Erreur : \${err.message}</span>\`
+  }
 }
 
 async function createBackup() {
