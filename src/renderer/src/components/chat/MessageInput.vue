@@ -371,6 +371,26 @@ function triggerMention() {
   })
 }
 
+// ── Bouton canal # ────────────────────────────────────────────────────────
+function triggerChannel() {
+  const el = inputEl.value
+  if (!el) return
+  const pos    = el.selectionStart ?? content.value.length
+  const before = content.value.slice(0, pos)
+  const after  = content.value.slice(pos)
+  content.value = before + '#' + after
+  nextTick(() => {
+    const newPos = pos + 1
+    el.setSelectionRange(newPos, newPos)
+    el.focus()
+    refSearch.value = ''
+    refStart.value  = newPos - 1
+    activeRef.value = 'channel'
+    loadChannels()
+    autoResize()
+  })
+}
+
 // ── Pièce jointe ──────────────────────────────────────────────────────────
 const attaching = ref(false)
 
@@ -736,6 +756,12 @@ watch(
               aria-label="Mentionner"
               @mousedown.prevent="triggerMention"
             >@</button>
+            <button
+              class="mi-fmt-btn mi-fmt-mention"
+              title="Référencer un canal"
+              aria-label="Canal"
+              @mousedown.prevent="triggerChannel"
+            >#</button>
           </div>
 
           <!-- Actions droite -->
@@ -811,7 +837,6 @@ watch(
         <template v-else>
           <kbd>Ctrl+Entrée</kbd> envoyer · <kbd>Entrée</kbd> saut de ligne
         </template>
-        · <kbd>@</kbd> mention · <kbd>#</kbd> canal · <kbd>Ctrl+B</kbd> gras
       </p>
 
     </template>
