@@ -88,6 +88,16 @@
     document.body.classList.remove('light', 'night', 'marine', 'cursus')
     if (theme !== 'dark') document.body.classList.add(theme)
 
+    // Appliquer la taille de police sauvegardée
+    const fs = getPref('fontSize') ?? 'default'
+    const sizes: Record<string, string> = { small: '13px', default: '14.5px', large: '16px' }
+    document.documentElement.style.setProperty('--font-size-base', sizes[fs])
+
+    // Appliquer la densité sauvegardée
+    const dens = getPref('density') ?? 'default'
+    const spacings: Record<string, string> = { compact: '2px', default: '6px', cozy: '10px' }
+    document.documentElement.style.setProperty('--msg-spacing', spacings[dens])
+
     // Demander la permission pour les notifications natives
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()

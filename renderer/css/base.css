@@ -66,6 +66,10 @@
   /* Typographie */
   --font:      'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-base: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-size-base: 14.5px;
+
+  /* Densité d'affichage (espacement entre messages) */
+  --msg-spacing: 6px;
 
   /* Rayons — coins arrondis modernes */
   --radius-sm: 6px;
@@ -263,7 +267,7 @@ html, body {
   height: 100%;
   overflow: hidden;
   font-family: var(--font);
-  font-size: 15px;
+  font-size: var(--font-size-base, 14.5px);
   color: var(--text-primary);
   background: var(--bg-rail);
   -webkit-font-smoothing: antialiased;

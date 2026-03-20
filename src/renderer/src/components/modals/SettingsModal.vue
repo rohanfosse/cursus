@@ -4,7 +4,7 @@
     LogOut, Settings, User, Info, Camera, X, RotateCcw, KeyRound,
     Download, Palette, Monitor, Moon, Sunset, Waves, Sparkles, Globe, Lock,
     FileText, ChevronRight, Github, Heart, Shield, Mail, BookOpen,
-    ExternalLink,
+    ExternalLink, Type, BellRing, Maximize2,
   } from 'lucide-vue-next'
   import ChangePasswordModal from '@/components/modals/ChangePasswordModal.vue'
   import { useAppStore } from '@/stores/app'
@@ -30,6 +30,10 @@
   const activeSection  = ref<Section>('general')
   const docsDefault    = ref(getPref('docsOpenByDefault'))
   const currentTheme   = ref(getPref('theme') ?? 'dark')
+  const fontSize       = ref(getPref('fontSize') ?? 'default')
+  const density        = ref(getPref('density') ?? 'default')
+  const notifSound     = ref(getPref('notifSound') ?? true)
+  const notifDesktop   = ref(getPref('notifDesktop') ?? true)
   const pendingPhoto   = ref<string | null>(null)
   const photoChanged   = ref(false)
 
@@ -57,6 +61,21 @@
   })
 
   watch(docsDefault, (v) => setPref('docsOpenByDefault', v))
+
+  watch(fontSize, (v) => {
+    setPref('fontSize', v)
+    const sizes = { small: '13px', default: '14.5px', large: '16px' }
+    document.documentElement.style.setProperty('--font-size-base', sizes[v])
+  })
+
+  watch(density, (v) => {
+    setPref('density', v)
+    const spacings = { compact: '2px', default: '6px', cozy: '10px' }
+    document.documentElement.style.setProperty('--msg-spacing', spacings[v])
+  })
+
+  watch(notifSound, (v) => setPref('notifSound', v))
+  watch(notifDesktop, (v) => setPref('notifDesktop', v))
 
   function setTheme(theme: ThemeId) {
     currentTheme.value = theme
@@ -240,6 +259,70 @@
                 </div>
               </button>
             </div>
+          </div>
+
+          <!-- Taille du texte -->
+          <div class="stg-group">
+            <div class="stg-group-header">
+              <Type :size="13" class="stg-group-icon" />
+              <h4 class="stg-group-title">Taille du texte</h4>
+            </div>
+            <div class="stg-segmented">
+              <button
+                v-for="s in [{ id: 'small', label: 'Petit' }, { id: 'default', label: 'Normal' }, { id: 'large', label: 'Grand' }]"
+                :key="s.id"
+                class="stg-segmented-btn"
+                :class="{ active: fontSize === s.id }"
+                @click="fontSize = s.id as any"
+              >
+                {{ s.label }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Densité d'affichage -->
+          <div class="stg-group">
+            <div class="stg-group-header">
+              <Maximize2 :size="13" class="stg-group-icon" />
+              <h4 class="stg-group-title">Densité d'affichage</h4>
+            </div>
+            <div class="stg-segmented">
+              <button
+                v-for="d in [{ id: 'compact', label: 'Compact' }, { id: 'default', label: 'Normal' }, { id: 'cozy', label: 'Confortable' }]"
+                :key="d.id"
+                class="stg-segmented-btn"
+                :class="{ active: density === d.id }"
+                @click="density = d.id as any"
+              >
+                {{ d.label }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Notifications -->
+          <div class="stg-group">
+            <div class="stg-group-header">
+              <BellRing :size="13" class="stg-group-icon" />
+              <h4 class="stg-group-title">Notifications</h4>
+            </div>
+            <label class="stg-toggle-row">
+              <div class="stg-toggle-info">
+                <span class="stg-toggle-label">Notifications bureau</span>
+                <span class="stg-toggle-desc">Afficher les notifications système pour les nouveaux messages.</span>
+              </div>
+              <div class="stg-switch" :class="{ on: notifDesktop }" @click="notifDesktop = !notifDesktop">
+                <div class="stg-switch-thumb" />
+              </div>
+            </label>
+            <label class="stg-toggle-row">
+              <div class="stg-toggle-info">
+                <span class="stg-toggle-label">Son de notification</span>
+                <span class="stg-toggle-desc">Jouer un son lors de la réception d'un message.</span>
+              </div>
+              <div class="stg-switch" :class="{ on: notifSound }" @click="notifSound = !notifSound">
+                <div class="stg-switch-thumb" />
+              </div>
+            </label>
           </div>
 
           <!-- Documents -->
@@ -688,7 +771,7 @@
 /* ── Theme grid ── */
 .stg-theme-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px;
 }
 .stg-theme-card {
@@ -855,6 +938,43 @@
   line-height: 1.65;
 }
 
+/* ── Segmented control (taille texte, densité) ── */
+.stg-segmented {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.stg-segmented-btn {
+  flex: 1;
+  padding: 9px 0;
+  border: none;
+  background: rgba(255,255,255,.02);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all .12s;
+  border-right: 1px solid var(--border);
+}
+.stg-segmented-btn:last-child { border-right: none; }
+.stg-segmented-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.stg-segmented-btn.active {
+  background: var(--accent-subtle);
+  color: var(--accent-light);
+}
+
+/* ── Email profil ── */
+.stg-profile-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
 /* ── Simulation banner ── */
 .stg-simulation-banner {
   display: flex;
@@ -873,6 +993,6 @@
 @media (max-width: 600px) {
   .stg-nav { display: none; }
   .stg-info-grid { grid-template-columns: 1fr; }
-  .stg-theme-grid { grid-template-columns: repeat(2, 1fr); }
+  .stg-theme-grid { grid-template-columns: repeat(3, 1fr); }
 }
 </style>

@@ -5,11 +5,19 @@ const PREFS_KEY = 'cc_prefs'
 interface Prefs {
   docsOpenByDefault: boolean
   theme: 'dark' | 'light' | 'night' | 'marine' | 'cursus'
+  fontSize: 'small' | 'default' | 'large'
+  density: 'compact' | 'default' | 'cozy'
+  notifSound: boolean
+  notifDesktop: boolean
 }
 
 const DEFAULTS: Prefs = {
   docsOpenByDefault: false,
   theme: 'dark',
+  fontSize: 'default',
+  density: 'default',
+  notifSound: true,
+  notifDesktop: true,
 }
 
 function loadPrefs(): Prefs {
