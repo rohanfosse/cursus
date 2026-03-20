@@ -126,7 +126,23 @@ if (fs.existsSync(LANDING)) {
 // ── SPA web — servie sous /app et en fallback ────────────────────────────────
 const WEB_DIST = path.join(__dirname, '../dist-web')
 if (fs.existsSync(WEB_DIST)) {
-  app.use(express.static(WEB_DIST))
+  // Service worker : toujours revalider (le navigateur DOIT checker les mises à jour)
+  app.get('/sw.js', (_req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    res.set('Content-Type', 'application/javascript')
+    res.sendFile(path.join(WEB_DIST, 'sw.js'))
+  })
+
+  // Assets statiques : les fichiers hashés (JS/CSS) peuvent être cachés longtemps,
+  // mais HTML ne doit jamais être caché
+  app.use(express.static(WEB_DIST, {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('.html')) {
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+      }
+    },
+  }))
+
   app.get(/^(?!\/api|\/socket\.io|\/uploads|\/health|\/$).*/, (_req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate')
     res.sendFile(path.join(WEB_DIST, 'index.html'))
