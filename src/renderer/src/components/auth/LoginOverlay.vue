@@ -24,13 +24,20 @@
     try {
       const res = await window.api.loginWithCredentials(email.value.trim(), password.value)
       if (!res?.ok || !res.data) {
-        loginErr.value = 'Email ou mot de passe incorrect.'
+        loginErr.value = res?.error ?? 'Email ou mot de passe incorrect.'
         password.value = ''
         return
       }
       const u = res.data as any
       appStore.login({ ...u, avatar_initials: u.avatar_initials ?? u.name.slice(0, 2).toUpperCase() })
       router.replace('/messages')
+    } catch (e: unknown) {
+      const msg = (e as Error)?.message ?? ''
+      if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed')) {
+        loginErr.value = 'Impossible de contacter le serveur. Vérifiez votre connexion.'
+      } else {
+        loginErr.value = msg || 'Erreur inattendue lors de la connexion.'
+      }
     } finally {
       submitting.value = false
     }
