@@ -38,6 +38,9 @@
   // Set des catégories repliées
   const collapsed          = ref<Set<string>>(new Set())
   const collapsedDashboard = ref<Set<string>>(new Set())
+  // Sections principales repliables
+  const channelsCollapsed = ref(false)
+  const dmCollapsed       = ref(false)
 
   const user = computed(() => appStore.currentUser)
 
@@ -817,15 +820,21 @@
 
       <!-- Canaux groupés par catégorie (autres sections) -->
       <template v-else>
-        <div id="sidebar-channels-header" class="sidebar-section-header">
+        <div id="sidebar-channels-header" class="sidebar-section-header sidebar-collapsible-header" @click="channelsCollapsed = !channelsCollapsed">
+          <ChevronDown
+            :size="12"
+            class="sidebar-category-chevron"
+            :class="{ rotated: channelsCollapsed }"
+          />
           <span>{{ channelSectionLabel }}</span>
+          <span class="sidebar-section-count">{{ visibleChannels.length }}</span>
           <button
             v-if="appStore.isTeacher"
             class="btn-icon"
             title="Créer un canal"
             aria-label="Créer un canal"
-            style="padding:2px"
-            @click="modals.createChannel = true"
+            style="padding:2px;margin-left:auto"
+            @click.stop="modals.createChannel = true"
           >
             <Plus :size="14" />
           </button>
@@ -833,6 +842,7 @@
 
         <div
           v-for="group in channelGroups"
+          v-show="!channelsCollapsed"
           :key="group.key"
           class="sidebar-category"
           :class="{ 'drag-over': appStore.isStaff && dragOverCategory === group.key }"
@@ -922,19 +932,26 @@
 
         <!-- Messages directs -->
         <template v-if="dmStudents.length">
-          <div class="sidebar-section-header" style="margin-top:12px;display:flex;align-items:center;justify-content:space-between">
+          <div class="sidebar-section-header sidebar-collapsible-header" style="margin-top:12px" @click="dmCollapsed = !dmCollapsed">
+            <ChevronDown
+              :size="12"
+              class="sidebar-category-chevron"
+              :class="{ rotated: dmCollapsed }"
+            />
             <span>Messages directs</span>
+            <span class="sidebar-section-count">{{ dmContactsToShow.length }}</span>
             <button
               class="dm-toggle-btn"
+              style="margin-left:auto"
               :title="showAllDmStudents ? 'Masquer' : 'Nouvelle conversation'"
-              @click="showAllDmStudents = !showAllDmStudents"
+              @click.stop="showAllDmStudents = !showAllDmStudents"
             >
               <Plus :size="14" />
             </button>
           </div>
 
           <!-- Conversations récentes -->
-          <nav aria-label="Messages directs">
+          <nav v-show="!dmCollapsed" aria-label="Messages directs">
             <button
               v-for="s in dmContactsToShow"
               :key="s.id"
@@ -965,7 +982,7 @@
           </nav>
 
           <!-- Liste complète (toggle) -->
-          <template v-if="showAllDmStudents">
+          <template v-if="showAllDmStudents && !dmCollapsed">
             <div class="dm-all-header">Tous les étudiants</div>
             <nav aria-label="Tous les étudiants">
               <button
@@ -1241,6 +1258,26 @@
 .dm-has-unread .channel-name {
   font-weight: 700;
   color: var(--text-primary);
+}
+
+/* ── Section repliable ── */
+.sidebar-collapsible-header {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+.sidebar-collapsible-header:hover {
+  color: var(--text-primary);
+}
+.sidebar-section-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,.06);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 600;
 }
 
 /* ── DM récents ── */
