@@ -188,6 +188,7 @@ declare global {
         last_message_at: string | null
       }[]>>
       updateStudentPhoto(payload: { studentId: number; photoData: string | null }): Promise<IpcResponse<number>>
+      updateTeacherPhoto(payload: { teacherId: number; photoData: string | null }): Promise<IpcResponse<number>>
     }
   }
 }

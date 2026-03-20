@@ -111,7 +111,7 @@ function loginWithCredentials(email, password) {
       id:                  -(teacher.id),
       name:                teacher.name,
       avatar_initials:     initials,
-      photo_data:          null,
+      photo_data:          teacher.photo_data ?? null,
       type:                teacher.role,
       promo_name:          null,
       promo_id:            null,
@@ -248,7 +248,7 @@ function getIdentities() {
     name:            t.name,
     email:           t.email,
     avatar_initials: t.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2),
-    photo_data:      null,
+    photo_data:      t.photo_data ?? null,
     type:            t.role,
     promo_name:      null,
     promo_id:        null,
@@ -315,6 +315,11 @@ function updateStudentPhoto(studentId, photoData) {
     .run(photoData, studentId).changes;
 }
 
+function updateTeacherPhoto(teacherId, photoData) {
+  return getDb().prepare('UPDATE teachers SET photo_data = ? WHERE id = ?')
+    .run(photoData, Math.abs(teacherId)).changes;
+}
+
 /**
  * Recherche un utilisateur (étudiant ou enseignant) par nom.
  * Retourne un objet avec id (négatif pour les profs), name, type, promo_id, avatar_initials.
@@ -336,7 +341,7 @@ function findUserByName(name) {
       name: teacher.name,
       promo_id: null,
       avatar_initials: teacher.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2),
-      photo_data: null,
+      photo_data: teacher.photo_data ?? null,
       type: teacher.role,
     };
   }
@@ -347,6 +352,6 @@ module.exports = {
   getStudents, getAllStudents, getStudentProfile,
   getStudentByEmail, loginWithCredentials, registerStudent,
   changePassword, exportStudentData,
-  getIdentities, bulkImportStudents, getClasseStats, updateStudentPhoto,
+  getIdentities, bulkImportStudents, getClasseStats, updateStudentPhoto, updateTeacherPhoto,
   findUserByName,
 };

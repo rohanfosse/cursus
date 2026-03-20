@@ -99,8 +99,12 @@
   function savePhoto() {
     if (!appStore.currentUser) return
     appStore.login({ ...appStore.currentUser, photo_data: pendingPhoto.value })
-    if (appStore.currentUser.type === 'student' && appStore.currentUser.id > 0) {
+    if (appStore.currentUser.id > 0) {
+      // Étudiant
       window.api.updateStudentPhoto({ studentId: appStore.currentUser.id, photoData: pendingPhoto.value })
+    } else {
+      // Enseignant (id négatif)
+      window.api.updateTeacherPhoto({ teacherId: appStore.currentUser.id, photoData: pendingPhoto.value })
     }
     photoChanged.value = false
     showToast('Photo mise à jour.', 'success')

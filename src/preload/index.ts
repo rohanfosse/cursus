@@ -142,6 +142,8 @@ contextBridge.exposeInMainWorld('api', {
   getStudentTravaux:(studentId: number) => get(`/api/students/${studentId}/assignments`),
   updateStudentPhoto:(payload: { studentId: number; photoData: string | null }) =>
     post('/api/students/photo', payload),
+  updateTeacherPhoto:(payload: { teacherId: number; photoData: string | null }) =>
+    post('/api/teachers/photo', payload),
   getClasseStats:   (promoId: number) => get(`/api/students/stats?promoId=${promoId}`),
 
   // ── Messages ────────────────────────────────────────────────────────────────

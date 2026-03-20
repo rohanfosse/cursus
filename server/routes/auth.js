@@ -74,13 +74,13 @@ router.get('/find-user', auth, wrap((req) => queries.findUserByName(req.query.na
 // GET /api/auth/teachers  (requiert JWT — retourne les enseignants visibles pour les DMs)
 router.get('/teachers', auth, wrap(() => {
   const { getDb } = require('../../src/db/connection')
-  return getDb().prepare('SELECT id, name, role FROM teachers ORDER BY name').all().map(t => ({
+  return getDb().prepare('SELECT id, name, role, photo_data FROM teachers ORDER BY name').all().map(t => ({
     id: -(t.id),
     name: t.name,
     promo_id: null,
     promo_name: null,
     avatar_initials: t.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2),
-    photo_data: null,
+    photo_data: t.photo_data ?? null,
     type: t.role,
   }))
 }))

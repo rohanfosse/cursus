@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 19;
+const CURRENT_VERSION = 20;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -495,6 +495,11 @@ function runMigrations(db) {
 
       // Archivage promos
       tryAlter(db, 'ALTER TABLE promotions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
+    },
+
+    // v20 : photo de profil enseignants
+    (db) => {
+      tryAlter(db, 'ALTER TABLE teachers ADD COLUMN photo_data TEXT DEFAULT NULL');
     },
   ];
 

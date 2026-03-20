@@ -14,5 +14,6 @@ router.post('/',                 wrap((req) => queries.createIntervenant(req.bod
 router.delete('/:id',            wrap((req) => queries.deleteIntervenant(Number(req.params.id))))
 router.get('/:id/channels',      wrap((req) => queries.getTeacherChannels(Number(req.params.id))))
 router.post('/:id/channels',     wrap((req) => queries.setTeacherChannels(req.body)))
+router.post('/photo',            wrap((req) => queries.updateTeacherPhoto(req.body.teacherId, req.body.photoData)))
 
 module.exports = router
