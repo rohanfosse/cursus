@@ -13,6 +13,16 @@ function wrap(fn) {
 router.get('/',    wrap(() => queries.getPromotions()))
 router.post('/',   wrap((req) => queries.createPromotion(req.body)))
 router.delete('/:id', wrap((req) => queries.deletePromotion(Number(req.params.id))))
+router.patch('/:id', (req, res) => {
+  try {
+    const { name, color } = req.body
+    const { getDb } = require('../../src/db/connection')
+    const db = getDb()
+    if (name) db.prepare('UPDATE promotions SET name = ? WHERE id = ?').run(name, Number(req.params.id))
+    if (color) db.prepare('UPDATE promotions SET color = ? WHERE id = ?').run(color, Number(req.params.id))
+    res.json({ ok: true, data: null })
+  } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
+})
 
 // ── Étudiants d'une promo ─────────────────────────────────────────────────────
 router.get('/:promoId/students', wrap((req) => queries.getStudents(Number(req.params.promoId))))

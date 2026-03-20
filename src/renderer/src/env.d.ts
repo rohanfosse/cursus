@@ -79,6 +79,7 @@ declare global {
       // Promotions & canaux
       createPromotion(payload: object): Promise<IpcResponse<{ id: number }>>
       deletePromotion(promoId: number): Promise<IpcResponse<null>>
+      renamePromotion(promoId: number, name: string, color?: string): Promise<IpcResponse<null>>
       createChannel(payload: object): Promise<IpcResponse<{ id: number }>>
       renameChannel(id: number, name: string): Promise<IpcResponse<null>>
       deleteChannel(id: number): Promise<IpcResponse<null>>

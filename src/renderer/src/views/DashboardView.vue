@@ -12,6 +12,7 @@ import { useTravauxStore } from '@/stores/travaux'
 import { useRouter, useRoute } from 'vue-router'
 import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
+import { avatarColor } from '@/utils/format'
 import type { Component } from 'vue'
 import type { Devoir }    from '@/types'
 
@@ -63,7 +64,7 @@ const loadingStudent  = ref(true)
 const aNoterCount     = ref(0)
 const brouillonsCount = ref(0)
 const promos          = ref<Promotion[]>([])
-const allStudents     = ref<{ id: number; promo_id: number }[]>([])
+const allStudents     = ref<{ id: number; promo_id: number; name?: string }[]>([])
 const ganttAll        = ref<GanttRow[]>([])
 
 // ── Chargement ────────────────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ onMounted(async () => {
           appStore.activePromoId = promos.value[0].id
         }
       }
-      if (studRes?.ok) allStudents.value = studRes.data as { id: number; promo_id: number }[]
+      if (studRes?.ok) allStudents.value = studRes.data as typeof allStudents.value
       if (ganttRes?.ok) ganttAll.value = ganttRes.data as GanttRow[]
       loadReminders()
     } finally { loadingTeacher.value = false }
@@ -161,6 +162,25 @@ async function toggleReminder(id: number, done: boolean) {
     await window.api.toggleReminderDone(id, done)
     const r = allReminders.value.find(r => r.id === id)
     if (r) r.done = done ? 1 : 0
+  } catch {}
+}
+
+// ── Gestion promo : renommage ────────────────────────────────────────────────
+const editingPromoName = ref(false)
+const promoNameDraft = ref('')
+
+function startEditPromoName() {
+  promoNameDraft.value = activePromo.value?.name ?? ''
+  editingPromoName.value = true
+}
+
+async function savePromoName() {
+  if (!activePromo.value || !promoNameDraft.value.trim()) return
+  try {
+    await window.api.renamePromotion(activePromo.value.id, promoNameDraft.value.trim())
+    const p = promos.value.find(p => p.id === activePromo.value!.id)
+    if (p) (p as any).name = promoNameDraft.value.trim()
+    editingPromoName.value = false
   } catch {}
 }
 
@@ -337,7 +357,7 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
 })
 
 // ── Frise chronologique ────────────────────────────────────────────────────────
-const dashTab = ref<'projets' | 'frise' | 'analytique'>(
+const dashTab = ref<'projets' | 'frise' | 'analytique' | 'gestion'>(
   route.query.tab === 'frise' ? 'frise' : route.query.tab === 'analytique' ? 'analytique' : 'projets',
 )
 watch(() => route.query.tab, (tab) => {
@@ -658,6 +678,9 @@ function onMilestoneClick(ms: FriseMilestone) {
           <button class="db-tab" :class="{ active: dashTab === 'analytique' }" @click="dashTab = 'analytique'">
             <TrendingUp :size="13" /> Analytique
           </button>
+          <button class="db-tab" :class="{ active: dashTab === 'gestion' }" @click="dashTab = 'gestion'">
+            <Users :size="13" /> Gestion
+          </button>
         </div>
 
         <!-- Tab Analytique -->
@@ -761,8 +784,78 @@ function onMilestoneClick(ms: FriseMilestone) {
           </div>
         </div>
 
+        <!-- Tab Gestion -->
+        <div v-else-if="dashTab === 'gestion'" class="db-tab-content">
+          <div class="gestion-grid">
+            <!-- Carte Promotion active -->
+            <div class="gestion-card">
+              <h4 class="gestion-card-title">Promotion active</h4>
+              <div v-if="activePromo" class="gestion-promo-info">
+                <div class="gestion-promo-name-row">
+                  <span class="gestion-promo-dot" :style="{ background: activePromo.color }" />
+                  <input
+                    v-if="editingPromoName"
+                    v-model="promoNameDraft"
+                    class="gestion-promo-input"
+                    @keydown.enter="savePromoName"
+                    @keydown.escape="editingPromoName = false"
+                  />
+                  <span v-else class="gestion-promo-name">{{ activePromo.name }}</span>
+                  <button v-if="!editingPromoName" class="gestion-btn-sm" @click="startEditPromoName">Renommer</button>
+                  <template v-else>
+                    <button class="gestion-btn-sm gestion-btn-accent" @click="savePromoName">OK</button>
+                    <button class="gestion-btn-sm" @click="editingPromoName = false">Annuler</button>
+                  </template>
+                </div>
+                <div class="gestion-promo-stats">
+                  <span>{{ studentsForPromo.length }} étudiants</span>
+                  <span>{{ ganttFiltered.length }} devoirs</span>
+                </div>
+              </div>
+              <p v-else class="gestion-empty">Sélectionnez une promotion.</p>
+            </div>
+
+            <!-- Carte Étudiants -->
+            <div class="gestion-card">
+              <div class="gestion-card-header">
+                <h4 class="gestion-card-title">Étudiants</h4>
+                <div class="gestion-card-actions">
+                  <button class="gestion-btn" @click="modals.importStudents = true">Importer CSV</button>
+                  <button class="gestion-btn" @click="modals.classe = true">Voir la classe</button>
+                </div>
+              </div>
+              <div class="gestion-student-list">
+                <div v-for="s in studentsForPromo.slice(0, 8)" :key="s.id" class="gestion-student-row">
+                  <div class="gestion-student-avatar" :style="{ background: avatarColor(s.name ?? '') }">{{ (s.name ?? '').slice(0,2).toUpperCase() }}</div>
+                  <span class="gestion-student-name">{{ s.name }}</span>
+                </div>
+                <span v-if="studentsForPromo.length > 8" class="gestion-more">+{{ studentsForPromo.length - 8 }} autres</span>
+                <span v-if="!studentsForPromo.length" class="gestion-empty">Aucun étudiant — importez un CSV.</span>
+              </div>
+            </div>
+
+            <!-- Carte Intervenants -->
+            <div class="gestion-card">
+              <div class="gestion-card-header">
+                <h4 class="gestion-card-title">Intervenants</h4>
+                <button class="gestion-btn" @click="modals.intervenants = true">Gérer</button>
+              </div>
+              <p class="gestion-hint">Ajoutez et gérez les intervenants, assignez-les à des canaux spécifiques.</p>
+            </div>
+
+            <!-- Carte Canaux -->
+            <div class="gestion-card">
+              <div class="gestion-card-header">
+                <h4 class="gestion-card-title">Canaux</h4>
+                <button class="gestion-btn" @click="modals.createChannel = true">Nouveau canal</button>
+              </div>
+              <p class="gestion-hint">Créez et organisez les canaux de discussion pour cette promotion.</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Tab Frise -->
-        <div v-else class="db-tab-content db-frise-outer">
+        <div v-else-if="dashTab === 'frise'" class="db-tab-content db-frise-outer">
           <div v-if="!ganttDateRange || !frise.length" class="db-empty-hint">
             <BarChart2 :size="36" style="opacity:.2;margin-bottom:10px" />
             <p>Aucune donnée de planification disponible.</p>
@@ -1103,6 +1196,53 @@ function onMilestoneClick(ms: FriseMilestone) {
   font-size: 10px; font-weight: 600; color: var(--accent);
 }
 .db-week-date { font-size: 11px; color: var(--text-muted); }
+
+/* ── Onglet Gestion ── */
+.gestion-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.gestion-card {
+  background: var(--bg-elevated, rgba(255,255,255,.03));
+  border: 1px solid var(--border); border-radius: 10px; padding: 16px;
+}
+.gestion-card-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px; }
+.gestion-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.gestion-card-header .gestion-card-title { margin-bottom: 0; }
+.gestion-card-actions { display: flex; gap: 6px; }
+.gestion-btn {
+  font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
+  background: rgba(255,255,255,.06); color: var(--text-secondary);
+  border: 1px solid var(--border-input); cursor: pointer; font-family: var(--font);
+  transition: all var(--t-fast);
+}
+.gestion-btn:hover { background: rgba(255,255,255,.1); color: var(--text-primary); }
+.gestion-btn-sm {
+  font-size: 10px; padding: 2px 7px; border-radius: 4px;
+  background: rgba(255,255,255,.06); color: var(--text-muted);
+  border: 1px solid var(--border-input); cursor: pointer; font-family: var(--font);
+}
+.gestion-btn-accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+.gestion-promo-info { }
+.gestion-promo-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.gestion-promo-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.gestion-promo-name { font-size: 16px; font-weight: 700; color: var(--text-primary); flex: 1; }
+.gestion-promo-input {
+  flex: 1; font-size: 15px; font-weight: 600; padding: 3px 8px;
+  background: var(--bg-input); border: 1px solid var(--accent); border-radius: 6px;
+  color: var(--text-primary); font-family: var(--font); outline: none;
+}
+.gestion-promo-stats { font-size: 12px; color: var(--text-muted); display: flex; gap: 12px; }
+.gestion-student-list { display: flex; flex-direction: column; gap: 4px; }
+.gestion-student-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.gestion-student-avatar {
+  width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.gestion-student-name { font-size: 13px; color: var(--text-primary); }
+.gestion-more { font-size: 12px; color: var(--text-muted); font-style: italic; padding: 4px 0; }
+.gestion-empty { font-size: 12px; color: var(--text-muted); font-style: italic; }
+.gestion-hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 
 /* ── Stats ── */
 .db-stats {

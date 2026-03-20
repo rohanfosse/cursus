@@ -164,6 +164,7 @@ contextBridge.exposeInMainWorld('api', {
   getPromotions:  ()              => get('/api/promotions'),
   createPromotion:(payload: unknown) => post('/api/promotions', payload),
   deletePromotion:(promoId: number)  => del(`/api/promotions/${promoId}`),
+  renamePromotion:(promoId: number, name: string, color?: string) => patch(`/api/promotions/${promoId}`, { name, color }),
 
   getChannels:    (promoId: number) => get(`/api/promotions/${promoId}/channels`),
   createChannel:  (payload: unknown) => post('/api/promotions/channels', payload),
