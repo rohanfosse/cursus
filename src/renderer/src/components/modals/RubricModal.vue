@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
-  import { Plus, Trash2, GripVertical } from 'lucide-vue-next'
+  import { Plus, Trash2 } from 'lucide-vue-next'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
   import { useTravauxStore } from '@/stores/travaux'
@@ -62,10 +62,13 @@
   })
 
   // ── Chargement ────────────────────────────────────────────────────────────
+  const loadError = ref(false)
+
   async function loadRubric() {
     const travailId = appStore.currentTravailId
     if (!travailId) return
     loading.value = true
+    loadError.value = false
     try {
       const res = await window.api.getRubric(travailId)
       rubric.value = res?.ok ? res.data : null
@@ -89,6 +92,9 @@
         for (const s of existing) map[s.criterion_id] = s.points
         scores.value = map
       }
+    } catch {
+      loadError.value = true
+      showToast('Impossible de charger la grille d\'évaluation.', 'error')
     } finally {
       loading.value = false
     }
@@ -182,6 +188,7 @@
     @update:model-value="close"
   >
     <div v-if="loading" class="rubric-loading">Chargement…</div>
+    <div v-else-if="loadError" class="rubric-loading" style="color:var(--color-danger)">Erreur de chargement — vérifiez votre connexion.</div>
 
     <!-- ── Mode édition grille ── -->
     <template v-else-if="!isScoring">
@@ -206,7 +213,7 @@
             :key="c._key"
             class="rubric-criterion-row"
           >
-            <GripVertical :size="14" class="rubric-grip" />
+            <!-- grip retiré : réordonnement non implémenté -->
             <input
               v-model="c.label"
               class="form-input rubric-criterion-label"

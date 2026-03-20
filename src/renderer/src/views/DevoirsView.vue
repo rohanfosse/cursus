@@ -183,7 +183,9 @@ async function submitDeposit(devoir: Devoir) {
       file_name:  depositMode.value === 'file' ? depositFileName.value : null,
     })
     if (ok) {
-      showToast('Dépôt enregistré avec succès.', 'success')
+      const fileName = depositMode.value === 'file' ? depositFileName.value : depositLink.value.trim()
+      const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      showToast(`Rendu soumis — ${fileName} — ${time}`, 'success')
       cancelDeposit()
       await travauxStore.fetchStudentDevoirs()
     } else {

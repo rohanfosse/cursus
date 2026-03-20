@@ -188,7 +188,7 @@
         aavs:         aavs.value.trim() || null,
         requiresSubmission: requiresSubmission.value,
       })
-      if (!res) return
+      if (!res) { showToast('Erreur lors de la création du devoir.', 'error'); return }
       showToast('Devoir créé.', 'success')
       emit('update:modelValue', false)
     } finally {

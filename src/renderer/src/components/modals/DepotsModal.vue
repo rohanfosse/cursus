@@ -29,7 +29,7 @@
 
   const NOTES = ['A', 'B', 'C', 'D', 'NA']
 
-  const FEEDBACK_BANK = [
+  const DEFAULT_FEEDBACK = [
     'Excellent travail, bravo !',
     'Bonne structure et organisation',
     'Code insuffisamment commenté',
@@ -39,6 +39,29 @@
     'Manque de profondeur dans l\'analyse',
     'Bon effort, quelques ajustements nécessaires',
   ]
+
+  const CUSTOM_FB_KEY = 'cc_custom_feedback'
+  function loadCustomFeedback(): string[] {
+    try { return JSON.parse(localStorage.getItem(CUSTOM_FB_KEY) || '[]') } catch { return [] }
+  }
+  const customFeedback = ref<string[]>(loadCustomFeedback())
+  const feedbackBank = computed(() => [...customFeedback.value, ...DEFAULT_FEEDBACK])
+  const newFeedbackText = ref('')
+  const showAddFeedback = ref(false)
+
+  function addCustomFeedback() {
+    const text = newFeedbackText.value.trim()
+    if (!text || customFeedback.value.includes(text)) return
+    customFeedback.value = [text, ...customFeedback.value]
+    localStorage.setItem(CUSTOM_FB_KEY, JSON.stringify(customFeedback.value))
+    newFeedbackText.value = ''
+    showAddFeedback.value = false
+  }
+
+  function removeCustomFeedback(text: string) {
+    customFeedback.value = customFeedback.value.filter(f => f !== text)
+    localStorage.setItem(CUSTOM_FB_KEY, JSON.stringify(customFeedback.value))
+  }
 
   function insertFeedback(text: string) {
     feedbackInput.value = feedbackInput.value
@@ -70,6 +93,15 @@
       .filter((g) => counts[g])
       .map((g) => ({ grade: g, count: counts[g] }))
   })
+
+  // Note la plus fréquente
+  const modeGrade = computed(() => {
+    if (!gradeDistribution.value.length) return null
+    return gradeDistribution.value.reduce((a, b) => b.count > a.count ? b : a).grade
+  })
+
+  // Taux de soumission
+  const submittedCount = computed(() => travauxStore.depots.filter(d => d.content || d.file_name).length)
 
   // ── Helpers retard #7 ─────────────────────────────────────────────────────
   function formatLate(seconds: number): string {
@@ -241,6 +273,13 @@
           {{ g.grade }} <strong>{{ g.count }}</strong>
         </span>
       </div>
+
+      <!-- Stats rapides -->
+      <div class="depots-quick-stats">
+        <span>{{ submittedCount }}/{{ totalStudents }} soumis</span>
+        <span v-if="modeGrade">Note fréquente : <strong>{{ modeGrade }}</strong></span>
+        <span>{{ totalStudents - notedCount }} à noter</span>
+      </div>
     </div>
 
     <!-- Liste des dépôts -->
@@ -297,17 +336,26 @@
 
           <!-- Formulaire feedback inline -->
           <div v-if="editingFeedbackId === d.id" class="depot-feedback-form">
-            <!-- Banque de commentaires rapides -->
+            <!-- Banque de commentaires rapides (personnalisable) -->
             <div class="feedback-bank">
               <button
-                v-for="fb in FEEDBACK_BANK"
+                v-for="fb in feedbackBank"
                 :key="fb"
                 class="feedback-bank-pill"
+                :class="{ 'feedback-custom': customFeedback.includes(fb) }"
                 type="button"
                 @click="insertFeedback(fb)"
+                @contextmenu.prevent="customFeedback.includes(fb) ? removeCustomFeedback(fb) : undefined"
+                :title="customFeedback.includes(fb) ? 'Clic droit pour supprimer' : ''"
               >
                 {{ fb }}
               </button>
+              <button v-if="!showAddFeedback" class="feedback-bank-pill feedback-add-btn" type="button" @click="showAddFeedback = true">+ Ajouter</button>
+            </div>
+            <div v-if="showAddFeedback" class="feedback-add-form">
+              <input v-model="newFeedbackText" class="form-input" placeholder="Nouveau commentaire rapide..." style="flex:1;font-size:12px" @keydown.enter.prevent="addCustomFeedback" />
+              <button class="btn-primary" style="font-size:12px;padding:4px 10px" @click="addCustomFeedback">OK</button>
+              <button class="btn-ghost" style="font-size:12px;padding:4px 6px" @click="showAddFeedback = false">&times;</button>
             </div>
             <textarea
               v-model="feedbackInput"
@@ -591,6 +639,12 @@
   color: var(--accent);
   border-color: rgba(74,144,217,.4);
 }
+.feedback-custom { border-style: dashed; }
+.feedback-add-btn { border-style: dashed; opacity: .6; }
+.feedback-add-btn:hover { opacity: 1; }
+.feedback-add-form {
+  display: flex; gap: 4px; align-items: center; margin-top: 4px;
+}
 
 .depot-feedback-actions {
   display: flex;
@@ -694,6 +748,12 @@
 .grade-dist-pill.grade-d  { background: rgba(231,76,60,.12);   color: var(--color-danger);  border-color: rgba(231,76,60,.25); }
 .grade-dist-pill.grade-na { background: rgba(255,255,255,.05); color: var(--text-muted);    border-color: var(--border); }
 .grade-dist-pill strong { font-weight: 800; }
+
+.depots-quick-stats {
+  display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px;
+  font-size: 11px; color: var(--text-muted);
+}
+.depots-quick-stats strong { color: var(--text-primary); font-weight: 700; }
 
 /* Badge retard (#7) */
 .depot-late-badge {
