@@ -315,9 +315,38 @@ function updateStudentPhoto(studentId, photoData) {
     .run(photoData, studentId).changes;
 }
 
+/**
+ * Recherche un utilisateur (étudiant ou enseignant) par nom.
+ * Retourne un objet avec id (négatif pour les profs), name, type, promo_id, avatar_initials.
+ */
+function findUserByName(name) {
+  const db = getDb();
+  // Chercher dans les étudiants
+  const student = db.prepare(`
+    SELECT s.id, s.name, s.promo_id, s.avatar_initials, s.photo_data, 'student' AS type
+    FROM students s WHERE s.name = ?
+  `).get(name);
+  if (student) return student;
+
+  // Chercher dans les enseignants
+  const teacher = db.prepare('SELECT * FROM teachers WHERE name = ?').get(name);
+  if (teacher) {
+    return {
+      id: -(teacher.id),
+      name: teacher.name,
+      promo_id: null,
+      avatar_initials: teacher.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2),
+      photo_data: null,
+      type: teacher.role,
+    };
+  }
+  return null;
+}
+
 module.exports = {
   getStudents, getAllStudents, getStudentProfile,
   getStudentByEmail, loginWithCredentials, registerStudent,
   changePassword, exportStudentData,
   getIdentities, bulkImportStudents, getClasseStats, updateStudentPhoto,
+  findUserByName,
 };

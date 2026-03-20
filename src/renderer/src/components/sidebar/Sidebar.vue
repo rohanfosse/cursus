@@ -75,20 +75,15 @@
     if (!user.value?.promo_id) return
     loading.value = true
     try {
-      const [chRes, stuRes, idRes] = await Promise.all([
+      const [chRes, stuRes, teachRes] = await Promise.all([
         window.api.getChannels(user.value.promo_id),
         window.api.getStudents(user.value.promo_id),
-        window.api.getIdentities(),
+        window.api.getTeachers(),
       ])
       channels.value = chRes?.ok ? chRes.data : []
-      // Fusionner étudiants de la promo + enseignants (pour DM)
-      const stuList = stuRes?.ok ? stuRes.data : []
-      if (idRes?.ok) {
-        const teachers = idRes.data.filter((p: any) => p.type === 'teacher' || p.type === 'ta')
-        students.value = [...teachers as Student[], ...stuList]
-      } else {
-        students.value = stuList
-      }
+      const stuList  = stuRes?.ok ? stuRes.data : []
+      const teachers = teachRes?.ok ? teachRes.data : []
+      students.value = [...teachers, ...stuList]
       await loadRecentDmContacts()
     } finally {
       loading.value = false

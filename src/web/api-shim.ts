@@ -163,6 +163,8 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   setToken(token: string) { jwtToken = token; connectSocket(token) },
 
   getIdentities: () => get('/api/auth/identities'),
+  findUserByName: (name: string) => get(`/api/auth/find-user?name=${encodeURIComponent(name)}`),
+  getTeachers: () => get('/api/auth/teachers'),
 
   async loginWithCredentials(email: string, pwd: string) {
     const res = await post('/api/auth/login', { email, password: pwd }) as { ok: boolean; data?: { token?: string; [k: string]: unknown }; error?: string }

@@ -80,6 +80,8 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   getIdentities: () => get('/api/auth/identities'),
+  findUserByName: (name: string) => get(`/api/auth/find-user?name=${encodeURIComponent(name)}`),
+  getTeachers: () => get('/api/auth/teachers'),
 
   loginWithCredentials: async (email: string, pwd: string) => {
     const res = await post('/api/auth/login', { email, password: pwd }) as { ok: boolean; data?: { token?: string; [k: string]: unknown }; error?: string }

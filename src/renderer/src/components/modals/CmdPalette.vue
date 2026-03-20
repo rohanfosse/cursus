@@ -31,12 +31,15 @@
   let   debounceTimer = 0
 
   async function loadData() {
-    const [pRes, sRes] = await Promise.all([
+    const [pRes, sRes, tRes] = await Promise.all([
       window.api.getPromotions(),
       window.api.getAllStudents(),
+      window.api.getTeachers(),
     ])
     allPromos.value   = pRes?.ok ? pRes.data : []
-    allStudents.value = sRes?.ok ? sRes.data : []
+    const students    = sRes?.ok ? sRes.data : []
+    const teachers    = tRes?.ok ? tRes.data : []
+    allStudents.value = [...teachers, ...students]
 
     const chArrays = await Promise.all(
       allPromos.value.map((p) => window.api.getChannels(p.id)),

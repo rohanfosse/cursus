@@ -68,6 +68,23 @@ router.get('/identities', (req, res, next) => {
 // GET /api/auth/student-by-email?email=X  (requiert JWT)
 router.get('/student-by-email', auth, wrap((req) => queries.getStudentByEmail(req.query.email)))
 
+// GET /api/auth/find-user?name=X  (requiert JWT — accessible à tous)
+router.get('/find-user', auth, wrap((req) => queries.findUserByName(req.query.name)))
+
+// GET /api/auth/teachers  (requiert JWT — retourne les enseignants visibles pour les DMs)
+router.get('/teachers', auth, wrap(() => {
+  const { getDb } = require('../../src/db/connection')
+  return getDb().prepare('SELECT id, name, role FROM teachers ORDER BY name').all().map(t => ({
+    id: -(t.id),
+    name: t.name,
+    promo_id: null,
+    promo_name: null,
+    avatar_initials: t.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2),
+    photo_data: null,
+    type: t.role,
+  }))
+}))
+
 // POST /api/auth/register
 router.post('/register', wrap((req) => queries.registerStudent(req.body)))
 

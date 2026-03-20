@@ -33,20 +33,12 @@ const { openExternal } = useOpenExternal()
 const isOwnMessage = computed(() => props.msg.author_name === appStore.currentUser?.name)
 
 async function openDmWithAuthor() {
-  if (isOwnMessage.value) return // pas de DM avec soi-même
-  const name = props.msg.author_name
-  // Chercher l'identité dans les étudiants ou enseignants via l'API
+  if (isOwnMessage.value) return
   try {
-    const res = await window.api.getStudentByEmail?.('')  // on n'a pas l'email, on cherche par nom
-    // Fallback : chercher dans les identités connues
-    const idRes = await window.api.getIdentities()
-    if (idRes?.ok) {
-      const person = idRes.data.find((p: any) => p.name === name)
-      if (person) {
-        appStore.openDm(person.id, person.promo_id ?? appStore.activePromoId ?? 0, person.name)
-        if (router.currentRoute.value.name !== 'messages') router.push('/messages')
-        return
-      }
+    const res = await window.api.findUserByName(props.msg.author_name)
+    if (res?.ok && res.data) {
+      appStore.openDm(res.data.id, res.data.promo_id ?? appStore.activePromoId ?? 0, res.data.name)
+      if (router.currentRoute.value.name !== 'messages') router.push('/messages')
     }
   } catch {}
 }
