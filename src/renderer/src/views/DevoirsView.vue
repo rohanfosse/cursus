@@ -26,6 +26,11 @@ const modals       = useModalsStore()
 // ── Vue locale enseignant ──────────────────────────────────────────────────────
 const teacherView = ref<'gantt' | 'liste' | 'rendus'>('gantt')
 
+// ── Filtres prof ─────────────────────────────────────────────────────────────
+const filterCategory = ref<string>('')
+const filterRendusStatus = ref<'all' | 'ungraded' | 'graded' | 'missing'>('all')
+const sortRendus = ref<'name' | 'date'>('name')
+
 // ── Horloge temps réel pour verrouillage des deadlines ────────────────────────
 const now = ref(Date.now())
 let clockInterval: ReturnType<typeof setInterval> | null = null
@@ -231,8 +236,15 @@ async function saveGrade(depotId: number) {
 // ── Gantt : calcul des positions ───────────────────────────────────────────────
 type GanttItem = Devoir & { left: number; width: number; dlClass: string }
 
+// Catégories disponibles pour le filtre
+const teacherCategories = computed(() => {
+  const cats = new Set((travauxStore.ganttData as Devoir[]).map(t => t.category?.trim()).filter(Boolean))
+  return Array.from(cats).sort() as string[]
+})
+
 const ganttItems = computed((): { items: GanttItem[]; todayPct: number } => {
-  const raw = travauxStore.ganttData as Devoir[]
+  let raw = travauxStore.ganttData as Devoir[]
+  if (filterCategory.value) raw = raw.filter(t => t.category?.trim() === filterCategory.value)
   if (!raw.length) return { items: [], todayPct: 0 }
 
   const dates = raw.flatMap(t => [
@@ -258,18 +270,33 @@ const ganttItems = computed((): { items: GanttItem[]; todayPct: number } => {
   return { items, todayPct }
 })
 
-// ── Rendus : grouper par devoir avec titres ────────────────────────────────────
+// ── Rendus : grouper par devoir avec titres + filtres ──────────────────────────
 const rendusByDevoir = computed(() => {
   const ganttMap = new Map((travauxStore.ganttData as (Devoir & { students_total?: number })[]).map(t => [t.id, t]))
   const map = new Map<number, { devoir: Partial<Devoir & { students_total?: number }>; rendus: typeof travauxStore.allRendus }>()
   for (const r of travauxStore.allRendus) {
+    // Filtre par catégorie
+    const gt = ganttMap.get(r.travail_id)
+    if (filterCategory.value && gt?.category?.trim() !== filterCategory.value) continue
     if (!map.has(r.travail_id)) {
-      const gt = ganttMap.get(r.travail_id)
       map.set(r.travail_id, { devoir: gt ?? { id: r.travail_id }, rendus: [] })
     }
     map.get(r.travail_id)!.rendus.push(r)
   }
-  return [...map.values()]
+  // Filtre par statut + tri
+  const groups = [...map.values()]
+  for (const g of groups) {
+    // Filtre statut
+    if (filterRendusStatus.value === 'ungraded') g.rendus = g.rendus.filter(r => !r.note)
+    else if (filterRendusStatus.value === 'graded') g.rendus = g.rendus.filter(r => !!r.note)
+    // Tri
+    g.rendus.sort((a, b) => {
+      if (sortRendus.value === 'name') return (a.student_name ?? '').localeCompare(b.student_name ?? '')
+      return new Date(b.submitted_at ?? 0).getTime() - new Date(a.submitted_at ?? 0).getTime()
+    })
+  }
+  // Retirer les groupes vides après filtre
+  return groups.filter(g => g.rendus.length > 0)
 })
 
 // ── Vue étudiant : résumé par projet (sans filtre actif) ──────────────────
@@ -368,6 +395,25 @@ function typeLabel(t: string): string {
           <button class="btn-primary btn-nouveau" @click="modals.newDevoir = true">
             <Plus :size="14" /> Nouveau
           </button>
+        </template>
+      </div>
+
+      <!-- Filtres prof -->
+      <div v-if="appStore.isTeacher && !appStore.activeProject" class="teacher-filters">
+        <select v-model="filterCategory" class="teacher-filter-select">
+          <option value="">Tous les projets</option>
+          <option v-for="cat in teacherCategories" :key="cat" :value="cat">{{ cat }}</option>
+        </select>
+        <template v-if="teacherView === 'rendus'">
+          <select v-model="filterRendusStatus" class="teacher-filter-select">
+            <option value="all">Tous</option>
+            <option value="ungraded">À noter</option>
+            <option value="graded">Notés</option>
+          </select>
+          <select v-model="sortRendus" class="teacher-filter-select">
+            <option value="name">Tri : Nom</option>
+            <option value="date">Tri : Date</option>
+          </select>
         </template>
       </div>
     </header>
@@ -780,7 +826,8 @@ function typeLabel(t: string): string {
             >
               <div class="gantt-row-label">
                 <span class="gantt-label-type devoir-type-badge" :class="`type-${item.type}`">{{ typeLabel(item.type) }}</span>
-                <span class="gantt-label-name">{{ item.title }}</span>
+                <span v-if="!item.is_published" class="draft-badge">Brouillon</span>
+                <span class="gantt-label-name" :class="{ 'draft-text': !item.is_published }">{{ item.title }}</span>
                 <span class="deadline-badge" :class="item.dlClass">{{ formatDate(item.deadline) }}</span>
               </div>
               <div class="gantt-track">
@@ -817,13 +864,15 @@ function typeLabel(t: string): string {
 
         <div v-else class="liste-grid">
           <div
-            v-for="t in (travauxStore.ganttData as Devoir[])"
+            v-for="t in (travauxStore.ganttData as Devoir[]).filter(d => !filterCategory || d.category?.trim() === filterCategory)"
             :key="t.id"
             class="liste-card"
+            :class="{ 'liste-card--draft': !t.is_published }"
             @click="openDevoir(t.id)"
           >
             <div class="liste-card-top">
               <span class="devoir-type-badge" :class="`type-${t.type}`">{{ typeLabel(t.type) }}</span>
+              <span v-if="!t.is_published" class="draft-badge">Brouillon</span>
               <ChevronRight :size="14" class="liste-card-chevron" />
             </div>
             <h3 class="liste-card-title">{{ t.title }}</h3>
@@ -1041,6 +1090,24 @@ function typeLabel(t: string): string {
 }
 
 /* ── Toggle vue enseignant ───────────────────────────────────────────────── */
+.draft-badge {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+  padding: 1px 5px; border-radius: 3px;
+  background: rgba(255,255,255,.08); color: var(--text-muted);
+  border: 1px dashed var(--border-input);
+}
+.draft-text { opacity: .6; }
+.liste-card--draft { opacity: .65; border-style: dashed; }
+
+.teacher-filters {
+  display: flex; gap: 6px; padding: 0 20px 8px; flex-wrap: wrap;
+}
+.teacher-filter-select {
+  background: var(--bg-input); border: 1px solid var(--border-input);
+  border-radius: 6px; color: var(--text-primary); font-size: 12px;
+  padding: 4px 8px; font-family: var(--font); cursor: pointer;
+}
+
 .view-toggle {
   display: flex;
   background: rgba(255, 255, 255, 0.06);

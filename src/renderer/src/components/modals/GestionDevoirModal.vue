@@ -1,9 +1,10 @@
 <script setup lang="ts">
   import { computed, watch } from 'vue'
-  import { Users, Clock, CheckCircle2, XCircle } from 'lucide-vue-next'
+  import { Users, Clock, CheckCircle2, XCircle, Copy, CalendarPlus } from 'lucide-vue-next'
   import { useTravauxStore } from '@/stores/travaux'
   import { useAppStore }     from '@/stores/app'
   import { useModalsStore }  from '@/stores/modals'
+  import { useToast }        from '@/composables/useToast'
   import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
   import { avatarColor, initials, formatGrade, gradeClass } from '@/utils/format'
   import Modal from '@/components/ui/Modal.vue'
@@ -14,12 +15,51 @@
   const travauxStore = useTravauxStore()
   const appStore     = useAppStore()
   const modals       = useModalsStore()
+  const { showToast } = useToast()
 
   watch(() => props.modelValue, async (open) => {
     if (open && appStore.currentTravailId) {
       await travauxStore.openTravail(appStore.currentTravailId)
     }
   })
+
+  // ── Extension rapide de deadline ──────────────────────────────────────────
+  async function extendDeadline(days: number) {
+    if (!travail.value) return
+    const current = new Date(travail.value.deadline)
+    current.setDate(current.getDate() + days)
+    const newDeadline = current.toISOString()
+    // Appel API pour mettre à jour la deadline
+    try {
+      const res = await window.api.createTravail({
+        ...travail.value,
+        deadline: newDeadline,
+        id: travail.value.id,
+        _update: true, // flag pour update au lieu de create
+      } as any)
+      if (res?.ok) {
+        showToast(`Deadline prolongée de ${days} jour${days > 1 ? 's' : ''}.`, 'success')
+        await travauxStore.openTravail(travail.value.id)
+      }
+    } catch {
+      showToast('Erreur lors de la mise à jour.', 'error')
+    }
+  }
+
+  // ── Duplication ──────────────────────────────────────────────────────────
+  function duplicateDevoir() {
+    if (!travail.value) return
+    // Stocker les données pour pré-remplir NewDevoirModal
+    appStore.duplicateDevoirData = {
+      title: travail.value.title + ' (copie)',
+      type: travail.value.type,
+      category: travail.value.category,
+      description: travail.value.description,
+      channelId: (travail.value as any).channel_id,
+    }
+    emit('update:modelValue', false)
+    modals.newDevoir = true
+  }
 
   const travail = computed(() => travauxStore.currentDevoir)
   const depots  = computed(() => travauxStore.depots)
@@ -67,6 +107,11 @@
         <div class="gd-meta-info">
           <span class="gd-info-item">
             <strong>Échéance :</strong> {{ formatDate(travail.deadline) }}
+            <span class="gd-extend-btns">
+              <button class="gd-extend-btn" title="+1 jour" @click="extendDeadline(1)">+1j</button>
+              <button class="gd-extend-btn" title="+3 jours" @click="extendDeadline(3)">+3j</button>
+              <button class="gd-extend-btn" title="+1 semaine" @click="extendDeadline(7)">+1sem</button>
+            </span>
           </span>
           <span v-if="travail.start_date" class="gd-info-item">
             <strong>Début :</strong> {{ formatDate(travail.start_date) }}
@@ -168,6 +213,9 @@
         <button class="btn-ghost" style="font-size:13px" @click="emit('update:modelValue', false)">
           Fermer
         </button>
+        <button class="btn-ghost" style="font-size:13px" @click="duplicateDevoir">
+          <Copy :size="13" /> Dupliquer
+        </button>
         <button class="btn-primary" style="font-size:13px" @click="openDepots">
           <Users :size="14" /> Voir tous les dépôts
         </button>
@@ -178,6 +226,13 @@
 
 <style scoped>
 .gd-loading { padding: 24px 20px; }
+.gd-extend-btns { display: inline-flex; gap: 3px; margin-left: 6px; }
+.gd-extend-btn {
+  font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 4px;
+  background: rgba(255,255,255,.06); color: var(--accent); border: 1px solid var(--border-input);
+  cursor: pointer; font-family: var(--font); transition: background var(--t-fast);
+}
+.gd-extend-btn:hover { background: rgba(255,255,255,.12); }
 
 .gd-meta {
   padding: 16px 20px 12px;
