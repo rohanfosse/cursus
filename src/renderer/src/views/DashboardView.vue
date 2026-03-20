@@ -368,17 +368,39 @@ interface FriseMilestone { id: number; title: string; type: string; deadline: st
 interface FriseProject   { key: string; label: string; icon: Component | null; milestones: FriseMilestone[] }
 interface FrisePromo     { name: string; color: string; projects: FriseProject[] }
 
+// Frise avec zoom centré ±2 mois et scroll/drag
+const friseOffset = ref(0) // décalage en jours par rapport à aujourd'hui
+const FRISE_SPAN_DAYS = 120 // 4 mois de largeur visible
+
 const ganttDateRange = computed(() => {
   const rows = (appStore.isTeacher ? ganttFiltered.value : travauxStore.devoirs) as { deadline: string }[]
   if (!rows.length) return null
-  let min = Infinity, max = -Infinity
-  for (const t of rows) {
-    const e = new Date(t.deadline).getTime()
-    if (e < min) min = e
-    if (e > max) max = e
-  }
-  return { start: new Date(min - 28 * 86_400_000), end: new Date(max + 28 * 86_400_000) }
+  // Centrer sur aujourd'hui + offset
+  const center = Date.now() + friseOffset.value * 86_400_000
+  const halfSpan = (FRISE_SPAN_DAYS / 2) * 86_400_000
+  return { start: new Date(center - halfSpan), end: new Date(center + halfSpan) }
 })
+
+function onFriseWheel(e: WheelEvent) {
+  e.preventDefault()
+  friseOffset.value += e.deltaY > 0 ? 14 : -14 // scroll de 2 semaines
+}
+
+let _friseDragging = false
+let _friseDragStart = 0
+function onFriseDragStart(e: MouseEvent) {
+  _friseDragging = true
+  _friseDragStart = e.clientX
+}
+function onFriseDragMove(e: MouseEvent) {
+  if (!_friseDragging) return
+  const diff = _friseDragStart - e.clientX
+  if (Math.abs(diff) > 10) {
+    friseOffset.value += diff > 0 ? 7 : -7
+    _friseDragStart = e.clientX
+  }
+}
+function onFriseDragEnd() { _friseDragging = false }
 
 const ganttMonths = computed(() => {
   const r = ganttDateRange.value
@@ -860,7 +882,15 @@ function onMilestoneClick(ms: FriseMilestone) {
             <BarChart2 :size="36" style="opacity:.2;margin-bottom:10px" />
             <p>Aucune donnée de planification disponible.</p>
           </div>
-          <div v-else class="frise-wrap">
+          <div
+            v-else class="frise-wrap"
+            @wheel.prevent="onFriseWheel"
+            @mousedown="onFriseDragStart"
+            @mousemove="onFriseDragMove"
+            @mouseup="onFriseDragEnd"
+            @mouseleave="onFriseDragEnd"
+            style="cursor:grab;user-select:none"
+          >
             <!-- Axe des mois -->
             <div class="frise-axis-row">
               <div class="frise-label-col frise-axis-label">Projet</div>
@@ -1066,7 +1096,15 @@ function onMilestoneClick(ms: FriseMilestone) {
             <BarChart2 :size="36" style="opacity:.2;margin-bottom:10px" />
             <p>Aucune donnée de planification disponible.</p>
           </div>
-          <div v-else class="frise-wrap">
+          <div
+            v-else class="frise-wrap"
+            @wheel.prevent="onFriseWheel"
+            @mousedown="onFriseDragStart"
+            @mousemove="onFriseDragMove"
+            @mouseup="onFriseDragEnd"
+            @mouseleave="onFriseDragEnd"
+            style="cursor:grab;user-select:none"
+          >
             <div class="frise-axis-row">
               <div class="frise-label-col frise-axis-label">Projet</div>
               <div class="frise-bar-col frise-axis-months">
