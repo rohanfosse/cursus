@@ -357,11 +357,15 @@ const studentProjectCards = computed((): StudentProjectCard[] => {
 })
 
 // ── Frise chronologique ────────────────────────────────────────────────────────
-const dashTab = ref<'projets' | 'frise' | 'analytique' | 'parametres'>(
-  route.query.tab === 'frise' ? 'frise' : route.query.tab === 'analytique' ? 'analytique' : 'projets',
+const dashTab = ref<'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages'>(
+  route.query.tab === 'frise' ? 'frise' : route.query.tab === 'analytique' ? 'analytique' : route.query.tab === 'promotions' ? 'promotions' : 'accueil',
 )
 watch(() => route.query.tab, (tab) => {
-  dashTab.value = tab === 'frise' ? 'frise' : tab === 'analytique' ? 'analytique' : 'projets'
+  if (tab === 'frise') dashTab.value = 'frise'
+  else if (tab === 'analytique') dashTab.value = 'analytique'
+  else if (tab === 'promotions') dashTab.value = 'promotions'
+  else if (tab === 'reglages') dashTab.value = 'reglages'
+  else dashTab.value = 'accueil'
 })
 
 interface FriseMilestone { id: number; title: string; type: string; deadline: string; published: boolean; done: boolean }
@@ -691,8 +695,11 @@ function onMilestoneClick(ms: FriseMilestone) {
 
         <!-- Tabs -->
         <div class="db-tabs">
-          <button class="db-tab" :class="{ active: dashTab === 'projets' }" @click="dashTab = 'projets'">
-            <FolderOpen :size="13" /> Projets
+          <button class="db-tab" :class="{ active: dashTab === 'accueil' }" @click="dashTab = 'accueil'">
+            <LayoutDashboard :size="13" /> Accueil
+          </button>
+          <button class="db-tab" :class="{ active: dashTab === 'promotions' }" @click="dashTab = 'promotions'">
+            <Users :size="13" /> Promotions
           </button>
           <button class="db-tab" :class="{ active: dashTab === 'frise' }" @click="dashTab = 'frise'">
             <BarChart2 :size="13" /> Frise
@@ -700,8 +707,8 @@ function onMilestoneClick(ms: FriseMilestone) {
           <button class="db-tab" :class="{ active: dashTab === 'analytique' }" @click="dashTab = 'analytique'">
             <TrendingUp :size="13" /> Analytique
           </button>
-          <button class="db-tab" :class="{ active: dashTab === 'parametres' }" @click="dashTab = 'parametres'">
-            <Settings :size="13" /> Paramètres
+          <button class="db-tab" :class="{ active: dashTab === 'reglages' }" @click="dashTab = 'reglages'">
+            <Settings :size="13" /> Réglages
           </button>
         </div>
 
@@ -775,7 +782,33 @@ function onMilestoneClick(ms: FriseMilestone) {
         </div>
 
         <!-- Tab Projets -->
-        <div v-else-if="dashTab === 'projets'" class="db-tab-content">
+        <!-- Tab Promotions -->
+        <div v-else-if="dashTab === 'promotions'" class="db-tab-content">
+          <div class="promo-list">
+            <div v-for="p in promos" :key="p.id" class="promo-list-card" :class="{ 'promo-active': appStore.activePromoId === p.id }">
+              <div class="promo-list-header">
+                <span class="promo-list-dot" :style="{ background: p.color }" />
+                <span class="promo-list-name">{{ p.name }}</span>
+                <button v-if="appStore.activePromoId !== p.id" class="gestion-btn-sm" @click="appStore.activePromoId = p.id">Sélectionner</button>
+                <span v-else class="promo-list-active-tag">Active</span>
+              </div>
+              <div class="promo-list-stats">
+                <span>{{ allStudents.filter(s => s.promo_id === p.id).length }} étudiants</span>
+                <span>{{ (ganttAll as any[]).filter((t: any) => t.promo_name === p.name).length }} devoirs</span>
+              </div>
+              <div class="promo-list-actions">
+                <button class="gestion-btn" @click="appStore.activePromoId = p.id; modals.classe = true">Voir la classe</button>
+                <button class="gestion-btn" @click="appStore.activePromoId = p.id; modals.importStudents = true">Importer CSV</button>
+              </div>
+            </div>
+          </div>
+          <button class="dc-add-btn" style="margin:12px 0" @click="modals.createPromo = true">
+            <PlusCircle :size="13" /> Nouvelle promotion
+          </button>
+        </div>
+
+        <!-- Tab Accueil (ancien Projets) -->
+        <div v-else-if="dashTab === 'accueil'" class="db-tab-content">
           <div v-if="!projectCards.length" class="db-empty-hint">
             <FolderOpen :size="36" style="opacity:.2;margin-bottom:10px" />
             <p>Aucun projet configuré. Créez des travaux avec une catégorie pour les voir ici.</p>
@@ -807,7 +840,7 @@ function onMilestoneClick(ms: FriseMilestone) {
         </div>
 
         <!-- Tab Gestion -->
-        <div v-else-if="dashTab === 'parametres'" class="db-tab-content">
+        <div v-else-if="dashTab === 'reglages'" class="db-tab-content">
           <div class="gestion-grid">
             <!-- Carte Promotion active -->
             <div class="gestion-card">
@@ -1043,7 +1076,7 @@ function onMilestoneClick(ms: FriseMilestone) {
 
         <!-- Tabs -->
         <div class="db-tabs">
-          <button class="db-tab" :class="{ active: dashTab === 'projets' }" @click="dashTab = 'projets'">
+          <button class="db-tab" :class="{ active: dashTab === 'accueil' }" @click="dashTab = 'accueil'">
             <FolderOpen :size="13" /> Mes projets
           </button>
           <button class="db-tab" :class="{ active: dashTab === 'frise' }" @click="dashTab = 'frise'">
@@ -1052,7 +1085,7 @@ function onMilestoneClick(ms: FriseMilestone) {
         </div>
 
         <!-- Tab Projets étudiant -->
-        <div v-if="dashTab === 'projets'" class="db-tab-content">
+        <div v-if="dashTab === 'accueil'" class="db-tab-content">
           <div v-if="!studentProjectCards.length" class="db-empty-hint">
             <FolderOpen :size="36" style="opacity:.2;margin-bottom:10px" />
             <p>Aucun projet pour l'instant.</p>
@@ -1235,7 +1268,26 @@ function onMilestoneClick(ms: FriseMilestone) {
 }
 .db-week-date { font-size: 11px; color: var(--text-muted); }
 
-/* ── Onglet Gestion ── */
+/* ── Onglet Promotions ── */
+.promo-list { display: flex; flex-direction: column; gap: 8px; }
+.promo-list-card {
+  background: rgba(255,255,255,.02); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px;
+  transition: border-color var(--t-fast);
+}
+.promo-list-card.promo-active { border-color: var(--accent); background: rgba(74,144,217,.04); }
+.promo-list-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.promo-list-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.promo-list-name { font-size: 15px; font-weight: 700; color: var(--text-primary); flex: 1; }
+.promo-list-active-tag {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 10px;
+  background: rgba(74,144,217,.15); color: var(--accent);
+}
+.promo-list-stats { font-size: 12px; color: var(--text-muted); display: flex; gap: 12px; margin-bottom: 8px; }
+.promo-list-actions { display: flex; gap: 6px; }
+
+/* ── Onglet Réglages (ex-Gestion) ── */
 .gestion-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 12px;
