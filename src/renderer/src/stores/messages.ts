@@ -182,21 +182,68 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   // ── Réactions ──────────────────────────────────────────────────────────────
+  // Réactions enrichies : { type: { count, users[] } }
+  type ReactionData = Record<string, { count: number; users: string[] }>
+  const reactionsData = reactive<Record<number, ReactionData>>({})
+
   function initReactions(msgId: number, dbJson: string | null) {
     if (reactions[msgId]) return
     const base: Record<string, number> = { check: 0, thumb: 0, fire: 0, heart: 0, think: 0, eyes: 0 }
-    if (dbJson) { try { Object.assign(base, JSON.parse(dbJson)) } catch { /* invalid JSON */ } }
+    const enriched: ReactionData = {}
+    if (dbJson) {
+      try {
+        const parsed = JSON.parse(dbJson)
+        for (const [k, v] of Object.entries(parsed)) {
+          if (typeof v === 'object' && v !== null && 'count' in v) {
+            // Nouveau format { count, users }
+            const obj = v as { count: number; users: string[] }
+            base[k] = obj.count
+            enriched[k] = obj
+          } else {
+            // Ancien format (juste un nombre)
+            base[k] = v as number
+            enriched[k] = { count: v as number, users: [] }
+          }
+        }
+      } catch { /* invalid JSON */ }
+    }
     reactions[msgId] = base
+    reactionsData[msgId] = enriched
     if (!userVotes[msgId]) userVotes[msgId] = new Set()
+  }
+
+  function getReactionUsers(msgId: number, type: string): string[] {
+    return reactionsData[msgId]?.[type]?.users ?? []
   }
 
   function toggleReaction(msgId: number, type: string) {
     const r    = reactions[msgId]
     const mine = userVotes[msgId]
     if (!r || !mine) return
-    if (mine.has(type)) { mine.delete(type); r[type] = Math.max(0, (r[type] ?? 1) - 1) }
-    else                { mine.add(type);    r[type] = (r[type] ?? 0) + 1 }
-    window.api.updateReactions(msgId, JSON.stringify(r))
+    const userName = appStore.currentUser?.name ?? ''
+    if (!reactionsData[msgId]) reactionsData[msgId] = {}
+    if (!reactionsData[msgId][type]) reactionsData[msgId][type] = { count: 0, users: [] }
+
+    if (mine.has(type)) {
+      mine.delete(type)
+      r[type] = Math.max(0, (r[type] ?? 1) - 1)
+      reactionsData[msgId][type].count = r[type]
+      reactionsData[msgId][type].users = reactionsData[msgId][type].users.filter(n => n !== userName)
+    } else {
+      mine.add(type)
+      r[type] = (r[type] ?? 0) + 1
+      reactionsData[msgId][type].count = r[type]
+      if (!reactionsData[msgId][type].users.includes(userName)) {
+        reactionsData[msgId][type].users.push(userName)
+      }
+    }
+
+    // Sauvegarder en format enrichi
+    const toSave: Record<string, { count: number; users: string[] }> = {}
+    for (const [k, v] of Object.entries(r)) {
+      if (v > 0) toSave[k] = reactionsData[msgId][k] ?? { count: v, users: [] }
+    }
+    window.api.updateReactions(msgId, JSON.stringify(toSave))
   }
 
   async function deleteMessage(id: number) {
@@ -233,7 +280,7 @@ export const useMessagesStore = defineStore('messages', () => {
     typingText, setTyping, stopTyping, initTypingListener,
     isGrouped, fetchMessages, loadOlderMessages, fetchPinned,
     sendMessage, togglePin,
-    initReactions, toggleReaction, clearSearch,
+    initReactions, toggleReaction, getReactionUsers, clearSearch,
     deleteMessage, editMessage,
   }
 })

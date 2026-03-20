@@ -19,6 +19,13 @@ export function formatDateSeparator(isoStr: string): string {
 
   if (d.toDateString() === today.toDateString())     return "Aujourd'hui"
   if (d.toDateString() === yesterday.toDateString()) return 'Hier'
+
+  // < 7 jours → nom du jour (Lundi, Mardi, ...)
+  const diffDays = Math.floor((today.getTime() - d.getTime()) / (24 * 3600 * 1000))
+  if (diffDays < 7) {
+    return d.toLocaleDateString('fr-FR', { weekday: 'long' }).replace(/^\w/, c => c.toUpperCase())
+  }
+
   return d.toLocaleDateString('fr-FR', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })

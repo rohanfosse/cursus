@@ -49,6 +49,7 @@ export interface Channel {
   name: string
   promo_id: number
   type: 'chat' | 'annonce'
+  description?: string | null
   is_private: boolean | 0 | 1
   members?: number[]
   category?: string | null

@@ -137,12 +137,16 @@ export const useAppStore = defineStore('app', () => {
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
-  function openChannel(id: number, promoId: number, name: string, type: 'chat' | 'annonce' = 'chat') {
+  const activeChannelDescription = ref<string>('')
+
+  function openChannel(id: number, promoId: number, name: string, type: 'chat' | 'annonce' = 'chat', description?: string) {
     activeChannelId.value   = id
     activeDmStudentId.value = null
+    activeDmPeerId.value    = null
     activePromoId.value     = promoId
     activeChannelType.value = type
     activeChannelName.value = name
+    activeChannelDescription.value = description || ''
     markRead(id)
   }
 
@@ -339,7 +343,7 @@ export const useAppStore = defineStore('app', () => {
   return {
     // état
     isOnline, socketConnected, currentUser, activeChannelId, activeDmStudentId, activeDmPeerId, activePromoId,
-    activeChannelType, activeChannelName, activeProject, pendingChannelCategory, rightPanel, currentTravailId,
+    activeChannelType, activeChannelName, activeChannelDescription, activeProject, pendingChannelCategory, rightPanel, currentTravailId,
     pendingNoteDepotId, rubricDepotId, unread, mentionChannels, unreadDms, notificationHistory, taChannelIds,
     // calculs
     isStudent, isTeacher, isStaff, isSimulating, isReadonly,

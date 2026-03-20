@@ -2,12 +2,13 @@
 import { ref, computed, nextTick } from 'vue'
 import {
   Pin, PinOff, MoreHorizontal, Copy, Trash2, Check, Pencil,
-  SmilePlus, Bookmark, BookmarkCheck, Reply, AlertTriangle, Flame,
+  SmilePlus, Bookmark, BookmarkCheck, Reply, AlertTriangle, Flame, Download, X,
 } from 'lucide-vue-next'
 import { useRouter }        from 'vue-router'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
 import Avatar       from '@/components/ui/Avatar.vue'
+import EmojiPicker  from '@/components/ui/EmojiPicker.vue'
 import ContextMenu  from '@/components/ui/ContextMenu.vue'
 import type { ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 import { avatarColor }          from '@/utils/format'
@@ -50,6 +51,7 @@ async function openDmWithAuthor() {
 }
 
 // ── State
+const lightboxUrl      = ref<string | null>(null)
 const showMenu         = ref(false)
 const showPicker       = ref(false)
 const editing          = ref(false)
@@ -135,6 +137,11 @@ const QUICK_REACTS = REACT_TYPES.slice(0, 4)
 function quickReact(type: string) { messagesStore.toggleReaction(props.msg.id, type) }
 function pickReact(type: string) {
   messagesStore.toggleReaction(props.msg.id, type)
+  showPicker.value = false
+}
+function pickEmojiReact(emoji: string) {
+  // Utilise l'emoji directement comme clé de réaction
+  messagesStore.toggleReaction(props.msg.id, emoji)
   showPicker.value = false
 }
 
@@ -284,7 +291,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
 
         <!-- Prévisualisation image inline -->
         <div v-if="imagePreviewUrl" class="msg-img-preview">
-          <img :src="imagePreviewUrl" alt="Aperçu" loading="lazy" @click="openExternal(imagePreviewUrl!)" />
+          <img :src="imagePreviewUrl" alt="Aperçu" loading="lazy" @click="lightboxUrl = imagePreviewUrl!" />
         </div>
       </template>
 
@@ -323,6 +330,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
           class="msg-reaction-pill"
           :class="{ mine: r.isMine }"
           :aria-label="`Réagir ${r.emoji}`"
+          :title="messagesStore.getReactionUsers(msg.id, r.type).join(', ') || undefined"
           @click="messagesStore.toggleReaction(msg.id, r.type)"
         >
           <span class="reaction-emoji">{{ r.emoji }}</span>
@@ -352,7 +360,7 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
       >{{ r.emoji }}</button>
 
       <!-- Picker complet -->
-      <div class="pill-picker-wrap" @mouseleave="showPicker = false">
+      <div class="pill-picker-wrap">
         <button
           class="pill-btn"
           title="Ajouter une réaction"
@@ -361,15 +369,8 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
         >
           <SmilePlus :size="15" />
         </button>
-        <div v-if="showPicker" class="full-picker">
-          <button
-            v-for="r in REACT_TYPES"
-            :key="r.type"
-            class="full-picker-btn"
-            :title="r.emoji"
-            :aria-label="`Réagir avec ${r.emoji}`"
-            @click.stop="pickReact(r.type)"
-          >{{ r.emoji }}</button>
+        <div v-if="showPicker" class="full-picker-pos" @click.stop>
+          <EmojiPicker @pick="pickEmojiReact" />
         </div>
       </div>
 
@@ -441,6 +442,26 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
     />
 
   </div>
+
+  <!-- Lightbox image plein écran -->
+  <Teleport to="body">
+    <Transition name="lightbox-fade">
+      <div v-if="lightboxUrl" class="lightbox-overlay" @click.self="lightboxUrl = null">
+        <div class="lightbox-toolbar">
+          <a :href="lightboxUrl" download class="lightbox-btn" title="Télécharger" @click.stop>
+            <Download :size="18" />
+          </a>
+          <button class="lightbox-btn" title="Ouvrir dans le navigateur" @click.stop="openExternal(lightboxUrl!)">
+            <Flame :size="18" />
+          </button>
+          <button class="lightbox-btn" title="Fermer" @click="lightboxUrl = null">
+            <X :size="18" />
+          </button>
+        </div>
+        <img :src="lightboxUrl" class="lightbox-img" alt="Image agrandie" />
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -674,35 +695,12 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
 
 /* Picker complet */
 .pill-picker-wrap { position: relative; }
-.full-picker {
+.full-picker-pos {
   position: absolute;
   bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 3px;
-  padding: 6px 8px;
-  background: var(--bg-modal);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 6px 24px rgba(0,0,0,.4);
+  right: 0;
   z-index: 40;
-  white-space: nowrap;
 }
-.full-picker-btn {
-  font-size: 18px;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background .1s, transform .1s;
-}
-.full-picker-btn:hover { background: rgba(255,255,255,.1); transform: scale(1.2); }
 
 /* Menu ··· */
 .pill-menu-wrap { position: relative; }
@@ -889,4 +887,32 @@ function closeAll() { showMenu.value = false; showPicker.value = false; confirmi
   color: var(--color-warning) !important;
 }
 .pill-bookmarked:hover { background: rgba(232,137,26,.12) !important; }
+
+/* ── Lightbox ── */
+.lightbox-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,.85); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  cursor: zoom-out;
+}
+.lightbox-img {
+  max-width: 90vw; max-height: 85vh; object-fit: contain;
+  border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,.5);
+  cursor: default;
+}
+.lightbox-toolbar {
+  position: absolute; top: 16px; right: 16px;
+  display: flex; gap: 8px; z-index: 1;
+}
+.lightbox-btn {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: rgba(255,255,255,.12); border: none;
+  color: #fff; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  transition: background .15s; text-decoration: none;
+}
+.lightbox-btn:hover { background: rgba(255,255,255,.25); }
+.lightbox-fade-enter-active { transition: opacity .2s; }
+.lightbox-fade-leave-active { transition: opacity .15s; }
+.lightbox-fade-enter-from, .lightbox-fade-leave-to { opacity: 0; }
 </style>

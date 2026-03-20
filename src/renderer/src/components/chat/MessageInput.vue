@@ -354,7 +354,11 @@ async function attachFile() {
       return
     }
     const url = uploadRes.data as string
-    content.value += content.value ? `\n${url}` : url
+    // Formater en markdown : images → ![](url), fichiers → [nom](url)
+    const fileName = (res.data as string).split(/[\\/]/).pop() || 'fichier'
+    const isImage = /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(fileName)
+    const md = isImage ? `![${fileName}](${url})` : `[📎 ${fileName}](${url})`
+    content.value += content.value ? `\n${md}` : md
     nextTick(() => { autoResize(); inputEl.value?.focus() })
   } finally {
     attaching.value = false
@@ -362,12 +366,22 @@ async function attachFile() {
 }
 
 // ── Envoi ──────────────────────────────────────────────────────────────────
+const everyoneWarning = ref(false)
+
 async function send() {
   if (!content.value.trim() || sending.value || appStore.isReadonly) return
   if (!appStore.isOnline) {
     showToast('Hors-ligne — message non envoyé.', 'error')
     return
   }
+
+  // Confirmation @everyone
+  if (/@everyone\b/i.test(content.value) && !everyoneWarning.value) {
+    everyoneWarning.value = true
+    return
+  }
+  everyoneWarning.value = false
+
   mentionActive.value = false
   sending.value = true
   try {
@@ -379,6 +393,12 @@ async function send() {
     sending.value = false
     inputEl.value?.focus()
   }
+}
+
+function cancelEveryone() {
+  everyoneWarning.value = false
+  // Retirer @everyone du message
+  content.value = content.value.replace(/@everyone\b/gi, '').trim()
 }
 
 function scrollMentionIntoView() {
@@ -491,6 +511,17 @@ watch(
           <button class="btn-icon mi-quote-close" aria-label="Annuler la citation" @click="messagesStore.clearQuote()">
             <XIcon :size="13" />
           </button>
+        </div>
+      </Transition>
+
+      <!-- Avertissement @everyone -->
+      <Transition name="mention-pop">
+        <div v-if="everyoneWarning" class="mi-everyone-warn">
+          <span>Ce message mentionne <strong>@everyone</strong> et notifiera tous les membres du canal.</span>
+          <div class="mi-everyone-actions">
+            <button class="mi-everyone-btn mi-everyone-cancel" @click="cancelEveryone">Retirer</button>
+            <button class="mi-everyone-btn mi-everyone-confirm" @click="send">Envoyer quand même</button>
+          </div>
         </div>
       </Transition>
 
@@ -786,6 +817,23 @@ watch(
 .quote-slide-leave-to     { opacity: 0; transform: translateY(-4px); max-height: 0; }
 
 /* ── Popup autocomplete mention ── */
+/* ── Avertissement @everyone ── */
+.mi-everyone-warn {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 14px; margin-bottom: 6px;
+  background: rgba(243,156,18,.1); border: 1px solid rgba(243,156,18,.25);
+  border-radius: var(--radius-sm); font-size: 12.5px; color: var(--color-warning);
+}
+.mi-everyone-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.mi-everyone-btn {
+  padding: 4px 12px; border: none; border-radius: 6px; font-size: 12px;
+  font-weight: 600; cursor: pointer; font-family: var(--font);
+}
+.mi-everyone-cancel { background: rgba(255,255,255,.08); color: var(--text-secondary); }
+.mi-everyone-cancel:hover { background: rgba(255,255,255,.12); }
+.mi-everyone-confirm { background: var(--color-warning); color: #fff; }
+.mi-everyone-confirm:hover { filter: brightness(1.1); }
+
 .message-input-wrapper { position: relative; }
 
 .mi-mention-popup {

@@ -196,6 +196,8 @@
         >
           Annonce
         </span>
+        <span v-if="appStore.activeChannelDescription" class="channel-desc-separator">&mdash;</span>
+        <span v-if="appStore.activeChannelDescription" class="channel-description">{{ appStore.activeChannelDescription }}</span>
       </div>
 
       <!-- Barre de recherche -->

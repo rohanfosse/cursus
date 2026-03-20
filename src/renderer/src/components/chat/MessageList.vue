@@ -29,6 +29,15 @@ function onScroll() {
 
 function scrollToBottom() {
   if (!listEl.value) return
+  // S'il y a des non-lus, scroller vers le premier non-lu
+  if (store.firstUnreadId) {
+    const marker = listEl.value.querySelector('.unread-divider')
+    if (marker) {
+      marker.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      unreadBelowCount.value = 0
+      return
+    }
+  }
   listEl.value.scrollTop = listEl.value.scrollHeight
   unreadBelowCount.value = 0
 }
@@ -160,6 +169,10 @@ const dateGroups = computed<DateGroup[]>(() => {
               <span /><span /><span />
             </span>
           </div>
+          <div v-else-if="!store.hasMore && store.messages.length > 0" class="conversation-start">
+            <span class="conversation-start-icon">💬</span>
+            <span class="conversation-start-text">Début de la conversation</span>
+          </div>
         </div>
 
         <!-- Messages groupés par date -->
@@ -225,7 +238,15 @@ const dateGroups = computed<DateGroup[]>(() => {
 }
 
 /* ── Sentinelle ── */
-.scroll-sentinel { height: 1px; flex-shrink: 0; }
+.scroll-sentinel { min-height: 1px; flex-shrink: 0; }
+
+/* ── Début de conversation ── */
+.conversation-start {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 24px 20px 12px; color: var(--text-muted); user-select: none;
+}
+.conversation-start-icon { font-size: 28px; opacity: .6; }
+.conversation-start-text { font-size: 12px; font-weight: 600; letter-spacing: .3px; }
 
 /* ── Indicateur chargement anciens messages ── */
 .load-more-indicator { display: flex; justify-content: center; padding: 8px 0 4px; }

@@ -355,7 +355,7 @@
 
   // ── Interactions ──────────────────────────────────────────────────────────
   function selectChannel(ch: Channel) {
-    appStore.openChannel(ch.id, ch.promo_id, ch.name, ch.type)
+    appStore.openChannel(ch.id, ch.promo_id, ch.name, ch.type, ch.description ?? '')
     // Naviguer vers la section active pour que la vue charge le bon contenu
     if (route.name !== 'messages') {
       router.push(`/${route.name as string}`)
