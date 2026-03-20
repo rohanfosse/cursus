@@ -4,7 +4,8 @@
     LogOut, Settings, User, Info, Camera, X, RotateCcw, KeyRound,
     Download, Palette, Monitor, Moon, Sunset, Waves, Sparkles, Globe, Lock,
     FileText, ChevronRight, Github, Heart, Shield, Mail, BookOpen,
-    ExternalLink, Type, BellRing, Maximize2,
+    ExternalLink, Type, BellRing, Maximize2, Sun, MessageSquare,
+    Volume2, Clock, MousePointer,
   } from 'lucide-vue-next'
   import ChangePasswordModal from '@/components/modals/ChangePasswordModal.vue'
   import { useAppStore } from '@/stores/app'
@@ -19,7 +20,7 @@
   const props = defineProps<{ modelValue: boolean }>()
   const emit  = defineEmits<{ 'update:modelValue': [v: boolean] }>()
 
-  type Section = 'general' | 'compte' | 'apropos'
+  type Section = 'apparence' | 'preferences' | 'compte' | 'apropos'
 
   const appStore = useAppStore()
   const router   = useRouter()
@@ -27,7 +28,7 @@
   const { showToast }        = useToast()
   const { confirm: confirmAction } = useConfirm()
 
-  const activeSection  = ref<Section>('general')
+  const activeSection  = ref<Section>('apparence')
   const docsDefault    = ref(getPref('docsOpenByDefault'))
   const currentTheme   = ref(getPref('theme') ?? 'dark')
   const fontSize       = ref(getPref('fontSize') ?? 'default')
@@ -40,7 +41,7 @@
   type ThemeId = 'dark' | 'light' | 'night' | 'marine' | 'cursus'
   const THEMES: { id: ThemeId; label: string; icon: typeof Moon; colors: string[]; accent: string }[] = [
     { id: 'dark',   label: 'Sombre',  icon: Monitor,  colors: ['#1a1d21', '#1d2128', '#222529'], accent: '#4A90D9' },
-    { id: 'light',  label: 'Clair',   icon: Sunset,   colors: ['#E8EAED', '#F0F2F5', '#FFFFFF'], accent: '#4A90D9' },
+    { id: 'light',  label: 'Crème',   icon: Sun,      colors: ['#f0ebe3', '#f5f0e8', '#faf8f4'], accent: '#c27c2c' },
     { id: 'night',  label: 'Nuit',    icon: Moon,     colors: ['#08090c', '#0b0d11', '#0f1115'], accent: '#7B8CDE' },
     { id: 'marine', label: 'Marine',  icon: Waves,    colors: ['#0e1829', '#132036', '#192840'], accent: '#5B9BD5' },
     { id: 'cursus', label: 'Cursus',  icon: Sparkles, colors: ['#eef2f7', '#f4f6f9', '#f9fafb'], accent: '#3b82f6' },
@@ -53,7 +54,7 @@
 
   watch(() => props.modelValue, (open) => {
     if (open) {
-      activeSection.value = 'general'
+      activeSection.value = 'apparence'
       currentTheme.value  = getPref('theme') ?? 'dark'
       pendingPhoto.value  = appStore.currentUser?.photo_data ?? null
       photoChanged.value  = false
@@ -181,10 +182,20 @@
     }
   }
 
+  // ── Nouvelles prefs ──────────────────────────────────────────────────────
+  const enterToSend    = ref(getPref('enterToSend') ?? true)
+  const showTimestamps = ref(getPref('showTimestamps') ?? true)
+  const compactImages  = ref(getPref('compactImages') ?? false)
+
+  watch(enterToSend,    (v) => setPref('enterToSend', v))
+  watch(showTimestamps, (v) => setPref('showTimestamps', v))
+  watch(compactImages,  (v) => setPref('compactImages', v))
+
   const navItems: { key: Section; label: string; icon: typeof Settings }[] = [
-    { key: 'general', label: 'Général',    icon: Settings },
-    { key: 'compte',  label: 'Mon compte', icon: User },
-    { key: 'apropos', label: 'À propos',   icon: Info },
+    { key: 'apparence',   label: 'Apparence',   icon: Palette },
+    { key: 'preferences', label: 'Préférences', icon: Settings },
+    { key: 'compte',      label: 'Mon compte',  icon: User },
+    { key: 'apropos',     label: 'À propos',    icon: Info },
   ]
 </script>
 
@@ -228,11 +239,11 @@
       <!-- ── Contenu ── -->
       <div class="stg-body">
 
-        <!-- ════ Général ════ -->
-        <section v-if="activeSection === 'general'" class="stg-section">
+        <!-- ════ Apparence ════ -->
+        <section v-if="activeSection === 'apparence'" class="stg-section">
           <div class="stg-section-header">
-            <Settings :size="18" />
-            <h3 class="stg-section-title">Général</h3>
+            <Palette :size="18" />
+            <h3 class="stg-section-title">Apparence</h3>
           </div>
 
           <!-- Thèmes -->
@@ -303,6 +314,40 @@
             </div>
           </div>
 
+          <!-- Affichage des messages -->
+          <div class="stg-group">
+            <div class="stg-group-header">
+              <MessageSquare :size="13" class="stg-group-icon" />
+              <h4 class="stg-group-title">Messages</h4>
+            </div>
+            <label class="stg-toggle-row">
+              <div class="stg-toggle-info">
+                <span class="stg-toggle-label">Afficher les horodatages</span>
+                <span class="stg-toggle-desc">Montrer l'heure d'envoi sur chaque message.</span>
+              </div>
+              <div class="stg-switch" :class="{ on: showTimestamps }" @click="showTimestamps = !showTimestamps">
+                <div class="stg-switch-thumb" />
+              </div>
+            </label>
+            <label class="stg-toggle-row">
+              <div class="stg-toggle-info">
+                <span class="stg-toggle-label">Images compactes</span>
+                <span class="stg-toggle-desc">Réduire la taille des aperçus d'images dans les messages.</span>
+              </div>
+              <div class="stg-switch" :class="{ on: compactImages }" @click="compactImages = !compactImages">
+                <div class="stg-switch-thumb" />
+              </div>
+            </label>
+          </div>
+        </section>
+
+        <!-- ════ Préférences ════ -->
+        <section v-else-if="activeSection === 'preferences'" class="stg-section">
+          <div class="stg-section-header">
+            <Settings :size="18" />
+            <h3 class="stg-section-title">Préférences</h3>
+          </div>
+
           <!-- Notifications -->
           <div class="stg-group">
             <div class="stg-group-header">
@@ -324,6 +369,23 @@
                 <span class="stg-toggle-desc">Jouer un son lors de la réception d'un message.</span>
               </div>
               <div class="stg-switch" :class="{ on: notifSound }" @click="notifSound = !notifSound">
+                <div class="stg-switch-thumb" />
+              </div>
+            </label>
+          </div>
+
+          <!-- Saisie -->
+          <div class="stg-group">
+            <div class="stg-group-header">
+              <MousePointer :size="13" class="stg-group-icon" />
+              <h4 class="stg-group-title">Saisie</h4>
+            </div>
+            <label class="stg-toggle-row">
+              <div class="stg-toggle-info">
+                <span class="stg-toggle-label">Entrée pour envoyer</span>
+                <span class="stg-toggle-desc">Appuyer sur Entrée envoie le message. Désactivé : Ctrl+Entrée pour envoyer.</span>
+              </div>
+              <div class="stg-switch" :class="{ on: enterToSend }" @click="enterToSend = !enterToSend">
                 <div class="stg-switch-thumb" />
               </div>
             </label>

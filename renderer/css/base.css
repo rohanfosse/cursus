@@ -85,39 +85,51 @@
 }
 
 /* ════════════════════════════════════════════
-   THÈME CLAIR  (body.light)
+   THÈME CRÈME / SÉPIA  (body.light)
 ════════════════════════════════════════════ */
 body.light {
-  /* Fonds — tons Apple-like */
-  --bg-rail:    #F5F5F7;
-  --bg-sidebar: #F9F9FB;
-  --bg-main:    #FFFFFF;
-  --bg-input:   #F2F2F4;
-  --bg-hover:   rgba(0,0,0,.04);
-  --bg-active:  rgba(0,0,0,.08);
-  --bg-modal:   #FFFFFF;
-  --bg-elevated: #FFFFFF;
+  /* Fonds — tons chauds crème/sépia */
+  --bg-rail:    #f0ebe3;
+  --bg-sidebar: #f5f0e8;
+  --bg-main:    #faf8f4;
+  --bg-input:   #eee9e0;
+  --bg-hover:   rgba(120,80,40,.06);
+  --bg-active:  rgba(160,100,40,.12);
+  --bg-modal:   #faf8f4;
+  --bg-elevated: #faf8f4;
 
   /* Alias legacy */
-  --bg-darkest: #E5E5E7;
-  --bg-dark:    #F9F9FB;
-  --bg-medium:  #FFFFFF;
-  --bg-light:   #F5F5F7;
-  --bg-primary: #E5E5E7;
+  --bg-darkest: #e2dbd0;
+  --bg-dark:    #f5f0e8;
+  --bg-medium:  #faf8f4;
+  --bg-light:   #f0ebe3;
+  --bg-primary: #e2dbd0;
 
   /* Texte */
-  --text-primary:   #1D1D1F;
-  --text-secondary: #6E6E73;
-  --text-muted:     #AEAEB2;
+  --text-primary:   #2c2418;
+  --text-secondary: #7a6e5e;
+  --text-muted:     #b0a594;
+
+  /* Accent — ambre/doré */
+  --accent:        #c27c2c;
+  --accent-hover:  #d4892f;
+  --accent-dark:   #a06420;
+  --accent-light:  #e8a84c;
+  --accent-subtle: rgba(194,124,44,.12);
 
   /* Bordures */
-  --border:       rgba(0,0,0,.08);
-  --border-input: rgba(0,0,0,.12);
+  --border:       rgba(100,70,30,.1);
+  --border-input: rgba(100,70,30,.16);
 
-  /* Ombres — subtiles */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
-  --shadow-md: 0 4px 12px rgba(0,0,0,.08);
-  --shadow-lg: 0 8px 30px rgba(0,0,0,.12);
+  /* Ombres — chaudes */
+  --shadow-sm: 0 1px 2px rgba(80,50,10,.06);
+  --shadow-md: 0 4px 12px rgba(80,50,10,.1);
+  --shadow-lg: 0 8px 30px rgba(80,50,10,.14);
+
+  /* Sémantique */
+  --color-danger:  #c0392b;
+  --color-warning: #d4850a;
+  --color-success: #27ae60;
 
   /* Deadlines */
   --deadline-ok-bg:     rgba(39, 174, 96, .14);

@@ -9,6 +9,9 @@ interface Prefs {
   density: 'compact' | 'default' | 'cozy'
   notifSound: boolean
   notifDesktop: boolean
+  enterToSend: boolean
+  showTimestamps: boolean
+  compactImages: boolean
 }
 
 const DEFAULTS: Prefs = {
@@ -18,6 +21,9 @@ const DEFAULTS: Prefs = {
   density: 'default',
   notifSound: true,
   notifDesktop: true,
+  enterToSend: true,
+  showTimestamps: true,
+  compactImages: false,
 }
 
 function loadPrefs(): Prefs {
