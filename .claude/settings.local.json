@@ -13,7 +13,8 @@
       "Bash(expect -v)",
       "Bash(python3 -c \"import paramiko; print\\(''paramiko ok''\\)\")",
       "Bash(pip install:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(npm ls:*)"
     ]
   }
 }
