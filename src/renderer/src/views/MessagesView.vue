@@ -6,6 +6,7 @@
   import { useTravauxStore }  from '@/stores/travaux'
   import { useModalsStore }   from '@/stores/modals'
   import { useToast }         from '@/composables/useToast'
+  import { useApi }           from '@/composables/useApi'
   import MessageList         from '@/components/chat/MessageList.vue'
   import MessageInput        from '@/components/chat/MessageInput.vue'
   import PinnedBanner        from '@/components/chat/PinnedBanner.vue'
@@ -20,6 +21,7 @@
   const travauxStore  = useTravauxStore()
   const modals        = useModalsStore()
   const { showToast } = useToast()
+  const { api }       = useApi()
 
   const searchInput      = ref('')
   const bannerDismissed  = ref(false)
@@ -80,19 +82,20 @@
     if (!pendingDoc.value || !appStore.activeChannelId) return
     docAdding.value = true
     try {
-      const res = await window.api.addChannelDocument({
-        channelId:  appStore.activeChannelId,
-        type:       'file',
-        name:       docAddName.value.trim() || pendingDoc.value.name,
-        pathOrUrl:  pendingDoc.value.path,
-        category:   docAddCat.value.trim() || 'Général',
-        description: null,
-      })
-      if (res?.ok) {
+      const result = await api(
+        () => window.api.addChannelDocument({
+          channelId:  appStore.activeChannelId,
+          type:       'file',
+          name:       docAddName.value.trim() || pendingDoc.value!.name,
+          pathOrUrl:  pendingDoc.value!.path,
+          category:   docAddCat.value.trim() || 'Général',
+          description: null,
+        }),
+        'upload',
+      )
+      if (result !== null) {
         showToast(`"${docAddName.value || pendingDoc.value.name}" ajouté aux documents.`, 'success')
         pendingDoc.value = null
-      } else {
-        showToast('Erreur lors de l\'ajout du document.', 'error')
       }
     } finally {
       docAdding.value = false

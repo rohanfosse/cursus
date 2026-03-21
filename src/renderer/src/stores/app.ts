@@ -2,11 +2,13 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { User } from '@/types'
 import { useToast } from '@/composables/useToast'
+import { useApi } from '@/composables/useApi'
 
 const SESSION_KEY = 'cc_session'
 
 export const useAppStore = defineStore('app', () => {
   const { showToast } = useToast()
+  const { api } = useApi()
 
   // ── État ──────────────────────────────────────────────────────────────────
   const isOnline          = ref<boolean>(navigator.onLine)
@@ -107,8 +109,7 @@ export const useAppStore = defineStore('app', () => {
 
   async function loadTaChannels(): Promise<void> {
     if (currentUser.value?.type !== 'ta') { taChannelIds.value = []; return }
-    const res = await window.api.getTeacherChannels(currentUser.value.id)
-    taChannelIds.value = res?.ok ? res.data : []
+    taChannelIds.value = await api<number[]>(() => window.api.getTeacherChannels(currentUser.value!.id)) ?? []
   }
 
   function login(user: User): void {
@@ -452,22 +453,6 @@ export const useAppStore = defineStore('app', () => {
     })
   }
 
-  // ── API helper ────────────────────────────────────────────────────────────
-  async function api<T>(
-    call: () => Promise<{ ok: boolean; data: T; error?: string }>,
-    errorMsg?: string,
-  ): Promise<T | null> {
-    try {
-      const res = await call()
-      if (!res.ok) { showToast(res.error ?? errorMsg ?? 'Erreur serveur'); return null }
-      return res.data
-    } catch (e) {
-      showToast(errorMsg ?? 'Erreur réseau')
-      console.error(e)
-      return null
-    }
-  }
-
   return {
     // état
     isOnline, socketConnected, currentUser, activeChannelId, activeDmStudentId, activeDmPeerId, activePromoId,
@@ -483,6 +468,5 @@ export const useAppStore = defineStore('app', () => {
     onlineUsers, isUserOnline, sessionExpiredMessage,
     initUnreadListener, initOnlineListener, initSocketListener, initPresenceListener, initAuthExpiredListener,
     onDmRefresh, offDmRefresh,
-    api,
   }
 })

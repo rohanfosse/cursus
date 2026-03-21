@@ -1,6 +1,7 @@
 // ─── IPC : Structure (promotions, canaux, étudiants) ─────────────────────────
 const { handle } = require('./helpers')
 const queries = require('../../db/index')
+const { validated, createChannelPayload, createPromotionPayload, registerStudentPayload } = require('./validation')
 
 function register() {
   handle('db:getPromotions',    ()           => queries.getPromotions())
@@ -9,9 +10,9 @@ function register() {
   handle('db:getAllStudents',    ()           => queries.getAllStudents())
 
   // ── Promotions & canaux ─────────────────────────────────────────────────
-  handle('db:createPromotion',          (payload)            => queries.createPromotion(payload))
+  handle('db:createPromotion',          validated(createPromotionPayload, (payload) => queries.createPromotion(payload)))
   handle('db:deletePromotion',          (promoId)            => queries.deletePromotion(promoId))
-  handle('db:createChannel',            (payload)            => queries.createChannel(payload))
+  handle('db:createChannel',            validated(createChannelPayload, (payload) => queries.createChannel(payload)))
   handle('db:renameChannel',            (id, name)           => queries.renameChannel(id, name))
   handle('db:deleteChannel',            (id)                 => queries.deleteChannel(id))
   handle('db:renameCategory',           (promoId, old, next) => queries.renameCategory(promoId, old, next))
@@ -27,7 +28,7 @@ function register() {
 
   // ── Inscription étudiant ────────────────────────────────────────────────
   handle('db:getStudentByEmail', (email)   => queries.getStudentByEmail(email))
-  handle('db:registerStudent',   (payload) => queries.registerStudent(payload))
+  handle('db:registerStudent',   validated(registerStudentPayload, (payload) => queries.registerStudent(payload)))
 
   // ── Réinitialisation des données ────────────────────────────────────────
   handle('db:resetAndSeed', () => { queries.resetAndSeed(); return null })

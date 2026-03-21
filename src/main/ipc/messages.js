@@ -2,6 +2,7 @@
 const { ipcMain, BrowserWindow } = require('electron')
 const { handle } = require('./helpers')
 const queries = require('../../db/index')
+const { sendMessagePayload } = require('./validation')
 
 function register() {
   // ── Lecture ──────────────────────────────────────────────────────────────
@@ -15,6 +16,13 @@ function register() {
   // ── Envoi — handler dédié : DB + push temps-réel ────────────────────────
   ipcMain.handle('db:sendMessage', async (_event, payload) => {
     try {
+      // Validation du payload
+      const parsed = sendMessagePayload.safeParse(payload)
+      if (!parsed.success) {
+        const msg = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ')
+        return { ok: false, error: `Données invalides : ${msg}` }
+      }
+      payload = parsed.data
       const result = queries.sendMessage(payload)
 
       // Parsing des mentions

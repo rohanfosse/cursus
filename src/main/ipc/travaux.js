@@ -1,19 +1,20 @@
 // ─── IPC : Travaux, dépôts, groupes, rubrics ─────────────────────────────────
 const { handle } = require('./helpers')
 const queries = require('../../db/index')
+const { validated, createTravailPayload, addDepotPayload, setNotePayload, setFeedbackPayload } = require('./validation')
 
 function register() {
   // ── Travaux ─────────────────────────────────────────────────────────────
   handle('db:getTravaux',       (channelId) => queries.getTravaux(channelId))
   handle('db:getTravailById',   (travailId) => queries.getTravailById(travailId))
-  handle('db:createTravail',    (payload)   => queries.createTravail(payload))
+  handle('db:createTravail',    validated(createTravailPayload, (payload) => queries.createTravail(payload)))
   handle('db:getTravauxSuivi',  (travailId) => queries.getTravauxSuivi(travailId))
 
   // ── Dépôts ──────────────────────────────────────────────────────────────
   handle('db:getDepots',   (travailId) => queries.getDepots(travailId))
-  handle('db:addDepot',    (payload)   => queries.addDepot(payload))
-  handle('db:setNote',     (payload)   => queries.setNote(payload))
-  handle('db:setFeedback', (payload)   => queries.setFeedback(payload))
+  handle('db:addDepot',    validated(addDepotPayload, (payload) => queries.addDepot(payload)))
+  handle('db:setNote',     validated(setNotePayload, (payload) => queries.setNote(payload)))
+  handle('db:setFeedback', validated(setFeedbackPayload, (payload) => queries.setFeedback(payload)))
 
   // ── Groupes ─────────────────────────────────────────────────────────────
   handle('db:getGroups',       (promoId)  => queries.getGroups(promoId))
