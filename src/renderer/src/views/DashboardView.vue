@@ -5,6 +5,7 @@ import {
   ChevronRight, CheckCircle2, FileText, LayoutDashboard,
   Award, TrendingUp, FolderOpen, CalendarDays, BarChart2,
   PlusCircle, Menu, GraduationCap, Settings,
+  MessageSquare, Bookmark, Trash2,
 } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
@@ -16,6 +17,7 @@ import { avatarColor, gradeClass } from '@/utils/format'
 import { useToast } from '@/composables/useToast'
 import { useApi } from '@/composables/useApi'
 import { useConfirm } from '@/composables/useConfirm'
+import { STORAGE_KEYS } from '@/constants'
 import type { Component } from 'vue'
 import type { Devoir, Promotion }    from '@/types'
 
@@ -259,6 +261,78 @@ function goToProject(key: string) {
   appStore.activeProject = key
   router.push('/devoirs')
 }
+
+// ── DMs non lus — récapitulatif dashboard ────────────────────────────────────
+interface UnreadDmEntry { name: string; count: number }
+
+const unreadDmEntries = computed((): UnreadDmEntry[] => {
+  return Object.entries(appStore.unreadDms)
+    .filter(([, count]) => count > 0)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+})
+
+const totalUnreadDms = computed(() => unreadDmEntries.value.reduce((s, e) => s + e.count, 0))
+
+function openDmFromDashboard(name: string) {
+  // Chercher l'étudiant correspondant par nom
+  const student = allStudents.value.find(s => s.name === name)
+  if (student) {
+    const promoId = appStore.activePromoId ?? student.promo_id ?? 0
+    appStore.openDm(student.id, promoId, name)
+    router.push('/messages')
+  }
+}
+
+// ── Messages enregistrés (bookmarks — stockage riche localStorage) ───────────
+interface SavedMessage {
+  id: number
+  authorName: string
+  authorInitials: string
+  content: string
+  createdAt: string
+  isDm: boolean
+  channelName: string | null
+  dmStudentId: number | null
+}
+
+function getSavedMessages(): SavedMessage[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.BOOKMARKS) || '[]')
+    if (!Array.isArray(raw)) return []
+    // Compatibilité ascendante : ancien format = number[], nouveau = SavedMessage[]
+    if (raw.length > 0 && typeof raw[0] === 'number') return [] // ancien format non migratable sans API
+    return raw as SavedMessage[]
+  } catch { return [] }
+}
+
+const savedMessages = ref<SavedMessage[]>(getSavedMessages())
+
+function removeSavedMessage(msgId: number) {
+  const filtered = getSavedMessages().filter(m => m.id !== msgId)
+  localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(filtered))
+  savedMessages.value = filtered
+  showToast('Message retiré des favoris.', 'info')
+}
+
+function goToSavedMessage(msg: SavedMessage) {
+  if (msg.isDm && msg.dmStudentId) {
+    const student = allStudents.value.find(s => s.id === msg.dmStudentId)
+    if (student) {
+      appStore.openDm(student.id, appStore.activePromoId ?? student.promo_id ?? 0, msg.authorName)
+    }
+  } else if (msg.channelName) {
+    // Pour les messages de canal, naviguer vers les messages
+  }
+  router.push('/messages')
+}
+
+// Recharger quand le localStorage change (depuis MessageBubble)
+function onStorageChange(e: StorageEvent) {
+  if (e.key === STORAGE_KEYS.BOOKMARKS) savedMessages.value = getSavedMessages()
+}
+if (typeof window !== 'undefined') window.addEventListener('storage', onStorageChange)
+onUnmounted(() => window.removeEventListener('storage', onStorageChange))
 
 // ── Projets prof ─────────────────────────────────────────────────────────────
 const projectCards = computed((): ProjectCard[] => {
@@ -874,6 +948,61 @@ function onMilestoneClick(ms: FriseMilestone) {
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- DMs non lus -->
+        <div v-if="unreadDmEntries.length" class="db-unread-dms">
+          <h4 class="db-section-title"><MessageSquare :size="14" /> Messages directs non lus <span class="db-badge-count">{{ totalUnreadDms }}</span></h4>
+          <div class="db-unread-list">
+            <button
+              v-for="entry in unreadDmEntries"
+              :key="entry.name"
+              class="db-unread-item"
+              @click="openDmFromDashboard(entry.name)"
+            >
+              <div class="db-unread-avatar" :style="{ background: avatarColor(entry.name) }">
+                {{ entry.name.slice(0, 2).toUpperCase() }}
+              </div>
+              <span class="db-unread-name">{{ entry.name }}</span>
+              <span class="db-unread-badge">{{ entry.count }} non lu{{ entry.count > 1 ? 's' : '' }}</span>
+              <ChevronRight :size="12" class="db-unread-arrow" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Messages sauvegardés -->
+        <div v-if="savedMessages.length" class="db-saved-messages">
+          <h4 class="db-section-title"><Bookmark :size="14" /> Messages sauvegardés</h4>
+          <div class="db-saved-list">
+            <div
+              v-for="msg in savedMessages.slice(0, 5)"
+              :key="msg.id"
+              class="db-saved-item"
+              @click="goToSavedMessage(msg)"
+            >
+              <div class="db-saved-avatar" :style="{ background: avatarColor(msg.authorName) }">
+                {{ msg.authorInitials }}
+              </div>
+              <div class="db-saved-body">
+                <span class="db-saved-author">{{ msg.authorName }}</span>
+                <span class="db-saved-content">{{ msg.content }}</span>
+                <span class="db-saved-meta">
+                  {{ msg.isDm ? 'DM' : '#' + (msg.channelName ?? 'canal') }}
+                  · {{ new Date(msg.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) }}
+                </span>
+              </div>
+              <button
+                class="db-saved-remove"
+                title="Retirer des favoris"
+                @click.stop="removeSavedMessage(msg.id)"
+              >
+                <Trash2 :size="12" />
+              </button>
+            </div>
+          </div>
+          <span v-if="savedMessages.length > 5" class="db-saved-more">
+            +{{ savedMessages.length - 5 }} autre{{ savedMessages.length - 5 > 1 ? 's' : '' }}
+          </span>
         </div>
 
         <!-- Rappels prof (échéancier) -->
@@ -2418,6 +2547,74 @@ function onMilestoneClick(ms: FriseMilestone) {
 .db-trend-label { font-size: 9px; color: var(--text-muted); text-transform: capitalize; }
 
 /* ── Barre d'actions rapides flottante ── */
+/* ── DMs non lus ── */
+.db-unread-dms, .db-saved-messages { margin: 0; }
+.db-badge-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  background: var(--accent); color: #fff;
+  border-radius: 9px; font-size: 10.5px; font-weight: 700;
+  margin-left: 6px;
+}
+.db-unread-list, .db-saved-list { display: flex; flex-direction: column; gap: 3px; }
+.db-unread-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-elevated, rgba(255,255,255,.04));
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  cursor: pointer; transition: all .15s ease;
+  width: 100%; text-align: left;
+  font-family: var(--font);
+}
+.db-unread-item:hover { background: rgba(255,255,255,.07); }
+.db-unread-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.db-unread-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.db-unread-badge {
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  background: rgba(74,144,217,.12);
+  padding: 2px 8px; border-radius: 10px;
+}
+.db-unread-arrow { color: var(--text-muted); flex-shrink: 0; opacity: 0; transition: opacity .15s; }
+.db-unread-item:hover .db-unread-arrow { opacity: 1; }
+
+/* ── Messages sauvegardés ── */
+.db-saved-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elevated, rgba(255,255,255,.04));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer; transition: all .15s ease;
+}
+.db-saved-item:hover { background: rgba(255,255,255,.07); }
+.db-saved-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; margin-top: 2px;
+}
+.db-saved-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.db-saved-author { font-size: 12.5px; font-weight: 600; color: var(--text-primary); }
+.db-saved-content {
+  font-size: 12px; color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 400px;
+}
+.db-saved-meta { font-size: 10.5px; color: var(--text-muted); }
+.db-saved-remove {
+  background: none; border: none; color: var(--text-muted);
+  cursor: pointer; padding: 4px; border-radius: 4px;
+  opacity: 0; transition: all .15s; flex-shrink: 0; margin-top: 2px;
+}
+.db-saved-item:hover .db-saved-remove { opacity: 1; }
+.db-saved-remove:hover { color: var(--color-danger); background: rgba(231,76,60,.1); }
+.db-saved-more { font-size: 11.5px; color: var(--text-muted); padding: 4px 0; }
+
 /* ── Frise interactivité ── */
 .frise-interactive { cursor: grab; user-select: none; }
 .frise-grabbing    { cursor: grabbing; }
