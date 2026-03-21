@@ -1,3 +1,7 @@
+/**
+ * Menu contextuel, lightbox, couleur d'avatar et rendu HTML d'un message.
+ * Used by ChatBubble.vue
+ */
 import { ref, computed } from 'vue'
 import { Pin, PinOff, Copy, Trash2, Pencil, Reply, AlertTriangle } from 'lucide-vue-next'
 import { useAppStore }      from '@/stores/app'

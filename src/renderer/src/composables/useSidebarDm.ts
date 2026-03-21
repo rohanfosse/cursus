@@ -1,3 +1,7 @@
+/**
+ * Gestion des messages privés dans la sidebar : contacts récents, recherche, navigation.
+ * Used by AppSidebar.vue
+ */
 import { ref, computed, type Ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'

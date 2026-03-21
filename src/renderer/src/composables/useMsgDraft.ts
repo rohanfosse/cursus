@@ -1,3 +1,7 @@
+/**
+ * Sauvegarde et restauration des brouillons de message par canal/DM via localStorage.
+ * Used by MessageInput.vue
+ */
 import { ref, computed, watch, nextTick, type Ref } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { renderMessageContent } from '@/utils/html'

@@ -1,3 +1,7 @@
+/**
+ * Pièce jointe de message : sélection de fichier, upload, insertion de lien markdown.
+ * Used by MessageInput.vue
+ */
 import { ref, nextTick, type Ref } from 'vue'
 import { useToast } from '@/composables/useToast'
 

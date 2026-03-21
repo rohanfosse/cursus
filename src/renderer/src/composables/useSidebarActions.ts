@@ -1,3 +1,7 @@
+/**
+ * Actions sidebar : mute de canal, menu contextuel (créer, éditer, supprimer canal).
+ * Used by AppSidebar.vue
+ */
 import { ref, computed, watch, nextTick, type Ref } from 'vue'
 import { PlusCircle, Pencil, Trash2, VolumeX, Volume2 } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'

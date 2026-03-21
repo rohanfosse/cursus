@@ -1,3 +1,7 @@
+/**
+ * Gestion des réactions emoji sur les messages (toggle, picker, liste affichée).
+ * Used by ChatBubble.vue
+ */
 import { ref, computed } from 'vue'
 import { useMessagesStore } from '@/stores/messages'
 import type { Message } from '@/types'

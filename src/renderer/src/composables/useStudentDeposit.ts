@@ -1,3 +1,7 @@
+/**
+ * Dépôt de rendu étudiant : sélection fichier/lien, upload, soumission, prévisualisation rubrique.
+ * Used by DevoirsView.vue
+ */
 import { ref } from 'vue'
 import type { Devoir, Rubric } from '@/types'
 import { useAppStore } from '@/stores/app'

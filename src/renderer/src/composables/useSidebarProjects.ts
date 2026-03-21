@@ -1,3 +1,7 @@
+/**
+ * Gestion des projets dans la sidebar : groupes de canaux par catégorie, projets personnalisés.
+ * Used by AppSidebar.vue
+ */
 import { ref, computed, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'

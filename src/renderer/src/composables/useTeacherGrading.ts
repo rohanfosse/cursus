@@ -1,3 +1,7 @@
+/**
+ * Notation enseignant : édition de note et feedback sur un dépôt étudiant.
+ * Used by DevoirsView.vue
+ */
 import { ref } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'

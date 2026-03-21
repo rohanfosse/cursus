@@ -1,3 +1,7 @@
+/**
+ * Composition et envoi de message, alerte @everyone, indicateur de saisie.
+ * Used by MessageInput.vue
+ */
 import { ref, computed, type Ref } from 'vue'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'

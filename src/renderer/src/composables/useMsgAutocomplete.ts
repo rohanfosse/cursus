@@ -1,3 +1,7 @@
+/**
+ * Autocomplétion unifiée dans le champ de message : @mention, #channel, /devoir, /doc.
+ * Used by MessageInput.vue
+ */
 import { ref, computed, watch, nextTick, onMounted, type Ref } from 'vue'
 import { useAppStore } from '@/stores/app'
 

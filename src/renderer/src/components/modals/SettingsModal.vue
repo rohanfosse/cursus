@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, watch, computed } from 'vue'
+  import { ref, watch } from 'vue'
   import {
     LogOut, Settings, User, Info, Camera, X, RotateCcw, KeyRound,
     Download, Palette, Monitor, Moon, Sunset, Waves, Sparkles, Globe, Lock,
@@ -9,13 +9,11 @@
   } from 'lucide-vue-next'
   import ChangePasswordModal from '@/components/modals/ChangePasswordModal.vue'
   import { useAppStore } from '@/stores/app'
-  import { useRouter }   from 'vue-router'
-  import { usePrefs }    from '@/composables/usePrefs'
-  import { useToast }    from '@/composables/useToast'
-  import { useConfirm }  from '@/composables/useConfirm'
-  import { avatarColor } from '@/utils/format'
   import Modal from '@/components/ui/Modal.vue'
   import logoUrl from '@/assets/logo.svg'
+  import { useSettingsAppearance } from '@/composables/useSettingsAppearance'
+  import { useSettingsAccount }    from '@/composables/useSettingsAccount'
+  import { useSettingsPreferences } from '@/composables/useSettingsPreferences'
 
   const props = defineProps<{ modelValue: boolean }>()
   const emit  = defineEmits<{ 'update:modelValue': [v: boolean] }>()
@@ -23,174 +21,25 @@
   type Section = 'apparence' | 'preferences' | 'compte' | 'apropos'
 
   const appStore = useAppStore()
-  const router   = useRouter()
-  const { getPref, setPref } = usePrefs()
-  const { showToast }        = useToast()
-  const { confirm: confirmAction } = useConfirm()
 
-  const activeSection  = ref<Section>('apparence')
-  const docsDefault    = ref(getPref('docsOpenByDefault'))
-  const currentTheme   = ref(getPref('theme') ?? 'dark')
-  const fontSize       = ref<string>(getPref('fontSize') ?? 'default')
-  const density        = ref<string>(getPref('density') ?? 'default')
-  const notifSound     = ref(getPref('notifSound') ?? true)
-  const notifDesktop   = ref(getPref('notifDesktop') ?? true)
-  const pendingPhoto   = ref<string | null>(null)
-  const photoChanged   = ref(false)
+  // ── Composables ────────────────────────────────────────────────────────────
+  const {
+    currentTheme, fontSize, density, showTimestamps, compactImages,
+    THEMES, setTheme, resetAppearance,
+  } = useSettingsAppearance()
 
-  type ThemeId = 'dark' | 'light' | 'night' | 'marine' | 'cursus'
-  const THEMES: { id: ThemeId; label: string; icon: typeof Moon; colors: string[]; accent: string }[] = [
-    { id: 'dark',   label: 'Sombre',  icon: Monitor,  colors: ['#1a1d21', '#1d2128', '#222529'], accent: '#4A90D9' },
-    { id: 'light',  label: 'Crème',   icon: Sun,      colors: ['#f0ebe3', '#f5f0e8', '#faf8f4'], accent: '#c27c2c' },
-    { id: 'night',  label: 'Nuit',    icon: Moon,     colors: ['#08090c', '#0b0d11', '#0f1115'], accent: '#7B8CDE' },
-    { id: 'marine', label: 'Marine',  icon: Waves,    colors: ['#0e1829', '#132036', '#192840'], accent: '#5B9BD5' },
-    { id: 'cursus', label: 'Cursus',  icon: Sparkles, colors: ['#eef2f7', '#f4f6f9', '#f9fafb'], accent: '#3b82f6' },
-  ]
+  const {
+    pendingPhoto, photoChanged, pickPhoto, removePhoto, savePhoto, resetPhoto,
+    avatarBg, roleLabel, roleIcon, showChangePwd, handleLogout,
+    exporting, exportData, resetting, resetDemoData, openPrivacyFromSettings,
+  } = useSettingsAccount(emit)
 
-  function applyTheme(theme: string) {
-    document.body.classList.remove('light', 'night', 'marine', 'cursus')
-    if (theme !== 'dark') document.body.classList.add(theme)
-  }
+  const {
+    docsDefault, notifSound, notifDesktop, enterToSend,
+  } = useSettingsPreferences()
 
-  watch(() => props.modelValue, (open) => {
-    if (open) {
-      activeSection.value = 'apparence'
-      currentTheme.value  = getPref('theme') ?? 'dark'
-      pendingPhoto.value  = appStore.currentUser?.photo_data ?? null
-      photoChanged.value  = false
-    }
-  })
-
-  watch(docsDefault, (v) => setPref('docsOpenByDefault', v))
-
-  watch(fontSize, (v) => {
-    setPref('fontSize', v as 'small' | 'default' | 'large')
-    const sizes: Record<string, string> = { small: '13px', default: '14.5px', large: '16px' }
-    document.documentElement.style.setProperty('--font-size-base', sizes[v])
-  })
-
-  watch(density, (v) => {
-    setPref('density', v as 'compact' | 'default' | 'cozy')
-    const spacings: Record<string, string> = { compact: '2px', default: '6px', cozy: '10px' }
-    document.documentElement.style.setProperty('--msg-spacing', spacings[v])
-  })
-
-  watch(notifSound, (v) => setPref('notifSound', v))
-  watch(notifDesktop, (v) => setPref('notifDesktop', v))
-
-  function setTheme(theme: ThemeId) {
-    currentTheme.value = theme
-    setPref('theme', theme)
-    applyTheme(theme)
-  }
-
-  async function pickPhoto() {
-    const res = await window.api.openImageDialog()
-    if (res?.ok && res.data) {
-      pendingPhoto.value = res.data
-      photoChanged.value = true
-    }
-  }
-
-  function removePhoto() {
-    pendingPhoto.value = null
-    photoChanged.value = true
-  }
-
-  function savePhoto() {
-    if (!appStore.currentUser) return
-    appStore.login({ ...appStore.currentUser, photo_data: pendingPhoto.value })
-    if (appStore.currentUser.id > 0) {
-      // Étudiant
-      window.api.updateStudentPhoto({ studentId: appStore.currentUser.id, photoData: pendingPhoto.value })
-    } else {
-      // Enseignant (id négatif)
-      window.api.updateTeacherPhoto({ teacherId: appStore.currentUser.id, photoData: pendingPhoto.value })
-    }
-    photoChanged.value = false
-    showToast('Photo mise à jour.', 'success')
-  }
-
-  function handleLogout() {
-    emit('update:modelValue', false)
-    appStore.logout()
-    router.replace('/')
-    showToast('Déconnexion réussie.', 'info')
-  }
-
-  const avatarBg = computed(() =>
-    appStore.currentUser?.type === 'teacher'
-      ? 'var(--accent)'
-      : avatarColor(appStore.currentUser?.name ?? ''),
-  )
-
-  const roleLabel = computed(() => {
-    const t = appStore.currentUser?.type
-    return t === 'teacher' ? 'Enseignant' : t === 'ta' ? 'Intervenant' : 'Étudiant'
-  })
-
-  const roleIcon = computed(() => {
-    const t = appStore.currentUser?.type
-    return t === 'teacher' ? BookOpen : t === 'ta' ? BookOpen : User
-  })
-
-  const showChangePwd = ref(false)
-
-  function openPrivacyFromSettings() {
-    emit('update:modelValue', false)
-    setTimeout(() => {
-      const win = window as Window & { __cursusShowPrivacy?: () => void }
-      if (win.__cursusShowPrivacy) win.__cursusShowPrivacy()
-    }, 200)
-  }
-
-  const exporting = ref(false)
-  async function exportData() {
-    if (!appStore.currentUser || appStore.currentUser.type !== 'student') return
-    exporting.value = true
-    try {
-      const res = await window.api.exportPersonalData(Math.abs(appStore.currentUser.id))
-      if (!res?.ok) throw new Error(res?.error ?? 'Erreur export')
-      const json = JSON.stringify(res.data, null, 2)
-      const blob = new Blob([json], { type: 'application/json' })
-      const url  = URL.createObjectURL(blob)
-      const a    = document.createElement('a')
-      a.href     = url
-      a.download = `mes-donnees-${appStore.currentUser.name.replace(/\s+/g, '_')}.json`
-      a.click()
-      URL.revokeObjectURL(url)
-      showToast('Export téléchargé.', 'success')
-    } catch (e: any) {
-      showToast(e.message ?? 'Erreur lors de l\'export.', 'error')
-    } finally {
-      exporting.value = false
-    }
-  }
-
-  const resetting = ref(false)
-  async function resetDemoData() {
-    if (!await confirmAction('Réinitialiser toutes les données de démonstration ? Cette action est irréversible.', 'danger', 'Réinitialiser')) return
-    resetting.value = true
-    try {
-      const res = await window.api.resetAndSeed()
-      if (res?.ok) {
-        showToast('Données réinitialisées. Redémarrez ou rechargez la page.', 'success')
-      } else {
-        showToast(res?.error ?? 'Erreur lors de la réinitialisation.')
-      }
-    } finally {
-      resetting.value = false
-    }
-  }
-
-  // ── Nouvelles prefs ──────────────────────────────────────────────────────
-  const enterToSend    = ref(getPref('enterToSend') ?? true)
-  const showTimestamps = ref(getPref('showTimestamps') ?? true)
-  const compactImages  = ref(getPref('compactImages') ?? false)
-
-  watch(enterToSend,    (v) => setPref('enterToSend', v))
-  watch(showTimestamps, (v) => setPref('showTimestamps', v))
-  watch(compactImages,  (v) => setPref('compactImages', v))
+  // ── Tabs ───────────────────────────────────────────────────────────────────
+  const activeSection = ref<Section>('apparence')
 
   const navItems: { key: Section; label: string; icon: typeof Settings }[] = [
     { key: 'apparence',   label: 'Apparence',   icon: Palette },
@@ -198,6 +47,15 @@
     { key: 'compte',      label: 'Mon compte',  icon: User },
     { key: 'apropos',     label: 'À propos',    icon: Info },
   ]
+
+  // ── Reset state when modal opens ──────────────────────────────────────────
+  watch(() => props.modelValue, (open) => {
+    if (open) {
+      activeSection.value = 'apparence'
+      resetAppearance()
+      resetPhoto()
+    }
+  })
 </script>
 
 <template>

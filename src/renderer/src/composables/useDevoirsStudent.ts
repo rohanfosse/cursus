@@ -1,3 +1,7 @@
+/**
+ * Groupes de devoirs côté étudiant : en retard, urgents, à venir, événements, rendus.
+ * Used by DevoirsView.vue
+ */
 import { computed, type Ref } from 'vue'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'

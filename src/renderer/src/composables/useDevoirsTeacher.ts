@@ -1,3 +1,7 @@
+/**
+ * Vue enseignant des devoirs : Gantt, liste, rendus, filtres, stats par type/promo.
+ * Used by DevoirsView.vue
+ */
 import { ref, computed } from 'vue'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'

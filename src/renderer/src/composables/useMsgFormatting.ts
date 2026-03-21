@@ -1,3 +1,7 @@
+/**
+ * Barre de formatage inline : gras, italique, code, bloc, barré, citation, listes.
+ * Used by MessageInput.vue
+ */
 import type { Ref } from 'vue'
 
 /**

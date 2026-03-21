@@ -1,3 +1,7 @@
+/**
+ * Menu contextuel des devoirs : publier/dépublier, éditer, supprimer.
+ * Used by DevoirsView.vue
+ */
 import { ref } from 'vue'
 import type { Devoir, GanttRow } from '@/types'
 import { useAppStore } from '@/stores/app'

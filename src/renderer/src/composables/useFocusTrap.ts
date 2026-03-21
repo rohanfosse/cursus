@@ -1,3 +1,7 @@
+/**
+ * Piège le focus clavier à l'intérieur d'un conteneur (modal, dialog).
+ * Used by BaseModal.vue et composants modaux
+ */
 import { ref, watch, nextTick, onUnmounted, type Ref } from 'vue'
 
 /**

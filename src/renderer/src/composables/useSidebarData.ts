@@ -1,3 +1,7 @@
+/**
+ * Chargement des données sidebar : promotions, canaux, étudiants, groupes par catégorie.
+ * Used by AppSidebar.vue
+ */
 import { ref, computed } from 'vue'
 import { useAppStore } from '@/stores/app'
 import type { Channel, Student, Promotion } from '@/types'

@@ -1,3 +1,7 @@
+/**
+ * Navigation sidebar : sections repliables, sélection de canal, routing vers les vues.
+ * Used by AppSidebar.vue
+ */
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessageSquare, BookOpen, FolderOpen } from 'lucide-vue-next'

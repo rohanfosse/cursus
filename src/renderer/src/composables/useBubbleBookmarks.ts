@@ -1,3 +1,7 @@
+/**
+ * Bookmark (favoris) d'un message — stockage localStorage avec métadonnées.
+ * Used by ChatBubble.vue
+ */
 import { ref } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { STORAGE_KEYS } from '@/constants'

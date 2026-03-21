@@ -1,3 +1,7 @@
+/**
+ * Ouverture sécurisée de liens externes dans le navigateur par défaut.
+ * Used by ChatBubble.vue, MessageInput.vue
+ */
 import { useToast }    from './useToast'
 import { useAppStore } from '@/stores/app'
 

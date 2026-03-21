@@ -1,4 +1,7 @@
-// ── Helpers métier liés aux devoirs ──────────────────────────────────────────
+/**
+ * Helpers métier liés aux devoirs : labels, deadlines, types, filtres de soumission.
+ * Used by DevoirsView.vue, useDevoirsStudent.ts, useDevoirsTeacher.ts
+ */
 
 export const TYPE_LABELS: Record<string, string> = {
   livrable:     'Livrable',

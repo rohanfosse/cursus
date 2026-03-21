@@ -1,3 +1,7 @@
+/**
+ * Système de toast global (singleton) : affichage de notifications temporaires (error, success, info, undo).
+ * Used by de nombreux composants et composables
+ */
 import { reactive } from 'vue'
 
 // ─── État partagé (singleton) ────────────────────────────────────────────────

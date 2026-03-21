@@ -1,3 +1,7 @@
+/**
+ * Actions sur un message : edit, delete, pin, reply, open DM, copy, click handling.
+ * Used by ChatBubble.vue
+ */
 import { ref, computed, nextTick } from 'vue'
 import { useRouter }        from 'vue-router'
 import { useAppStore }      from '@/stores/app'
