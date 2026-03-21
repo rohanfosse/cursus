@@ -255,6 +255,10 @@
 
           <!-- Résultats -->
           <ul ref="listEl" class="cmd-results">
+            <li v-if="results.length" class="cmd-results-count">
+              <span v-if="results.length >= 10">10+ résultats — affinez votre recherche</span>
+              <span v-else>{{ results.length }} résultat{{ results.length > 1 ? 's' : '' }}</span>
+            </li>
             <template v-if="results.length">
               <!-- Séparateur avant la section Messages -->
               <template v-for="(r, i) in results" :key="i">
@@ -466,6 +470,13 @@
   font-style: normal;
   gap: 4px;
 }
+.cmd-results-count {
+  padding: 4px 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+  user-select: none;
+}
+
 .cmd-empty-hint kbd {
   font-size: 10px;
   font-family: var(--font);

@@ -127,7 +127,7 @@ const showDepositForm = props.variant !== 'overdue' && props.variant !== 'event'
               <span class="deposit-file-zone-hint">PDF, images, archives… · Max 50 Mo</span>
             </div>
           </div>
-          <input v-else :value="depositLink" class="form-input" placeholder="https://…" type="url" @input="$emit('update:depositLink', ($event.target as HTMLInputElement).value)" />
+          <input v-else :value="depositLink" class="form-input" placeholder="https://…" type="url" @input="$emit('update:depositLink', ($event.target as HTMLInputElement).value)" @keydown.enter="submitDeposit(devoir)" />
           <div v-if="rubricPreview" class="rubric-preview">
             <div class="rubric-preview-header">
               <LayoutList :size="12" />
@@ -500,4 +500,9 @@ const showDepositForm = props.variant !== 'overdue' && props.variant !== 'event'
 .type-etude_de_cas { background: rgba(39,174,96,.2);    color: var(--color-success); }
 .type-memoire      { background: rgba(231,76,60,.2);    color: var(--color-danger); }
 .type-autre        { background: rgba(127,140,141,.2);  color: var(--color-autre); }
+
+@media (max-width: 500px) {
+  .devoir-card { padding: 12px 10px; }
+  .deposit-form { padding: 10px; }
+}
 </style>

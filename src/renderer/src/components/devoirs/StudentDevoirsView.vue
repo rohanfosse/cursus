@@ -4,7 +4,7 @@
  */
 <script setup lang="ts">
 import { computed } from 'vue'
-import { CheckCircle2, Clock, Lock, AlertTriangle, Calendar } from 'lucide-vue-next'
+import { CheckCircle2, Clock, Lock, AlertTriangle, Calendar, AlertCircle, RefreshCw } from 'lucide-vue-next'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import type { Devoir, Rubric } from '@/types'
@@ -40,6 +40,9 @@ const props = defineProps<{
   pickFile: () => void
   clearDepositFile: () => void
   submitDeposit: (t: Devoir) => void
+  // error / retry
+  error: boolean
+  retry: () => void
 }>()
 
 defineEmits<{
@@ -88,6 +91,14 @@ const depositProps = computed(() => ({
       <div class="skel skel-line skel-w90" style="height:12px;margin-top:8px" />
       <div class="skel skel-line skel-w50" style="height:12px;margin-top:6px" />
     </div>
+  </div>
+
+  <!-- État erreur -->
+  <div v-else-if="error" class="empty-state-custom">
+    <AlertCircle :size="48" class="empty-icon" style="color: var(--color-danger);" />
+    <h3>Impossible de charger les devoirs</h3>
+    <p>Une erreur est survenue. Vérifiez votre connexion et réessayez.</p>
+    <button class="btn-primary" style="margin-top: 12px;" @click="retry"><RefreshCw :size="13" /> Réessayer</button>
   </div>
 
   <!-- État vide -->

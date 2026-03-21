@@ -135,6 +135,7 @@ const gradeTrend = computed(() => {
 .db-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 @media (max-width: 900px) { .db-stats { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 480px) { .db-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; } .db-stat-card { padding: 14px 14px; } }
+@media (max-width: 360px) { .db-stats { grid-template-columns: 1fr; } }
 .trend-arrow { vertical-align: middle; margin-left: 4px; }
 .trend-up { color: var(--color-success); }
 .trend-down { color: var(--color-danger); }

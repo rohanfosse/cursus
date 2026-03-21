@@ -2,7 +2,7 @@
  * Groupe de devoirs étudiant : header avec icône + compteur, puis liste de StudentDevoirCard.
  */
 <script setup lang="ts">
-import { ref, type Component } from 'vue'
+import { ref, onMounted, type Component } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 import type { Devoir, Rubric } from '@/types'
 import { isExpired as _isExpired } from '@/utils/devoir'
@@ -38,7 +38,18 @@ defineEmits<{
   (e: 'update:depositLink', v: string): void
 }>()
 
+const storageKey = `cc_devoir_group_${props.variant}`
 const collapsed = ref(false)
+
+onMounted(() => {
+  const saved = localStorage.getItem(storageKey)
+  if (saved === '1') collapsed.value = true
+})
+
+function toggleCollapse() {
+  collapsed.value = !collapsed.value
+  localStorage.setItem(storageKey, collapsed.value ? '1' : '0')
+}
 
 function isExpired(deadline: string | null | undefined): boolean {
   return _isExpired(deadline, props.now)
@@ -47,12 +58,12 @@ function isExpired(deadline: string | null | undefined): boolean {
 
 <template>
   <template v-if="devoirs.length">
-    <div class="group-header" :class="[headerClass, { 'group-header--clickable': true }]" :title="title" @click="collapsed = !collapsed">
+    <button class="group-header" :class="[headerClass, { 'group-header--clickable': true }]" :title="title" role="button" :aria-expanded="!collapsed" tabindex="0" @click="toggleCollapse">
       <component :is="icon" :size="12" /> {{ label }}
       <span class="group-count">{{ count }}</span>
       <ChevronDown :size="12" class="group-chevron" :class="{ 'group-chevron--collapsed': collapsed }" />
       <span v-if="subtitle" class="group-subtitle">{{ subtitle }}</span>
-    </div>
+    </button>
     <div v-show="!collapsed" class="devoirs-list">
       <StudentDevoirCard
         v-for="t in devoirs"
@@ -98,6 +109,12 @@ function isExpired(deadline: string | null | undefined): boolean {
   text-transform: uppercase;
   letter-spacing: 0.6px;
   margin-bottom: 4px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font);
+  text-align: left;
 }
 .group-subtitle {
   width: 100%;

@@ -2,7 +2,7 @@
  * Groupes de devoirs côté étudiant : en retard, urgents, à venir, événements, rendus.
  * Used by DevoirsView.vue
  */
-import { computed, type Ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { needsSubmission, isExpired, isEventType } from '@/utils/devoir'
@@ -77,12 +77,16 @@ export function useDevoirsStudent(now: Ref<number>) {
       .sort((a, b) => a.label.localeCompare(b.label, 'fr'))
   })
 
+  const error = ref(false)
+
   // ── Chargement des données (branche étudiant) ────────────────────────────────
   async function loadView() {
     try {
+      error.value = false
       await travauxStore.fetchStudentDevoirs()
     } catch (e) {
       console.warn('[Devoirs] Erreur chargement devoirs étudiant:', e)
+      error.value = true
     }
   }
 
@@ -95,6 +99,7 @@ export function useDevoirsStudent(now: Ref<number>) {
     eventDevoirs,
     studentStats,
     studentProjectOverview,
+    error,
 
     // Functions
     loadView,

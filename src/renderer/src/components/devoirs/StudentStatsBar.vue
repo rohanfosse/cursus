@@ -67,4 +67,9 @@ defineProps<{
 .dot-blue    { background: var(--accent); }
 .dot-red     { background: var(--color-danger); }
 .dot-green   { background: var(--color-success); }
+
+@media (max-width: 400px) {
+  .student-stats-bar { padding: 6px 10px; gap: 4px; }
+  .stat-chip { padding: 3px 7px; font-size: 11px; gap: 4px; }
+}
 </style>

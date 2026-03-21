@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { CheckCheck, AtSign, MessageSquare, X } from 'lucide-vue-next'
+import { CheckCheck, AtSign, MessageSquare, X, CheckCircle2 } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
 import { useRouter } from 'vue-router'
@@ -69,10 +69,15 @@ function formatTime(ts: number): string {
     <!-- Vide -->
     <div v-if="!hasAny" class="notif-empty">
       <MessageSquare :size="28" class="notif-empty-icon" />
-      <p>Aucune notification</p>
+      <p>Aucune notification pour le moment</p>
     </div>
 
     <template v-else>
+      <!-- Toutes lues -->
+      <div v-if="!hasUnread" class="notif-empty" style="padding: 16px 12px;">
+        <CheckCircle2 :size="22" style="color: var(--color-success); opacity: .6;" />
+        <p>Vous êtes à jour !</p>
+      </div>
       <!-- Section Mentions -->
       <div v-if="mentions.length" class="notif-section">
         <div class="notif-section-title">
