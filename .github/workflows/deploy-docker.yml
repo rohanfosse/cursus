@@ -34,8 +34,9 @@ jobs:
             git reset --hard origin/main
 
             cd /opt/cursus
-            docker compose build --no-cache
+            docker compose build
             docker compose up -d --force-recreate
             docker image prune -f
+            docker builder prune -af --keep-storage=500MB
 
             echo "Deploy complete - $(docker ps --format '{{.Status}}' --filter name=cursus-server)"
