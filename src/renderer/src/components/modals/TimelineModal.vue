@@ -140,25 +140,25 @@
                   <div class="tl-item-top">
                     <span class="tl-type-badge" :class="`type-${t.type}`">{{ t.type }}</span>
                     <span class="tl-item-title">{{ t.title }}</span>
-                    <span v-if="(t as any).promo_name" class="tl-promo-pill"
-                      :style="{ background: ((t as any).promo_color ?? '#4A90D9') + '33', color: (t as any).promo_color ?? '#4A90D9' }">
-                      {{ (t as any).promo_name }}
+                    <span v-if="t.promo_name" class="tl-promo-pill"
+                      :style="{ background: (t.promo_color ?? '#4A90D9') + '33', color: t.promo_color ?? '#4A90D9' }">
+                      {{ t.promo_name }}
                     </span>
                   </div>
                   <div class="tl-item-meta">
-                    <span class="tl-channel">#{{ (t as any).channel_name ?? t.channel_id }}</span>
-                    <span v-if="(t as any).room" class="tl-room-badge">Salle {{ (t as any).room }}</span>
+                    <span class="tl-channel">#{{ t.channel_name ?? t.channel_id }}</span>
+                    <span v-if="t.room" class="tl-room-badge">Salle {{ t.room }}</span>
                     <span class="tl-deadline-badge" :class="deadlineClass(t.deadline)">
                       <Clock :size="10" />{{ deadlineLabel(t.deadline) }}
                     </span>
-                    <span v-if="(t as any).students_total != null" class="tl-rendus-count">
+                    <span v-if="t.students_total != null" class="tl-rendus-count">
                       <Users :size="10" />
-                      {{ (t as any).depots_count }}/{{ (t as any).students_total }}
+                      {{ t.depots_count }}/{{ t.students_total }}
                     </span>
                     <span v-if="!t.is_published" class="tl-draft-badge">Brouillon</span>
                   </div>
-                  <div v-if="(t as any).aavs" class="tl-aavs">
-                    <span v-for="a in ((t as any).aavs as string).split('\n').filter(Boolean)" :key="a" class="aav-pill">{{ a.trim() }}</span>
+                  <div v-if="t.aavs" class="tl-aavs">
+                    <span v-for="a in (t.aavs as string).split('\n').filter(Boolean)" :key="a" class="aav-pill">{{ a.trim() }}</span>
                   </div>
                 </div>
               </div>

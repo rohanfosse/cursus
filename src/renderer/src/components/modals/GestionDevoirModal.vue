@@ -91,7 +91,7 @@
     const current = new Date(travail.value.deadline)
     current.setDate(current.getDate() + days)
     try {
-      const res = await window.api.createTravail({ ...travail.value, deadline: current.toISOString(), id: travail.value.id, _update: true } as any)
+      const res = await window.api.createTravail({ ...travail.value, deadline: current.toISOString(), id: travail.value.id, _update: true })
       if (res?.ok) {
         showToast(`Deadline prolongée de ${days}j.`, 'success')
         await travauxStore.openTravail(travail.value.id)
@@ -143,7 +143,7 @@
   // ── Notifier les étudiants ────────────────────────────────────────────────
   async function notifyStudents() {
     if (!travail.value) return
-    const channelId = (travail.value as any).channel_id
+    const channelId = travail.value.channel_id
     if (!channelId) { showToast('Aucun canal associé.', 'error'); return }
     const msg = `📢 **Rappel** : le devoir **${travail.value.title}** est à rendre avant le **${formatDate(travail.value.deadline)}**.`
     try {
@@ -169,7 +169,7 @@
       type: travail.value.type,
       category: travail.value.category,
       description: travail.value.description,
-      channelId: (travail.value as any).channel_id,
+      channelId: travail.value.channel_id,
     }
     emit('update:modelValue', false)
     modals.newDevoir = true
@@ -177,7 +177,7 @@
 
   function goToChannel() {
     if (!travail.value) return
-    const chId = (travail.value as any).channel_id
+    const chId = travail.value.channel_id
     const chName = travail.value.channel_name
     if (chId && chName) {
       appStore.openChannel(chId, appStore.activePromoId ?? 0, chName)

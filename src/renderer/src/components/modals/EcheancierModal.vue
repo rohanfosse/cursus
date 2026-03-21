@@ -31,7 +31,7 @@
   }
   interface JalonRow {
     id: number; title: string; deadline: string; description: string | null
-    channel_name: string; promo_name: string; promo_color: string
+    channel_name: string; promo_name: string; promo_color: string; room?: string | null
   }
   interface BrouillonRow {
     id: number; title: string; deadline: string; type: string
@@ -194,7 +194,7 @@
               <div class="ech-row-info">
                 <span class="ech-row-main">{{ r.title }}</span>
                 <span v-if="r.description" class="ech-row-sub">{{ r.description }}</span>
-                <span v-if="(r as any).room" class="ech-row-sub" style="font-weight:600">Salle {{ (r as any).room }}</span>
+                <span v-if="r.room" class="ech-row-sub" style="font-weight:600">Salle {{ r.room }}</span>
                 <span class="ech-row-sub">#{{ r.channel_name }}</span>
               </div>
               <div class="ech-row-right">

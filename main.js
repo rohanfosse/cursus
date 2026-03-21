@@ -1,3 +1,6 @@
+// @deprecated — Ce fichier est l'ancien point d'entrée Electron (v1).
+// L'application utilise désormais src/main/index.ts compilé vers out/main/index.js.
+// Ce fichier est conservé uniquement pour référence et sera supprimé dans une version future.
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const db   = require('./src/db/index');

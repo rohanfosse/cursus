@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch, nextTick, ref, onMounted, onBeforeUnmount } from 'vue'
-import { ChevronDown } from 'lucide-vue-next'
+import { ChevronDown, MessageSquare, Search } from 'lucide-vue-next'
 import { useMessagesStore } from '@/stores/messages'
 import MessageBubble from './MessageBubble.vue'
 import { formatDateSeparator } from '@/utils/date'
@@ -197,7 +197,16 @@ const dateGroups = computed<DateGroup[]>(() => {
 
       <!-- État vide -->
       <div v-else class="empty-state">
-        <p>{{ store.searchTerm ? 'Aucun message ne correspond à cette recherche.' : "Aucun message pour l'instant." }}</p>
+        <MessageSquare v-if="!store.searchTerm" :size="40" style="opacity:.25;margin-bottom:8px" />
+        <Search v-else :size="40" style="opacity:.25;margin-bottom:8px" />
+        <p v-if="store.searchTerm" style="font-weight:500">Aucun résultat pour « {{ store.searchTerm }} »</p>
+        <p v-else style="font-weight:500">Démarrez la conversation</p>
+        <p v-if="!store.searchTerm" style="font-size:12px;color:var(--text-muted);margin-top:4px">
+          Envoyez un premier message pour lancer l'échange.
+        </p>
+        <p v-else style="font-size:12px;color:var(--text-muted);margin-top:4px">
+          Essayez des mots-clés différents ou vérifiez l'orthographe.
+        </p>
       </div>
     </template>
 

@@ -1,6 +1,8 @@
 // ─── Routes dépôts ────────────────────────────────────────────────────────────
 const router  = require('express').Router()
+const { z }   = require('zod')
 const queries = require('../../src/db/index')
+const { validate } = require('../middleware/validate')
 
 function wrap(fn) {
   return (req, res) => {
@@ -9,10 +11,31 @@ function wrap(fn) {
   }
 }
 
+const submitDepotSchema = z.object({
+  travail_id: z.number().int().positive('Devoir invalide'),
+  student_id: z.number().int().optional(),
+  studentId:  z.number().int().optional(),
+  type:       z.enum(['file', 'link'], { message: 'Type de dépôt invalide (file ou link)' }),
+  content:    z.string().min(1, 'Contenu du dépôt requis'),
+  file_name:  z.string().nullable().optional(),
+  link_url:   z.string().nullable().optional(),
+  deploy_url: z.string().nullable().optional(),
+}).passthrough()
+
+const noteSchema = z.object({
+  depot_id: z.number().int().positive('Dépôt invalide'),
+  note:     z.string().min(1, 'Note requise').max(10),
+})
+
+const feedbackSchema = z.object({
+  depot_id: z.number().int().positive('Dépôt invalide'),
+  feedback: z.string().max(5000, 'Feedback trop long (max 5 000 caractères)'),
+})
+
 router.get('/',         wrap((req) => queries.getDepots(Number(req.query.travailId))))
 
 // Soumission de dépôt — vérifier que l'étudiant soumet pour lui-même
-router.post('/', (req, res) => {
+router.post('/', validate(submitDepotSchema), (req, res) => {
   try {
     const payload = req.body
     const studentId = payload.student_id ?? payload.studentId
@@ -27,14 +50,14 @@ router.post('/', (req, res) => {
 })
 
 // Note et feedback — réservés aux enseignants
-router.post('/note', (req, res) => {
+router.post('/note', validate(noteSchema), (req, res) => {
   if (req.user.type === 'student') {
     return res.status(403).json({ ok: false, error: 'Seuls les enseignants peuvent attribuer des notes.' })
   }
   try { res.json({ ok: true, data: queries.setNote(req.body) }) }
   catch (err) { res.status(400).json({ ok: false, error: err.message }) }
 })
-router.post('/feedback', (req, res) => {
+router.post('/feedback', validate(feedbackSchema), (req, res) => {
   if (req.user.type === 'student') {
     return res.status(403).json({ ok: false, error: 'Seuls les enseignants peuvent donner un feedback.' })
   }

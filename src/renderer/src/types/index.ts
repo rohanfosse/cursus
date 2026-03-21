@@ -110,10 +110,13 @@ export interface Depot {
   type: 'file' | 'link'
   content: string
   file_name?: string | null
+  link_url?: string | null
   submitted_at: string
   note: string | null
   feedback: string | null
   late_seconds?: number | null
+  travail_title?: string
+  deploy_url?: string | null
 }
 
 export interface AppDocument {
@@ -151,6 +154,48 @@ export interface Student {
   promo_name: string | null
   avatar_initials: string | null
   photo_data: string | null
+}
+
+// ─── Données Gantt / Dashboard ───────────────────────────────────────────────
+
+export interface GanttRow {
+  id:             number
+  title:          string
+  description:    string | null
+  deadline:       string
+  start_date:     string | null
+  type:           string
+  published:      number
+  is_published:   number
+  category:       string | null
+  channel_id:     number
+  channel_name:   string
+  promo_name:     string
+  promo_color:    string
+  depots_count:   number
+  students_total: number
+  room?:          string | null
+  aavs?:          string | null
+  assigned_to:    string
+  group_id:       number | null
+  depot_id:       number | null
+}
+
+export interface RenduRow extends Depot {
+  travail_id:    number
+  travail_title?: string
+}
+
+export interface LoginResponse {
+  id: number
+  name: string
+  type: 'teacher' | 'ta' | 'student'
+  avatar_initials: string
+  photo_data: string | null
+  promo_id: number | null
+  promo_name: string | null
+  must_change_password?: number
+  token: string
 }
 
 // ─── Payloads IPC ────────────────────────────────────────────────────────────

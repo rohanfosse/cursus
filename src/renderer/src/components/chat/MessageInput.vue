@@ -507,10 +507,10 @@ function onKeydown(e: KeyboardEvent) {
     if (e.key === 'ArrowUp')   { e.preventDefault(); refIndex.value = (refIndex.value - 1 + refResults.value.length) % refResults.value.length; return }
     if (e.key === 'Enter') {
       e.preventDefault()
-      const item = refResults.value[refIndex.value] as any
-      if (activeRef.value === 'channel') insertRef('#' + item.name)
-      else if (activeRef.value === 'devoir') insertRef('📋 [' + item.title + ']')
-      else if (activeRef.value === 'doc') insertRef('📄 [' + item.name + ']')
+      const item = refResults.value[refIndex.value]
+      if (activeRef.value === 'channel') insertRef('#' + (item as { name: string }).name)
+      else if (activeRef.value === 'devoir') insertRef('📋 [' + (item as { title: string }).title + ']')
+      else if (activeRef.value === 'doc') insertRef('📄 [' + (item as { name: string }).name + ']')
       return
     }
     if (e.key === 'Escape') { e.preventDefault(); activeRef.value = null; return }

@@ -1,24 +1,25 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useAppStore } from './app'
-import type { Devoir, Depot, Ressource } from '@/types'
+import { useApi } from '@/composables/useApi'
+import type { Devoir, Depot, Ressource, GanttRow } from '@/types'
 import { deadlineClass } from '@/utils/date'
 
 export const useTravauxStore = defineStore('travaux', () => {
   const appStore = useAppStore()
+  const { api } = useApi()
 
   // ── État ──────────────────────────────────────────────────────────────────
   const devoirs        = ref<Devoir[]>([])
   const currentDevoir  = ref<Devoir | null>(null)
   const depots         = ref<Depot[]>([])
   const ressources     = ref<Ressource[]>([])
-  const ganttData      = ref<object[]>([])
+  const ganttData      = ref<GanttRow[]>([])
   const allRendus      = ref<Depot[]>([])
   const loading        = ref(false)
   const view           = ref<'gantt' | 'rendus' | 'student'>('gantt')
 
   // ── Calculs ───────────────────────────────────────────────────────────────
-  // Devoirs sans soumission requise (soutenance, CCTL, etc.) exclus des "à rendre"
   const pendingDevoirs = computed(() =>
     devoirs.value.filter((t) => t.depot_id == null && t.requires_submission !== 0),
   )
@@ -34,8 +35,10 @@ export const useTravauxStore = defineStore('travaux', () => {
     if (!appStore.currentUser) return
     loading.value = true
     try {
-      const res = await window.api.getStudentTravaux(appStore.currentUser.id)
-      devoirs.value = res?.ok ? res.data : []
+      const data = await api<Devoir[]>(
+        () => window.api.getStudentTravaux(appStore.currentUser!.id),
+      )
+      devoirs.value = data ?? []
     } finally {
       loading.value = false
     }
@@ -49,8 +52,8 @@ export const useTravauxStore = defineStore('travaux', () => {
   async function fetchGantt(promoId: number) {
     loading.value = true
     try {
-      const res = await window.api.getGanttData(promoId)
-      ganttData.value = res?.ok ? res.data : []
+      const data = await api<GanttRow[]>(() => window.api.getGanttData(promoId) as Promise<{ ok: boolean; data?: GanttRow[]; error?: string }>)
+      ganttData.value = data ?? []
     } finally {
       loading.value = false
     }
@@ -59,27 +62,27 @@ export const useTravauxStore = defineStore('travaux', () => {
   async function fetchRendus(promoId: number) {
     loading.value = true
     try {
-      const res = await window.api.getAllRendus(promoId)
-      allRendus.value = res?.ok ? res.data : []
+      const data = await api<Depot[]>(() => window.api.getAllRendus(promoId))
+      allRendus.value = data ?? []
     } finally {
       loading.value = false
     }
   }
 
   async function fetchDepots(travailId: number) {
-    const res = await window.api.getDepots(travailId)
-    depots.value = res?.ok ? res.data : []
+    const data = await api<Depot[]>(() => window.api.getDepots(travailId))
+    depots.value = data ?? []
   }
 
   async function fetchRessources(travailId: number) {
-    const res = await window.api.getRessources(travailId)
-    ressources.value = res?.ok ? res.data : []
+    const data = await api<Ressource[]>(() => window.api.getRessources(travailId))
+    ressources.value = data ?? []
   }
 
   async function openTravail(travailId: number) {
-    const res = await window.api.getTravailById(travailId)
-    if (res?.ok) {
-      currentDevoir.value = res.data
+    const data = await api<Devoir>(() => window.api.getTravailById(travailId))
+    if (data) {
+      currentDevoir.value = data
       appStore.currentTravailId = travailId
       await fetchDepots(travailId)
       await fetchRessources(travailId)
@@ -88,28 +91,27 @@ export const useTravauxStore = defineStore('travaux', () => {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   async function createTravail(payload: object) {
-    const res = await window.api.createTravail(payload)
-    return res?.ok ? res.data : null
+    return await api(() => window.api.createTravail(payload))
   }
 
   async function addDepot(payload: object) {
-    const res = await window.api.addDepot(payload)
-    if (res?.ok && appStore.currentTravailId) await fetchDepots(appStore.currentTravailId)
-    return res?.ok ?? false
+    const data = await api(() => window.api.addDepot(payload), 'submit')
+    if (data !== null && appStore.currentTravailId) await fetchDepots(appStore.currentTravailId)
+    return data !== null
   }
 
   async function setNote(payload: object) {
-    await window.api.setNote(payload)
+    await api(() => window.api.setNote(payload), 'grade')
     if (appStore.currentTravailId) await fetchDepots(appStore.currentTravailId)
   }
 
   async function setFeedback(payload: object) {
-    await window.api.setFeedback(payload)
+    await api(() => window.api.setFeedback(payload), 'feedback')
     if (appStore.currentTravailId) await fetchDepots(appStore.currentTravailId)
   }
 
   async function markNonSubmittedAsD(travailId: number) {
-    await window.api.markNonSubmittedAsD(travailId)
+    await api(() => window.api.markNonSubmittedAsD(travailId))
     await fetchDepots(travailId)
   }
 

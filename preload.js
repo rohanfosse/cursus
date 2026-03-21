@@ -1,3 +1,6 @@
+// @deprecated — Ce fichier est l'ancien preload Electron (v1).
+// L'application utilise désormais src/preload/index.ts compilé vers out/preload/index.js.
+// Ce fichier est conservé uniquement pour référence et sera supprimé dans une version future.
 const { contextBridge, ipcRenderer } = require('electron');
 
 function invoke(channel, ...args) {

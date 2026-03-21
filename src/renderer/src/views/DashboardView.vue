@@ -184,7 +184,7 @@ async function confirmRenamePromo(p: { id: number; name: string }) {
   if (!renamingPromoValue.value.trim()) return
   try {
     await window.api.renamePromotion(p.id, renamingPromoValue.value.trim())
-    ;(p as any).name = renamingPromoValue.value.trim()
+    p.name = renamingPromoValue.value.trim()
     renamingPromoId.value = null
     showToast('Promotion renommée.', 'success')
   } catch { showToast('Erreur.', 'error') }
@@ -205,7 +205,7 @@ async function savePromoName() {
   try {
     await window.api.renamePromotion(activePromo.value.id, promoNameDraft.value.trim())
     const p = promos.value.find(p => p.id === activePromo.value!.id)
-    if (p) (p as any).name = promoNameDraft.value.trim()
+    if (p) p.name = promoNameDraft.value.trim()
     editingPromoName.value = false
   } catch {}
 }
@@ -506,12 +506,12 @@ const studentFrise = computed((): FrisePromo[] => {
     const key = t.category?.trim() || 'Sans projet'
     if (!projMap.has(key)) projMap.set(key, [])
     projMap.get(key)!.push({
-      id: t.id, title: t.title, type: (t as any).type ?? 'autre', deadline: t.deadline,
+      id: t.id, title: t.title, type: t.type ?? 'autre', deadline: t.deadline,
       published: true, done: t.depot_id != null,
     })
   }
   return [{
-    name: (appStore.currentUser as any)?.promo_name ?? 'Ma promo', color: '#9b87f5',
+    name: appStore.currentUser?.promo_name ?? 'Ma promo', color: '#9b87f5',
     projects: Array.from(projMap.entries())
       .map(([key, milestones]) => ({
         key, label: parseCategoryIcon(key).label, icon: parseCategoryIcon(key).icon,
@@ -557,7 +557,7 @@ const gradeDistribution = computed(() => {
 // Taux de soumission par devoir
 const submissionRates = computed(() => {
   return ganttFiltered.value
-    .filter(t => (t as any).is_published && t.students_total > 0)
+    .filter(t => t.published && t.students_total > 0)
     .map(t => ({
       title: t.title,
       rate: Math.round((t.depots_count / t.students_total) * 100),
@@ -818,7 +818,7 @@ function onMilestoneClick(ms: FriseMilestone) {
               </div>
               <div class="promo-list-stats">
                 <span>{{ allStudents.filter(s => s.promo_id === p.id).length }} étudiants</span>
-                <span>{{ (ganttAll as any[]).filter((t: any) => t.promo_name === p.name).length }} devoirs</span>
+                <span>{{ ganttAll.filter(t => t.promo_name === p.name).length }} devoirs</span>
               </div>
               <div class="promo-list-actions">
                 <button class="gestion-btn" @click="appStore.activePromoId = p.id; modals.classe = true">Voir la classe</button>
@@ -873,7 +873,7 @@ function onMilestoneClick(ms: FriseMilestone) {
                 </div>
                 <div class="db-activity-info">
                   <span class="db-activity-name">{{ r.student_name }}</span>
-                  <span class="db-activity-devoir">{{ (r as any).travail_title ?? 'Devoir #' + r.travail_id }}</span>
+                  <span class="db-activity-devoir">{{ r.travail_title ?? 'Devoir #' + r.travail_id }}</span>
                 </div>
                 <div class="db-activity-right">
                   <span v-if="r.note" class="db-activity-note" :class="gradeClass(r.note)">{{ r.note }}</span>

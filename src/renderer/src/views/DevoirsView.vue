@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import {
   BookOpen, BarChart2, List, Grid, Plus, Upload, Link2, X,
   FileText, CheckCircle2, Clock, Lock, AlertTriangle, ChevronRight,
-  Users, Award, Calendar, LayoutList, Menu, Eye,
+  Users, Award, Calendar, LayoutList, Menu, Eye, PlusCircle,
 } from 'lucide-vue-next'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
@@ -12,7 +12,7 @@ import { useToast }        from '@/composables/useToast'
 import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
 import { avatarColor, initials } from '@/utils/format'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
-import type { Devoir, Rubric } from '@/types'
+import type { Devoir, Rubric, GanttRow } from '@/types'
 import ProjetFiche        from '@/components/projet/ProjetFiche.vue'
 import StudentProjetFiche from '@/components/projet/StudentProjetFiche.vue'
 
@@ -40,10 +40,10 @@ function toggleProjectCollapse(project: string) {
 }
 
 // ── Tableau unifié prof ─────────────────────────────────────────────────────
-type UnifiedRow = Devoir & { depots_count: number; students_total: number; noted_count: number; statusLabel: string; statusCls: string }
+type UnifiedRow = GanttRow & { noted_count: number; statusLabel: string; statusCls: string }
 
 const unifiedGrouped = computed(() => {
-  const raw = travauxStore.ganttData as (Devoir & { depots_count?: number; students_total?: number })[]
+  const raw = travauxStore.ganttData
   const q = teacherSearch.value.toLowerCase().trim()
   const now = Date.now()
 
@@ -117,7 +117,7 @@ function addDevoirOfType(type: string) {
 
 // ── Stats globales promo ────────────────────────────────────────────────────
 const globalDrafts = computed(() =>
-  (travauxStore.ganttData as Devoir[]).filter(t => !t.is_published).length,
+  (travauxStore.ganttData).filter(t => !t.is_published).length,
 )
 const globalToGrade = computed(() => {
   const all = travauxStore.allRendus
@@ -127,7 +127,7 @@ const globalToGrade = computed(() => {
 // ── Prochains événements (tous types, triés par deadline) ───────────────────
 const upcomingDevoirs = computed(() => {
   const now = Date.now()
-  return (travauxStore.ganttData as Devoir[])
+  return (travauxStore.ganttData)
     .filter(t => t.is_published && new Date(t.deadline).getTime() > now)
     .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     .slice(0, 5)
@@ -135,18 +135,18 @@ const upcomingDevoirs = computed(() => {
 
 // ── Helpers pour la page d'accueil projets ──────────────────────────────────
 function projectDevoirCount(cat: string): number {
-  return (travauxStore.ganttData as Devoir[]).filter(t => t.category?.trim() === cat).length
+  return (travauxStore.ganttData).filter(t => t.category?.trim() === cat).length
 }
 function projectNextDeadline(cat: string): string | null {
   const now = Date.now()
-  const upcoming = (travauxStore.ganttData as Devoir[])
+  const upcoming = (travauxStore.ganttData)
     .filter(t => t.category?.trim() === cat && t.is_published && new Date(t.deadline).getTime() > now)
     .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
   return upcoming[0]?.deadline ?? null
 }
 function projectTypeCounts(cat: string): { type: string; count: number }[] {
   const counts: Record<string, number> = {}
-  for (const t of (travauxStore.ganttData as Devoir[]).filter(d => d.category?.trim() === cat)) {
+  for (const t of (travauxStore.ganttData).filter(d => d.category?.trim() === cat)) {
     counts[t.type] = (counts[t.type] ?? 0) + 1
   }
   return Object.entries(counts).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count)
@@ -154,7 +154,7 @@ function projectTypeCounts(cat: string): { type: string; count: number }[] {
 
 // Stats enrichies par projet (pour cartes et résumé)
 function projectStats(cat: string) {
-  const devoirs = (travauxStore.ganttData as (Devoir & { depots_count?: number; students_total?: number })[])
+  const devoirs = (travauxStore.ganttData)
     .filter(d => d.category?.trim() === cat)
   const totalDepots = devoirs.reduce((s, d) => s + (d.depots_count ?? 0), 0)
   const totalExpected = devoirs.reduce((s, d) => s + (d.students_total ?? 0), 0)
@@ -173,7 +173,7 @@ function extractDuration(desc: string | null): string | null {
 }
 
 // Déterminer si c'est un rattrapage
-function isRattrapage(t: Devoir): boolean {
+function isRattrapage(t: { title: string; description?: string | null }): boolean {
   return !!(t.title?.includes('Rattrapage') || t.description?.includes('Rattrapage'))
 }
 
@@ -198,7 +198,7 @@ const devoirsByType = computed(() => {
 // Liste plate pour le tableau (quand on filtre par catégorie via onglets)
 type UnifiedFlatRow = UnifiedRow & { hasSubmission: boolean }
 const unifiedFlat = computed((): UnifiedFlatRow[] => {
-  const raw = travauxStore.ganttData as (Devoir & { depots_count?: number; students_total?: number })[]
+  const raw = travauxStore.ganttData
   const now = Date.now()
 
   return raw
@@ -440,16 +440,16 @@ async function saveGrade(depotId: number) {
 }
 
 // ── Gantt : calcul des positions ───────────────────────────────────────────────
-type GanttItem = Devoir & { left: number; width: number; dlClass: string }
+type GanttItem = GanttRow & { left: number; width: number; dlClass: string }
 
 // Catégories disponibles pour le filtre
 const teacherCategories = computed(() => {
-  const cats = new Set((travauxStore.ganttData as Devoir[]).map(t => t.category?.trim()).filter(Boolean))
+  const cats = new Set((travauxStore.ganttData).map(t => t.category?.trim()).filter(Boolean))
   return Array.from(cats).sort() as string[]
 })
 
 const ganttItems = computed((): { items: GanttItem[]; todayPct: number } => {
-  let raw = travauxStore.ganttData as Devoir[]
+  let raw = travauxStore.ganttData
   if (filterCategory.value) raw = raw.filter(t => t.category?.trim() === filterCategory.value)
   if (!raw.length) return { items: [], todayPct: 0 }
 
@@ -478,8 +478,8 @@ const ganttItems = computed((): { items: GanttItem[]; todayPct: number } => {
 
 // ── Rendus : grouper par devoir avec titres + filtres ──────────────────────────
 const rendusByDevoir = computed(() => {
-  const ganttMap = new Map((travauxStore.ganttData as (Devoir & { students_total?: number })[]).map(t => [t.id, t]))
-  const map = new Map<number, { devoir: Partial<Devoir & { students_total?: number }>; rendus: typeof travauxStore.allRendus }>()
+  const ganttMap = new Map(travauxStore.ganttData.map(t => [t.id, t]))
+  const map = new Map<number, { devoir: Partial<GanttRow>; rendus: typeof travauxStore.allRendus }>()
   for (const r of travauxStore.allRendus) {
     // Filtre par catégorie
     const gt = ganttMap.get(r.travail_id)
@@ -958,8 +958,11 @@ function typeLabel(t: string): string {
 
         <div v-else-if="!teacherCategories.length" class="empty-state-custom">
           <BookOpen :size="48" class="empty-icon" />
-          <h3>Aucun projet</h3>
-          <p>Créez un devoir avec une catégorie pour voir vos projets ici.</p>
+          <h3>Aucun projet pour cette promotion</h3>
+          <p>Les projets apparaîtront automatiquement quand vous créerez un devoir avec une catégorie.</p>
+          <button class="btn-primary" style="margin-top:12px" @click="modals.newDevoir = true">
+            <PlusCircle :size="14" /> Créer un devoir
+          </button>
         </div>
 
         <template v-else>
@@ -969,11 +972,11 @@ function typeLabel(t: string): string {
             <div class="dh-summary">
               <div class="dh-summary-stats">
                 <div class="dh-stat">
-                  <span class="dh-stat-value">{{ (travauxStore.ganttData as any[]).length }}</span>
+                  <span class="dh-stat-value">{{ travauxStore.ganttData.length }}</span>
                   <span class="dh-stat-label">Devoirs</span>
                 </div>
                 <div class="dh-stat">
-                  <span class="dh-stat-value" style="color:var(--color-success)">{{ (travauxStore.ganttData as any[]).filter((t: any) => t.is_published).length }}</span>
+                  <span class="dh-stat-value" style="color:var(--color-success)">{{ travauxStore.ganttData.filter(t => t.is_published).length }}</span>
                   <span class="dh-stat-label">Publiés</span>
                 </div>
                 <div v-if="globalToGrade > 0" class="dh-stat">
@@ -1175,15 +1178,18 @@ function typeLabel(t: string): string {
           </div>
         </div>
 
-        <div v-else-if="(travauxStore.ganttData as Devoir[]).length === 0" class="empty-state-custom">
+        <div v-else-if="travauxStore.ganttData.length === 0" class="empty-state-custom">
           <Grid :size="48" class="empty-icon" />
-          <h3>Aucun devoir créé</h3>
-          <p>Créez un premier devoir pour le voir ici.</p>
+          <h3>Aucun devoir pour cette promotion</h3>
+          <p>Créez un premier devoir pour voir le planning et suivre les rendus de vos étudiants.</p>
+          <button class="btn-primary" style="margin-top:12px" @click="modals.newDevoir = true">
+            <PlusCircle :size="14" /> Créer un devoir
+          </button>
         </div>
 
         <div v-else class="liste-grid">
           <div
-            v-for="t in (travauxStore.ganttData as Devoir[]).filter(d => !filterCategory || d.category?.trim() === filterCategory)"
+            v-for="t in (travauxStore.ganttData).filter(d => !filterCategory || d.category?.trim() === filterCategory)"
             :key="t.id"
             class="liste-card"
             :class="{ 'liste-card--draft': !t.is_published }"
@@ -1244,8 +1250,8 @@ function typeLabel(t: string): string {
                 </span>
                 <span class="rendus-count-badge">
                   {{ group.rendus.length }} rendu{{ group.rendus.length > 1 ? 's' : '' }}
-                  <template v-if="(group.devoir as any).students_total">
-                    / {{ (group.devoir as any).students_total }} attendu{{ (group.devoir as any).students_total > 1 ? 's' : '' }}
+                  <template v-if="group.devoir.students_total">
+                    / {{ group.devoir.students_total }} attendu{{ group.devoir.students_total > 1 ? 's' : '' }}
                   </template>
                 </span>
               </div>

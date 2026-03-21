@@ -7,6 +7,7 @@ import {
 import { useRouter }        from 'vue-router'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
+import type { Channel }     from '@/types'
 import Avatar       from '@/components/ui/Avatar.vue'
 import EmojiPicker  from '@/components/ui/EmojiPicker.vue'
 import ContextMenu  from '@/components/ui/ContextMenu.vue'
@@ -240,8 +241,8 @@ function onMsgClick(e: MouseEvent) {
       const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id
       if (promoId) {
         window.api.getChannels(promoId).then((res) => {
-          const ch = res?.ok ? res.data.find((c: { name: string }) => c.name === channelName) : null
-          if (ch) appStore.openChannel((ch as any).id, (ch as any).promo_id, (ch as any).name, (ch as any).type)
+          const ch = res?.ok ? res.data.find((c: Channel) => c.name === channelName) : null
+          if (ch) appStore.openChannel(ch.id, ch.promo_id, ch.name, ch.type)
         })
       }
     }

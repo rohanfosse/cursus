@@ -1,6 +1,8 @@
 // ─── Routes messages ─────────────────────────────────────────────────────────
 const router  = require('express').Router()
+const { z }   = require('zod')
 const queries = require('../../src/db/index')
+const { validate } = require('../middleware/validate')
 
 function wrap(fn) {
   return (req, res) => {
@@ -8,6 +10,29 @@ function wrap(fn) {
     catch (err) { res.status(400).json({ ok: false, error: err.message }) }
   }
 }
+
+// ── Schémas de validation ─────────────────────────────────────────────────────
+const sendMessageSchema = z.object({
+  channelId:   z.number().int().nullable().optional(),
+  dmStudentId: z.number().int().nullable().optional(),
+  content:     z.string().min(1, 'Le message ne peut pas être vide').max(10000, 'Message trop long (max 10 000 caractères)'),
+  channelName: z.string().nullable().optional(),
+  promoId:     z.number().int().nullable().optional(),
+  replyToId:      z.number().int().nullable().optional(),
+  replyToAuthor:  z.string().nullable().optional(),
+  replyToPreview: z.string().nullable().optional(),
+}).refine(data => data.channelId || data.dmStudentId, {
+  message: 'Un canal ou un destinataire DM est requis.',
+})
+
+const editMessageSchema = z.object({
+  content: z.string().min(1, 'Le message ne peut pas être vide').max(10000, 'Message trop long (max 10 000 caractères)'),
+})
+
+const reportSchema = z.object({
+  reason:  z.string().min(1).max(100).optional().default('other'),
+  details: z.string().max(1000).nullable().optional(),
+})
 
 // ── Lecture ───────────────────────────────────────────────────────────────────
 router.get('/channel/:channelId',       wrap((req) => queries.getChannelMessages(Number(req.params.channelId))))
@@ -34,7 +59,7 @@ router.get('/dm/:studentId/search', wrap((req) => {
 }))
 
 // ── Écriture ──────────────────────────────────────────────────────────────────
-router.post('/', (req, res) => {
+router.post('/', validate(sendMessageSchema), (req, res) => {
   try {
     const payload = req.body
 
@@ -108,10 +133,10 @@ router.post('/', (req, res) => {
 router.post('/pin',       wrap((req) => queries.togglePinMessage(req.body.messageId, req.body.pinned)))
 router.post('/reactions', wrap((req) => queries.updateReactions(req.body.msgId, req.body.reactionsJson)))
 router.delete('/:id',     wrap((req) => queries.deleteMessage(Number(req.params.id))))
-router.patch('/:id',      wrap((req) => queries.editMessage(Number(req.params.id), req.body.content)))
+router.patch('/:id', validate(editMessageSchema), wrap((req) => queries.editMessage(Number(req.params.id), req.body.content)))
 
 // ── Signalement de message ──────────────────────────────────────────────────
-router.post('/:id/report', wrap((req) => {
+router.post('/:id/report', validate(reportSchema), wrap((req) => {
   const messageId = Number(req.params.id)
   const { reason, details } = req.body
   return queries.createReport({
