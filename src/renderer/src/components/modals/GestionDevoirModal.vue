@@ -146,7 +146,7 @@
           authorName: appStore.currentUser?.name ?? 'Système',
           authorType: appStore.currentUser?.type ?? 'teacher',
           promoId: appStore.activePromoId ?? undefined,
-          content: `~[${travail.value.title}](devoir:${travail.value.id}) — ${devoirMeta.value.isEvent ? `le **${formatDate(travail.value.deadline)}**` : `à rendre avant le **${formatDate(travail.value.deadline)}**`}${devoirMeta.value.salle ? ` — Salle : **${devoirMeta.value.salle}**` : ''}`,
+          content: `\\[${travail.value.title}](devoir:${travail.value.id}) — ${devoirMeta.value.isEvent ? `le **${formatDate(travail.value.deadline)}**` : `à rendre avant le **${formatDate(travail.value.deadline)}**`}${devoirMeta.value.salle ? ` — Salle : **${devoirMeta.value.salle}**` : ''}`,
         })
       }
       showToast('Publié et notifié.', 'success')
@@ -239,7 +239,7 @@
 
     // Titre avec lien
     if (reminderOpts.value.lien) {
-      parts.push(`~[${t.title}](devoir:${t.id})`)
+      parts.push(`\\[${t.title}](devoir:${t.id})`)
     } else {
       parts.push(`**${t.title}**`)
     }

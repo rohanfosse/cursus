@@ -45,7 +45,7 @@ const {
   activeRef, refResults, refIndex, insertRef,
   wrapperEl, popupStyle,
   detectTriggers, scrollMentionIntoView,
-  triggerMention, triggerChannel, dismissAll,
+  triggerMention, triggerChannel, triggerDevoir, dismissAll,
 } = useMsgAutocomplete(content, inputEl, autoResize)
 
 const { attaching, attachFile } = useMsgAttachment(content, inputEl, autoResize)
@@ -103,7 +103,7 @@ function onKeydown(e: KeyboardEvent) {
       e.preventDefault()
       const item = refResults.value[refIndex.value]
       if (activeRef.value === 'channel') insertRef('#' + (item as { name: string }).name)
-      else if (activeRef.value === 'devoir') insertRef('~[' + (item as RefDevoir).title + '](devoir:' + (item as RefDevoir).id + ')')
+      else if (activeRef.value === 'devoir') insertRef('\\[' + (item as RefDevoir).title + '](devoir:' + (item as RefDevoir).id + ')')
       else if (activeRef.value === 'doc') insertRef('📄 [' + (item as { name: string }).name + ']')
       return
     }
@@ -244,10 +244,10 @@ function onKeydown(e: KeyboardEvent) {
                 :key="(d as RefDevoir).title"
                 class="mi-mention-item"
                 :class="{ 'mi-mention-selected': i === refIndex }"
-                @mousedown.prevent="insertRef('~[' + (d as RefDevoir).title + '](devoir:' + (d as RefDevoir).id + ')')"
+                @mousedown.prevent="insertRef('\\[' + (d as RefDevoir).title + '](devoir:' + (d as RefDevoir).id + ')')"
                 @mouseenter="refIndex = i"
               >
-                <span class="mi-ref-icon">📋</span>
+                <span class="mi-ref-icon">\</span>
                 <span class="mi-mention-name">{{ (d as RefDevoir).title }}</span>
               </button>
             </template>
@@ -333,6 +333,12 @@ function onKeydown(e: KeyboardEvent) {
               aria-label="Canal"
               @mousedown.prevent="triggerChannel"
             >#</button>
+            <button
+              class="mi-fmt-btn mi-fmt-mention"
+              title="Référencer un devoir"
+              aria-label="Devoir"
+              @mousedown.prevent="triggerDevoir"
+            >\</button>
           </div>
 
           <!-- Actions droite -->

@@ -111,9 +111,13 @@ export function applyChannelRefs(html: string): string {
 // ─── Références 📋 devoirs et 📄 documents ─────────────────────────────────
 
 export function applyInlineRefs(html: string): string {
-  // ~[Title](devoir:ID) — clickable devoir reference
+  // \[Title](devoir:ID) — clickable devoir reference
+  html = html.replace(/\\\[([^\]]+)\]\(devoir:(\d+)\)/g, (_m, title, id) => {
+    return `<span class="devoir-ref" data-devoir-id="${escapeHtml(id)}" role="link" tabindex="0">\\${escapeHtml(title)}</span>`
+  })
+  // ~[Title](devoir:ID) — legacy format (backward compat)
   html = html.replace(/~\[([^\]]+)\]\(devoir:(\d+)\)/g, (_m, title, id) => {
-    return `<span class="devoir-ref" data-devoir-id="${escapeHtml(id)}" role="link" tabindex="0">~${escapeHtml(title)}</span>`
+    return `<span class="devoir-ref" data-devoir-id="${escapeHtml(id)}" role="link" tabindex="0">\\${escapeHtml(title)}</span>`
   })
   // 📋 [Titre du devoir] — legacy static format
   html = html.replace(/📋\s*\[([^\]]+)\]/g, (_m, title) => {

@@ -193,7 +193,7 @@ export function useMsgAutocomplete(
 
     const matchMention = before.match(/@([^\s@]*)$/)
     const matchChannel = before.match(/#([^\s#]*)$/)
-    const matchTilde   = before.match(/~([^\s~]*)$/)
+    const matchDevoir2 = before.match(/\\([^\s\\]*)$/)
     const matchDevoir  = before.match(/\/devoir\s?(.*)$/i)
     const matchDoc     = before.match(/\/doc\s?(.*)$/i)
 
@@ -209,10 +209,10 @@ export function useMsgAutocomplete(
       refStart.value  = cursor - matchChannel[0].length
       mentionActive.value = false
       loadChannels()
-    } else if (matchTilde) {
+    } else if (matchDevoir2) {
       activeRef.value = 'devoir'
-      refSearch.value = matchTilde[1]
-      refStart.value  = cursor - matchTilde[0].length
+      refSearch.value = matchDevoir2[1]
+      refStart.value  = cursor - matchDevoir2[0].length
       mentionActive.value = false
       loadDevoirs()
     } else if (matchDevoir) {
@@ -281,6 +281,25 @@ export function useMsgAutocomplete(
     })
   }
 
+  function triggerDevoir() {
+    const el = inputEl.value
+    if (!el) return
+    const pos    = el.selectionStart ?? content.value.length
+    const before = content.value.slice(0, pos)
+    const after  = content.value.slice(pos)
+    content.value = before + '\\' + after
+    nextTick(() => {
+      const newPos = pos + 1
+      el.setSelectionRange(newPos, newPos)
+      el.focus()
+      refSearch.value = ''
+      refStart.value  = newPos - 1
+      activeRef.value = 'devoir'
+      loadDevoirs()
+      autoResize()
+    })
+  }
+
   function dismissAll() {
     closeMention()
     activeRef.value = null
@@ -307,6 +326,7 @@ export function useMsgAutocomplete(
     scrollMentionIntoView,
     triggerMention,
     triggerChannel,
+    triggerDevoir,
     dismissAll,
   }
 }
