@@ -94,6 +94,7 @@ declare global {
       getStudentByEmail(email: string): Promise<IpcResponse<Student>>
       registerStudent(payload: object): Promise<IpcResponse<{ id: number }>>
       importStudents(promoId: number): Promise<IpcResponse<{ imported: number; errors: string[] } | null>>
+      bulkImportStudents(promoId: number, rows: Record<string, string>[]): Promise<IpcResponse<{ imported: number; errors: string[] }>>
 
       // Identité / login
       getIdentities(): Promise<IpcResponse<Student[]>>

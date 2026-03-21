@@ -81,17 +81,11 @@
         .filter(r => r.valid && r.name)
         .map(r => ({
           name:     r.name,
-          email:    r.email || `${r.name.toLowerCase().replace(/\s+/g, '.')}@temp.local`,
+          email:    r.email || `${r.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.')}@viacesi.fr`,
           password: r.password || '',
         }))
 
-      const res = await (window.api as any).bulkImportStudents
-        ? (window.api as any).bulkImportStudents(selectedPromo.value, rows)
-        : await fetch(`${window.location.origin}/api/students/bulk-import`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('cc_session')}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ promoId: selectedPromo.value, rows }),
-          }).then(r => r.json())
+      const res = await window.api.bulkImportStudents(selectedPromo.value, rows) as { ok: boolean; data?: { imported: number; errors: string[] }; error?: string }
 
       if (res?.ok) {
         const data = res.data ?? { imported: 0, errors: [] }
@@ -139,13 +133,12 @@
             v-model="textInput"
             class="is-textarea"
             rows="8"
-            placeholder="Prénom Nom ; email@viacesi.fr
-Jean Dupont ; jean.dupont@viacesi.fr
+            placeholder="Jean Dupont ; jean.dupont@viacesi.fr
 Marie Martin ; marie.martin@viacesi.fr
+Pierre Durand
 
-Ou simplement les noms :
-Jean Dupont
-Marie Martin"
+Sans email, il sera généré automatiquement :
+prenom.nom@viacesi.fr"
           />
         </div>
 
@@ -160,7 +153,7 @@ Marie Martin"
           <div class="is-preview-list">
             <div v-for="r in parsedRows.slice(0, 10)" :key="r.line" class="is-preview-row" :class="{ invalid: !r.valid || !r.name }">
               <span class="is-preview-name">{{ r.name || '—' }}</span>
-              <span class="is-preview-email">{{ r.email || '(email auto)' }}</span>
+              <span class="is-preview-email">{{ r.email || `${r.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.')}@viacesi.fr` }}</span>
               <CheckCircle2 v-if="r.valid && r.name" :size="12" class="is-preview-ok" />
               <X v-else :size="12" class="is-preview-ko" />
             </div>

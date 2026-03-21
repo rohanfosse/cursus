@@ -160,6 +160,9 @@ contextBridge.exposeInMainWorld('api', {
     return post('/api/students/bulk-import', { promoId, students })
   },
 
+  bulkImportStudents: (promoId: number, rows: Record<string, string>[]) =>
+    post('/api/students/bulk-import', { promoId, rows }),
+
   // ── Promotions & canaux ─────────────────────────────────────────────────────
   getPromotions:  ()              => get('/api/promotions'),
   createPromotion:(payload: unknown) => post('/api/promotions', payload),

@@ -352,8 +352,13 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   resetAndSeed: () => post('/api/admin/reset-seed', {}),
 
   // ── Upload fichier vers le serveur ────────────────────────────────────────────
-  async uploadFile(pseudoPath: string) {
-    const cached = fileCache.get(pseudoPath)
+  async uploadFile(filePath: string) {
+    // Si c'est déjà une URL serveur (uploadé via openFileDialog), retourner directement
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return { ok: true, data: filePath }
+    }
+    // Legacy : pseudo-path __web__ (ancien format, garde la compat)
+    const cached = fileCache.get(filePath)
     if (!cached) return { ok: false, error: 'Fichier non trouvé (cache expiré).' }
     const bytes = Uint8Array.from(atob(cached.b64), c => c.charCodeAt(0))
     const blob  = new Blob([bytes], { type: cached.mime })
@@ -388,10 +393,28 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   async openFileDialog() {
     const file = await pickFile()
     if (!file) return { ok: true, data: null }
-    const data = await fileToBase64(file)
-    const id = `__web__${Date.now()}_${Math.random().toString(36).slice(2)}`
-    fileCache.set(id, { ...data, name: file.name })
-    return { ok: true, data: id }  // pseudo-path
+    // Upload immédiatement au serveur (pas de cache mémoire volatile)
+    const formData = new FormData()
+    formData.append('file', file, file.name)
+    try {
+      const res  = await fetch(`${SERVER_URL}/api/files/upload`, {
+        method: 'POST',
+        headers: jwtToken ? { Authorization: `Bearer ${jwtToken}` } : {},
+        body: formData,
+      })
+      const json = await res.json() as { ok: boolean; data?: string; error?: string }
+      if (json.ok && json.data) {
+        const serverUrl = `${SERVER_URL}${json.data}`
+        // Garder aussi en cache pour readFileBase64/download (session courante)
+        const data = await fileToBase64(file)
+        const id = serverUrl
+        fileCache.set(id, { ...data, name: file.name })
+        return { ok: true, data: serverUrl }
+      }
+      return { ok: false, error: json.error ?? 'Erreur upload' }
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
   },
 
   async readFileBase64(filePath: string) {
@@ -449,6 +472,9 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   exportCsv: (travailId: number) => exportCsvBrowser(travailId),
 
   importStudents: (promoId: number) => importStudentsBrowser(promoId),
+
+  bulkImportStudents: (promoId: number, rows: Record<string, string>[]) =>
+    post('/api/students/bulk-import', { promoId, rows }),
 
   // ── Shell → browser ──────────────────────────────────────────────────────────
   // Open synchronously to avoid popup blocker (must be in user gesture call stack)

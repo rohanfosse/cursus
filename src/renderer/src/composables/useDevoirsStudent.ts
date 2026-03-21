@@ -79,7 +79,11 @@ export function useDevoirsStudent(now: Ref<number>) {
 
   // ── Chargement des données (branche étudiant) ────────────────────────────────
   async function loadView() {
-    await travauxStore.fetchStudentDevoirs()
+    try {
+      await travauxStore.fetchStudentDevoirs()
+    } catch (e) {
+      console.warn('[Devoirs] Erreur chargement devoirs étudiant:', e)
+    }
   }
 
   return {
