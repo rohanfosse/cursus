@@ -68,9 +68,11 @@ const projectColorMap = computed(() => {
   return map
 })
 
-// ── Flat milestones (single timeline) ─────────────────────────────────────
-const flatMilestones = computed(() => {
-  const all: (FriseMilestone & { projectKey: string; projectLabel: string; color: string })[] = []
+// ── Enriched milestones ───────────────────────────────────────────────────
+type EnrichedMs = FriseMilestone & { projectKey: string; projectLabel: string; color: string }
+
+const flatMilestones = computed((): EnrichedMs[] => {
+  const all: EnrichedMs[] = []
   for (const promo of props.frise) {
     for (const proj of promo.projects) {
       const color = projectColorMap.value.get(proj.key) ?? '#4A90D9'
@@ -80,6 +82,33 @@ const flatMilestones = computed(() => {
     }
   }
   return all.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+})
+
+// ── Grouper par jour (même date = un seul point) ─────────────────────────
+interface DayGroup {
+  dateKey: string       // "2026-03-21"
+  deadline: string      // ISO string du premier
+  items: EnrichedMs[]
+  mainColor: string     // couleur du premier item
+  hasMultipleProjects: boolean
+}
+
+const groupedByDay = computed((): DayGroup[] => {
+  const map = new Map<string, EnrichedMs[]>()
+  for (const ms of flatMilestones.value) {
+    const dateKey = ms.deadline.slice(0, 10) // "YYYY-MM-DD"
+    if (!map.has(dateKey)) map.set(dateKey, [])
+    map.get(dateKey)!.push(ms)
+  }
+  return Array.from(map.entries())
+    .map(([dateKey, items]) => ({
+      dateKey,
+      deadline: items[0].deadline,
+      items,
+      mainColor: items[0].color,
+      hasMultipleProjects: new Set(items.map(i => i.projectKey)).size > 1,
+    }))
+    .sort((a, b) => a.deadline.localeCompare(b.deadline))
 })
 
 // ── Légende projets ──────────────────────────────────────────────────────
@@ -94,15 +123,20 @@ const projectLegend = computed(() => {
   return [...seen.values()]
 })
 
-// ── Hovered milestone ────────────────────────────────────────────────────
-const hoveredMs = ref<(FriseMilestone & { projectLabel: string; color: string }) | null>(null)
+// ── Expanded group ──────────────────────────────────────────────────────
+const expandedGroup = ref<string | null>(null)
 
-// ── Type dot shape class ─────────────────────────────────────────────────
-function dotClass(ms: FriseMilestone) {
+function toggleGroup(dateKey: string) {
+  expandedGroup.value = expandedGroup.value === dateKey ? null : dateKey
+}
+
+// ── Dot shape ────────────────────────────────────────────────────────────
+function dotClassForGroup(group: DayGroup) {
+  // Losange si tous les items sont soutenance/cctl
+  const allDiamond = group.items.every(ms => ms.type === 'soutenance' || ms.type === 'cctl')
   return {
-    'tf-dot--diamond': ms.type === 'soutenance' || ms.type === 'cctl',
-    'tf-dot--done': ms.done,
-    'tf-dot--draft': !ms.published,
+    'tf-dot--diamond': allDiamond,
+    'tf-dot--multi': group.items.length > 1,
   }
 }
 </script>
@@ -159,34 +193,59 @@ function dotClass(ms: FriseMilestone) {
         </div>
       </div>
 
-      <!-- Single lane: all milestones with type labels -->
+      <!-- Single lane: grouped by day -->
       <div class="tf-lane">
         <div class="tf-lane-line" />
         <div
-          v-for="(ms, i) in flatMilestones" :key="ms.id"
-          class="tf-milestone" :class="{ 'tf-milestone--above': i % 2 === 0 }"
-          :style="{ left: milestoneLeft(ms.deadline) }"
-          @click.stop="emit('onMilestoneClick', ms)"
-          @mouseenter="hoveredMs = ms"
-          @mouseleave="hoveredMs = null"
+          v-for="(group, gi) in groupedByDay" :key="group.dateKey"
+          class="tf-milestone" :class="{ 'tf-milestone--above': gi % 2 === 0, 'tf-milestone--expanded': expandedGroup === group.dateKey }"
+          :style="{ left: milestoneLeft(group.deadline) }"
+          @click.stop="group.items.length > 1 ? toggleGroup(group.dateKey) : emit('onMilestoneClick', group.items[0])"
         >
-          <span v-if="i % 2 === 0" class="tf-ms-label" :style="{ color: ms.color }">{{ typeLabel(ms.type) }}</span>
-          <div class="tf-dot" :class="dotClass(ms)" :style="{ background: ms.color }" />
-          <span v-if="i % 2 !== 0" class="tf-ms-label" :style="{ color: ms.color }">{{ typeLabel(ms.type) }}</span>
+          <!-- Label au-dessus (index pair) -->
+          <div v-if="gi % 2 === 0" class="tf-ms-labels">
+            <template v-if="group.items.length === 1">
+              <span class="tf-ms-label" :style="{ color: group.mainColor }">{{ typeLabel(group.items[0].type) }}</span>
+            </template>
+            <template v-else>
+              <span class="tf-ms-label tf-ms-label--count" :style="{ color: group.mainColor }">{{ group.items.length }} devoirs</span>
+            </template>
+          </div>
+
+          <!-- Point -->
+          <div class="tf-dot" :class="dotClassForGroup(group)" :style="{ background: group.mainColor }">
+            <span v-if="group.items.length > 1" class="tf-dot-count">{{ group.items.length }}</span>
+          </div>
+
+          <!-- Label en dessous (index impair) -->
+          <div v-if="gi % 2 !== 0" class="tf-ms-labels">
+            <template v-if="group.items.length === 1">
+              <span class="tf-ms-label" :style="{ color: group.mainColor }">{{ typeLabel(group.items[0].type) }}</span>
+            </template>
+            <template v-else>
+              <span class="tf-ms-label tf-ms-label--count" :style="{ color: group.mainColor }">{{ group.items.length }} devoirs</span>
+            </template>
+          </div>
+
+          <!-- Expanded dropdown (quand on clique sur un groupe multi) -->
+          <div v-if="expandedGroup === group.dateKey && group.items.length > 1" class="tf-group-dropdown" @click.stop>
+            <div class="tf-group-date">{{ formatDate(group.deadline) }}</div>
+            <button
+              v-for="ms in group.items" :key="ms.id"
+              class="tf-group-item"
+              @click.stop="emit('onMilestoneClick', ms)"
+            >
+              <span class="tf-group-item-dot" :style="{ background: ms.color }" />
+              <span class="tf-group-item-type">{{ typeLabel(ms.type) }}</span>
+              <span class="tf-group-item-title">{{ ms.title }}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Hover tooltip -->
-    <div v-if="hoveredMs" class="tf-tooltip">
-      <span class="tf-tooltip-dot" :style="{ background: hoveredMs.color }" />
-      <div class="tf-tooltip-body">
-        <span class="tf-tooltip-title">{{ hoveredMs.title }}</span>
-        <span class="tf-tooltip-meta">
-          {{ typeLabel(hoveredMs.type) }} · {{ hoveredMs.projectLabel }} · {{ formatDate(hoveredMs.deadline) }}
-        </span>
-      </div>
-    </div>
+    <!-- Click outside to close expanded group -->
+    <div v-if="expandedGroup" class="tf-backdrop" @click="expandedGroup = null" />
 
     <!-- Légende projets -->
     <div v-if="projectLegend.length" class="tf-legend">
@@ -285,45 +344,85 @@ function dotClass(ms: FriseMilestone) {
   transform: translateY(-50%);
 }
 
-/* Milestone container (dot + label) */
+/* Milestone container (dot + labels) */
 .tf-milestone {
   position: absolute; top: 50%; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   cursor: pointer; z-index: 2;
 }
-.tf-milestone--above { flex-direction: column; }
-.tf-milestone:not(.tf-milestone--above) { flex-direction: column; }
+.tf-milestone--expanded { z-index: 10; }
+.tf-ms-labels { display: flex; flex-direction: column; align-items: center; gap: 1px; pointer-events: none; }
 .tf-ms-label {
   font-size: 9px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .3px; white-space: nowrap; pointer-events: none;
+  letter-spacing: .3px; white-space: nowrap;
   opacity: .8; transition: opacity .15s;
 }
+.tf-ms-label--count { font-size: 10px; font-weight: 800; }
 .tf-milestone:hover .tf-ms-label { opacity: 1; }
 
+/* Dot */
 .tf-dot {
   width: 12px; height: 12px; border-radius: 50%;
   border: 2px solid var(--bg-sidebar); flex-shrink: 0;
   transition: transform .15s, box-shadow .15s;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.tf-dot--multi {
+  width: 20px; height: 20px; border-radius: 50%;
+}
+.tf-dot-count {
+  font-size: 9px; font-weight: 800; color: #fff;
+  line-height: 1; pointer-events: none;
 }
 .tf-milestone:hover .tf-dot {
-  transform: scale(1.4);
+  transform: scale(1.3);
   box-shadow: 0 0 0 4px rgba(255,255,255,.1);
 }
 .tf-dot--diamond { border-radius: 2px; transform: rotate(45deg); }
-.tf-milestone:hover .tf-dot--diamond { transform: rotate(45deg) scale(1.4); }
-.tf-dot--draft { opacity: .35; }
-.tf-dot--done { box-shadow: 0 0 0 2px rgba(255,255,255,.2); }
+.tf-milestone:hover .tf-dot--diamond { transform: rotate(45deg) scale(1.3); }
 
-/* ── Tooltip ──────────────────────────────────────────────────────────────── */
-.tf-tooltip {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border-radius: 8px;
-  background: var(--bg-elevated); border: 1px solid var(--border);
+/* Group dropdown */
+.tf-group-dropdown {
+  position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: var(--bg-modal); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px; min-width: 200px; max-width: 280px;
+  box-shadow: var(--shadow-lg); z-index: 20;
+  display: flex; flex-direction: column; gap: 4px;
+  pointer-events: auto; cursor: default;
 }
-.tf-tooltip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.tf-tooltip-body { display: flex; flex-direction: column; gap: 2px; }
-.tf-tooltip-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.tf-tooltip-meta { font-size: 11px; color: var(--text-muted); }
+.tf-milestone--above .tf-group-dropdown {
+  top: auto; bottom: calc(100% + 8px);
+}
+.tf-group-date {
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .4px;
+  padding: 2px 6px 6px; border-bottom: 1px solid var(--border);
+}
+.tf-group-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 6px; cursor: pointer;
+  background: transparent; border: none; font-family: var(--font);
+  color: var(--text-primary); text-align: left;
+  transition: background .12s;
+}
+.tf-group-item:hover { background: rgba(255,255,255,.06); }
+.tf-group-item-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.tf-group-item-type {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  color: var(--text-muted); min-width: 60px;
+}
+.tf-group-item-title {
+  font-size: 12px; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Backdrop for closing dropdown */
+.tf-backdrop {
+  position: fixed; inset: 0; z-index: 5;
+}
 
 /* ── Légende ──────────────────────────────────────────────────────────────── */
 .tf-legend {
