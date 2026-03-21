@@ -133,7 +133,13 @@ export function applyInlineRefs(html: string): string {
 // ─── Formatage du contenu d'un message ───────────────────────────────────────
 
 export function renderMessageContent(raw: string, searchTerm = '', currentUserName = ''): string {
-  let html = marked.parse(raw) as string
+  // Traiter les refs devoir AVANT le markdown (sinon \ et ~ sont consommés par marked)
+  let preprocessed = raw
+  // \[Title](devoir:ID) et ~[Title](devoir:ID) → placeholder HTML
+  preprocessed = preprocessed.replace(/[\\~]\[([^\]]+)\]\(devoir:(\d+)\)/g, (_m, title, id) => {
+    return `<span class="devoir-ref" data-devoir-id="${escapeHtml(id)}" role="link" tabindex="0">${escapeHtml(title)}</span>`
+  })
+  let html = marked.parse(preprocessed) as string
   html = applyMentions(html, currentUserName)
   html = applyChannelRefs(html)
   html = applyInlineRefs(html)

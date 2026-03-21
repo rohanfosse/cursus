@@ -119,6 +119,7 @@
         if (appStore.isStudent) await travauxStore.fetchStudentDevoirs()
       }
     },
+    { immediate: true },
   )
 
   // ── Scroll vers message surligné (depuis CmdPalette ou PinnedBanner) ─────

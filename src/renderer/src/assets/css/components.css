@@ -366,6 +366,20 @@ button { font-family: var(--font); }
   outline-offset: 1px;
 }
 
+/* Style "rappel" — message contenant une ref devoir (rappel prof) */
+.msg-text:has(.devoir-ref) {
+  background: linear-gradient(135deg, rgba(243,156,18,.06) 0%, rgba(74,144,217,.04) 100%);
+  border-left: 3px solid var(--color-warning);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 2px 0;
+}
+.msg-text:has(.devoir-ref) .devoir-ref {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+
 /* Référence 📄 document dans les messages */
 .doc-ref {
   background: rgba(46,204,113,.12);
