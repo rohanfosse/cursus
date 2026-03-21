@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cursus — Console Admin</title>
+  <link rel="icon" type="image/png" href="/assets/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- Login overlay -->
+<div id="login-overlay" class="login-overlay">
+  <div class="login-box">
+    <div class="login-header">
+      <img src="/assets/icon-192.png" alt="Cursus" class="login-logo" />
+      <h2>Console d'administration</h2>
+      <p>Connectez-vous avec votre compte enseignant</p>
+    </div>
+    <form id="login-form" onsubmit="event.preventDefault(); doLogin()">
+      <div class="login-field">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" placeholder="prenom.nom@viacesi.fr" autocomplete="email" required autofocus />
+      </div>
+      <div class="login-field">
+        <label for="login-password">Mot de passe</label>
+        <input type="password" id="login-password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="current-password" required />
+      </div>
+      <button type="submit" id="login-btn" class="login-submit">Connexion</button>
+    </form>
+    <div id="login-error" class="error-msg" style="display:none"></div>
+    <div class="login-footer">
+      <a href="/">&larr; Retour au site</a>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" class="container" style="display:none">
+  <div class="header">
+    <div>
+      <a href="/" class="back-link">&larr; Retour au site</a>
+      <h1>Console d'administration</h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:1rem">
+      <div class="status"><div id="status-dot" class="dot"></div><span id="status-text">Connect&eacute;</span></div>
+      <button class="refresh-btn" onclick="refreshActiveTab()">Rafra&icirc;chir</button>
+      <button class="refresh-btn" style="background:rgba(231,76,60,.15);color:#e74c3c;border-color:rgba(231,76,60,.3)" onclick="logout()">D&eacute;connexion</button>
+    </div>
+  </div>
+
+  <!-- Read-only banner -->
+  <div id="readonly-banner" class="alert alert-warn" style="display:none">
+    La plateforme est en <strong>mode lecture seule</strong>. Les &eacute;tudiants ne peuvent pas poster de messages ni soumettre de d&eacute;p&ocirc;ts.
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="serveur" onclick="switchTab('serveur')">Serveur</button>
+    <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">Statistiques</button>
+    <button class="tab-btn" data-tab="users" onclick="switchTab('users')">Utilisateurs</button>
+    <button class="tab-btn" data-tab="moderation" onclick="switchTab('moderation')">Mod&eacute;ration <span id="reports-badge" class="tab-badge" style="display:none"></span></button>
+    <button class="tab-btn" data-tab="audit" onclick="switchTab('audit')">Audit</button>
+    <button class="tab-btn" data-tab="security" onclick="switchTab('security')">S&eacute;curit&eacute;</button>
+    <button class="tab-btn" data-tab="scheduled" onclick="switchTab('scheduled')">Annonces</button>
+    <button class="tab-btn" data-tab="sessions" onclick="switchTab('sessions')">Sessions</button>
+    <button class="tab-btn" data-tab="deploy" onclick="switchTab('deploy')">D&eacute;ploiement</button>
+    <button class="tab-btn" data-tab="import" onclick="switchTab('import')">Import</button>
+    <button class="tab-btn" data-tab="maintenance" onclick="switchTab('maintenance')">Maintenance</button>
+    <button class="tab-btn" data-tab="feedback" onclick="switchTab('feedback')">Feedback <span id="feedback-badge" class="tab-badge" style="display:none"></span></button>
+  </div>
+
+  <!-- Tab panels -->
+  <div id="tab-serveur" class="tab-panel active">
+    <div class="grid" id="metrics-grid"></div>
+  </div>
+
+  <div id="tab-stats" class="tab-panel">
+    <div id="stats-content">Chargement...</div>
+  </div>
+
+  <div id="tab-users" class="tab-panel">
+    <div class="filters">
+      <input type="text" id="user-search" placeholder="Rechercher un nom ou email..." />
+      <select id="user-type-filter">
+        <option value="">Tous les types</option>
+        <option value="student">&Eacute;tudiants</option>
+        <option value="teacher">Enseignants</option>
+        <option value="ta">Intervenants</option>
+      </select>
+      <select id="user-promo-filter"><option value="">Toutes les promos</option></select>
+      <button class="btn btn-primary btn-sm" onclick="loadUsers()">Filtrer</button>
+      <button class="btn btn-sm" style="background:var(--green);color:#fff" onclick="exportUsers()">Exporter CSV</button>
+    </div>
+    <div id="users-content">Chargement...</div>
+  </div>
+
+  <div id="tab-moderation" class="tab-panel">
+    <div class="filters">
+      <input type="text" id="mod-search" placeholder="Rechercher dans les messages..." />
+      <input type="text" id="mod-author" placeholder="Auteur..." />
+      <select id="mod-promo-filter"><option value="">Toutes les promos</option></select>
+      <input type="date" id="mod-from" />
+      <input type="date" id="mod-to" />
+      <button class="btn btn-primary btn-sm" onclick="loadModeration()">Rechercher</button>
+    </div>
+    <div id="moderation-content">Chargement...</div>
+
+    <div style="margin-top:2rem">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
+        <h3 style="font-size:1rem;font-weight:600">Signalements</h3>
+        <select id="report-status-filter" onchange="loadReports()" style="padding:.3rem .5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.8rem">
+          <option value="">Tous</option>
+          <option value="pending" selected>En attente</option>
+          <option value="reviewed">Trait&eacute;s</option>
+          <option value="dismissed">Rejet&eacute;s</option>
+        </select>
+      </div>
+      <div id="reports-list">Chargement...</div>
+    </div>
+  </div>
+
+  <div id="tab-audit" class="tab-panel">
+    <div class="filters">
+      <select id="audit-action-filter">
+        <option value="">Toutes les actions</option>
+        <option value="message.delete">Suppression message</option>
+        <option value="grade.update">Changement note</option>
+        <option value="user.create">Cr&eacute;ation utilisateur</option>
+        <option value="user.delete">Suppression utilisateur</option>
+        <option value="password.reset">Reset mot de passe</option>
+        <option value="db.reset">Reset BDD</option>
+      </select>
+      <input type="text" id="audit-actor" placeholder="Acteur..." />
+      <input type="date" id="audit-from" />
+      <input type="date" id="audit-to" />
+      <button class="btn btn-primary btn-sm" onclick="loadAudit()">Filtrer</button>
+      <button class="btn btn-sm" style="background:var(--green);color:#fff" onclick="exportAudit()">Exporter CSV</button>
+    </div>
+    <div id="audit-content">Chargement...</div>
+  </div>
+
+  <div id="tab-security" class="tab-panel">
+    <div id="security-content">Chargement...</div>
+  </div>
+
+  <div id="tab-scheduled" class="tab-panel">
+    <div style="margin-bottom:1rem">
+      <button class="btn btn-primary" onclick="showScheduleModal()">Planifier une annonce</button>
+    </div>
+    <div id="scheduled-content">Chargement...</div>
+  </div>
+
+  <div id="tab-sessions" class="tab-panel">
+    <div id="sessions-content">Chargement...</div>
+  </div>
+
+  <div id="tab-deploy" class="tab-panel">
+    <div id="deploy-content">Chargement...</div>
+  </div>
+
+  <div id="tab-import" class="tab-panel">
+    <div id="import-content">Chargement...</div>
+  </div>
+
+  <div id="tab-maintenance" class="tab-panel">
+    <div id="maintenance-content">Chargement...</div>
+  </div>
+
+  <div id="tab-feedback" class="tab-panel">
+    <div id="feedback-content">Chargement...</div>
+  </div>
+</div>
+
+<!-- Modal container -->
+<div id="modal-root"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

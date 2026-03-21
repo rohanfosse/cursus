@@ -124,9 +124,11 @@ app.use('/download', require('./routes/download'))
 app.use('/webhook/deploy', require('./routes/deploy'))
 
 // ── Page admin monitoring ─────────────────────────────────────────────────────
+app.use('/admin-monitor', express.static(path.join(__dirname, 'public/admin'), {
+  setHeaders: (res) => res.set('Cache-Control', 'no-cache, no-store, must-revalidate'),
+}))
 app.get('/admin-monitor', (_req, res) => {
-  res.set('Cache-Control', 'no-cache, no-store, must-revalidate')
-  res.sendFile(path.join(__dirname, 'public/admin-monitor.html'))
+  res.sendFile(path.join(__dirname, 'public/admin/index.html'))
 })
 
 // ── Landing page vitrine (page d'accueil) ──────────────────────────────────
