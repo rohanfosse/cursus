@@ -28,7 +28,23 @@ const travauxStore = useTravauxStore()
 const modals       = useModalsStore()
 
 // FolderOpen is not in base lucide-vue-next so we import it here
+import { computed } from 'vue'
 import { FolderOpen } from 'lucide-vue-next'
+
+/** Cached projectStats per category to avoid repeated calls in template */
+const cachedProjectStats = computed(() => {
+  const map: Record<string, ReturnType<typeof props.projectStats>> = {}
+  for (const cat of props.teacherCategories) {
+    map[cat] = props.projectStats(cat)
+  }
+  return map
+})
+
+/** Whether there are devoirs at all (published or not) */
+const hasDevoirsAtAll = computed(() => travauxStore.ganttData.length > 0)
+
+/** Whether there are published devoirs */
+const hasPublishedDevoirs = computed(() => travauxStore.ganttData.some(t => t.is_published))
 </script>
 
 <template>
@@ -38,8 +54,18 @@ import { FolderOpen } from 'lucide-vue-next'
 
   <div v-else-if="!teacherCategories.length" class="empty-state-custom">
     <BookOpen :size="48" class="empty-icon" />
-    <h3>Aucun projet pour cette promotion</h3>
-    <p>Les projets apparaîtront automatiquement quand vous créerez un devoir avec une catégorie.</p>
+    <template v-if="!hasDevoirsAtAll">
+      <h3>Aucun devoir pour cette promotion</h3>
+      <p>Créez votre premier devoir pour commencer.</p>
+    </template>
+    <template v-else-if="!hasPublishedDevoirs">
+      <h3>Aucun projet publié</h3>
+      <p>Vos devoirs existent mais ne sont pas encore associés à un projet (catégorie). Ajoutez une catégorie pour les organiser.</p>
+    </template>
+    <template v-else>
+      <h3>Aucun projet pour cette promotion</h3>
+      <p>Les projets apparaîtront automatiquement quand vous créerez un devoir avec une catégorie.</p>
+    </template>
     <button class="btn-primary" style="margin-top:12px" @click="modals.newDevoir = true">
       <PlusCircle :size="14" /> Créer un devoir
     </button>
@@ -114,11 +140,11 @@ import { FolderOpen } from 'lucide-vue-next'
               </span>
             </div>
             <div class="proj-card-stats-row">
-              <span>{{ projectStats(cat).totalDepots }}/{{ projectStats(cat).totalExpected }} soumis</span>
-              <span v-if="projectStats(cat).toGrade > 0" class="proj-stat-warn">{{ projectStats(cat).toGrade }} à noter</span>
+              <span>{{ cachedProjectStats[cat].totalDepots }}/{{ cachedProjectStats[cat].totalExpected }} soumis</span>
+              <span v-if="cachedProjectStats[cat].toGrade > 0" class="proj-stat-warn">{{ cachedProjectStats[cat].toGrade }} à noter</span>
             </div>
             <div class="proj-card-progress">
-              <div class="proj-card-progress-fill" :style="{ width: projectStats(cat).pct + '%' }" />
+              <div class="proj-card-progress-fill" :style="{ width: cachedProjectStats[cat].pct + '%' }" />
             </div>
             <div class="proj-card-footer">
               <span class="proj-card-total">{{ projectDevoirCount(cat) }} devoir{{ projectDevoirCount(cat) > 1 ? 's' : '' }}</span>

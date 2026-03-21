@@ -4,13 +4,25 @@
 <script setup lang="ts">
 import { ExternalLink, Eye, EyeOff, Copy, Trash2 } from 'lucide-vue-next'
 
+import { computed } from 'vue'
+
 const props = defineProps<{
   ctxMenu: { x: number; y: number; devoir: { is_published?: boolean | number } | null }
   ctxOpen: () => void
   ctxPublishToggle: () => void
   ctxDuplicate: () => void
   ctxDelete: () => void
+  closeCtxMenu: () => void
 }>()
+
+/** Clamp menu position to viewport bounds */
+const menuStyle = computed(() => {
+  const menuW = 200
+  const menuH = 180
+  const x = props.ctxMenu.x > window.innerWidth - menuW ? props.ctxMenu.x - menuW : props.ctxMenu.x
+  const y = props.ctxMenu.y > window.innerHeight - menuH ? props.ctxMenu.y - menuH : props.ctxMenu.y
+  return { left: x + 'px', top: y + 'px' }
+})
 </script>
 
 <template>
@@ -18,8 +30,10 @@ const props = defineProps<{
     <div
       v-if="ctxMenu.devoir"
       class="ctx-menu"
-      :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }"
+      :style="menuStyle"
+      tabindex="-1"
       @click.stop
+      @keydown.escape="closeCtxMenu"
     >
       <button class="ctx-item" @click="ctxOpen">
         <ExternalLink :size="14" /> Ouvrir
@@ -61,7 +75,7 @@ const props = defineProps<{
   background: none; border: none; color: var(--text-primary, #cdd6f4);
   font-size: 13px; cursor: pointer; text-align: left;
 }
-.ctx-item:hover { background: var(--bg-hover, rgba(255,255,255,.07)); }
+.ctx-item:hover { background: var(--bg-hover, rgba(255,255,255,.12)); }
 .ctx-item--danger { color: var(--color-error, #f38ba8); }
 .ctx-item--danger:hover { background: rgba(243,139,168,.12); }
 .ctx-divider { height: 1px; margin: 4px 8px; background: var(--border-color, #333); }

@@ -2,12 +2,14 @@
  * Vue projet sélectionné (enseignant) : résumé projet, devoirs groupés par type avec cartes initiales/rattrapages.
  */
 <script setup lang="ts">
-import { BookOpen, Clock, Plus, Eye } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { BookOpen, Clock, Plus, Eye, RotateCw } from 'lucide-vue-next'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { useModalsStore }  from '@/stores/modals'
+import { useConfirm }      from '@/composables/useConfirm'
 import { deadlineClass, deadlineLabel } from '@/utils/date'
-import { typeLabel, extractDuration } from '@/utils/devoir'
+import { typeLabel, extractDuration, isRattrapage } from '@/utils/devoir'
 import type { GanttRow } from '@/types'
 import type { UnifiedFlatRow } from '@/composables/useDevoirsTeacher'
 
@@ -27,6 +29,23 @@ const props = defineProps<{
 const appStore     = useAppStore()
 const travauxStore = useTravauxStore()
 const modals       = useModalsStore()
+const { confirm }  = useConfirm()
+
+/** Memoized project stats for the active project */
+const currentProjectStats = computed(() => props.projectStats(appStore.activeProject!))
+
+const publishingAll = ref(false)
+
+async function handlePublishAll() {
+  const ok = await confirm(
+    `Publier les ${currentProjectStats.value.drafts} brouillon${currentProjectStats.value.drafts > 1 ? 's' : ''} ?`,
+    'warning',
+    'Publier tout',
+  )
+  if (!ok) return
+  publishingAll.value = true
+  try { await props.publishAllDrafts() } finally { publishingAll.value = false }
+}
 </script>
 
 <template>
@@ -52,17 +71,19 @@ const modals       = useModalsStore()
       <div class="proj-summary-stats">
         <div class="proj-summary-progress">
           <div class="proj-summary-progress-bar">
-            <div class="proj-summary-progress-fill" :style="{ width: projectStats(appStore.activeProject!).pct + '%' }" />
+            <div class="proj-summary-progress-fill" :style="{ width: currentProjectStats.pct + '%' }" />
           </div>
-          <span class="proj-summary-pct">{{ projectStats(appStore.activeProject!).pct }}% soumis</span>
+          <span class="proj-summary-pct">{{ currentProjectStats.pct }}% soumis</span>
         </div>
-        <span class="proj-summary-stat">{{ projectStats(appStore.activeProject!).noted }} notés</span>
-        <span v-if="projectStats(appStore.activeProject!).toGrade > 0" class="proj-summary-stat proj-stat-warn">{{ projectStats(appStore.activeProject!).toGrade }} à noter</span>
+        <span class="proj-summary-stat">{{ currentProjectStats.noted }} notés</span>
+        <span v-if="currentProjectStats.toGrade > 0" class="proj-summary-stat proj-stat-warn">{{ currentProjectStats.toGrade }} à noter</span>
         <span v-if="projectNextDeadline(appStore.activeProject!)" class="proj-summary-stat">
           <Clock :size="11" /> {{ deadlineLabel(projectNextDeadline(appStore.activeProject!)!) }}
         </span>
-        <button v-if="projectStats(appStore.activeProject!).drafts > 0" class="proj-summary-publish-btn" @click="publishAllDrafts">
-          <Eye :size="12" /> Publier les {{ projectStats(appStore.activeProject!).drafts }} brouillon{{ projectStats(appStore.activeProject!).drafts > 1 ? 's' : '' }}
+        <button v-if="currentProjectStats.drafts > 0" class="proj-summary-publish-btn" :disabled="publishingAll" @click="handlePublishAll">
+          <RotateCw v-if="publishingAll" :size="12" class="spin-icon" />
+          <Eye v-else :size="12" />
+          Publier les {{ currentProjectStats.drafts }} brouillon{{ currentProjectStats.drafts > 1 ? 's' : '' }}
         </button>
       </div>
     </div>
@@ -106,12 +127,12 @@ const modals       = useModalsStore()
 
           <!-- Rattrapages -->
           <template v-if="group.rattrapages.length">
-            <div class="dc-ratt-label">Rattrapages</div>
+            <div class="dc-ratt-label"><RotateCw :size="10" /> Rattrapages</div>
             <div class="dc-cards dc-cards--ratt">
               <div
                 v-for="t in group.rattrapages"
                 :key="t.id"
-                class="dc-card dc-card--ratt"
+                class="dc-card dc-card--ratt dc-card--ratt-border"
                 :class="{ 'dc-card--draft': !t.is_published, [`dc-card--${group.type}`]: true }"
                 @click="openDevoir(t.id)"
                 @contextmenu="openCtxMenu($event, t)"
@@ -232,11 +253,20 @@ const modals       = useModalsStore()
 }
 .dc-publish-btn:hover { color: var(--color-success); }
 
+.dc-card--ratt-border {
+  border-left: 3px solid var(--color-warning) !important;
+  border-style: dashed;
+}
+
 .dc-ratt-label {
+  display: flex; align-items: center; gap: 4px;
   font-size: 10px; font-weight: 700; color: var(--color-warning);
   text-transform: uppercase; letter-spacing: .3px;
   padding: 4px 0 2px; border-top: 1px dashed var(--border); margin-top: 4px;
 }
+
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.spin-icon { animation: spin 1s linear infinite; }
 
 .dc-add-btn {
   display: flex; align-items: center; gap: 4px;

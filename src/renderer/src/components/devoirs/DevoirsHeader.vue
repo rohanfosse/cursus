@@ -33,18 +33,10 @@ const modals   = useModalsStore()
     </div>
 
     <div class="devoirs-header-actions">
-      <template v-if="appStore.isTeacher && !appStore.activeProject">
-        <button class="btn-primary btn-nouveau" @click="modals.newDevoir = true">
-          <Plus :size="14" /> Nouveau
-        </button>
-      </template>
-    </div>
-
-    <template v-if="appStore.isTeacher && appStore.activeProject">
-      <button class="btn-primary btn-nouveau" @click="modals.newDevoir = true">
+      <button v-if="appStore.isTeacher" class="btn-primary btn-nouveau" @click="modals.newDevoir = true">
         <Plus :size="14" /> Nouveau
       </button>
-    </template>
+    </div>
   </header>
 </template>
 

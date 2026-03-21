@@ -49,7 +49,7 @@ const {
 } = useStudentDeposit(now)
 
 const {
-  editingDepotId, pendingNoteValue, pendingFeedbackValue, savingGrade,
+  editingDepotId, pendingNoteValue, pendingFeedbackValue, savingGrade, canSave,
   startEditGrade, cancelEditGrade, saveGrade,
 } = useTeacherGrading()
 
@@ -153,6 +153,7 @@ watch(() => appStore.activeChannelId, () => {
         :pending-note-value="pendingNoteValue"
         :pending-feedback-value="pendingFeedbackValue"
         :saving-grade="savingGrade"
+        :can-save="canSave"
         :start-edit-grade="startEditGrade"
         :cancel-edit-grade="cancelEditGrade"
         :save-grade="saveGrade"
@@ -170,6 +171,7 @@ watch(() => appStore.activeChannelId, () => {
     :ctx-publish-toggle="ctxPublishToggle"
     :ctx-duplicate="ctxDuplicate"
     :ctx-delete="ctxDelete"
+    :close-ctx-menu="closeCtxMenu"
   />
 </template>
 

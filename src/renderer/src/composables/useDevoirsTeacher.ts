@@ -94,20 +94,23 @@ export function useDevoirsTeacher() {
       await window.api.updateTravailPublished({ travailId: id, published: true })
       showToast('Devoir publié.', 'success')
       loadView()
-    } catch { showToast('Erreur.', 'error') }
+    } catch (err) { console.warn('[publishDevoir]', err); showToast('Erreur.', 'error') }
   }
 
   async function publishAllDrafts() {
     const drafts = unifiedFlat.value.filter(t => !t.is_published)
     if (!drafts.length) return
-    let count = 0
-    for (const d of drafts) {
-      try {
-        await window.api.updateTravailPublished({ travailId: d.id, published: true })
-        count++
-      } catch {}
+    const results = await Promise.allSettled(
+      drafts.map(d => window.api.updateTravailPublished({ travailId: d.id, published: true })),
+    )
+    const succeeded = results.filter(r => r.status === 'fulfilled').length
+    const failed = results.filter(r => r.status === 'rejected').length
+    if (failed > 0) {
+      console.warn(`[publishAllDrafts] ${failed}/${drafts.length} publications échouées`)
+      showToast(`${succeeded} publié${succeeded > 1 ? 's' : ''}, ${failed} erreur${failed > 1 ? 's' : ''}.`, 'error')
+    } else {
+      showToast(`${succeeded} devoir${succeeded > 1 ? 's' : ''} publié${succeeded > 1 ? 's' : ''}.`, 'success')
     }
-    showToast(`${count} devoir${count > 1 ? 's' : ''} publié${count > 1 ? 's' : ''}.`, 'success')
     loadView()
   }
 

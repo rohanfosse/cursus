@@ -2,6 +2,7 @@
  * Vue rendus enseignant : rendus groupés par devoir, notation inline avec note et feedback.
  */
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Users, ChevronRight, Link2, FileText, Award, X } from 'lucide-vue-next'
 import { useTravauxStore } from '@/stores/travaux'
 import { avatarColor, initials } from '@/utils/format'
@@ -15,11 +16,27 @@ const props = defineProps<{
   pendingNoteValue: string
   pendingFeedbackValue: string
   savingGrade: boolean
+  canSave: boolean
   startEditGrade: (depotId: number, currentNote: string | null, currentFeedback: string | null) => void
   cancelEditGrade: () => void
   saveGrade: (depotId: number) => void
   openDevoir: (id: number) => void
 }>()
+
+/** Track which feedbacks are expanded */
+const expandedFeedbacks = ref<Set<number>>(new Set())
+
+function toggleFeedback(id: number) {
+  if (expandedFeedbacks.value.has(id)) expandedFeedbacks.value.delete(id)
+  else expandedFeedbacks.value.add(id)
+}
+
+/** Submission rate for a group */
+function submissionPct(group: { devoir: Partial<GanttRow>; rendus: any[] }): number {
+  const total = group.devoir.students_total ?? 0
+  if (total <= 0) return 0
+  return Math.round((group.rendus.length / total) * 100)
+}
 
 defineEmits<{
   (e: 'update:pendingNoteValue', v: string): void
@@ -67,6 +84,10 @@ const travauxStore = useTravauxStore()
               / {{ group.devoir.students_total }} attendu{{ group.devoir.students_total > 1 ? 's' : '' }}
             </template>
           </span>
+          <div v-if="group.devoir.students_total" class="rendus-progress-mini">
+            <div class="rendus-progress-mini-fill" :style="{ width: submissionPct(group) + '%' }" />
+            <span class="rendus-progress-mini-label">{{ submissionPct(group) }}%</span>
+          </div>
         </div>
         <button class="btn-ghost btn-ouvrir" @click="openDevoir(group.devoir.id!)">
           Ouvrir <ChevronRight :size="13" />
@@ -93,10 +114,14 @@ const travauxStore = useTravauxStore()
                 <input
                   :value="pendingNoteValue"
                   class="form-input grade-input"
-                  placeholder="A–F ou /20"
+                  :class="{ 'grade-input--invalid': !canSave }"
+                  placeholder="A–F ou numérique"
                   style="width:90px;font-size:12px;padding:4px 8px"
                   @input="$emit('update:pendingNoteValue', ($event.target as HTMLInputElement).value)"
+                  @keydown.enter="canSave && saveGrade(r.id)"
+                  @keydown.escape="cancelEditGrade"
                 />
+                <span v-if="!canSave" class="grade-hint">Format : A–F ou numérique</span>
                 <textarea
                   :value="pendingFeedbackValue"
                   class="form-input grade-textarea"
@@ -104,6 +129,7 @@ const travauxStore = useTravauxStore()
                   rows="2"
                   style="font-size:11px;padding:4px 8px;resize:none"
                   @input="$emit('update:pendingFeedbackValue', ($event.target as HTMLTextAreaElement).value)"
+                  @keydown.escape="cancelEditGrade"
                 />
                 <div class="grade-inline-actions">
                   <button class="btn-ghost" style="font-size:11px;padding:3px 8px" @click="cancelEditGrade">
@@ -112,7 +138,7 @@ const travauxStore = useTravauxStore()
                   <button
                     class="btn-primary"
                     style="font-size:11px;padding:3px 10px"
-                    :disabled="savingGrade"
+                    :disabled="savingGrade || !canSave"
                     @click="saveGrade(r.id)"
                   >
                     {{ savingGrade ? '…' : 'OK' }}
@@ -137,7 +163,12 @@ const travauxStore = useTravauxStore()
               >
                 Non noté
               </span>
-              <p v-if="r.feedback" class="rendu-feedback">{{ r.feedback }}</p>
+              <p
+                v-if="r.feedback"
+                class="rendu-feedback"
+                :class="{ 'rendu-feedback--expanded': expandedFeedbacks.has(r.id) }"
+                @click="toggleFeedback(r.id)"
+              >{{ r.feedback }}</p>
             </template>
           </div>
         </div>
@@ -308,6 +339,40 @@ const travauxStore = useTravauxStore()
   overflow: hidden;
   text-overflow: ellipsis;
   font-style: italic;
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+.rendu-feedback:hover { opacity: .8; }
+.rendu-feedback--expanded {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+/* ── Mini progress bar ────────────────────────────────────────────────────── */
+.rendus-progress-mini {
+  display: flex; align-items: center; gap: 5px; margin-left: 4px;
+}
+.rendus-progress-mini .rendus-progress-mini-fill {
+  width: 50px; height: 4px; border-radius: 2px;
+  background: var(--color-success); transition: width .3s;
+}
+.rendus-progress-mini {
+  position: relative; width: 50px; height: 4px;
+  border-radius: 2px; background: rgba(255,255,255,.08); overflow: visible;
+}
+.rendus-progress-mini-fill {
+  height: 100%; border-radius: 2px; background: var(--color-success); transition: width .3s;
+}
+.rendus-progress-mini-label {
+  position: absolute; right: -30px; top: -4px;
+  font-size: 9px; color: var(--text-muted); white-space: nowrap;
+}
+
+/* ── Grade validation ────────────────────────────────────────────────────── */
+.grade-input--invalid { border-color: var(--color-error, #f38ba8) !important; }
+.grade-hint {
+  font-size: 9px; color: var(--color-error, #f38ba8); margin-top: -2px;
 }
 
 /* ── Notation inline ─────────────────────────────────────────────────────── */
