@@ -99,6 +99,29 @@ const {
 
 const { actionItems, classHealth, submissionTrend } = useActionCenter(ganttFiltered)
 
+// ── Computed props for TeacherHeader second row ──────────────────────────────
+const globalSubmissionRate = computed(() => {
+  let depots = 0, expected = 0
+  for (const t of ganttFiltered.value) {
+    if (!t.published) continue
+    depots   += t.depots_count  ?? 0
+    expected += t.students_total ?? 0
+  }
+  return expected > 0 ? (depots / expected) * 100 : 0
+})
+
+const nextDeadlineStr = computed(() => {
+  const now = Date.now()
+  const upcoming = ganttFiltered.value
+    .filter(t => t.published && new Date(t.deadline).getTime() > now)
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+  return upcoming[0]?.deadline ?? null
+})
+
+const onlineStudentsCount = computed(() => {
+  return appStore.onlineUsers.filter(u => u.role === 'student').length
+})
+
 // ── Fetch rendus quand on revient sur l'accueil ─────────────────────────────
 watch(dashTab, (tab) => {
   if (tab === 'accueil' && !travauxStore.allRendus.length) {
@@ -142,6 +165,9 @@ onUnmounted(() => {
       :urgents-count="urgentsCount"
       :brouillons-count="brouillonsCount"
       :total-students="totalStudents"
+      :submission-rate="globalSubmissionRate"
+      :next-deadline="nextDeadlineStr"
+      :online-students="onlineStudentsCount"
       :all-students="allStudents"
       :gantt-all="ganttAll"
       :action-items="actionItems"

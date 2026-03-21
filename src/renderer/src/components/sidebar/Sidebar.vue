@@ -1,7 +1,8 @@
 <script setup lang="ts">
-  import { watch, onMounted } from 'vue'
+  import { watch, onMounted, computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { Plus, ChevronDown, FolderOpen, Layers, BookOpen, BarChart2, CalendarDays, Pencil, Trash2 } from 'lucide-vue-next'
+  import { useTravauxStore } from '@/stores/travaux'
   import NewProjectModal from '@/components/modals/NewProjectModal.vue'
   import type { ProjectMeta } from '@/components/modals/NewProjectModal.vue'
   import ProjectEditPanel from './ProjectEditPanel.vue'
@@ -89,6 +90,41 @@
   // Wire up DM loading into data composable so load*Sidebar calls it
   setLoadRecentDmContacts(loadRecentDmContacts)
 
+  const travauxStore = useTravauxStore()
+
+  // ── Résumé promo (sidebar dashboard) ──────────────────────────────────────
+  const activePromoObj = computed(() => promotions.value.find(p => p.id === appStore.activePromoId) ?? null)
+
+  const promoSummary = computed(() => {
+    const gantt = travauxStore.ganttData
+    const published = gantt.filter(t => t.published)
+    let depots = 0, expected = 0
+    for (const t of published) {
+      depots   += t.depots_count  ?? 0
+      expected += t.students_total ?? 0
+    }
+    const stuCount = students.value.filter(s => s.promo_id === appStore.activePromoId && s.id > 0).length
+    return {
+      studentCount: stuCount,
+      devoirCount: published.length,
+      submissionPct: expected > 0 ? Math.round((depots / expected) * 100) : 0,
+    }
+  })
+
+  // ── Activité récente (derniers rendus) ────────────────────────────────────
+  const recentActivity = computed(() => {
+    return travauxStore.allRendus
+      .filter(r => r.submitted_at)
+      .sort((a, b) => new Date(b.submitted_at ?? 0).getTime() - new Date(a.submitted_at ?? 0).getTime())
+      .slice(0, 3)
+      .map(r => {
+        const ago = Date.now() - new Date(r.submitted_at).getTime()
+        const mins = Math.floor(ago / 60_000)
+        const label = mins < 60 ? `il y a ${mins}min` : mins < 1440 ? `il y a ${Math.floor(mins / 60)}h` : `il y a ${Math.floor(mins / 1440)}j`
+        return { id: r.id, text: `${r.student_name} — ${r.travail_title ?? 'devoir'}`, time: label }
+      })
+  })
+
   // ── Réactivité ────────────────────────────────────────────────────────────
   onMounted(() => {
     load(); loadCustomProjects()
@@ -128,6 +164,22 @@
 
       <!-- Tableau de bord -->
       <template v-else-if="route.name === 'dashboard'">
+
+        <!-- Résumé promo (compact card) -->
+        <div v-if="appStore.isTeacher && activePromoObj" class="sb-promo-card">
+          <div class="sb-promo-card-header">
+            <span class="sb-promo-card-dot" :style="{ background: activePromoObj.color }" />
+            <span class="sb-promo-card-name">{{ activePromoObj.name }}</span>
+          </div>
+          <div class="sb-promo-card-stats">
+            <span>{{ promoSummary.studentCount }} étudiants</span>
+            <span class="sb-promo-card-sep">&middot;</span>
+            <span>{{ promoSummary.devoirCount }} devoirs</span>
+            <span class="sb-promo-card-sep">&middot;</span>
+            <span>{{ promoSummary.submissionPct }}% soumis</span>
+          </div>
+        </div>
+
         <!-- Onglets de la vue dashboard -->
         <div class="sidebar-section-header">
           <span>Vue</span>
@@ -182,7 +234,7 @@
           </template>
         </nav>
 
-        <!-- Liste des projets -->
+        <!-- Liste des projets (enrichie) -->
         <template v-if="allProjects.length">
           <div class="sidebar-section-header" style="margin-top:8px">
             <span>Projets</span>
@@ -201,19 +253,44 @@
             <button
               v-for="proj in allProjects"
               :key="proj"
-              class="sidebar-item"
+              class="sidebar-item sb-project-rich"
               @click="selectProject(proj)"
             >
-              <component
-                v-if="parseCategoryIcon(proj).icon"
-                :is="parseCategoryIcon(proj).icon!"
-                :size="13"
-                class="project-icon"
-              />
-              <span v-else class="project-bullet" />
-              <span class="channel-name">{{ parseCategoryIcon(proj).label }}</span>
+              <div class="sb-project-rich-top">
+                <span class="project-color-dot" :style="{ background: getProjectColor(proj) }" />
+                <component
+                  v-if="parseCategoryIcon(proj).icon"
+                  :is="parseCategoryIcon(proj).icon!"
+                  :size="13"
+                  class="project-icon"
+                />
+                <span v-else class="project-bullet" />
+                <span class="channel-name">{{ parseCategoryIcon(proj).label }}</span>
+              </div>
+              <div v-if="projectStats[proj]" class="sb-project-rich-bar-wrap">
+                <div class="sb-project-rich-bar">
+                  <div
+                    class="sb-project-rich-bar-fill"
+                    :style="{ width: (projectStats[proj].expected > 0 ? Math.round(projectStats[proj].depots / projectStats[proj].expected * 100) : 0) + '%', background: getProjectColor(proj) }"
+                  />
+                </div>
+                <span class="sb-project-rich-sub">{{ projectStats[proj].depots }}/{{ projectStats[proj].expected }} soumis</span>
+              </div>
             </button>
           </nav>
+        </template>
+
+        <!-- Activité récente -->
+        <template v-if="appStore.isTeacher && recentActivity.length">
+          <div class="sidebar-section-header" style="margin-top:8px">
+            <span>Activité récente</span>
+          </div>
+          <div class="sb-recent-list">
+            <div v-for="item in recentActivity" :key="item.id" class="sb-recent-item">
+              <span class="sb-recent-text">{{ item.text }}</span>
+              <span class="sb-recent-time">{{ item.time }}</span>
+            </div>
+          </div>
         </template>
 
         <NewProjectModal v-model="modals.newProject" @created="onProjectCreated" />
@@ -975,6 +1052,75 @@
   border-radius: 6px;
   outline: 1.5px dashed rgba(74, 144, 217, .6);
   outline-offset: -1px;
+}
+
+/* ── Résumé promo card ── */
+.sb-promo-card {
+  margin: 6px 10px 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+}
+.sb-promo-card-header {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 4px;
+}
+.sb-promo-card-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.sb-promo-card-name {
+  font-size: 12px; font-weight: 700; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-promo-card-stats {
+  font-size: 10.5px; color: var(--text-muted);
+  display: flex; flex-wrap: wrap; gap: 2px;
+}
+.sb-promo-card-sep { margin: 0 2px; }
+
+/* ── Enriched project items ── */
+.sb-project-rich {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 3px !important;
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+}
+.sb-project-rich-top {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+}
+.sb-project-rich-bar-wrap {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; padding-left: 20px;
+}
+.sb-project-rich-bar {
+  flex: 1; height: 3px; border-radius: 2px;
+  background: rgba(255,255,255,.08); overflow: hidden;
+}
+.sb-project-rich-bar-fill {
+  height: 100%; border-radius: 2px;
+  transition: width .3s ease;
+}
+.sb-project-rich-sub {
+  font-size: 10px; color: var(--text-muted); white-space: nowrap;
+}
+
+/* ── Activité récente ── */
+.sb-recent-list { padding: 0 10px 4px; }
+.sb-recent-item {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 6px; padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.sb-recent-item:last-child { border-bottom: none; }
+.sb-recent-text {
+  font-size: 10.5px; color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1; min-width: 0;
+}
+.sb-recent-time {
+  font-size: 9.5px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0;
 }
 
 </style>

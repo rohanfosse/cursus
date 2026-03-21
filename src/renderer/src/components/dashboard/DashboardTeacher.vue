@@ -44,6 +44,9 @@ const props = defineProps<{
   urgentsCount: number
   brouillonsCount: number
   totalStudents: number
+  submissionRate: number
+  nextDeadline: string | null
+  onlineStudents: number
   allStudents: { id: number; promo_id: number; name?: string }[]
   ganttAll: GanttRow[]
 
@@ -169,6 +172,9 @@ function setTab(tab: DashTabType) {
       :urgents-count="urgentsCount"
       :brouillons-count="brouillonsCount"
       :total-students="totalStudents"
+      :submission-rate="submissionRate"
+      :next-deadline="nextDeadline"
+      :online-students="onlineStudents"
       @update:active-promo-id="id => emit('update:activePromoId', id)"
     />
 
