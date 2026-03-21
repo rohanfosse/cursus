@@ -1,7 +1,9 @@
 <script setup lang="ts">
+  import { ref, computed } from 'vue'
   import {
     FileText, Image, Link2, Video, File, Plus, Trash2,
     ExternalLink, Download, Search, X, Upload, FolderOpen, Eye, CheckCircle2, Menu,
+    LayoutGrid, List,
   } from 'lucide-vue-next'
   import { useAppStore }       from '@/stores/app'
   import { useDocumentsStore } from '@/stores/documents'
@@ -17,6 +19,25 @@
   const api      = window.api
   const appStore = useAppStore()
   const docStore = useDocumentsStore()
+
+  // ── View mode: grid vs list ───────────────────────────────────────────
+  const viewMode = ref<'grid' | 'list'>('grid')
+
+  // ── Search results count ──────────────────────────────────────────────
+  const searchResultsCount = computed(() => {
+    if (!docStore.searchQuery.trim()) return null
+    return filtered.value.length
+  })
+
+  // ── Human-readable file size ──────────────────────────────────────────
+  function formatFileSize(bytes: number | undefined): string | null {
+    if (bytes == null || bytes <= 0) return null
+    const units = ['o', 'Ko', 'Mo', 'Go']
+    let i = 0
+    let size = bytes
+    while (size >= 1024 && i < units.length - 1) { size /= 1024; i++ }
+    return `${i === 0 ? size : size.toFixed(1)} ${units[i]}`
+  }
 
   // ── Data: loading, filtering, categories, actions ───────────────────────
   const {
@@ -75,6 +96,27 @@
           />
           <button v-if="docStore.searchQuery" class="docs-search-clear" @click="docStore.searchQuery = ''">
             <X :size="12" />
+          </button>
+        </div>
+        <span v-if="searchResultsCount !== null" class="docs-results-count">{{ searchResultsCount }} résultat{{ searchResultsCount !== 1 ? 's' : '' }}</span>
+
+        <!-- Toggle grille / liste -->
+        <div class="docs-view-toggle">
+          <button
+            class="docs-view-btn"
+            :class="{ active: viewMode === 'grid' }"
+            title="Affichage grille"
+            @click="viewMode = 'grid'"
+          >
+            <LayoutGrid :size="15" />
+          </button>
+          <button
+            class="docs-view-btn"
+            :class="{ active: viewMode === 'list' }"
+            title="Affichage liste"
+            @click="viewMode = 'list'"
+          >
+            <List :size="15" />
           </button>
         </div>
 
@@ -140,20 +182,21 @@
             <span class="docs-group-count">{{ docs.length }} fichier{{ docs.length > 1 ? 's' : '' }}</span>
           </div>
 
-          <div class="docs-grid">
+          <div class="docs-grid" :class="{ 'docs-grid--list': viewMode === 'list' }">
             <div
               v-for="doc in docs"
               :key="doc.id"
               class="doc-card"
+              :class="{ 'doc-card--list': viewMode === 'list' }"
               :title="doc.description ?? doc.name"
               @click="openDoc(doc)"
             >
               <div class="doc-card-icon" :style="{ background: iconColors[docIconType(doc)] + '1A', color: iconColors[docIconType(doc)] }">
-                <Image    v-if="docIconType(doc) === 'image'" :size="28" />
-                <Video    v-else-if="docIconType(doc) === 'video'" :size="28" />
-                <Link2    v-else-if="docIconType(doc) === 'link'" :size="28" />
-                <FileText v-else-if="docIconType(doc) === 'pdf'" :size="28" />
-                <File     v-else :size="28" />
+                <Image    v-if="docIconType(doc) === 'image'" :size="viewMode === 'list' ? 20 : 28" />
+                <Video    v-else-if="docIconType(doc) === 'video'" :size="viewMode === 'list' ? 20 : 28" />
+                <Link2    v-else-if="docIconType(doc) === 'link'" :size="viewMode === 'list' ? 20 : 28" />
+                <FileText v-else-if="docIconType(doc) === 'pdf'" :size="viewMode === 'list' ? 20 : 28" />
+                <File     v-else :size="viewMode === 'list' ? 20 : 28" />
               </div>
 
               <span class="doc-card-type-badge" :style="{ background: iconColors[docIconType(doc)] + '22', color: iconColors[docIconType(doc)] }">
@@ -165,6 +208,7 @@
               <p class="doc-card-meta">
                 <span v-if="!appStore.activeChannelId && doc.channel_name">#{{ doc.channel_name }}</span>
                 <span>{{ formatDate(doc.created_at) }}</span>
+                <span v-if="doc.type === 'file' && formatFileSize(doc.file_size)" class="doc-card-size">{{ formatFileSize(doc.file_size) }}</span>
               </p>
 
               <div class="doc-card-actions" @click.stop>
@@ -209,6 +253,10 @@
               ? 'Aucun document pour le moment. Les documents seront ajoutés par votre enseignant.'
               : 'Ce canal ne contient pas encore de document.'
           }}
+        </p>
+        <p v-if="appStore.isTeacher && !docStore.searchQuery" class="docs-empty-hint">
+          <Upload :size="14" />
+          Glissez un fichier ici ou cliquez Ajouter
         </p>
         <button v-if="appStore.isTeacher && !docStore.searchQuery" class="btn-primary" @click="openAddModal">
           <Plus :size="14" /> Ajouter un document
@@ -538,8 +586,8 @@
 
 .doc-card:hover {
   border-color: rgba(255,255,255,.18);
-  box-shadow: var(--shadow-sm);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,.18);
+  transform: translateY(-2px) scale(1.015);
 }
 
 .doc-card--skel {
@@ -790,5 +838,119 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* ── Search results count ── */
+.docs-results-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* ── View toggle ── */
+.docs-view-toggle {
+  display: flex;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.docs-view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.docs-view-btn:hover { background: var(--bg-hover); color: var(--text-secondary); }
+.docs-view-btn.active { background: var(--accent-subtle); color: var(--accent-light); }
+.docs-view-btn + .docs-view-btn { border-left: 1px solid var(--border-input); }
+
+/* ── List mode ── */
+.docs-grid--list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.doc-card--list {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.doc-card--list .doc-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.doc-card--list .doc-card-type-badge {
+  position: static;
+  flex-shrink: 0;
+  order: 2;
+}
+
+.doc-card--list .doc-card-name {
+  flex: 1;
+  margin-bottom: 0;
+  -webkit-line-clamp: 1;
+  min-width: 0;
+}
+
+.doc-card--list .doc-card-meta {
+  flex-direction: row;
+  gap: 8px;
+  margin-top: 0;
+  flex-shrink: 0;
+  order: 3;
+}
+
+.doc-card--list .doc-card-actions {
+  position: static;
+  background: none;
+  opacity: 0;
+  width: auto;
+  gap: 4px;
+  flex-shrink: 0;
+  order: 4;
+}
+
+.doc-card--list:hover .doc-card-actions {
+  opacity: 1;
+}
+
+.doc-card--list:hover {
+  transform: none;
+}
+
+/* ── File size badge ── */
+.doc-card-size {
+  background: rgba(255,255,255,.08);
+  border-radius: 6px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+
+/* ── Empty drag-drop hint ── */
+.docs-empty-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: .7;
+  margin-top: 2px;
 }
 </style>

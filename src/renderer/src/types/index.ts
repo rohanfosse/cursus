@@ -131,6 +131,7 @@ export interface AppDocument {
   description: string | null
   created_at: string
   channel_name?: string
+  file_size?: number
 }
 
 export interface Ressource {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
-  import { Users, Search, TrendingUp, Clock, CheckCircle2, Award, X, ChevronLeft, BarChart2, AlertTriangle, MinusCircle } from 'lucide-vue-next'
+  import { Users, Search, TrendingUp, Clock, CheckCircle2, Award, X, ChevronLeft, BarChart2, AlertTriangle, MinusCircle, Upload } from 'lucide-vue-next'
   import { useAppStore }    from '@/stores/app'
   import { avatarColor }    from '@/utils/format'
   import { formatDate }     from '@/utils/date'
@@ -252,8 +252,17 @@
                 <div v-for="i in 6" :key="i" class="skel skel-line" :style="{ width: (55 + (i % 3) * 15) + '%', height: '44px', borderRadius: '8px' }" />
               </div>
 
-              <div v-else-if="!filtered.length" class="classe-empty">
-                Aucun étudiant trouvé.
+              <div v-else-if="!filtered.length && filterQ.trim()" class="classe-empty">
+                Aucun étudiant trouvé pour "{{ filterQ }}".
+              </div>
+
+              <div v-else-if="!stats.length" class="classe-empty classe-empty-state">
+                <Users :size="32" class="classe-empty-icon" />
+                <p class="classe-empty-title">Aucun étudiant dans cette promotion</p>
+                <p class="classe-empty-sub">Importez une liste d'étudiants pour commencer.</p>
+                <button class="btn-primary classe-empty-csv-btn" type="button">
+                  <Upload :size="14" /> Importer CSV
+                </button>
               </div>
 
               <div v-else class="classe-list">
@@ -514,6 +523,24 @@
 
 .classe-loading { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; }
 .classe-empty   { padding: 40px; text-align: center; color: var(--text-muted); font-size: 13px; font-style: italic; }
+
+.classe-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-style: normal;
+}
+.classe-empty-icon { color: var(--text-muted); opacity: .4; }
+.classe-empty-title { font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+.classe-empty-sub   { font-size: 12.5px; color: var(--text-muted); }
+.classe-empty-csv-btn {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
 
 /* ── Liste ── */
 .classe-list { display: flex; flex-direction: column; gap: 3px; }
