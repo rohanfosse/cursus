@@ -14,8 +14,10 @@ import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
 import { avatarColor, gradeClass } from '@/utils/format'
 import { useToast } from '@/composables/useToast'
+import { useApi } from '@/composables/useApi'
+import { useConfirm } from '@/composables/useConfirm'
 import type { Component } from 'vue'
-import type { Devoir }    from '@/types'
+import type { Devoir, Promotion }    from '@/types'
 
 const props = defineProps<{ toggleSidebar?: () => void }>()
 
@@ -25,6 +27,8 @@ const travauxStore = useTravauxStore()
 const router       = useRouter()
 const route        = useRoute()
 const { showToast } = useToast()
+const { api }       = useApi()
+const { confirm: askConfirm } = useConfirm()
 
 // ── Onboarding première visite ──────────────────────────────────────────────
 const ONBOARDING_KEY = 'cc_onboarding_seen'
@@ -49,7 +53,6 @@ interface GanttRow {
   depots_count:   number
   students_total: number
 }
-interface Promotion { id: number; name: string; color: string }
 interface ProjectCard {
   key: string; label: string; icon: Component | null
   total: number; published: number; depots: number; expected: number; nextDeadline: string | null
@@ -68,30 +71,30 @@ const brouillonsCount = ref(0)
 const promos          = ref<Promotion[]>([])
 const allStudents     = ref<{ id: number; promo_id: number; name?: string }[]>([])
 const ganttAll        = ref<GanttRow[]>([])
+const savingPromo     = ref(false)
+const deletingPromoId = ref<number | null>(null)
 
 // ── Chargement ────────────────────────────────────────────────────────────────
 onMounted(async () => {
   if (appStore.isTeacher) {
     try {
-      const [schedRes, promosRes, studRes, ganttRes] = await Promise.all([
-        window.api.getTeacherSchedule(),
-        window.api.getPromotions(),
-        window.api.getAllStudents(),
-        window.api.getGanttData(0 as number),
+      type Schedule = { aNoter: unknown[]; brouillons: unknown[] }
+      const [schedData, promosData, studData, ganttData] = await Promise.all([
+        api<Schedule>(() => window.api.getTeacherSchedule() as Promise<{ ok: boolean; data?: Schedule }>),
+        api<Promotion[]>(() => window.api.getPromotions()),
+        api<typeof allStudents.value>(() => window.api.getAllStudents()),
+        api<GanttRow[]>(() => window.api.getGanttData(0 as number) as Promise<{ ok: boolean; data?: GanttRow[] }>),
       ])
-      if (schedRes?.ok) {
-        const d = schedRes.data as { aNoter: unknown[]; brouillons: unknown[] }
-        aNoterCount.value     = d.aNoter?.length     ?? 0
-        brouillonsCount.value = d.brouillons?.length ?? 0
+      if (schedData) {
+        aNoterCount.value     = schedData.aNoter?.length     ?? 0
+        brouillonsCount.value = schedData.brouillons?.length ?? 0
       }
-      if (promosRes?.ok) {
-        promos.value = promosRes.data as Promotion[]
-        if (promos.value.length && !appStore.activePromoId) {
-          appStore.activePromoId = promos.value[0].id
-        }
+      promos.value = promosData ?? []
+      if (promos.value.length && !appStore.activePromoId) {
+        appStore.activePromoId = promos.value[0].id
       }
-      if (studRes?.ok) allStudents.value = studRes.data as typeof allStudents.value
-      if (ganttRes?.ok) ganttAll.value = ganttRes.data as GanttRow[]
+      allStudents.value = studData ?? []
+      ganttAll.value    = ganttData ?? []
       loadReminders()
       // Charger les rendus pour la tendance sur l'accueil
       if (promos.value.length) {
@@ -158,27 +161,15 @@ const doneThisWeek = computed(() => thisWeekReminders.value.filter(r => r.done).
 const totalThisWeek = computed(() => thisWeekReminders.value.length)
 
 async function loadReminders() {
-  try {
-    const res = await window.api.getTeacherReminders()
-    if (res?.ok) allReminders.value = res.data as Reminder[]
-  } catch {}
+  allReminders.value = await api<Reminder[]>(() => window.api.getTeacherReminders()) ?? []
 }
 
 async function toggleReminder(id: number, done: boolean) {
-  try {
-    await window.api.toggleReminderDone(id, done)
+  const result = await api(() => window.api.toggleReminderDone(id, done))
+  if (result !== null) {
     const r = allReminders.value.find(r => r.id === id)
     if (r) r.done = done ? 1 : 0
-  } catch {}
-}
-
-// ── Gestion promo : renommage ────────────────────────────────────────────────
-const editingPromoName = ref(false)
-const promoNameDraft = ref('')
-
-function startEditPromoName() {
-  promoNameDraft.value = activePromo.value?.name ?? ''
-  editingPromoName.value = true
+  }
 }
 
 // ── Promotions : renommer et supprimer ───────────────────────────────────
@@ -187,32 +178,33 @@ const renamingPromoValue = ref('')
 
 async function confirmRenamePromo(p: { id: number; name: string }) {
   if (!renamingPromoValue.value.trim()) return
+  savingPromo.value = true
   try {
-    await window.api.renamePromotion(p.id, renamingPromoValue.value.trim())
-    p.name = renamingPromoValue.value.trim()
-    renamingPromoId.value = null
-    showToast('Promotion renommée.', 'success')
-  } catch { showToast('Erreur.', 'error') }
+    const result = await api(() => window.api.renamePromotion(p.id, renamingPromoValue.value.trim()), 'promo')
+    if (result !== null) {
+      p.name = renamingPromoValue.value.trim()
+      renamingPromoId.value = null
+      showToast('Promotion renommée.', 'success')
+    }
+  } finally { savingPromo.value = false }
 }
 
 async function deletePromo(id: number, name: string) {
-  if (!confirm(`Supprimer la promotion "${name}" et tous ses canaux/devoirs ? Cette action est irréversible.`)) return
+  const ok = await askConfirm(
+    `Supprimer la promotion "${name}" et tous ses canaux/devoirs ? Cette action est irréversible.`,
+    'danger',
+    'Supprimer',
+  )
+  if (!ok) return
+  deletingPromoId.value = id
   try {
-    await window.api.deletePromotion(id)
-    promos.value = promos.value.filter(p => p.id !== id)
-    if (appStore.activePromoId === id && promos.value.length) appStore.activePromoId = promos.value[0].id
-    showToast('Promotion supprimée.', 'success')
-  } catch { showToast('Erreur.', 'error') }
-}
-
-async function savePromoName() {
-  if (!activePromo.value || !promoNameDraft.value.trim()) return
-  try {
-    await window.api.renamePromotion(activePromo.value.id, promoNameDraft.value.trim())
-    const p = promos.value.find(p => p.id === activePromo.value!.id)
-    if (p) p.name = promoNameDraft.value.trim()
-    editingPromoName.value = false
-  } catch {}
+    const result = await api(() => window.api.deletePromotion(id), 'promo')
+    if (result !== null) {
+      promos.value = promos.value.filter(p => p.id !== id)
+      if (appStore.activePromoId === id && promos.value.length) appStore.activePromoId = promos.value[0].id
+      showToast('Promotion supprimée.', 'success')
+    }
+  } finally { deletingPromoId.value = null }
 }
 
 // ── Promo active + données filtrées ──────────────────────────────────────────
@@ -244,12 +236,12 @@ const urgentsCount = computed(() => {
 })
 
 async function reloadPromos() {
-  const [promosRes, ganttRes] = await Promise.all([
-    window.api.getPromotions(),
-    window.api.getGanttData(0 as number),
+  const [promosData, ganttData2] = await Promise.all([
+    api<Promotion[]>(() => window.api.getPromotions()),
+    api<GanttRow[]>(() => window.api.getGanttData(0 as number) as Promise<{ ok: boolean; data?: GanttRow[] }>),
   ])
-  if (promosRes?.ok) promos.value = promosRes.data as Promotion[]
-  if (ganttRes?.ok) ganttAll.value = ganttRes.data as GanttRow[]
+  promos.value   = promosData ?? promos.value
+  ganttAll.value = ganttData2 ?? ganttAll.value
 }
 
 // Recharger quand la modale de création de promo se ferme
@@ -436,21 +428,21 @@ function onFriseWheel(e: WheelEvent) {
   friseOffset.value += e.deltaY > 0 ? 14 : -14 // scroll de 2 semaines
 }
 
-let _friseDragging = false
+const friseDragging = ref(false)
 let _friseDragStart = 0
 function onFriseDragStart(e: MouseEvent) {
-  _friseDragging = true
+  friseDragging.value = true
   _friseDragStart = e.clientX
 }
 function onFriseDragMove(e: MouseEvent) {
-  if (!_friseDragging) return
+  if (!friseDragging.value) return
   const diff = _friseDragStart - e.clientX
   if (Math.abs(diff) > 10) {
     friseOffset.value += diff > 0 ? 7 : -7
     _friseDragStart = e.clientX
   }
 }
-function onFriseDragEnd() { _friseDragging = false }
+function onFriseDragEnd() { friseDragging.value = false }
 
 const ganttMonths = computed(() => {
   const r = ganttDateRange.value
@@ -538,8 +530,10 @@ const analyticsLoaded = ref(false)
 async function loadAnalytics() {
   if (analyticsLoaded.value) return
   const promoId = appStore.activePromoId ?? 0
-  const res = await window.api.getAllRendus(promoId)
-  if (res?.ok) allRendus.value = (res.data as unknown as typeof allRendus.value)
+  const data = await api<{ note: string | null }[]>(
+    () => window.api.getAllRendus(promoId) as Promise<{ ok: boolean; data?: { note: string | null }[] }>,
+  )
+  allRendus.value = data ?? []
   analyticsLoaded.value = true
 }
 
@@ -703,14 +697,23 @@ const classHealth = computed(() => {
 // ── Tendance soumissions (7 derniers jours) ──────────────────────────────────
 const submissionTrend = computed(() => {
   const now = new Date()
+  // Grouper tous les rendus par date en une seule passe (O(n) au lieu de O(7n))
+  const countsByDate = new Map<string, number>()
+  for (const r of travauxStore.allRendus) {
+    if (r.submitted_at) {
+      const dayKey = r.submitted_at.slice(0, 10)
+      countsByDate.set(dayKey, (countsByDate.get(dayKey) ?? 0) + 1)
+    }
+  }
   const days: { label: string; count: number }[] = []
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now)
     d.setDate(d.getDate() - i)
     const dayStr = d.toISOString().slice(0, 10)
-    const label = d.toLocaleDateString('fr-FR', { weekday: 'short' })
-    const count = travauxStore.allRendus.filter(r => r.submitted_at?.startsWith(dayStr)).length
-    days.push({ label, count })
+    days.push({
+      label: d.toLocaleDateString('fr-FR', { weekday: 'short' }),
+      count: countsByDate.get(dayStr) ?? 0,
+    })
   }
   const maxCount = Math.max(1, ...days.map(d => d.count))
   return { days, maxCount }
@@ -834,7 +837,7 @@ function onMilestoneClick(ms: FriseMilestone) {
           <div v-if="classHealth" class="db-class-health">
             <h4 class="db-section-title"><TrendingUp :size="14" /> Santé de la classe</h4>
             <div class="db-health-ring-wrap">
-              <svg class="db-health-ring" viewBox="0 0 80 80">
+              <svg class="db-health-ring" viewBox="0 0 80 80" role="img" :aria-label="`Santé de la classe : ${classHealth.score}%`">
                 <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="6" />
                 <circle
                   cx="40" cy="40" r="34"
@@ -895,7 +898,7 @@ function onMilestoneClick(ms: FriseMilestone) {
               <div class="db-week-body">
                 <span class="db-week-item-title" :class="{ 'line-through': r.done }">{{ r.title }}</span>
                 <span class="db-week-meta">
-                  <span class="db-week-promo">{{ r.promo_tag === 'CPIA2' ? 'CPI A2' : 'FISA A4' }}</span>
+                  <span class="db-week-promo">{{ r.promo_tag }}</span>
                   <span v-if="r.isOverdue" class="db-week-late">En retard</span>
                   <span v-else-if="r.isToday" class="db-week-today-tag">Aujourd'hui</span>
                   <span v-else class="db-week-date">{{ new Date(r.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }) }}</span>
@@ -920,7 +923,7 @@ function onMilestoneClick(ms: FriseMilestone) {
             <TrendingUp :size="13" /> Analytique
           </button>
           <button class="db-tab" :class="{ active: dashTab === 'reglages' }" @click="dashTab = 'reglages'">
-            <Settings :size="13" /> Réglages
+            <Settings :size="13" /> Administration
           </button>
         </div>
 
@@ -957,7 +960,7 @@ function onMilestoneClick(ms: FriseMilestone) {
             <!-- Distribution des notes -->
             <div class="analytics-card">
               <h3 class="analytics-card-title"><Award :size="14" /> Distribution des notes</h3>
-              <div class="analytics-bars">
+              <div class="analytics-bars" role="img" aria-label="Distribution des notes">
                 <div v-for="b in gradeDistribution" :key="b.label" class="analytics-bar-row">
                   <span class="analytics-bar-label">{{ b.label }}</span>
                   <div class="analytics-bar-track">
@@ -1013,34 +1016,71 @@ function onMilestoneClick(ms: FriseMilestone) {
         <!-- Tab Promotions -->
         <div v-else-if="dashTab === 'promotions'" class="db-tab-content">
           <div class="promo-list">
-            <div v-for="p in promos" :key="p.id" class="promo-list-card" :class="{ 'promo-active': appStore.activePromoId === p.id }">
+            <div
+              v-for="p in promos"
+              :key="p.id"
+              class="promo-list-card"
+              :class="{ 'promo-active': appStore.activePromoId === p.id }"
+              :style="{ borderColor: appStore.activePromoId === p.id ? p.color : undefined }"
+            >
               <div class="promo-list-header">
                 <span class="promo-list-dot" :style="{ background: p.color }" />
                 <template v-if="renamingPromoId === p.id">
                   <input
                     v-model="renamingPromoValue"
                     class="promo-rename-input"
+                    aria-label="Nom de la promotion"
+                    :disabled="savingPromo"
                     @keydown.enter="confirmRenamePromo(p)"
                     @keydown.escape="renamingPromoId = null"
                   />
-                  <button class="gestion-btn-sm gestion-btn-accent" @click="confirmRenamePromo(p)">OK</button>
-                  <button class="gestion-btn-sm" @click="renamingPromoId = null">Annuler</button>
+                  <button class="gestion-btn-sm gestion-btn-accent" :disabled="savingPromo" @click="confirmRenamePromo(p)">
+                    {{ savingPromo ? '…' : 'OK' }}
+                  </button>
+                  <button class="gestion-btn-sm" :disabled="savingPromo" @click="renamingPromoId = null">Annuler</button>
                 </template>
                 <template v-else>
                   <span class="promo-list-name">{{ p.name }}</span>
-                  <button class="gestion-btn-sm" @click="renamingPromoId = p.id; renamingPromoValue = p.name">Renommer</button>
-                  <button v-if="appStore.activePromoId !== p.id" class="gestion-btn-sm" @click="appStore.activePromoId = p.id">Sélectionner</button>
-                  <span v-else class="promo-list-active-tag">Active</span>
+                  <span v-if="appStore.activePromoId === p.id" class="promo-list-active-tag">Active</span>
+                  <button v-else class="gestion-btn-sm" @click="appStore.activePromoId = p.id">Sélectionner</button>
                 </template>
               </div>
+
+              <!-- Stats enrichies -->
               <div class="promo-list-stats">
-                <span>{{ allStudents.filter(s => s.promo_id === p.id).length }} étudiants</span>
-                <span>{{ ganttAll.filter(t => t.promo_name === p.name).length }} devoirs</span>
+                <span><Users :size="11" /> {{ allStudents.filter(s => s.promo_id === p.id).length }} étudiants</span>
+                <span>
+                  <BookOpen :size="11" />
+                  {{ ganttAll.filter(t => t.promo_name === p.name && t.published).length }} publiés
+                  <template v-if="ganttAll.filter(t => t.promo_name === p.name && !t.published).length">
+                    · {{ ganttAll.filter(t => t.promo_name === p.name && !t.published).length }} brouillons
+                  </template>
+                </span>
+                <span v-if="ganttAll.filter(t => t.promo_name === p.name && t.published && t.students_total > 0).length">
+                  <TrendingUp :size="11" />
+                  {{ Math.round(ganttAll.filter(t => t.promo_name === p.name && t.published && t.students_total > 0).reduce((s, t) => s + t.depots_count / t.students_total, 0) / Math.max(1, ganttAll.filter(t => t.promo_name === p.name && t.published && t.students_total > 0).length) * 100) }}% soumission moy.
+                </span>
               </div>
+
+              <!-- Actions -->
               <div class="promo-list-actions">
-                <button class="gestion-btn" @click="appStore.activePromoId = p.id; modals.classe = true">Voir la classe</button>
-                <button class="gestion-btn" @click="appStore.activePromoId = p.id; modals.importStudents = true">Importer CSV</button>
-                <button class="gestion-btn" style="color:var(--color-danger)" @click="deletePromo(p.id, p.name)">Supprimer</button>
+                <button class="gestion-btn" @click="renamingPromoId = p.id; renamingPromoValue = p.name">
+                  <Edit3 :size="11" /> Renommer
+                </button>
+                <button class="gestion-btn" @click="appStore.activePromoId = p.id; modals.classe = true">
+                  <GraduationCap :size="11" /> Classe
+                </button>
+                <button class="gestion-btn" @click="appStore.activePromoId = p.id; modals.importStudents = true">
+                  <FileText :size="11" /> Importer CSV
+                </button>
+                <button
+                  class="gestion-btn"
+                  style="color:var(--color-danger)"
+                  :disabled="deletingPromoId === p.id"
+                  @click="deletePromo(p.id, p.name)"
+                >
+                  {{ deletingPromoId === p.id ? 'Suppression…' : 'Supprimer' }}
+                </button>
               </div>
             </div>
           </div>
@@ -1060,6 +1100,8 @@ function onMilestoneClick(ms: FriseMilestone) {
               v-for="p in projectCards"
               :key="p.key"
               class="db-project-card"
+              role="button"
+              :aria-label="`Ouvrir le projet ${p.label}`"
               @click="goToProject(p.key)"
             >
               <div class="db-project-icon">
@@ -1101,91 +1143,41 @@ function onMilestoneClick(ms: FriseMilestone) {
           </div>
         </div>
 
-        <!-- Tab Réglages -->
+        <!-- Tab Administration (ex-Réglages) -->
         <div v-else-if="dashTab === 'reglages'" class="db-tab-content">
           <div class="gestion-grid">
-            <!-- Carte Promotion active -->
-            <div class="gestion-card">
-              <h4 class="gestion-card-title">Promotion active</h4>
-              <div v-if="activePromo" class="gestion-promo-info">
-                <div class="gestion-promo-name-row">
-                  <span class="gestion-promo-dot" :style="{ background: activePromo.color }" />
-                  <input
-                    v-if="editingPromoName"
-                    v-model="promoNameDraft"
-                    class="gestion-promo-input"
-                    @keydown.enter="savePromoName"
-                    @keydown.escape="editingPromoName = false"
-                  />
-                  <span v-else class="gestion-promo-name">{{ activePromo.name }}</span>
-                  <button v-if="!editingPromoName" class="gestion-btn-sm" @click="startEditPromoName">Renommer</button>
-                  <template v-else>
-                    <button class="gestion-btn-sm gestion-btn-accent" @click="savePromoName">OK</button>
-                    <button class="gestion-btn-sm" @click="editingPromoName = false">Annuler</button>
-                  </template>
-                </div>
-                <div class="gestion-promo-stats">
-                  <span>{{ studentsForPromo.length }} étudiants</span>
-                  <span>{{ ganttFiltered.length }} devoirs</span>
-                </div>
-              </div>
-              <p v-else class="gestion-empty">Sélectionnez une promotion.</p>
-            </div>
-
-            <!-- Carte Étudiants -->
-            <div class="gestion-card">
-              <div class="gestion-card-header">
-                <h4 class="gestion-card-title">Étudiants</h4>
-                <div class="gestion-card-actions">
-                  <button class="gestion-btn" @click="modals.importStudents = true">Importer CSV</button>
-                  <button class="gestion-btn" @click="modals.classe = true">Voir la classe</button>
-                </div>
-              </div>
-              <div class="gestion-student-list">
-                <div v-for="s in studentsForPromo.slice(0, 8)" :key="s.id" class="gestion-student-row">
-                  <div class="gestion-student-avatar" :style="{ background: avatarColor(s.name ?? '') }">{{ (s.name ?? '').slice(0,2).toUpperCase() }}</div>
-                  <span class="gestion-student-name">{{ s.name }}</span>
-                </div>
-                <span v-if="studentsForPromo.length > 8" class="gestion-more">+{{ studentsForPromo.length - 8 }} autres</span>
-                <span v-if="!studentsForPromo.length" class="gestion-empty">Aucun étudiant — importez un CSV.</span>
-              </div>
-            </div>
-
             <!-- Carte Intervenants -->
             <div class="gestion-card">
               <div class="gestion-card-header">
-                <h4 class="gestion-card-title">Intervenants</h4>
+                <h4 class="gestion-card-title"><Users :size="13" /> Intervenants</h4>
                 <button class="gestion-btn" @click="modals.intervenants = true">Gérer</button>
               </div>
-              <p class="gestion-hint">Ajoutez des intervenants et assignez-les à des canaux.</p>
+              <p class="gestion-hint">Gérez les comptes intervenants et leurs accès aux canaux par promotion.</p>
               <button class="gestion-btn" style="margin-top:8px" @click="modals.intervenants = true">
                 <Users :size="12" /> Ouvrir la gestion
               </button>
             </div>
 
-            <!-- Carte Canaux -->
+            <!-- Carte Actions rapides -->
             <div class="gestion-card">
-              <div class="gestion-card-header">
-                <h4 class="gestion-card-title">Canaux</h4>
-                <button class="gestion-btn" @click="modals.createChannel = true">+ Nouveau</button>
-              </div>
-              <div class="gestion-channels-preview">
-                <div v-for="ch in ganttFiltered.slice(0,1)" :key="'ch'" />
-                <span class="gestion-hint">Les canaux sont gérés dans la sidebar Messages.</span>
-                <button class="gestion-btn" style="margin-top:4px" @click="router.push('/messages')">
-                  Aller aux messages
-                </button>
+              <h4 class="gestion-card-title"><LayoutDashboard :size="13" /> Navigation rapide</h4>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <button class="gestion-btn" @click="modals.echeancier = true"><Clock :size="12" /> Échéancier</button>
+                <button class="gestion-btn" @click="router.push('/devoirs')"><BookOpen :size="12" /> Aller aux devoirs</button>
+                <button class="gestion-btn" @click="router.push('/messages')"><Edit3 :size="12" /> Aller aux messages</button>
+                <button class="gestion-btn" @click="modals.settings = true"><Settings :size="12" /> Préférences</button>
               </div>
             </div>
 
-            <!-- Carte Actions rapides -->
+            <!-- Carte Système -->
             <div class="gestion-card">
-              <h4 class="gestion-card-title">Actions rapides</h4>
-              <div style="display:flex;flex-direction:column;gap:6px">
-                <button class="gestion-btn" @click="modals.classe = true"><GraduationCap :size="12" /> Voir la classe</button>
-                <button class="gestion-btn" @click="modals.echeancier = true"><Clock :size="12" /> Échéancier</button>
-                <button class="gestion-btn" @click="router.push('/devoirs')"><BookOpen :size="12" /> Aller aux devoirs</button>
+              <h4 class="gestion-card-title"><Settings :size="13" /> Système</h4>
+              <div class="gestion-promo-stats">
+                <span>{{ promos.length }} promotion{{ promos.length > 1 ? 's' : '' }}</span>
+                <span>{{ allStudents.length }} étudiants au total</span>
+                <span>{{ ganttAll.length }} devoirs au total</span>
               </div>
+              <p class="gestion-hint" style="margin-top:8px">Version Cursus v2.0.0</p>
             </div>
           </div>
         </div>
@@ -1200,13 +1192,14 @@ function onMilestoneClick(ms: FriseMilestone) {
             <p>Aucune donnée de planification disponible.</p>
           </div>
           <div
-            v-else class="frise-wrap"
+            v-else
+            class="frise-wrap frise-interactive"
+            :class="{ 'frise-grabbing': friseDragging }"
             @wheel.prevent="onFriseWheel"
             @mousedown="onFriseDragStart"
             @mousemove="onFriseDragMove"
             @mouseup="onFriseDragEnd"
             @mouseleave="onFriseDragEnd"
-            style="cursor:grab;user-select:none"
           >
             <!-- Axe des mois -->
             <div class="frise-axis-row">
@@ -1430,13 +1423,14 @@ function onMilestoneClick(ms: FriseMilestone) {
             <p>Aucune donnée de planification disponible.</p>
           </div>
           <div
-            v-else class="frise-wrap"
+            v-else
+            class="frise-wrap frise-interactive"
+            :class="{ 'frise-grabbing': friseDragging }"
             @wheel.prevent="onFriseWheel"
             @mousedown="onFriseDragStart"
             @mousemove="onFriseDragMove"
             @mouseup="onFriseDragEnd"
             @mouseleave="onFriseDragEnd"
-            style="cursor:grab;user-select:none"
           >
             <div class="frise-axis-row">
               <div class="frise-label-col frise-axis-label">Projet</div>
@@ -2424,6 +2418,10 @@ function onMilestoneClick(ms: FriseMilestone) {
 .db-trend-label { font-size: 9px; color: var(--text-muted); text-transform: capitalize; }
 
 /* ── Barre d'actions rapides flottante ── */
+/* ── Frise interactivité ── */
+.frise-interactive { cursor: grab; user-select: none; }
+.frise-grabbing    { cursor: grabbing; }
+
 .db-fab-bar {
   position: sticky;
   bottom: 16px;
@@ -2439,7 +2437,7 @@ function onMilestoneClick(ms: FriseMilestone) {
   width: fit-content;
   margin: 0 auto;
   box-shadow: 0 4px 20px rgba(0,0,0,.25);
-  z-index: 10;
+  z-index: 5; /* sous les modales (z-index >= 100) */
 }
 
 .db-fab {
