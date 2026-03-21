@@ -1,221 +1,25 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, watch, onMounted, Teleport } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Send, Paperclip, Loader2, X as XIcon, Reply, Bold, Italic, Code, SquareCode, Strikethrough, Quote, List, ListOrdered, Smile, Eye, EyeOff } from 'lucide-vue-next'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
-import { useToast }         from '@/composables/useToast'
 import { usePrefs }         from '@/composables/usePrefs'
 import { avatarColor, initials } from '@/utils/format'
 
+import { useMsgDraft }        from '@/composables/useMsgDraft'
+import { useMsgAutocomplete } from '@/composables/useMsgAutocomplete'
+import { useMsgAttachment }   from '@/composables/useMsgAttachment'
+import { useMsgSend }         from '@/composables/useMsgSend'
+import { useMsgFormatting }   from '@/composables/useMsgFormatting'
+import type { RefChannel, RefDevoir, RefDoc } from '@/composables/useMsgAutocomplete'
+
 const appStore      = useAppStore()
 const messagesStore = useMessagesStore()
-const { showToast } = useToast()
 const { getPref }   = usePrefs()
 
 const inputEl = ref<HTMLTextAreaElement | null>(null)
 const content = ref('')
-const sending = ref(false)
-const showPreview = ref(false)
 const showEmojiPicker = ref(false)
-
-// ── Preview markdown ──────────────────────────────────────────────────────
-import { renderMessageContent } from '@/utils/html'
-const previewHtml = computed(() => showPreview.value ? renderMessageContent(content.value) : '')
-
-// ── Brouillons (auto-save localStorage) ──────────────────────────────────────
-let _draftTimer: ReturnType<typeof setTimeout> | null = null
-
-const draftKey = computed(() => {
-  if (appStore.activeChannelId)   return `draft_ch_${appStore.activeChannelId}`
-  if (appStore.activeDmStudentId) return `draft_dm_${appStore.activeDmStudentId}`
-  return null
-})
-
-function saveDraft() {
-  if (!draftKey.value) return
-  if (content.value.trim()) localStorage.setItem(draftKey.value, content.value)
-  else                      localStorage.removeItem(draftKey.value)
-}
-
-function clearDraft() {
-  if (_draftTimer) { clearTimeout(_draftTimer); _draftTimer = null }
-  if (draftKey.value) localStorage.removeItem(draftKey.value)
-}
-
-// ── Autocomplete unifié (@mention, #canal, /devoir, /doc) ─────────────────
-type RefType = 'mention' | 'channel' | 'devoir' | 'doc'
-
-interface MentionUser {
-  name: string
-  type: 'student' | 'teacher' | 'ta' | 'everyone'
-}
-
-interface RefChannel { name: string; type: string }
-interface RefDevoir { title: string; type: string; deadline: string }
-interface RefDoc    { name: string; type: string; category: string | null }
-
-const channelList = ref<RefChannel[]>([])
-const devoirList  = ref<RefDevoir[]>([])
-const docList     = ref<RefDoc[]>([])
-const activeRef   = ref<RefType | null>(null)
-const refSearch   = ref('')
-const refStart    = ref(-1)
-const refIndex    = ref(0)
-
-const refResults = computed(() => {
-  if (!activeRef.value || activeRef.value === 'mention') return []
-  const q = normalize(refSearch.value)
-  if (activeRef.value === 'channel') {
-    return channelList.value.filter(c => normalize(c.name).includes(q)).slice(0, 8)
-  }
-  if (activeRef.value === 'devoir') {
-    return devoirList.value.filter(d => normalize(d.title).includes(q)).slice(0, 8)
-  }
-  if (activeRef.value === 'doc') {
-    return docList.value.filter(d => normalize(d.name).includes(q)).slice(0, 8)
-  }
-  return []
-})
-
-watch(refSearch, () => { refIndex.value = 0 })
-
-let _channelsLoadedForPromo: number | null = null
-async function loadChannels() {
-  const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id
-  if (!promoId) return
-  if (channelList.value.length && _channelsLoadedForPromo === promoId) return
-  const res = await window.api.getChannels(promoId)
-  channelList.value = res?.ok ? (res.data as RefChannel[]) : []
-  _channelsLoadedForPromo = promoId
-}
-
-async function loadDevoirs() {
-  const channelId = appStore.activeChannelId
-  if (!channelId) return
-  const res = await window.api.getTravaux(channelId)
-  devoirList.value = res?.ok ? (res.data as RefDevoir[]) : []
-}
-
-async function loadDocs() {
-  const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id
-  if (!promoId) return
-  const res = await window.api.getProjectDocuments(promoId)
-  docList.value = res?.ok ? (res.data as RefDoc[]) : []
-}
-
-// Précharger les données d'autocomplete au montage et quand la promo change
-onMounted(() => {
-  loadUsers()
-  loadChannels()
-})
-watch(() => appStore.activePromoId, () => {
-  _channelsLoadedForPromo = null
-  channelList.value = []
-  loadChannels()
-})
-
-function insertRef(text: string) {
-  const el = inputEl.value
-  if (!el) return
-  const end  = el.selectionStart
-  const pre  = content.value.slice(0, refStart.value)
-  const post = content.value.slice(end)
-  content.value = pre + text + ' ' + post
-  activeRef.value = null
-  nextTick(() => {
-    el.focus()
-    el.selectionStart = el.selectionEnd = refStart.value + text.length + 1
-    autoResize()
-  })
-}
-
-const allUsers        = ref<MentionUser[]>([])
-const mentionActive   = ref(false)
-const mentionSearch   = ref('')
-const mentionStart    = ref(-1)
-const mentionIndex    = ref(0)
-const mentionPopupEl  = ref<HTMLElement | null>(null)
-
-function normalize(s: string) {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-}
-
-const mentionResults = computed(() => {
-  if (!mentionActive.value) return []
-  const q = normalize(mentionSearch.value)
-  return allUsers.value
-    .filter((u) => normalize(u.name).includes(q))
-    .slice(0, 8)
-})
-
-watch(mentionSearch, () => { mentionIndex.value = 0 })
-watch(() => appStore.activePromoId, () => { allUsers.value = [] })
-
-async function loadUsers() {
-  if (allUsers.value.length) return
-
-  let students: MentionUser[] = []
-  const promoId = appStore.activePromoId
-
-  if (promoId) {
-    const res = await window.api.getStudents(promoId)
-    if (res?.ok) students = res.data.map((s) => ({ name: s.name, type: 'student' as const }))
-  } else {
-    const res = await window.api.getAllStudents()
-    if (res?.ok) students = res.data.map((s) => ({ name: s.name, type: 'student' as const }))
-  }
-
-  if (appStore.currentUser && appStore.currentUser.type !== 'student') {
-    const myName = appStore.currentUser.name
-    const myType = appStore.currentUser.type as 'teacher' | 'ta'
-    if (!students.some((u) => u.name === myName)) {
-      students = [{ name: myName, type: myType }, ...students]
-    }
-  }
-
-  allUsers.value = [{ name: 'everyone', type: 'everyone' }, ...students]
-}
-
-function insertMention(name: string) {
-  if (!inputEl.value) return
-  const cursorPos = inputEl.value.selectionStart ?? 0
-  const before    = content.value.slice(0, mentionStart.value)
-  const after     = content.value.slice(cursorPos)
-  content.value   = `${before}@${name} ${after}`
-  mentionActive.value = false
-  nextTick(() => {
-    const pos = mentionStart.value + name.length + 2
-    inputEl.value?.setSelectionRange(pos, pos)
-    inputEl.value?.focus()
-    autoResize()
-  })
-}
-
-function closeMention() {
-  mentionActive.value = false
-  mentionIndex.value  = 0
-}
-
-// ── Position fixe des popups (échapper overflow:hidden des parents) ─────
-const wrapperEl = ref<HTMLElement | null>(null)
-const popupStyle = computed(() => {
-  if (!wrapperEl.value) return {}
-  const rect = wrapperEl.value.getBoundingClientRect()
-  return {
-    position: 'fixed' as const,
-    bottom: `${window.innerHeight - rect.top + 6}px`,
-    left:   `${rect.left}px`,
-    width:  `${rect.width}px`,
-    zIndex: '9999',
-  }
-})
-
-// ── Placeholder ───────────────────────────────────────────────────────────
-const placeholder = computed(() => {
-  if (appStore.isReadonly) return 'Canal d\'annonces — lecture seule'
-  if (appStore.activeChannelName) return `Message dans #${appStore.activeChannelName}`
-  return 'Votre message…'
-})
 
 // ── Auto-resize textarea ──────────────────────────────────────────────────
 function autoResize() {
@@ -224,257 +28,56 @@ function autoResize() {
   inputEl.value.style.height = inputEl.value.scrollHeight + 'px'
 }
 
-// ── Détection mention ─────────────────────────────────────────────────────
-// ── Typing indicator emission ───────────────────────────────────────────
-let _lastTypingEmit = 0
-function emitTyping() {
-  const now = Date.now()
-  if (now - _lastTypingEmit < 2000) return  // max 1 event / 2s
-  _lastTypingEmit = now
-  const channelId = appStore.activeChannelId
-  const dmStudentId = appStore.activeDmStudentId
-  if (channelId && window.api.emitTyping) {
-    window.api.emitTyping(channelId)
-  } else if (dmStudentId && window.api.emitDmTyping) {
-    window.api.emitDmTyping(dmStudentId)
-  }
-}
+// ── Placeholder ───────────────────────────────────────────────────────────
+const placeholder = computed(() => {
+  if (appStore.isReadonly) return 'Canal d\'annonces — lecture seule'
+  if (appStore.activeChannelName) return `Message dans #${appStore.activeChannelName}`
+  return 'Votre message…'
+})
 
+// ── Composables ───────────────────────────────────────────────────────────
+const { showPreview, previewHtml, clearDraft, scheduleDraftSave } =
+  useMsgDraft(content, inputEl, autoResize)
+
+const {
+  mentionActive, mentionResults, mentionIndex, mentionPopupEl,
+  insertMention, closeMention,
+  activeRef, refResults, refIndex, insertRef,
+  wrapperEl, popupStyle,
+  detectTriggers, scrollMentionIntoView,
+  triggerMention, triggerChannel, dismissAll,
+} = useMsgAutocomplete(content, inputEl, autoResize)
+
+const { attaching, attachFile } = useMsgAttachment(content, inputEl, autoResize)
+
+const {
+  sending, everyoneWarning, isOfflineOrDisconnected,
+  charCount, showCharCount, charCountOver,
+  send, cancelEveryone, emitTyping,
+} = useMsgSend(content, inputEl, clearDraft, closeMention)
+
+const { fmtWrap, fmtLinePrefix, fmtInsertBlock } =
+  useMsgFormatting(content, inputEl, autoResize)
+
+// ── Input handler ─────────────────────────────────────────────────────────
 function onInput() {
   autoResize()
   emitTyping()
-
-  if (!inputEl.value) return
-  const cursor = inputEl.value.selectionStart ?? 0
-  const before = content.value.slice(0, cursor)
-
-  // ── Détection des différents triggers ──────────────────────────────────
-  const matchMention = before.match(/@([^\s@]*)$/)
-  const matchChannel = before.match(/#([^\s#]*)$/)
-  const matchDevoir  = before.match(/\/devoir\s?(.*)$/i)
-  const matchDoc     = before.match(/\/doc\s?(.*)$/i)
-
-  if (matchMention) {
-    mentionSearch.value = matchMention[1]
-    mentionStart.value  = cursor - matchMention[0].length
-    mentionActive.value = true
-    activeRef.value = null
-    loadUsers()
-  } else if (matchChannel) {
-    activeRef.value = 'channel'
-    refSearch.value = matchChannel[1]
-    refStart.value  = cursor - matchChannel[0].length
-    mentionActive.value = false
-    loadChannels()
-  } else if (matchDevoir) {
-    activeRef.value = 'devoir'
-    refSearch.value = matchDevoir[1]
-    refStart.value  = cursor - matchDevoir[0].length
-    mentionActive.value = false
-    loadDevoirs()
-  } else if (matchDoc) {
-    activeRef.value = 'doc'
-    refSearch.value = matchDoc[1]
-    refStart.value  = cursor - matchDoc[0].length
-    mentionActive.value = false
-    loadDocs()
-  } else {
-    mentionActive.value = false
-    activeRef.value = null
-  }
-
-  if (_draftTimer) clearTimeout(_draftTimer)
-  _draftTimer = setTimeout(saveDraft, 500)
+  detectTriggers()
+  scheduleDraftSave()
 }
 
 function onBlur() {
-  setTimeout(() => {
-    closeMention()
-    activeRef.value = null
-  }, 200)
+  setTimeout(() => { dismissAll() }, 200)
 }
 
-// ── Formatage inline ──────────────────────────────────────────────────────
-function fmtWrap(pre: string, post: string) {
-  const el = inputEl.value
-  if (!el) return
-  const start = el.selectionStart
-  const end   = el.selectionEnd
-  const sel   = el.value.slice(start, end) || 'texte'
-  el.value = el.value.slice(0, start) + pre + sel + post + el.value.slice(end)
-  content.value = el.value
-  el.focus()
-  el.selectionStart = start + pre.length
-  el.selectionEnd   = start + pre.length + sel.length
-  autoResize()
-}
+// ── Channel change: dismiss autocomplete ──────────────────────────────────
+watch(
+  () => [appStore.activeChannelId, appStore.activeDmStudentId],
+  () => { mentionActive.value = false },
+)
 
-/** Insère un préfixe en début de la ligne courante (ou de chaque ligne sélectionnée) */
-function fmtLinePrefix(prefix: string) {
-  const el = inputEl.value
-  if (!el) return
-  const start = el.selectionStart
-  const end   = el.selectionEnd
-  const lines = el.value.slice(start, end || start)
-
-  if (start === end) {
-    // Pas de sélection : trouver le début de la ligne courante
-    const lineStart = el.value.lastIndexOf('\n', start - 1) + 1
-    el.value = el.value.slice(0, lineStart) + prefix + el.value.slice(lineStart)
-    content.value = el.value
-    el.focus()
-    el.selectionStart = el.selectionEnd = start + prefix.length
-  } else {
-    // Sélection : préfixer chaque ligne
-    const prefixed = lines.split('\n').map(l => prefix + l).join('\n')
-    el.value = el.value.slice(0, start) + prefixed + el.value.slice(end)
-    content.value = el.value
-    el.focus()
-    el.selectionStart = start
-    el.selectionEnd = start + prefixed.length
-  }
-  autoResize()
-}
-
-function fmtInsertBlock() {
-  const el = inputEl.value
-  if (!el) return
-  const start = el.selectionStart
-  const end   = el.selectionEnd
-  const sel   = el.value.slice(start, end) || 'code'
-  const block = '```\n' + sel + '\n```'
-  el.value = el.value.slice(0, start) + block + el.value.slice(end)
-  content.value = el.value
-  el.focus()
-  el.selectionStart = start + 4
-  el.selectionEnd   = start + 4 + sel.length
-  autoResize()
-}
-
-// ── Bouton mention @ ──────────────────────────────────────────────────────
-function triggerMention() {
-  const el = inputEl.value
-  if (!el) return
-  const pos    = el.selectionStart ?? content.value.length
-  const before = content.value.slice(0, pos)
-  const after  = content.value.slice(pos)
-  content.value = before + '@' + after
-  nextTick(() => {
-    const newPos = pos + 1
-    el.setSelectionRange(newPos, newPos)
-    el.focus()
-    mentionSearch.value = ''
-    mentionStart.value  = newPos - 1
-    mentionActive.value = true
-    loadUsers()
-    autoResize()
-  })
-}
-
-// ── Bouton canal # ────────────────────────────────────────────────────────
-function triggerChannel() {
-  const el = inputEl.value
-  if (!el) return
-  const pos    = el.selectionStart ?? content.value.length
-  const before = content.value.slice(0, pos)
-  const after  = content.value.slice(pos)
-  content.value = before + '#' + after
-  nextTick(() => {
-    const newPos = pos + 1
-    el.setSelectionRange(newPos, newPos)
-    el.focus()
-    refSearch.value = ''
-    refStart.value  = newPos - 1
-    activeRef.value = 'channel'
-    loadChannels()
-    autoResize()
-  })
-}
-
-// ── Pièce jointe ──────────────────────────────────────────────────────────
-const attaching = ref(false)
-
-async function attachFile() {
-  if (attaching.value) return
-  attaching.value = true
-  try {
-    const res = await window.api.openFileDialog()
-    if (!res?.ok || !res.data) return
-    const uploadRes = await window.api.uploadFile(res.data as string)
-    if (!uploadRes?.ok) {
-      showToast('Erreur lors du chargement du fichier.', 'error')
-      return
-    }
-    const url = uploadRes.data as string
-    // Formater en markdown : images → ![](url), fichiers → [nom](url)
-    const fileName = (res.data as string).split(/[\\/]/).pop() || 'fichier'
-    const isImage = /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(fileName)
-    const md = isImage ? `![${fileName}](${url})` : `[📎 ${fileName}](${url})`
-    content.value += content.value ? `\n${md}` : md
-    nextTick(() => { autoResize(); inputEl.value?.focus() })
-  } finally {
-    attaching.value = false
-  }
-}
-
-// ── Envoi ──────────────────────────────────────────────────────────────────
-const everyoneWarning = ref(false)
-
-const isOfflineOrDisconnected = computed(() => !appStore.isOnline || !appStore.socketConnected)
-const charCount = computed(() => content.value.length)
-const showCharCount = computed(() => charCount.value > messagesStore.MAX_MESSAGE_LENGTH * 0.8)
-const charCountOver = computed(() => charCount.value > messagesStore.MAX_MESSAGE_LENGTH)
-
-async function send() {
-  if (!content.value.trim() || sending.value || appStore.isReadonly) return
-  if (isOfflineOrDisconnected.value) {
-    showToast('Hors-ligne — message non envoyé.', 'error')
-    return
-  }
-  if (charCountOver.value) {
-    showToast(`Message trop long (${charCount.value}/${messagesStore.MAX_MESSAGE_LENGTH})`, 'error')
-    return
-  }
-
-  // Confirmation @everyone
-  if (/@everyone\b/i.test(content.value) && !everyoneWarning.value) {
-    everyoneWarning.value = true
-    return
-  }
-  everyoneWarning.value = false
-
-  mentionActive.value = false
-  sending.value = true
-  try {
-    const ok = await messagesStore.sendMessage(content.value)
-    if (ok) {
-      clearDraft()
-      content.value = ''
-      if (inputEl.value) inputEl.value.style.height = 'auto'
-    } else {
-      showToast('Message non envoyé — réessayez.', 'error')
-    }
-  } finally {
-    sending.value = false
-    inputEl.value?.focus()
-  }
-}
-
-function cancelEveryone() {
-  everyoneWarning.value = false
-  // Retirer @everyone du message
-  content.value = content.value.replace(/@everyone\b/gi, '').trim()
-}
-
-function scrollMentionIntoView() {
-  nextTick(() => {
-    const popup = mentionPopupEl.value
-    if (!popup) return
-    const active = popup.querySelector('.mi-mention-selected') as HTMLElement
-    active?.scrollIntoView({ block: 'nearest' })
-  })
-}
-
+// ── Keydown handler ───────────────────────────────────────────────────────
 function onKeydown(e: KeyboardEvent) {
   if (mentionActive.value && mentionResults.value.length) {
     if (e.key === 'ArrowDown') {
@@ -489,19 +92,10 @@ function onKeydown(e: KeyboardEvent) {
       scrollMentionIntoView()
       return
     }
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      insertMention(mentionResults.value[mentionIndex.value].name)
-      return
-    }
-    if (e.key === 'Escape') {
-      closeMention()
-      e.preventDefault()
-      return
-    }
+    if (e.key === 'Enter') { e.preventDefault(); insertMention(mentionResults.value[mentionIndex.value].name); return }
+    if (e.key === 'Escape') { closeMention(); e.preventDefault(); return }
   }
 
-  // ── Navigation ref popup (#canal, /devoir, /doc) ──────────────────────────
   if (activeRef.value && refResults.value.length) {
     if (e.key === 'ArrowDown') { e.preventDefault(); refIndex.value = (refIndex.value + 1) % refResults.value.length; return }
     if (e.key === 'ArrowUp')   { e.preventDefault(); refIndex.value = (refIndex.value - 1 + refResults.value.length) % refResults.value.length; return }
@@ -516,7 +110,6 @@ function onKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') { e.preventDefault(); activeRef.value = null; return }
   }
 
-  // ── Raccourcis de formatage ───────────────────────────────────────────────
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
     if (e.key === 'b') { e.preventDefault(); fmtWrap('**', '**'); return }
     if (e.key === 'i') { e.preventDefault(); fmtWrap('*', '*'); return }
@@ -528,36 +121,14 @@ function onKeydown(e: KeyboardEvent) {
     if (e.key === '>' || e.key === '.') { e.preventDefault(); fmtLinePrefix('> '); return }
   }
 
-  // Entrée pour envoyer : Enter seul (pref activée) ou Ctrl+Enter (pref désactivée)
   const enterSendPref = getPref('enterToSend') ?? true
   const shouldSend = enterSendPref
     ? (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey)
     : (e.key === 'Enter' && (e.ctrlKey || e.metaKey))
 
-  if (shouldSend) {
-    e.preventDefault()
-    send()
-  }
-  if (e.key === 'Escape' && mentionActive.value) {
-    closeMention()
-    e.preventDefault()
-  }
+  if (shouldSend) { e.preventDefault(); send() }
+  if (e.key === 'Escape' && mentionActive.value) { closeMention(); e.preventDefault() }
 }
-
-// Restaurer le brouillon quand le canal change
-watch(
-  () => [appStore.activeChannelId, appStore.activeDmStudentId],
-  () => {
-    mentionActive.value = false
-    if (_draftTimer) { clearTimeout(_draftTimer); _draftTimer = null }
-    const key = draftKey.value
-    content.value = key ? (localStorage.getItem(key) ?? '') : ''
-    nextTick(() => {
-      autoResize()
-      inputEl.value?.focus()
-    })
-  },
-)
 </script>
 
 <template>
