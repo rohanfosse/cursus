@@ -1,7 +1,6 @@
 /**
  * Tests unitaires pour le modèle assignments (travaux/devoirs).
  */
-const { describe, it, expect, beforeAll, afterAll } = require('vitest')
 const { setupTestDb, teardownTestDb } = require('../helpers/setup')
 
 let queries
