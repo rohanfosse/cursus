@@ -22,8 +22,7 @@
   import { parseCategoryIcon } from '@/utils/categoryIcon'
   import { isoForDatetimeLocal } from '@/utils/date'
   import type { Student, Group } from '@/types'
-
-  const CUSTOM_PROJECTS_KEY = 'cc_custom_projects'
+  import { STORAGE_KEYS } from '@/constants'
 
   const props = defineProps<{ modelValue: boolean }>()
   const emit  = defineEmits<{ 'update:modelValue': [v: boolean] }>()
@@ -43,7 +42,7 @@
   const assignTo    = ref<'all' | 'group'>('all')
   const dbProjects    = ref<string[]>([])
   const allProjects   = computed(() => {
-    const custom = (() => { try { return JSON.parse(localStorage.getItem(CUSTOM_PROJECTS_KEY) ?? '[]') as string[] } catch { return [] } })()
+    const custom = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.CUSTOM_PROJECTS) ?? '[]') as string[] } catch { return [] } })()
     const set = new Set([...dbProjects.value, ...custom])
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'))
   })

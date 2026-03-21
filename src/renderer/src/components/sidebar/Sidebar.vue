@@ -16,10 +16,9 @@
   import ChannelItem  from './ChannelItem.vue'
   import { avatarColor }  from '@/utils/format'
   import type { Channel, Student, Promotion } from '@/types'
+  import { STORAGE_KEYS, DM_RECENT_LIMIT } from '@/constants'
 
   const emit = defineEmits<{ navigate: [] }>()
-
-  const CUSTOM_PROJECTS_KEY = 'cc_custom_projects'
 
   const appStore      = useAppStore()
   const modals        = useModalsStore()
@@ -178,7 +177,6 @@
   interface DmContact { name: string; last_message_at: string; last_message_preview: string }
   const recentDmContacts = ref<DmContact[]>([])
   const showAllDmStudents = ref(false)
-  const DM_RECENT_LIMIT = 10
 
   async function loadRecentDmContacts() {
     if (!user.value?.id) return
@@ -233,7 +231,7 @@
 
   function loadCustomProjects() {
     try {
-      const raw = localStorage.getItem(CUSTOM_PROJECTS_KEY)
+      const raw = localStorage.getItem(STORAGE_KEYS.CUSTOM_PROJECTS)
       customProjects.value = raw ? JSON.parse(raw) : []
     } catch { customProjects.value = [] }
   }
@@ -253,12 +251,12 @@
   // ── Stats de rendus par projet (pour indicateurs sidebar) ─────────────────
   const projectStats = computed((): Record<string, { depots: number; expected: number }> => {
     const map: Record<string, { depots: number; expected: number }> = {}
-    for (const t of travauxStore.ganttData as any[]) {
-      const cat = (t as any).category?.trim()
-      if (!cat || !(t as any).published) continue
+    for (const t of travauxStore.ganttData) {
+      const cat = t.category?.trim()
+      if (!cat || !t.published) continue
       if (!map[cat]) map[cat] = { depots: 0, expected: 0 }
-      map[cat].depots   += (t as any).depots_count  ?? 0
-      map[cat].expected += (t as any).students_total ?? 0
+      map[cat].depots   += t.depots_count  ?? 0
+      map[cat].expected += t.students_total ?? 0
     }
     return map
   })
@@ -448,7 +446,7 @@
     cancelRename()
     if (!id || !name) return
     const res = await window.api.renameChannel(id, name)
-    if ((res as any)?.ok === false) { showToast('Erreur lors du renommage.', 'error'); return }
+    if (res?.ok === false) { showToast('Erreur lors du renommage.', 'error'); return }
     await loadTeacherChannels()
     showToast('Canal renommé.', 'success')
   }
@@ -462,7 +460,7 @@
     const iconPrefix = old.includes(' ') ? old.split(' ')[0] + ' ' : ''
     const newKey = iconPrefix + next
     const res = await window.api.renameCategory(appStore.activePromoId, old, newKey)
-    if ((res as any)?.ok === false) { showToast('Erreur lors du renommage.', 'error'); return }
+    if (res?.ok === false) { showToast('Erreur lors du renommage.', 'error'); return }
     await loadTeacherChannels()
     showToast('Catégorie renommée.', 'success')
   }
@@ -498,7 +496,7 @@
             if (!appStore.activePromoId) return
             if (!await confirm(`Dissoudre la catégorie « ${group.key} » ? Les canaux seront déplacés hors catégorie.`, 'warning', 'Dissoudre')) return
             const res = await window.api.deleteCategory(appStore.activePromoId, group.key)
-            if ((res as any)?.ok === false) { showToast('Erreur.', 'error'); return }
+            if (res?.ok === false) { showToast('Erreur.', 'error'); return }
             await loadTeacherChannels()
             showToast('Catégorie dissoute.', 'success')
           },
@@ -530,7 +528,7 @@
           action: async () => {
             if (!await confirm(`Supprimer le canal « #${ch.name} » et tous ses messages ? Cette action est irréversible.`, 'danger', 'Supprimer')) return
             const res = await window.api.deleteChannel(ch.id)
-            if ((res as any)?.ok === false) { showToast('Erreur.', 'error'); return }
+            if (res?.ok === false) { showToast('Erreur.', 'error'); return }
             if (appStore.activeChannelId === ch.id) appStore.activeChannelId = null
             await loadTeacherChannels()
             showToast('Canal supprimé.', 'success')
@@ -579,7 +577,7 @@
     const newCategory = groupKey === NO_CAT ? null : groupKey
     if ((ch.category ?? null) === newCategory) return  // no change
     const res = await window.api.updateChannelCategory(ch.id, newCategory)
-    if ((res as any)?.ok === false) { showToast('Erreur lors du déplacement.', 'error'); return }
+    if (res?.ok === false) { showToast('Erreur lors du déplacement.', 'error'); return }
     await loadTeacherChannels()
   }
 

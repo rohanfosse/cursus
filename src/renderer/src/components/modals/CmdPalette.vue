@@ -218,6 +218,10 @@
     if (results.value[i].type !== 'message') return false
     return i === 0 || results.value[i - 1].type !== 'message'
   }
+
+  function messageAuthor(item: ResultItem): string {
+    return item.type === 'message' ? item.data.author_name : ''
+  }
 </script>
 
 <template>
@@ -268,7 +272,7 @@
                   <div class="cmd-result-body">
                     <span class="cmd-result-label">{{ r.label }}</span>
                     <span v-if="r.type === 'message'" class="cmd-result-author">
-                      {{ (r.data as any).author_name }}
+                      {{ messageAuthor(r) }}
                     </span>
                   </div>
                   <span class="cmd-result-sub">{{ r.sub }}</span>

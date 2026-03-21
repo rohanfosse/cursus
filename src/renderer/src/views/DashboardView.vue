@@ -5,6 +5,8 @@ import {
   ChevronRight, CheckCircle2, FileText, LayoutDashboard,
   Award, TrendingUp, FolderOpen, CalendarDays, BarChart2,
   PlusCircle, Menu, GraduationCap, Settings,
+  MessageSquare, Bookmark, Trash2,
+  AtSign, CalendarClock, EyeOff, Mic, FileQuestion,
 } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
@@ -14,8 +16,11 @@ import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
 import { avatarColor, gradeClass } from '@/utils/format'
 import { useToast } from '@/composables/useToast'
+import { useApi } from '@/composables/useApi'
+import { useConfirm } from '@/composables/useConfirm'
+import { STORAGE_KEYS } from '@/constants'
 import type { Component } from 'vue'
-import type { Devoir }    from '@/types'
+import type { Devoir, Promotion }    from '@/types'
 
 const props = defineProps<{ toggleSidebar?: () => void }>()
 
@@ -25,6 +30,8 @@ const travauxStore = useTravauxStore()
 const router       = useRouter()
 const route        = useRoute()
 const { showToast } = useToast()
+const { api }       = useApi()
+const { confirm: askConfirm } = useConfirm()
 
 // ── Onboarding première visite ──────────────────────────────────────────────
 const ONBOARDING_KEY = 'cc_onboarding_seen'
@@ -49,7 +56,6 @@ interface GanttRow {
   depots_count:   number
   students_total: number
 }
-interface Promotion { id: number; name: string; color: string }
 interface ProjectCard {
   key: string; label: string; icon: Component | null
   total: number; published: number; depots: number; expected: number; nextDeadline: string | null
@@ -68,31 +74,37 @@ const brouillonsCount = ref(0)
 const promos          = ref<Promotion[]>([])
 const allStudents     = ref<{ id: number; promo_id: number; name?: string }[]>([])
 const ganttAll        = ref<GanttRow[]>([])
+const savingPromo     = ref(false)
+const deletingPromoId = ref<number | null>(null)
 
 // ── Chargement ────────────────────────────────────────────────────────────────
 onMounted(async () => {
   if (appStore.isTeacher) {
     try {
-      const [schedRes, promosRes, studRes, ganttRes] = await Promise.all([
-        window.api.getTeacherSchedule(),
-        window.api.getPromotions(),
-        window.api.getAllStudents(),
-        window.api.getGanttData(0 as number),
+      type Schedule = { aNoter: unknown[]; brouillons: unknown[] }
+      const [schedData, promosData, studData, ganttData] = await Promise.all([
+        api<Schedule>(() => window.api.getTeacherSchedule() as Promise<{ ok: boolean; data?: Schedule }>),
+        api<Promotion[]>(() => window.api.getPromotions()),
+        api<typeof allStudents.value>(() => window.api.getAllStudents()),
+        api<GanttRow[]>(() => window.api.getGanttData(0 as number) as Promise<{ ok: boolean; data?: GanttRow[] }>),
       ])
-      if (schedRes?.ok) {
-        const d = schedRes.data as { aNoter: unknown[]; brouillons: unknown[] }
-        aNoterCount.value     = d.aNoter?.length     ?? 0
-        brouillonsCount.value = d.brouillons?.length ?? 0
+      if (schedData) {
+        aNoterCount.value     = schedData.aNoter?.length     ?? 0
+        brouillonsCount.value = schedData.brouillons?.length ?? 0
       }
-      if (promosRes?.ok) {
-        promos.value = promosRes.data as Promotion[]
-        if (promos.value.length && !appStore.activePromoId) {
-          appStore.activePromoId = promos.value[0].id
-        }
+      promos.value = promosData ?? []
+      if (promos.value.length && !appStore.activePromoId) {
+        appStore.activePromoId = promos.value[0].id
       }
-      if (studRes?.ok) allStudents.value = studRes.data as typeof allStudents.value
-      if (ganttRes?.ok) ganttAll.value = ganttRes.data as GanttRow[]
+      allStudents.value = studData ?? []
+      ganttAll.value    = ganttData ?? []
       loadReminders()
+      checkDevoirsResources()
+      // Charger les rendus pour la tendance sur l'accueil
+      if (promos.value.length) {
+        const pid = appStore.activePromoId ?? promos.value[0]?.id
+        if (pid) travauxStore.fetchRendus(pid)
+      }
     } finally { loadingTeacher.value = false }
   } else {
     try {
@@ -153,27 +165,15 @@ const doneThisWeek = computed(() => thisWeekReminders.value.filter(r => r.done).
 const totalThisWeek = computed(() => thisWeekReminders.value.length)
 
 async function loadReminders() {
-  try {
-    const res = await window.api.getTeacherReminders()
-    if (res?.ok) allReminders.value = res.data as Reminder[]
-  } catch {}
+  allReminders.value = await api<Reminder[]>(() => window.api.getTeacherReminders()) ?? []
 }
 
 async function toggleReminder(id: number, done: boolean) {
-  try {
-    await window.api.toggleReminderDone(id, done)
+  const result = await api(() => window.api.toggleReminderDone(id, done))
+  if (result !== null) {
     const r = allReminders.value.find(r => r.id === id)
     if (r) r.done = done ? 1 : 0
-  } catch {}
-}
-
-// ── Gestion promo : renommage ────────────────────────────────────────────────
-const editingPromoName = ref(false)
-const promoNameDraft = ref('')
-
-function startEditPromoName() {
-  promoNameDraft.value = activePromo.value?.name ?? ''
-  editingPromoName.value = true
+  }
 }
 
 // ── Promotions : renommer et supprimer ───────────────────────────────────
@@ -182,32 +182,33 @@ const renamingPromoValue = ref('')
 
 async function confirmRenamePromo(p: { id: number; name: string }) {
   if (!renamingPromoValue.value.trim()) return
+  savingPromo.value = true
   try {
-    await window.api.renamePromotion(p.id, renamingPromoValue.value.trim())
-    ;(p as any).name = renamingPromoValue.value.trim()
-    renamingPromoId.value = null
-    showToast('Promotion renommée.', 'success')
-  } catch { showToast('Erreur.', 'error') }
+    const result = await api(() => window.api.renamePromotion(p.id, renamingPromoValue.value.trim()), 'promo')
+    if (result !== null) {
+      p.name = renamingPromoValue.value.trim()
+      renamingPromoId.value = null
+      showToast('Promotion renommée.', 'success')
+    }
+  } finally { savingPromo.value = false }
 }
 
 async function deletePromo(id: number, name: string) {
-  if (!confirm(`Supprimer la promotion "${name}" et tous ses canaux/devoirs ? Cette action est irréversible.`)) return
+  const ok = await askConfirm(
+    `Supprimer la promotion "${name}" et tous ses canaux/devoirs ? Cette action est irréversible.`,
+    'danger',
+    'Supprimer',
+  )
+  if (!ok) return
+  deletingPromoId.value = id
   try {
-    await window.api.deletePromotion(id)
-    promos.value = promos.value.filter(p => p.id !== id)
-    if (appStore.activePromoId === id && promos.value.length) appStore.activePromoId = promos.value[0].id
-    showToast('Promotion supprimée.', 'success')
-  } catch { showToast('Erreur.', 'error') }
-}
-
-async function savePromoName() {
-  if (!activePromo.value || !promoNameDraft.value.trim()) return
-  try {
-    await window.api.renamePromotion(activePromo.value.id, promoNameDraft.value.trim())
-    const p = promos.value.find(p => p.id === activePromo.value!.id)
-    if (p) (p as any).name = promoNameDraft.value.trim()
-    editingPromoName.value = false
-  } catch {}
+    const result = await api(() => window.api.deletePromotion(id), 'promo')
+    if (result !== null) {
+      promos.value = promos.value.filter(p => p.id !== id)
+      if (appStore.activePromoId === id && promos.value.length) appStore.activePromoId = promos.value[0].id
+      showToast('Promotion supprimée.', 'success')
+    }
+  } finally { deletingPromoId.value = null }
 }
 
 // ── Promo active + données filtrées ──────────────────────────────────────────
@@ -239,12 +240,12 @@ const urgentsCount = computed(() => {
 })
 
 async function reloadPromos() {
-  const [promosRes, ganttRes] = await Promise.all([
-    window.api.getPromotions(),
-    window.api.getGanttData(0 as number),
+  const [promosData, ganttData2] = await Promise.all([
+    api<Promotion[]>(() => window.api.getPromotions()),
+    api<GanttRow[]>(() => window.api.getGanttData(0 as number) as Promise<{ ok: boolean; data?: GanttRow[] }>),
   ])
-  if (promosRes?.ok) promos.value = promosRes.data as Promotion[]
-  if (ganttRes?.ok) ganttAll.value = ganttRes.data as GanttRow[]
+  promos.value   = promosData ?? promos.value
+  ganttAll.value = ganttData2 ?? ganttAll.value
 }
 
 // Recharger quand la modale de création de promo se ferme
@@ -261,6 +262,173 @@ const today = computed(() =>
 function goToProject(key: string) {
   appStore.activeProject = key
   router.push('/devoirs')
+}
+
+// ── DMs non lus — récapitulatif dashboard ────────────────────────────────────
+interface UnreadDmEntry { name: string; count: number }
+
+const unreadDmEntries = computed((): UnreadDmEntry[] => {
+  return Object.entries(appStore.unreadDms)
+    .filter(([, count]) => count > 0)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+})
+
+const totalUnreadDms = computed(() => unreadDmEntries.value.reduce((s, e) => s + e.count, 0))
+
+function openDmFromDashboard(name: string) {
+  // Chercher l'étudiant correspondant par nom
+  const student = allStudents.value.find(s => s.name === name)
+  if (student) {
+    const promoId = appStore.activePromoId ?? student.promo_id ?? 0
+    appStore.openDm(student.id, promoId, name)
+    router.push('/messages')
+  }
+}
+
+// ── Messages enregistrés (bookmarks — stockage riche localStorage) ───────────
+interface SavedMessage {
+  id: number
+  authorName: string
+  authorInitials: string
+  content: string
+  createdAt: string
+  isDm: boolean
+  channelName: string | null
+  dmStudentId: number | null
+}
+
+function getSavedMessages(): SavedMessage[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.BOOKMARKS) || '[]')
+    if (!Array.isArray(raw)) return []
+    // Compatibilité ascendante : ancien format = number[], nouveau = SavedMessage[]
+    if (raw.length > 0 && typeof raw[0] === 'number') return [] // ancien format non migratable sans API
+    return raw as SavedMessage[]
+  } catch { return [] }
+}
+
+const savedMessages = ref<SavedMessage[]>(getSavedMessages())
+
+function removeSavedMessage(msgId: number) {
+  const filtered = getSavedMessages().filter(m => m.id !== msgId)
+  localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(filtered))
+  savedMessages.value = filtered
+  showToast('Message retiré des favoris.', 'info')
+}
+
+function goToSavedMessage(msg: SavedMessage) {
+  if (msg.isDm && msg.dmStudentId) {
+    const student = allStudents.value.find(s => s.id === msg.dmStudentId)
+    if (student) {
+      appStore.openDm(student.id, appStore.activePromoId ?? student.promo_id ?? 0, msg.authorName)
+    }
+  } else if (msg.channelName) {
+    // Pour les messages de canal, naviguer vers les messages
+  }
+  router.push('/messages')
+}
+
+// Recharger quand le localStorage change (depuis MessageBubble)
+function onStorageChange(e: StorageEvent) {
+  if (e.key === STORAGE_KEYS.BOOKMARKS) savedMessages.value = getSavedMessages()
+}
+if (typeof window !== 'undefined') window.addEventListener('storage', onStorageChange)
+onUnmounted(() => window.removeEventListener('storage', onStorageChange))
+
+// ── Widget : Derniers messages de canal ───────────────────────────────────────
+const recentChannelActivity = computed(() =>
+  appStore.notificationHistory
+    .filter(n => n.channelId != null && !n.dmStudentId)
+    .slice(0, 5),
+)
+
+function goToChannel(channelId: number, channelName: string) {
+  const promo = appStore.activePromoId ?? promos.value[0]?.id ?? 0
+  appStore.openChannel(channelId, promo, channelName)
+  router.push('/messages')
+}
+
+// ── Widget : Mentions @ non lues ─────────────────────────────────────────────
+const unreadMentions = computed(() =>
+  appStore.notificationHistory
+    .filter(n => n.isMention && !n.read)
+    .slice(0, 5),
+)
+
+const totalUnreadMentions = computed(() =>
+  appStore.notificationHistory.filter(n => n.isMention && !n.read).length,
+)
+
+// ── Widget : Prochaines 48h ──────────────────────────────────────────────────
+interface AgendaItem {
+  id: number | string
+  type: 'deadline' | 'reminder' | 'soutenance'
+  title: string
+  time: string
+  room: string | null
+  channelName: string | null
+}
+
+const next48h = computed((): AgendaItem[] => {
+  const now = Date.now()
+  const limit = now + 48 * 3600_000
+
+  const deadlines: AgendaItem[] = ganttFiltered.value
+    .filter(t => t.published && new Date(t.deadline).getTime() > now && new Date(t.deadline).getTime() <= limit)
+    .map(t => ({
+      id: t.id,
+      type: t.type === 'soutenance' ? 'soutenance' : 'deadline',
+      title: t.title,
+      time: t.deadline,
+      room: (t as { room?: string | null }).room ?? null,
+      channelName: t.channel_name,
+    }))
+
+  const reminders: AgendaItem[] = allReminders.value
+    .filter(r => !r.done && new Date(r.date).getTime() > now && new Date(r.date).getTime() <= limit)
+    .map(r => ({
+      id: `rem-${r.id}`,
+      type: 'reminder' as const,
+      title: r.title,
+      time: r.date,
+      room: null,
+      channelName: null,
+    }))
+
+  return [...deadlines, ...reminders].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+})
+
+// ── Widget : Brouillons oubliés ──────────────────────────────────────────────
+const forgottenDrafts = computed(() => {
+  const now = Date.now()
+  const week = 7 * 86_400_000
+  return ganttFiltered.value
+    .filter(t => !t.published && new Date(t.deadline).getTime() > now && new Date(t.deadline).getTime() < now + week)
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+})
+
+async function publishDraft(travailId: number) {
+  const result = await api(() => window.api.updateTravailPublished({ travailId, published: true }))
+  if (result !== null) {
+    showToast('Devoir publié.', 'success')
+    await reloadPromos()
+  }
+}
+
+// ── Widget : Devoirs sans ressources ─────────────────────────────────────────
+const devoirsWithoutResources = ref<typeof ganttFiltered.value>([])
+
+async function checkDevoirsResources() {
+  const published = ganttFiltered.value.filter(t => t.published).slice(0, 20)
+  const missing: typeof ganttFiltered.value = []
+  for (const t of published) {
+    const data = await api<{ id: number }[]>(
+      () => window.api.getRessources(t.id) as Promise<{ ok: boolean; data?: { id: number }[] }>,
+    )
+    if (!data || data.length === 0) missing.push(t)
+  }
+  devoirsWithoutResources.value = missing
 }
 
 // ── Projets prof ─────────────────────────────────────────────────────────────
@@ -431,21 +599,21 @@ function onFriseWheel(e: WheelEvent) {
   friseOffset.value += e.deltaY > 0 ? 14 : -14 // scroll de 2 semaines
 }
 
-let _friseDragging = false
+const friseDragging = ref(false)
 let _friseDragStart = 0
 function onFriseDragStart(e: MouseEvent) {
-  _friseDragging = true
+  friseDragging.value = true
   _friseDragStart = e.clientX
 }
 function onFriseDragMove(e: MouseEvent) {
-  if (!_friseDragging) return
+  if (!friseDragging.value) return
   const diff = _friseDragStart - e.clientX
   if (Math.abs(diff) > 10) {
     friseOffset.value += diff > 0 ? 7 : -7
     _friseDragStart = e.clientX
   }
 }
-function onFriseDragEnd() { _friseDragging = false }
+function onFriseDragEnd() { friseDragging.value = false }
 
 const ganttMonths = computed(() => {
   const r = ganttDateRange.value
@@ -506,12 +674,12 @@ const studentFrise = computed((): FrisePromo[] => {
     const key = t.category?.trim() || 'Sans projet'
     if (!projMap.has(key)) projMap.set(key, [])
     projMap.get(key)!.push({
-      id: t.id, title: t.title, type: (t as any).type ?? 'autre', deadline: t.deadline,
+      id: t.id, title: t.title, type: t.type ?? 'autre', deadline: t.deadline,
       published: true, done: t.depot_id != null,
     })
   }
   return [{
-    name: (appStore.currentUser as any)?.promo_name ?? 'Ma promo', color: '#9b87f5',
+    name: appStore.currentUser?.promo_name ?? 'Ma promo', color: '#9b87f5',
     projects: Array.from(projMap.entries())
       .map(([key, milestones]) => ({
         key, label: parseCategoryIcon(key).label, icon: parseCategoryIcon(key).icon,
@@ -533,8 +701,10 @@ const analyticsLoaded = ref(false)
 async function loadAnalytics() {
   if (analyticsLoaded.value) return
   const promoId = appStore.activePromoId ?? 0
-  const res = await window.api.getAllRendus(promoId)
-  if (res?.ok) allRendus.value = (res.data as unknown as typeof allRendus.value)
+  const data = await api<{ note: string | null }[]>(
+    () => window.api.getAllRendus(promoId) as Promise<{ ok: boolean; data?: { note: string | null }[] }>,
+  )
+  allRendus.value = data ?? []
   analyticsLoaded.value = true
 }
 
@@ -557,7 +727,7 @@ const gradeDistribution = computed(() => {
 // Taux de soumission par devoir
 const submissionRates = computed(() => {
   return ganttFiltered.value
-    .filter(t => (t as any).is_published && t.students_total > 0)
+    .filter(t => t.published && t.students_total > 0)
     .map(t => ({
       title: t.title,
       rate: Math.round((t.depots_count / t.students_total) * 100),
@@ -585,6 +755,139 @@ const analyticsStats = computed(() => {
   const graded = allRendus.value.filter(r => r.note != null).length
   const notGraded = total - graded
   return { total, graded, notGraded }
+})
+
+// ── Centre d'action — items nécessitant une attention immédiate ──────────────
+interface ActionItem {
+  id: string
+  type: 'grade' | 'deadline' | 'draft' | 'late'
+  title: string
+  subtitle: string
+  urgency: 'critical' | 'warning' | 'info'
+  action: () => void
+}
+
+const actionItems = computed((): ActionItem[] => {
+  const items: ActionItem[] = []
+  const now = Date.now()
+  const DAY = 86_400_000
+
+  for (const t of ganttFiltered.value) {
+    if (!t.published) continue
+    const dl = new Date(t.deadline).getTime()
+    const submissionRate = t.students_total > 0 ? t.depots_count / t.students_total : 0
+
+    // Devoirs avec rendus à noter (rendus reçus mais pas tous notés)
+    if (t.depots_count > 0 && dl < now) {
+      items.push({
+        id: `grade-${t.id}`,
+        type: 'grade',
+        title: t.title,
+        subtitle: `${t.depots_count} rendu${t.depots_count > 1 ? 's' : ''} à évaluer`,
+        urgency: dl < now - 7 * DAY ? 'critical' : 'warning',
+        action: () => { appStore.currentTravailId = t.id; modals.gestionDevoir = true },
+      })
+    }
+
+    // Deadline dans les 48h
+    if (dl > now && dl < now + 2 * DAY && submissionRate < 0.5) {
+      items.push({
+        id: `deadline-${t.id}`,
+        type: 'deadline',
+        title: t.title,
+        subtitle: `Deadline dans ${Math.ceil((dl - now) / DAY * 24)}h — ${Math.round(submissionRate * 100)}% de rendus`,
+        urgency: submissionRate < 0.25 ? 'critical' : 'warning',
+        action: () => { appStore.currentTravailId = t.id; modals.gestionDevoir = true },
+      })
+    }
+
+    // Taux de rendu très faible après deadline
+    if (dl < now && t.students_total > 0 && submissionRate < 0.3) {
+      items.push({
+        id: `late-${t.id}`,
+        type: 'late',
+        title: t.title,
+        subtitle: `Seulement ${t.depots_count}/${t.students_total} rendus (${Math.round(submissionRate * 100)}%)`,
+        urgency: 'critical',
+        action: () => { appStore.currentTravailId = t.id; modals.suivi = true },
+      })
+    }
+  }
+
+  // Brouillons non publiés
+  for (const t of ganttFiltered.value) {
+    if (t.published) continue
+    const dl = new Date(t.deadline).getTime()
+    if (dl > now && dl < now + 7 * DAY) {
+      items.push({
+        id: `draft-${t.id}`,
+        type: 'draft',
+        title: t.title,
+        subtitle: `Brouillon — deadline dans ${Math.ceil((dl - now) / DAY)}j`,
+        urgency: dl < now + 2 * DAY ? 'warning' : 'info',
+        action: () => { appStore.currentTravailId = t.id; modals.gestionDevoir = true },
+      })
+    }
+  }
+
+  return items
+    .sort((a, b) => {
+      const order = { critical: 0, warning: 1, info: 2 }
+      return order[a.urgency] - order[b.urgency]
+    })
+    .slice(0, 6)
+})
+
+// ── Santé de la classe — indicateur global ───────────────────────────────────
+const classHealth = computed(() => {
+  const rows = ganttFiltered.value.filter(t => t.published && t.students_total > 0)
+  if (!rows.length) return null
+
+  // Taux de soumission moyen
+  const avgSubmission = rows.reduce((s, t) => s + (t.depots_count / t.students_total), 0) / rows.length
+  // Taux de devoirs à jour (rendus ≥ 70% ou pas encore deadline)
+  const now = Date.now()
+  const onTrack = rows.filter(t => {
+    const dl = new Date(t.deadline).getTime()
+    return dl > now || (t.depots_count / t.students_total) >= 0.7
+  }).length / rows.length
+
+  const score = Math.round((avgSubmission * 0.6 + onTrack * 0.4) * 100)
+  let status: 'excellent' | 'good' | 'attention' | 'critical'
+  if (score >= 80) status = 'excellent'
+  else if (score >= 60) status = 'good'
+  else if (score >= 40) status = 'attention'
+  else status = 'critical'
+
+  const labels = { excellent: 'Excellent', good: 'Bien', attention: 'Attention requise', critical: 'Situation critique' }
+  const colors = { excellent: '#22c55e', good: '#27ae60', attention: '#f59e0b', critical: '#ef4444' }
+
+  return { score, status, label: labels[status], color: colors[status], avgSubmission: Math.round(avgSubmission * 100) }
+})
+
+// ── Tendance soumissions (7 derniers jours) ──────────────────────────────────
+const submissionTrend = computed(() => {
+  const now = new Date()
+  // Grouper tous les rendus par date en une seule passe (O(n) au lieu de O(7n))
+  const countsByDate = new Map<string, number>()
+  for (const r of travauxStore.allRendus) {
+    if (r.submitted_at) {
+      const dayKey = r.submitted_at.slice(0, 10)
+      countsByDate.set(dayKey, (countsByDate.get(dayKey) ?? 0) + 1)
+    }
+  }
+  const days: { label: string; count: number }[] = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now)
+    d.setDate(d.getDate() - i)
+    const dayStr = d.toISOString().slice(0, 10)
+    days.push({
+      label: d.toLocaleDateString('fr-FR', { weekday: 'short' }),
+      count: countsByDate.get(dayStr) ?? 0,
+    })
+  }
+  const maxCount = Math.max(1, ...days.map(d => d.count))
+  return { days, maxCount }
 })
 
 function milestoneLeft(deadline: string): string {
@@ -672,6 +975,250 @@ function onMilestoneClick(ms: FriseMilestone) {
           </div>
         </div>
 
+        <!-- Centre d'action + Santé classe -->
+        <div v-if="actionItems.length || classHealth" class="db-action-row">
+
+          <!-- Centre d'action -->
+          <div v-if="actionItems.length" class="db-action-center">
+            <h4 class="db-section-title"><AlertTriangle :size="14" /> Actions requises</h4>
+            <div class="db-action-list">
+              <button
+                v-for="item in actionItems"
+                :key="item.id"
+                class="db-action-item"
+                :class="'db-action-' + item.urgency"
+                @click="item.action()"
+              >
+                <span class="db-action-badge" :class="'db-badge-' + item.type">
+                  <Edit3 v-if="item.type === 'grade'" :size="11" />
+                  <Clock v-else-if="item.type === 'deadline'" :size="11" />
+                  <FileText v-else-if="item.type === 'draft'" :size="11" />
+                  <AlertTriangle v-else :size="11" />
+                </span>
+                <div class="db-action-text">
+                  <span class="db-action-title">{{ item.title }}</span>
+                  <span class="db-action-sub">{{ item.subtitle }}</span>
+                </div>
+                <ChevronRight :size="12" class="db-action-arrow" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Santé de la classe -->
+          <div v-if="classHealth" class="db-class-health">
+            <h4 class="db-section-title"><TrendingUp :size="14" /> Santé de la classe</h4>
+            <div class="db-health-ring-wrap">
+              <svg class="db-health-ring" viewBox="0 0 80 80" role="img" :aria-label="`Santé de la classe : ${classHealth.score}%`">
+                <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="6" />
+                <circle
+                  cx="40" cy="40" r="34"
+                  fill="none"
+                  :stroke="classHealth.color"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                  :stroke-dasharray="`${classHealth.score * 2.136} 213.6`"
+                  transform="rotate(-90 40 40)"
+                  style="transition: stroke-dasharray .6s ease"
+                />
+              </svg>
+              <div class="db-health-score">
+                <span class="db-health-value" :style="{ color: classHealth.color }">{{ classHealth.score }}</span>
+                <span class="db-health-unit">%</span>
+              </div>
+            </div>
+            <span class="db-health-label" :style="{ color: classHealth.color }">{{ classHealth.label }}</span>
+            <span class="db-health-detail">Taux de soumission moyen : {{ classHealth.avgSubmission }}%</span>
+
+            <!-- Mini sparkline des soumissions des 7 derniers jours -->
+            <div v-if="submissionTrend.days.some(d => d.count > 0)" class="db-trend">
+              <span class="db-trend-title">Rendus cette semaine</span>
+              <div class="db-trend-bars">
+                <div v-for="d in submissionTrend.days" :key="d.label" class="db-trend-col">
+                  <div class="db-trend-bar-bg">
+                    <div
+                      class="db-trend-bar-fill"
+                      :style="{ height: (d.count / submissionTrend.maxCount * 100) + '%' }"
+                    />
+                  </div>
+                  <span class="db-trend-label">{{ d.label }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DMs non lus -->
+        <div v-if="unreadDmEntries.length" class="db-unread-dms">
+          <h4 class="db-section-title"><MessageSquare :size="14" /> Messages directs non lus <span class="db-badge-count">{{ totalUnreadDms }}</span></h4>
+          <div class="db-unread-list">
+            <button
+              v-for="entry in unreadDmEntries"
+              :key="entry.name"
+              class="db-unread-item"
+              @click="openDmFromDashboard(entry.name)"
+            >
+              <div class="db-unread-avatar" :style="{ background: avatarColor(entry.name) }">
+                {{ entry.name.slice(0, 2).toUpperCase() }}
+              </div>
+              <span class="db-unread-name">{{ entry.name }}</span>
+              <span class="db-unread-badge">{{ entry.count }} non lu{{ entry.count > 1 ? 's' : '' }}</span>
+              <ChevronRight :size="12" class="db-unread-arrow" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Messages sauvegardés -->
+        <div v-if="savedMessages.length" class="db-saved-messages">
+          <h4 class="db-section-title"><Bookmark :size="14" /> Messages sauvegardés</h4>
+          <div class="db-saved-list">
+            <div
+              v-for="msg in savedMessages.slice(0, 5)"
+              :key="msg.id"
+              class="db-saved-item"
+              @click="goToSavedMessage(msg)"
+            >
+              <div class="db-saved-avatar" :style="{ background: avatarColor(msg.authorName) }">
+                {{ msg.authorInitials }}
+              </div>
+              <div class="db-saved-body">
+                <span class="db-saved-author">{{ msg.authorName }}</span>
+                <span class="db-saved-content">{{ msg.content }}</span>
+                <span class="db-saved-meta">
+                  {{ msg.isDm ? 'DM' : '#' + (msg.channelName ?? 'canal') }}
+                  · {{ new Date(msg.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) }}
+                </span>
+              </div>
+              <button
+                class="db-saved-remove"
+                title="Retirer des favoris"
+                @click.stop="removeSavedMessage(msg.id)"
+              >
+                <Trash2 :size="12" />
+              </button>
+            </div>
+          </div>
+          <span v-if="savedMessages.length > 5" class="db-saved-more">
+            +{{ savedMessages.length - 5 }} autre{{ savedMessages.length - 5 > 1 ? 's' : '' }}
+          </span>
+        </div>
+
+        <!-- ── Widgets Communication + Organisation (grille) ── -->
+        <div v-if="unreadMentions.length || recentChannelActivity.length || next48h.length || forgottenDrafts.length || devoirsWithoutResources.length" class="db-widgets-grid">
+
+          <!-- Mentions @ non lues -->
+          <div v-if="unreadMentions.length" class="db-widget">
+            <h4 class="db-section-title">
+              <AtSign :size="14" /> Mentions
+              <span class="db-badge-count">{{ totalUnreadMentions }}</span>
+            </h4>
+            <div class="db-widget-list">
+              <button
+                v-for="m in unreadMentions"
+                :key="m.id"
+                class="db-widget-item db-widget-item--mention"
+                @click="goToChannel(m.channelId!, m.channelName)"
+              >
+                <div class="db-widget-avatar" :style="{ background: avatarColor(m.authorName) }">
+                  {{ m.authorName.slice(0, 2).toUpperCase() }}
+                </div>
+                <div class="db-widget-body">
+                  <span class="db-widget-title">{{ m.authorName }}</span>
+                  <span class="db-widget-sub">#{{ m.channelName }}</span>
+                </div>
+                <ChevronRight :size="12" class="db-widget-arrow" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Derniers messages de canal -->
+          <div v-if="recentChannelActivity.length" class="db-widget">
+            <h4 class="db-section-title"><MessageSquare :size="14" /> Activité des canaux</h4>
+            <div class="db-widget-list">
+              <button
+                v-for="n in recentChannelActivity"
+                :key="n.id"
+                class="db-widget-item"
+                @click="goToChannel(n.channelId!, n.channelName)"
+              >
+                <div class="db-widget-avatar" :style="{ background: avatarColor(n.authorName) }">
+                  {{ n.authorName.slice(0, 2).toUpperCase() }}
+                </div>
+                <div class="db-widget-body">
+                  <span class="db-widget-title">{{ n.authorName }} <span class="db-widget-channel">#{{ n.channelName }}</span></span>
+                  <span class="db-widget-time">{{ new Date(n.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}</span>
+                </div>
+                <span v-if="!n.read" class="db-widget-dot" />
+                <ChevronRight :size="12" class="db-widget-arrow" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Prochaines 48h -->
+          <div v-if="next48h.length" class="db-widget">
+            <h4 class="db-section-title"><CalendarClock :size="14" /> Prochaines 48h</h4>
+            <div class="db-widget-list">
+              <button
+                v-for="item in next48h"
+                :key="item.id"
+                class="db-widget-item"
+                @click="typeof item.id === 'number' ? (appStore.currentTravailId = item.id, modals.gestionDevoir = true) : null"
+              >
+                <span class="db-agenda-icon" :class="'db-agenda-' + item.type">
+                  <Mic v-if="item.type === 'soutenance'" :size="12" />
+                  <Clock v-else-if="item.type === 'deadline'" :size="12" />
+                  <CheckCircle2 v-else :size="12" />
+                </span>
+                <div class="db-widget-body">
+                  <span class="db-widget-title">{{ item.title }}</span>
+                  <span class="db-widget-sub">
+                    {{ new Date(item.time).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) }}
+                    à {{ new Date(item.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}
+                    <template v-if="item.room"> · Salle {{ item.room }}</template>
+                  </span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Brouillons oubliés -->
+          <div v-if="forgottenDrafts.length" class="db-widget">
+            <h4 class="db-section-title"><EyeOff :size="14" /> Brouillons à publier</h4>
+            <div class="db-widget-list">
+              <div v-for="t in forgottenDrafts" :key="t.id" class="db-widget-item db-widget-item--draft">
+                <span class="db-agenda-icon db-agenda-draft"><FileText :size="12" /></span>
+                <div class="db-widget-body">
+                  <span class="db-widget-title">{{ t.title }}</span>
+                  <span class="db-widget-sub">
+                    Deadline {{ deadlineLabel(t.deadline) }}
+                    <span v-if="new Date(t.deadline).getTime() - Date.now() < 2 * 86_400_000" class="db-draft-urgent">urgent</span>
+                  </span>
+                </div>
+                <button class="db-draft-publish" @click.stop="publishDraft(t.id)">Publier</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Devoirs sans ressources -->
+          <div v-if="devoirsWithoutResources.length" class="db-widget">
+            <h4 class="db-section-title"><FileQuestion :size="14" /> Devoirs sans ressources</h4>
+            <div class="db-widget-list">
+              <button
+                v-for="t in devoirsWithoutResources"
+                :key="t.id"
+                class="db-widget-item"
+                @click="appStore.currentTravailId = t.id; modals.gestionDevoir = true"
+              >
+                <span class="db-agenda-icon db-agenda-resource"><FileQuestion :size="12" /></span>
+                <div class="db-widget-body">
+                  <span class="db-widget-title">{{ t.title }}</span>
+                  <span class="db-widget-sub">#{{ t.channel_name }} · Aucune ressource jointe</span>
+                </div>
+                <ChevronRight :size="12" class="db-widget-arrow" />
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Rappels prof (échéancier) -->
         <!-- À faire cette semaine -->
         <div v-if="thisWeekReminders.length" class="db-week">
@@ -694,7 +1241,7 @@ function onMilestoneClick(ms: FriseMilestone) {
               <div class="db-week-body">
                 <span class="db-week-item-title" :class="{ 'line-through': r.done }">{{ r.title }}</span>
                 <span class="db-week-meta">
-                  <span class="db-week-promo">{{ r.promo_tag === 'CPIA2' ? 'CPI A2' : 'FISA A4' }}</span>
+                  <span class="db-week-promo">{{ r.promo_tag }}</span>
                   <span v-if="r.isOverdue" class="db-week-late">En retard</span>
                   <span v-else-if="r.isToday" class="db-week-today-tag">Aujourd'hui</span>
                   <span v-else class="db-week-date">{{ new Date(r.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }) }}</span>
@@ -719,7 +1266,7 @@ function onMilestoneClick(ms: FriseMilestone) {
             <TrendingUp :size="13" /> Analytique
           </button>
           <button class="db-tab" :class="{ active: dashTab === 'reglages' }" @click="dashTab = 'reglages'">
-            <Settings :size="13" /> Réglages
+            <Settings :size="13" /> Administration
           </button>
         </div>
 
@@ -756,7 +1303,7 @@ function onMilestoneClick(ms: FriseMilestone) {
             <!-- Distribution des notes -->
             <div class="analytics-card">
               <h3 class="analytics-card-title"><Award :size="14" /> Distribution des notes</h3>
-              <div class="analytics-bars">
+              <div class="analytics-bars" role="img" aria-label="Distribution des notes">
                 <div v-for="b in gradeDistribution" :key="b.label" class="analytics-bar-row">
                   <span class="analytics-bar-label">{{ b.label }}</span>
                   <div class="analytics-bar-track">
@@ -789,6 +1336,22 @@ function onMilestoneClick(ms: FriseMilestone) {
                 </div>
               </div>
             </div>
+            <!-- Tendance des rendus (7 derniers jours) -->
+            <div v-if="submissionTrend.days.some(d => d.count > 0)" class="analytics-card">
+              <h3 class="analytics-card-title"><TrendingUp :size="14" /> Rendus des 7 derniers jours</h3>
+              <div class="analytics-trend-chart">
+                <div v-for="d in submissionTrend.days" :key="d.label" class="analytics-trend-col">
+                  <span class="analytics-trend-count">{{ d.count || '' }}</span>
+                  <div class="analytics-trend-bar-bg">
+                    <div
+                      class="analytics-trend-bar-fill"
+                      :style="{ height: (d.count / submissionTrend.maxCount * 100) + '%' }"
+                    />
+                  </div>
+                  <span class="analytics-trend-label">{{ d.label }}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -796,34 +1359,71 @@ function onMilestoneClick(ms: FriseMilestone) {
         <!-- Tab Promotions -->
         <div v-else-if="dashTab === 'promotions'" class="db-tab-content">
           <div class="promo-list">
-            <div v-for="p in promos" :key="p.id" class="promo-list-card" :class="{ 'promo-active': appStore.activePromoId === p.id }">
+            <div
+              v-for="p in promos"
+              :key="p.id"
+              class="promo-list-card"
+              :class="{ 'promo-active': appStore.activePromoId === p.id }"
+              :style="{ borderColor: appStore.activePromoId === p.id ? p.color : undefined }"
+            >
               <div class="promo-list-header">
                 <span class="promo-list-dot" :style="{ background: p.color }" />
                 <template v-if="renamingPromoId === p.id">
                   <input
                     v-model="renamingPromoValue"
                     class="promo-rename-input"
+                    aria-label="Nom de la promotion"
+                    :disabled="savingPromo"
                     @keydown.enter="confirmRenamePromo(p)"
                     @keydown.escape="renamingPromoId = null"
                   />
-                  <button class="gestion-btn-sm gestion-btn-accent" @click="confirmRenamePromo(p)">OK</button>
-                  <button class="gestion-btn-sm" @click="renamingPromoId = null">Annuler</button>
+                  <button class="gestion-btn-sm gestion-btn-accent" :disabled="savingPromo" @click="confirmRenamePromo(p)">
+                    {{ savingPromo ? '…' : 'OK' }}
+                  </button>
+                  <button class="gestion-btn-sm" :disabled="savingPromo" @click="renamingPromoId = null">Annuler</button>
                 </template>
                 <template v-else>
                   <span class="promo-list-name">{{ p.name }}</span>
-                  <button class="gestion-btn-sm" @click="renamingPromoId = p.id; renamingPromoValue = p.name">Renommer</button>
-                  <button v-if="appStore.activePromoId !== p.id" class="gestion-btn-sm" @click="appStore.activePromoId = p.id">Sélectionner</button>
-                  <span v-else class="promo-list-active-tag">Active</span>
+                  <span v-if="appStore.activePromoId === p.id" class="promo-list-active-tag">Active</span>
+                  <button v-else class="gestion-btn-sm" @click="appStore.activePromoId = p.id">Sélectionner</button>
                 </template>
               </div>
+
+              <!-- Stats enrichies -->
               <div class="promo-list-stats">
-                <span>{{ allStudents.filter(s => s.promo_id === p.id).length }} étudiants</span>
-                <span>{{ (ganttAll as any[]).filter((t: any) => t.promo_name === p.name).length }} devoirs</span>
+                <span><Users :size="11" /> {{ allStudents.filter(s => s.promo_id === p.id).length }} étudiants</span>
+                <span>
+                  <BookOpen :size="11" />
+                  {{ ganttAll.filter(t => t.promo_name === p.name && t.published).length }} publiés
+                  <template v-if="ganttAll.filter(t => t.promo_name === p.name && !t.published).length">
+                    · {{ ganttAll.filter(t => t.promo_name === p.name && !t.published).length }} brouillons
+                  </template>
+                </span>
+                <span v-if="ganttAll.filter(t => t.promo_name === p.name && t.published && t.students_total > 0).length">
+                  <TrendingUp :size="11" />
+                  {{ Math.round(ganttAll.filter(t => t.promo_name === p.name && t.published && t.students_total > 0).reduce((s, t) => s + t.depots_count / t.students_total, 0) / Math.max(1, ganttAll.filter(t => t.promo_name === p.name && t.published && t.students_total > 0).length) * 100) }}% soumission moy.
+                </span>
               </div>
+
+              <!-- Actions -->
               <div class="promo-list-actions">
-                <button class="gestion-btn" @click="appStore.activePromoId = p.id; modals.classe = true">Voir la classe</button>
-                <button class="gestion-btn" @click="appStore.activePromoId = p.id; modals.importStudents = true">Importer CSV</button>
-                <button class="gestion-btn" style="color:var(--color-danger)" @click="deletePromo(p.id, p.name)">Supprimer</button>
+                <button class="gestion-btn" @click="renamingPromoId = p.id; renamingPromoValue = p.name">
+                  <Edit3 :size="11" /> Renommer
+                </button>
+                <button class="gestion-btn" @click="appStore.activePromoId = p.id; modals.classe = true">
+                  <GraduationCap :size="11" /> Classe
+                </button>
+                <button class="gestion-btn" @click="appStore.activePromoId = p.id; modals.importStudents = true">
+                  <FileText :size="11" /> Importer CSV
+                </button>
+                <button
+                  class="gestion-btn"
+                  style="color:var(--color-danger)"
+                  :disabled="deletingPromoId === p.id"
+                  @click="deletePromo(p.id, p.name)"
+                >
+                  {{ deletingPromoId === p.id ? 'Suppression…' : 'Supprimer' }}
+                </button>
               </div>
             </div>
           </div>
@@ -843,6 +1443,8 @@ function onMilestoneClick(ms: FriseMilestone) {
               v-for="p in projectCards"
               :key="p.key"
               class="db-project-card"
+              role="button"
+              :aria-label="`Ouvrir le projet ${p.label}`"
               @click="goToProject(p.key)"
             >
               <div class="db-project-icon">
@@ -873,7 +1475,7 @@ function onMilestoneClick(ms: FriseMilestone) {
                 </div>
                 <div class="db-activity-info">
                   <span class="db-activity-name">{{ r.student_name }}</span>
-                  <span class="db-activity-devoir">{{ (r as any).travail_title ?? 'Devoir #' + r.travail_id }}</span>
+                  <span class="db-activity-devoir">{{ r.travail_title ?? 'Devoir #' + r.travail_id }}</span>
                 </div>
                 <div class="db-activity-right">
                   <span v-if="r.note" class="db-activity-note" :class="gradeClass(r.note)">{{ r.note }}</span>
@@ -884,91 +1486,41 @@ function onMilestoneClick(ms: FriseMilestone) {
           </div>
         </div>
 
-        <!-- Tab Réglages -->
+        <!-- Tab Administration (ex-Réglages) -->
         <div v-else-if="dashTab === 'reglages'" class="db-tab-content">
           <div class="gestion-grid">
-            <!-- Carte Promotion active -->
-            <div class="gestion-card">
-              <h4 class="gestion-card-title">Promotion active</h4>
-              <div v-if="activePromo" class="gestion-promo-info">
-                <div class="gestion-promo-name-row">
-                  <span class="gestion-promo-dot" :style="{ background: activePromo.color }" />
-                  <input
-                    v-if="editingPromoName"
-                    v-model="promoNameDraft"
-                    class="gestion-promo-input"
-                    @keydown.enter="savePromoName"
-                    @keydown.escape="editingPromoName = false"
-                  />
-                  <span v-else class="gestion-promo-name">{{ activePromo.name }}</span>
-                  <button v-if="!editingPromoName" class="gestion-btn-sm" @click="startEditPromoName">Renommer</button>
-                  <template v-else>
-                    <button class="gestion-btn-sm gestion-btn-accent" @click="savePromoName">OK</button>
-                    <button class="gestion-btn-sm" @click="editingPromoName = false">Annuler</button>
-                  </template>
-                </div>
-                <div class="gestion-promo-stats">
-                  <span>{{ studentsForPromo.length }} étudiants</span>
-                  <span>{{ ganttFiltered.length }} devoirs</span>
-                </div>
-              </div>
-              <p v-else class="gestion-empty">Sélectionnez une promotion.</p>
-            </div>
-
-            <!-- Carte Étudiants -->
-            <div class="gestion-card">
-              <div class="gestion-card-header">
-                <h4 class="gestion-card-title">Étudiants</h4>
-                <div class="gestion-card-actions">
-                  <button class="gestion-btn" @click="modals.importStudents = true">Importer CSV</button>
-                  <button class="gestion-btn" @click="modals.classe = true">Voir la classe</button>
-                </div>
-              </div>
-              <div class="gestion-student-list">
-                <div v-for="s in studentsForPromo.slice(0, 8)" :key="s.id" class="gestion-student-row">
-                  <div class="gestion-student-avatar" :style="{ background: avatarColor(s.name ?? '') }">{{ (s.name ?? '').slice(0,2).toUpperCase() }}</div>
-                  <span class="gestion-student-name">{{ s.name }}</span>
-                </div>
-                <span v-if="studentsForPromo.length > 8" class="gestion-more">+{{ studentsForPromo.length - 8 }} autres</span>
-                <span v-if="!studentsForPromo.length" class="gestion-empty">Aucun étudiant — importez un CSV.</span>
-              </div>
-            </div>
-
             <!-- Carte Intervenants -->
             <div class="gestion-card">
               <div class="gestion-card-header">
-                <h4 class="gestion-card-title">Intervenants</h4>
+                <h4 class="gestion-card-title"><Users :size="13" /> Intervenants</h4>
                 <button class="gestion-btn" @click="modals.intervenants = true">Gérer</button>
               </div>
-              <p class="gestion-hint">Ajoutez des intervenants et assignez-les à des canaux.</p>
+              <p class="gestion-hint">Gérez les comptes intervenants et leurs accès aux canaux par promotion.</p>
               <button class="gestion-btn" style="margin-top:8px" @click="modals.intervenants = true">
                 <Users :size="12" /> Ouvrir la gestion
               </button>
             </div>
 
-            <!-- Carte Canaux -->
+            <!-- Carte Actions rapides -->
             <div class="gestion-card">
-              <div class="gestion-card-header">
-                <h4 class="gestion-card-title">Canaux</h4>
-                <button class="gestion-btn" @click="modals.createChannel = true">+ Nouveau</button>
-              </div>
-              <div class="gestion-channels-preview">
-                <div v-for="ch in ganttFiltered.slice(0,1)" :key="'ch'" />
-                <span class="gestion-hint">Les canaux sont gérés dans la sidebar Messages.</span>
-                <button class="gestion-btn" style="margin-top:4px" @click="router.push('/messages')">
-                  Aller aux messages
-                </button>
+              <h4 class="gestion-card-title"><LayoutDashboard :size="13" /> Navigation rapide</h4>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <button class="gestion-btn" @click="modals.echeancier = true"><Clock :size="12" /> Échéancier</button>
+                <button class="gestion-btn" @click="router.push('/devoirs')"><BookOpen :size="12" /> Aller aux devoirs</button>
+                <button class="gestion-btn" @click="router.push('/messages')"><Edit3 :size="12" /> Aller aux messages</button>
+                <button class="gestion-btn" @click="modals.settings = true"><Settings :size="12" /> Préférences</button>
               </div>
             </div>
 
-            <!-- Carte Actions rapides -->
+            <!-- Carte Système -->
             <div class="gestion-card">
-              <h4 class="gestion-card-title">Actions rapides</h4>
-              <div style="display:flex;flex-direction:column;gap:6px">
-                <button class="gestion-btn" @click="modals.classe = true"><GraduationCap :size="12" /> Voir la classe</button>
-                <button class="gestion-btn" @click="modals.echeancier = true"><Clock :size="12" /> Échéancier</button>
-                <button class="gestion-btn" @click="router.push('/devoirs')"><BookOpen :size="12" /> Aller aux devoirs</button>
+              <h4 class="gestion-card-title"><Settings :size="13" /> Système</h4>
+              <div class="gestion-promo-stats">
+                <span>{{ promos.length }} promotion{{ promos.length > 1 ? 's' : '' }}</span>
+                <span>{{ allStudents.length }} étudiants au total</span>
+                <span>{{ ganttAll.length }} devoirs au total</span>
               </div>
+              <p class="gestion-hint" style="margin-top:8px">Version Cursus v2.0.0</p>
             </div>
           </div>
         </div>
@@ -983,13 +1535,14 @@ function onMilestoneClick(ms: FriseMilestone) {
             <p>Aucune donnée de planification disponible.</p>
           </div>
           <div
-            v-else class="frise-wrap"
+            v-else
+            class="frise-wrap frise-interactive"
+            :class="{ 'frise-grabbing': friseDragging }"
             @wheel.prevent="onFriseWheel"
             @mousedown="onFriseDragStart"
             @mousemove="onFriseDragMove"
             @mouseup="onFriseDragEnd"
             @mouseleave="onFriseDragEnd"
-            style="cursor:grab;user-select:none"
           >
             <!-- Axe des mois -->
             <div class="frise-axis-row">
@@ -1043,6 +1596,22 @@ function onMilestoneClick(ms: FriseMilestone) {
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Barre d'actions rapides flottante -->
+        <div class="db-fab-bar">
+          <button class="db-fab" title="Nouveau devoir" @click="modals.newDevoir = true">
+            <PlusCircle :size="15" /> Nouveau devoir
+          </button>
+          <button class="db-fab db-fab-ghost" title="Échéancier" @click="modals.echeancier = true">
+            <CalendarDays :size="14" />
+          </button>
+          <button class="db-fab db-fab-ghost" title="Classe" @click="modals.classe = true">
+            <GraduationCap :size="14" />
+          </button>
+          <button class="db-fab db-fab-ghost" title="Réglages" @click="modals.settings = true">
+            <Settings :size="14" />
+          </button>
         </div>
 
       </template>
@@ -1197,13 +1766,14 @@ function onMilestoneClick(ms: FriseMilestone) {
             <p>Aucune donnée de planification disponible.</p>
           </div>
           <div
-            v-else class="frise-wrap"
+            v-else
+            class="frise-wrap frise-interactive"
+            :class="{ 'frise-grabbing': friseDragging }"
             @wheel.prevent="onFriseWheel"
             @mousedown="onFriseDragStart"
             @mousemove="onFriseDragMove"
             @mouseup="onFriseDragEnd"
             @mouseleave="onFriseDragEnd"
-            style="cursor:grab;user-select:none"
           >
             <div class="frise-axis-row">
               <div class="frise-label-col frise-axis-label">Projet</div>
@@ -2079,4 +2649,342 @@ function onMilestoneClick(ms: FriseMilestone) {
   transition: all .15s ease;
 }
 .db-new-promo-btn:hover { color: var(--accent); border-color: var(--accent); background: rgba(74,144,217,.07); }
+
+/* ── Centre d'action + Santé classe (row layout) ── */
+.db-action-row {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 768px) {
+  .db-action-row { grid-template-columns: 1fr; }
+}
+
+.db-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin: 0 0 10px;
+}
+
+/* ── Action center ── */
+.db-action-center { min-width: 0; }
+.db-action-list { display: flex; flex-direction: column; gap: 4px; }
+.db-action-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elevated, rgba(255,255,255,.04));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .15s ease;
+  text-align: left;
+  width: 100%;
+}
+.db-action-item:hover { background: rgba(255,255,255,.07); border-color: var(--accent); }
+.db-action-critical { border-left: 3px solid #ef4444; }
+.db-action-warning  { border-left: 3px solid #f59e0b; }
+.db-action-info     { border-left: 3px solid var(--accent); }
+
+.db-action-badge {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.db-badge-grade    { background: rgba(239,68,68,.15); color: #ef4444; }
+.db-badge-deadline { background: rgba(245,158,11,.15); color: #f59e0b; }
+.db-badge-draft    { background: rgba(74,144,217,.15); color: var(--accent); }
+.db-badge-late     { background: rgba(239,68,68,.2); color: #ef4444; }
+
+.db-action-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.db-action-title { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db-action-sub   { font-size: 11.5px; color: var(--text-muted); }
+.db-action-arrow { color: var(--text-muted); flex-shrink: 0; opacity: 0; transition: opacity .15s; }
+.db-action-item:hover .db-action-arrow { opacity: 1; }
+
+/* ── Santé de la classe ── */
+.db-class-health {
+  background: var(--bg-elevated, rgba(255,255,255,.04));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.db-health-ring-wrap { position: relative; width: 80px; height: 80px; margin: 4px 0; }
+.db-health-ring { width: 100%; height: 100%; }
+.db-health-score {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center; gap: 1px;
+}
+.db-health-value { font-size: 22px; font-weight: 800; }
+.db-health-unit  { font-size: 11px; font-weight: 600; margin-top: 4px; }
+
+.db-health-label  { font-size: 13px; font-weight: 700; margin-top: 2px; }
+.db-health-detail { font-size: 11px; color: var(--text-muted); text-align: center; }
+
+/* ── Tendance soumissions (sparkline) ── */
+.db-trend { margin-top: 12px; width: 100%; }
+.db-trend-title { font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 6px; text-align: center; }
+.db-trend-bars {
+  display: flex; gap: 4px; justify-content: center;
+  height: 40px; align-items: flex-end;
+}
+.db-trend-col {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  flex: 1; min-width: 0;
+}
+.db-trend-bar-bg {
+  width: 100%; max-width: 22px; height: 32px;
+  background: rgba(255,255,255,.05);
+  border-radius: 3px;
+  display: flex; align-items: flex-end;
+  overflow: hidden;
+}
+.db-trend-bar-fill {
+  width: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  min-height: 2px;
+  transition: height .3s ease;
+}
+.db-trend-label { font-size: 9px; color: var(--text-muted); text-transform: capitalize; }
+
+/* ── Barre d'actions rapides flottante ── */
+/* ── DMs non lus ── */
+.db-unread-dms, .db-saved-messages { margin: 0; }
+.db-badge-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  background: var(--accent); color: #fff;
+  border-radius: 9px; font-size: 10.5px; font-weight: 700;
+  margin-left: 6px;
+}
+.db-unread-list, .db-saved-list { display: flex; flex-direction: column; gap: 3px; }
+.db-unread-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-elevated, rgba(255,255,255,.04));
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  cursor: pointer; transition: all .15s ease;
+  width: 100%; text-align: left;
+  font-family: var(--font);
+}
+.db-unread-item:hover { background: rgba(255,255,255,.07); }
+.db-unread-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.db-unread-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.db-unread-badge {
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  background: rgba(74,144,217,.12);
+  padding: 2px 8px; border-radius: 10px;
+}
+.db-unread-arrow { color: var(--text-muted); flex-shrink: 0; opacity: 0; transition: opacity .15s; }
+.db-unread-item:hover .db-unread-arrow { opacity: 1; }
+
+/* ── Messages sauvegardés ── */
+.db-saved-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elevated, rgba(255,255,255,.04));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer; transition: all .15s ease;
+}
+.db-saved-item:hover { background: rgba(255,255,255,.07); }
+.db-saved-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; margin-top: 2px;
+}
+.db-saved-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.db-saved-author { font-size: 12.5px; font-weight: 600; color: var(--text-primary); }
+.db-saved-content {
+  font-size: 12px; color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 400px;
+}
+.db-saved-meta { font-size: 10.5px; color: var(--text-muted); }
+.db-saved-remove {
+  background: none; border: none; color: var(--text-muted);
+  cursor: pointer; padding: 4px; border-radius: 4px;
+  opacity: 0; transition: all .15s; flex-shrink: 0; margin-top: 2px;
+}
+.db-saved-item:hover .db-saved-remove { opacity: 1; }
+.db-saved-remove:hover { color: var(--color-danger); background: rgba(231,76,60,.1); }
+.db-saved-more { font-size: 11.5px; color: var(--text-muted); padding: 4px 0; }
+
+/* ── Grille des widgets communication + organisation ── */
+.db-widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+@media (max-width: 700px) { .db-widgets-grid { grid-template-columns: 1fr; } }
+
+.db-widget {
+  background: var(--bg-elevated, rgba(255,255,255,.04));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+.db-widget-list { display: flex; flex-direction: column; gap: 3px; }
+.db-widget-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: 7px;
+  cursor: pointer; transition: background .12s;
+  background: none; border: none; width: 100%;
+  text-align: left; font-family: var(--font); color: var(--text-primary);
+}
+.db-widget-item:hover { background: rgba(255,255,255,.06); }
+.db-widget-item--mention { border-left: 2px solid var(--accent); }
+.db-widget-item--draft { border-left: 2px solid var(--color-warning); }
+
+.db-widget-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9.5px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.db-widget-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.db-widget-title { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db-widget-sub   { font-size: 11px; color: var(--text-muted); }
+.db-widget-time  { font-size: 10.5px; color: var(--text-muted); }
+.db-widget-channel { font-weight: 400; color: var(--text-muted); font-size: 11px; }
+.db-widget-arrow { color: var(--text-muted); flex-shrink: 0; opacity: 0; transition: opacity .12s; }
+.db-widget-item:hover .db-widget-arrow { opacity: 1; }
+.db-widget-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0;
+}
+
+/* ── Agenda icons ── */
+.db-agenda-icon {
+  width: 26px; height: 26px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.db-agenda-deadline   { background: rgba(74,144,217,.15); color: var(--accent); }
+.db-agenda-soutenance { background: rgba(139,92,246,.15); color: #8b5cf6; }
+.db-agenda-reminder   { background: rgba(34,197,94,.15); color: #22c55e; }
+.db-agenda-draft      { background: rgba(245,158,11,.15); color: #f59e0b; }
+.db-agenda-resource   { background: rgba(107,114,128,.15); color: #6b7280; }
+
+/* ── Bouton publier (brouillons) ── */
+.db-draft-publish {
+  font-size: 11px; font-weight: 600; font-family: var(--font);
+  padding: 3px 10px; border-radius: 5px;
+  background: var(--accent); color: #fff;
+  border: none; cursor: pointer; flex-shrink: 0;
+  transition: filter .12s;
+}
+.db-draft-publish:hover { filter: brightness(1.12); }
+.db-draft-urgent {
+  color: var(--color-danger); font-weight: 700; font-size: 10px;
+  text-transform: uppercase; margin-left: 4px;
+}
+
+/* ── Frise interactivité ── */
+.frise-interactive { cursor: grab; user-select: none; }
+.frise-grabbing    { cursor: grabbing; }
+
+.db-fab-bar {
+  position: sticky;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  padding: 8px 14px;
+  background: color-mix(in srgb, var(--bg-primary) 85%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  width: fit-content;
+  margin: 0 auto;
+  box-shadow: 0 4px 20px rgba(0,0,0,.25);
+  z-index: 5; /* sous les modales (z-index >= 100) */
+}
+
+.db-fab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .15s ease;
+  font-family: var(--font);
+}
+.db-fab:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+.db-fab-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 7px 10px;
+}
+.db-fab-ghost:hover { background: rgba(255,255,255,.08); color: var(--text-primary); filter: none; }
+
+/* ── Analytics trend chart ── */
+.analytics-trend-chart {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 12px 4px 0;
+  height: 120px;
+}
+.analytics-trend-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+.analytics-trend-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-height: 16px;
+}
+.analytics-trend-bar-bg {
+  flex: 1;
+  width: 100%;
+  max-width: 32px;
+  background: rgba(255,255,255,.05);
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+.analytics-trend-bar-fill {
+  width: 100%;
+  background: linear-gradient(to top, var(--accent), color-mix(in srgb, var(--accent) 60%, #fff));
+  border-radius: 4px;
+  min-height: 3px;
+  transition: height .3s ease;
+}
+.analytics-trend-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
 </style>

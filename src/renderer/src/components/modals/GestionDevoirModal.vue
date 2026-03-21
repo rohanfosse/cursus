@@ -8,6 +8,7 @@
   import { useAppStore }     from '@/stores/app'
   import { useModalsStore }  from '@/stores/modals'
   import { useToast }        from '@/composables/useToast'
+  import { useApi }          from '@/composables/useApi'
   import { useRouter }       from 'vue-router'
   import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
   import { avatarColor, initials, formatGrade, gradeClass } from '@/utils/format'
@@ -21,6 +22,7 @@
   const appStore     = useAppStore()
   const modals       = useModalsStore()
   const { showToast } = useToast()
+  const { api }       = useApi()
   const router = useRouter()
 
   // ── Onglets ────────────────────────────────────────────────────────────────
@@ -69,30 +71,29 @@
   const rubric = ref<Rubric | null>(null)
   async function loadRubric() {
     if (!appStore.currentTravailId) return
-    try {
-      const res = await window.api.getRubric(appStore.currentTravailId)
-      rubric.value = res?.ok ? res.data : null
-    } catch { rubric.value = null }
+    rubric.value = await api<Rubric>(() => window.api.getRubric(appStore.currentTravailId!) as Promise<{ ok: boolean; data?: Rubric }>) ?? null
   }
 
   // ── Ressources ────────────────────────────────────────────────────────────
-  const ressources = ref<{ id: number; name: string; type: string }[]>([])
+  interface RessourceItem { id: number; name: string; type: string }
+  const ressources = ref<RessourceItem[]>([])
   async function loadRessources() {
     if (!appStore.currentTravailId) return
-    try {
-      const res = await window.api.getRessources(appStore.currentTravailId)
-      ressources.value = res?.ok ? (res.data as unknown as typeof ressources.value) : []
-    } catch { ressources.value = [] }
+    ressources.value = await api<RessourceItem[]>(() => window.api.getRessources(appStore.currentTravailId!)) ?? []
   }
 
   // ── Mise à jour champs (titre, deadline, description, room) ────────────
   async function saveField(field: string, value: string) {
     if (!travail.value) return
-    try {
-      await window.api.updateTravailFields(travail.value.id, { [field]: value })
+    const current = new Date(travail.value.deadline)
+    current.setDate(current.getDate() + days)
+    const result = await api(
+      () => window.api.createTravail({ ...travail.value, deadline: current.toISOString(), id: travail.value!.id, _update: true }),
+    )
+    if (result !== null) {
+      showToast(`Deadline prolongée de ${days}j.`, 'success')
       await travauxStore.openTravail(travail.value.id)
-      showToast('Mis à jour.', 'success')
-    } catch { showToast('Erreur.', 'error') }
+    }
   }
 
   // ── Titre éditable ────────────────────────────────────────────────────────
@@ -115,11 +116,11 @@
   async function togglePublish() {
     if (!travail.value) return
     const newVal = !travail.value.is_published
-    try {
-      await window.api.updateTravailPublished({ travailId: travail.value.id, published: newVal })
+    const result = await api(() => window.api.updateTravailPublished({ travailId: travail.value!.id, published: newVal }))
+    if (result !== null) {
       showToast(newVal ? 'Devoir publié.' : 'Devoir mis en brouillon.', 'success')
       await travauxStore.openTravail(travail.value.id)
-    } catch { showToast('Erreur.', 'error') }
+    }
   }
 
   // ── Publier + Notifier en une action ──────────────────────────────────────
@@ -197,7 +198,7 @@
   // ── Notifier les étudiants ────────────────────────────────────────────────
   async function notifyStudents() {
     if (!travail.value) return
-    const channelId = (travail.value as any).channel_id
+    const channelId = travail.value.channel_id
     if (!channelId) { showToast('Aucun canal associé.', 'error'); return }
     const msg = `📢 **Rappel** : le devoir **${travail.value.title}** est à rendre avant le **${formatDate(travail.value.deadline)}**.`
     try {
@@ -223,7 +224,7 @@
       type: travail.value.type,
       category: travail.value.category,
       description: travail.value.description,
-      channelId: (travail.value as any).channel_id,
+      channelId: travail.value.channel_id,
     }
     emit('update:modelValue', false)
     modals.newDevoir = true
@@ -231,7 +232,7 @@
 
   function goToChannel() {
     if (!travail.value) return
-    const chId = (travail.value as any).channel_id
+    const chId = travail.value.channel_id
     const chName = travail.value.channel_name
     if (chId && chName) {
       appStore.openChannel(chId, appStore.activePromoId ?? 0, chName)

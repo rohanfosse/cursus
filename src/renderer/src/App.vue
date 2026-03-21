@@ -86,7 +86,7 @@
     showPrivacy.value = false
   }
   function openPrivacy() { showPrivacy.value = true }
-  ;(window as any).__cursusShowPrivacy = openPrivacy
+  ;(window as Window & { __cursusShowPrivacy?: () => void }).__cursusShowPrivacy = openPrivacy
 
   // Afficher uniquement la premiere fois (revoir via Settings)
   watch(() => appStore.currentUser, (user) => {

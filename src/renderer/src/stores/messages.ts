@@ -1,13 +1,16 @@
 import { ref, reactive, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useAppStore } from './app'
+import { useApi } from '@/composables/useApi'
 import type { Message } from '@/types'
-
-const GROUP_THRESHOLD_MS = 5 * 60 * 1000
-const PAGE_SIZE          = 50
+import {
+  STORAGE_KEYS, GROUP_THRESHOLD_MS, MESSAGE_PAGE_SIZE,
+  MAX_MESSAGE_LENGTH, TYPING_TIMEOUT_MS,
+} from '@/constants'
 
 export const useMessagesStore = defineStore('messages', () => {
   const appStore = useAppStore()
+  const { api } = useApi()
 
   const messages           = ref<Message[]>([])
   const pinned             = ref<Message[]>([])
@@ -40,7 +43,7 @@ export const useMessagesStore = defineStore('messages', () => {
   function setTyping(name: string) {
     if (!typingUsers.value.includes(name)) typingUsers.value = [...typingUsers.value, name]
     clearTimeout(_typingTimers[name])
-    _typingTimers[name] = setTimeout(() => stopTyping(name), 3000)
+    _typingTimers[name] = setTimeout(() => stopTyping(name), TYPING_TIMEOUT_MS)
   }
 
   function stopTyping(name: string) {
@@ -71,8 +74,8 @@ export const useMessagesStore = defineStore('messages', () => {
   // ── Clé localStorage pour le marqueur de lecture ──────────────────────────
   function _lrKey(): string | null {
     const { activeChannelId, activeDmStudentId } = appStore
-    if (activeChannelId)   return `lastRead:ch:${activeChannelId}`
-    if (activeDmStudentId) return `lastRead:dm:${activeDmStudentId}`
+    if (activeChannelId)   return STORAGE_KEYS.lastReadChannel(activeChannelId)
+    if (activeDmStudentId) return STORAGE_KEYS.lastReadDm(activeDmStudentId)
     return null
   }
 
@@ -91,25 +94,21 @@ export const useMessagesStore = defineStore('messages', () => {
       let fetched: Message[] = []
 
       if (searchTerm.value && activeChannelId) {
-        const res = await window.api.searchMessages(activeChannelId, searchTerm.value)
-        fetched       = res?.ok ? res.data : []
+        fetched       = await api<Message[]>(() => window.api.searchMessages(activeChannelId, searchTerm.value), 'search') ?? []
         hasMore.value = false
       } else if (searchTerm.value && activeDmStudentId) {
         const peer = appStore.activeDmPeerId ?? undefined
-        const res = await window.api.searchDmMessages(activeDmStudentId, searchTerm.value, peer)
-        fetched       = res?.ok ? res.data : []
+        fetched       = await api<Message[]>(() => window.api.searchDmMessages(activeDmStudentId, searchTerm.value, peer), 'search') ?? []
         hasMore.value = false
       } else if (activeChannelId) {
-        const res    = await window.api.getChannelMessagesPage(activeChannelId)
-        const page   = res?.ok ? (res.data as Message[]) : []
-        fetched      = page.slice().reverse()
-        hasMore.value = page.length === PAGE_SIZE
+        const page    = await api<Message[]>(() => window.api.getChannelMessagesPage(activeChannelId)) ?? []
+        fetched       = page.slice().reverse()
+        hasMore.value = page.length === MESSAGE_PAGE_SIZE
       } else if (activeDmStudentId) {
         const peer   = appStore.activeDmPeerId ?? undefined
-        const res    = await window.api.getDmMessagesPage(activeDmStudentId, undefined, peer)
-        const page   = res?.ok ? (res.data as Message[]) : []
+        const page   = await api<Message[]>(() => window.api.getDmMessagesPage(activeDmStudentId, undefined, peer)) ?? []
         fetched      = page.slice().reverse()
-        hasMore.value = page.length === PAGE_SIZE
+        hasMore.value = page.length === MESSAGE_PAGE_SIZE
       }
 
       messages.value = fetched
@@ -139,16 +138,14 @@ export const useMessagesStore = defineStore('messages', () => {
       let page: Message[] = []
 
       if (activeChannelId) {
-        const res = await window.api.getChannelMessagesPage(activeChannelId, oldestId)
-        page = res?.ok ? (res.data as Message[]) : []
+        page = await api<Message[]>(() => window.api.getChannelMessagesPage(activeChannelId, oldestId)) ?? []
       } else if (activeDmStudentId) {
         const peer = appStore.activeDmPeerId ?? undefined
-        const res = await window.api.getDmMessagesPage(activeDmStudentId, oldestId, peer)
-        page = res?.ok ? (res.data as Message[]) : []
+        page = await api<Message[]>(() => window.api.getDmMessagesPage(activeDmStudentId, oldestId, peer)) ?? []
       }
 
       const older   = page.slice().reverse()
-      hasMore.value = page.length === PAGE_SIZE
+      hasMore.value = page.length === MESSAGE_PAGE_SIZE
       messages.value = [...older, ...messages.value]
     } finally {
       loadingMore.value = false
@@ -157,12 +154,10 @@ export const useMessagesStore = defineStore('messages', () => {
 
   // ── Epinglage ──────────────────────────────────────────────────────────────
   async function fetchPinned(channelId: number) {
-    const res = await window.api.getPinnedMessages(channelId)
-    pinned.value = res?.ok ? res.data : []
+    pinned.value = await api<Message[]>(() => window.api.getPinnedMessages(channelId)) ?? []
   }
 
   // ── Envoi ──────────────────────────────────────────────────────────────────
-  const MAX_MESSAGE_LENGTH = 10_000
   const sendError = ref(false)
 
   async function sendMessage(content: string): Promise<boolean> {
@@ -172,37 +167,35 @@ export const useMessagesStore = defineStore('messages', () => {
       return false
     }
     const quote = quotedMessage.value
-    try {
-      const res = await window.api.sendMessage({
+    const result = await api(
+      () => window.api.sendMessage({
         channelId:   appStore.activeChannelId   ?? undefined,
         dmStudentId: appStore.activeDmStudentId ?? undefined,
-        authorName:  appStore.currentUser.name,
-        authorType:  appStore.currentUser.type,
+        authorName:  appStore.currentUser!.name,
+        authorType:  appStore.currentUser!.type,
         channelName: appStore.activeChannelName || undefined,
         promoId:     appStore.activePromoId     ?? undefined,
         content:     content.trim(),
         replyToId:      quote?.id       ?? undefined,
         replyToAuthor:  quote?.author_name ?? undefined,
         replyToPreview: quote ? quote.content.slice(0, 120) : undefined,
-      })
-      if (!res?.ok) {
-        sendError.value = true
-        return false // NE PAS effacer le contenu
-      }
-      sendError.value = false
-      clearQuote()
-      await fetchMessages()
-      return true
-    } catch {
+      }),
+      'send',
+    )
+    if (result === null) {
       sendError.value = true
       return false
     }
+    sendError.value = false
+    clearQuote()
+    await fetchMessages()
+    return true
   }
 
   // ── Épinglage ──────────────────────────────────────────────────────────────
   async function togglePin(messageId: number, pinned_: boolean) {
     if (!appStore.activeChannelId) return
-    await window.api.togglePinMessage({ messageId, pinned: pinned_ })
+    await api(() => window.api.togglePinMessage({ messageId, pinned: pinned_ }), 'pin')
     await fetchPinned(appStore.activeChannelId)
     await fetchMessages()
   }
@@ -269,21 +262,22 @@ export const useMessagesStore = defineStore('messages', () => {
     for (const [k, v] of Object.entries(r)) {
       if (v > 0) toSave[k] = reactionsData[msgId][k] ?? { count: v, users: [] }
     }
-    window.api.updateReactions(msgId, JSON.stringify(toSave))
+    api(() => window.api.updateReactions(msgId, JSON.stringify(toSave)))
   }
 
   async function deleteMessage(id: number) {
-    await window.api.deleteMessage(id)
+    const result = await api(() => window.api.deleteMessage(id), 'delete')
+    if (result === null) return
     messages.value = messages.value.filter((m) => m.id !== id)
     delete reactions[id]
     delete userVotes[id]
   }
 
-  async function editMessage(id: number, content: string) {
-    const res = await window.api.editMessage(id, content)
-    if (!res?.ok) return
+  async function editMessage(id: number, newContent: string) {
+    const result = await api(() => window.api.editMessage(id, newContent), 'edit')
+    if (result === null) return
     const msg = messages.value.find((m) => m.id === id)
-    if (msg) { msg.content = content; msg.edited = 1 }
+    if (msg) { msg.content = newContent; msg.edited = 1 }
   }
 
   function clearSearch() {

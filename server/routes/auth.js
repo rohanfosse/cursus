@@ -2,8 +2,32 @@
 const router    = require('express').Router()
 const jwt       = require('jsonwebtoken')
 const rateLimit = require('express-rate-limit')
+const { z }     = require('zod')
 const queries   = require('../../src/db/index')
 const auth      = require('../middleware/auth')
+const { validate } = require('../middleware/validate')
+
+// ── Schémas de validation ─────────────────────────────────────────────────────
+const loginSchema = z.object({
+  email:    z.string().min(1, 'Email requis').email('Format d\'email invalide'),
+  password: z.string().min(1, 'Mot de passe requis'),
+})
+
+const registerSchema = z.object({
+  firstName: z.string().min(1, 'Prénom requis').max(100),
+  lastName:  z.string().min(1, 'Nom requis').max(100),
+  email:     z.string().email('Format d\'email invalide'),
+  password:  z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères'),
+  promoId:   z.number().int().positive('Promotion invalide'),
+  photoData: z.string().nullable().optional(),
+})
+
+const changePasswordSchema = z.object({
+  userId:     z.number().int().positive(),
+  isTeacher:  z.boolean(),
+  currentPwd: z.string().min(1, 'Mot de passe actuel requis'),
+  newPwd:     z.string().min(8, 'Le nouveau mot de passe doit contenir au moins 8 caractères'),
+})
 
 function wrap(fn) {
   return async (req, res) => {
@@ -36,7 +60,7 @@ function logLoginAttempt(email, success, req) {
 }
 
 // POST /api/auth/login
-router.post('/login', loginLimiter, wrap(async (req) => {
+router.post('/login', loginLimiter, validate(loginSchema), wrap(async (req) => {
   const { email, password } = req.body
   const user = queries.loginWithCredentials(email, password)
   if (!user) {
@@ -86,10 +110,10 @@ router.get('/teachers', auth, wrap(() => {
 }))
 
 // POST /api/auth/register
-router.post('/register', wrap((req) => queries.registerStudent(req.body)))
+router.post('/register', validate(registerSchema), wrap((req) => queries.registerStudent(req.body)))
 
 // POST /api/auth/change-password  (requiert JWT)
-router.post('/change-password', auth, wrap((req) => {
+router.post('/change-password', auth, validate(changePasswordSchema), wrap((req) => {
   const { userId, isTeacher, currentPwd, newPwd } = req.body
   return queries.changePassword(userId, isTeacher, currentPwd, newPwd)
 }))

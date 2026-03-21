@@ -100,7 +100,22 @@ app.use('/uploads', express.static(UPLOAD_DIR))
 app.use('/api/files', require('./routes/files'))
 
 // ── Health check ─────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => res.json({ ok: true, version: '2.0.0' }))
+app.get('/health', (_req, res) => {
+  try {
+    // Vérifier la connexion DB
+    const { getDb } = require('../src/db/connection')
+    getDb().prepare('SELECT 1').get()
+    res.json({
+      ok: true,
+      version: '2.0.0',
+      uptime: Math.floor(process.uptime()),
+      connections: onlineUsers.size,
+      memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+    })
+  } catch (err) {
+    res.status(503).json({ ok: false, error: 'Base de données inaccessible', version: '2.0.0' })
+  }
+})
 
 // ── Téléchargements (proxy GitHub Releases, sans exposer l'URL GitHub) ────────
 app.use('/download', require('./routes/download'))

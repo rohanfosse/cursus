@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { Eye, EyeOff, ShieldCheck, KeyRound } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useToast }    from '@/composables/useToast'
+import { useApi }      from '@/composables/useApi'
 
 const props = defineProps<{
   modelValue: boolean
@@ -15,6 +16,7 @@ const emit = defineEmits<{
 
 const appStore      = useAppStore()
 const { showToast } = useToast()
+const { api }       = useApi()
 
 const currentPwd  = ref('')
 const newPwd      = ref('')
@@ -73,14 +75,16 @@ async function save() {
 
   saving.value = true
   try {
-    const res = await window.api.changePassword(userId, isTeacher, currentPwd.value, newPwd.value)
-    if (!res?.ok) throw new Error(res?.error ?? 'Erreur inconnue.')
-    appStore.clearMustChangePassword()
-    showToast('Mot de passe mis à jour avec succès.', 'success')
-    emit('changed')
-    emit('update:modelValue', false)
-  } catch (e: any) {
-    showToast(e.message ?? 'Erreur lors du changement.', 'error')
+    const result = await api(
+      () => window.api.changePassword(userId, isTeacher, currentPwd.value, newPwd.value),
+      'password',
+    )
+    if (result !== null) {
+      appStore.clearMustChangePassword()
+      showToast('Mot de passe mis à jour avec succès.', 'success')
+      emit('changed')
+      emit('update:modelValue', false)
+    }
   } finally {
     saving.value = false
   }

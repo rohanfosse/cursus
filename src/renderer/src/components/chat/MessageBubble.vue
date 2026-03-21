@@ -7,12 +7,14 @@ import {
 import { useRouter }        from 'vue-router'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
+import type { Channel }     from '@/types'
 import Avatar       from '@/components/ui/Avatar.vue'
 import EmojiPicker  from '@/components/ui/EmojiPicker.vue'
 import ContextMenu  from '@/components/ui/ContextMenu.vue'
 import type { ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 import { avatarColor }          from '@/utils/format'
 import { useToast }             from '@/composables/useToast'
+import { STORAGE_KEYS }         from '@/constants'
 import { formatTime }           from '@/utils/date'
 import { renderMessageContent } from '@/utils/html'
 import { useOpenExternal }      from '@/composables/useOpenExternal'
@@ -59,19 +61,51 @@ const editContent      = ref('')
 const editEl           = ref<HTMLTextAreaElement | null>(null)
 const confirmingDelete = ref(false)
 
-// ── Bookmarks (localStorage)
-const BOOKMARK_KEY = 'cesia:bookmarks'
-function getBookmarkIds(): number[] {
-  try { return JSON.parse(localStorage.getItem(BOOKMARK_KEY) || '[]') } catch { return [] }
+// ── Bookmarks (localStorage — stockage riche)
+interface SavedMessage {
+  id: number
+  authorName: string
+  authorInitials: string
+  content: string
+  createdAt: string
+  isDm: boolean
+  channelName: string | null
+  dmStudentId: number | null
 }
-const isBookmarked = ref(getBookmarkIds().includes(props.msg.id))
+
+function getSavedMessages(): SavedMessage[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.BOOKMARKS) || '[]')
+    if (!Array.isArray(raw)) return []
+    // Compatibilité : ancien format = number[]
+    if (raw.length > 0 && typeof raw[0] === 'number') return []
+    return raw as SavedMessage[]
+  } catch { return [] }
+}
+
+const isBookmarked = ref(getSavedMessages().some(m => m.id === props.msg.id))
 
 function toggleBookmark() {
-  const ids = getBookmarkIds()
-  const idx = ids.indexOf(props.msg.id)
-  if (idx === -1) { ids.push(props.msg.id) } else { ids.splice(idx, 1) }
-  localStorage.setItem(BOOKMARK_KEY, JSON.stringify(ids))
-  isBookmarked.value = idx === -1
+  const saved = getSavedMessages()
+  const idx = saved.findIndex(m => m.id === props.msg.id)
+  if (idx === -1) {
+    // Ajouter avec données riches
+    saved.push({
+      id:             props.msg.id,
+      authorName:     props.msg.author_name,
+      authorInitials: props.msg.author_initials ?? props.msg.author_name.slice(0, 2).toUpperCase(),
+      content:        props.msg.content.slice(0, 200),
+      createdAt:      props.msg.created_at,
+      isDm:           props.msg.dm_student_id != null,
+      channelName:    appStore.activeChannelName || null,
+      dmStudentId:    props.msg.dm_student_id ?? null,
+    })
+    isBookmarked.value = true
+  } else {
+    saved.splice(idx, 1)
+    isBookmarked.value = false
+  }
+  localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(saved))
 }
 
 // ── Menu contextuel (clic droit)
@@ -240,8 +274,8 @@ function onMsgClick(e: MouseEvent) {
       const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id
       if (promoId) {
         window.api.getChannels(promoId).then((res) => {
-          const ch = res?.ok ? res.data.find((c: { name: string }) => c.name === channelName) : null
-          if (ch) appStore.openChannel((ch as any).id, (ch as any).promo_id, (ch as any).name, (ch as any).type)
+          const ch = res?.ok ? res.data.find((c: Channel) => c.name === channelName) : null
+          if (ch) appStore.openChannel(ch.id, ch.promo_id, ch.name, ch.type)
         })
       }
     }

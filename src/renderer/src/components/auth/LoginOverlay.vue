@@ -3,6 +3,7 @@
   import { useRouter } from 'vue-router'
   import { useAppStore } from '@/stores/app'
   import { avatarColor }  from '@/utils/format'
+  import type { LoginResponse } from '@/types'
   import logoUrl from '@/assets/logo.svg'
 
   const appStore = useAppStore()
@@ -28,7 +29,7 @@
         password.value = ''
         return
       }
-      const u = res.data as any
+      const u = res.data as LoginResponse
       appStore.login({ ...u, avatar_initials: u.avatar_initials ?? u.name.slice(0, 2).toUpperCase() })
       router.replace('/messages')
     } catch (e: unknown) {
@@ -102,8 +103,16 @@
       if (!res?.ok) { regEmailErr.value = res?.error ?? 'Erreur lors de la création du compte.'; return }
       const stuRes = await window.api.getStudentByEmail(regEmail.value.trim().toLowerCase())
       if (!stuRes?.ok || !stuRes.data) return
-      const stu = stuRes.data as any
-      appStore.login({ ...stu, type: 'student' })
+      const stu = stuRes.data
+      appStore.login({
+        id: stu.id,
+        name: stu.name,
+        type: 'student',
+        avatar_initials: stu.avatar_initials ?? stu.name.slice(0, 2).toUpperCase(),
+        photo_data: stu.photo_data ?? null,
+        promo_id: stu.promo_id,
+        promo_name: stu.promo_name,
+      })
       router.replace('/messages')
     } catch (e: unknown) {
       regEmailErr.value = (e as Error).message ?? 'Erreur.'

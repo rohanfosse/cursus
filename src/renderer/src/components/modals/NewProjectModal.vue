@@ -2,14 +2,13 @@
 import { ref, watch, computed } from 'vue'
 import { useAppStore }   from '@/stores/app'
 import { useToast }      from '@/composables/useToast'
+import { useApi }        from '@/composables/useApi'
 import { isoForDatetimeLocal } from '@/utils/date'
 import { CATEGORY_ICONS }      from '@/utils/categoryIcon'
 import { avatarColor, initials } from '@/utils/format'
 import Modal from '@/components/ui/Modal.vue'
 import { Plus, Minus, Shuffle, X, Info, Users, Lock, Hash } from 'lucide-vue-next'
-
-const CUSTOM_PROJECTS_KEY = 'cc_custom_projects'
-const PROJECTS_META_KEY   = (promoId: number) => `cc_projects_${promoId}`
+import { STORAGE_KEYS } from '@/constants'
 
 export interface ProjectMeta {
   emoji:       string
@@ -29,7 +28,7 @@ interface Group {
 interface Student {
   id:               number
   name:             string
-  avatar_initials?: string
+  avatar_initials?: string | null
 }
 
 const props = defineProps<{ modelValue: boolean }>()
@@ -40,6 +39,7 @@ const emit  = defineEmits<{
 
 const appStore      = useAppStore()
 const { showToast } = useToast()
+const { api }       = useApi()
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
 const activeTab = ref<'infos' | 'groupes'>('infos')
@@ -130,8 +130,7 @@ async function loadStudents() {
   if (!promoId || studentsLoading.value || students.value.length) return
   studentsLoading.value = true
   try {
-    const res = await window.api.getStudents(promoId)
-    students.value = res?.ok ? (res.data as unknown as typeof students.value) : []
+    students.value = await api<Student[]>(() => window.api.getStudents(promoId)) ?? []
   } finally {
     studentsLoading.value = false
   }
@@ -147,11 +146,11 @@ async function save() {
     const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id
 
     // 1. Persister dans localStorage
-    const raw = (() => { try { return JSON.parse(localStorage.getItem(CUSTOM_PROJECTS_KEY) ?? '[]') as string[] } catch { return [] } })()
-    if (!raw.includes(full)) { raw.push(full); localStorage.setItem(CUSTOM_PROJECTS_KEY, JSON.stringify(raw)) }
+    const raw = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.CUSTOM_PROJECTS) ?? '[]') as string[] } catch { return [] } })()
+    if (!raw.includes(full)) { raw.push(full); localStorage.setItem(STORAGE_KEYS.CUSTOM_PROJECTS, JSON.stringify(raw)) }
 
     if (promoId) {
-      const key   = PROJECTS_META_KEY(promoId)
+      const key   = STORAGE_KEYS.projectsMeta(promoId)
       const metas: ProjectMeta[] = (() => { try { return JSON.parse(localStorage.getItem(key) ?? '[]') } catch { return [] } })()
       if (!metas.find(m => m.name === full)) {
         metas.push({

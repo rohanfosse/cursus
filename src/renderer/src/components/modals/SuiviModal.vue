@@ -7,6 +7,7 @@
   import { useAppStore }     from '@/stores/app'
   import { useToast }        from '@/composables/useToast'
   import { useConfirm }      from '@/composables/useConfirm'
+  import { useApi }          from '@/composables/useApi'
   import { avatarColor }     from '@/utils/format'
   import { formatDate }      from '@/utils/date'
   import Modal from '@/components/ui/Modal.vue'
@@ -18,6 +19,7 @@
   const appStore      = useAppStore()
   const { showToast } = useToast()
   const { confirm }   = useConfirm()
+  const { api }       = useApi()
 
   // ── Données suivi (tous les étudiants, rendu ou non) ──────────────────────
   interface SuiviRow {
@@ -48,8 +50,7 @@
     if (open && appStore.currentTravailId) {
       loading.value = true
       try {
-        const res = await window.api.getTravauxSuivi(appStore.currentTravailId)
-        rows.value  = res?.ok ? (res.data as unknown as SuiviRow[]) : []
+        rows.value = await api<SuiviRow[]>(() => window.api.getTravauxSuivi(appStore.currentTravailId!) as unknown as Promise<{ ok: boolean; data?: SuiviRow[] }>) ?? []
       } finally {
         loading.value = false
       }
@@ -75,7 +76,7 @@
     if (!r.depot_id) return
     saving.value = true
     try {
-      await window.api.setNote({ depotId: r.depot_id, note: pendingNote.value.trim() || null })
+      await api(() => window.api.setNote({ depotId: r.depot_id, note: pendingNote.value.trim() || null }), 'grade')
       r.note           = pendingNote.value.trim() || null
       editingNote.value = null
     } finally {
@@ -87,7 +88,7 @@
     if (!r.depot_id) return
     saving.value = true
     try {
-      await window.api.setFeedback({ depotId: r.depot_id, feedback: pendingFeedback.value.trim() || null })
+      await api(() => window.api.setFeedback({ depotId: r.depot_id, feedback: pendingFeedback.value.trim() || null }), 'feedback')
       r.feedback           = pendingFeedback.value.trim() || null
       editingFeedback.value = null
     } finally {
@@ -107,8 +108,7 @@
     if (!await confirm('Marquer tous les non-rendus avec la note D ?', 'warning', 'Confirmer')) return
     await travauxStore.markNonSubmittedAsD(appStore.currentTravailId)
     // Recharger le suivi
-    const res  = await window.api.getTravauxSuivi(appStore.currentTravailId)
-    rows.value = res?.ok ? (res.data as unknown as SuiviRow[]) : []
+    rows.value = await api<SuiviRow[]>(() => window.api.getTravauxSuivi(appStore.currentTravailId!) as unknown as Promise<{ ok: boolean; data?: SuiviRow[] }>) ?? []
     showToast('Non-rendus marqués D.', 'info')
   }
 </script>

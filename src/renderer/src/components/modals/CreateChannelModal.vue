@@ -3,6 +3,7 @@
   import { MessageSquare, Megaphone, Globe, Lock } from 'lucide-vue-next'
   import { useAppStore } from '@/stores/app'
   import { useToast }    from '@/composables/useToast'
+  import { useApi }      from '@/composables/useApi'
   import { CATEGORY_ICONS, parseCategoryIcon } from '@/utils/categoryIcon'
   import Modal from '@/components/ui/Modal.vue'
   import type { Student } from '@/types'
@@ -12,6 +13,7 @@
 
   const appStore = useAppStore()
   const { showToast } = useToast()
+  const { api }       = useApi()
 
   const channelName         = ref('')
   const channelType         = ref<'chat' | 'annonce'>('chat')
@@ -45,14 +47,13 @@
     students.value           = []
 
     try {
-      const [stuRes, chRes] = await Promise.all([
-        window.api.getStudents(appStore.activePromoId!),
-        window.api.getChannels(appStore.activePromoId!),
+      const [stuList, chList] = await Promise.all([
+        api<Student[]>(() => window.api.getStudents(appStore.activePromoId!)),
+        api<{ category?: string | null }[]>(() => window.api.getChannels(appStore.activePromoId!)),
       ])
-      students.value = stuRes?.ok ? stuRes.data : []
+      students.value = stuList ?? []
 
-      const chs: any[] = chRes?.ok ? chRes.data : []
-      const cats = [...new Set(chs.map((c: any) => c.category).filter(Boolean))] as string[]
+      const cats = [...new Set((chList ?? []).map(c => c.category).filter((c): c is string => !!c))]
       existingCategories.value = cats
 
       const pending = appStore.pendingChannelCategory
@@ -67,8 +68,8 @@
       } else {
         selectedCategory.value = cats.length ? '' : '__new__'
       }
-    } catch (e) {
-      console.error('[CreateChannelModal] Erreur chargement :', e)
+    } catch {
+      // Errors are handled by useApi toasts
     }
   })
 
@@ -89,19 +90,21 @@
 
     creating.value = true
     try {
-      const res = await window.api.createChannel({
-        name:      channelName.value.trim(),
-        promoId:   appStore.activePromoId,
-        type:      channelType.value,
-        isPrivate: visibility.value === 'private',
-        members:   visibility.value === 'private' ? [...members.value] : [],
-        category,
-      })
-      if (!res?.ok) { showToast(res?.error ?? 'Erreur lors de la création.'); return }
-      showToast('Canal créé.', 'success')
-      emit('update:modelValue', false)
-    } catch (e: any) {
-      showToast(e?.message ?? 'Erreur inattendue lors de la création.')
+      const result = await api(
+        () => window.api.createChannel({
+          name:      channelName.value.trim(),
+          promoId:   appStore.activePromoId,
+          type:      channelType.value,
+          isPrivate: visibility.value === 'private',
+          members:   visibility.value === 'private' ? [...members.value] : [],
+          category,
+        }),
+        'channel',
+      )
+      if (result !== null) {
+        showToast('Canal créé.', 'success')
+        emit('update:modelValue', false)
+      }
     } finally {
       creating.value = false
     }

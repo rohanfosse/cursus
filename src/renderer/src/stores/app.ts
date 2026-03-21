@@ -2,11 +2,15 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { User } from '@/types'
 import { useToast } from '@/composables/useToast'
-
-const SESSION_KEY = 'cc_session'
+import { useApi } from '@/composables/useApi'
+import {
+  STORAGE_KEYS, AUDIO_IDLE_TIMEOUT_MS,
+  NOTIFICATION_HISTORY_LIMIT,
+} from '@/constants'
 
 export const useAppStore = defineStore('app', () => {
   const { showToast } = useToast()
+  const { api } = useApi()
 
   // ── État ──────────────────────────────────────────────────────────────────
   const isOnline          = ref<boolean>(navigator.onLine)
@@ -65,11 +69,9 @@ export const useAppStore = defineStore('app', () => {
   )
 
   // ── Session ───────────────────────────────────────────────────────────────
-  const NAV_STATE_KEY = 'cc_nav_state'
-
   function _saveNavState() {
     try {
-      localStorage.setItem(NAV_STATE_KEY, JSON.stringify({
+      localStorage.setItem(STORAGE_KEYS.NAV_STATE, JSON.stringify({
         channelId: activeChannelId.value,
         promoId: activePromoId.value,
         channelName: activeChannelName.value,
@@ -80,7 +82,7 @@ export const useAppStore = defineStore('app', () => {
 
   function restoreSession(): boolean {
     try {
-      const raw = localStorage.getItem(SESSION_KEY)
+      const raw = localStorage.getItem(STORAGE_KEYS.SESSION)
       if (raw) {
         const parsed = JSON.parse(raw)
         currentUser.value = parsed
@@ -89,7 +91,7 @@ export const useAppStore = defineStore('app', () => {
         if (currentUser.value?.type === 'ta') loadTaChannels()
         // Restaurer le canal actif
         try {
-          const nav = JSON.parse(localStorage.getItem(NAV_STATE_KEY) || '{}')
+          const nav = JSON.parse(localStorage.getItem(STORAGE_KEYS.NAV_STATE) || '{}')
           if (nav.channelId) { activeChannelId.value = nav.channelId; activeChannelName.value = nav.channelName ?? '' }
           if (nav.promoId) activePromoId.value = nav.promoId
           if (nav.dmStudentId) activeDmStudentId.value = nav.dmStudentId
@@ -98,7 +100,7 @@ export const useAppStore = defineStore('app', () => {
       }
     } catch {
       // Session corrompue — nettoyer et avertir
-      localStorage.removeItem(SESSION_KEY)
+      localStorage.removeItem(STORAGE_KEYS.SESSION)
       const { showToast } = useToast()
       showToast('Session expirée ou corrompue. Veuillez vous reconnecter.', 'error')
     }
@@ -107,14 +109,13 @@ export const useAppStore = defineStore('app', () => {
 
   async function loadTaChannels(): Promise<void> {
     if (currentUser.value?.type !== 'ta') { taChannelIds.value = []; return }
-    const res = await window.api.getTeacherChannels(currentUser.value.id)
-    taChannelIds.value = res?.ok ? res.data : []
+    taChannelIds.value = await api<number[]>(() => window.api.getTeacherChannels(currentUser.value!.id)) ?? []
   }
 
   function login(user: User): void {
     currentUser.value = user
     try {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(user))
+      localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(user))
     } catch {
       const { showToast } = useToast()
       showToast('Impossible de sauvegarder la session localement.', 'error')
@@ -126,7 +127,7 @@ export const useAppStore = defineStore('app', () => {
     currentUser.value = null
     activeChannelId.value   = null
     activeDmStudentId.value = null
-    try { localStorage.removeItem(SESSION_KEY) } catch {}
+    try { localStorage.removeItem(STORAGE_KEYS.SESSION) } catch {}
   }
 
   // ── Écouter l'expiration de session (émis par apiFetch sur 401) ──────────
@@ -143,7 +144,7 @@ export const useAppStore = defineStore('app', () => {
   function clearMustChangePassword(): void {
     if (!currentUser.value) return
     currentUser.value = { ...currentUser.value, must_change_password: 0 }
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser.value)) } catch {}
+    try { localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(currentUser.value)) } catch {}
   }
 
   // Impersonnification (prof → étudiant) : pas de sauvegarde en session
@@ -269,26 +270,25 @@ export const useAppStore = defineStore('app', () => {
   }
 
   // ── Helpers notification ──────────────────────────────────────────────────
-  const MUTED_DM_KEY = 'cc_muted_dms'
   function _prefNotifDesktop(): boolean {
-    try { return JSON.parse(localStorage.getItem('cc_prefs') || '{}').notifDesktop !== false }
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.PREFS) || '{}').notifDesktop !== false }
     catch { return true }
   }
   function _prefNotifSound(): boolean {
-    try { return JSON.parse(localStorage.getItem('cc_prefs') || '{}').notifSound !== false }
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.PREFS) || '{}').notifSound !== false }
     catch { return true }
   }
   function _getMutedDms(): Set<string> {
-    try { return new Set(JSON.parse(localStorage.getItem(MUTED_DM_KEY) || '[]') as string[]) }
+    try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEYS.MUTED_DMS) || '[]') as string[]) }
     catch { return new Set() }
   }
   function muteDm(name: string) {
     const s = _getMutedDms(); s.add(name)
-    localStorage.setItem(MUTED_DM_KEY, JSON.stringify([...s]))
+    localStorage.setItem(STORAGE_KEYS.MUTED_DMS, JSON.stringify([...s]))
   }
   function unmuteDm(name: string) {
     const s = _getMutedDms(); s.delete(name)
-    localStorage.setItem(MUTED_DM_KEY, JSON.stringify([...s]))
+    localStorage.setItem(STORAGE_KEYS.MUTED_DMS, JSON.stringify([...s]))
   }
   function isDmMuted(name: string): boolean { return _getMutedDms().has(name) }
 
@@ -327,7 +327,7 @@ export const useAppStore = defineStore('app', () => {
         _audioCtx?.close().catch(() => {})
         _audioCtx = null
         _audioIdleTimer = null
-      }, 30_000)
+      }, AUDIO_IDLE_TIMEOUT_MS)
     } catch {}
   }
 
@@ -384,7 +384,7 @@ export const useAppStore = defineStore('app', () => {
             timestamp:   Date.now(),
             read:        false,
           }
-          notificationHistory.value = [dmEntry, ...notificationHistory.value].slice(0, 50)
+          notificationHistory.value = [dmEntry, ...notificationHistory.value].slice(0, NOTIFICATION_HISTORY_LIMIT)
 
           // Notification (sauf si DM muté)
           if (!isDmMuted(senderName)) {
@@ -438,7 +438,7 @@ export const useAppStore = defineStore('app', () => {
           timestamp:   Date.now(),
           read:        false,
         }
-        notificationHistory.value = [entry, ...notificationHistory.value].slice(0, 50)
+        notificationHistory.value = [entry, ...notificationHistory.value].slice(0, NOTIFICATION_HISTORY_LIMIT)
 
         // Notification uniquement pour les mentions (pas les messages normaux de canal)
         if (isMention) {
@@ -450,22 +450,6 @@ export const useAppStore = defineStore('app', () => {
         }
       }
     })
-  }
-
-  // ── API helper ────────────────────────────────────────────────────────────
-  async function api<T>(
-    call: () => Promise<{ ok: boolean; data: T; error?: string }>,
-    errorMsg?: string,
-  ): Promise<T | null> {
-    try {
-      const res = await call()
-      if (!res.ok) { showToast(res.error ?? errorMsg ?? 'Erreur serveur'); return null }
-      return res.data
-    } catch (e) {
-      showToast(errorMsg ?? 'Erreur réseau')
-      console.error(e)
-      return null
-    }
   }
 
   return {
@@ -483,6 +467,5 @@ export const useAppStore = defineStore('app', () => {
     onlineUsers, isUserOnline, sessionExpiredMessage,
     initUnreadListener, initOnlineListener, initSocketListener, initPresenceListener, initAuthExpiredListener,
     onDmRefresh, offDmRefresh,
-    api,
   }
 })

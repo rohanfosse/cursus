@@ -31,8 +31,8 @@
   const activeSection  = ref<Section>('apparence')
   const docsDefault    = ref(getPref('docsOpenByDefault'))
   const currentTheme   = ref(getPref('theme') ?? 'dark')
-  const fontSize       = ref(getPref('fontSize') ?? 'default')
-  const density        = ref(getPref('density') ?? 'default')
+  const fontSize       = ref<string>(getPref('fontSize') ?? 'default')
+  const density        = ref<string>(getPref('density') ?? 'default')
   const notifSound     = ref(getPref('notifSound') ?? true)
   const notifDesktop   = ref(getPref('notifDesktop') ?? true)
   const pendingPhoto   = ref<string | null>(null)
@@ -64,14 +64,14 @@
   watch(docsDefault, (v) => setPref('docsOpenByDefault', v))
 
   watch(fontSize, (v) => {
-    setPref('fontSize', v)
-    const sizes = { small: '13px', default: '14.5px', large: '16px' }
+    setPref('fontSize', v as 'small' | 'default' | 'large')
+    const sizes: Record<string, string> = { small: '13px', default: '14.5px', large: '16px' }
     document.documentElement.style.setProperty('--font-size-base', sizes[v])
   })
 
   watch(density, (v) => {
-    setPref('density', v)
-    const spacings = { compact: '2px', default: '6px', cozy: '10px' }
+    setPref('density', v as 'compact' | 'default' | 'cozy')
+    const spacings: Record<string, string> = { compact: '2px', default: '6px', cozy: '10px' }
     document.documentElement.style.setProperty('--msg-spacing', spacings[v])
   })
 
@@ -139,7 +139,8 @@
   function openPrivacyFromSettings() {
     emit('update:modelValue', false)
     setTimeout(() => {
-      if ((window as any).__cursusShowPrivacy) (window as any).__cursusShowPrivacy()
+      const win = window as Window & { __cursusShowPrivacy?: () => void }
+      if (win.__cursusShowPrivacy) win.__cursusShowPrivacy()
     }, 200)
   }
 
@@ -288,7 +289,7 @@
                 :key="s.id"
                 class="stg-segmented-btn"
                 :class="{ active: fontSize === s.id }"
-                @click="fontSize = s.id as any"
+                @click="fontSize = s.id"
               >
                 {{ s.label }}
               </button>
@@ -307,7 +308,7 @@
                 :key="d.id"
                 class="stg-segmented-btn"
                 :class="{ active: density === d.id }"
-                @click="density = d.id as any"
+                @click="density = d.id"
               >
                 {{ d.label }}
               </button>

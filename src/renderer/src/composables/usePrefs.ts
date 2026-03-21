@@ -1,6 +1,5 @@
 // ─── Préférences utilisateur (localStorage) ──────────────────────────────────
-
-const PREFS_KEY = 'cc_prefs'
+import { STORAGE_KEYS } from '@/constants'
 
 interface Prefs {
   docsOpenByDefault: boolean
@@ -28,7 +27,7 @@ const DEFAULTS: Prefs = {
 
 function loadPrefs(): Prefs {
   try {
-    const raw = localStorage.getItem(PREFS_KEY)
+    const raw = localStorage.getItem(STORAGE_KEYS.PREFS)
     return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS }
   } catch {
     return { ...DEFAULTS }
@@ -36,7 +35,7 @@ function loadPrefs(): Prefs {
 }
 
 function savePrefs(prefs: Prefs): void {
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)) } catch {}
+  try { localStorage.setItem(STORAGE_KEYS.PREFS, JSON.stringify(prefs)) } catch {}
 }
 
 export function usePrefs() {
