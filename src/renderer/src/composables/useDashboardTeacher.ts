@@ -31,7 +31,7 @@ export interface ProjectCard {
   total: number; published: number; depots: number; expected: number; nextDeadline: string | null
 }
 
-type Reminder = {
+export type Reminder = {
   id: number; promo_tag: string; date: string; title: string
   description: string; bloc: string | null; done: number; isOverdue?: boolean
 }

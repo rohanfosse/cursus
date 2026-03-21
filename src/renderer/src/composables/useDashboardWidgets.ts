@@ -10,9 +10,9 @@ import type { Ref }        from 'vue'
 import type { GanttRow }   from './useDashboardTeacher'
 
 // ── Types ────────────────────────────────────────────────────────────────────
-interface UnreadDmEntry { name: string; count: number }
+export interface UnreadDmEntry { name: string; count: number }
 
-interface SavedMessage {
+export interface SavedMessage {
   id: number
   authorName: string
   authorInitials: string
@@ -23,7 +23,7 @@ interface SavedMessage {
   dmStudentId: number | null
 }
 
-interface AgendaItem {
+export interface AgendaItem {
   id: number | string
   type: 'deadline' | 'reminder' | 'soutenance'
   title: string
