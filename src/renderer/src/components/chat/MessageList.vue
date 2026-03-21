@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, watch, nextTick, ref, onMounted, onBeforeUnmount } from 'vue'
-import { ChevronDown, MessageSquare, Search } from 'lucide-vue-next'
+import { ChevronDown, MessageSquare, Search, Hash, Send } from 'lucide-vue-next'
 import { useMessagesStore } from '@/stores/messages'
+import { useAppStore } from '@/stores/app'
 import MessageBubble from './MessageBubble.vue'
 import { formatDateSeparator } from '@/utils/date'
 import type { Message } from '@/types'
 
-const store  = useMessagesStore()
+const store    = useMessagesStore()
+const appStore = useAppStore()
 const listEl = ref<HTMLElement | null>(null)
 
 // ── Initialisation des réactions ──────────────────────────────────────────
@@ -197,16 +199,45 @@ const dateGroups = computed<DateGroup[]>(() => {
 
       <!-- État vide -->
       <div v-else class="empty-state">
-        <MessageSquare v-if="!store.searchTerm" :size="40" style="opacity:.25;margin-bottom:8px" />
-        <Search v-else :size="40" style="opacity:.25;margin-bottom:8px" />
-        <p v-if="store.searchTerm" style="font-weight:500">Aucun résultat pour « {{ store.searchTerm }} »</p>
-        <p v-else style="font-weight:500">Démarrez la conversation</p>
-        <p v-if="!store.searchTerm" style="font-size:12px;color:var(--text-muted);margin-top:4px">
-          Envoyez un premier message pour lancer l'échange.
-        </p>
-        <p v-else style="font-size:12px;color:var(--text-muted);margin-top:4px">
-          Essayez des mots-clés différents ou vérifiez l'orthographe.
-        </p>
+        <!-- Recherche sans résultat -->
+        <template v-if="store.searchTerm">
+          <div class="empty-icon-wrap empty-icon-wrap--search">
+            <Search :size="28" />
+          </div>
+          <p class="empty-title">Aucun résultat pour « {{ store.searchTerm }} »</p>
+          <p class="empty-sub">Essayez des mots-clés différents ou vérifiez l'orthographe.</p>
+        </template>
+
+        <!-- Canal vide -->
+        <template v-else-if="appStore.activeChannelId">
+          <div class="empty-icon-wrap">
+            <Hash :size="28" />
+          </div>
+          <p class="empty-title">Bienvenue dans #{{ appStore.activeChannelName ?? 'ce canal' }}</p>
+          <p class="empty-sub">C'est le tout début de ce canal. Envoyez un message pour lancer la discussion.</p>
+          <div class="empty-hint">
+            <Send :size="12" />
+            <span>Écrivez dans le champ ci-dessous et appuyez sur Entrée</span>
+          </div>
+        </template>
+
+        <!-- DM vide -->
+        <template v-else-if="appStore.activeDmStudentId">
+          <div class="empty-icon-wrap empty-icon-wrap--dm">
+            <MessageSquare :size="28" />
+          </div>
+          <p class="empty-title">Nouvelle conversation</p>
+          <p class="empty-sub">Aucun message pour l'instant. Envoyez le premier !</p>
+        </template>
+
+        <!-- Aucun canal sélectionné -->
+        <template v-else>
+          <div class="empty-icon-wrap">
+            <MessageSquare :size="28" />
+          </div>
+          <p class="empty-title">Sélectionnez un canal</p>
+          <p class="empty-sub">Choisissez un canal ou une conversation dans la barre latérale.</p>
+        </template>
       </div>
     </template>
 
