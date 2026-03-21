@@ -60,6 +60,15 @@
   const submitted = computed(() => rows.value.filter((r) => r.submitted_at))
   const pct       = computed(() => rows.value.length ? Math.round(submitted.value.length / rows.value.length * 100) : 0)
 
+  // Sorted: unsubmitted first for quick review, then by name
+  const sortedRows = computed(() =>
+    [...rows.value].sort((a, b) => {
+      if (!a.submitted_at && b.submitted_at) return -1
+      if (a.submitted_at && !b.submitted_at) return 1
+      return a.student_name.localeCompare(b.student_name)
+    }),
+  )
+
   function startEditNote(r: SuiviRow) {
     editingNote.value    = r.depot_id
     pendingNote.value    = r.note ?? ''
@@ -146,7 +155,7 @@
       <!-- Liste des étudiants -->
       <div v-else-if="rows.length" class="suivi-table">
         <div
-          v-for="r in rows"
+          v-for="r in sortedRows"
           :key="r.student_id"
           class="suivi-row"
           :class="{ 'suivi-row--submitted': !!r.submitted_at }"
@@ -159,6 +168,12 @@
             <img v-if="r.photo_data" :src="r.photo_data" :alt="r.student_name" class="suivi-avatar-img" />
             <span v-else>{{ r.avatar_initials }}</span>
           </div>
+
+          <!-- Status icon -->
+          <span class="suivi-status-icon" :class="r.submitted_at ? 'suivi-status--ok' : 'suivi-status--pending'">
+            <CheckCircle2 v-if="r.submitted_at" :size="14" />
+            <Clock v-else :size="14" />
+          </span>
 
           <!-- Nom + groupe -->
           <div class="suivi-info">
@@ -364,6 +379,10 @@
   overflow: hidden;
 }
 .suivi-avatar-img { width: 100%; height: 100%; object-fit: cover; }
+
+.suivi-status-icon { flex-shrink: 0; display: flex; align-items: center; }
+.suivi-status--ok { color: var(--color-success, #22c55e); }
+.suivi-status--pending { color: var(--text-muted); opacity: .5; }
 
 .suivi-info {
   display: flex;

@@ -232,7 +232,9 @@
     <main class="main-wrapper" :class="{ 'main-with-banner': appStore.isSimulating || !appStore.isOnline }">
       <!-- Vue active (messages / travaux / documents) -->
       <RouterView v-slot="{ Component }">
-        <component :is="Component" :toggle-sidebar="toggleSidebar" />
+        <Transition name="route-fade" mode="out-in">
+          <component :is="Component" :key="$route.path" :toggle-sidebar="toggleSidebar" />
+        </Transition>
       </RouterView>
     </main>
     </div><!-- /.app-columns -->
@@ -527,6 +529,11 @@
 
   .privacy-fade-enter-active, .privacy-fade-leave-active { transition: opacity .2s ease; }
   .privacy-fade-enter-from, .privacy-fade-leave-to       { opacity: 0; }
+
+  /* ── Route transition ── */
+  .route-fade-enter-active { transition: opacity .15s ease; }
+  .route-fade-leave-active { transition: opacity .1s ease; }
+  .route-fade-enter-from, .route-fade-leave-to { opacity: 0; }
 
   /* Décaler le shell quand le bandeau est visible */
   .sidebar-with-banner,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { Plus, Trash2, ChevronDown, ChevronRight, Check, X as XIcon } from 'lucide-vue-next'
+import { ref, computed, watch } from 'vue'
+import { Plus, Trash2, ChevronDown, ChevronRight, Check, X as XIcon, Search, Users } from 'lucide-vue-next'
 import Modal from '@/components/ui/Modal.vue'
 import { useAppStore }  from '@/stores/app'
 import { useToast }     from '@/composables/useToast'
@@ -23,6 +23,13 @@ const promoChannels  = ref<Record<number, Channel[]>>({}) // promoId → channel
 const assignments    = ref<Record<number, number[]>>({})  // taId → channelIds
 const expandedTaId   = ref<number | null>(null)           // panneau d'affectation ouvert
 const loadingAssign  = ref(false)
+const searchQuery    = ref('')
+
+const filteredIntervenants = computed(() => {
+  const q = searchQuery.value.toLowerCase().trim()
+  if (!q) return intervenants.value
+  return intervenants.value.filter(ta => ta.name.toLowerCase().includes(q) || ta.email.toLowerCase().includes(q))
+})
 
 // ── Formulaire de création ───────────────────────────────────────────────────
 const showForm   = ref(false)
@@ -192,14 +199,22 @@ function assignedSummary(taId: number): string {
       </Transition>
     </div>
 
+    <!-- ── Recherche ── -->
+    <div v-if="intervenants.length" class="iv-search-bar">
+      <Search :size="13" class="iv-search-icon" />
+      <input v-model="searchQuery" class="iv-search-input" placeholder="Rechercher un intervenant…" />
+    </div>
+
     <!-- ── Liste des intervenants ── -->
     <div class="iv-list">
       <div v-if="!intervenants.length" class="iv-empty">
-        Aucun intervenant pour l'instant.
+        <Users :size="28" style="opacity:.35" />
+        <p>Aucun intervenant pour l'instant.</p>
+        <span class="iv-empty-hint">Ajoutez-en un avec le bouton ci-dessus.</span>
       </div>
 
       <div
-        v-for="ta in intervenants"
+        v-for="ta in filteredIntervenants"
         :key="ta.id"
         class="iv-card"
       >
@@ -207,7 +222,7 @@ function assignedSummary(taId: number): string {
         <div class="iv-card-header">
           <div class="iv-avatar">{{ ta.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) }}</div>
           <div class="iv-info">
-            <span class="iv-name">{{ ta.name }}</span>
+            <span class="iv-name">{{ ta.name }} <span class="iv-role-badge iv-role-intervenant">Intervenant</span></span>
             <span class="iv-email">{{ ta.email }}</span>
           </div>
           <span class="iv-summary">{{ assignedSummary(ta.id) }}</span>
@@ -350,6 +365,29 @@ function assignedSummary(taId: number): string {
   margin-top: 12px;
 }
 
+/* ── Recherche ── */
+.iv-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.iv-search-icon { color: var(--text-muted); flex-shrink: 0; }
+.iv-search-input {
+  flex: 1; border: none; outline: none; background: transparent;
+  font-size: 13px; color: var(--text-primary); font-family: var(--font);
+}
+
+/* ── Role badge ── */
+.iv-role-badge {
+  font-size: 9.5px; font-weight: 700; padding: 1px 7px; border-radius: 10px;
+  vertical-align: middle; margin-left: 6px;
+}
+.iv-role-intervenant { background: rgba(155,135,245,.15); color: #b8a8f7; }
+
 /* ── Liste ── */
 .iv-list {
   display: flex;
@@ -358,12 +396,14 @@ function assignedSummary(taId: number): string {
 }
 
 .iv-empty {
-  padding: 24px;
+  padding: 32px 24px;
   text-align: center;
   color: var(--text-muted);
   font-size: 13px;
-  font-style: italic;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
+.iv-empty p { margin: 0; font-weight: 500; }
+.iv-empty-hint { font-size: 11px; opacity: .7; }
 
 /* ── Carte intervenant ── */
 .iv-card {

@@ -142,23 +142,24 @@
         <label class="cc-label">Type</label>
         <div class="cc-pills">
           <button
-            class="cc-pill"
+            class="cc-pill cc-pill-card"
             :class="{ active: channelType === 'chat' }"
             type="button"
             @click="channelType = 'chat'"
           >
-            <MessageSquare :size="13" />
-            Chat
+            <MessageSquare :size="16" />
+            <span class="cc-pill-title">Chat</span>
+            <span class="cc-pill-desc">Discussions libres entre membres</span>
           </button>
           <button
-            class="cc-pill"
+            class="cc-pill cc-pill-card"
             :class="{ active: channelType === 'annonce' }"
             type="button"
             @click="channelType = 'annonce'"
           >
-            <Megaphone :size="13" />
-            Annonces
-            <span class="cc-pill-hint">lecture seule</span>
+            <Megaphone :size="16" />
+            <span class="cc-pill-title">Annonces</span>
+            <span class="cc-pill-desc">Lecture seule, seul le prof publie</span>
           </button>
         </div>
       </div>
@@ -264,6 +265,16 @@
         </Transition>
       </div>
 
+    </div>
+
+    <!-- Sidebar preview -->
+    <div v-if="channelName.trim()" class="cc-preview">
+      <span class="cc-preview-label">Apercu sidebar</span>
+      <div class="cc-preview-item">
+        <span class="cc-preview-prefix">{{ channelType === 'annonce' ? '\uD83D\uDCE2' : '#' }}</span>
+        <span class="cc-preview-name">{{ channelName.trim() }}</span>
+        <Lock v-if="visibility === 'private'" :size="10" class="cc-preview-lock" />
+      </div>
     </div>
 
     <div class="cc-footer">
@@ -509,6 +520,29 @@
   gap: 8px;
 }
 .cc-icon-preview { flex-shrink: 0; color: var(--accent); }
+
+/* ── Card pill enhancements ── */
+.cc-pill-card { padding: 12px; gap: 4px; }
+.cc-pill-title { font-size: 13px; font-weight: 600; }
+.cc-pill-desc { font-size: 10px; opacity: .6; font-weight: 400; }
+
+/* ── Sidebar preview ── */
+.cc-preview {
+  margin: 0 20px; padding: 10px 14px;
+  background: rgba(255,255,255,.03); border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+.cc-preview-label {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--text-muted); margin-bottom: 6px; display: block;
+}
+.cc-preview-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 5px; background: rgba(255,255,255,.04);
+}
+.cc-preview-prefix { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+.cc-preview-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.cc-preview-lock { color: var(--text-muted); margin-left: auto; }
 
 /* ── Footer ── */
 .cc-footer {
