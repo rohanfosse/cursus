@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
+  import { onMounted, onUnmounted, ref, computed, watch, onErrorCaptured } from 'vue'
   import { useRouter } from 'vue-router'
   import { useAppStore }      from '@/stores/app'
   import { useModalsStore }   from '@/stores/modals'
@@ -95,6 +95,40 @@
     }
   })
 
+  // ── Floating feedback (étudiants uniquement) ──────────────────────────────
+  const showFloatingFeedback = ref(false)
+  const fbType = ref('bug')
+  const fbDesc = ref('')
+  const fbSending = ref(false)
+
+  async function submitFloatingFeedback() {
+    if (!fbDesc.value.trim()) return
+    fbSending.value = true
+    try {
+      const page = window.location.hash || window.location.pathname
+      const desc = `${fbDesc.value.trim()}\n\n[Page: ${page}]`
+      const res = await window.api.submitFeedback(fbType.value, fbType.value === 'bug' ? 'Bug report' : fbType.value === 'suggestion' ? 'Suggestion' : 'Question', desc)
+      if (res?.ok) {
+        showToast('Merci pour votre retour !', 'success')
+        fbDesc.value = ''
+        showFloatingFeedback.value = false
+      }
+    } catch { showToast('Erreur lors de l\'envoi.', 'error') }
+    fbSending.value = false
+  }
+
+  // ── Global error handler ──────────────────────────────────────────────────
+  onErrorCaptured((err) => {
+    console.error('[ErrorBoundary]', err)
+    showToast('Une erreur est survenue. Utilisez le bouton de feedback pour la signaler.', 'error')
+    return false
+  })
+
+  // ── Network status (online/offline) ───────────────────────────────────────
+  const isOffline = ref(!navigator.onLine)
+  function onOnline()  { isOffline.value = false; showToast('Connexion rétablie', 'success') }
+  function onOffline() { isOffline.value = true }
+
   // ── Guard router : bloquer la navigation si must_change_password ──────────
   router.beforeEach((_to, _from, next) => {
     if (showForcedPasswordChange.value) {
@@ -146,6 +180,20 @@
       showToast(`${e.detail.title} - ${e.detail.body}`, 'info')
     }) as EventListener)
 
+    // Global error handlers
+    window.onerror = (_msg, _src, _line, _col, err) => {
+      console.error('[GlobalError]', err)
+      showToast('Une erreur est survenue. Utilisez le bouton de feedback pour la signaler.', 'error')
+    }
+    window.onunhandledrejection = (e: PromiseRejectionEvent) => {
+      console.error('[UnhandledRejection]', e.reason)
+      showToast('Une erreur est survenue. Utilisez le bouton de feedback pour la signaler.', 'error')
+    }
+
+    // Network status listeners
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+
     // Restaurer la session depuis localStorage
     const restored = appStore.restoreSession()
     if (restored) router.replace('/messages')
@@ -166,7 +214,11 @@
     unsubTyping = messagesStore.initTypingListener()
   })
 
-  onUnmounted(() => { unsubUnread?.(); unsubOnline?.(); unsubSocket?.(); unsubTyping?.(); unsubPresence?.(); unsubAuthExpired?.() })
+  onUnmounted(() => {
+    unsubUnread?.(); unsubOnline?.(); unsubSocket?.(); unsubTyping?.(); unsubPresence?.(); unsubAuthExpired?.()
+    window.removeEventListener('online', onOnline)
+    window.removeEventListener('offline', onOffline)
+  })
 </script>
 
 <template>
@@ -188,8 +240,8 @@
     <NavRail />
 
     <!-- Bandeau hors-ligne -->
-    <div v-if="!appStore.isOnline" class="offline-banner offline-banner-red">
-      <span>Vous êtes hors ligne - vérifiez votre connexion internet.</span>
+    <div v-if="!appStore.isOnline || isOffline" class="offline-banner offline-banner-yellow">
+      <span>Connexion perdue — vos modifications seront envoyées à la reconnexion</span>
     </div>
 
     <!-- Bandeau reconnexion socket -->
@@ -238,6 +290,32 @@
       </RouterView>
     </main>
     </div><!-- /.app-columns -->
+
+    <!-- Bouton flottant feedback (étudiants uniquement) -->
+    <button
+      v-if="appStore.isStudent"
+      class="fab-feedback"
+      title="Signaler un bug ou faire une suggestion"
+      aria-label="Feedback"
+      @click="showFloatingFeedback = !showFloatingFeedback"
+    >?</button>
+
+    <!-- Mini-modale feedback flottante -->
+    <Transition name="fab-modal-fade">
+      <div v-if="showFloatingFeedback && appStore.isStudent" class="fab-feedback-modal">
+        <div class="fab-fb-header">
+          <span class="fab-fb-title">Feedback rapide</span>
+          <button class="fab-fb-close" @click="showFloatingFeedback = false">&times;</button>
+        </div>
+        <div class="fab-fb-types">
+          <button v-for="t in [{id:'bug',label:'Bug'},{id:'suggestion',label:'Suggestion'},{id:'question',label:'Question'}]" :key="t.id" class="fab-fb-type" :class="{active:fbType===t.id}" @click="fbType=t.id">{{ t.label }}</button>
+        </div>
+        <textarea v-model="fbDesc" class="fab-fb-textarea" placeholder="Décrivez ce qui s'est passé..." rows="3" maxlength="1000" />
+        <button class="fab-fb-submit" :disabled="!fbDesc.trim() || fbSending" @click="submitFloatingFeedback">
+          {{ fbSending ? 'Envoi...' : 'Envoyer' }}
+        </button>
+      </div>
+    </Transition>
   </div>
 
   <!-- Modales globales - montées une fois, visibilité gérée par le store modals -->
@@ -540,4 +618,73 @@
   .main-with-banner {
     padding-top: 36px;
   }
+
+  /* ── Bandeau hors-ligne jaune ── */
+  .offline-banner-yellow {
+    background: #78350f;
+    color: #fef3c7;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+
+  /* ── Bouton flottant feedback ── */
+  .fab-feedback {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: var(--z-sticky);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent, #4A90D9);
+    color: #fff;
+    border: none;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,.35);
+    transition: transform .15s, box-shadow .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .fab-feedback:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(0,0,0,.45); }
+
+  /* ── Mini-modale feedback ── */
+  .fab-feedback-modal {
+    position: fixed;
+    bottom: 70px;
+    right: 20px;
+    z-index: var(--z-sticky);
+    width: 300px;
+    background: var(--bg-modal, #1e1f21);
+    border: 1px solid var(--border, rgba(255,255,255,.08));
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+  }
+  .fab-fb-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .fab-fb-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+  .fab-fb-close { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
+  .fab-fb-types { display: flex; gap: 4px; margin-bottom: 8px; }
+  .fab-fb-type {
+    flex: 1; padding: 5px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    background: rgba(255,255,255,.05); color: var(--text-secondary);
+    border: 1px solid rgba(255,255,255,.08); cursor: pointer; transition: all .12s;
+  }
+  .fab-fb-type.active { background: var(--accent-subtle); color: var(--accent); border-color: var(--accent); }
+  .fab-fb-textarea {
+    width: 100%; background: var(--bg-input); border: 1px solid var(--border-input);
+    border-radius: 8px; padding: 8px 10px; color: var(--text-primary); font-size: 12px;
+    margin-bottom: 8px; font-family: inherit; resize: vertical; box-sizing: border-box;
+  }
+  .fab-fb-submit {
+    width: 100%; padding: 7px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    background: var(--accent); color: #fff; border: none; cursor: pointer;
+  }
+  .fab-fb-submit:disabled { opacity: .4; cursor: not-allowed; }
+
+  .fab-modal-fade-enter-active { transition: opacity .15s ease, transform .15s ease; }
+  .fab-modal-fade-leave-active { transition: opacity .1s ease, transform .1s ease; }
+  .fab-modal-fade-enter-from { opacity: 0; transform: translateY(8px); }
+  .fab-modal-fade-leave-to   { opacity: 0; transform: translateY(8px); }
 </style>

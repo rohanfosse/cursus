@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref, computed, onMounted } from 'vue'
   import { useRouter } from 'vue-router'
   import { useAppStore } from '@/stores/app'
   import { avatarColor }  from '@/utils/format'
@@ -18,6 +18,7 @@
   const loginErr   = ref('')
   const submitting = ref(false)
   const showPwd    = ref(false)
+  const rememberMe = ref(!!localStorage.getItem('cc_remember_token'))
 
   async function handleLogin() {
     loginErr.value   = ''
@@ -31,6 +32,11 @@
       }
       const u = res.data as LoginResponse
       appStore.login({ ...u, avatar_initials: u.avatar_initials ?? u.name.slice(0, 2).toUpperCase() })
+      if (rememberMe.value) {
+        localStorage.setItem('cc_remember_token', JSON.stringify({ email: email.value.trim(), ts: Date.now() }))
+      } else {
+        localStorage.removeItem('cc_remember_token')
+      }
       router.replace('/messages')
     } catch (e: unknown) {
       const msg = (e as Error)?.message ?? ''
@@ -60,6 +66,23 @@
     promotions.value = res?.ok ? res.data : []
     screen.value = 'register'
   }
+
+  // Auto-fill email from remembered session (expires after 7 days)
+  onMounted(() => {
+    try {
+      const raw = localStorage.getItem('cc_remember_token')
+      if (raw) {
+        const { email: savedEmail, ts } = JSON.parse(raw)
+        const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000
+        if (Date.now() - ts < SEVEN_DAYS) {
+          email.value = savedEmail
+          rememberMe.value = true
+        } else {
+          localStorage.removeItem('cc_remember_token')
+        }
+      }
+    } catch { localStorage.removeItem('cc_remember_token') }
+  })
 
   const previewInitials = () => {
     const n = `${firstName.value} ${lastName.value}`.trim()
@@ -186,6 +209,11 @@
                 </button>
               </div>
             </div>
+
+            <label class="auth-remember">
+              <input v-model="rememberMe" type="checkbox" class="auth-remember-check" />
+              <span>Se souvenir de moi</span>
+            </label>
 
             <Transition name="err-pop">
               <div v-if="loginErr" class="auth-error">{{ loginErr }}</div>
@@ -494,6 +522,23 @@
   transition: opacity .12s;
 }
 .auth-pwd-toggle:hover { opacity: 1; }
+
+/* ── Se souvenir de moi ── */
+.auth-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.auth-remember-check {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent, #4A90D9);
+  cursor: pointer;
+}
 
 /* ── Erreur ── */
 .auth-forgot {

@@ -152,6 +152,10 @@ const dateGroups = computed<DateGroup[]>(() => {
     <!-- Squelette de chargement -->
     <Transition name="skel-fade">
       <div v-if="store.loading" class="skel-container">
+        <div class="skel-loading-hint">
+          <span class="skel-spinner" />
+          <span>Chargement des messages...</span>
+        </div>
         <div v-for="i in 6" :key="i" class="skel-msg-row">
           <div class="skel skel-avatar" />
           <div class="skel-msg-body">
@@ -347,6 +351,16 @@ const dateGroups = computed<DateGroup[]>(() => {
 
 /* ── Skeleton fade ── */
 .skel-container { display: flex; flex-direction: column; gap: 14px; padding: 20px 16px; }
+.skel-loading-hint {
+  display: flex; align-items: center; gap: 8px; justify-content: center;
+  font-size: 12px; color: var(--text-muted); padding: 8px 0;
+}
+.skel-spinner {
+  width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.15);
+  border-top-color: var(--accent, #4a90d9); border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 .skel-fade-enter-active { transition: opacity .2s ease; }
 .skel-fade-leave-active { transition: opacity .15s ease; position: absolute; width: 100%; top: 0; left: 0; }
 .skel-fade-enter-from, .skel-fade-leave-to { opacity: 0; }
