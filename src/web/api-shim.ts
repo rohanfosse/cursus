@@ -33,7 +33,7 @@ function connectSocket(token: string): void {
   socket?.disconnect()
   socket = io(SERVER_URL, {
     auth: { token },
-    transports: ['websocket', 'polling'],
+    transports: ['polling', 'websocket'],
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 30000,
