@@ -6,6 +6,7 @@ import {
   Award, TrendingUp, FolderOpen, CalendarDays, BarChart2,
   PlusCircle, Menu, GraduationCap, Settings,
   MessageSquare, Bookmark, Trash2,
+  AtSign, CalendarClock, EyeOff, Mic, FileQuestion,
 } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
@@ -98,6 +99,7 @@ onMounted(async () => {
       allStudents.value = studData ?? []
       ganttAll.value    = ganttData ?? []
       loadReminders()
+      checkDevoirsResources()
       // Charger les rendus pour la tendance sur l'accueil
       if (promos.value.length) {
         const pid = appStore.activePromoId ?? promos.value[0]?.id
@@ -333,6 +335,101 @@ function onStorageChange(e: StorageEvent) {
 }
 if (typeof window !== 'undefined') window.addEventListener('storage', onStorageChange)
 onUnmounted(() => window.removeEventListener('storage', onStorageChange))
+
+// ── Widget : Derniers messages de canal ───────────────────────────────────────
+const recentChannelActivity = computed(() =>
+  appStore.notificationHistory
+    .filter(n => n.channelId != null && !n.dmStudentId)
+    .slice(0, 5),
+)
+
+function goToChannel(channelId: number, channelName: string) {
+  const promo = appStore.activePromoId ?? promos.value[0]?.id ?? 0
+  appStore.openChannel(channelId, promo, channelName)
+  router.push('/messages')
+}
+
+// ── Widget : Mentions @ non lues ─────────────────────────────────────────────
+const unreadMentions = computed(() =>
+  appStore.notificationHistory
+    .filter(n => n.isMention && !n.read)
+    .slice(0, 5),
+)
+
+const totalUnreadMentions = computed(() =>
+  appStore.notificationHistory.filter(n => n.isMention && !n.read).length,
+)
+
+// ── Widget : Prochaines 48h ──────────────────────────────────────────────────
+interface AgendaItem {
+  id: number | string
+  type: 'deadline' | 'reminder' | 'soutenance'
+  title: string
+  time: string
+  room: string | null
+  channelName: string | null
+}
+
+const next48h = computed((): AgendaItem[] => {
+  const now = Date.now()
+  const limit = now + 48 * 3600_000
+
+  const deadlines: AgendaItem[] = ganttFiltered.value
+    .filter(t => t.published && new Date(t.deadline).getTime() > now && new Date(t.deadline).getTime() <= limit)
+    .map(t => ({
+      id: t.id,
+      type: t.type === 'soutenance' ? 'soutenance' : 'deadline',
+      title: t.title,
+      time: t.deadline,
+      room: (t as { room?: string | null }).room ?? null,
+      channelName: t.channel_name,
+    }))
+
+  const reminders: AgendaItem[] = allReminders.value
+    .filter(r => !r.done && new Date(r.date).getTime() > now && new Date(r.date).getTime() <= limit)
+    .map(r => ({
+      id: `rem-${r.id}`,
+      type: 'reminder' as const,
+      title: r.title,
+      time: r.date,
+      room: null,
+      channelName: null,
+    }))
+
+  return [...deadlines, ...reminders].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+})
+
+// ── Widget : Brouillons oubliés ──────────────────────────────────────────────
+const forgottenDrafts = computed(() => {
+  const now = Date.now()
+  const week = 7 * 86_400_000
+  return ganttFiltered.value
+    .filter(t => !t.published && new Date(t.deadline).getTime() > now && new Date(t.deadline).getTime() < now + week)
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+})
+
+async function publishDraft(travailId: number) {
+  const result = await api(() => window.api.updateTravailPublished({ travailId, published: true }))
+  if (result !== null) {
+    showToast('Devoir publié.', 'success')
+    await reloadPromos()
+  }
+}
+
+// ── Widget : Devoirs sans ressources ─────────────────────────────────────────
+const devoirsWithoutResources = ref<typeof ganttFiltered.value>([])
+
+async function checkDevoirsResources() {
+  const published = ganttFiltered.value.filter(t => t.published).slice(0, 20)
+  const missing: typeof ganttFiltered.value = []
+  for (const t of published) {
+    const data = await api<{ id: number }[]>(
+      () => window.api.getRessources(t.id) as Promise<{ ok: boolean; data?: { id: number }[] }>,
+    )
+    if (!data || data.length === 0) missing.push(t)
+  }
+  devoirsWithoutResources.value = missing
+}
 
 // ── Projets prof ─────────────────────────────────────────────────────────────
 const projectCards = computed((): ProjectCard[] => {
@@ -1003,6 +1100,123 @@ function onMilestoneClick(ms: FriseMilestone) {
           <span v-if="savedMessages.length > 5" class="db-saved-more">
             +{{ savedMessages.length - 5 }} autre{{ savedMessages.length - 5 > 1 ? 's' : '' }}
           </span>
+        </div>
+
+        <!-- ── Widgets Communication + Organisation (grille) ── -->
+        <div v-if="unreadMentions.length || recentChannelActivity.length || next48h.length || forgottenDrafts.length || devoirsWithoutResources.length" class="db-widgets-grid">
+
+          <!-- Mentions @ non lues -->
+          <div v-if="unreadMentions.length" class="db-widget">
+            <h4 class="db-section-title">
+              <AtSign :size="14" /> Mentions
+              <span class="db-badge-count">{{ totalUnreadMentions }}</span>
+            </h4>
+            <div class="db-widget-list">
+              <button
+                v-for="m in unreadMentions"
+                :key="m.id"
+                class="db-widget-item db-widget-item--mention"
+                @click="goToChannel(m.channelId!, m.channelName)"
+              >
+                <div class="db-widget-avatar" :style="{ background: avatarColor(m.authorName) }">
+                  {{ m.authorName.slice(0, 2).toUpperCase() }}
+                </div>
+                <div class="db-widget-body">
+                  <span class="db-widget-title">{{ m.authorName }}</span>
+                  <span class="db-widget-sub">#{{ m.channelName }}</span>
+                </div>
+                <ChevronRight :size="12" class="db-widget-arrow" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Derniers messages de canal -->
+          <div v-if="recentChannelActivity.length" class="db-widget">
+            <h4 class="db-section-title"><MessageSquare :size="14" /> Activité des canaux</h4>
+            <div class="db-widget-list">
+              <button
+                v-for="n in recentChannelActivity"
+                :key="n.id"
+                class="db-widget-item"
+                @click="goToChannel(n.channelId!, n.channelName)"
+              >
+                <div class="db-widget-avatar" :style="{ background: avatarColor(n.authorName) }">
+                  {{ n.authorName.slice(0, 2).toUpperCase() }}
+                </div>
+                <div class="db-widget-body">
+                  <span class="db-widget-title">{{ n.authorName }} <span class="db-widget-channel">#{{ n.channelName }}</span></span>
+                  <span class="db-widget-time">{{ new Date(n.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}</span>
+                </div>
+                <span v-if="!n.read" class="db-widget-dot" />
+                <ChevronRight :size="12" class="db-widget-arrow" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Prochaines 48h -->
+          <div v-if="next48h.length" class="db-widget">
+            <h4 class="db-section-title"><CalendarClock :size="14" /> Prochaines 48h</h4>
+            <div class="db-widget-list">
+              <button
+                v-for="item in next48h"
+                :key="item.id"
+                class="db-widget-item"
+                @click="typeof item.id === 'number' ? (appStore.currentTravailId = item.id, modals.gestionDevoir = true) : null"
+              >
+                <span class="db-agenda-icon" :class="'db-agenda-' + item.type">
+                  <Mic v-if="item.type === 'soutenance'" :size="12" />
+                  <Clock v-else-if="item.type === 'deadline'" :size="12" />
+                  <CheckCircle2 v-else :size="12" />
+                </span>
+                <div class="db-widget-body">
+                  <span class="db-widget-title">{{ item.title }}</span>
+                  <span class="db-widget-sub">
+                    {{ new Date(item.time).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) }}
+                    à {{ new Date(item.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}
+                    <template v-if="item.room"> · Salle {{ item.room }}</template>
+                  </span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Brouillons oubliés -->
+          <div v-if="forgottenDrafts.length" class="db-widget">
+            <h4 class="db-section-title"><EyeOff :size="14" /> Brouillons à publier</h4>
+            <div class="db-widget-list">
+              <div v-for="t in forgottenDrafts" :key="t.id" class="db-widget-item db-widget-item--draft">
+                <span class="db-agenda-icon db-agenda-draft"><FileText :size="12" /></span>
+                <div class="db-widget-body">
+                  <span class="db-widget-title">{{ t.title }}</span>
+                  <span class="db-widget-sub">
+                    Deadline {{ deadlineLabel(t.deadline) }}
+                    <span v-if="new Date(t.deadline).getTime() - Date.now() < 2 * 86_400_000" class="db-draft-urgent">urgent</span>
+                  </span>
+                </div>
+                <button class="db-draft-publish" @click.stop="publishDraft(t.id)">Publier</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Devoirs sans ressources -->
+          <div v-if="devoirsWithoutResources.length" class="db-widget">
+            <h4 class="db-section-title"><FileQuestion :size="14" /> Devoirs sans ressources</h4>
+            <div class="db-widget-list">
+              <button
+                v-for="t in devoirsWithoutResources"
+                :key="t.id"
+                class="db-widget-item"
+                @click="appStore.currentTravailId = t.id; modals.gestionDevoir = true"
+              >
+                <span class="db-agenda-icon db-agenda-resource"><FileQuestion :size="12" /></span>
+                <div class="db-widget-body">
+                  <span class="db-widget-title">{{ t.title }}</span>
+                  <span class="db-widget-sub">#{{ t.channel_name }} · Aucune ressource jointe</span>
+                </div>
+                <ChevronRight :size="12" class="db-widget-arrow" />
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Rappels prof (échéancier) -->
@@ -2614,6 +2828,74 @@ function onMilestoneClick(ms: FriseMilestone) {
 .db-saved-item:hover .db-saved-remove { opacity: 1; }
 .db-saved-remove:hover { color: var(--color-danger); background: rgba(231,76,60,.1); }
 .db-saved-more { font-size: 11.5px; color: var(--text-muted); padding: 4px 0; }
+
+/* ── Grille des widgets communication + organisation ── */
+.db-widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+@media (max-width: 700px) { .db-widgets-grid { grid-template-columns: 1fr; } }
+
+.db-widget {
+  background: var(--bg-elevated, rgba(255,255,255,.04));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+.db-widget-list { display: flex; flex-direction: column; gap: 3px; }
+.db-widget-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: 7px;
+  cursor: pointer; transition: background .12s;
+  background: none; border: none; width: 100%;
+  text-align: left; font-family: var(--font); color: var(--text-primary);
+}
+.db-widget-item:hover { background: rgba(255,255,255,.06); }
+.db-widget-item--mention { border-left: 2px solid var(--accent); }
+.db-widget-item--draft { border-left: 2px solid var(--color-warning); }
+
+.db-widget-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9.5px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.db-widget-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.db-widget-title { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db-widget-sub   { font-size: 11px; color: var(--text-muted); }
+.db-widget-time  { font-size: 10.5px; color: var(--text-muted); }
+.db-widget-channel { font-weight: 400; color: var(--text-muted); font-size: 11px; }
+.db-widget-arrow { color: var(--text-muted); flex-shrink: 0; opacity: 0; transition: opacity .12s; }
+.db-widget-item:hover .db-widget-arrow { opacity: 1; }
+.db-widget-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0;
+}
+
+/* ── Agenda icons ── */
+.db-agenda-icon {
+  width: 26px; height: 26px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.db-agenda-deadline   { background: rgba(74,144,217,.15); color: var(--accent); }
+.db-agenda-soutenance { background: rgba(139,92,246,.15); color: #8b5cf6; }
+.db-agenda-reminder   { background: rgba(34,197,94,.15); color: #22c55e; }
+.db-agenda-draft      { background: rgba(245,158,11,.15); color: #f59e0b; }
+.db-agenda-resource   { background: rgba(107,114,128,.15); color: #6b7280; }
+
+/* ── Bouton publier (brouillons) ── */
+.db-draft-publish {
+  font-size: 11px; font-weight: 600; font-family: var(--font);
+  padding: 3px 10px; border-radius: 5px;
+  background: var(--accent); color: #fff;
+  border: none; cursor: pointer; flex-shrink: 0;
+  transition: filter .12s;
+}
+.db-draft-publish:hover { filter: brightness(1.12); }
+.db-draft-urgent {
+  color: var(--color-danger); font-weight: 700; font-size: 10px;
+  text-transform: uppercase; margin-left: 4px;
+}
 
 /* ── Frise interactivité ── */
 .frise-interactive { cursor: grab; user-select: none; }
