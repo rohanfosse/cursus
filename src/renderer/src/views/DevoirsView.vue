@@ -95,6 +95,20 @@ async function publishDevoir(id: number, event: Event) {
   } catch { showToast('Erreur.', 'error') }
 }
 
+async function publishAllDrafts() {
+  const drafts = unifiedFlat.value.filter(t => !t.is_published)
+  if (!drafts.length) return
+  let count = 0
+  for (const d of drafts) {
+    try {
+      await window.api.updateTravailPublished({ travailId: d.id, published: true })
+      count++
+    } catch {}
+  }
+  showToast(`${count} devoir${count > 1 ? 's' : ''} publié${count > 1 ? 's' : ''}.`, 'success')
+  loadView()
+}
+
 function addDevoirOfType(type: string) {
   // Pré-sélectionner le type dans la modale
   appStore.pendingDevoirType = type
@@ -1069,6 +1083,9 @@ function typeLabel(t: string): string {
               <span v-if="projectNextDeadline(appStore.activeProject)" class="proj-summary-stat">
                 <Clock :size="11" /> {{ deadlineLabel(projectNextDeadline(appStore.activeProject)!) }}
               </span>
+              <button v-if="projectStats(appStore.activeProject).drafts > 0" class="proj-summary-publish-btn" @click="publishAllDrafts">
+                <Eye :size="12" /> Publier les {{ projectStats(appStore.activeProject).drafts }} brouillon{{ projectStats(appStore.activeProject).drafts > 1 ? 's' : '' }}
+              </button>
             </div>
           </div>
 
@@ -1596,6 +1613,14 @@ function typeLabel(t: string): string {
 .proj-summary-progress-bar { width: 80px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; }
 .proj-summary-progress-fill { height: 100%; background: var(--color-success); border-radius: 3px; }
 .proj-summary-pct { font-weight: 600; }
+.proj-summary-publish-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
+  background: rgba(46,204,113,.1); color: var(--color-success);
+  border: 1px solid rgba(46,204,113,.25); cursor: pointer; font-family: var(--font);
+  transition: all var(--t-fast);
+}
+.proj-summary-publish-btn:hover { background: rgba(46,204,113,.2); }
 .proj-summary-stat { display: flex; align-items: center; gap: 3px; }
 
 /* ── Sessions ── */

@@ -118,6 +118,28 @@
     editingDesc.value = true
   }
 
+  // ── Parser description structurée ────────────────────────────────────────
+  const parsedDesc = computed(() => {
+    const desc = travail.value?.description ?? ''
+    if (!desc) return null
+    const fields: { label: string; value: string; icon?: string }[] = []
+    const sessionMatch = desc.match(/\*\*Session\s+(\w+)\*\*/)
+    if (sessionMatch) fields.push({ label: 'Session', value: sessionMatch[1], icon: sessionMatch[1] === 'Rattrapage' ? '🔄' : '📝' })
+    const dureeMatch = desc.match(/Durée\s*:\s*(\d+)\s*min/i)
+    if (dureeMatch) fields.push({ label: 'Durée', value: dureeMatch[1] + ' min', icon: '⏱' })
+    const formatMatch = desc.match(/Format\s*:\s*(.+)/i)
+    if (formatMatch) fields.push({ label: 'Format', value: formatMatch[1].trim(), icon: '📋' })
+    if (/Calculatrice autorisée/i.test(desc)) fields.push({ label: 'Calculatrice', value: 'Autorisée', icon: '🧮' })
+    else if (/Calculatrice non/i.test(desc)) fields.push({ label: 'Calculatrice', value: 'Non autorisée', icon: '🚫' })
+    const resMatch = desc.match(/(?:Aucune ressource|Ressources?\s*:\s*(.+))/i)
+    if (resMatch) fields.push({ label: 'Ressources', value: resMatch[1] || 'Aucune', icon: '📚' })
+    const salleMatch = desc.match(/Salle\s*:\s*(.+)/i)
+    if (salleMatch) fields.push({ label: 'Salle', value: salleMatch[1].trim(), icon: '🏫' })
+    const horaireMatch = desc.match(/Horaire\s*:\s*(.+)/i)
+    if (horaireMatch) fields.push({ label: 'Horaire', value: horaireMatch[1].trim(), icon: '🕐' })
+    return fields.length > 0 ? fields : null
+  })
+
   // ── Notifier les étudiants ────────────────────────────────────────────────
   async function notifyStudents() {
     if (!travail.value) return
@@ -235,11 +257,28 @@
         <!-- Carte Consignes / Description -->
         <div class="gd-card">
           <span class="gd-card-label">Consignes</span>
-          <div v-if="!editingDesc" class="gd-description" @click="startEditDesc" title="Cliquer pour modifier">
-            <pre class="gd-desc-pre">{{ travail.description || 'Aucune description — cliquez pour en ajouter.' }}</pre>
-          </div>
+
+          <!-- Vue structurée si la description est parsable -->
+          <template v-if="parsedDesc && !editingDesc">
+            <div class="gd-parsed-fields">
+              <div v-for="f in parsedDesc" :key="f.label" class="gd-parsed-field">
+                <span class="gd-parsed-icon">{{ f.icon }}</span>
+                <span class="gd-parsed-label">{{ f.label }}</span>
+                <span class="gd-parsed-value">{{ f.value }}</span>
+              </div>
+            </div>
+            <button class="gd-link-btn" style="margin-top:6px" @click="startEditDesc">Modifier la description</button>
+          </template>
+
+          <!-- Vue texte brut (non structuré ou édition) -->
+          <template v-else-if="!editingDesc">
+            <div class="gd-description" @click="startEditDesc" title="Cliquer pour modifier">
+              <pre class="gd-desc-pre">{{ travail.description || 'Aucune description — cliquez pour en ajouter.' }}</pre>
+            </div>
+          </template>
+
           <div v-else class="gd-desc-edit">
-            <textarea v-model="descDraft" class="gd-desc-textarea" rows="3" />
+            <textarea v-model="descDraft" class="gd-desc-textarea" rows="4" />
             <div class="gd-desc-edit-actions">
               <button class="btn-ghost" style="font-size:11px" @click="editingDesc = false">Annuler</button>
               <button class="btn-primary" style="font-size:11px;padding:3px 10px" @click="editingDesc = false; showToast('Description mise à jour.', 'success')">OK</button>
@@ -306,9 +345,12 @@
           <div class="gd-column">
             <div class="gd-column-header"><CheckCircle2 :size="14" style="color:var(--color-success)" /> Rendus ({{ submittedDepots.length }})</div>
             <div class="gd-column-body">
-              <div v-for="d in submittedDepots" :key="d.id" class="gd-student-row">
+              <div v-for="d in submittedDepots" :key="d.id" class="gd-student-row gd-student-row--rich">
                 <div class="avatar" :style="{ background: avatarColor(d.student_name), width:'24px', height:'24px', fontSize:'9px', borderRadius:'5px' }">{{ initials(d.student_name) }}</div>
-                <span class="gd-student-name">{{ d.student_name }}</span>
+                <div class="gd-student-info">
+                  <span class="gd-student-name">{{ d.student_name }}</span>
+                  <span v-if="d.feedback" class="gd-student-feedback">{{ d.feedback }}</span>
+                </div>
                 <span v-if="d.note" class="gd-grade" :class="gradeClass(d.note)">{{ formatGrade(d.note) }}</span>
                 <span v-else class="gd-no-grade">—</span>
               </div>
@@ -407,6 +449,21 @@
 .gd-field-value { font-size: 13px; color: var(--text-primary); }
 .gd-desc-pre { font-family: var(--font); font-size: 13px; white-space: pre-wrap; line-height: 1.5; margin: 0; color: var(--text-secondary); }
 
+/* Champs parsés structurés */
+.gd-parsed-fields {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+}
+.gd-parsed-field {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 6px;
+  background: rgba(255,255,255,.03); font-size: 13px;
+}
+.gd-parsed-icon { font-size: 14px; flex-shrink: 0; }
+.gd-parsed-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .3px; min-width: 55px; }
+.gd-parsed-value { color: var(--text-primary); font-weight: 500; }
+
+@media (max-width: 450px) { .gd-parsed-fields { grid-template-columns: 1fr; } }
+
 @media (max-width: 500px) { .gd-card-grid { grid-template-columns: 1fr; } }
 .gd-extend-btns { display: inline-flex; gap: 3px; margin-left: 4px; }
 .gd-extend-btn {
@@ -496,7 +553,10 @@
 .gd-column-body { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; flex: 1; }
 .gd-student-row { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 5px; }
 .gd-student-row:hover { background: rgba(255,255,255,.04); }
-.gd-student-name { font-size: 12px; font-weight: 500; color: var(--text-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gd-student-row--rich { align-items: flex-start; }
+.gd-student-info { flex: 1; min-width: 0; }
+.gd-student-name { font-size: 12px; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.gd-student-feedback { font-size: 10px; color: var(--text-muted); font-style: italic; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
 .gd-grade { font-size: 12px; font-weight: 800; width: 20px; text-align: center; }
 .gd-grade.grade-a { color: var(--color-success); }
 .gd-grade.grade-b { color: #27ae60; }
