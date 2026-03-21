@@ -15,11 +15,22 @@ function getProjectDocuments(promoId, project) {
   `).all(promoId);
 }
 
-// Alias kept for IPC backwards compat
+// Retourne les documents du canal + ceux du projet associé au canal
 function getChannelDocuments(channelId) {
-  return getDb().prepare(`
+  const db = getDb()
+  // Récupérer la catégorie (projet) et promo du canal
+  const ch = db.prepare('SELECT promo_id, category FROM channels WHERE id = ?').get(channelId)
+  if (ch?.category) {
+    // Documents du canal OU du même projet (catégorie)
+    return db.prepare(`
+      SELECT *, path_or_url AS content FROM channel_documents
+      WHERE channel_id = ? OR (promo_id = ? AND project = ?)
+      ORDER BY category ASC, created_at ASC
+    `).all(channelId, ch.promo_id, ch.category)
+  }
+  return db.prepare(`
     SELECT *, path_or_url AS content FROM channel_documents WHERE channel_id = ? ORDER BY category ASC, created_at ASC
-  `).all(channelId);
+  `).all(channelId)
 }
 
 function getPromoDocuments(promoId) {
