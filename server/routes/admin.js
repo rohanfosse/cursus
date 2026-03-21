@@ -54,9 +54,20 @@ router.get('/monitor', (req, res) => {
     swap = { total: Number(parts[1]), used: Number(parts[2]), free: Number(parts[3]) }
   }
 
+  // Docker containers
+  const dockerRaw = run('docker ps --format "{{.Names}}\\t{{.Status}}\\t{{.Image}}\\t{{.Ports}}" 2>/dev/null')
+  let docker = []
+  if (dockerRaw) {
+    docker = dockerRaw.split('\n').filter(Boolean).map(line => {
+      const [name, status, image, ports] = line.split('\t')
+      return { name, status, image, ports: ports || '' }
+    })
+  }
+
+  // Fallback PM2 (si Docker n'est pas dispo)
   const pm2Raw = run('pm2 jlist 2>/dev/null')
   let pm2 = []
-  if (pm2Raw) {
+  if (pm2Raw && !docker.length) {
     try {
       pm2 = JSON.parse(pm2Raw).map(p => ({
         name: p.name, status: p.pm2_env?.status, cpu: p.monit?.cpu,
@@ -117,7 +128,7 @@ router.get('/monitor', (req, res) => {
       system: { hostname: os.hostname(), platform: os.platform(), arch: os.arch(), nodeVersion: process.version, uptime, loadAvg: loadAvg.map(l => Math.round(l * 100) / 100) },
       cpu: { cores: cpus.length, model: cpus[0]?.model, usage: cpuUsage },
       memory: { total: totalMem, used: totalMem - freeMem, free: freeMem, percent: Math.round(((totalMem - freeMem) / totalMem) * 100) },
-      swap, disk, pm2,
+      swap, disk, docker, pm2,
       git: { commit: gitCommit, branch: gitBranch, message: gitMessage, date: gitDate },
       services: { nginx, fail2ban, ssh: sshd, ufw },
       security: { bannedIPs, certs },
@@ -664,23 +675,13 @@ router.post('/git-pull', (req, res) => {
   }
 })
 
-router.post('/pm2-restart', (req, res) => {
+router.post('/docker-rebuild', (req, res) => {
   try {
-    const name = req.body?.name || 'all'
-    if (!/^[a-zA-Z0-9_-]+$/.test(name) && name !== 'all') {
-      return res.status(400).json({ ok: false, error: 'Nom de processus invalide.' })
-    }
-    // --no-color pour éviter les codes ANSI, --silent pour réduire le bruit
-    let output = ''
-    try {
-      output = execSync(`pm2 restart ${name} --no-color 2>&1`, { encoding: 'utf8', timeout: 15000 }).trim()
-    } catch (e) {
-      // PM2 peut retourner un exit code non-0 même en cas de succès (messages d'info)
-      output = (e.stdout || e.stderr || e.message || '').replace(/\x1B\[[0-9;]*m/g, '').trim()
-    }
-    // Si le output contient "Applying action" ou "restarted", c'est un succès
-    const success = output.includes('restart') || output.includes('Applying') || output.includes('online')
-    res.json({ ok: true, data: { output: output.replace(/\x1B\[[0-9;]*m/g, ''), success } })
+    const output = execSync(
+      'cd /opt/cursus && docker compose build --no-cache 2>&1 && docker compose up -d --force-recreate 2>&1 && docker image prune -f 2>&1',
+      { encoding: 'utf8', timeout: 300000 },
+    ).trim()
+    res.json({ ok: true, data: { output } })
   } catch (err) {
     const msg = (err.stderr || err.stdout || err.message || '').replace(/\x1B\[[0-9;]*m/g, '')
     res.status(500).json({ ok: false, error: msg })

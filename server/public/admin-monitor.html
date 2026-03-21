@@ -620,17 +620,25 @@ function renderServer(d) {
       `).join('') : '<div class="card-sub">Aucun certificat d\u00e9tect\u00e9</div>'}
     </div>
     <div class="card wide">
-      <div class="card-title">Processus PM2</div>
-      <table class="data-table">
-        <tr><th>Nom</th><th>Status</th><th>CPU</th><th>RAM</th><th>Uptime</th><th>Restarts</th><th>PID</th></tr>
+      <div class="card-title">Container Docker</div>
+      ${d.docker ? `<table class="data-table">
+        <tr><th>Nom</th><th>Status</th><th>Image</th><th>Ports</th><th>Uptime</th></tr>
+        ${d.docker.map(c => `<tr>
+          <td><strong>${escHtml(c.name)}</strong></td>
+          <td><span class="badge ${c.status.includes('Up') ? 'online' : 'stopped'}">${escHtml(c.status)}</span></td>
+          <td style="color:var(--text-secondary)">${escHtml(c.image)}</td>
+          <td style="color:var(--text-secondary)">${escHtml(c.ports)}</td>
+          <td>${escHtml(c.uptime || '\u2014')}</td>
+        </tr>`).join('')}
+      </table>` : d.pm2?.length ? `<table class="data-table">
+        <tr><th>Nom</th><th>Status</th><th>CPU</th><th>RAM</th><th>Uptime</th><th>Restarts</th></tr>
         ${d.pm2.map(p => `<tr>
           <td><strong>${escHtml(p.name)}</strong></td>
           <td><span class="badge ${p.status}">${p.status}</span></td>
           <td>${p.cpu ?? 0}%</td><td>${fmtBytes(p.memory)}</td>
           <td>${fmtDuration(p.uptime / 1000)}</td><td>${p.restart}</td>
-          <td style="color:var(--text-muted)">${p.pid}</td>
         </tr>`).join('')}
-      </table>
+      </table>` : '<div class="card-sub">Aucun processus d\u00e9tect\u00e9</div>'}
     </div>
     <div class="card wide">
       <div class="card-title">D\u00e9ploiement Git</div>
@@ -1519,7 +1527,7 @@ async function purgeOldData() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// DÉPLOIEMENT — Git, PM2 & Nginx
+// DÉPLOIEMENT — Git, Docker & Nginx
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function loadDeploy() {
@@ -1565,16 +1573,16 @@ async function loadDeploy() {
       </div>
 
       <div class="card">
-        <div class="card-title">PM2 — Red\u00e9marrage</div>
-        <div class="card-sub" style="margin-bottom:1rem">Red\u00e9marrer les processus PM2 apr\u00e8s un pull pour appliquer les changements.</div>
+        <div class="card-title">Docker — Rebuild & Restart</div>
+        <div class="card-sub" style="margin-bottom:1rem">Rebuilder l'image Docker et relancer le container apr\u00e8s un pull.</div>
 
         <div style="display:flex;gap:.75rem;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="pm2Restart('all')">
-            Restart All
+          <button class="btn btn-primary" onclick="dockerRebuild()">
+            Rebuild & Restart
           </button>
         </div>
 
-        <div id="pm2-output" style="margin-top:1rem;display:none"></div>
+        <div id="docker-output" style="margin-top:1rem;display:none"></div>
       </div>
 
       <div class="card">
@@ -1586,28 +1594,26 @@ async function loadDeploy() {
     </div>
 
     <div class="card wide" style="margin-top:1rem">
-      <div class="card-title">Processus PM2</div>
-      <div id="deploy-pm2-list">Chargement...</div>
+      <div class="card-title">Container Docker</div>
+      <div id="deploy-docker-list">Chargement...</div>
     </div>`
 
-  // Charger la liste PM2 depuis le monitor
+  // Charger le statut Docker depuis le monitor
   try {
     const mJson = await apiFetch('/api/admin/monitor')
-    if (mJson?.ok && mJson.data.pm2?.length) {
-      const pm2El = document.getElementById('deploy-pm2-list')
-      pm2El.innerHTML = `<table class="data-table">
-        <tr><th>Nom</th><th>Status</th><th>CPU</th><th>RAM</th><th>Restarts</th><th>Actions</th></tr>
-        ${mJson.data.pm2.map(p => `<tr>
-          <td><strong>${escHtml(p.name)}</strong></td>
-          <td><span class="badge ${p.status}">${p.status}</span></td>
-          <td>${p.cpu ?? 0}%</td>
-          <td>${fmtBytes(p.memory)}</td>
-          <td>${p.restart}</td>
-          <td><button class="btn btn-sm" style="background:var(--orange);color:#fff" onclick="pm2Restart('${escHtml(p.name)}')">Restart</button></td>
+    const dockerEl = document.getElementById('deploy-docker-list')
+    if (mJson?.ok && mJson.data.docker?.length) {
+      dockerEl.innerHTML = `<table class="data-table">
+        <tr><th>Nom</th><th>Status</th><th>Image</th><th>Ports</th></tr>
+        ${mJson.data.docker.map(c => `<tr>
+          <td><strong>${escHtml(c.name)}</strong></td>
+          <td><span class="badge ${c.status.includes('Up') ? 'online' : 'stopped'}">${escHtml(c.status)}</span></td>
+          <td style="color:var(--text-secondary)">${escHtml(c.image)}</td>
+          <td style="color:var(--text-secondary)">${escHtml(c.ports)}</td>
         </tr>`).join('')}
       </table>`
     } else {
-      document.getElementById('deploy-pm2-list').innerHTML = '<div class="card-sub">Aucun processus PM2 d\u00e9tect\u00e9</div>'
+      dockerEl.innerHTML = '<div class="card-sub">Aucun container Docker d\u00e9tect\u00e9</div>'
     }
   } catch {}
 }
@@ -1633,21 +1639,21 @@ async function gitPull() {
   }
 }
 
-async function pm2Restart(name) {
-  if (!confirm(`Red\u00e9marrer ${name === 'all' ? 'tous les processus' : name} ?`)) return
-  const out = document.getElementById('pm2-output')
+async function dockerRebuild() {
+  if (!confirm('Rebuilder l\'image Docker et relancer le container ?')) return
+  const out = document.getElementById('docker-output')
   out.style.display = 'block'
-  out.innerHTML = '<div class="alert alert-info">Red\u00e9marrage en cours...</div>'
+  out.innerHTML = '<div class="alert alert-info">Rebuild en cours... (peut prendre 1-2 min)</div>'
 
-  const json = await apiFetch('/api/admin/pm2-restart', {
-    method: 'POST', body: JSON.stringify({ name }),
+  const json = await apiFetch('/api/admin/docker-rebuild', {
+    method: 'POST',
   })
   if (json?.ok) {
     out.innerHTML = `<div class="alert" style="background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.2);color:var(--green)">
-      <strong>Red\u00e9marrage effectu\u00e9</strong>
-      <pre style="margin-top:.5rem;font-size:.7rem;color:var(--text-secondary);white-space:pre-wrap;max-height:150px;overflow:auto">${escHtml(json.data.output)}</pre>
+      <strong>Rebuild termin\u00e9</strong>
+      <pre style="margin-top:.5rem;font-size:.7rem;color:var(--text-secondary);white-space:pre-wrap;max-height:150px;overflow:auto">${escHtml(json.data?.output || 'OK')}</pre>
     </div>`
-    setTimeout(loadDeploy, 2000)
+    setTimeout(loadDeploy, 3000)
   } else {
     out.innerHTML = `<div class="alert alert-danger">
       <strong>Erreur</strong>
