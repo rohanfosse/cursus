@@ -14,11 +14,11 @@
 </p>
 
 <p align="center">
-  <a href="https://cursus.devrohan.cloud">Site web</a>
-  &nbsp;&middot;&nbsp;
-  <a href="https://github.com/rohanfosse/slack-like-electron/issues">Issues</a>
-  &nbsp;&middot;&nbsp;
-  <a href="https://github.com/rohanfosse/slack-like-electron/releases">Releases</a>
+  <a href="https://cursus.devrohan.cloud"><img src="https://img.shields.io/badge/Site_web-cursus.devrohan.cloud-4f46e5?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Site web" /></a>
+  &nbsp;
+  <a href="https://github.com/rohanfosse/slack-like-electron/issues"><img src="https://img.shields.io/badge/Issues-GitHub-24292e?style=for-the-badge&logo=github&logoColor=white" alt="Issues" /></a>
+  &nbsp;
+  <a href="https://github.com/rohanfosse/slack-like-electron/releases"><img src="https://img.shields.io/badge/Releases-Télécharger-22c55e?style=for-the-badge&logo=windows&logoColor=white" alt="Releases" /></a>
 </p>
 
 <br />
