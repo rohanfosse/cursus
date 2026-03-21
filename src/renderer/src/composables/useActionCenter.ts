@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useAppStore }     from '@/stores/app'
 import { useModalsStore }  from '@/stores/modals'
 import { useTravauxStore } from '@/stores/travaux'
+import { MAX_ACTION_ITEMS, URGENCY_ORDER } from '@/constants'
 import type { Ref }        from 'vue'
 import type { GanttRow }   from './useDashboardTeacher'
 
@@ -82,11 +83,8 @@ export function useActionCenter(ganttFiltered: Ref<GanttRow[]>) {
     }
 
     return items
-      .sort((a, b) => {
-        const order = { critical: 0, warning: 1, info: 2 }
-        return order[a.urgency] - order[b.urgency]
-      })
-      .slice(0, 6)
+      .sort((a, b) => URGENCY_ORDER[a.urgency] - URGENCY_ORDER[b.urgency])
+      .slice(0, MAX_ACTION_ITEMS)
   })
 
   // ── Santé de la classe ────────────────────────────────────────────────────

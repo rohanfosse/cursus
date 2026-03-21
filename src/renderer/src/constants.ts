@@ -49,3 +49,20 @@ export const AUDIO_IDLE_TIMEOUT_MS = 30_000
 
 /** Limite de l'historique de notifications */
 export const NOTIFICATION_HISTORY_LIMIT = 50
+
+// ─── Constantes du dashboard enseignant ───────────────────────────────────────
+
+/** Nombre max d'éléments affichés dans les widgets */
+export const MAX_WIDGET_ITEMS = 5
+
+/** Nombre max d'actions dans le centre d'action */
+export const MAX_ACTION_ITEMS = 6
+
+/** Nombre max de taux de soumission affichés */
+export const MAX_SUBMISSION_RATES = 15
+
+/** Portée par défaut de la frise en jours */
+export const FRISE_DEFAULT_SPAN_DAYS = 120
+
+/** Ordre de priorité des urgences */
+export const URGENCY_ORDER = { critical: 0, warning: 1, info: 2 } as const

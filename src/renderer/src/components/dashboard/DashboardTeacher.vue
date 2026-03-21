@@ -139,6 +139,8 @@ const emit = defineEmits<{
   openGestionDevoir: [travailId: number]
   navigateDevoirs: []
   navigateMessages: []
+  setFriseZoom: [days: number]
+  'update:analyticsRange': [range: '7d' | '30d' | 'all']
 }>()
 
 type DashTabType = 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages'
@@ -229,6 +231,7 @@ function setTab(tab: DashTabType) {
       :global-mode-grade="globalModeGrade"
       :online-users-count="onlineUsersCount"
       :submission-trend="submissionTrend"
+      @update:analytics-range="range => emit('update:analyticsRange', range)"
     />
 
     <TabPromotions
@@ -256,6 +259,7 @@ function setTab(tab: DashTabType) {
       :project-cards="projectCards"
       :recent-rendus="recentRendus"
       @go-to-project="key => emit('goToProject', key)"
+      @open-new-devoir="emit('openNewDevoir')"
     />
 
     <TabReglages
@@ -287,6 +291,7 @@ function setTab(tab: DashTabType) {
       @on-frise-drag-move="e => emit('onFriseDragMove', e)"
       @on-frise-drag-end="e => emit('onFriseDragEnd', e)"
       @on-milestone-click="ms => emit('onMilestoneClick', ms)"
+      @set-frise-zoom="days => emit('setFriseZoom', days)"
     />
 
     <!-- Barre d'actions rapides flottante -->

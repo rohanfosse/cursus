@@ -5,6 +5,7 @@
  * and 7-day submission trend chart.
  */
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Award, CheckCircle2, TrendingUp } from 'lucide-vue-next'
 import { GRADE_COLORS } from '@/composables/useTeacherAnalytics'
 
@@ -16,11 +17,29 @@ defineProps<{
   onlineUsersCount: number
   submissionTrend: { days: { label: string; count: number }[]; maxCount: number }
 }>()
+
+const emit = defineEmits<{
+  'update:analyticsRange': [range: '7d' | '30d' | 'all']
+}>()
+
+const timeRange = ref<'7d' | '30d' | 'all'>('all')
+
+function setRange(range: '7d' | '30d' | 'all') {
+  timeRange.value = range
+  emit('update:analyticsRange', range)
+}
 </script>
 
 <template>
   <div class="db-tab-content">
     <div class="analytics-grid">
+
+      <!-- Sélecteur de période -->
+      <div class="analytics-range-row">
+        <button class="analytics-range-btn" :class="{ active: timeRange === '7d' }" @click="setRange('7d')">7 jours</button>
+        <button class="analytics-range-btn" :class="{ active: timeRange === '30d' }" @click="setRange('30d')">30 jours</button>
+        <button class="analytics-range-btn" :class="{ active: timeRange === 'all' }" @click="setRange('all')">Tout</button>
+      </div>
 
       <!-- Stats rapides -->
       <div class="analytics-row analytics-quick-stats">
@@ -88,7 +107,7 @@ defineProps<{
       <!-- Tendance des rendus (7 derniers jours) -->
       <div v-if="submissionTrend.days.some(d => d.count > 0)" class="analytics-card">
         <h3 class="analytics-card-title"><TrendingUp :size="14" /> Rendus des 7 derniers jours</h3>
-        <div class="analytics-trend-chart">
+        <div class="analytics-trend-chart" aria-label="Graphique des rendus des 7 derniers jours">
           <div v-for="d in submissionTrend.days" :key="d.label" class="analytics-trend-col">
             <span class="analytics-trend-count">{{ d.count || '' }}</span>
             <div class="analytics-trend-bar-bg">
@@ -148,4 +167,15 @@ defineProps<{
   border-radius: 4px; min-height: 3px; transition: height .3s ease;
 }
 .analytics-trend-label { font-size: 10px; color: var(--text-muted); text-transform: capitalize; }
+
+/* ── Sélecteur de période ── */
+.analytics-range-row { display: flex; gap: 4px; }
+.analytics-range-btn {
+  font-size: 12px; font-weight: 600; padding: 5px 14px; border-radius: 6px;
+  background: rgba(255,255,255,.04); color: var(--text-secondary);
+  border: 1px solid var(--border); cursor: pointer; font-family: var(--font);
+  transition: all .15s;
+}
+.analytics-range-btn:hover { background: rgba(255,255,255,.08); color: var(--text-primary); }
+.analytics-range-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 </style>

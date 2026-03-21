@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useAppStore }     from '@/stores/app'
 import { useApi }          from '@/composables/useApi'
+import { MAX_SUBMISSION_RATES } from '@/constants'
 import type { Ref }        from 'vue'
 import type { GanttRow }   from './useDashboardTeacher'
 
@@ -12,6 +13,7 @@ export const GRADE_COLORS: Record<string, string> = {
 export function useTeacherAnalytics(
   dashTab: Ref<string>,
   ganttFiltered: Ref<GanttRow[]>,
+  timeRange?: Ref<string>,
 ) {
   const appStore = useAppStore()
   const { api }  = useApi()
@@ -49,8 +51,20 @@ export function useTeacherAnalytics(
 
   // ── Taux de soumission par devoir ─────────────────────────────────────────
   const submissionRates = computed(() => {
+    const now = Date.now()
+    const rangeMs = timeRange?.value === '7d' ? 7 * 86_400_000
+      : timeRange?.value === '30d' ? 30 * 86_400_000
+      : 0
+
     return ganttFiltered.value
-      .filter(t => t.published && t.students_total > 0)
+      .filter(t => {
+        if (!t.published || t.students_total <= 0) return false
+        if (rangeMs > 0) {
+          const dl = new Date(t.deadline).getTime()
+          if (dl < now - rangeMs) return false
+        }
+        return true
+      })
       .map(t => ({
         title: t.title,
         rate: Math.round((t.depots_count / t.students_total) * 100),
@@ -58,7 +72,7 @@ export function useTeacherAnalytics(
         total: t.students_total,
       }))
       .sort((a, b) => a.rate - b.rate)
-      .slice(0, 15)
+      .slice(0, MAX_SUBMISSION_RATES)
   })
 
   // ── Note fréquente (mode) ─────────────────────────────────────────────────

@@ -71,7 +71,7 @@ export function useDashboardWidgets(
       if (!Array.isArray(raw)) return []
       if (raw.length > 0 && typeof raw[0] === 'number') return []
       return raw as SavedMessage[]
-    } catch { return [] }
+    } catch (e) { console.warn('[DashboardWidgets] Failed to parse bookmarks from localStorage:', e); return [] }
   }
 
   const savedMessages = ref<SavedMessage[]>(getSavedMessages())
@@ -163,10 +163,16 @@ export function useDashboardWidgets(
   })
 
   async function publishDraft(travailId: number) {
-    const result = await api(() => window.api.updateTravailPublished({ travailId, published: true }))
-    if (result !== null) {
-      showToast('Devoir publié.', 'success')
-      await reloadPromos()
+    try {
+      const result = await api(() => window.api.updateTravailPublished({ travailId, published: true }))
+      if (result !== null) {
+        showToast('Devoir publié.', 'success')
+        await reloadPromos()
+      } else {
+        showToast('Erreur lors de la publication.', 'error')
+      }
+    } catch {
+      showToast('Erreur réseau.', 'error')
     }
   }
 
@@ -175,14 +181,15 @@ export function useDashboardWidgets(
 
   async function checkDevoirsResources() {
     const published = ganttFiltered.value.filter(t => t.published).slice(0, 20)
-    const missing: GanttRow[] = []
-    for (const t of published) {
-      const data = await api<{ id: number }[]>(
-        () => window.api.getRessources(t.id) as Promise<{ ok: boolean; data?: { id: number }[] }>,
-      )
-      if (!data || data.length === 0) missing.push(t)
-    }
-    devoirsWithoutResources.value = missing
+    const results = await Promise.all(
+      published.map(async (t) => {
+        const data = await api<{ id: number }[]>(
+          () => window.api.getRessources(t.id) as Promise<{ ok: boolean; data?: { id: number }[] }>,
+        )
+        return { devoir: t, hasResources: data && data.length > 0 }
+      }),
+    )
+    devoirsWithoutResources.value = results.filter(r => !r.hasResources).map(r => r.devoir)
   }
 
   return {

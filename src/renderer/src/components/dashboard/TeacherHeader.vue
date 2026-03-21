@@ -47,6 +47,7 @@ const emit = defineEmits<{
         class="db-promo-chip"
         :class="{ active: activePromoId === p.id }"
         :style="activePromoId === p.id ? { background: 'color-mix(in srgb, ' + p.color + ' 20%, transparent)', color: p.color, borderColor: p.color } : {}"
+        :aria-label="`Sélectionner la promotion ${p.name}`"
         @click="emit('update:activePromoId', p.id)"
       >
         <span class="db-promo-chip-dot" :style="{ background: p.color }" />

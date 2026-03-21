@@ -85,14 +85,17 @@ const {
 const {
   friseOffset, friseDragging, ganttDateRange,
   onFriseWheel, onFriseDragStart, onFriseDragMove, onFriseDragEnd,
+  setFriseZoom,
   ganttMonths, ganttTodayPct,
   frise,
   milestoneLeft, projectLineStyle, onMilestoneClick,
 } = useFrise(ganttFiltered)
 
+const analyticsRange = ref<string>('all')
+
 const {
   gradeDistribution, submissionRates, globalModeGrade, analyticsStats,
-} = useTeacherAnalytics(dashTab, ganttFiltered)
+} = useTeacherAnalytics(dashTab, ganttFiltered, analyticsRange)
 
 const { actionItems, classHealth, submissionTrend } = useActionCenter(ganttFiltered)
 
@@ -202,6 +205,8 @@ onUnmounted(() => {
       @open-gestion-devoir="(id) => { appStore.currentTravailId = id; modals.gestionDevoir = true }"
       @navigate-devoirs="router.push('/devoirs')"
       @navigate-messages="router.push('/messages')"
+      @set-frise-zoom="setFriseZoom"
+      @update:analytics-range="analyticsRange = $event"
     />
 
     <!-- ════════════════════ VUE ÉTUDIANT ════════════════════ -->

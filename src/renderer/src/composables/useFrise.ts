@@ -6,6 +6,7 @@ import { useModalsStore }  from '@/stores/modals'
 import { useTravauxStore } from '@/stores/travaux'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
 import { formatDate }      from '@/utils/date'
+import { FRISE_DEFAULT_SPAN_DAYS } from '@/constants'
 import type { Component, Ref } from 'vue'
 import type { GanttRow }   from './useDashboardTeacher'
 
@@ -20,8 +21,6 @@ export interface FrisePromo {
   name: string; color: string; projects: FriseProject[]
 }
 
-const FRISE_SPAN_DAYS = 120
-
 export function useFrise(ganttFiltered: Ref<GanttRow[]>) {
   const appStore     = useAppStore()
   const modals       = useModalsStore()
@@ -30,14 +29,19 @@ export function useFrise(ganttFiltered: Ref<GanttRow[]>) {
 
   const friseOffset  = ref(0)
   const friseDragging = ref(false)
+  const friseSpanDays = ref(FRISE_DEFAULT_SPAN_DAYS)
   let _friseDragStart = 0
+
+  function setFriseZoom(days: number) {
+    friseSpanDays.value = days
+  }
 
   // ── Date range ────────────────────────────────────────────────────────────
   const ganttDateRange = computed(() => {
     const rows = (appStore.isTeacher ? ganttFiltered.value : travauxStore.devoirs) as { deadline: string }[]
     if (!rows.length) return null
     const center = Date.now() + friseOffset.value * 86_400_000
-    const halfSpan = (FRISE_SPAN_DAYS / 2) * 86_400_000
+    const halfSpan = (friseSpanDays.value / 2) * 86_400_000
     return { start: new Date(center - halfSpan), end: new Date(center + halfSpan) }
   })
 
@@ -167,8 +171,9 @@ export function useFrise(ganttFiltered: Ref<GanttRow[]>) {
   }
 
   return {
-    friseOffset, friseDragging, ganttDateRange,
+    friseOffset, friseDragging, friseSpanDays, ganttDateRange,
     onFriseWheel, onFriseDragStart, onFriseDragMove, onFriseDragEnd,
+    setFriseZoom,
     ganttMonths, ganttTodayPct,
     frise,
     milestoneLeft, projectLineStyle, onMilestoneClick,

@@ -4,7 +4,7 @@
  * Accueil (home) tab: project cards grid + recent activity list.
  */
 <script setup lang="ts">
-import { FolderOpen, Clock, ChevronRight } from 'lucide-vue-next'
+import { FolderOpen, Clock, ChevronRight, PlusCircle } from 'lucide-vue-next'
 import { deadlineClass, deadlineLabel } from '@/utils/date'
 import { avatarColor, gradeClass } from '@/utils/format'
 import type { ProjectCard } from '@/composables/useDashboardTeacher'
@@ -17,6 +17,7 @@ defineProps<{
 
 const emit = defineEmits<{
   goToProject: [key: string]
+  openNewDevoir: []
 }>()
 </script>
 
@@ -25,6 +26,9 @@ const emit = defineEmits<{
     <div v-if="!projectCards.length" class="db-empty-hint">
       <FolderOpen :size="36" style="opacity:.2;margin-bottom:10px" />
       <p>Aucun projet configuré. Créez des travaux avec une catégorie pour les voir ici.</p>
+      <button class="db-empty-action" @click="emit('openNewDevoir')">
+        <PlusCircle :size="14" /> Créer un premier devoir
+      </button>
     </div>
     <div v-else class="db-project-grid">
       <div
@@ -81,6 +85,13 @@ const emit = defineEmits<{
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 60px 20px; color: var(--text-muted); font-size: 13px; text-align: center; gap: 4px;
 }
+.db-empty-action {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+  padding: 8px 18px; font-size: 13px; font-weight: 600;
+  background: var(--accent); color: #fff; border: none; border-radius: 8px;
+  cursor: pointer; font-family: var(--font); transition: filter .15s;
+}
+.db-empty-action:hover { filter: brightness(1.1); }
 
 /* ── Grille projets ── */
 .db-project-grid {

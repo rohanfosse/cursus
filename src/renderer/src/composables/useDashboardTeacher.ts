@@ -95,7 +95,12 @@ export function useDashboardTeacher() {
   const totalThisWeek = computed(() => thisWeekReminders.value.length)
 
   async function loadReminders() {
-    allReminders.value = await api<Reminder[]>(() => window.api.getTeacherReminders()) ?? []
+    try {
+      allReminders.value = await api<Reminder[]>(() => window.api.getTeacherReminders()) ?? []
+    } catch {
+      console.warn('[Dashboard] Impossible de charger les rappels')
+      allReminders.value = []
+    }
   }
 
   async function toggleReminder(id: number, done: boolean) {

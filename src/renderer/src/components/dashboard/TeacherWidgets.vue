@@ -12,8 +12,11 @@ import {
 } from 'lucide-vue-next'
 import { deadlineLabel } from '@/utils/date'
 import { avatarColor } from '@/utils/format'
+import { useConfirm } from '@/composables/useConfirm'
 import type { GanttRow } from '@/composables/useDashboardTeacher'
 import type { SavedMessage, AgendaItem } from '@/composables/useDashboardWidgets'
+
+const { confirm } = useConfirm()
 
 defineProps<{
   unreadDmEntries: { name: string; count: number }[]
@@ -107,7 +110,7 @@ const emit = defineEmits<{
           v-for="m in unreadMentions"
           :key="m.id"
           class="db-widget-item db-widget-item--mention"
-          @click="emit('goToChannel', m.channelId!, m.channelName)"
+          @click="m.channelId != null && emit('goToChannel', m.channelId, m.channelName)"
         >
           <div class="db-widget-avatar" :style="{ background: avatarColor(m.authorName) }">
             {{ m.authorName.slice(0, 2).toUpperCase() }}
@@ -129,7 +132,7 @@ const emit = defineEmits<{
           v-for="n in recentChannelActivity"
           :key="n.id"
           class="db-widget-item"
-          @click="emit('goToChannel', n.channelId!, n.channelName)"
+          @click="n.channelId != null && emit('goToChannel', n.channelId, n.channelName)"
         >
           <div class="db-widget-avatar" :style="{ background: avatarColor(n.authorName) }">
             {{ n.authorName.slice(0, 2).toUpperCase() }}
@@ -152,7 +155,7 @@ const emit = defineEmits<{
           v-for="item in next48h"
           :key="item.id"
           class="db-widget-item"
-          @click="typeof item.id === 'number' ? (emit('openGestionDevoir', item.id as number)) : null"
+          @click="typeof item.id === 'number' ? emit('openGestionDevoir', item.id) : undefined"
         >
           <span class="db-agenda-icon" :class="'db-agenda-' + item.type">
             <Mic v-if="item.type === 'soutenance'" :size="12" />
@@ -184,7 +187,7 @@ const emit = defineEmits<{
               <span v-if="new Date(t.deadline).getTime() - Date.now() < 2 * 86_400_000" class="db-draft-urgent">urgent</span>
             </span>
           </div>
-          <button class="db-draft-publish" @click.stop="emit('publishDraft', t.id)">Publier</button>
+          <button class="db-draft-publish" @click.stop="async () => { const ok = await confirm('Publier ce devoir ? Il sera visible par les étudiants.', 'warning', 'Publier'); if (ok) emit('publishDraft', t.id) }">Publier</button>
         </div>
       </div>
     </div>

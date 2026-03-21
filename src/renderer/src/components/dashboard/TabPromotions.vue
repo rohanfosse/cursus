@@ -11,7 +11,9 @@ import {
 import type { Promotion } from '@/types'
 import type { GanttRow } from '@/composables/useDashboardTeacher'
 
-defineProps<{
+import { computed } from 'vue'
+
+const props = defineProps<{
   promos: Promotion[]
   activePromoId: number | null
   savingPromo: boolean
@@ -21,6 +23,23 @@ defineProps<{
   allStudents: { id: number; promo_id: number; name?: string }[]
   ganttAll: GanttRow[]
 }>()
+
+// Pré-calcul des stats par promo (évite les filtres O(n³) dans le template)
+const promoStats = computed(() => {
+  const map = new Map<number, { students: number; published: number; drafts: number; avgSubmission: number }>()
+  for (const p of props.promos) {
+    const students = props.allStudents.filter(s => s.promo_id === p.id).length
+    const promoRows = props.ganttAll.filter(t => t.promo_name === p.name)
+    const published = promoRows.filter(t => t.published).length
+    const drafts = promoRows.filter(t => !t.published).length
+    const withStudents = promoRows.filter(t => t.published && t.students_total > 0)
+    const avgSubmission = withStudents.length
+      ? Math.round(withStudents.reduce((s, t) => s + t.depots_count / t.students_total, 0) / withStudents.length * 100)
+      : 0
+    map.set(p.id, { students, published, drafts, avgSubmission })
+  }
+  return map
+})
 
 const emit = defineEmits<{
   'update:activePromoId': [id: number]
@@ -47,7 +66,9 @@ const emit = defineEmits<{
         <div class="promo-list-header">
           <span class="promo-list-dot" :style="{ background: p.color }" />
           <template v-if="renamingPromoId === p.id">
+            <label :for="`rename-promo-${p.id}`" class="sr-only">Nom de la promotion</label>
             <input
+              :id="`rename-promo-${p.id}`"
               :value="renamingPromoValue"
               class="promo-rename-input"
               aria-label="Nom de la promotion"
@@ -68,19 +89,19 @@ const emit = defineEmits<{
           </template>
         </div>
 
-        <!-- Stats enrichies -->
+        <!-- Stats enrichies (pré-calculées) -->
         <div class="promo-list-stats">
-          <span><Users :size="11" /> {{ allStudents.filter(s => s.promo_id === p.id).length }} étudiants</span>
+          <span><Users :size="11" /> {{ promoStats.get(p.id)?.students ?? 0 }} étudiants</span>
           <span>
             <BookOpen :size="11" />
-            {{ ganttAll.filter(t => t.promo_name === p.name && t.published).length }} publiés
-            <template v-if="ganttAll.filter(t => t.promo_name === p.name && !t.published).length">
-              · {{ ganttAll.filter(t => t.promo_name === p.name && !t.published).length }} brouillons
+            {{ promoStats.get(p.id)?.published ?? 0 }} publiés
+            <template v-if="promoStats.get(p.id)?.drafts">
+              · {{ promoStats.get(p.id)?.drafts }} brouillons
             </template>
           </span>
-          <span v-if="ganttAll.filter(t => t.promo_name === p.name && t.published && t.students_total > 0).length">
+          <span v-if="promoStats.get(p.id)?.avgSubmission">
             <TrendingUp :size="11" />
-            {{ Math.round(ganttAll.filter(t => t.promo_name === p.name && t.published && t.students_total > 0).reduce((s, t) => s + t.depots_count / t.students_total, 0) / Math.max(1, ganttAll.filter(t => t.promo_name === p.name && t.published && t.students_total > 0).length) * 100) }}% soumission moy.
+            {{ promoStats.get(p.id)?.avgSubmission }}% soumission moy.
           </span>
         </div>
 
@@ -161,4 +182,10 @@ const emit = defineEmits<{
   transition: all .15s ease;
 }
 .dc-add-btn:hover { color: var(--accent); border-color: var(--accent); background: rgba(74,144,217,.07); }
+
+/* Screen reader only */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
 </style>

@@ -19,12 +19,16 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div v-if="thisWeekReminders.length" class="db-week">
+  <div class="db-week">
     <div class="db-week-header">
       <h4 class="db-week-title"><CheckCircle2 :size="14" /> À faire cette semaine</h4>
-      <span class="db-week-progress">{{ doneThisWeek }}/{{ totalThisWeek }}</span>
+      <span v-if="thisWeekReminders.length" class="db-week-progress">{{ doneThisWeek }}/{{ totalThisWeek }}</span>
     </div>
-    <div class="db-week-list">
+    <div v-if="!thisWeekReminders.length" class="db-week-empty">
+      <CheckCircle2 :size="20" style="color: var(--color-success)" />
+      <span>Tout est à jour cette semaine !</span>
+    </div>
+    <div v-else class="db-week-list">
       <div
         v-for="r in thisWeekReminders"
         :key="r.id"
@@ -85,4 +89,9 @@ const emit = defineEmits<{
 .db-week-late { font-size: 10px; font-weight: 700; color: var(--color-danger); }
 .db-week-today-tag { font-size: 10px; font-weight: 600; color: var(--accent); }
 .db-week-date { font-size: 11px; color: var(--text-muted); }
+.db-week-empty {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px; font-size: 13px; color: var(--color-success);
+  background: rgba(34,197,94,.06); border-radius: 8px; font-weight: 600;
+}
 </style>

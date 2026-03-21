@@ -27,13 +27,19 @@ const emit = defineEmits<{
   onFriseDragMove: [e: MouseEvent]
   onFriseDragEnd: [e: MouseEvent]
   onMilestoneClick: [ms: FriseMilestone]
+  setFriseZoom: [days: number]
 }>()
 </script>
 
 <template>
   <div class="db-tab-content db-frise-outer">
-    <div v-if="friseOffset !== 0" class="frise-recenter">
-      <button class="gestion-btn" @click="emit('update:friseOffset', 0)">Recentrer sur aujourd'hui</button>
+    <div class="frise-toolbar">
+      <div class="frise-zoom-presets">
+        <button class="frise-zoom-btn" @click="emit('setFriseZoom', 365)">Année</button>
+        <button class="frise-zoom-btn" @click="emit('setFriseZoom', 90)">Trimestre</button>
+        <button class="frise-zoom-btn" @click="emit('setFriseZoom', 30)">Mois</button>
+      </div>
+      <button v-if="friseOffset !== 0" class="gestion-btn" @click="emit('update:friseOffset', 0)">Recentrer sur aujourd'hui</button>
     </div>
     <div v-if="!ganttDateRange || !frise.length" class="db-empty-hint">
       <BarChart2 :size="36" style="opacity:.2;margin-bottom:10px" />
@@ -69,7 +75,7 @@ const emit = defineEmits<{
           <div class="frise-bar-col frise-promo-bar-col" />
         </div>
         <!-- Lignes projet -->
-        <div v-for="proj in promo.projects" :key="proj.key" class="frise-row" @click="emit('goToProject', proj.key)">
+        <div v-for="proj in promo.projects" :key="proj.key" class="frise-row" :aria-label="`Projet ${proj.label} — ${proj.milestones.length} jalon${proj.milestones.length > 1 ? 's' : ''}`" @click="emit('goToProject', proj.key)">
           <div class="frise-label-col frise-project-label">
             <component :is="proj.icon" v-if="proj.icon" :size="11" class="frise-project-icon" />
             <span>{{ proj.label }}</span>
@@ -121,7 +127,15 @@ const emit = defineEmits<{
 
 /* ── Frise ── */
 .db-frise-outer { flex: 1; min-height: 0; overflow: hidden; padding-top: 12px; }
-.frise-recenter { padding: 6px 12px; text-align: right; }
+.frise-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; gap: 8px; }
+.frise-zoom-presets { display: flex; gap: 4px; }
+.frise-zoom-btn {
+  font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 6px;
+  background: rgba(255,255,255,.06); color: var(--text-secondary);
+  border: 1px solid var(--border); cursor: pointer; font-family: var(--font);
+  transition: all .15s;
+}
+.frise-zoom-btn:hover { background: rgba(255,255,255,.1); color: var(--text-primary); }
 .frise-wrap {
   overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 340px);
   border: 1px solid var(--border); border-radius: var(--radius);
