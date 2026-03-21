@@ -24,7 +24,8 @@ describe('createTravail', () => {
       published: true,
     })
     expect(result).toBeDefined()
-    expect(typeof result).toBe('number') // returns lastInsertRowid
+    expect(result.changes).toBe(1)
+    expect(Number(result.lastInsertRowid)).toBeGreaterThan(0)
   })
 
   it('creates a livrable with all fields', () => {
@@ -43,6 +44,7 @@ describe('createTravail', () => {
       requiresSubmission: true,
     })
     expect(result).toBeDefined()
+    expect(result.changes).toBe(1)
   })
 
   it('creates a soutenance without submission', () => {
@@ -57,10 +59,11 @@ describe('createTravail', () => {
       requiresSubmission: false,
     })
     expect(result).toBeDefined()
+    expect(result.changes).toBe(1)
   })
 
   it('retrieves created devoir by id', () => {
-    const id = queries.createTravail({
+    const result = queries.createTravail({
       title: 'Test Retrieval',
       type: 'autre',
       channelId: 1,
@@ -68,6 +71,7 @@ describe('createTravail', () => {
       deadline: '2026-04-20T10:00:00Z',
       published: true,
     })
+    const id = Number(result.lastInsertRowid)
     const devoir = queries.getTravailById(id)
     expect(devoir).toBeDefined()
     expect(devoir.title).toBe('Test Retrieval')
@@ -91,7 +95,7 @@ describe('getTravaux', () => {
 
 describe('updateTravailPublished', () => {
   it('publishes a draft', () => {
-    const id = queries.createTravail({
+    const result = queries.createTravail({
       title: 'Draft Test',
       type: 'livrable',
       channelId: 1,
@@ -99,13 +103,14 @@ describe('updateTravailPublished', () => {
       deadline: '2026-05-01T00:00:00Z',
       published: false,
     })
+    const id = Number(result.lastInsertRowid)
     queries.updateTravailPublished({ travailId: id, published: true })
     const devoir = queries.getTravailById(id)
     expect(devoir.is_published).toBe(1)
   })
 
   it('unpublishes a devoir', () => {
-    const id = queries.createTravail({
+    const result = queries.createTravail({
       title: 'Unpublish Test',
       type: 'cctl',
       channelId: 1,
@@ -113,6 +118,7 @@ describe('updateTravailPublished', () => {
       deadline: '2026-05-01T00:00:00Z',
       published: true,
     })
+    const id = Number(result.lastInsertRowid)
     queries.updateTravailPublished({ travailId: id, published: false })
     const devoir = queries.getTravailById(id)
     expect(devoir.is_published).toBe(0)
@@ -121,7 +127,7 @@ describe('updateTravailPublished', () => {
 
 describe('deleteTravail', () => {
   it('deletes a devoir', () => {
-    const id = queries.createTravail({
+    const result = queries.createTravail({
       title: 'Delete Me',
       type: 'autre',
       channelId: 1,
@@ -129,6 +135,7 @@ describe('deleteTravail', () => {
       deadline: '2026-05-01T00:00:00Z',
       published: false,
     })
+    const id = Number(result.lastInsertRowid)
     queries.deleteTravail(id)
     const devoir = queries.getTravailById(id)
     expect(devoir).toBeUndefined()
