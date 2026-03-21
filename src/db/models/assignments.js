@@ -21,7 +21,20 @@ function getTravaux(channelId) {
 }
 
 function getTravailById(travailId) {
-  return getDb().prepare('SELECT * FROM travaux WHERE id = ?').get(travailId);
+  return getDb().prepare('SELECT *, published AS is_published FROM travaux WHERE id = ?').get(travailId);
+}
+
+function deleteTravail(id) {
+  return getDb().prepare('DELETE FROM travaux WHERE id = ?').run(id);
+}
+
+function updateTravail(id, fields) {
+  const db = getDb()
+  if (fields.title) db.prepare('UPDATE travaux SET title = ? WHERE id = ?').run(fields.title, id)
+  if (fields.deadline) db.prepare('UPDATE travaux SET deadline = ? WHERE id = ?').run(fields.deadline, id)
+  if (fields.description !== undefined) db.prepare('UPDATE travaux SET description = ? WHERE id = ?').run(fields.description, id)
+  if (fields.room !== undefined) db.prepare('UPDATE travaux SET room = ? WHERE id = ?').run(fields.room, id)
+  return { changes: 1 }
 }
 
 function createTravail({ promoId, channelId, groupId, title, description, startDate, deadline, category, type, published, room, aavs, requiresSubmission }) {
@@ -292,7 +305,7 @@ function getUpcomingNotifications() {
 }
 
 module.exports = {
-  getTravaux, getTravailById, createTravail, updateTravailPublished,
+  getTravaux, getTravailById, createTravail, updateTravailPublished, deleteTravail, updateTravail,
   getTravauxSuivi, getStudentTravaux,
   getTravailGroupMembers, setTravailGroupMember,
   getGanttData, getAllRendus, getTeacherSchedule, markNonSubmittedAsD,

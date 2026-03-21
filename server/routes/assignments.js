@@ -21,5 +21,7 @@ router.post('/',                        wrap((req) => queries.createTravail(req.
 router.post('/publish',                 wrap((req) => queries.updateTravailPublished(req.body)))
 router.post('/group-member',            wrap((req) => queries.setTravailGroupMember(req.body)))
 router.post('/:id/mark-missing',        wrap((req) => queries.markNonSubmittedAsD(Number(req.params.id))))
+router.delete('/:id',                   wrap((req) => queries.deleteTravail(Number(req.params.id))))
+router.patch('/:id',                    wrap((req) => queries.updateTravail(Number(req.params.id), req.body)))
 
 module.exports = router

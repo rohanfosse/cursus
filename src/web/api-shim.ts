@@ -288,6 +288,8 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   getTravaux:             (channelId: number) => get(`/api/assignments?channelId=${channelId}`),
   getTravailById:         (travailId: number) => get(`/api/assignments/${travailId}`),
   createTravail:          (payload: unknown)  => post('/api/assignments', payload),
+  deleteTravail:          (id: number)        => del(`/api/assignments/${id}`),
+  updateTravailFields:    (id: number, fields: unknown) => patch(`/api/assignments/${id}`, fields),
   getTravauxSuivi:        (travailId: number) => get(`/api/assignments/${travailId}/suivi`),
   updateTravailPublished: (payload: unknown)  => post('/api/assignments/publish', payload),
   getTravailCategories:   (promoId: number)   => get(`/api/assignments/categories?promoId=${promoId}`),

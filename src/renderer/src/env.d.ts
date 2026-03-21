@@ -45,6 +45,8 @@ declare global {
       getTravaux(channelId: number): Promise<IpcResponse<Devoir[]>>
       getTravailById(travailId: number): Promise<IpcResponse<Devoir>>
       createTravail(payload: object): Promise<IpcResponse<{ id: number }>>
+      deleteTravail(id: number): Promise<IpcResponse<null>>
+      updateTravailFields(id: number, fields: { title?: string; deadline?: string; description?: string; room?: string }): Promise<IpcResponse<null>>
       getTravauxSuivi(travailId: number): Promise<IpcResponse<Depot[]>>
 
       // Dépôts

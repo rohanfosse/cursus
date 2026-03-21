@@ -95,6 +95,7 @@ export interface Devoir {
   room?: string | null
   aavs?: string | null
   requires_submission?: number | 0 | 1
+  promo_id?: number | null
 }
 
 // backward compat alias — le backend renvoie toujours Travail, on l'aliase ici

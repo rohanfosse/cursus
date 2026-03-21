@@ -85,19 +85,31 @@
     } catch { ressources.value = [] }
   }
 
-  // ── Extension deadline ────────────────────────────────────────────────────
-  async function extendDeadline(days: number) {
+  // ── Mise à jour champs (titre, deadline, description, room) ────────────
+  async function saveField(field: string, value: string) {
     if (!travail.value) return
-    const current = new Date(travail.value.deadline)
-    current.setDate(current.getDate() + days)
     try {
-      const res = await window.api.createTravail({ ...travail.value, deadline: current.toISOString(), id: travail.value.id, _update: true } as any)
-      if (res?.ok) {
-        showToast(`Deadline prolongée de ${days}j.`, 'success')
-        await travauxStore.openTravail(travail.value.id)
-      }
+      await window.api.updateTravailFields(travail.value.id, { [field]: value })
+      await travauxStore.openTravail(travail.value.id)
+      showToast('Mis à jour.', 'success')
     } catch { showToast('Erreur.', 'error') }
   }
+
+  // ── Titre éditable ────────────────────────────────────────────────────────
+  const editingTitle = ref(false)
+  const titleDraft = ref('')
+  function startEditTitle() { titleDraft.value = travail.value?.title ?? ''; editingTitle.value = true }
+  function saveTitle() { if (titleDraft.value.trim()) { saveField('title', titleDraft.value.trim()); editingTitle.value = false } }
+
+  // ── Deadline éditable ─────────────────────────────────────────────────────
+  const editingDeadline = ref(false)
+  const deadlineDraft = ref('')
+  function startEditDeadline() {
+    const d = travail.value?.deadline ?? ''
+    deadlineDraft.value = d.slice(0, 16)
+    editingDeadline.value = true
+  }
+  function saveDeadline() { if (deadlineDraft.value) { saveField('deadline', deadlineDraft.value + ':00'); editingDeadline.value = false } }
 
   // ── Publier / Dépublier ───────────────────────────────────────────────────
   async function togglePublish() {
@@ -107,6 +119,48 @@
       await window.api.updateTravailPublished({ travailId: travail.value.id, published: newVal })
       showToast(newVal ? 'Devoir publié.' : 'Devoir mis en brouillon.', 'success')
       await travauxStore.openTravail(travail.value.id)
+    } catch { showToast('Erreur.', 'error') }
+  }
+
+  // ── Publier + Notifier en une action ──────────────────────────────────────
+  async function publishAndNotify() {
+    if (!travail.value) return
+    // Validation avant publication
+    const warnings: string[] = []
+    if (!travail.value.description?.trim()) warnings.push('La description est vide.')
+    if (new Date(travail.value.deadline).getTime() < Date.now()) warnings.push('La deadline est déjà passée.')
+    const studentCount = totalCount.value
+    const confirmLines = [
+      `Publier « ${travail.value.title} » ?`,
+      studentCount > 0 ? `Ce devoir sera visible par ${studentCount} étudiant${studentCount > 1 ? 's' : ''}.` : '',
+      ...warnings.map(w => `⚠ ${w}`),
+    ].filter(Boolean)
+    if (!confirm(confirmLines.join('\n'))) return
+    try {
+      await window.api.updateTravailPublished({ travailId: travail.value.id, published: true })
+      const channelId = (travail.value as any).channel_id
+      if (channelId) {
+        await window.api.sendMessage({
+          channelId,
+          authorName: appStore.currentUser?.name ?? 'Système',
+          authorType: appStore.currentUser?.type ?? 'teacher',
+          promoId: appStore.activePromoId ?? undefined,
+          content: `📢 **Nouveau** : **${travail.value.title}** — à rendre avant le **${formatDate(travail.value.deadline)}**.`,
+        })
+      }
+      showToast('Publié et notifié.', 'success')
+      await travauxStore.openTravail(travail.value.id)
+    } catch { showToast('Erreur.', 'error') }
+  }
+
+  // ── Supprimer ─────────────────────────────────────────────────────────────
+  async function deleteDevoir() {
+    if (!travail.value) return
+    if (!confirm(`Supprimer "${travail.value.title}" ?\nLes soumissions et notes seront perdues.`)) return
+    try {
+      await window.api.deleteTravail(travail.value.id)
+      showToast('Devoir supprimé.', 'success')
+      emit('update:modelValue', false)
     } catch { showToast('Erreur.', 'error') }
   }
 
@@ -230,14 +284,15 @@
           <div class="gd-card-grid">
             <div class="gd-card-field">
               <span class="gd-field-label">Échéance</span>
-              <span class="gd-field-value">
-                {{ formatDate(travail.deadline) }}
-                <span class="gd-extend-btns">
-                  <button class="gd-extend-btn" @click="extendDeadline(1)">+1j</button>
-                  <button class="gd-extend-btn" @click="extendDeadline(3)">+3j</button>
-                  <button class="gd-extend-btn" @click="extendDeadline(7)">+1sem</button>
+              <template v-if="!editingDeadline">
+                <span class="gd-field-value gd-field-editable" @click="startEditDeadline" title="Cliquer pour modifier">
+                  {{ formatDate(travail.deadline) }}
                 </span>
-              </span>
+              </template>
+              <template v-else>
+                <input v-model="deadlineDraft" type="datetime-local" class="gd-inline-input" @keydown.enter="saveDeadline" @keydown.escape="editingDeadline = false" />
+                <button class="gestion-btn-sm gestion-btn-accent" @click="saveDeadline">OK</button>
+              </template>
             </div>
             <div v-if="travail.start_date" class="gd-card-field">
               <span class="gd-field-label">Début</span>
@@ -302,17 +357,29 @@
           <button class="gd-link-btn" style="margin-top:4px" @click="openRessourcesModal">+ Gérer les ressources</button>
         </div>
 
-        <!-- Actions rapides -->
+        <!-- Actions -->
         <div class="gd-actions-bar">
-          <button class="gd-action-btn" @click="togglePublish">
-            <Eye v-if="!travail.is_published" :size="13" /> <EyeOff v-else :size="13" />
-            {{ travail.is_published ? 'Mettre en brouillon' : 'Publier' }}
-          </button>
-          <button class="gd-action-btn" @click="notifyStudents">
-            <Bell :size="13" /> Rappeler
-          </button>
+          <template v-if="!travail.is_published">
+            <button class="gd-action-btn gd-action-btn--primary" @click="publishAndNotify">
+              <Eye :size="13" /> Publier et notifier
+            </button>
+            <button class="gd-action-btn" @click="togglePublish">
+              <Eye :size="13" /> Publier sans notifier
+            </button>
+          </template>
+          <template v-else>
+            <button class="gd-action-btn" @click="notifyStudents">
+              <Bell :size="13" /> Rappeler
+            </button>
+            <button class="gd-action-btn" @click="togglePublish">
+              <EyeOff :size="13" /> Dépublier
+            </button>
+          </template>
           <button class="gd-action-btn" @click="duplicateDevoir">
             <Copy :size="13" /> Dupliquer
+          </button>
+          <button class="gd-action-btn gd-action-btn--danger" @click="deleteDevoir">
+            Supprimer
           </button>
         </div>
       </div>
@@ -524,6 +591,17 @@
   transition: all var(--t-fast);
 }
 .gd-action-btn:hover { background: rgba(255,255,255,.1); color: var(--text-primary); }
+.gd-action-btn--primary { background: rgba(46,204,113,.1); color: var(--color-success); border-color: rgba(46,204,113,.25); }
+.gd-action-btn--primary:hover { background: rgba(46,204,113,.2); }
+.gd-action-btn--danger { color: var(--color-danger); }
+.gd-action-btn--danger:hover { background: rgba(231,76,60,.1); }
+.gd-field-editable { cursor: pointer; border-bottom: 1px dashed var(--border-input); }
+.gd-field-editable:hover { border-color: var(--accent); }
+.gd-inline-input {
+  font-size: 13px; padding: 3px 6px; background: var(--bg-input);
+  border: 1px solid var(--accent); border-radius: 4px; color: var(--text-primary);
+  font-family: var(--font);
+}
 
 /* Progression (onglet Rendus) */
 .gd-progress-block { margin-bottom: 10px; }

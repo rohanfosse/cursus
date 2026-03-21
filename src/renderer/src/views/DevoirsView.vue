@@ -3,7 +3,8 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import {
   BookOpen, BarChart2, List, Grid, Plus, Upload, Link2, X,
   FileText, CheckCircle2, Clock, Lock, AlertTriangle, ChevronRight,
-  Users, Award, Calendar, LayoutList, Menu, Eye,
+  Users, Award, Calendar, LayoutList, Menu, Eye, EyeOff,
+  FolderOpen, Trash2, Copy, ExternalLink,
 } from 'lucide-vue-next'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
@@ -113,6 +114,74 @@ function addDevoirOfType(type: string) {
   // Pré-sélectionner le type dans la modale
   appStore.pendingDevoirType = type
   modals.newDevoir = true
+}
+
+// ── Menu contextuel cartes devoirs ───────────────────────────────────────────
+const ctxMenu = ref<{ x: number; y: number; devoir: (Devoir & { is_published?: boolean | number }) | null }>({ x: 0, y: 0, devoir: null })
+
+function openCtxMenu(e: MouseEvent, devoir: Devoir) {
+  e.preventDefault()
+  e.stopPropagation()
+  ctxMenu.value = { x: e.clientX, y: e.clientY, devoir: devoir as any }
+}
+
+function closeCtxMenu() {
+  ctxMenu.value = { x: 0, y: 0, devoir: null }
+}
+
+async function ctxPublishToggle() {
+  const d = ctxMenu.value.devoir
+  if (!d) return
+  const newVal = !d.is_published
+  try {
+    await window.api.updateTravailPublished({ travailId: d.id, published: newVal })
+    showToast(newVal ? 'Devoir publié.' : 'Devoir dépublié.', 'success')
+    loadView()
+  } catch { showToast('Erreur.', 'error') }
+  closeCtxMenu()
+}
+
+async function ctxDuplicate() {
+  const d = ctxMenu.value.devoir
+  if (!d) return
+  try {
+    await window.api.createTravail({
+      title: d.title + ' (copie)',
+      description: d.description || '',
+      deadline: d.deadline,
+      channel_id: d.channel_id,
+      promo_id: d.promo_id,
+      type: d.type || 'devoir',
+      category: d.category || '',
+      room: d.room || '',
+      published: false,
+    })
+    showToast('Devoir dupliqué (brouillon).', 'success')
+    loadView()
+  } catch { showToast('Erreur lors de la duplication.', 'error') }
+  closeCtxMenu()
+}
+
+async function ctxDelete() {
+  const d = ctxMenu.value.devoir
+  if (!d) return
+  if (!confirm(`Supprimer « ${d.title} » ? Les soumissions et notes seront perdues.`)) {
+    closeCtxMenu()
+    return
+  }
+  try {
+    await window.api.deleteTravail(d.id)
+    showToast('Devoir supprimé.', 'success')
+    loadView()
+  } catch { showToast('Erreur.', 'error') }
+  closeCtxMenu()
+}
+
+function ctxOpen() {
+  const d = ctxMenu.value.devoir
+  if (!d) return
+  closeCtxMenu()
+  openDevoir(d.id)
 }
 
 // ── Stats globales promo ────────────────────────────────────────────────────
@@ -273,13 +342,17 @@ const pendingFeedbackValue = ref('')
 const savingGrade         = ref(false)
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
+function handleGlobalClick() { closeCtxMenu() }
+
 onMounted(async () => {
   clockInterval = setInterval(() => { now.value = Date.now() }, 30_000)
+  document.addEventListener('click', handleGlobalClick)
   await loadView()
 })
 
 onBeforeUnmount(() => {
   if (clockInterval !== null) clearInterval(clockInterval)
+  document.removeEventListener('click', handleGlobalClick)
 })
 
 // ── Chargement des données ─────────────────────────────────────────────────────
@@ -996,6 +1069,7 @@ function typeLabel(t: string): string {
                   :key="d.id"
                   class="dh-upcoming-card"
                   @click="openDevoir(d.id)"
+                  @contextmenu="openCtxMenu($event, d)"
                 >
                   <div class="dh-upcoming-top">
                     <span class="devoir-type-badge" :class="`type-${d.type}`">{{ typeLabel(d.type) }}</span>
@@ -1106,6 +1180,7 @@ function typeLabel(t: string): string {
                     class="dc-card"
                     :class="{ 'dc-card--draft': !t.is_published, [`dc-card--${group.type}`]: true }"
                     @click="openDevoir(t.id)"
+                    @contextmenu="openCtxMenu($event, t)"
                   >
                     <div class="dc-card-top">
                       <span class="dc-card-title">{{ t.title }}</span>
@@ -1135,6 +1210,7 @@ function typeLabel(t: string): string {
                       class="dc-card dc-card--ratt"
                       :class="{ 'dc-card--draft': !t.is_published, [`dc-card--${group.type}`]: true }"
                       @click="openDevoir(t.id)"
+                      @contextmenu="openCtxMenu($event, t)"
                     >
                       <span class="dc-card-title">{{ t.title }}</span>
                       <div class="dc-card-meta">
@@ -1327,6 +1403,31 @@ function typeLabel(t: string): string {
 
     </div><!-- /devoirs-content -->
   </div><!-- /devoirs-area -->
+
+  <!-- Menu contextuel cartes devoirs (prof) -->
+  <Teleport to="body">
+    <div
+      v-if="ctxMenu.devoir"
+      class="ctx-menu"
+      :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }"
+      @click.stop
+    >
+      <button class="ctx-item" @click="ctxOpen">
+        <ExternalLink :size="14" /> Ouvrir
+      </button>
+      <button class="ctx-item" @click="ctxPublishToggle">
+        <component :is="ctxMenu.devoir.is_published ? EyeOff : Eye" :size="14" />
+        {{ ctxMenu.devoir.is_published ? 'Dépublier' : 'Publier' }}
+      </button>
+      <button class="ctx-item" @click="ctxDuplicate">
+        <Copy :size="14" /> Dupliquer
+      </button>
+      <div class="ctx-divider" />
+      <button class="ctx-item ctx-item--danger" @click="ctxDelete">
+        <Trash2 :size="14" /> Supprimer
+      </button>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -2738,4 +2839,34 @@ function typeLabel(t: string): string {
   justify-content: flex-end;
   gap: 4px;
 }
+
+/* ── Menu contextuel ─────────────────────────────────────────────────────── */
+</style>
+
+<style>
+.ctx-menu {
+  position: fixed;
+  z-index: 10000;
+  min-width: 170px;
+  background: var(--bg-primary, #1e1e2e);
+  border: 1px solid var(--border-color, #333);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  padding: 4px 0;
+  animation: ctxFade .12s ease;
+}
+@keyframes ctxFade {
+  from { opacity: 0; transform: scale(.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.ctx-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 7px 14px;
+  background: none; border: none; color: var(--text-primary, #cdd6f4);
+  font-size: 13px; cursor: pointer; text-align: left;
+}
+.ctx-item:hover { background: var(--bg-hover, rgba(255,255,255,.07)); }
+.ctx-item--danger { color: var(--color-error, #f38ba8); }
+.ctx-item--danger:hover { background: rgba(243,139,168,.12); }
+.ctx-divider { height: 1px; margin: 4px 8px; background: var(--border-color, #333); }
 </style>
