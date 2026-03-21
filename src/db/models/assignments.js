@@ -130,7 +130,7 @@ function setTravailGroupMember({ travailId, studentId, groupId }) {
 function getGanttData(promoId) {
   const db = getDb();
   const base = `
-    SELECT t.id, t.title, t.category, t.type, t.published,
+    SELECT t.id, t.title, t.category, t.type, t.published AS is_published,
            t.start_date, t.deadline, t.group_id,
            t.room, t.aavs, t.requires_submission,
            g.name AS group_name,

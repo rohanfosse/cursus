@@ -1119,8 +1119,8 @@ function typeLabel(t: string): string {
         </template>
       </template>
 
-      <!-- (Anciennes vues supprimées) -->
-      <template v-if="false">
+      <!-- Code mort supprimé -->
+      <template v-if="false"><!-- supprimé -->
 
         <div v-if="travauxStore.loading" class="liste-grid">
           <div v-for="i in 6" :key="i" class="skel-card">
