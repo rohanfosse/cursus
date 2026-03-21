@@ -2,7 +2,7 @@
  * Dépôt de rendu étudiant : sélection fichier/lien, upload, soumission, prévisualisation rubrique.
  * Used by DevoirsView.vue
  */
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import type { Devoir, Rubric } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
@@ -73,6 +73,9 @@ export function useStudentDeposit(now: { value: number }) {
         showToast(`Rendu soumis - ${fileName} - ${time}`, 'success')
         cancelDeposit()
         await travauxStore.fetchStudentDevoirs()
+        nextTick(() => {
+          document.querySelector('.devoir-card--submitted:last-child')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        })
       } else {
         showToast('Erreur lors du dépôt. Veuillez réessayer.', 'error')
       }

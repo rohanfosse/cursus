@@ -49,6 +49,11 @@
     deleteDoc,
   } = useDocumentsData()
 
+  // ── "Nouveau" badge: documents added in the last 24 h ───────────────────
+  function isRecent(dateStr: string): boolean {
+    return Date.now() - new Date(dateStr).getTime() < 24 * 60 * 60 * 1000
+  }
+
   // ── Add modal ───────────────────────────────────────────────────────────
   const {
     showAddModal,
@@ -203,7 +208,10 @@
                 {{ iconLabels[docIconType(doc)] }}
               </span>
 
-              <p class="doc-card-name">{{ doc.name }}</p>
+              <p class="doc-card-name">
+                {{ doc.name }}
+                <span v-if="isRecent(doc.created_at)" class="doc-new-badge">Nouveau</span>
+              </p>
 
               <p class="doc-card-meta">
                 <span v-if="!appStore.activeChannelId && doc.channel_name">#{{ doc.channel_name }}</span>
@@ -931,6 +939,21 @@
 
 .doc-card--list:hover {
   transform: none;
+}
+
+/* ── "Nouveau" badge ── */
+.doc-new-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(39, 174, 96, .18);
+  color: #27AE60;
+  vertical-align: middle;
+  margin-left: 4px;
 }
 
 /* ── File size badge ── */

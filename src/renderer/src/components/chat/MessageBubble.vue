@@ -112,7 +112,7 @@ function closeAll() { _closeAll(showPicker, confirmingDelete) }
             @keydown.enter="openDmWithAuthor"
           >{{ msg.author_name }}</span>
           <!-- badge rôle retiré pour plus de sobriété -->
-          <span class="msg-time">{{ formatTime(msg.created_at) }}</span>
+          <span class="msg-time" :title="new Date(msg.created_at).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })">{{ formatTime(msg.created_at) }}</span>
           <span v-if="isEdited" class="msg-edited-tag">(modifié)</span>
           <span v-if="isPinned" class="pin-badge" title="Message épinglé">📌</span>
         </div>

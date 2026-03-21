@@ -38,8 +38,9 @@ function autoResize() {
 // ── Placeholder ───────────────────────────────────────────────────────────
 const placeholder = computed(() => {
   if (appStore.isReadonly) return 'Canal d\'annonces - lecture seule'
+  if (appStore.activeDmStudentId) return `Message à ${appStore.activeChannelName}`
   if (appStore.activeChannelName) return `Message dans #${appStore.activeChannelName}`
-  return 'Votre message…'
+  return 'Écrivez un message…'
 })
 
 // ── Composables ───────────────────────────────────────────────────────────

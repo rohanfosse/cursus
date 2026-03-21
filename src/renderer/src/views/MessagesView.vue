@@ -198,12 +198,19 @@
             <span
               v-if="channelHeader?.type === 'annonce'"
               id="channel-type-badge"
-              class="channel-type-badge"
+              class="channel-type-badge channel-type-badge--annonce"
             >
               Annonce
             </span>
+            <span
+              v-else-if="channelHeader?.type === 'chat'"
+              class="channel-type-badge channel-type-badge--chat"
+            >
+              Chat
+            </span>
           </div>
-          <span v-if="appStore.activeChannelDescription" class="channel-description" :title="appStore.activeChannelDescription">{{ appStore.activeChannelDescription }}</span>
+          <span v-if="channelHeader?.type === 'annonce' && appStore.isStudent" class="channel-annonce-hint">Canal d'annonce — seuls les enseignants peuvent publier</span>
+          <span v-else-if="appStore.activeChannelDescription" class="channel-description" :title="appStore.activeChannelDescription">{{ appStore.activeChannelDescription }}</span>
         </div>
       </div>
 
@@ -412,6 +419,15 @@
 .channel-body .messages-container {
   flex: 1;
   min-width: 0;
+}
+
+/* ── Channel type badges ── */
+.channel-type-badge--annonce { background: rgba(231,76,60,.15); color: #e74c3c; }
+.channel-type-badge--chat    { background: rgba(74,144,217,.15); color: var(--accent); }
+.channel-annonce-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 /* ── Boutons header avec état actif ── */

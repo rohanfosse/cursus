@@ -71,12 +71,14 @@ export function useDocumentsData() {
 
   const filtered = computed(() => {
     const q = docStore.searchQuery.trim().toLowerCase()
-    return docStore.documents.filter((d) => {
-      if (q && !d.name.toLowerCase().includes(q) && !(d.description ?? '').toLowerCase().includes(q)) return false
-      if (docStore.activeCategory && d.category !== docStore.activeCategory) return false
-      if (activeTypeFilter.value && docIconType(d) !== activeTypeFilter.value) return false
-      return true
-    })
+    return docStore.documents
+      .filter((d) => {
+        if (q && !d.name.toLowerCase().includes(q) && !(d.description ?? '').toLowerCase().includes(q)) return false
+        if (docStore.activeCategory && d.category !== docStore.activeCategory) return false
+        if (activeTypeFilter.value && docIconType(d) !== activeTypeFilter.value) return false
+        return true
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   })
 
   const categories = computed(() => {
