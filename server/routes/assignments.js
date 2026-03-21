@@ -17,14 +17,19 @@ const createAssignmentSchema = z.object({
   channelId:   z.number().int().positive('Canal invalide'),
   type:        z.enum(['livrable', 'soutenance', 'cctl', 'etude_de_cas', 'memoire', 'autre'], { message: 'Type de devoir invalide' }),
   deadline:    z.string().min(1, 'Date limite requise'),
+  // Accept both camelCase and snake_case
+  startDate:   z.string().nullable().optional(),
   start_date:  z.string().nullable().optional(),
   category:    z.string().max(100).nullable().optional(),
   assigned_to: z.enum(['all', 'group']).optional().default('all'),
+  promoId:     z.number().int().nullable().optional(),
+  groupId:     z.number().int().nullable().optional(),
   group_id:    z.number().int().nullable().optional(),
   room:        z.string().max(100).nullable().optional(),
   aavs:        z.string().max(2000).nullable().optional(),
   requires_submission: z.number().int().min(0).max(1).optional().default(1),
-}).passthrough() // allow _update, id for update calls
+  published:   z.union([z.boolean(), z.number()]).optional(),
+}).passthrough()
 
 router.get('/teacher-schedule',         wrap(() => queries.getTeacherSchedule()))
 router.get('/categories',               wrap((req) => queries.getTravailCategories(Number(req.query.promoId))))

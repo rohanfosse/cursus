@@ -144,6 +144,11 @@
   // ── Submit ──────────────────────────────────────────────────────────────
   async function submit() {
     if (!canSubmit.value) return
+    if (!channelId.value) {
+      showToast('Veuillez sélectionner un canal (Options avancées).', 'error')
+      showAdvanced.value = true
+      return
+    }
     creating.value = true
     try {
       if (!isEventType.value && startDate.value > deadline.value) {
@@ -157,14 +162,14 @@
         category:     category.value.trim() || null,
         deadline:     deadline.value,
         startDate:    isEventType.value ? null : startDate.value,
-        isPublished:  !isDraft.value,
-        isGraded:     null,
-        assignedTo:   'all',
+        published:    !isDraft.value,
+        assigned_to:  'all',
         groupId:      null,
         channelId:    channelId.value,
+        promoId:      appStore.activePromoId,
         room:         room.value.trim() || null,
         aavs:         aavs.value.trim() || null,
-        requiresSubmission: requiresSubmission.value,
+        requires_submission: requiresSubmission.value ? 1 : 0,
       })
       if (!res) { showToast('Erreur lors de la création.', 'error'); return }
       showToast(isDraft.value ? 'Brouillon enregistré.' : 'Devoir publié.', 'success')
