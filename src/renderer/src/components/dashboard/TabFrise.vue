@@ -118,6 +118,7 @@ function dotClass(ms: FriseMilestone) {
           @click="setZoom(k as ZoomLevel)"
         >{{ v.label }}</button>
       </div>
+      <span class="tf-count">{{ flatMilestones.length }} devoir{{ flatMilestones.length > 1 ? 's' : '' }}</span>
       <div class="tf-nav">
         <button class="tf-nav-btn" title="Période précédente" @click="emit('update:friseOffset', friseOffset - ZOOM_MAP[activeZoom].days / 2)">
           <ChevronLeft :size="16" />
@@ -158,18 +159,21 @@ function dotClass(ms: FriseMilestone) {
         </div>
       </div>
 
-      <!-- Single lane: all milestones -->
+      <!-- Single lane: all milestones with type labels -->
       <div class="tf-lane">
         <div class="tf-lane-line" />
         <div
-          v-for="ms in flatMilestones" :key="ms.id"
-          class="tf-dot" :class="dotClass(ms)"
-          :style="{ left: milestoneLeft(ms.deadline), background: ms.color }"
-          :title="`${ms.title} — ${formatDate(ms.deadline)}`"
+          v-for="(ms, i) in flatMilestones" :key="ms.id"
+          class="tf-milestone" :class="{ 'tf-milestone--above': i % 2 === 0 }"
+          :style="{ left: milestoneLeft(ms.deadline) }"
           @click.stop="emit('onMilestoneClick', ms)"
           @mouseenter="hoveredMs = ms"
           @mouseleave="hoveredMs = null"
-        />
+        >
+          <span v-if="i % 2 === 0" class="tf-ms-label" :style="{ color: ms.color }">{{ typeLabel(ms.type) }}</span>
+          <div class="tf-dot" :class="dotClass(ms)" :style="{ background: ms.color }" />
+          <span v-if="i % 2 !== 0" class="tf-ms-label" :style="{ color: ms.color }">{{ typeLabel(ms.type) }}</span>
+        </div>
       </div>
     </div>
 
@@ -185,7 +189,7 @@ function dotClass(ms: FriseMilestone) {
     </div>
 
     <!-- Légende projets -->
-    <div v-if="projectLegend.length > 1" class="tf-legend">
+    <div v-if="projectLegend.length" class="tf-legend">
       <button
         v-for="p in projectLegend" :key="p.label"
         class="tf-legend-item"
@@ -216,6 +220,7 @@ function dotClass(ms: FriseMilestone) {
 }
 .tf-zoom-btn:hover { background: rgba(255,255,255,.05); color: var(--text-primary); }
 .tf-zoom-btn.active { background: var(--accent); color: #fff; }
+.tf-count { font-size: 12px; color: var(--text-muted); font-weight: 500; }
 .tf-nav { display: flex; align-items: center; gap: 4px; }
 .tf-nav-btn {
   display: flex; align-items: center; justify-content: center;
@@ -271,7 +276,7 @@ function dotClass(ms: FriseMilestone) {
 
 /* Lane */
 .tf-lane {
-  position: relative; height: 80px;
+  position: relative; height: 100px;
   display: flex; align-items: center;
 }
 .tf-lane-line {
@@ -279,18 +284,33 @@ function dotClass(ms: FriseMilestone) {
   height: 2px; background: rgba(255,255,255,.08); border-radius: 1px;
   transform: translateY(-50%);
 }
-.tf-dot {
+
+/* Milestone container (dot + label) */
+.tf-milestone {
   position: absolute; top: 50%; transform: translate(-50%, -50%);
-  width: 12px; height: 12px; border-radius: 50%;
-  border: 2px solid var(--bg-sidebar);
-  cursor: pointer; z-index: 2; transition: transform .15s, box-shadow .15s;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; z-index: 2;
 }
-.tf-dot:hover {
-  transform: translate(-50%, -50%) scale(1.4);
+.tf-milestone--above { flex-direction: column; }
+.tf-milestone:not(.tf-milestone--above) { flex-direction: column; }
+.tf-ms-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .3px; white-space: nowrap; pointer-events: none;
+  opacity: .8; transition: opacity .15s;
+}
+.tf-milestone:hover .tf-ms-label { opacity: 1; }
+
+.tf-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--bg-sidebar); flex-shrink: 0;
+  transition: transform .15s, box-shadow .15s;
+}
+.tf-milestone:hover .tf-dot {
+  transform: scale(1.4);
   box-shadow: 0 0 0 4px rgba(255,255,255,.1);
 }
-.tf-dot--diamond { border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg); }
-.tf-dot--diamond:hover { transform: translate(-50%, -50%) rotate(45deg) scale(1.4); }
+.tf-dot--diamond { border-radius: 2px; transform: rotate(45deg); }
+.tf-milestone:hover .tf-dot--diamond { transform: rotate(45deg) scale(1.4); }
 .tf-dot--draft { opacity: .35; }
 .tf-dot--done { box-shadow: 0 0 0 2px rgba(255,255,255,.2); }
 
