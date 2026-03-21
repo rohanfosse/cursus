@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
-  import { Plus, Trash2 } from 'lucide-vue-next'
+  import { Plus, Trash2, GripVertical } from 'lucide-vue-next'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
   import { useTravauxStore } from '@/stores/travaux'
@@ -45,6 +45,14 @@
   function removeCriterion(key: number) {
     draftCriteria.value = draftCriteria.value.filter((c) => c._key !== key)
   }
+
+  // ── Total points & weight ─────────────────────────────────────────────────
+  const totalMaxPts = computed(() =>
+    draftCriteria.value.reduce((s, c) => s + (c.max_pts * c.weight), 0),
+  )
+  const totalWeight = computed(() =>
+    draftCriteria.value.reduce((s, c) => s + c.weight, 0),
+  )
 
   // ── Scores (mode notation) ────────────────────────────────────────────────
   const scores = ref<Record<number, number>>({})   // criterion_id → points
@@ -212,11 +220,13 @@
             v-for="c in draftCriteria"
             :key="c._key"
             class="rubric-criterion-row"
+            :class="{ 'rubric-criterion-invalid': !c.label.trim() || c.weight <= 0 }"
           >
-            <!-- grip retiré : réordonnement non implémenté -->
+            <GripVertical :size="14" class="rubric-grip" />
             <input
               v-model="c.label"
               class="form-input rubric-criterion-label"
+              :class="{ 'input-invalid': !c.label.trim() }"
               placeholder="Intitulé du critère"
             />
             <div class="rubric-criterion-nums">
@@ -228,7 +238,7 @@
                 max="20"
                 class="form-input rubric-num-input"
               />
-              <label class="rubric-num-label">×</label>
+              <label class="rubric-num-label">&times;</label>
               <input
                 v-model.number="c.weight"
                 type="number"
@@ -236,6 +246,14 @@
                 max="10"
                 step="0.1"
                 class="form-input rubric-num-input"
+                :class="{ 'input-invalid': c.weight <= 0 }"
+              />
+            </div>
+            <!-- Weight visualization bar -->
+            <div class="rubric-weight-bar-wrap" :title="`Poids : ${c.weight} / ${totalWeight}`">
+              <div
+                class="rubric-weight-bar-fill"
+                :style="{ width: totalWeight ? ((c.weight / totalWeight) * 100) + '%' : '0%' }"
               />
             </div>
             <button class="btn-icon rubric-delete-btn" @click="removeCriterion(c._key)">
@@ -243,8 +261,20 @@
             </button>
           </div>
 
-          <div v-if="!draftCriteria.length" class="rubric-empty-hint">
-            Aucun critère. Cliquez sur « Ajouter » pour commencer.
+          <!-- Better empty state -->
+          <div v-if="!draftCriteria.length" class="rubric-empty-state">
+            <div class="rubric-empty-icon">+</div>
+            <p class="rubric-empty-title">Ajoutez votre premier critère</p>
+            <p class="rubric-empty-sub">Définissez les critères d'évaluation pour noter vos étudiants de manière structurée.</p>
+            <button class="btn-primary" style="font-size:12px;margin-top:8px" @click="addCriterion">
+              <Plus :size="13" /> Ajouter un critère
+            </button>
+          </div>
+
+          <!-- Total points display -->
+          <div v-if="draftCriteria.length" class="rubric-total-pts">
+            Total pondéré : <strong>{{ Math.round(totalMaxPts * 100) / 100 }}</strong> pts
+            <span class="rubric-total-weight">({{ draftCriteria.length }} critère{{ draftCriteria.length > 1 ? 's' : '' }}, poids total : {{ Math.round(totalWeight * 100) / 100 }})</span>
           </div>
         </div>
       </div>
@@ -433,12 +463,57 @@
 }
 .rubric-delete-btn:hover { opacity: 1; }
 
-.rubric-empty-hint {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-style: italic;
-  padding: 8px 0;
+/* Better empty state */
+.rubric-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  text-align: center;
 }
+.rubric-empty-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(74,144,217,.1); color: var(--accent);
+  font-size: 22px; font-weight: 700; margin-bottom: 8px;
+}
+.rubric-empty-title {
+  font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0 0 4px;
+}
+.rubric-empty-sub {
+  font-size: 12px; color: var(--text-muted); margin: 0; max-width: 280px;
+}
+
+/* Validation highlighting */
+.rubric-criterion-invalid {
+  border: 1px solid rgba(231,76,60,.35) !important;
+  border-radius: 8px;
+  padding: 4px;
+  margin: -4px;
+}
+.input-invalid {
+  border-color: var(--color-danger) !important;
+}
+
+/* Weight bar */
+.rubric-weight-bar-wrap {
+  width: 32px; height: 6px; border-radius: 3px;
+  background: rgba(255,255,255,.08); flex-shrink: 0;
+  overflow: hidden;
+}
+.rubric-weight-bar-fill {
+  height: 100%; border-radius: 3px;
+  background: var(--accent); transition: width .2s;
+}
+
+/* Total points */
+.rubric-total-pts {
+  font-size: 12px; color: var(--text-secondary);
+  padding: 8px 0 0; border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.rubric-total-pts strong { color: var(--text-primary); font-weight: 800; }
+.rubric-total-weight { color: var(--text-muted); font-size: 11px; margin-left: 4px; }
 
 /* Mode notation */
 .rubric-scoring-title {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
-  import { AlertTriangle, Download, FileText, Link2, MessageSquare, X, LayoutList, Star } from 'lucide-vue-next'
+  import { AlertTriangle, Download, FileText, Link2, MessageSquare, X, LayoutList, Star, Search, ArrowUpDown } from 'lucide-vue-next'
   import { useTravauxStore } from '@/stores/travaux'
   import { useAppStore }     from '@/stores/app'
   import { useModalsStore }  from '@/stores/modals'
@@ -102,6 +102,26 @@
 
   // Taux de soumission
   const submittedCount = computed(() => travauxStore.depots.filter(d => d.content || d.file_name).length)
+
+  // ── Search / Sort / Filter ───────────────────────────────────────────────
+  const searchQuery = ref('')
+  type SortMode = 'name' | 'date'
+  const sortMode = ref<SortMode>('name')
+
+  const filteredDepots = computed(() => {
+    let list = [...travauxStore.depots]
+    const q = searchQuery.value.trim().toLowerCase()
+    if (q) list = list.filter(d => d.student_name.toLowerCase().includes(q))
+    if (sortMode.value === 'name') {
+      list.sort((a, b) => a.student_name.localeCompare(b.student_name))
+    } else {
+      list.sort((a, b) => (b.submitted_at ?? '').localeCompare(a.submitted_at ?? ''))
+    }
+    return list
+  })
+
+  // ── Bulk grade hint ────────────────────────────────────────────────────────
+  const ungradedCount = computed(() => travauxStore.depots.filter(d => d.note == null && (d.content || d.file_name)).length)
 
   // ── Helpers retard #7 ─────────────────────────────────────────────────────
   function formatLate(seconds: number): string {
@@ -274,11 +294,38 @@
         </span>
       </div>
 
-      <!-- Stats rapides -->
+      <!-- Stats rapides — badges colorés -->
       <div class="depots-quick-stats">
-        <span>{{ submittedCount }}/{{ totalStudents }} soumis</span>
-        <span v-if="modeGrade">Note fréquente : <strong>{{ modeGrade }}</strong></span>
-        <span>{{ totalStudents - notedCount }} à noter</span>
+        <span class="stat-badge stat-total">{{ totalStudents }} rendus</span>
+        <span class="stat-badge stat-noted">{{ notedCount }} notés</span>
+        <span class="stat-badge stat-waiting">{{ totalStudents - notedCount }} en attente</span>
+        <span class="stat-badge stat-submitted">{{ submittedCount }} soumis</span>
+        <span v-if="modeGrade" class="stat-badge stat-mode">Fréquente : <strong>{{ modeGrade }}</strong></span>
+      </div>
+
+      <!-- Search + sort -->
+      <div class="depots-search-row">
+        <div class="depots-search-input-wrap">
+          <Search :size="13" class="depots-search-icon" />
+          <input
+            v-model="searchQuery"
+            class="form-input depots-search-input"
+            placeholder="Rechercher un étudiant…"
+          />
+        </div>
+        <button
+          class="btn-ghost depots-sort-btn"
+          :title="`Trier par ${sortMode === 'name' ? 'date' : 'nom'}`"
+          @click="sortMode = sortMode === 'name' ? 'date' : 'name'"
+        >
+          <ArrowUpDown :size="12" />
+          {{ sortMode === 'name' ? 'Nom' : 'Date' }}
+        </button>
+      </div>
+
+      <!-- Bulk grade hint -->
+      <div v-if="ungradedCount > 1" class="depots-bulk-hint">
+        {{ ungradedCount }} rendus en attente de notation
       </div>
     </div>
 
@@ -289,7 +336,7 @@
       </div>
 
       <div
-        v-for="d in travauxStore.depots"
+        v-for="d in filteredDepots"
         :key="d.id"
         class="depot-card"
         :class="{ 'has-note': d.note != null }"
@@ -363,6 +410,8 @@
               rows="2"
               placeholder="Commentaire pour l'étudiant…"
               style="font-size:13px"
+              @keydown.escape.prevent="editingFeedbackId = null"
+              @keydown.ctrl.enter.prevent="saveFeedback(d)"
             />
             <div class="depot-feedback-actions">
               <button class="btn-ghost" style="font-size:12px" @click="editingFeedbackId = null">
@@ -395,7 +444,7 @@
                 {{ n }}
               </button>
             </div>
-            <div style="display:flex;gap:6px;margin-top:6px">
+            <div style="display:flex;gap:6px;margin-top:6px" @keydown.enter.prevent="noteInput && saveNote(d)" @keydown.escape.prevent="editingNoteId = null">
               <button class="btn-ghost" style="font-size:11px;padding:3px 8px" @click="editingNoteId = null">
                 Annuler
               </button>
@@ -750,10 +799,45 @@
 .grade-dist-pill strong { font-weight: 800; }
 
 .depots-quick-stats {
-  display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px;
-  font-size: 11px; color: var(--text-muted);
+  display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;
 }
-.depots-quick-stats strong { color: var(--text-primary); font-weight: 700; }
+.stat-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; font-weight: 600; padding: 2px 8px;
+  border-radius: 12px; border: 1px solid transparent;
+}
+.stat-total   { background: rgba(74,144,217,.12); color: var(--accent); border-color: rgba(74,144,217,.25); }
+.stat-noted   { background: rgba(39,174,96,.12);  color: var(--color-success); border-color: rgba(39,174,96,.25); }
+.stat-waiting { background: rgba(243,156,18,.12); color: var(--color-warning); border-color: rgba(243,156,18,.25); }
+.stat-submitted { background: rgba(255,255,255,.06); color: var(--text-muted); border-color: var(--border); }
+.stat-mode    { background: rgba(123,104,238,.12); color: var(--color-cctl); border-color: rgba(123,104,238,.25); }
+.stat-badge strong { font-weight: 800; }
+
+/* Search + sort */
+.depots-search-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.depots-search-input-wrap {
+  position: relative; flex: 1;
+}
+.depots-search-icon {
+  position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); pointer-events: none;
+}
+.depots-search-input {
+  padding-left: 28px !important; font-size: 12.5px !important;
+}
+.depots-sort-btn {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; padding: 4px 10px; white-space: nowrap;
+}
+
+/* Bulk hint */
+.depots-bulk-hint {
+  font-size: 11.5px; color: var(--color-warning); font-weight: 600;
+  padding: 4px 10px; border-radius: 6px;
+  background: rgba(243,156,18,.08); border: 1px solid rgba(243,156,18,.2);
+}
 
 /* Badge retard (#7) */
 .depot-late-badge {
