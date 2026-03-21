@@ -6,7 +6,25 @@ import { ref, computed, watch, nextTick, onMounted, type Ref } from 'vue'
 import { useAppStore } from '@/stores/app'
 
 // ── Types ────────────────────────────────────────────────────────────────────
-export type RefType = 'mention' | 'channel' | 'devoir' | 'doc'
+export type RefType = 'mention' | 'channel' | 'devoir' | 'doc' | 'command'
+
+export interface SlashCommand {
+  name: string
+  description: string
+  usage: string
+  action?: string // 'insert' = inserts text, 'navigate' = emits event
+}
+
+export const SLASH_COMMANDS: SlashCommand[] = [
+  { name: 'devoir',   description: 'Référencer un devoir de la promotion',     usage: '/devoir <recherche>' },
+  { name: 'doc',      description: 'Référencer un document partagé',           usage: '/doc <recherche>' },
+  { name: 'annonce',  description: 'Envoyer un message d\'annonce formaté',    usage: '/annonce <message>', action: 'insert' },
+  { name: 'sondage',  description: 'Créer un sondage rapide',                  usage: '/sondage Question ? | Option 1 | Option 2', action: 'insert' },
+  { name: 'rappel',   description: 'Rappeler un devoir aux étudiants',         usage: '/rappel <titre du devoir>' },
+  { name: 'tableau',  description: 'Insérer un tableau markdown',              usage: '/tableau', action: 'insert' },
+  { name: 'code',     description: 'Insérer un bloc de code',                  usage: '/code <langage>', action: 'insert' },
+  { name: 'aide',     description: 'Afficher les raccourcis et commandes',     usage: '/aide', action: 'insert' },
+]
 
 export interface MentionUser {
   name: string
@@ -107,6 +125,9 @@ export function useMsgAutocomplete(
   const refResults = computed(() => {
     if (!activeRef.value || activeRef.value === 'mention') return []
     const q = normalize(refSearch.value)
+    if (activeRef.value === 'command') {
+      return SLASH_COMMANDS.filter(c => normalize(c.name).includes(q))
+    }
     if (activeRef.value === 'channel') {
       return channelList.value.filter(c => normalize(c.name).includes(q)).slice(0, 8)
     }
@@ -194,6 +215,7 @@ export function useMsgAutocomplete(
     const matchMention = before.match(/@([^\s@]*)$/)
     const matchChannel = before.match(/#([^\s#]*)$/)
     const matchDevoir2 = before.match(/\\([^\s\\]*)$/)
+    const matchSlash   = before.match(/^\/([^\s]*)$/i) // "/" au début de la ligne
     const matchDevoir  = before.match(/\/devoir\s?(.*)$/i)
     const matchDoc     = before.match(/\/doc\s?(.*)$/i)
 
@@ -209,6 +231,12 @@ export function useMsgAutocomplete(
       refStart.value  = cursor - matchChannel[0].length
       mentionActive.value = false
       loadChannels()
+    } else if (matchSlash && !matchDevoir && !matchDoc) {
+      // "/" seul ou "/xxx" au début → liste des commandes
+      activeRef.value = 'command'
+      refSearch.value = matchSlash[1]
+      refStart.value  = cursor - matchSlash[0].length
+      mentionActive.value = false
     } else if (matchDevoir2) {
       activeRef.value = 'devoir'
       refSearch.value = matchDevoir2[1]
@@ -281,6 +309,64 @@ export function useMsgAutocomplete(
     })
   }
 
+  function executeCommand(cmd: SlashCommand) {
+    const el = inputEl.value
+    if (!el) return
+    // Remplacer le "/xxx" par le résultat de la commande
+    const before = content.value.slice(0, refStart.value)
+    const after  = content.value.slice(el.selectionStart ?? content.value.length)
+
+    if (cmd.name === 'devoir') {
+      // Passer en mode autocomplete devoir
+      content.value = before + '/devoir ' + after
+      activeRef.value = 'devoir'
+      refSearch.value = ''
+      refStart.value = before.length
+      loadDevoirs()
+    } else if (cmd.name === 'doc') {
+      content.value = before + '/doc ' + after
+      activeRef.value = 'doc'
+      refSearch.value = ''
+      refStart.value = before.length
+      loadDocs()
+    } else if (cmd.name === 'annonce') {
+      content.value = before + '**📢 Annonce** : ' + after
+      activeRef.value = null
+    } else if (cmd.name === 'sondage') {
+      content.value = before + '**📊 Sondage** : Votre question ici ?\n- Option 1\n- Option 2\n- Option 3' + after
+      activeRef.value = null
+    } else if (cmd.name === 'rappel') {
+      content.value = before + '/devoir ' + after
+      activeRef.value = 'devoir'
+      refSearch.value = ''
+      refStart.value = before.length
+      loadDevoirs()
+    } else if (cmd.name === 'tableau') {
+      content.value = before + '| Colonne 1 | Colonne 2 | Colonne 3 |\n|-----------|-----------|----------|\n| Valeur    | Valeur    | Valeur   |' + after
+      activeRef.value = null
+    } else if (cmd.name === 'code') {
+      content.value = before + '```\n// Votre code ici\n```' + after
+      activeRef.value = null
+    } else if (cmd.name === 'aide') {
+      content.value = before + [
+        '**Raccourcis disponibles** :',
+        '`@nom` — Mentionner quelqu\'un',
+        '`#canal` — Référencer un canal',
+        '`\\titre` — Référencer un devoir',
+        '`/commande` — Commandes slash',
+        '`**texte**` — **Gras**',
+        '`*texte*` — *Italique*',
+        '`` `code` `` — `Code`',
+      ].join('\n') + after
+      activeRef.value = null
+    }
+
+    nextTick(() => {
+      el.focus()
+      autoResize()
+    })
+  }
+
   function triggerDevoir() {
     const el = inputEl.value
     if (!el) return
@@ -327,6 +413,7 @@ export function useMsgAutocomplete(
     triggerMention,
     triggerChannel,
     triggerDevoir,
+    executeCommand,
     dismissAll,
   }
 }

@@ -7,7 +7,7 @@ import { usePrefs }         from '@/composables/usePrefs'
 import { avatarColor, initials } from '@/utils/format'
 
 import { useMsgDraft }        from '@/composables/useMsgDraft'
-import { useMsgAutocomplete } from '@/composables/useMsgAutocomplete'
+import { useMsgAutocomplete, type SlashCommand } from '@/composables/useMsgAutocomplete'
 import { useMsgAttachment }   from '@/composables/useMsgAttachment'
 import { useMsgSend }         from '@/composables/useMsgSend'
 import { useMsgFormatting }   from '@/composables/useMsgFormatting'
@@ -45,7 +45,7 @@ const {
   activeRef, refResults, refIndex, insertRef,
   wrapperEl, popupStyle,
   detectTriggers, scrollMentionIntoView,
-  triggerMention, triggerChannel, triggerDevoir, dismissAll,
+  triggerMention, triggerChannel, triggerDevoir, executeCommand, dismissAll,
 } = useMsgAutocomplete(content, inputEl, autoResize)
 
 const { attaching, attachFile } = useMsgAttachment(content, inputEl, autoResize)
@@ -102,7 +102,8 @@ function onKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault()
       const item = refResults.value[refIndex.value]
-      if (activeRef.value === 'channel') insertRef('#' + (item as { name: string }).name)
+      if (activeRef.value === 'command') executeCommand(item as SlashCommand)
+      else if (activeRef.value === 'channel') insertRef('#' + (item as { name: string }).name)
       else if (activeRef.value === 'devoir') insertRef('\\[' + (item as RefDevoir).title + '](devoir:' + (item as RefDevoir).id + ')')
       else if (activeRef.value === 'doc') insertRef('📄 [' + (item as { name: string }).name + ']')
       return
@@ -219,12 +220,26 @@ function onKeydown(e: KeyboardEvent) {
             class="mi-mention-popup"
             :style="popupStyle"
             role="listbox"
-            :aria-label="activeRef === 'channel' ? 'Canaux' : activeRef === 'devoir' ? 'Devoirs' : 'Documents'"
+            :aria-label="activeRef === 'command' ? 'Commandes' : activeRef === 'channel' ? 'Canaux' : activeRef === 'devoir' ? 'Devoirs' : 'Documents'"
           >
             <div class="mi-mention-header">
-              {{ activeRef === 'channel' ? 'Canaux' : activeRef === 'devoir' ? 'Devoirs' : 'Documents' }}
+              {{ activeRef === 'command' ? 'Commandes' : activeRef === 'channel' ? 'Canaux' : activeRef === 'devoir' ? 'Devoirs' : 'Documents' }}
             </div>
-            <template v-if="activeRef === 'channel'">
+            <!-- Commandes slash -->
+            <template v-if="activeRef === 'command'">
+              <button
+                v-for="(cmd, i) in refResults"
+                :key="(cmd as SlashCommand).name"
+                class="mi-mention-item mi-cmd-item"
+                :class="{ 'mi-mention-selected': i === refIndex }"
+                @mousedown.prevent="executeCommand(cmd as SlashCommand)"
+                @mouseenter="refIndex = i"
+              >
+                <span class="mi-cmd-slash">/{{ (cmd as SlashCommand).name }}</span>
+                <span class="mi-cmd-desc">{{ (cmd as SlashCommand).description }}</span>
+              </button>
+            </template>
+            <template v-else-if="activeRef === 'channel'">
               <button
                 v-for="(ch, i) in refResults"
                 :key="(ch as RefChannel).name"
@@ -796,4 +811,21 @@ function onKeydown(e: KeyboardEvent) {
   0%, 100% { opacity: .4; transform: scale(.85); }
   50%       { opacity: 1;  transform: scale(1.1); }
 }
+
+/* ── Commandes slash ── */
+.mi-cmd-item {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 2px !important;
+  padding: 8px 12px !important;
+}
+.mi-cmd-slash {
+  font-size: 13px; font-weight: 600; color: var(--accent);
+  font-family: 'Fira Code', 'Consolas', monospace;
+}
+.mi-cmd-desc {
+  font-size: 11px; color: var(--text-muted); line-height: 1.3;
+}
+.mi-mention-selected .mi-cmd-slash { color: #fff; }
+.mi-mention-selected .mi-cmd-desc { color: rgba(255,255,255,.7); }
 </style>
