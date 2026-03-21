@@ -1,6 +1,6 @@
 // ─── Routes groupes ───────────────────────────────────────────────────────────
 const router  = require('express').Router()
-const queries = require('../../src/db/index')
+const queries = require('../db/index')
 
 function wrap(fn) {
   return (req, res) => {

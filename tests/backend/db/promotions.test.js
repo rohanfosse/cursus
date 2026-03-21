@@ -5,7 +5,7 @@ let promotions
 
 beforeAll(() => {
   setupTestDb()
-  promotions = require('../../../src/db/models/promotions')
+  promotions = require('../../../server/db/models/promotions')
 })
 afterAll(() => teardownTestDb())
 

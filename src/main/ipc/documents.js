@@ -1,6 +1,6 @@
 // ─── IPC : Documents (canal + projet) ─────────────────────────────────────────
 const { handle } = require('./helpers')
-const queries = require('../../db/index')
+const queries = require('../../../server/db/index')
 const { validated, addDocumentPayload } = require('./validation')
 
 function register() {

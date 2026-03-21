@@ -1,6 +1,6 @@
 // ─── Routes administration ────────────────────────────────────────────────────
 const router  = require('express').Router()
-const queries = require('../../src/db/index')
+const queries = require('../db/index')
 const os      = require('os')
 const fs      = require('fs')
 const path    = require('path')
@@ -170,7 +170,7 @@ router.get('/users/:id', (req, res) => {
 
 router.patch('/users/:id', (req, res) => {
   try {
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const db = getDb()
     const userId = Number(req.params.id)
     const isTeacher = userId < 0
@@ -209,7 +209,7 @@ router.patch('/users/:id', (req, res) => {
 
 router.post('/users/:id/reset-password', (req, res) => {
   try {
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const bcrypt = require('bcryptjs')
     const crypto = require('crypto')
     const db = getDb()
@@ -232,7 +232,7 @@ router.post('/users/:id/reset-password', (req, res) => {
 
 router.delete('/users/:id', (req, res) => {
   try {
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const db = getDb()
     const userId = Number(req.params.id)
     const isTeacher = userId < 0
@@ -273,7 +273,7 @@ router.get('/messages', (req, res) => {
 
 router.delete('/messages/:id', (req, res) => {
   try {
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const db = getDb()
     const id = Number(req.params.id)
     const msg = db.prepare('SELECT id, content, author_name, channel_id FROM messages WHERE id = ?').get(id)
@@ -314,7 +314,7 @@ router.get('/channels', (req, res) => {
 
 router.get('/audit', (req, res) => {
   try {
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const db = getDb()
     const { action, actor, from, to, page = 1, limit = 100 } = req.query
     const offset = ((Number(page) || 1) - 1) * (Number(limit) || 100)
@@ -346,7 +346,7 @@ router.get('/audit', (req, res) => {
 
 router.get('/security', (req, res) => {
   try {
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const db = getDb()
 
     const recentLogins = db.prepare(`
@@ -382,7 +382,7 @@ router.post('/reset-seed', (req, res) => {
 
 router.post('/backup', (req, res) => {
   try {
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const db = getDb()
     const backupDir = path.join(ROOT, 'backups')
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true })
@@ -431,7 +431,7 @@ router.delete('/backups/:filename', (req, res) => {
 
 router.get('/db-info', (req, res) => {
   try {
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const db = getDb()
     const tables = db.prepare(`
       SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name
@@ -849,10 +849,10 @@ router.post('/import-examens', (req, res) => {
 
     const path = require('path')
     const fs = require('fs')
-    const dataPath = path.join(__dirname, '..', 'examens-data.json')
+    const dataPath = path.join(__dirname, '..', 'data', 'examens-data.json')
     if (!fs.existsSync(dataPath)) return res.status(404).json({ ok: false, error: 'examens-data.json introuvable.' })
 
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const db = getDb()
     const promoId = getOrCreatePromo(db, promoName)
 
@@ -887,7 +887,7 @@ router.post('/seed-promos', (req, res) => {
   try {
     const path = require('path')
     const fs = require('fs')
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const db = getDb()
     const results = []
 
@@ -915,7 +915,7 @@ router.post('/seed-promos', (req, res) => {
       results.push(`  ${p.blocs.length} canaux de projet créés`)
 
       // Import examens
-      const examPath = path.join(__dirname, '..', 'examens-data.json')
+      const examPath = path.join(__dirname, '..', 'data', 'examens-data.json')
       if (fs.existsSync(examPath)) {
         const examens = JSON.parse(fs.readFileSync(examPath, 'utf8'))
         const filtered = examens.filter(e => e.promoTag === p.tag)
@@ -938,7 +938,7 @@ router.post('/seed-promos', (req, res) => {
     }
 
     // Import rappels
-    const rappelsPath = path.join(__dirname, '..', 'rappels-data.json')
+    const rappelsPath = path.join(__dirname, '..', 'data', 'rappels-data.json')
     if (fs.existsSync(rappelsPath)) {
       const rappels = JSON.parse(fs.readFileSync(rappelsPath, 'utf8'))
       db.prepare('DELETE FROM teacher_reminders').run()
@@ -959,7 +959,7 @@ router.post('/seed-promos', (req, res) => {
 // Lister les promos (pour les selects)
 router.get('/promos-list', (req, res) => {
   try {
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const promos = getDb().prepare('SELECT id, name, color FROM promotions ORDER BY name').all()
     res.json({ ok: true, data: promos })
   } catch { res.json({ ok: true, data: [] }) }
@@ -974,11 +974,11 @@ router.post('/import-rappels', (req, res) => {
   try {
     const path = require('path')
     const fs = require('fs')
-    const dataPath = path.join(__dirname, '..', 'rappels-data.json')
+    const dataPath = path.join(__dirname, '..', 'data', 'rappels-data.json')
     if (!fs.existsSync(dataPath)) return res.status(404).json({ ok: false, error: 'rappels-data.json introuvable.' })
 
     const rappels = JSON.parse(fs.readFileSync(dataPath, 'utf8'))
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const db = getDb()
 
     let imported = 0
@@ -1001,7 +1001,7 @@ router.post('/import-rappels', (req, res) => {
 // Lister les rappels (pour le dashboard prof)
 router.get('/rappels', (req, res) => {
   try {
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const db = getDb()
     const rappels = db.prepare('SELECT * FROM teacher_reminders ORDER BY date ASC').all()
     res.json({ ok: true, data: rappels })
@@ -1014,7 +1014,7 @@ router.get('/rappels', (req, res) => {
 router.post('/rappels/:id/done', (req, res) => {
   try {
     const { done } = req.body
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     getDb().prepare('UPDATE teacher_reminders SET done = ? WHERE id = ?').run(done ? 1 : 0, Number(req.params.id))
     res.json({ ok: true, data: null })
   } catch (err) {

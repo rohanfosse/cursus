@@ -5,7 +5,7 @@ let queries
 
 beforeAll(() => {
   setupTestDb()
-  queries = require('../../../src/db/models/messages')
+  queries = require('../../../server/db/models/messages')
 })
 afterAll(() => teardownTestDb())
 

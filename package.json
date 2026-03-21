@@ -16,7 +16,7 @@
     "postinstall": "node scripts/postinstall.js",
     "server": "node server/index.js",
     "server:dev": "node --watch server/index.js",
-    "server:pm2": "pm2 start ecosystem.config.js --env production",
+    "server:pm2": "pm2 start config/ecosystem.config.js --env production",
     "dev:web": "vite --config vite.web.config.ts",
     "build:web": "vite build --config vite.web.config.ts --mode production",
     "test": "vitest run",

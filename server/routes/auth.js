@@ -3,7 +3,7 @@ const router    = require('express').Router()
 const jwt       = require('jsonwebtoken')
 const rateLimit = require('express-rate-limit')
 const { z }     = require('zod')
-const queries   = require('../../src/db/index')
+const queries   = require('../db/index')
 const auth      = require('../middleware/auth')
 const { validate } = require('../middleware/validate')
 
@@ -52,7 +52,7 @@ const loginLimiter = rateLimit({
 // ── Helper : enregistrer une tentative de connexion ──────────────────────────
 function logLoginAttempt(email, success, req) {
   try {
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     getDb().prepare(
       `INSERT INTO login_attempts (email, success, ip, user_agent) VALUES (?, ?, ?, ?)`
     ).run(email || '', success ? 1 : 0, req.ip, req.get('user-agent') || '')
@@ -97,7 +97,7 @@ router.get('/find-user', auth, wrap((req) => queries.findUserByName(req.query.na
 
 // GET /api/auth/teachers  (requiert JWT — retourne les enseignants visibles pour les DMs)
 router.get('/teachers', auth, wrap(() => {
-  const { getDb } = require('../../src/db/connection')
+  const { getDb } = require('../db/connection')
   return getDb().prepare('SELECT id, name, role, photo_data FROM teachers ORDER BY name').all().map(t => ({
     id: -(t.id),
     name: t.name,

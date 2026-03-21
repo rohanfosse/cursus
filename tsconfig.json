@@ -15,7 +15,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/renderer/src/*"],
-      "@css/*": ["renderer/css/*"]
+      "@css/*": ["src/renderer/src/assets/css/*"]
     }
   },
   "include": [

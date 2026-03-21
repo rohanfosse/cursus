@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 import router from './router'
 import App from './App.vue'
 
-// ── CSS existant (répertoire renderer/css/ gardé en place) ──────────────────
+// ── CSS de base ─────────────────────────────────────────────────────────────
 import '@css/base.css'
 import '@css/layout.css'
 import '@css/components.css'

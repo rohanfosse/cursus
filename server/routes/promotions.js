@@ -1,6 +1,6 @@
 // ─── Routes promotions & canaux ───────────────────────────────────────────────
 const router  = require('express').Router()
-const queries = require('../../src/db/index')
+const queries = require('../db/index')
 
 function wrap(fn) {
   return (req, res) => {
@@ -16,7 +16,7 @@ router.delete('/:id', wrap((req) => queries.deletePromotion(Number(req.params.id
 router.patch('/:id', (req, res) => {
   try {
     const { name, color } = req.body
-    const { getDb } = require('../../src/db/connection')
+    const { getDb } = require('../db/connection')
     const db = getDb()
     if (name) db.prepare('UPDATE promotions SET name = ? WHERE id = ?').run(name, Number(req.params.id))
     if (color) db.prepare('UPDATE promotions SET color = ? WHERE id = ?').run(color, Number(req.params.id))

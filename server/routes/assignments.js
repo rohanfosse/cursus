@@ -1,7 +1,7 @@
 // ─── Routes travaux (assignments) ────────────────────────────────────────────
 const router  = require('express').Router()
 const { z }   = require('zod')
-const queries = require('../../src/db/index')
+const queries = require('../db/index')
 const { validate } = require('../middleware/validate')
 
 function wrap(fn) {

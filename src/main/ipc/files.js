@@ -3,7 +3,7 @@ const { ipcMain, dialog, shell, BrowserWindow } = require('electron')
 const fs   = require('fs')
 const path = require('path')
 const { assertSafePath, MAX_READ_BYTES } = require('./helpers')
-const queries = require('../../db/index')
+const queries = require('../../../server/db/index')
 
 function register() {
   // ── Visualisation PDF ───────────────────────────────────────────────────

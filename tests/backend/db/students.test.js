@@ -6,7 +6,7 @@ let students
 
 beforeAll(() => {
   setupTestDb()
-  students = require('../../../src/db/models/students')
+  students = require('../../../server/db/models/students')
 })
 afterAll(() => teardownTestDb())
 

@@ -6,7 +6,7 @@ const http       = require('http')
 const { Server } = require('socket.io')
 const cors       = require('cors')
 const jwt        = require('jsonwebtoken')
-const queries    = require('../src/db/index')
+const queries    = require('./db/index')
 
 const PORT   = process.env.PORT       ?? 3001
 const ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:5173'
@@ -47,7 +47,7 @@ app.use('/api', authMiddleware)
 app.use('/api', (req, res, next) => {
   if (req.method === 'GET' || req.path.startsWith('/admin')) return next()
   try {
-    const { getAppConfig } = require('../src/db/models/admin')
+    const { getAppConfig } = require('./db/models/admin')
     if (getAppConfig('read_only') === '1' && req.user?.type !== 'teacher') {
       return res.status(503).json({ ok: false, error: 'La plateforme est en mode lecture seule.' })
     }
@@ -62,7 +62,7 @@ app.use('/api', (req, _res, next) => {
       const crypto = require('crypto')
       const token = req.headers.authorization.replace('Bearer ', '')
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex').substring(0, 32)
-      const { upsertSession } = require('../src/db/models/admin')
+      const { upsertSession } = require('./db/models/admin')
       upsertSession({
         userId: req.user.id, userName: req.user.name, userType: req.user.type,
         tokenHash, ip: req.ip, userAgent: req.get('user-agent') || '',
@@ -103,7 +103,7 @@ app.use('/api/files', require('./routes/files'))
 app.get('/health', (_req, res) => {
   try {
     // Vérifier la connexion DB
-    const { getDb } = require('../src/db/connection')
+    const { getDb } = require('./db/connection')
     getDb().prepare('SELECT 1').get()
     res.json({
       ok: true,
@@ -126,11 +126,11 @@ app.use('/webhook/deploy', require('./routes/deploy'))
 // ── Page admin monitoring ─────────────────────────────────────────────────────
 app.get('/admin-monitor', (_req, res) => {
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate')
-  res.sendFile(path.join(__dirname, 'admin-monitor.html'))
+  res.sendFile(path.join(__dirname, 'public/admin-monitor.html'))
 })
 
 // ── Landing page vitrine (page d'accueil) ──────────────────────────────────
-const LANDING = path.join(__dirname, '../landing/index.html')
+const LANDING = path.join(__dirname, '../src/landing/index.html')
 if (fs.existsSync(LANDING)) {
   app.get('/', (_req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate')
@@ -251,7 +251,7 @@ console.log('[DB] Base de données initialisée')
 // ── Timer : envoi des annonces planifiées (toutes les 30s) ─────────────────
 const _scheduledTimer = setInterval(() => {
   try {
-    const { getDueScheduledMessages, markScheduledSent } = require('../src/db/models/admin')
+    const { getDueScheduledMessages, markScheduledSent } = require('./db/models/admin')
     const due = getDueScheduledMessages()
     for (const sm of due) {
       try {
@@ -261,7 +261,7 @@ const _scheduledTimer = setInterval(() => {
         })
         markScheduledSent(sm.id)
         // Envoi ciblé à la promo du canal
-        const { getDb } = require('../src/db/connection')
+        const { getDb } = require('./db/connection')
         const ch = getDb().prepare('SELECT promo_id FROM channels WHERE id = ?').get(sm.channel_id)
         if (ch) io.to(`promo:${ch.promo_id}`).emit('msg:new', {
           channelId: sm.channel_id, authorName: sm.author_name,

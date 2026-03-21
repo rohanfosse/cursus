@@ -4,7 +4,7 @@ import { join } from 'path'
 // Modules CommonJS — import default : Rollup + @rollup/plugin-commonjs convertit
 // module.exports en export default, ce qui permet le bundling correct.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-import dbRaw            from '../db/index'
+import dbRaw            from '../../server/db/index'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import ipcRaw           from './ipc'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

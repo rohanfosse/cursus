@@ -4,7 +4,7 @@
 // Les IDs déjà notifiés sont gardés en mémoire (reset au redémarrage = OK).
 
 const { Notification } = require('electron')
-const queries = require('../db/index')
+const queries = require('../../server/db/index')
 
 const notifiedIds = new Set()
 let _checkInterval = null

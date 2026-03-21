@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="https://cours.music-music.fr">Site web</a>
+  <a href="https://cursus.devrohan.cloud">Site web</a>
   &nbsp;&middot;&nbsp;
   <a href="https://github.com/rohanfosse/slack-like-electron/issues">Issues</a>
   &nbsp;&middot;&nbsp;

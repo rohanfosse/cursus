@@ -11,14 +11,14 @@ function setupTestDb() {
   testDb.pragma('foreign_keys = ON')
 
   // Patch the connection module to return our in-memory DB
-  const connection = require('../../../src/db/connection')
+  const connection = require('../../../server/db/connection')
   connection.getDb = () => testDb
   connection.closeDb = () => {
     if (testDb) { testDb.close(); testDb = null }
   }
 
   // Run the schema (will use our patched getDb)
-  const { initSchema } = require('../../../src/db/schema')
+  const { initSchema } = require('../../../server/db/schema')
   initSchema()
 
   // Seed minimal test data (schema migration v12 already inserts default teachers)

@@ -1,6 +1,6 @@
 // ─── IPC : Travaux, dépôts, groupes, rubrics ─────────────────────────────────
 const { handle } = require('./helpers')
-const queries = require('../../db/index')
+const queries = require('../../../server/db/index')
 const { validated, createTravailPayload, addDepotPayload, setNotePayload, setFeedbackPayload } = require('./validation')
 
 function register() {

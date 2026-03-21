@@ -1,7 +1,7 @@
 // ─── IPC : Messages (envoi, recherche, épinglage, réactions) ─────────────────
 const { ipcMain, BrowserWindow } = require('electron')
 const { handle } = require('./helpers')
-const queries = require('../../db/index')
+const queries = require('../../../server/db/index')
 const { sendMessagePayload } = require('./validation')
 
 function register() {

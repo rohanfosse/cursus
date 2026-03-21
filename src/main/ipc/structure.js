@@ -1,6 +1,6 @@
 // ─── IPC : Structure (promotions, canaux, étudiants) ─────────────────────────
 const { handle } = require('./helpers')
-const queries = require('../../db/index')
+const queries = require('../../../server/db/index')
 const { validated, createChannelPayload, createPromotionPayload, registerStudentPayload } = require('./validation')
 
 function register() {

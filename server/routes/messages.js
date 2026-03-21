@@ -1,7 +1,7 @@
 // ─── Routes messages ─────────────────────────────────────────────────────────
 const router  = require('express').Router()
 const { z }   = require('zod')
-const queries = require('../../src/db/index')
+const queries = require('../db/index')
 const { validate } = require('../middleware/validate')
 
 function wrap(fn) {
@@ -69,7 +69,7 @@ router.post('/', validate(sendMessageSchema), (req, res) => {
 
     // ── Sécurité : valider le destinataire DM ────────────────────────────────
     if (payload.dmStudentId) {
-      const { getDb } = require('../../src/db/connection')
+      const { getDb } = require('../db/connection')
       const exists = getDb().prepare('SELECT id FROM students WHERE id = ?').get(payload.dmStudentId)
       if (!exists) {
         return res.status(400).json({ ok: false, error: 'Destinataire introuvable.' })
@@ -78,7 +78,7 @@ router.post('/', validate(sendMessageSchema), (req, res) => {
 
     // ── Sécurité : bloquer les étudiants sur les canaux d'annonce ───────────
     if (payload.channelId && req.user.type === 'student') {
-      const { getDb } = require('../../src/db/connection')
+      const { getDb } = require('../db/connection')
       const ch = getDb().prepare('SELECT type FROM channels WHERE id = ?').get(payload.channelId)
       if (ch?.type === 'annonce') {
         return res.status(403).json({ ok: false, error: 'Les étudiants ne peuvent pas poster dans les canaux d\'annonce.' })
