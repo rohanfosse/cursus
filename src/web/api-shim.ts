@@ -269,8 +269,6 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   getClasseStats:   (promoId: number)   => get(`/api/students/stats?promoId=${promoId}`),
 
   // ── Messages ────────────────────────────────────────────────────────────────
-  getChannelMessages:     (channelId: number) => get(`/api/messages/channel/${channelId}`),
-  getDmMessages:          (studentId: number) => get(`/api/messages/dm/${studentId}`),
   getChannelMessagesPage: (channelId: number, beforeId?: number) => {
     const qs = beforeId != null ? `?before=${beforeId}` : ''
     return get(`/api/messages/channel/${channelId}/page${qs}`)
@@ -314,7 +312,6 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   getTravailById:         (travailId: number) => get(`/api/assignments/${travailId}`),
   createTravail:          (payload: unknown)  => post('/api/assignments', payload),
   deleteTravail:          (id: number)        => del(`/api/assignments/${id}`),
-  updateTravailFields:    (id: number, fields: unknown) => patch(`/api/assignments/${id}`, fields),
   getTravauxSuivi:        (travailId: number) => get(`/api/assignments/${travailId}/suivi`),
   updateTravailPublished: (payload: unknown)  => post('/api/assignments/publish', payload),
   getTravailCategories:   (promoId: number)   => get(`/api/assignments/categories?promoId=${promoId}`),
@@ -323,7 +320,6 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   getTeacherSchedule:     ()                  => get('/api/assignments/teacher-schedule'),
   markNonSubmittedAsD:    (travailId: number) => post(`/api/assignments/${travailId}/mark-missing`, {}),
   getTravailGroupMembers: (travailId: number) => get(`/api/assignments/${travailId}/group-members`),
-  setTravailGroupMember:  (payload: unknown)  => post('/api/assignments/group-member', payload),
 
   // ── Dépôts ──────────────────────────────────────────────────────────────────
   getDepots:   (travailId: number) => get(`/api/depots?travailId=${travailId}`),
@@ -334,7 +330,6 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   // ── Groupes ─────────────────────────────────────────────────────────────────
   getGroups:       (promoId: number)  => get(`/api/groups?promoId=${promoId}`),
   createGroup:     (payload: unknown) => post('/api/groups', payload),
-  deleteGroup:     (groupId: number)  => del(`/api/groups/${groupId}`),
   getGroupMembers: (groupId: number)  => get(`/api/groups/${groupId}/members`),
   setGroupMembers: (payload: unknown) => post(`/api/groups/${(payload as { groupId: number }).groupId}/members`, payload),
 
@@ -345,8 +340,6 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
 
   // ── Documents ───────────────────────────────────────────────────────────────
   getChannelDocuments:          (channelId: number) => get(`/api/documents/channel/${channelId}`),
-  getChannelDocumentCategories: (channelId: number) => get(`/api/documents/channel/${channelId}/categories`),
-  getPromoDocuments:            (promoId: number)   => get(`/api/documents/promo/${promoId}`),
   addChannelDocument:           (payload: unknown)  => post('/api/documents/channel', payload),
   deleteChannelDocument:        (id: number)        => del(`/api/documents/channel/${id}`),
   getProjectDocuments:          (promoId: number, project?: string | null) => {
@@ -354,10 +347,6 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
     return get(`/api/documents/project?promoId=${promoId}${qs}`)
   },
   addProjectDocument:           (payload: unknown)  => post('/api/documents/project', payload),
-  getProjectDocumentCategories: (promoId: number, project?: string | null) => {
-    const qs = project ? `&project=${encodeURIComponent(project)}` : ''
-    return get(`/api/documents/project/categories?promoId=${promoId}${qs}`)
-  },
 
   // ── Intervenants ────────────────────────────────────────────────────────────
   getIntervenants:    ()                 => get('/api/teachers'),
@@ -379,9 +368,7 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   getLiveSessionByCode:    (code: string)       => get(`/api/live/sessions/code/${code}`),
   getActiveLiveSession:    (promoId: number)    => get(`/api/live/sessions/promo/${promoId}/active`),
   updateLiveSessionStatus: (id: number, status: string) => patch(`/api/live/sessions/${id}/status`, { status }),
-  deleteLiveSession:       (id: number)         => del(`/api/live/sessions/${id}`),
   addLiveActivity:         (sessionId: number, payload: unknown) => post(`/api/live/sessions/${sessionId}/activities`, payload),
-  updateLiveActivity:      (id: number, fields: unknown) => patch(`/api/live/activities/${id}`, fields),
   deleteLiveActivity:      (id: number)         => del(`/api/live/activities/${id}`),
   setLiveActivityStatus:   (id: number, status: string) => patch(`/api/live/activities/${id}/status`, { status }),
   submitLiveResponse:      (activityId: number, payload: unknown) => post(`/api/live/activities/${activityId}/respond`, payload),
@@ -561,20 +548,6 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
     if (!w) return Promise.resolve({ ok: false, error: 'Popup bloqué par le navigateur. Autorisez les popups pour ce site.' })
     return Promise.resolve({ ok: true, data: null })
   },
-  openPdf     (path: string) {
-    if (path.startsWith('__web__')) {
-      const cached = fileCache.get(path)
-      if (cached) {
-        const bytes = Uint8Array.from(atob(cached.b64), c => c.charCodeAt(0))
-        const blob  = new Blob([bytes], { type: 'application/pdf' })
-        window.open(URL.createObjectURL(blob), '_blank')
-        return Promise.resolve({ ok: true, data: null })
-      }
-    }
-    window.open(path, '_blank')
-    return Promise.resolve({ ok: true, data: null })
-  },
-
   // ── Contrôles fenêtre - no-ops ────────────────────────────────────────────
   windowMinimize:    () => Promise.resolve({ ok: true, data: null }),
   windowMaximize:    () => Promise.resolve({ ok: true, data: null }),

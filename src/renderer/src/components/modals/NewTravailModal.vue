@@ -1,17 +1,5 @@
 <script setup lang="ts">
-  /**
-   * NewTravailModal - Création d'un travail (devoir / jalon / projet)
-   *
-   * TODO: Implémenter le formulaire complet avec :
-   *   - Sélection du type (devoir / jalon / projet)
-   *   - Date de début + deadline (datetime-local)
-   *   - Catégorie, description
-   *   - Assignation individuelle ou par groupe
-   *   - Constructeur de groupes (group-builder)
-   *   - Brouillon / publication
-   *
-   * Référence : renderer/js/views/travaux.js → openNewTravailModal(), bindNewTravailForm()
-   */
+  /** NewTravailModal - Création d'un travail (devoir / jalon / projet) */
   import { ref, watch, computed } from 'vue'
   import { Users, Plus, X } from 'lucide-vue-next'
   import { useAppStore }     from '@/stores/app'

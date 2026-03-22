@@ -26,10 +26,7 @@ declare global {
       getStudents(promoId: number): Promise<IpcResponse<Student[]>>
       getAllStudents(): Promise<IpcResponse<Student[]>>
 
-      // Messages
-      getChannelMessages(channelId: number): Promise<IpcResponse<Message[]>>
-      getDmMessages(studentId: number): Promise<IpcResponse<Message[]>>
-      // Pagination par curseur - beforeId omis pour la première page
+      // Messages — pagination par curseur (beforeId omis pour la première page)
       getChannelMessagesPage(channelId: number, beforeId?: number | null): Promise<IpcResponse<Message[]>>
       getDmMessagesPage(studentId: number, beforeId?: number | null, peer?: number | null): Promise<IpcResponse<Message[]>>
       findUserByName(name: string): Promise<IpcResponse<{ id: number; name: string; promo_id: number | null; avatar_initials: string; photo_data: string | null; type: string } | null>>
@@ -46,7 +43,6 @@ declare global {
       getTravailById(travailId: number): Promise<IpcResponse<Devoir>>
       createTravail(payload: object): Promise<IpcResponse<{ id: number }>>
       deleteTravail(id: number): Promise<IpcResponse<null>>
-      updateTravailFields(id: number, fields: { title?: string; deadline?: string; description?: string; room?: string }): Promise<IpcResponse<null>>
       getTravauxSuivi(travailId: number): Promise<IpcResponse<Depot[]>>
 
       // Dépôts
@@ -58,7 +54,6 @@ declare global {
       // Groupes
       getGroups(promoId: number): Promise<IpcResponse<Group[]>>
       createGroup(payload: object): Promise<IpcResponse<{ id: number }>>
-      deleteGroup(groupId: number): Promise<IpcResponse<null>>
       getGroupMembers(groupId: number): Promise<IpcResponse<{ student_id: number }[]>>
       setGroupMembers(payload: object): Promise<IpcResponse<null>>
 
@@ -73,7 +68,6 @@ declare global {
 
       // Groupes par projet
       getTravailGroupMembers(travailId: number): Promise<IpcResponse<object[]>>
-      setTravailGroupMember(payload: object): Promise<IpcResponse<null>>
 
       // Brouillon
       updateTravailPublished(payload: object): Promise<IpcResponse<null>>
@@ -120,20 +114,14 @@ declare global {
       getGanttData(promoId: number, channelId?: number): Promise<IpcResponse<object[]>>
       getAllRendus(promoId: number): Promise<IpcResponse<Depot[]>>
 
-      // PDF
-      openPdf(filePath: string): Promise<IpcResponse<null>>
-
       // Documents
       getChannelDocuments(channelId: number): Promise<IpcResponse<AppDocument[]>>
-      getPromoDocuments(promoId: number): Promise<IpcResponse<AppDocument[]>>
       addChannelDocument(payload: object): Promise<IpcResponse<{ id: number }>>
       deleteChannelDocument(id: number): Promise<IpcResponse<null>>
-      getChannelDocumentCategories(channelId: number): Promise<IpcResponse<string[]>>
 
-      // Documents de projet (nouveau)
+      // Documents de projet
       getProjectDocuments(promoId: number, project?: string | null): Promise<IpcResponse<AppDocument[]>>
       addProjectDocument(payload: object): Promise<IpcResponse<{ id: number }>>
-      getProjectDocumentCategories(promoId: number, project?: string | null): Promise<IpcResponse<string[]>>
 
       // Messages épinglés
       getPinnedMessages(channelId: number): Promise<IpcResponse<Message[]>>
@@ -208,9 +196,7 @@ declare global {
       getLiveSessionByCode(code: string): Promise<IpcResponse<LiveSession>>
       getActiveLiveSession(promoId: number): Promise<IpcResponse<LiveSession>>
       updateLiveSessionStatus(id: number, status: string): Promise<IpcResponse<LiveSession>>
-      deleteLiveSession(id: number): Promise<IpcResponse<null>>
       addLiveActivity(sessionId: number, payload: unknown): Promise<IpcResponse<LiveActivity>>
-      updateLiveActivity(id: number, fields: unknown): Promise<IpcResponse<LiveActivity>>
       deleteLiveActivity(id: number): Promise<IpcResponse<null>>
       setLiveActivityStatus(id: number, status: string): Promise<IpcResponse<LiveActivity>>
       submitLiveResponse(activityId: number, payload: unknown): Promise<IpcResponse<null>>

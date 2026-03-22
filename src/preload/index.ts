@@ -31,6 +31,8 @@ const msgCallbacks: Array<(data: MsgNewPayload) => void> = []
 const socketStateCallbacks: Array<(connected: boolean) => void> = []
 type PresenceEntry = { id: number; name: string; role: string }
 const presenceCallbacks: Array<(data: PresenceEntry[]) => void> = []
+type TypingPayload = { channelId?: number; dmStudentId?: number; userName: string }
+const typingCallbacks: Array<(data: TypingPayload) => void> = []
 
 // Live quiz callbacks
 type LiveActivityPushedPayload = { activity: unknown }
@@ -65,6 +67,9 @@ function connectSocket(token: string): void {
   })
   socket.on('presence:update', (data: PresenceEntry[]) => {
     presenceCallbacks.forEach((cb) => cb(data))
+  })
+  socket.on('typing', (data: TypingPayload) => {
+    typingCallbacks.forEach((cb) => cb(data))
   })
   socket.on('live:activity-pushed', (data: LiveActivityPushedPayload) => liveActivityPushedCallbacks.forEach(cb => cb(data)))
   socket.on('live:activity-closed', (data: LiveActivityClosedPayload) => liveActivityClosedCallbacks.forEach(cb => cb(data)))
@@ -218,8 +223,6 @@ contextBridge.exposeInMainWorld('api', {
   getClasseStats:   (promoId: number) => get(`/api/students/stats?promoId=${promoId}`),
 
   // ── Messages ────────────────────────────────────────────────────────────────
-  getChannelMessages:     (channelId: number) => get(`/api/messages/channel/${channelId}`),
-  getDmMessages:          (studentId: number) => get(`/api/messages/dm/${studentId}`),
   getChannelMessagesPage: (channelId: number, beforeId?: number) => {
     const qs = beforeId != null ? `?before=${beforeId}` : ''
     return get(`/api/messages/channel/${channelId}/page${qs}`)
@@ -265,7 +268,6 @@ contextBridge.exposeInMainWorld('api', {
   getTravailById:         (travailId: number)  => get(`/api/assignments/${travailId}`),
   createTravail:          (payload: unknown)   => post('/api/assignments', payload),
   deleteTravail:          (id: number)         => del(`/api/assignments/${id}`),
-  updateTravailFields:    (id: number, fields: unknown) => patch(`/api/assignments/${id}`, fields),
   getTravauxSuivi:        (travailId: number)  => get(`/api/assignments/${travailId}/suivi`),
   updateTravailPublished: (payload: unknown)   => post('/api/assignments/publish', payload),
   getTravailCategories:   (promoId: number)    => get(`/api/assignments/categories?promoId=${promoId}`),
@@ -274,7 +276,6 @@ contextBridge.exposeInMainWorld('api', {
   getTeacherSchedule:     ()                   => get('/api/assignments/teacher-schedule'),
   markNonSubmittedAsD:    (travailId: number)  => post(`/api/assignments/${travailId}/mark-missing`, {}),
   getTravailGroupMembers: (travailId: number)  => get(`/api/assignments/${travailId}/group-members`),
-  setTravailGroupMember:  (payload: unknown)   => post('/api/assignments/group-member', payload),
 
   // ── Dépôts ──────────────────────────────────────────────────────────────────
   getDepots:   (travailId: number) => get(`/api/depots?travailId=${travailId}`),
@@ -285,7 +286,6 @@ contextBridge.exposeInMainWorld('api', {
   // ── Groupes ─────────────────────────────────────────────────────────────────
   getGroups:       (promoId: number)  => get(`/api/groups?promoId=${promoId}`),
   createGroup:     (payload: unknown) => post('/api/groups', payload),
-  deleteGroup:     (groupId: number)  => del(`/api/groups/${groupId}`),
   getGroupMembers: (groupId: number)  => get(`/api/groups/${groupId}/members`),
   setGroupMembers: (payload: unknown) => post(`/api/groups/${(payload as { groupId: number }).groupId}/members`, payload),
 
@@ -296,8 +296,6 @@ contextBridge.exposeInMainWorld('api', {
 
   // ── Documents ───────────────────────────────────────────────────────────────
   getChannelDocuments:          (channelId: number) => get(`/api/documents/channel/${channelId}`),
-  getChannelDocumentCategories: (channelId: number) => get(`/api/documents/channel/${channelId}/categories`),
-  getPromoDocuments:            (promoId: number)   => get(`/api/documents/promo/${promoId}`),
   addChannelDocument:           (payload: unknown)  => post('/api/documents/channel', payload),
   deleteChannelDocument:        (id: number)        => del(`/api/documents/channel/${id}`),
   getProjectDocuments:          (promoId: number, project?: string | null) => {
@@ -305,10 +303,6 @@ contextBridge.exposeInMainWorld('api', {
     return get(`/api/documents/project?promoId=${promoId}${qs}`)
   },
   addProjectDocument:           (payload: unknown)  => post('/api/documents/project', payload),
-  getProjectDocumentCategories: (promoId: number, project?: string | null) => {
-    const qs = project ? `&project=${encodeURIComponent(project)}` : ''
-    return get(`/api/documents/project/categories?promoId=${promoId}${qs}`)
-  },
 
   // ── Intervenants ────────────────────────────────────────────────────────────
   getIntervenants:    ()                 => get('/api/teachers'),
@@ -330,9 +324,7 @@ contextBridge.exposeInMainWorld('api', {
   getLiveSessionByCode:    (code: string)       => get(`/api/live/sessions/code/${code}`),
   getActiveLiveSession:    (promoId: number)    => get(`/api/live/sessions/promo/${promoId}/active`),
   updateLiveSessionStatus: (id: number, status: string) => patch(`/api/live/sessions/${id}/status`, { status }),
-  deleteLiveSession:       (id: number)         => del(`/api/live/sessions/${id}`),
   addLiveActivity:         (sessionId: number, payload: unknown) => post(`/api/live/sessions/${sessionId}/activities`, payload),
-  updateLiveActivity:      (id: number, fields: unknown) => patch(`/api/live/activities/${id}`, fields),
   deleteLiveActivity:      (id: number)         => del(`/api/live/activities/${id}`),
   setLiveActivityStatus:   (id: number, status: string) => patch(`/api/live/activities/${id}/status`, { status }),
   submitLiveResponse:      (activityId: number, payload: unknown) => post(`/api/live/activities/${activityId}/respond`, payload),
@@ -445,9 +437,6 @@ contextBridge.exposeInMainWorld('api', {
     return invoke('fs:downloadFile', filePath)
   },
 
-  // ── PDF viewer (fenêtre native) ──────────────────────────────────────────────
-  openPdf: (filePath: string) => invoke('window:openPdf', filePath),
-
   // ── Contrôles de fenêtre ─────────────────────────────────────────────────────
   windowMinimize:    () => invoke('window:minimize'),
   windowMaximize:    () => invoke('window:maximize'),
@@ -488,8 +477,18 @@ contextBridge.exposeInMainWorld('api', {
     }
   },
 
-  // Typing indicator (stub - Electron desktop doesn't use Socket.io directly)
-  emitTyping: (_channelId: number) => {},
-  emitDmTyping: (_dmStudentId: number) => {},
-  onTyping: (_cb: (data: { channelId?: number; dmStudentId?: number; userName: string }) => void) => () => {},
+  // Typing indicator
+  emitTyping: (channelId: number) => {
+    socket?.emit('typing', { channelId })
+  },
+  emitDmTyping: (dmStudentId: number) => {
+    socket?.emit('dm:typing', { dmStudentId })
+  },
+  onTyping: (cb: (data: TypingPayload) => void) => {
+    typingCallbacks.push(cb)
+    return () => {
+      const idx = typingCallbacks.indexOf(cb)
+      if (idx !== -1) typingCallbacks.splice(idx, 1)
+    }
+  },
 })
