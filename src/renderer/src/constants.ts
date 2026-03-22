@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   PRIVACY_SEEN:     'cc_privacy_seen',
   CUSTOM_PROJECTS:  'cc_custom_projects',
   BOOKMARKS:        'cesia:bookmarks',
+  BENTO_PREFS:      'cc_bento_prefs',
 
   /** Clé dynamique par canal : `lastRead:ch:{channelId}` */
   lastReadChannel: (channelId: number) => `lastRead:ch:${channelId}` as const,
