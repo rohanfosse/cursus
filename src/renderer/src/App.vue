@@ -11,7 +11,7 @@
   import ConfirmModal from '@/components/ui/ConfirmModal.vue'
   import NavRail  from '@/components/layout/NavRail.vue'
   import TitleBar from '@/components/layout/TitleBar.vue'
-  import Sidebar  from '@/components/sidebar/Sidebar.vue'
+  import SidebarWrapper from '@/components/sidebar/SidebarWrapper.vue'
   import LoginOverlay        from '@/components/auth/LoginOverlay.vue'
   import ChangePasswordModal from '@/components/modals/ChangePasswordModal.vue'
   // Modales
@@ -325,7 +325,7 @@
     <div class="sidebar-backdrop" :class="{ visible: sidebarOpen }" @click="closeSidebar" />
 
     <aside class="sidebar-wrapper" :class="{ 'sidebar-with-banner': appStore.isSimulating || !appStore.isOnline, 'mobile-open': sidebarOpen }">
-      <Sidebar @navigate="closeSidebar" />
+      <SidebarWrapper @navigate="closeSidebar" />
     </aside>
 
     <main class="main-wrapper" :class="{ 'main-with-banner': appStore.isSimulating || !appStore.isOnline }">
