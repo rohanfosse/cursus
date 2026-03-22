@@ -7,7 +7,7 @@ let queries
 
 beforeAll(() => {
   setupTestDb()
-  queries = require('../../../server/db/index')
+  queries = require('../../../server/db/models/assignments')
 })
 
 afterAll(() => teardownTestDb())
