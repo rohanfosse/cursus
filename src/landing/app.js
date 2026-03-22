@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // DEMO INTERACTIVE
   // ══════════════════════════════════════════════════════════════════════
   const TABS         = ['chat', 'devoirs', 'docs', 'quiz']
-  const TAB_DURATION = 8000
+  const TAB_DURATION = 12000
   let currentTab     = 0
   let cycleTimer     = null
 
@@ -282,10 +282,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Quiz ─────────────────────────────────────────────────────────────
   function renderQuiz() {
-    // Animate the result bars in
+    // Animate the result bars in with slower, staggered timing
     document.querySelectorAll('.quiz-bar').forEach((bar, i) => {
       bar.classList.remove('animated')
-      setTimeout(() => bar.classList.add('animated'), 200 + i * 150)
+      setTimeout(() => bar.classList.add('animated'), 400 + i * 250)
+    })
+    // Animate quiz options appearing
+    document.querySelectorAll('.quiz-option').forEach((opt, i) => {
+      opt.style.opacity = '0'
+      opt.style.transform = 'translateX(-8px)'
+      setTimeout(() => {
+        opt.style.transition = 'opacity 0.35s ease, transform 0.35s ease'
+        opt.style.opacity = '1'
+        opt.style.transform = 'translateX(0)'
+      }, 200 + i * 120)
     })
   }
 
@@ -294,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const bar = document.getElementById('demo-progress-bar')
     bar.style.transition = 'none'; bar.style.width = '0%'
     void bar.offsetWidth
-    bar.style.transition = 'width ' + TAB_DURATION + 'ms linear'
+    bar.style.transition = 'width ' + TAB_DURATION + 'ms cubic-bezier(0.4, 0, 0.6, 1)'
     bar.style.width = '100%'
   }
 
@@ -311,14 +321,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function activateTab(name) {
     document.querySelectorAll('.demo-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name))
-    document.getElementById('panel-chat').style.display    = name === 'chat'    ? 'flex' : 'none'
-    document.getElementById('panel-devoirs').style.display = name === 'devoirs' ? 'flex' : 'none'
-    document.getElementById('panel-docs').style.display    = name === 'docs'    ? 'flex' : 'none'
-    document.getElementById('panel-quiz').style.display    = name === 'quiz'    ? 'flex' : 'none'
-    if (name === 'chat')    renderChat()
-    if (name === 'devoirs') renderDevoirs()
-    if (name === 'docs')    renderDocs()
-    if (name === 'quiz')    renderQuiz()
+
+    // Crossfade: fade out current, then fade in new
+    const panels = ['panel-chat', 'panel-devoirs', 'panel-docs', 'panel-quiz']
+    const panelMap = { chat: 'panel-chat', devoirs: 'panel-devoirs', docs: 'panel-docs', quiz: 'panel-quiz' }
+    const targetId = panelMap[name]
+
+    panels.forEach(id => {
+      const el = document.getElementById(id)
+      if (!el) return
+      if (id === targetId) {
+        // Show with fade in
+        el.style.display = 'flex'
+        el.style.opacity = '0'
+        el.style.transform = 'translateY(6px)'
+        requestAnimationFrame(() => {
+          el.style.transition = 'opacity 0.4s ease, transform 0.4s ease'
+          el.style.opacity = '1'
+          el.style.transform = 'translateY(0)'
+        })
+      } else {
+        // Hide with fade out
+        el.style.transition = 'opacity 0.25s ease'
+        el.style.opacity = '0'
+        setTimeout(() => {
+          if (!el.classList.contains('active-panel')) el.style.display = 'none'
+        }, 250)
+      }
+    })
+
+    if (name === 'chat')    setTimeout(renderChat, 100)
+    if (name === 'devoirs') setTimeout(renderDevoirs, 100)
+    if (name === 'docs')    setTimeout(renderDocs, 100)
+    if (name === 'quiz')    setTimeout(renderQuiz, 200)
     startProgress()
   }
 
