@@ -72,9 +72,19 @@ export function useMsgAutocomplete(
   const mentionResults = computed(() => {
     if (!mentionActive.value) return []
     const q = normalize(mentionSearch.value)
-    return allUsers.value
+    const filtered = allUsers.value
       .filter((u) => normalize(u.name).includes(q))
-      .slice(0, 8)
+    // Sort: @everyone first (already at index 0 in allUsers), then teachers (Pilotes), then students alphabetically
+    filtered.sort((a, b) => {
+      if (a.type === 'everyone') return -1
+      if (b.type === 'everyone') return 1
+      if (a.type === 'teacher' && b.type !== 'teacher') return -1
+      if (b.type === 'teacher' && a.type !== 'teacher') return 1
+      if (a.type === 'ta' && b.type === 'student') return -1
+      if (b.type === 'ta' && a.type === 'student') return 1
+      return a.name.localeCompare(b.name, 'fr')
+    })
+    return filtered.slice(0, 8)
   })
 
   watch(mentionSearch, () => { mentionIndex.value = 0 })

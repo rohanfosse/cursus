@@ -52,7 +52,7 @@ router.post('/', validate(submitDepotSchema), (req, res) => {
 // Note et feedback - réservés aux enseignants
 router.post('/note', validate(noteSchema), (req, res) => {
   if (req.user.type === 'student') {
-    return res.status(403).json({ ok: false, error: 'Seuls les enseignants peuvent attribuer des notes.' })
+    return res.status(403).json({ ok: false, error: 'Seuls les pilotes peuvent attribuer des notes.' })
   }
   try {
     const result = queries.setNote(req.body)
@@ -83,7 +83,7 @@ router.post('/note', validate(noteSchema), (req, res) => {
 })
 router.post('/feedback', validate(feedbackSchema), (req, res) => {
   if (req.user.type === 'student') {
-    return res.status(403).json({ ok: false, error: 'Seuls les enseignants peuvent donner un feedback.' })
+    return res.status(403).json({ ok: false, error: 'Seuls les pilotes peuvent donner un feedback.' })
   }
   try {
     const result = queries.setFeedback(req.body)

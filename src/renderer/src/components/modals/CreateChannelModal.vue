@@ -159,7 +159,7 @@
           >
             <Megaphone :size="16" />
             <span class="cc-pill-title">Annonces</span>
-            <span class="cc-pill-desc">Lecture seule, seul le prof publie</span>
+            <span class="cc-pill-desc">Lecture seule, seul le pilote publie</span>
           </button>
         </div>
       </div>

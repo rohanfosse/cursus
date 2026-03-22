@@ -63,7 +63,7 @@ export function useSettingsAccount(emit: (evt: 'update:modelValue', v: boolean) 
 
   const roleLabel = computed(() => {
     const t = appStore.currentUser?.type
-    return t === 'teacher' ? 'Enseignant' : t === 'ta' ? 'Intervenant' : 'Étudiant'
+    return t === 'teacher' ? 'Pilote' : t === 'ta' ? 'Intervenant' : 'Étudiant'
   })
 
   const roleIcon = computed(() => {

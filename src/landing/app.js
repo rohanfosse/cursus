@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Messages par canal ───────────────────────────────────────────────
   const CHANNELS = {
     'général': [
-      { av:'PM', color:'#3b82f6', name:'Prof. Martin', nameColor:'#3b82f6',
+      { av:'PM', color:'#3b82f6', name:'Pilote Martin', nameColor:'#3b82f6',
         text: 'Le rendu du <strong>Projet Web E4</strong> est pour vendredi soir. Consultez la grille dans <code>#projet-web</code>.',
         reactions: [{ emoji:'\uD83D\uDC4D', count:4, active:false }, { emoji:'\u2705', count:2, active:false }], delay:300 },
       { av:'JD', color:'#6366f1', name:'Jean Dupont', nameColor:'',
@@ -79,15 +79,15 @@ document.addEventListener('DOMContentLoaded', () => {
       { av:'EL', color:'#ec4899', name:'Emma Lefèvre', nameColor:'',
         text: 'On avait la même question - notre groupe commence le code demain.',
         reactions: [{ emoji:'\uD83D\uDE04', count:1, active:false }], delay:3000 },
-      { av:'PM', color:'#3b82f6', name:'Prof. Martin', nameColor:'#3b82f6',
+      { av:'PM', color:'#3b82f6', name:'Pilote Martin', nameColor:'#3b82f6',
         text: 'Maquettes <strong>optionnelles</strong>. Concentrez-vous sur l\'architecture et la qualité du code.',
         reactions: [{ emoji:'\uD83C\uDF89', count:6, active:false }, { emoji:'\uD83D\uDC4D', count:3, active:false }], delay:4600 },
     ],
     'annonces': [
-      { av:'PM', color:'#3b82f6', name:'Prof. Martin', nameColor:'#3b82f6',
+      { av:'PM', color:'#3b82f6', name:'Pilote Martin', nameColor:'#3b82f6',
         text: '\uD83D\uDCE2 <strong>Planning semaine 12 :</strong> pas de cours jeudi. Rattrapé le vendredi 14h\u201317h en salle B203.',
         reactions: [{ emoji:'\uD83D\uDC4D', count:8, active:false }], delay:300 },
-      { av:'PM', color:'#3b82f6', name:'Prof. Martin', nameColor:'#3b82f6',
+      { av:'PM', color:'#3b82f6', name:'Pilote Martin', nameColor:'#3b82f6',
         text: 'Les résultats du TP Algo sont disponibles dans l\'application. Consultez vos notes et les commentaires.',
         reactions: [{ emoji:'\uD83D\uDE05', count:5, active:false }, { emoji:'\u2705', count:2, active:false }], delay:1800 },
     ],
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { av:'JD', color:'#6366f1', name:'Jean Dupont', nameColor:'',
         text: 'PR ouverte pour la partie auth. Quelqu\'un peut relire avant ce soir ?',
         reactions: [], delay:1500 },
-      { av:'PM', color:'#3b82f6', name:'Prof. Martin', nameColor:'#3b82f6',
+      { av:'PM', color:'#3b82f6', name:'Pilote Martin', nameColor:'#3b82f6',
         text: 'Bon avancement ! Pensez à documenter vos endpoints dans le <code>README</code>.',
         reactions: [{ emoji:'\uD83D\uDC4D', count:2, active:false }], delay:2900 },
     ],
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reactions: [{ emoji:'\uD83D\uDE4F', count:2, active:false }], delay:1700 },
     ],
     'prof': [
-      { av:'PM', color:'#3b82f6', name:'Prof. Martin', nameColor:'#3b82f6',
+      { av:'PM', color:'#3b82f6', name:'Pilote Martin', nameColor:'#3b82f6',
         text: 'Bonjour ! Votre rendu est bien reçu. Je le corrige ce week-end.',
         reactions: [], delay:300 },
     ],

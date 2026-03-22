@@ -225,7 +225,7 @@
             </button>
 
             <p class="auth-forgot">
-              Mot de passe oublié ? Contactez votre enseignant.
+              Mot de passe oublié ? Contactez votre pilote.
             </p>
           </form>
 

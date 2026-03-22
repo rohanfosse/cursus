@@ -6,7 +6,7 @@ const router = require('express').Router()
 // ── Middleware : accès réservé aux enseignants ────────────────────────────────
 function requireTeacher(req, res, next) {
   if (req.user?.type !== 'teacher')
-    return res.status(403).json({ ok: false, error: 'Accès réservé aux enseignants.' })
+    return res.status(403).json({ ok: false, error: 'Accès réservé aux pilotes.' })
   next()
 }
 router.use(requireTeacher)

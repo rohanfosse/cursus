@@ -135,7 +135,7 @@ const cachedProjectStats = computed(() => {
   <div v-else-if="filteredDevoirs.length === 0" class="dv-empty">
     <CheckCircle2 :size="48" class="dv-empty-icon" />
     <h3>Aucun devoir assigné</h3>
-    <p>Vos devoirs apparaîtront ici dès qu'un enseignant en créera pour votre promotion.</p>
+    <p>Vos devoirs apparaîtront ici dès qu'un pilote en créera pour votre promotion.</p>
   </div>
 
   <!-- ══ ACCUEIL étudiant (aucun projet sélectionné) - même layout que prof ══ -->

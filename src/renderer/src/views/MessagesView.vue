@@ -210,7 +210,7 @@
               Chat
             </span>
           </div>
-          <span v-if="channelHeader?.type === 'annonce' && appStore.isStudent" class="channel-annonce-hint">Canal d'annonce - seuls les enseignants peuvent publier</span>
+          <span v-if="channelHeader?.type === 'annonce' && appStore.isStudent" class="channel-annonce-hint">Canal d'annonce - seuls les pilotes peuvent publier</span>
           <span v-else-if="appStore.activeChannelDescription" class="channel-description" :title="appStore.activeChannelDescription">{{ appStore.activeChannelDescription }}</span>
         </div>
       </div>

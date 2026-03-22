@@ -49,7 +49,7 @@ export async function loadImport() {
       </div>
 
       <div class="card">
-        <div class="card-title">Import rappels prof</div>
+        <div class="card-title">Import rappels pilote</div>
         <div class="card-sub" style="margin-bottom:.75rem">Importe les 39 rappels de l'échéancier scolarité (CPI A2 + FISA A4).</div>
         <button class="btn btn-primary" onclick="importRappels()">Importer les rappels</button>
         <div id="rappels-result" style="margin-top:.5rem;font-size:.85rem"></div>
