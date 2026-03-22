@@ -173,19 +173,7 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-/* ── Header (meme style que pilote) ── */
-.db-header {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 16px; padding: 4px 0;
-}
-.db-header-left { display: flex; align-items: center; gap: 12px; }
-.db-title { font-size: 20px; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
-.db-date { font-size: 12px; color: var(--text-muted); margin-top: 2px; text-transform: capitalize; }
-
-/* ── Chargement ── */
-.db-loading { display: flex; flex-direction: column; gap: 14px; padding: 32px 0; }
-.db-skel-card { height: 76px; border-radius: 10px; flex-shrink: 0; }
-.db-skel-content { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+/* Header, tabs, loading skeleton: see dashboard-shared.css */
 
 /* ── Welcome banner (compact) ── */
 .db-welcome-banner {
@@ -227,16 +215,4 @@ const emit = defineEmits<{
   color: var(--text-primary);
 }
 
-/* ── Tabs ── */
-.db-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
-.db-tab {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 14px; border: none; background: transparent;
-  color: var(--text-secondary); font-family: var(--font);
-  font-size: 13px; font-weight: 600; cursor: pointer;
-  border-bottom: 2px solid transparent; margin-bottom: -1px; border-radius: 0;
-  transition: color var(--t-fast), border-color var(--t-fast);
-}
-.db-tab:hover { color: var(--text-primary); }
-.db-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 </style>

@@ -14,7 +14,7 @@ const emit = defineEmits<{ goToProject: [key: string] }>()
 </script>
 
 <template>
-  <div v-if="soutenances.length" class="sa-card sa-next sa-next--soutenance">
+  <div v-if="soutenances.length" class="dashboard-card sa-card sa-next sa-next--soutenance">
     <div class="sa-card-header">
       <Mic :size="14" class="sa-card-icon sa-icon--soutenance" />
       <span class="sa-section-label">{{ soutenances.length > 1 ? 'Prochaines soutenances' : 'Prochaine soutenance' }}</span>

@@ -18,7 +18,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div v-if="project" class="sa-card sa-project" role="button" tabindex="0" aria-label="Voir le projet en cours" @click="emit('goToProject', project.key)" @keydown.enter="emit('goToProject', project.key)">
+  <div v-if="project" class="dashboard-card sa-card sa-project" role="button" tabindex="0" aria-label="Voir le projet en cours" @click="emit('goToProject', project.key)" @keydown.enter="emit('goToProject', project.key)">
     <div class="sa-card-header">
       <FolderOpen :size="14" class="sa-card-icon" />
       <span class="sa-section-label">Projet en cours</span>
@@ -39,22 +39,7 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.sa-card {
-  background: rgba(255,255,255,.03);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.sa-card:hover { background: rgba(255,255,255,.045); }
-.sa-card-header { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-.sa-card-icon { color: var(--text-muted); flex-shrink: 0; }
-.sa-section-label {
-  text-transform: uppercase; letter-spacing: .08em; font-size: 10px;
-  font-weight: 700; color: var(--text-muted); flex: 1;
-}
-.sa-chevron { color: var(--text-muted); opacity: .3; transition: opacity .15s; }
-.sa-card:hover .sa-chevron { opacity: .7; }
+/* Base card: .dashboard-card from dashboard-shared.css + .sa-card from devoirs-shared.css */
 .sa-mono { font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace; font-size: 12px; }
 .sa-project { cursor: pointer; }
 .sa-project-name {

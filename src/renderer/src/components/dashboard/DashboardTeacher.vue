@@ -318,23 +318,7 @@ function setTab(tab: DashTabType) {
 </template>
 
 <style scoped>
-/* ── Chargement ── */
-.db-loading { display: flex; flex-direction: column; gap: 14px; padding: 32px 0; }
-.db-skel-card { height: 76px; border-radius: 10px; flex-shrink: 0; }
-.db-skel-content { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
-
-/* ── Tabs ── */
-.db-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
-.db-tab {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 14px; border: none; background: transparent;
-  color: var(--text-secondary); font-family: var(--font);
-  font-size: 13px; font-weight: 600; cursor: pointer;
-  border-bottom: 2px solid transparent; margin-bottom: -1px; border-radius: 0;
-  transition: color var(--t-fast), border-color var(--t-fast);
-}
-.db-tab:hover { color: var(--text-primary); }
-.db-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+/* Header, tabs, loading skeleton: see dashboard-shared.css */
 
 /* ── Barre d'actions rapides flottante ── */
 .db-fab-bar {

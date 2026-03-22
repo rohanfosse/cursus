@@ -151,7 +151,7 @@ const showAllClear = computed(() =>
     </TransitionGroup>
 
     <!-- All clear -->
-    <div v-if="showAllClear" class="sa-card sa-ok">
+    <div v-if="showAllClear" class="dashboard-card sa-card sa-ok">
       <Smile :size="20" class="sa-ok-icon" />
       <span class="sa-ok-text">Aucune échéance à venir - tout est à jour</span>
     </div>
@@ -221,19 +221,7 @@ const showAllClear = computed(() =>
   transform: translateY(-6px);
 }
 
-/* ── Cards base (for ok state) ────────────────────────────────────────────── */
-.sa-card {
-  background: var(--bg-elevated, rgba(255,255,255,.04));
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px;
-  position: relative;
-  overflow: hidden;
-  transition: border-color var(--t-fast), box-shadow var(--t-fast);
-}
-.sa-card:hover {
-  border-color: color-mix(in srgb, var(--border) 60%, var(--accent));
-}
+/* ── Cards base: extends .dashboard-card from dashboard-shared.css ── */
 
 /* ── Tout est à jour ──────────────────────────────────────────────────────── */
 .sa-ok {

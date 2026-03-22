@@ -14,7 +14,7 @@ const emit = defineEmits<{ goToProject: [key: string] }>()
 </script>
 
 <template>
-  <div v-if="livrables.length" class="sa-card sa-next sa-next--livrable">
+  <div v-if="livrables.length" class="dashboard-card sa-card sa-next sa-next--livrable">
     <div class="sa-card-header">
       <FileText :size="14" class="sa-card-icon sa-icon--livrable" />
       <span class="sa-section-label">{{ livrables.length > 1 ? 'Prochains livrables' : 'Prochain livrable' }}</span>

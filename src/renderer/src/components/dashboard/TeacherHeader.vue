@@ -50,13 +50,7 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.db-header {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 16px; padding: 4px 0;
-}
-.db-header-left { display: flex; align-items: center; gap: 12px; }
-.db-title { font-size: 20px; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
-.db-date  { font-size: 12px; color: var(--text-muted); margin-top: 2px; text-transform: capitalize; }
+/* Header base (.db-header, .db-header-left, .db-title, .db-date): see dashboard-shared.css */
 
 .db-header-promos { display: flex; gap: 6px; flex-wrap: wrap; }
 .db-promo-chip {

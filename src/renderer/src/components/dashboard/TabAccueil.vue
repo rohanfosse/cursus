@@ -208,7 +208,7 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
   <div class="bento-grid">
 
     <!-- ═══ FOCUS TILE (2x2) ═══ -->
-    <div class="bento-tile bento-focus" :class="focusBgClass">
+    <div class="dashboard-card bento-tile bento-focus" :class="focusBgClass">
       <div class="focus-icon">
         <Edit3 v-if="focusState.type === 'grade'" :size="28" />
         <Clock v-else-if="focusState.type === 'deadline'" :size="28" />
@@ -229,7 +229,7 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
     <!-- ═══ STAT TILES (1x1 each) ═══ -->
 
     <!-- Soumission % -->
-    <div class="bento-tile bento-stat">
+    <div class="dashboard-card bento-tile bento-stat">
       <div class="stat-ring">
         <svg viewBox="0 0 36 36" class="stat-ring-svg">
           <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="3" />
@@ -249,21 +249,21 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
     </div>
 
     <!-- A noter -->
-    <div class="bento-tile bento-stat" :class="{ 'stat--alert': aNoterCount > 0 }">
+    <div class="dashboard-card bento-tile bento-stat" :class="{ 'stat--alert': aNoterCount > 0 }">
       <span class="stat-number">{{ aNoterCount }}</span>
       <span class="stat-label">a noter</span>
       <Edit3 :size="14" class="stat-icon" />
     </div>
 
     <!-- Moyenne -->
-    <div class="bento-tile bento-stat">
+    <div class="dashboard-card bento-tile bento-stat">
       <span class="stat-number stat-grade" :class="gradeClass(averageGrade)">{{ averageGrade }}</span>
       <span class="stat-label">moyenne</span>
       <Award :size="14" class="stat-icon" />
     </div>
 
     <!-- En ligne -->
-    <div class="bento-tile bento-stat">
+    <div class="dashboard-card bento-tile bento-stat">
       <span class="stat-online-dot" />
       <span class="stat-number">{{ onlineStudents }}</span>
       <span class="stat-label">en ligne</span>
@@ -271,7 +271,7 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
     </div>
 
     <!-- ═══ SCHEDULE STRIP (2x1) ═══ -->
-    <div class="bento-tile bento-schedule">
+    <div class="dashboard-card bento-tile bento-schedule">
       <h3 class="tile-title"><Clock :size="14" /> Aujourd'hui</h3>
       <div v-if="!todayEvents.length" class="schedule-empty">
         Aucun evenement prevu aujourd'hui
@@ -300,7 +300,7 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
     </div>
 
     <!-- ═══ MESSAGES TILE (1x1) ═══ -->
-    <div class="bento-tile bento-messages">
+    <div class="dashboard-card bento-tile bento-messages">
       <h3 class="tile-title"><MessageSquare :size="14" /> Messages</h3>
       <div v-if="!unreadDmEntries.length" class="messages-empty">
         Aucun message non lu
@@ -325,7 +325,7 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
     </div>
 
     <!-- ═══ QUICK ACTIONS (2x1) ═══ -->
-    <div class="bento-tile bento-actions">
+    <div class="dashboard-card bento-tile bento-actions">
       <button class="action-btn action-btn--primary" @click="emit('openNewDevoir')">
         <PlusCircle :size="22" />
         <span class="action-label">Creer un devoir</span>
@@ -341,7 +341,7 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
     </div>
 
     <!-- ═══ ACTIVITY FEED (2x1) ═══ -->
-    <div class="bento-tile bento-activity">
+    <div class="dashboard-card bento-tile bento-activity">
       <h3 class="tile-title"><Clock :size="14" /> Derniers rendus</h3>
       <div v-if="!activityFeed.length" class="activity-empty">
         Aucune activite recente
@@ -370,19 +370,7 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
   padding-top: 14px;
 }
 
-/* ── Base tile ── */
-.bento-tile {
-  background: var(--bg-elevated, rgba(255,255,255,.04));
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px;
-  position: relative;
-  overflow: hidden;
-  transition: border-color var(--t-fast), box-shadow var(--t-fast);
-}
-.bento-tile:hover {
-  border-color: color-mix(in srgb, var(--border) 60%, var(--accent));
-}
+/* ── Base tile: extends .dashboard-card from dashboard-shared.css ── */
 
 /* ── FOCUS TILE (2x2) ── */
 .bento-focus {

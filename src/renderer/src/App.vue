@@ -14,7 +14,6 @@
   import NavRail    from '@/components/layout/NavRail.vue'
   import MobileNav  from '@/components/layout/MobileNav.vue'
   import TitleBar   from '@/components/layout/TitleBar.vue'
-  import AppHeader  from '@/components/layout/AppHeader.vue'
   import SidebarWrapper from '@/components/sidebar/SidebarWrapper.vue'
   import LoginOverlay        from '@/components/auth/LoginOverlay.vue'
   import ChangePasswordModal from '@/components/modals/ChangePasswordModal.vue'
