@@ -76,6 +76,7 @@
     addFile,
     addFileName,
     addProject,
+    newCatName,
     projectList,
     adding,
     openAddModal,
@@ -339,21 +340,20 @@
         <div class="da-row">
           <div class="da-field da-flex1">
             <label class="da-label">Categorie</label>
-            <div class="da-cat-wrap">
-              <select v-if="categories.length" v-model="addCategory" class="da-input">
-                <option value="">Sans categorie</option>
-                <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
-                <option value="__new__">+ Nouvelle categorie...</option>
-              </select>
+            <select v-if="categories.length && addCategory !== '__new__'" v-model="addCategory" class="da-input">
+              <option value="">Sans categorie</option>
+              <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+              <option value="__new__">+ Nouvelle categorie...</option>
+            </select>
+            <div v-if="!categories.length || addCategory === '__new__'" style="display:flex;gap:6px">
               <input
-                v-if="!categories.length || addCategory === '__new__'"
-                v-model="addCategory === '__new__' ? '' : addCategory"
+                v-model="newCatName"
                 type="text"
                 class="da-input"
-                :class="{ 'da-input--new': addCategory === '__new__' }"
+                style="flex:1"
                 placeholder="Nom de la categorie"
-                @input="(e) => { if (addCategory === '__new__') addCategory = (e.target as HTMLInputElement).value }"
               />
+              <button v-if="addCategory === '__new__'" type="button" class="btn-ghost" style="font-size:11px;padding:4px 8px" @click="addCategory = ''">Annuler</button>
             </div>
           </div>
           <div class="da-field da-flex1">

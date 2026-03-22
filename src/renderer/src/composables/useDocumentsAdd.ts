@@ -24,6 +24,7 @@ export function useDocumentsAdd() {
   const addFile        = ref<string | null>(null)
   const addFileName    = ref<string | null>(null)
   const addProject     = ref('')
+  const newCatName     = ref('')
   const adding         = ref(false)
 
   // Liste des projets disponibles (depuis les devoirs)
@@ -44,6 +45,7 @@ export function useDocumentsAdd() {
     addFile.value        = null
     addFileName.value    = null
     addProject.value     = appStore.activeProject ?? ''
+    newCatName.value     = ''
     showAddModal.value   = true
   }
 
@@ -79,7 +81,7 @@ export function useDocumentsAdd() {
         name:        addName.value.trim(),
         type:        addType.value,
         pathOrUrl,
-        category:    addCategory.value.trim() || null,
+        category:    (addCategory.value === '__new__' ? newCatName.value.trim() : addCategory.value.trim()) || null,
         description: addDescription.value.trim() || null,
         authorName:  appStore.currentUser?.name ?? 'Système',
         authorType:  appStore.currentUser?.type ?? 'teacher',
@@ -105,6 +107,7 @@ export function useDocumentsAdd() {
     addFile,
     addFileName,
     addProject,
+    newCatName,
     projectList,
     adding,
     openAddModal,
