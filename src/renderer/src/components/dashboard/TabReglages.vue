@@ -129,7 +129,7 @@ const emit = defineEmits<{
           <h4 class="tr-card-title">À propos</h4>
           <p class="tr-card-desc">Informations sur la plateforme et statistiques.</p>
           <div class="tr-about-stats">
-            <span>Version Cursus v2.0.0</span>
+            <span>Version Cursus v0.1.0-beta</span>
             <span>{{ promos.length }} promotion{{ promos.length > 1 ? 's' : '' }}</span>
             <span>{{ allStudents.length }} etudiants</span>
             <span>{{ ganttAll.length }} devoirs</span>

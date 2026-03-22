@@ -124,13 +124,13 @@ app.get('/health', (_req, res) => {
     getDb().prepare('SELECT 1').get()
     res.json({
       ok: true,
-      version: '2.0.0',
+      version: require('../package.json').version,
       uptime: Math.floor(process.uptime()),
       connections: onlineUsers.size,
       memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
     })
   } catch (err) {
-    res.status(503).json({ ok: false, error: 'Base de données inaccessible', version: '2.0.0' })
+    res.status(503).json({ ok: false, error: 'Base de données inaccessible', version: require('../package.json').version })
   }
 })
 
