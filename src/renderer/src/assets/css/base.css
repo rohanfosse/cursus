@@ -4,6 +4,312 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ════════════════════════════════════════════
+   VARIABLES
+════════════════════════════════════════════ */
+:root {
+  /* Fonds - thème sombre neutre (moderne, épuré) */
+  --bg-rail:    #161819;   /* Rail de navigation - near-black neutre */
+  --bg-sidebar: #1c1d1f;   /* Sidebar canaux - gris neutre */
+  --bg-main:    #232425;   /* Zone principale - gris pur */
+  --bg-input:   #1a1b1d;   /* Zone de saisie */
+  --bg-hover:   rgba(255,255,255,.05);
+  --bg-active:  rgba(74,144,217,.16);
+  --bg-modal:   #1e1f21;
+  --bg-elevated: #272829;  /* Cartes / éléments en relief */
+
+  /* Alias legacy (composants existants) */
+  --bg-darkest: #121314;
+  --bg-dark:    #1c1d1f;
+  --bg-medium:  #232425;
+  --bg-light:   #2a2b2d;
+  --bg-primary: #121314;
+
+  /* Texte - contraste soigné */
+  --text-primary:   #E8E9EA;   /* Blanc neutre, lisible */
+  --text-secondary: #8B8D91;   /* Gris moyen neutre */
+  --text-muted:     #616467;   /* Gris discret */
+
+  /* Accent */
+  --accent:        #4A90D9;
+  --accent-hover:  #5da3f0;
+  --accent-dark:   #2e6dae;
+  --accent-light:  #7EB8FF;
+  --accent-subtle: rgba(74,144,217,.14);
+
+  /* Ombres - légères, modernes */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.25);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,.35);
+  --shadow-card: 0 1px 3px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.2);
+  --shadow-card-hover: 0 8px 25px rgba(0,0,0,.4), 0 3px 10px rgba(0,0,0,.3);
+
+  /* Timings de transition */
+  --t-fast: .12s;
+  --t-base: .18s;
+  --t-slow: .28s;
+
+  /* Bordures */
+  --border:       rgba(255,255,255,.06);
+  --border-input: rgba(255,255,255,.12);
+
+  /* États sémantiques */
+  --color-danger:  #E74C3C;
+  --color-warning: #E8891A;
+  --color-success: #2ECC71;
+
+  /* Deadlines */
+  --deadline-ok-bg:     rgba(46, 204, 113, .16);
+  --deadline-ok-text:   #6FCF97;
+  --deadline-soon-bg:   rgba(232, 137, 26, .16);
+  --deadline-soon-text: #F2C94C;
+  --deadline-over-bg:   rgba(231, 76, 60, .16);
+  --deadline-over-text: #EB5757;
+
+  /* Typographie */
+  --font:      'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-base: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-size-base: 14.5px;
+
+  /* Densité d'affichage (espacement entre messages) */
+  --msg-spacing: 6px;
+
+  /* Rayons - coins arrondis modernes */
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 14px;
+
+  /* Spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+
+  /* Z-index scale */
+  --z-dropdown: 100;
+  --z-sticky:   200;
+  --z-banner:   300;
+  --z-sidebar:  400;
+  --z-modal-bg: 1000;
+  --z-modal:    1100;
+  --z-overlay:  2000;
+  --z-login:    9000;
+
+  /* Couleurs sémantiques complémentaires */
+  --color-ta: #7B5EA7;
+
+  /* Types de devoirs */
+  --color-livrable:     #4A90D9;
+  --color-soutenance:   #F39C12;
+  --color-cctl:         #9B87F5;
+  --color-etude-de-cas: #2ECC71;
+  --color-memoire:      #E74C3C;
+  --color-autre:        #95A5A6;
+
+  /* Notes (A-F) */
+  --color-grade-a: #2ECC71;
+  --color-grade-b: #4A90D9;
+  --color-grade-c: #F39C12;
+  --color-grade-d: #E74C3C;
+  --color-grade-na: #95A5A6;
+
+  /* Dimensions de layout */
+  --rail-width:    72px;
+  --sidebar-width: 240px;
+  --header-height: 52px;
+  --input-height:  auto;
+  --panel-width:   340px;
+}
+
+/* ════════════════════════════════════════════
+   THÈME CRÈME / SÉPIA  (body.light)
+════════════════════════════════════════════ */
+body.light {
+  /* Fonds - tons chauds crème/sépia */
+  --bg-rail:    #f0ebe3;
+  --bg-sidebar: #f5f0e8;
+  --bg-main:    #faf8f4;
+  --bg-input:   #eee9e0;
+  --bg-hover:   rgba(120,80,40,.06);
+  --bg-active:  rgba(160,100,40,.12);
+  --bg-modal:   #faf8f4;
+  --bg-elevated: #faf8f4;
+
+  /* Alias legacy */
+  --bg-darkest: #e2dbd0;
+  --bg-dark:    #f5f0e8;
+  --bg-medium:  #faf8f4;
+  --bg-light:   #f0ebe3;
+  --bg-primary: #e2dbd0;
+
+  /* Texte */
+  --text-primary:   #2c2418;
+  --text-secondary: #7a6e5e;
+  --text-muted:     #b0a594;
+
+  /* Accent - ambre/doré */
+  --accent:        #c27c2c;
+  --accent-hover:  #d4892f;
+  --accent-dark:   #a06420;
+  --accent-light:  #e8a84c;
+  --accent-subtle: rgba(194,124,44,.12);
+
+  /* Bordures */
+  --border:       rgba(100,70,30,.1);
+  --border-input: rgba(100,70,30,.16);
+
+  /* Ombres - chaudes */
+  --shadow-sm: 0 1px 2px rgba(80,50,10,.06);
+  --shadow-md: 0 4px 12px rgba(80,50,10,.1);
+  --shadow-lg: 0 8px 30px rgba(80,50,10,.14);
+
+  /* Sémantique */
+  --color-danger:  #c0392b;
+  --color-warning: #d4850a;
+  --color-success: #27ae60;
+
+  /* Deadlines */
+  --deadline-ok-bg:     rgba(39, 174, 96, .14);
+  --deadline-ok-text:   #16a34a;
+  --deadline-soon-bg:   rgba(217, 119, 6, .14);
+  --deadline-soon-text: #d97706;
+  --deadline-over-bg:   rgba(220, 38, 38, .12);
+  --deadline-over-text: #dc2626;
+}
+
+/* ════════════════════════════════════════════
+   THÈME NUIT  (body.night)
+════════════════════════════════════════════ */
+body.night {
+  --bg-rail:    #08090c;
+  --bg-sidebar: #0b0d11;
+  --bg-main:    #0f1115;
+  --bg-input:   #07080b;
+  --bg-hover:   rgba(255,255,255,.05);
+  --bg-active:  rgba(74,144,217,.13);
+  --bg-modal:   #0b0d11;
+
+  --bg-darkest: #040506;
+  --bg-dark:    #0b0d11;
+  --bg-medium:  #0f1115;
+  --bg-light:   #15181e;
+  --bg-primary: #040506;
+
+  --text-primary:   #E2E3E5;
+  --text-secondary: #898C90;
+  --text-muted:     #4E5155;
+
+  --border:       rgba(255,255,255,.055);
+  --border-input: rgba(255,255,255,.10);
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.4);
+  --shadow-md: 0 4px 14px rgba(0,0,0,.5);
+  --shadow-lg: 0 8px 36px rgba(0,0,0,.65);
+}
+
+/* ════════════════════════════════════════════
+   THÈME MARINE  (body.marine)
+════════════════════════════════════════════ */
+body.marine {
+  --bg-rail:    #0e1829;
+  --bg-sidebar: #132036;
+  --bg-main:    #192840;
+  --bg-input:   #0e1829;
+  --bg-hover:   rgba(100,170,240,.08);
+  --bg-active:  rgba(74,144,217,.22);
+  --bg-modal:   #132036;
+
+  --bg-darkest: #090f1c;
+  --bg-dark:    #132036;
+  --bg-medium:  #192840;
+  --bg-light:   #1f3050;
+  --bg-primary: #090f1c;
+
+  --text-primary:   #C6D8EE;
+  --text-secondary: #6D94B8;
+  --text-muted:     #3E5E7A;
+
+  --accent:        #5AABF0;
+  --accent-hover:  #72bcf7;
+  --accent-dark:   #3886cc;
+  --accent-light:  #90CAFF;
+  --accent-subtle: rgba(90,171,240,.16);
+
+  --border:       rgba(80,140,200,.1);
+  --border-input: rgba(80,140,200,.18);
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
+  --shadow-md: 0 4px 14px rgba(0,0,0,.4);
+  --shadow-lg: 0 8px 36px rgba(0,0,0,.55);
+}
+
+/* ════════════════════════════════════════════
+   THÈME CURSUS  (body.cursus)
+   Inspiré de la landing page - clair, bleu vif, Inter
+════════════════════════════════════════════ */
+body.cursus {
+  /* Fonds - tons landing page */
+  --bg-rail:    #eef2f7;
+  --bg-sidebar: #f4f6f9;
+  --bg-main:    #f9fafb;
+  --bg-input:   #ffffff;
+  --bg-hover:   rgba(59,130,246,.06);
+  --bg-active:  rgba(59,130,246,.12);
+  --bg-modal:   #ffffff;
+  --bg-elevated: #ffffff;
+
+  /* Alias legacy */
+  --bg-darkest: #dfe4eb;
+  --bg-dark:    #f4f6f9;
+  --bg-medium:  #f9fafb;
+  --bg-light:   #eef2f7;
+  --bg-primary: #dfe4eb;
+
+  /* Texte */
+  --text-primary:   #111827;
+  --text-secondary: #4b5563;
+  --text-muted:     #9ca3af;
+
+  /* Accent - bleu landing */
+  --accent:        #3b82f6;
+  --accent-hover:  #2563eb;
+  --accent-dark:   #1d4ed8;
+  --accent-light:  #60a5fa;
+  --accent-subtle: rgba(59,130,246,.1);
+
+  /* Bordures */
+  --border:       rgba(0,0,0,.08);
+  --border-input: rgba(0,0,0,.15);
+
+  /* Ombres - douces */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.06);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,.1);
+
+  /* Deadlines */
+  --deadline-ok-bg:     rgba(5, 150, 105, .1);
+  --deadline-ok-text:   #059669;
+  --deadline-soon-bg:   rgba(217, 119, 6, .1);
+  --deadline-soon-text: #d97706;
+  --deadline-over-bg:   rgba(220, 38, 38, .1);
+  --deadline-over-text: #dc2626;
+
+  /* Sémantique */
+  --color-danger:  #dc2626;
+  --color-warning: #d97706;
+  --color-success: #059669;
+
+  /* Typo - Inter comme la landing */
+  --font:      'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Rayons - plus arrondis comme la landing (14px) */
+  --radius-sm: 9px;
+  --radius:    14px;
+  --radius-lg: 18px;
+}
+
+/* ════════════════════════════════════════════
    BASE
 ════════════════════════════════════════════ */
 html, body {
@@ -49,6 +355,15 @@ html, body {
 .countdown-urgent { background: rgba(231,76,60,.12); color: var(--color-danger); }
 .countdown-soon { background: rgba(243,156,18,.12); color: var(--color-warning); }
 .countdown-ok { background: rgba(46,204,113,.12); color: var(--color-success); }
+
+/* Scrollbars - thèmes clairs */
+body.light ::-webkit-scrollbar-thumb       { background: rgba(120,80,40,.2); }
+body.light ::-webkit-scrollbar-thumb:hover { background: rgba(120,80,40,.35); }
+body.light * { scrollbar-color: rgba(120,80,40,.2) transparent; }
+
+body.cursus ::-webkit-scrollbar-thumb       { background: rgba(0,0,0,.15); }
+body.cursus ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,.25); }
+body.cursus * { scrollbar-color: rgba(0,0,0,.15) transparent; }
 
 /* ════════════════════════════════════════════
    MOBILE RESPONSIVE (< 768px)

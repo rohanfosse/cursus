@@ -174,24 +174,10 @@
   let unsubGradeNew:    (() => void) | null = null
 
   onMounted(() => {
-    // Appliquer le theme (auto = suivre le systeme)
-    function resolveTheme(t: string): string {
-      if (t === 'auto' || !t) {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'cursus'
-      }
-      return t
-    }
-    function applyThemeClass(t: string) {
-      const resolved = resolveTheme(t)
-      document.body.classList.remove('light', 'night', 'marine', 'cursus')
-      if (resolved !== 'dark') document.body.classList.add(resolved)
-    }
-    applyThemeClass(getPref('theme'))
-
-    // Ecouter les changements systeme en temps reel (si theme = auto)
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-      if (getPref('theme') === 'auto') applyThemeClass('auto')
-    })
+    // Appliquer le theme sauvegarde
+    const theme = getPref('theme') ?? 'dark'
+    document.body.classList.remove('light', 'night', 'marine', 'cursus')
+    if (theme !== 'dark') document.body.classList.add(theme)
 
     // Appliquer la taille de police sauvegardée
     const fs = getPref('fontSize') ?? 'default'

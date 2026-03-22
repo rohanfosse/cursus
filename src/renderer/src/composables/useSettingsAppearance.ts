@@ -7,30 +7,19 @@ import { ref, watch } from 'vue'
 import { Monitor, Sun, Moon, Waves, Sparkles } from 'lucide-vue-next'
 import { usePrefs } from '@/composables/usePrefs'
 
-import { Laptop } from 'lucide-vue-next'
-
-export type ThemeId = 'auto' | 'dark' | 'light' | 'night' | 'marine' | 'cursus'
+export type ThemeId = 'dark' | 'light' | 'night' | 'marine' | 'cursus'
 
 export const THEMES: { id: ThemeId; label: string; icon: typeof Moon; colors: string[]; accent: string }[] = [
-  { id: 'auto',   label: 'Syst\u00e8me', icon: Laptop,   colors: ['#1b1e30', '#e3e8f0', '#1b1e30'], accent: '#4A90D9' },
-  { id: 'dark',   label: 'Sombre',  icon: Monitor,  colors: ['#141622', '#1b1e30', '#212639'], accent: '#4dd0e1' },
-  { id: 'light',  label: 'Cr\u00e8me',   icon: Sun,      colors: ['#e4ddd2', '#ede7dc', '#f8f5f0'], accent: '#b06820' },
-  { id: 'night',  label: 'Nuit',    icon: Moon,     colors: ['#050710', '#08091a', '#0a0c18'], accent: '#7B8CDE' },
-  { id: 'marine', label: 'Marine',  icon: Waves,    colors: ['#0a1420', '#0f1d35', '#152540'], accent: '#64B5F6' },
-  { id: 'cursus', label: 'Cursus',  icon: Sparkles, colors: ['#e3e8f0', '#edf1f7', '#f7f8fb'], accent: '#3b82f6' },
+  { id: 'dark',   label: 'Sombre',  icon: Monitor,  colors: ['#1a1d21', '#1d2128', '#222529'], accent: '#4A90D9' },
+  { id: 'light',  label: 'Cr\u00e8me',   icon: Sun,      colors: ['#f0ebe3', '#f5f0e8', '#faf8f4'], accent: '#c27c2c' },
+  { id: 'night',  label: 'Nuit',    icon: Moon,     colors: ['#08090c', '#0b0d11', '#0f1115'], accent: '#7B8CDE' },
+  { id: 'marine', label: 'Marine',  icon: Waves,    colors: ['#0e1829', '#132036', '#192840'], accent: '#5B9BD5' },
+  { id: 'cursus', label: 'Cursus',  icon: Sparkles, colors: ['#eef2f7', '#f4f6f9', '#f9fafb'], accent: '#3b82f6' },
 ]
 
-function resolveTheme(theme: string): string {
-  if (theme === 'auto' || !theme) {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'cursus'
-  }
-  return theme
-}
-
 function applyTheme(theme: string) {
-  const resolved = resolveTheme(theme)
   document.body.classList.remove('light', 'night', 'marine', 'cursus')
-  if (resolved !== 'dark') document.body.classList.add(resolved)
+  if (theme !== 'dark') document.body.classList.add(theme)
 }
 
 export function useSettingsAppearance() {
