@@ -2,9 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { io, Socket } from 'socket.io-client'
 
 // ─── Configuration serveur ────────────────────────────────────────────────────
-const SERVER_URL: string = import.meta.env.DEV
-  ? 'http://localhost:3001'
-  : 'https://app.cursus.school'
+const SERVER_URL: string = process.env.VITE_SERVER_URL || (
+  process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : 'https://app.cursus.school'
+)
 
 /** Décodage base64 protégé contre les données corrompues */
 function safeAtob(b64: string): string {
