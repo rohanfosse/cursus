@@ -5,12 +5,16 @@
     FolderPlus, RefreshCw, ChevronDown,
   } from 'lucide-vue-next'
   import { useAppStore } from '@/stores/app'
+  import { useDocumentsStore } from '@/stores/documents'
+  import { useModalsStore } from '@/stores/modals'
   import { useToast }    from '@/composables/useToast'
   import { useConfirm }  from '@/composables/useConfirm'
 
   const emit = defineEmits<{ (e: 'close'): void }>()
 
   const appStore      = useAppStore()
+  const docStore      = useDocumentsStore()
+  const modals        = useModalsStore()
   const { showToast } = useToast()
   const { confirm }   = useConfirm()
 
@@ -57,11 +61,22 @@
   }
 
   async function openDoc(doc: ChannelDoc) {
-    const url = doc.content || doc.path_or_url
     if (doc.type === 'link') {
-      await window.api.openExternal(url)
+      await window.api.openExternal(doc.content || doc.path_or_url)
     } else {
-      await window.api.openPath(url)
+      // Ouvrir la modale de preview
+      docStore.openPreview({
+        id: doc.id,
+        channel_id: doc.channel_id,
+        promo_id: null,
+        name: doc.name,
+        type: doc.type,
+        content: doc.content || doc.path_or_url,
+        category: doc.category,
+        description: doc.description,
+        created_at: doc.created_at,
+      })
+      modals.documentPreview = true
     }
   }
 

@@ -120,5 +120,6 @@ export function useDocumentsData() {
     byCategory,
     openDoc,
     deleteDoc,
+    loadDocuments,
   }
 }

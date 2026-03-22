@@ -13,6 +13,8 @@
 
   import { useDocumentsData, docIconType, iconColors, iconLabels, TYPE_FILTERS } from '@/composables/useDocumentsData'
   import { useDocumentsAdd } from '@/composables/useDocumentsAdd'
+  import { useFileDrop } from '@/composables/useFileDrop'
+  import DropOverlay from '@/components/ui/DropOverlay.vue'
 
   const props = defineProps<{ toggleSidebar?: () => void }>()
 
@@ -22,6 +24,14 @@
 
   // ── View mode: grid vs list ───────────────────────────────────────────
   const viewMode = ref<'grid' | 'list'>('grid')
+
+  // ── Drag & drop ────────────────────────────────────────────────────────
+  const { isDragOver, pendingFile, uploading, onDragEnter, onDragLeave, onDragOver, onDrop, submitDocument, cancelDrop } = useFileDrop()
+
+  async function onDropConfirm(name: string, category: string) {
+    const ok = await submitDocument({ name, category })
+    if (ok) loadDocuments()
+  }
 
   // ── Search results count ──────────────────────────────────────────────
   const searchResultsCount = computed(() => {
@@ -47,6 +57,7 @@
     byCategory,
     openDoc,
     deleteDoc,
+    loadDocuments,
   } = useDocumentsData()
 
   // ── "Nouveau" badge: documents added in the last 24 h ───────────────────
@@ -73,7 +84,11 @@
 </script>
 
 <template>
-  <div id="documents-area" class="docs-layout">
+  <div
+    id="documents-area" class="docs-layout"
+    @dragenter="onDragEnter" @dragleave="onDragLeave"
+    @dragover="onDragOver" @drop="onDrop"
+  >
 
     <!-- ── Header ─────────────────────────────────────────────────────── -->
     <header class="docs-header">
@@ -368,6 +383,14 @@
       </div>
     </Modal>
 
+    <!-- Drag & drop overlay -->
+    <DropOverlay
+      :is-drag-over="isDragOver"
+      :pending-file="pendingFile"
+      :uploading="uploading"
+      @confirm="onDropConfirm"
+      @cancel="cancelDrop"
+    />
   </div>
 </template>
 
