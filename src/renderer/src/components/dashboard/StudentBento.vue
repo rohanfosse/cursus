@@ -163,7 +163,8 @@ const showAllClear = computed(() =>
 .sb-accueil {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  padding-top: 14px;
 }
 
 /* ── Header with customize button ─────────────────────────────────────────── */
@@ -189,7 +190,7 @@ const showAllClear = computed(() =>
 .sa-widgets {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 /* ── Transition: widget reorder ───────────────────────────────────────────── */
@@ -222,11 +223,16 @@ const showAllClear = computed(() =>
 
 /* ── Cards base (for ok state) ────────────────────────────────────────────── */
 .sa-card {
-  background: rgba(255,255,255,.03);
+  background: var(--bg-elevated, rgba(255,255,255,.04));
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px 18px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 14px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.sa-card:hover {
+  border-color: color-mix(in srgb, var(--border) 60%, var(--accent));
 }
 
 /* ── Tout est à jour ──────────────────────────────────────────────────────── */

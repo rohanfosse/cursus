@@ -87,7 +87,7 @@ const emit = defineEmits<{
 .spt-card {
   display: flex; flex-direction: column; gap: 8px;
   padding: 16px; border: 1px solid var(--border);
-  border-radius: 12px; background: rgba(255,255,255,.02);
+  border-radius: 14px; background: rgba(255,255,255,.02);
   cursor: pointer;
   transition: background .15s cubic-bezier(.4, 0, .2, 1),
               border-color .15s cubic-bezier(.4, 0, .2, 1),

@@ -76,8 +76,8 @@ const emit = defineEmits<{
 .bc-panel {
   background: rgba(255,255,255,.03);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px 18px;
+  border-radius: 14px;
+  padding: 16px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .bc-header {
