@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
     branches: [main]
 
@@ -26,5 +26,53 @@ jobs:
       - name: TypeScript type-check
         run: npm run typecheck
 
-      - name: Run tests
-        run: npm test
+      - name: Run tests with coverage
+        run: npx vitest run --coverage --reporter=json-summary --outputFile=coverage-summary.json
+
+      - name: Generate coverage badge
+        if: github.ref == 'refs/heads/main'
+        uses: jaywcjlove/coverage-badges-cli@main
+        with:
+          source: coverage-summary.json
+          output: coverage/badge.svg
+
+      - name: Deploy coverage badge
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./coverage
+          destination_dir: badges
+          keep_files: true
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Count lines of code
+        id: loc
+        run: |
+          TOTAL=$(find src/ server/ -name '*.ts' -o -name '*.vue' -o -name '*.js' | xargs wc -l | tail -1 | awk '{print $1}')
+          COMPONENTS=$(find src/renderer/src/components -name '*.vue' | wc -l)
+          COMPOSABLES=$(find src/renderer/src/composables -name '*.ts' | wc -l)
+          TESTS=$(find tests/ -name '*.test.*' | wc -l)
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "components=$COMPONENTS" >> $GITHUB_OUTPUT
+          echo "composables=$COMPOSABLES" >> $GITHUB_OUTPUT
+          echo "tests=$TESTS" >> $GITHUB_OUTPUT
+          echo "### Code Stats" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total lines | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Vue components | $COMPONENTS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Composables | $COMPOSABLES |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test files | $TESTS |" >> $GITHUB_STEP_SUMMARY
