@@ -558,16 +558,49 @@ a { color: var(--accent); text-decoration: none; }
   .feat-grid { grid-template-columns: 1fr; }
   .feat-big { grid-column: span 1; grid-template-columns: 1fr; }
   .feat-big-preview { display: none; }
-  .dl-grid { grid-template-columns: 1fr; max-width: 340px; }
+  .dl-grid { grid-template-columns: 1fr; max-width: 340px; margin: 0 auto; }
   .who-block, .who-block.reverse { grid-template-columns: 1fr; direction: ltr; gap: 32px; }
 }
 @media (max-width: 768px) {
-  .hero { padding: 100px 0 60px; }
-  .hero h1 { letter-spacing: -1.5px; }
+  .hero { padding: 90px 0 50px; }
+  .hero h1 { font-size: 36px; letter-spacing: -1.5px; }
+  .hero-sub { font-size: 15px; }
   .nav-links { display: none; }
-  .footer .container { flex-direction: column; align-items: flex-start; }
+  .container { padding: 0 18px; }
+  .section-title { font-size: 24px; }
+  .section-sub { font-size: 14px; }
+  .footer .container { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .footer-links { flex-wrap: wrap; gap: 12px; }
+  .footer-links a { padding: 6px 0; min-height: 44px; display: flex; align-items: center; }
+  .feat-card { padding: 20px; }
+  .who-list li { font-size: 13px; }
+  .dl-card { padding: 20px; }
+  .demo-window { border-radius: 10px; }
+  .demo-tab { font-size: 11px; padding: 8px 10px; gap: 4px; }
+  .demo-tab i { display: none; }
+  .theme-toggle { min-width: 40px; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+  .nav-cta { padding: 7px 14px; font-size: 12px; }
 }
 @media (max-width: 520px) {
+  .hero h1 { font-size: 28px; }
+  .hero-sub { font-size: 14px; }
   .hero-actions { flex-direction: column; align-items: stretch; }
   .hero-actions .btn { justify-content: center; }
+  .hero-eyebrow { font-size: 11px; }
+  .demo-tabs { gap: 0; }
+  .demo-tab { padding: 7px 8px; font-size: 10px; }
+  .quiz-question { font-size: 13px; }
+  .quiz-option { padding: 8px 10px; font-size: 12px; }
+  .quiz-bar-label { font-size: 11px; min-width: 40px; }
+  .who-title { font-size: 20px; }
+  .feat-card h3 { font-size: 16px; }
+  .feat-card p { font-size: 13px; }
+  .changelog { padding: 16px; }
+}
+@media (max-width: 380px) {
+  .hero h1 { font-size: 24px; }
+  .container { padding: 0 14px; }
+  .nav .container { padding: 0 12px; }
+  .nav-logo { font-size: 14px; }
+  .hero { padding: 80px 0 40px; }
 }
