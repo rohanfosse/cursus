@@ -7,6 +7,8 @@ import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { needsSubmission, isExpired, isEventType } from '@/utils/devoir'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
+import { nextUpcoming } from '@/utils/devoirFilters'
+import { groupByCategory } from '@/utils/projectGrouping'
 import type { Devoir } from '@/types'
 
 export function useDevoirsStudent(now: Ref<number>) {
@@ -55,49 +57,43 @@ export function useDevoirsStudent(now: Ref<number>) {
   // ── Vue étudiant : résumé par projet (sans filtre actif) ──────────────────────
   const studentProjectOverview = computed(() => {
     if (appStore.activeProject) return []
-    const map = new Map<string, { key: string; label: string; total: number; submitted: number; pending: number }>()
-    for (const t of travauxStore.devoirs) {
-      const cat   = t.category?.trim() || null
-      const mKey  = cat ?? '__none__'
-      if (!map.has(mKey)) {
-        map.set(mKey, {
-          key:       mKey,
-          label:     cat ? parseCategoryIcon(cat).label || cat : 'Sans projet',
-          total:     0,
-          submitted: 0,
-          pending:   0,
-        })
+    const catMap = groupByCategory(travauxStore.devoirs)
+    // Also collect devoirs without category
+    const noCat = travauxStore.devoirs.filter(t => !t.category?.trim())
+    const results: { key: string; label: string; total: number; submitted: number; pending: number }[] = []
+    for (const [key, devs] of catMap) {
+      const label = parseCategoryIcon(key).label || key
+      let submitted = 0, pending = 0
+      for (const t of devs) {
+        if (t.depot_id != null) submitted++
+        else if (!isEventType(t.type)) pending++
       }
-      const g = map.get(mKey)!
-      g.total++
-      if (t.depot_id != null) g.submitted++
-      else if (!isEventType(t.type)) g.pending++
+      results.push({ key, label, total: devs.length, submitted, pending })
     }
-    return [...map.values()]
+    if (noCat.length) {
+      let submitted = 0, pending = 0
+      for (const t of noCat) {
+        if (t.depot_id != null) submitted++
+        else if (!isEventType(t.type)) pending++
+      }
+      results.push({ key: '__none__', label: 'Sans projet', total: noCat.length, submitted, pending })
+    }
+    return results
       .filter(g => g.total > 0 && g.key !== '__none__')
       .sort((a, b) => a.label.localeCompare(b.label, 'fr'))
   })
 
   // ── Accueil étudiant : prochains événements par type ─────────────────────────
   const nextExams = computed(() =>
-    travauxStore.devoirs
-      .filter(t => (t.type === 'cctl' || t.type === 'etude_de_cas') && new Date(t.deadline).getTime() > now.value)
-      .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
-      .slice(0, 3),
+    nextUpcoming(travauxStore.devoirs, ['cctl', 'etude_de_cas'], now.value, 3),
   )
 
   const nextLivrables = computed(() =>
-    travauxStore.devoirs
-      .filter(t => t.type === 'livrable' && new Date(t.deadline).getTime() > now.value)
-      .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
-      .slice(0, 3),
+    nextUpcoming(travauxStore.devoirs, ['livrable'], now.value, 3),
   )
 
   const nextSoutenances = computed(() =>
-    travauxStore.devoirs
-      .filter(t => t.type === 'soutenance' && new Date(t.deadline).getTime() > now.value)
-      .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
-      .slice(0, 3),
+    nextUpcoming(travauxStore.devoirs, ['soutenance'], now.value, 3),
   )
 
   // ── Accueil étudiant : catégories (pour la grille de projets) ──────────────

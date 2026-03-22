@@ -29,30 +29,7 @@ const emit = defineEmits<{ goToProject: [key: string] }>()
 </template>
 
 <style scoped>
-.sa-card {
-  background: rgba(255,255,255,.03); border: 1px solid var(--border);
-  border-radius: 12px; padding: 16px 18px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.sa-card:hover { background: rgba(255,255,255,.045); }
-.sa-card-header { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-.sa-card-icon { color: var(--text-muted); flex-shrink: 0; }
-.sa-section-label {
-  text-transform: uppercase; letter-spacing: .08em; font-size: 10px;
-  font-weight: 700; color: var(--text-muted); flex: 1;
-}
+/* Base .sa-card, .sa-card-header, .sa-section-label, .sa-next-* styles in devoirs-shared.css */
 .sa-next--soutenance { border-left: 3px solid var(--color-warning); }
 .sa-icon--soutenance { color: var(--color-warning); }
-.sa-next-list { display: flex; flex-direction: column; gap: 6px; }
-.sa-next-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px; border-radius: 8px;
-  background: rgba(255,255,255,.02); cursor: pointer;
-  transition: background .15s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.sa-next-item:hover { background: rgba(255,255,255,.06); }
-.sa-next-title {
-  flex: 1; font-size: 13px; font-weight: 500; color: var(--text-primary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
 </style>

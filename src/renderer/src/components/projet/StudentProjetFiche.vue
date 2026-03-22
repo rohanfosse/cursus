@@ -2,9 +2,8 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  FileText, Link2, Hash, Megaphone, ChevronLeft, ChevronDown, ChevronRight, ExternalLink,
-  Layers, CalendarDays, FolderOpen, Upload, X, CheckCircle2,
-  Clock, Lock, Award, Users, BookOpen, AlertTriangle,
+  FileText, Link2, Hash, Megaphone, ExternalLink,
+  Award, Users, BookOpen,
   Image, FileSpreadsheet, FileArchive, Film, FileCode, File,
 } from 'lucide-vue-next'
 import { useAppStore }          from '@/stores/app'
@@ -12,16 +11,12 @@ import { useTravauxStore }      from '@/stores/travaux'
 import { useDocumentsStore }    from '@/stores/documents'
 import { useModalsStore }       from '@/stores/modals'
 import { useToast }             from '@/composables/useToast'
-import { parseCategoryIcon }    from '@/utils/categoryIcon'
-import { formatDate, deadlineClass, deadlineLabel } from '@/utils/date'
 import { avatarColor } from '@/utils/format'
+import StudentProjetHeader      from './StudentProjetHeader.vue'
+import StudentProjetStats       from './StudentProjetStats.vue'
+import StudentProjetDevoirsList from './StudentProjetDevoirsList.vue'
 import type { AppDocument, Channel, Devoir } from '@/types'
 import type { ProjectMeta } from '@/components/modals/NewProjectModal.vue'
-
-const TYPE_LABELS: Record<string, string> = {
-  livrable: 'Livrable', soutenance: 'Soutenance', cctl: 'CCTL',
-  etude_de_cas: 'Étude de cas', memoire: 'Mémoire', autre: 'Autre',
-}
 
 const props = defineProps<{ projectKey: string; promoId: number }>()
 
@@ -62,11 +57,6 @@ onBeforeUnmount(() => { if (clockInterval) clearInterval(clockInterval) })
 function isExpired(deadline: string)       { return now.value >= new Date(deadline).getTime() }
 function isEventType(type: string)         { return type === 'soutenance' || type === 'cctl' }
 function isOverdue(t: Devoir)              { return t.depot_id == null && !isEventType(t.type) && isExpired(t.deadline) }
-function isUrgent(t: Devoir)              {
-  if (t.depot_id != null || isExpired(t.deadline) || isEventType(t.type)) return false
-  return new Date(t.deadline).getTime() - now.value < 3 * 86_400_000
-}
-
 // ── Stats ─────────────────────────────────────────────────────────────────────
 const stats = computed(() => {
   const graded  = devoirs.value.filter(t => t.note != null)
@@ -234,27 +224,6 @@ function openDoc(doc: AppDocument) {
   }
 }
 
-function formatDateRange(start?: string, end?: string): string {
-  if (!start && !end) return ''
-  const fmt = (d: string) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-  if (start && end) return `${fmt(start)} → ${fmt(end)}`
-  if (end) return `Jusqu'au ${fmt(end)}`
-  return `Depuis ${fmt(start!)}`
-}
-
-function gradeColor(note: string | null | undefined): string {
-  const n = parseFloat(note ?? '')
-  if (isNaN(n)) return 'grade-letter'
-  if (n >= 16) return 'grade-a'
-  if (n >= 12) return 'grade-b'
-  if (n >= 8)  return 'grade-c'
-  return 'grade-d'
-}
-
-// ── Collapsible sections ──────────────────────────────────────────────────────
-const collapsedSections = ref<Record<string, boolean>>({})
-function toggleSection(key: string) { collapsedSections.value[key] = !collapsedSections.value[key] }
-
 // ── Prochaine échéance (< 3 jours) ───────────────────────────────────────────
 const nextDeadlineSoon = computed(() => {
   const upcoming = devoirsPending.value.filter(t => !isExpired(t.deadline))
@@ -268,9 +237,13 @@ const nextDeadlineSoon = computed(() => {
   return { title: first.title, deadline: first.deadline, label }
 })
 
-// ── New feedback check ───────────────────────────────────────────────────────
-function hasFeedback(t: Devoir): boolean {
-  return t.feedback != null && t.feedback.trim() !== ''
+function gradeColor(note: string | null | undefined): string {
+  const n = parseFloat(note ?? '')
+  if (isNaN(n)) return 'grade-letter'
+  if (n >= 16) return 'grade-a'
+  if (n >= 12) return 'grade-b'
+  if (n >= 8)  return 'grade-c'
+  return 'grade-d'
 }
 
 // ── File type icon helper ────────────────────────────────────────────────────
@@ -291,77 +264,16 @@ function fileTypeIcon(name: string): typeof FileText {
 
     <!-- ── En-tête ──────────────────────────────────────────────────────── -->
     <header class="spf-header">
-      <nav class="spf-breadcrumb">
-        <button class="spf-back-btn" @click="appStore.activeProject = null">
-          <ChevronLeft :size="14" />
-        </button>
-        <span class="spf-bread-link" @click="appStore.activeProject = null">Devoirs</span>
-        <span class="spf-bread-sep">/</span>
-        <span class="spf-bread-current">{{ parseCategoryIcon(projectKey).label }}</span>
-      </nav>
-
-      <div class="spf-header-identity">
-        <div class="spf-icon-wrap">
-          <component
-            v-if="parseCategoryIcon(projectKey).icon"
-            :is="parseCategoryIcon(projectKey).icon!"
-            :size="22"
-            class="spf-project-icon"
-          />
-          <Layers v-else :size="22" class="spf-project-icon" />
-        </div>
-        <div class="spf-header-text">
-          <h2 class="spf-project-name">{{ parseCategoryIcon(projectKey).label }}</h2>
-          <p v-if="projectMeta?.description" class="spf-project-desc">{{ projectMeta.description }}</p>
-          <div class="spf-project-meta-row">
-            <span v-if="projectMeta?.startDate || projectMeta?.endDate" class="spf-project-dates">
-              <CalendarDays :size="11" />
-              {{ formatDateRange(projectMeta?.startDate, projectMeta?.endDate) }}
-            </span>
-            <span v-if="groupName" class="spf-group-pill">
-              <Users :size="11" /> {{ groupName }}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Chips stats -->
-      <div class="spf-stats-row">
-        <span class="spf-stat-chip" :class="stats.overdue > 0 ? 'spf-chip-red' : stats.pending > 0 ? 'spf-chip-orange' : 'spf-chip-green'">
-          <CheckCircle2 :size="11" />
-          {{ stats.submitted }}/{{ stats.total }} rendus
-          <span v-if="stats.total" class="spf-chip-pct">({{ stats.pct }}%)</span>
-        </span>
-        <span v-if="stats.overdue" class="spf-stat-chip spf-chip-red">
-          <AlertTriangle :size="11" /> {{ stats.overdue }} en retard
-        </span>
-        <span v-if="stats.avg != null" class="spf-stat-chip spf-chip-blue">
-          <Award :size="11" /> Moy. {{ stats.avg }}/20
-        </span>
-        <span v-if="stats.docs" class="spf-stat-chip spf-chip-muted">
-          <FolderOpen :size="11" /> {{ stats.docs }} docs
-        </span>
-        <span v-if="stats.channels" class="spf-stat-chip spf-chip-muted">
-          <Hash :size="11" /> {{ stats.channels }} canal{{ stats.channels > 1 ? 'ux' : '' }}
-        </span>
-      </div>
-
-      <!-- Barre de progression globale -->
-      <div v-if="stats.total > 0" class="spf-global-progress">
-        <div class="spf-global-bar">
-          <div
-            class="spf-global-fill"
-            :class="stats.pct === 100 ? 'fill-complete' : stats.pct > 50 ? 'fill-good' : ''"
-            :style="{ width: stats.pct + '%' }"
-          />
-        </div>
-      </div>
-
-      <!-- Prochaine échéance banner -->
-      <div v-if="nextDeadlineSoon" class="spf-deadline-banner">
-        <AlertTriangle :size="14" />
-        <span><strong>Prochaine échéance :</strong> {{ nextDeadlineSoon.title }} &mdash; {{ nextDeadlineSoon.label }}</span>
-      </div>
+      <StudentProjetHeader
+        :project-key="projectKey"
+        :project-meta="projectMeta"
+        :group-name="groupName"
+        @back="appStore.activeProject = null"
+      />
+      <StudentProjetStats
+        :stats="stats"
+        :next-deadline-soon="nextDeadlineSoon"
+      />
     </header>
 
     <!-- ── Corps ────────────────────────────────────────────────────────── -->
@@ -384,148 +296,29 @@ function fileTypeIcon(name: string): typeof FileText {
         </div>
 
         <template v-else>
-
-          <!-- ▸ À rendre (overdue + urgent + pending) -->
-          <template v-if="devoirsPending.length">
-            <div class="spf-section-label spf-section-toggle" @click="toggleSection('pending')">
-              <component :is="collapsedSections.pending ? ChevronRight : ChevronDown" :size="12" />
-              <Clock :size="12" /> A rendre
-              <span class="spf-section-count">{{ devoirsPending.length }}</span>
-            </div>
-            <div v-show="!collapsedSections.pending" class="spf-devoir-list">
-              <div
-                v-for="t in devoirsPending"
-                :key="t.id"
-                class="spf-devoir-card"
-                :class="{ 'spf-card--overdue': isOverdue(t), 'spf-card--urgent': isUrgent(t) }"
-              >
-                <div class="spf-card-top">
-                  <span class="spf-type-badge" :class="`type-${t.type}`">{{ TYPE_LABELS[t.type] ?? t.type }}</span>
-                  <span class="spf-card-title">{{ t.title }}</span>
-                  <span class="spf-deadline-badge" :class="deadlineClass(t.deadline)">
-                    <Clock :size="9" />{{ deadlineLabel(t.deadline) }}
-                  </span>
-                </div>
-                <div class="spf-card-sub">
-                  <span class="spf-card-date">
-                    {{ isOverdue(t) ? '🔒 Délai expiré' : 'Échéance : ' + formatDate(t.deadline) }}
-                  </span>
-                  <span v-if="t.group_name" class="spf-card-group"><Users :size="10" /> {{ t.group_name }}</span>
-                </div>
-                <p v-if="t.description" class="spf-card-desc">{{ t.description }}</p>
-
-                <!-- Formulaire de dépôt -->
-                <template v-if="depositingDevoirId === t.id">
-                  <div class="spf-deposit-form">
-                    <div class="spf-deposit-toggle">
-                      <button class="spf-toggle-btn" :class="{ active: depositMode === 'file' }" @click="depositMode = 'file'">
-                        <FileText :size="12" /> Fichier
-                      </button>
-                      <button class="spf-toggle-btn" :class="{ active: depositMode === 'link' }" @click="depositMode = 'link'">
-                        <Link2 :size="12" /> Lien
-                      </button>
-                    </div>
-                    <div v-if="depositMode === 'file'">
-                      <div v-if="depositFile" class="spf-file-selected">
-                        <CheckCircle2 :size="14" class="spf-file-ok" />
-                        <span class="spf-file-name">{{ depositFileName }}</span>
-                        <button class="spf-file-clear" @click.stop="clearDepositFile"><X :size="11" /></button>
-                      </div>
-                      <div
-                        v-else
-                        class="spf-file-zone"
-                        :class="{ 'spf-file-zone--drag': dragOver }"
-                        @click="pickFile"
-                        @dragover="onDragOver"
-                        @dragleave="onDragLeave"
-                        @drop="onDrop"
-                      >
-                        <Upload :size="18" class="spf-file-zone-icon" />
-                        <span>{{ dragOver ? 'Relâcher pour déposer' : 'Glisser un fichier ou cliquer' }}</span>
-                      </div>
-                    </div>
-                    <input v-else v-model="depositLink" class="form-input" placeholder="https://…" type="url" />
-                    <div class="spf-deposit-actions">
-                      <button class="btn-ghost" @click="cancelDeposit"><X :size="12" /> Annuler</button>
-                      <button
-                        class="btn-primary"
-                        :disabled="depositing || (depositMode === 'file' ? !depositFile : !depositLink.trim())"
-                        @click="submitDeposit(t)"
-                      >
-                        <Upload :size="12" />{{ depositing ? 'Dépôt…' : 'Déposer' }}
-                      </button>
-                    </div>
-                  </div>
-                </template>
-                <div v-else class="spf-card-actions">
-                  <button v-if="isOverdue(t)" class="spf-btn-expired" disabled>
-                    <Lock :size="12" /> Délai expiré
-                  </button>
-                  <button v-else class="btn-primary spf-btn-deposit" @click="startDeposit(t)">
-                    <Upload :size="12" /> Déposer
-                  </button>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <!-- ▸ Événements (soutenance / CCTL) -->
-          <template v-if="devoirsEvent.length">
-            <div class="spf-section-label spf-section-toggle" style="margin-top:16px" @click="toggleSection('events')">
-              <component :is="collapsedSections.events ? ChevronRight : ChevronDown" :size="12" />
-              <CalendarDays :size="12" /> Événements
-              <span class="spf-section-count">{{ devoirsEvent.length }}</span>
-            </div>
-            <div v-show="!collapsedSections.events" class="spf-devoir-list">
-              <div v-for="t in devoirsEvent" :key="t.id" class="spf-devoir-card spf-card--event">
-                <div class="spf-card-top">
-                  <span class="spf-type-badge" :class="`type-${t.type}`">{{ TYPE_LABELS[t.type] ?? t.type }}</span>
-                  <span class="spf-card-title">{{ t.title }}</span>
-                  <span class="spf-deadline-badge" :class="deadlineClass(t.deadline)">
-                    <Clock :size="9" />{{ deadlineLabel(t.deadline) }}
-                  </span>
-                </div>
-                <div class="spf-card-sub">
-                  <span class="spf-card-date">{{ formatDate(t.deadline) }}</span>
-                </div>
-                <p v-if="t.description" class="spf-card-desc">{{ t.description }}</p>
-                <div class="spf-event-notice">
-                  <CalendarDays :size="13" /> Présence requise
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <!-- ▸ Rendus -->
-          <template v-if="devoirsSubmitted.length">
-            <div class="spf-section-label spf-section-toggle" style="margin-top:16px" @click="toggleSection('submitted')">
-              <component :is="collapsedSections.submitted ? ChevronRight : ChevronDown" :size="12" />
-              <CheckCircle2 :size="12" /> Rendus
-              <span class="spf-section-count">{{ devoirsSubmitted.length }}</span>
-            </div>
-            <div v-show="!collapsedSections.submitted" class="spf-devoir-list">
-              <div v-for="t in devoirsSubmitted" :key="t.id" class="spf-devoir-card spf-card--done">
-                <div class="spf-card-top">
-                  <span class="spf-type-badge" :class="`type-${t.type}`">{{ TYPE_LABELS[t.type] ?? t.type }}</span>
-                  <span class="spf-card-title">{{ t.title }}</span>
-                  <span v-if="hasFeedback(t)" class="badge-new">Nouveau feedback</span>
-                  <CheckCircle2 :size="14" class="spf-done-check" />
-                </div>
-                <div class="spf-card-sub">
-                  <span class="spf-card-date">Échéance : {{ formatDate(t.deadline) }}</span>
-                </div>
-                <!-- Note + feedback -->
-                <div v-if="t.note" class="spf-grade-row">
-                  <span class="spf-grade-badge" :class="gradeColor(t.note)">{{ t.note }}</span>
-                  <span v-if="t.feedback" class="spf-feedback-text">{{ t.feedback }}</span>
-                </div>
-                <div v-else class="spf-grade-pending">
-                  <Award :size="12" /> En attente de notation
-                </div>
-              </div>
-            </div>
-          </template>
-
+          <StudentProjetDevoirsList
+            :devoirs-pending="devoirsPending"
+            :devoirs-event="devoirsEvent"
+            :devoirs-submitted="devoirsSubmitted"
+            :now="now"
+            :depositing-devoir-id="depositingDevoirId"
+            :deposit-mode="depositMode"
+            :deposit-link="depositLink"
+            :deposit-file="depositFile"
+            :deposit-file-name="depositFileName"
+            :depositing="depositing"
+            :drag-over="dragOver"
+            @start-deposit="startDeposit"
+            @cancel-deposit="cancelDeposit"
+            @pick-file="pickFile"
+            @clear-deposit-file="clearDepositFile"
+            @submit-deposit="submitDeposit"
+            @update:deposit-mode="depositMode = $event"
+            @update:deposit-link="depositLink = $event"
+            @drag-over="onDragOver"
+            @drag-leave="onDragLeave"
+            @drop="onDrop"
+          />
         </template>
       </section>
 

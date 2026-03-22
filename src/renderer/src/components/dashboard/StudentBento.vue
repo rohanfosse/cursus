@@ -7,6 +7,7 @@
 import { computed, ref, watch, nextTick, type Component } from 'vue'
 import { Settings, Smile } from 'lucide-vue-next'
 import { useBentoPrefs } from '@/composables/useBentoPrefs'
+import { nextUpcoming } from '@/utils/devoirFilters'
 import type { StudentProjectCard } from '@/composables/useDashboardStudent'
 
 import WidgetLive from './student-widgets/WidgetLive.vue'
@@ -58,29 +59,17 @@ const activeProject = computed(() => {
   return withDeadline[0] ?? props.studentProjectCards[0]
 })
 
-const nextExams = computed(() => {
-  const now = Date.now()
-  return props.urgentActions
-    .filter(a => (a.type === 'cctl' || a.type === 'etude_de_cas') && a.deadline && new Date(a.deadline).getTime() > now)
-    .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
-    .slice(0, 4)
-})
+const nextExams = computed(() =>
+  nextUpcoming(props.urgentActions, ['cctl', 'etude_de_cas'], Date.now(), 4),
+)
 
-const nextLivrables = computed(() => {
-  const now = Date.now()
-  return props.urgentActions
-    .filter(a => (a.type === 'livrable' || a.type === 'memoire') && a.deadline && new Date(a.deadline).getTime() > now)
-    .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
-    .slice(0, 2)
-})
+const nextLivrables = computed(() =>
+  nextUpcoming(props.urgentActions, ['livrable', 'memoire'], Date.now(), 2),
+)
 
-const nextSoutenances = computed(() => {
-  const now = Date.now()
-  return props.urgentActions
-    .filter(a => a.type === 'soutenance' && a.deadline && new Date(a.deadline).getTime() > now)
-    .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
-    .slice(0, 2)
-})
+const nextSoutenances = computed(() =>
+  nextUpcoming(props.urgentActions, ['soutenance'], Date.now(), 2),
+)
 
 // ── Widget component map ───────────────────────────────────────────────────
 const widgetComponents: Record<string, Component> = {

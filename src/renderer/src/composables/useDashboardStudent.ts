@@ -2,6 +2,8 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { useTravauxStore } from '@/stores/travaux'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
+import { groupByCategory } from '@/utils/projectGrouping'
+import { useClockTimer } from '@/composables/useClockTimer'
 import type { Component } from 'vue'
 import type { Devoir }    from '@/types'
 
@@ -19,9 +21,10 @@ export function useDashboardStudent() {
   const loadingStudent = ref(true)
 
   // Timer pour les countdowns
-  const studentNow = ref(Date.now())
-  let _studentClock: ReturnType<typeof setInterval> | null = null
-  let _studentRefresh: ReturnType<typeof setInterval> | null = null
+  const { now: studentNow, start: startTimers, cleanup: cleanupTimers } = useClockTimer(
+    () => travauxStore.fetchStudentDevoirs(),
+    { clockMs: 30_000, refreshMs: 60_000 },
+  )
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const studentStats = computed(() => {
@@ -91,13 +94,7 @@ export function useDashboardStudent() {
 
   // ── Projets étudiant ──────────────────────────────────────────────────────
   const studentProjectCards = computed((): StudentProjectCard[] => {
-    const map = new Map<string, Devoir[]>()
-    for (const t of travauxStore.devoirs) {
-      const cat = t.category?.trim()
-      if (!cat) continue
-      if (!map.has(cat)) map.set(cat, [])
-      map.get(cat)!.push(t)
-    }
+    const map = groupByCategory(travauxStore.devoirs)
     const now = Date.now()
     const cards: StudentProjectCard[] = []
     for (const [key, rows] of map) {
@@ -129,13 +126,7 @@ export function useDashboardStudent() {
     try {
       if (!travauxStore.devoirs.length) await travauxStore.fetchStudentDevoirs()
     } finally { loadingStudent.value = false }
-    _studentClock   = setInterval(() => { studentNow.value = Date.now() }, 30_000)
-    _studentRefresh = setInterval(() => { travauxStore.fetchStudentDevoirs() }, 60_000)
-  }
-
-  function cleanupTimers() {
-    if (_studentClock) clearInterval(_studentClock)
-    if (_studentRefresh) clearInterval(_studentRefresh)
+    startTimers()
   }
 
   return {

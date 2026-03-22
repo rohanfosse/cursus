@@ -6,6 +6,7 @@ import { ref, computed, type Ref } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { deadlineClass } from '@/utils/date'
+import { groupByCategory, computeProjectStats } from '@/utils/projectGrouping'
 import type { Channel, Student } from '@/types'
 
 export interface SmartFocusChannel {
@@ -117,28 +118,14 @@ export function useSidebarStudentData(channels: Ref<Channel[]>) {
   // ── Project Progress ────────────────────────────────────────────────────
   const projectProgress = computed((): Record<string, ProjectProgress> => {
     ensureDevoirs()
-    const map: Record<string, ProjectProgress> = {}
-
-    for (const d of travauxStore.devoirs) {
-      const cat = d.category?.trim()
-      if (!cat) continue
-      if (!map[cat]) map[cat] = { submitted: 0, total: 0, overdue: 0, pct: 0 }
-      map[cat].total++
-      if (d.depot_id != null) {
-        map[cat].submitted++
-      } else if (new Date(d.deadline).getTime() < Date.now()) {
-        map[cat].overdue++
-      }
+    const catMap = groupByCategory(travauxStore.devoirs)
+    const result: Record<string, ProjectProgress> = {}
+    const now = Date.now()
+    for (const [key, devs] of catMap) {
+      const s = computeProjectStats(devs, now)
+      result[key] = { submitted: s.submitted, total: s.total, overdue: s.overdue, pct: s.pct }
     }
-
-    for (const key of Object.keys(map)) {
-      map[key].pct =
-        map[key].total > 0
-          ? Math.round((map[key].submitted / map[key].total) * 100)
-          : 0
-    }
-
-    return map
+    return result
   })
 
   // ── Total Unread ────────────────────────────────────────────────────────
