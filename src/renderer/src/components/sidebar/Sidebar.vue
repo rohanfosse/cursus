@@ -143,7 +143,7 @@
 <template>
   <div id="sidebar" class="sidebar">
     <!-- Espacement haut -->
-    <div style="height:6px" />
+    <div style="height:14px" />
 
     <!-- Section Messages -->
     <div id="sidebar-section-messages">
@@ -398,7 +398,7 @@
 
       <!-- Canaux groupés par catégorie (autres sections) -->
       <template v-else>
-        <div id="sidebar-channels-header" class="sidebar-section-header sidebar-collapsible-header" @click="channelsCollapsed = !channelsCollapsed">
+        <div id="sidebar-channels-header" class="sidebar-section-header sidebar-collapsible-header" :style="!appStore.isStaff ? 'padding-top: 16px; margin-top: 8px' : ''" @click="channelsCollapsed = !channelsCollapsed">
           <ChevronDown
             :size="12"
             class="sidebar-category-chevron"

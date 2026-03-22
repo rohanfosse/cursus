@@ -83,26 +83,46 @@ export function useMsgAutocomplete(
   async function loadUsers() {
     if (allUsers.value.length) return
 
-    let students: MentionUser[] = []
+    let users: MentionUser[] = []
     const promoId = appStore.activePromoId
 
     if (promoId) {
-      const res = await window.api.getStudents(promoId)
-      if (res?.ok) students = res.data.map((s: { name: string }) => ({ name: s.name, type: 'student' as const }))
+      const [stuRes, teachRes] = await Promise.all([
+        window.api.getStudents(promoId),
+        window.api.getTeachers(),
+      ])
+      if (stuRes?.ok) users.push(...stuRes.data.map((s: { name: string }) => ({ name: s.name, type: 'student' as const })))
+      if (teachRes?.ok) {
+        for (const t of teachRes.data as { name: string }[]) {
+          if (!users.some((u) => u.name === t.name)) {
+            users.push({ name: t.name, type: 'teacher' as const })
+          }
+        }
+      }
     } else {
-      const res = await window.api.getAllStudents()
-      if (res?.ok) students = res.data.map((s: { name: string }) => ({ name: s.name, type: 'student' as const }))
+      const [stuRes, teachRes] = await Promise.all([
+        window.api.getAllStudents(),
+        window.api.getTeachers(),
+      ])
+      if (stuRes?.ok) users.push(...stuRes.data.map((s: { name: string }) => ({ name: s.name, type: 'student' as const })))
+      if (teachRes?.ok) {
+        for (const t of teachRes.data as { name: string }[]) {
+          if (!users.some((u) => u.name === t.name)) {
+            users.push({ name: t.name, type: 'teacher' as const })
+          }
+        }
+      }
     }
 
     if (appStore.currentUser && appStore.currentUser.type !== 'student') {
       const myName = appStore.currentUser.name
       const myType = appStore.currentUser.type as 'teacher' | 'ta'
-      if (!students.some((u) => u.name === myName)) {
-        students = [{ name: myName, type: myType }, ...students]
+      if (!users.some((u) => u.name === myName)) {
+        users = [{ name: myName, type: myType }, ...users]
       }
     }
 
-    allUsers.value = [{ name: 'everyone', type: 'everyone' }, ...students]
+    allUsers.value = [{ name: 'everyone', type: 'everyone' }, ...users]
   }
 
   function insertMention(name: string) {

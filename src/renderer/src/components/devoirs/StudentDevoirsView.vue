@@ -215,17 +215,19 @@ const depositProps = computed(() => ({
 .devoirs-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   max-width: 780px;
   margin: 0 auto;
+  padding: 0 4px;
 }
 
 .devoirs-grouped {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
   max-width: 780px;
   margin: 0 auto;
+  padding: 0 4px;
 }
 
 /* ── Squelettes ──────────────────────────────────────────────────────────── */

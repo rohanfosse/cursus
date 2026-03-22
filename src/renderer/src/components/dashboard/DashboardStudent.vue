@@ -4,7 +4,7 @@
  * stats, projects grid, and frise sub-components.
  */
 <script setup lang="ts">
-import { FolderOpen, BarChart2 } from 'lucide-vue-next'
+import { FolderOpen, BarChart2, BookOpen } from 'lucide-vue-next'
 import type { StudentProjectCard } from '@/composables/useDashboardStudent'
 import type { FriseMilestone, FrisePromo } from '@/composables/useFrise'
 
@@ -86,33 +86,49 @@ const emit = defineEmits<{
       @navigate-devoirs="emit('navigateDevoirs')"
     />
 
-    <!-- Encart première connexion (beta + guide) -->
+    <!-- Encart première connexion (guide) -->
     <div v-if="showOnboarding" class="db-welcome">
-      <div class="db-welcome-header">
-        <span class="db-welcome-badge">Beta</span>
-        <span class="db-welcome-title">Bienvenue sur Cursus</span>
+      <div class="db-welcome-hero">
+        <div class="db-welcome-hero-text">
+          <h2 class="db-welcome-title">Bienvenue sur Cursus</h2>
+          <p class="db-welcome-subtitle">Votre espace de travail collaboratif</p>
+        </div>
       </div>
       <p class="db-welcome-intro">
-        Cette plateforme est en <strong>version beta</strong>. Vous êtes parmi les premiers à l'utiliser.
-        N'hésitez pas à signaler tout problème à votre enseignant.
+        Cursus centralise tout ce dont vous avez besoin pour suivre votre formation. Voici ce que vous pouvez faire :
       </p>
       <div class="db-welcome-grid">
-        <div class="db-welcome-card">
-          <strong>Devoirs</strong>
-          <span>Consultez vos devoirs, déposez vos rendus et suivez vos notes dans la section Devoirs.</span>
+        <div class="db-welcome-card db-welcome-card--devoirs">
+          <div class="db-welcome-card-icon">
+            <BookOpen :size="18" />
+          </div>
+          <div class="db-welcome-card-body">
+            <strong>Devoirs et rendus</strong>
+            <span>Consultez vos devoirs, deposez vos rendus et suivez vos notes en temps reel.</span>
+          </div>
         </div>
-        <div class="db-welcome-card">
-          <strong>Messages</strong>
-          <span>Échangez avec vos enseignants et camarades dans les canaux de votre promotion.</span>
+        <div class="db-welcome-card db-welcome-card--messages">
+          <div class="db-welcome-card-icon">
+            <FolderOpen :size="18" />
+          </div>
+          <div class="db-welcome-card-body">
+            <strong>Messagerie par canal</strong>
+            <span>Echangez avec vos enseignants et camarades dans les canaux de votre promotion.</span>
+          </div>
         </div>
-        <div class="db-welcome-card">
-          <strong>Documents</strong>
-          <span>Retrouvez les ressources partagées par vos enseignants dans la section Documents.</span>
+        <div class="db-welcome-card db-welcome-card--docs">
+          <div class="db-welcome-card-icon">
+            <BarChart2 :size="18" />
+          </div>
+          <div class="db-welcome-card-body">
+            <strong>Documents partages</strong>
+            <span>Retrouvez les ressources et supports de cours partages par vos enseignants.</span>
+          </div>
         </div>
       </div>
       <div class="db-welcome-footer">
-        <span class="db-welcome-hint">Utilisez la barre latérale pour naviguer entre les sections.</span>
-        <button class="btn-primary db-welcome-btn" @click="emit('dismissOnboarding')">C'est noté</button>
+        <span class="db-welcome-hint">Explorez la barre laterale pour naviguer entre les sections.</span>
+        <button class="btn-primary db-welcome-btn" @click="emit('dismissOnboarding')">C'est compris</button>
       </div>
     </div>
 
@@ -164,40 +180,57 @@ const emit = defineEmits<{
 .db-skel-card { height: 76px; border-radius: 10px; flex-shrink: 0; }
 .db-skel-content { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
 
-/* ── Welcome (beta) ── */
+/* ── Welcome (onboarding) ── */
 .db-welcome {
-  background: var(--bg-elevated, rgba(255,255,255,.03));
-  border: 1px solid var(--border); border-radius: 12px;
-  padding: 20px 24px; margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(74,144,217,.08) 0%, rgba(155,135,245,.06) 100%);
+  border: 1px solid rgba(74,144,217,.18); border-radius: 16px;
+  padding: 24px 28px; margin-bottom: 18px;
 }
-.db-welcome-header {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+.db-welcome-hero {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
 }
-.db-welcome-badge {
-  font-size: 10px; font-weight: 800; text-transform: uppercase;
-  letter-spacing: .6px; padding: 3px 10px; border-radius: 6px;
-  background: rgba(74,144,217,.15); color: var(--accent);
+.db-welcome-hero-text {
+  display: flex; flex-direction: column; gap: 2px;
 }
 .db-welcome-title {
-  font-size: 16px; font-weight: 700; color: var(--text-primary);
+  font-size: 20px; font-weight: 800; color: var(--text-primary);
+  letter-spacing: -.3px; margin: 0;
+}
+.db-welcome-subtitle {
+  font-size: 13.5px; color: var(--accent); font-weight: 600; margin: 0;
 }
 .db-welcome-intro {
   font-size: 13px; color: var(--text-secondary); line-height: 1.6;
-  margin-bottom: 16px; max-width: 520px;
+  margin-bottom: 16px; max-width: 560px;
 }
 .db-welcome-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-  margin-bottom: 16px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  margin-bottom: 18px;
 }
 .db-welcome-card {
-  background: rgba(255,255,255,.02); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 4px;
+  background: rgba(255,255,255,.03); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px; display: flex; align-items: flex-start; gap: 12px;
+  transition: background .15s, border-color .15s;
+}
+.db-welcome-card:hover {
+  background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.15);
+}
+.db-welcome-card-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.db-welcome-card--devoirs .db-welcome-card-icon { background: rgba(155,135,245,.15); color: #9B87F5; }
+.db-welcome-card--messages .db-welcome-card-icon { background: rgba(74,144,217,.15); color: var(--accent); }
+.db-welcome-card--docs .db-welcome-card-icon { background: rgba(46,204,113,.15); color: #2ECC71; }
+.db-welcome-card-body {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
 }
 .db-welcome-card strong {
   font-size: 13px; font-weight: 700; color: var(--text-primary);
 }
 .db-welcome-card span {
-  font-size: 11.5px; color: var(--text-muted); line-height: 1.4;
+  font-size: 11.5px; color: var(--text-muted); line-height: 1.45;
 }
 .db-welcome-footer {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -208,6 +241,7 @@ const emit = defineEmits<{
 .db-welcome-btn { font-size: 13px; }
 @media (max-width: 600px) {
   .db-welcome-grid { grid-template-columns: 1fr; }
+  .db-welcome { padding: 18px 16px; }
 }
 
 /* ── Tabs ── */

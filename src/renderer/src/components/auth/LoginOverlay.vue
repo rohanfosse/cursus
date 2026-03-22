@@ -37,7 +37,7 @@
       } else {
         localStorage.removeItem('cc_remember_token')
       }
-      router.replace('/messages')
+      router.replace('/dashboard')
     } catch (e: unknown) {
       const msg = (e as Error)?.message ?? ''
       if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed')) {
@@ -136,7 +136,7 @@
         promo_id: stu.promo_id,
         promo_name: stu.promo_name,
       })
-      router.replace('/messages')
+      router.replace('/dashboard')
     } catch (e: unknown) {
       regEmailErr.value = (e as Error).message ?? 'Erreur.'
     } finally {

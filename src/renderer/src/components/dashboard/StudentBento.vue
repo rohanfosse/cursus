@@ -6,12 +6,20 @@
  * this-week strip, feedback cards, quick actions, and grade distribution.
  */
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   Clock, CheckCircle, Award, BarChart2, AlertTriangle,
-  Smile, CalendarDays, BookOpen, ChevronRight, ArrowRight,
+  Smile, CalendarDays, BookOpen, ChevronRight, ArrowRight, Radio, Hash,
 } from 'lucide-vue-next'
+import { useLiveStore } from '@/stores/live'
+import { useAppStore } from '@/stores/app'
+import { deadlineLabel } from '@/utils/date'
 import type { StudentProjectCard } from '@/composables/useDashboardStudent'
+
+const router = useRouter()
+const liveStore = useLiveStore()
+const appStore = useAppStore()
 
 const props = defineProps<{
   studentStats: { pending: number; submitted: number; graded: number; modeGrade: string | null }
@@ -136,6 +144,27 @@ const gradeDistribution = computed(() => {
     { label: 'D', count: counts.D, pct: (counts.D / max) * 100, cls: 'grade-d' },
   ]
 })
+
+// ── Live session check ──────────────────────────────────────────────────────
+const hasLiveSession = computed(() => !!liveStore.currentSession && liveStore.currentSession.status === 'active')
+const liveSessionTitle = computed(() => liveStore.currentSession?.title ?? '')
+
+onMounted(() => {
+  const promoId = appStore.activePromoId
+  if (promoId) liveStore.fetchActiveForPromo(promoId)
+})
+
+// ── Recent channels (raccourcis) ────────────────────────────────────────────
+const recentChannels = ref<{ id: number; name: string }[]>([])
+onMounted(() => {
+  try {
+    const raw = localStorage.getItem('cc_recent_channels')
+    if (raw) recentChannels.value = (JSON.parse(raw) as { id: number; name: string }[]).slice(0, 3)
+  } catch { /* ignore */ }
+})
+
+// ── Top project cards ───────────────────────────────────────────────────────
+const topProjects = computed(() => props.studentProjectCards.slice(0, 4))
 </script>
 
 <template>
@@ -181,6 +210,17 @@ const gradeDistribution = computed(() => {
       <BarChart2 :size="18" class="bento-stat-icon" />
       <span class="bento-stat-value">{{ studentStats.graded }}</span>
       <span class="bento-stat-label">Notes</span>
+    </div>
+
+    <!-- LIVE QUIZ 1x1 -->
+    <div class="bento-tile bento-live" :class="{ 'bento-live--active': hasLiveSession }" @click="hasLiveSession && router.push('/live')">
+      <Radio :size="18" class="bento-live-icon" />
+      <template v-if="hasLiveSession">
+        <span class="bento-live-dot" />
+        <span class="bento-live-title">{{ liveSessionTitle }}</span>
+        <button class="bento-live-join" @click.stop="router.push('/live')">Rejoindre</button>
+      </template>
+      <span v-else class="bento-live-empty">Aucune session en cours</span>
     </div>
 
     <!-- CETTE SEMAINE 2x1 -->
@@ -242,6 +282,44 @@ const gradeDistribution = computed(() => {
           </div>
           <span class="bento-grade-count">{{ g.count }}</span>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROJETS section -->
+  <div v-if="topProjects.length" class="bento-extra-section">
+    <h3 class="bento-section-title"><BookOpen :size="13" /> Mes projets</h3>
+    <div class="bento-projects-row">
+      <div
+        v-for="p in topProjects"
+        :key="p.key"
+        class="bento-project-card"
+        @click="emit('goToProject', p.key)"
+      >
+        <span class="bento-project-name">{{ p.label }}</span>
+        <div class="bento-project-bar-wrap">
+          <div class="bento-project-bar">
+            <div class="bento-project-bar-fill" :style="{ width: (p.total > 0 ? Math.round(p.submitted / p.total * 100) : 0) + '%' }" />
+          </div>
+          <span class="bento-project-pct">{{ p.total > 0 ? Math.round(p.submitted / p.total * 100) : 0 }}%</span>
+        </div>
+        <span v-if="p.nextDeadline" class="bento-project-deadline">{{ deadlineLabel(p.nextDeadline) }}</span>
+        <span v-else class="bento-project-deadline">Aucune échéance</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RACCOURCIS section -->
+  <div v-if="recentChannels.length" class="bento-extra-section">
+    <h3 class="bento-section-title"><Hash :size="13" /> Raccourcis</h3>
+    <div class="bento-shortcuts-row">
+      <div
+        v-for="ch in recentChannels"
+        :key="ch.id"
+        class="bento-shortcut-card"
+        @click="router.push('/messages')"
+      >
+        <span class="bento-shortcut-name"># {{ ch.name }}</span>
       </div>
     </div>
   </div>
@@ -390,6 +468,57 @@ const gradeDistribution = computed(() => {
 .db-grade-badge.grade-b { background: rgba(74,144,217,.15); color: var(--accent); }
 .db-grade-badge.grade-c { background: rgba(243,156,18,.12); color: var(--color-warning); }
 .db-grade-badge.grade-d { background: rgba(231,76,60,.12); color: var(--color-danger); }
+
+/* ── Live tile (1x1) ── */
+.bento-live {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; text-align: center; position: relative;
+}
+.bento-live--active { cursor: pointer; border-color: rgba(231,76,60,.3); }
+.bento-live--active:hover { background: var(--bg-hover); }
+.bento-live-icon { color: var(--text-muted); opacity: .5; }
+.bento-live--active .bento-live-icon { color: var(--color-danger); opacity: 1; }
+.bento-live-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--color-danger);
+  animation: live-pulse 1.5s ease-in-out infinite;
+}
+@keyframes live-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(1.3); } }
+.bento-live-title { font-size: 11px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+.bento-live-join {
+  font-size: 11px; font-weight: 700; padding: 4px 12px; border: none; border-radius: 6px;
+  background: var(--color-danger); color: #fff; cursor: pointer; font-family: var(--font);
+  transition: filter .15s;
+}
+.bento-live-join:hover { filter: brightness(1.15); }
+.bento-live-empty { font-size: 11px; color: var(--text-muted); font-style: italic; }
+
+/* ── Extra sections (below bento grid) ── */
+.bento-extra-section { margin-top: 20px; }
+.bento-projects-row { display: flex; gap: 12px; overflow-x: auto; }
+.bento-project-card {
+  flex: 1; min-width: 160px; max-width: 240px;
+  background: var(--bg-elevated, rgba(255,255,255,.03));
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px; cursor: pointer; transition: background .15s;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.bento-project-card:hover { background: var(--bg-hover); }
+.bento-project-name { font-size: 13px; font-weight: 700; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bento-project-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.bento-project-bar { flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,.06); }
+.bento-project-bar-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width .3s ease; }
+.bento-project-pct { font-size: 10px; font-weight: 700; color: var(--text-muted); }
+.bento-project-deadline { font-size: 11px; color: var(--text-secondary); }
+
+.bento-shortcuts-row { display: flex; gap: 10px; }
+.bento-shortcut-card {
+  flex: 1; min-width: 120px;
+  background: var(--bg-elevated, rgba(255,255,255,.03));
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px; cursor: pointer; transition: background .15s;
+}
+.bento-shortcut-card:hover { background: var(--bg-hover); }
+.bento-shortcut-name { font-size: 12.5px; font-weight: 600; color: var(--text-primary); }
 
 /* ── Empty state ── */
 .bento-empty { font-size: 12px; color: var(--text-muted); margin: 0; font-style: italic; }

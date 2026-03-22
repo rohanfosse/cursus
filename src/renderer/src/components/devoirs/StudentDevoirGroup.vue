@@ -94,7 +94,7 @@ function isExpired(deadline: string | null | undefined): boolean {
 .devoirs-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   max-width: 780px;
   margin: 0 auto;
 }

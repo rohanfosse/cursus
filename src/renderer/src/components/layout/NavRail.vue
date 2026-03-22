@@ -101,10 +101,16 @@
         <img :src="logoUrl" class="nav-logo-img" alt="Cursus" />
         <span v-if="!appStore.isOnline || !appStore.socketConnected" class="nav-status-dot" />
       </button>
-      <template v-else>
+      <button
+        v-else
+        class="nav-logo-btn"
+        :title="!appStore.isOnline ? 'Hors ligne' : !appStore.socketConnected ? 'Reconnexion...' : 'Tableau de bord'"
+        aria-label="Accueil - Tableau de bord"
+        @click="router.push('/dashboard')"
+      >
         <img :src="logoUrl" class="nav-logo-img" alt="Cursus" />
         <span v-if="!appStore.isOnline || !appStore.socketConnected" class="nav-status-dot" />
-      </template>
+      </button>
     </div>
 
     <!-- ── Tableau de bord ── -->

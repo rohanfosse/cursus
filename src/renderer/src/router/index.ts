@@ -9,7 +9,7 @@ import DashboardView  from '@/views/DashboardView.vue'
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    { path: '/',           redirect: '/messages' },
+    { path: '/',           redirect: '/dashboard' },
     { path: '/dashboard',  component: DashboardView,  name: 'dashboard'  },
     { path: '/messages',   component: MessagesView,   name: 'messages'   },
     { path: '/devoirs',    component: DevoirsView,    name: 'devoirs'    },
