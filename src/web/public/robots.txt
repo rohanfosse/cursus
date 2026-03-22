@@ -4,4 +4,4 @@ Disallow: /api/
 Disallow: /admin-monitor
 Disallow: /app
 
-Sitemap: https://cursus.devrohan.cloud/sitemap.xml
+Sitemap: https://app.cursus.school/sitemap.xml

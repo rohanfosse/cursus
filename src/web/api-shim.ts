@@ -7,7 +7,7 @@ import { io, Socket } from 'socket.io-client'
 // ─── Config ──────────────────────────────────────────────────────────────────
 const SERVER_URL: string = import.meta.env.DEV
   ? 'http://localhost:3001'
-  : 'https://cursus.devrohan.cloud'
+  : 'https://app.cursus.school'
 
 // ─── État ────────────────────────────────────────────────────────────────────
 let jwtToken: string | null = null

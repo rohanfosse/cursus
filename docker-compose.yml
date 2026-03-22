@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        VITE_SERVER_URL: ${VITE_SERVER_URL:-https://cursus.devrohan.cloud}
+        VITE_SERVER_URL: ${VITE_SERVER_URL:-https://app.cursus.school}
     container_name: cursus-server
     restart: unless-stopped
     ports:

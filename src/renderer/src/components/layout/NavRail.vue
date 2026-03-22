@@ -29,8 +29,7 @@
   const pendingCount = computed(() => travauxStore.pendingDevoirs.length)
 
   function openAdmin() {
-    const base = (import.meta.env.VITE_SERVER_URL as string) || window.location.origin
-    window.open(`${base}/admin-monitor`, '_blank')
+    window.open('https://admin.cursus.school', '_blank')
   }
 
   // ── Centre de notifications ─────────────────────────────────────────────────
