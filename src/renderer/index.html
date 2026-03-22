@@ -15,11 +15,11 @@
         script-src  'self';
         style-src   'self' 'unsafe-inline';
         connect-src 'self' https://app.cursus.school wss://app.cursus.school https://cursus.devrohan.cloud wss://cursus.devrohan.cloud http://localhost:3001 ws://localhost:3001;
-        img-src     'self' data: blob: https://app.cursus.school;
-        media-src   'self' data: blob:;
+        img-src     'self' data: blob: https://app.cursus.school https://cursus.devrohan.cloud http://localhost:3001;
+        media-src   'self' data: blob: https://app.cursus.school http://localhost:3001;
         font-src    'self' data:;
-        frame-src   'self' blob:;
-        object-src  'none';
+        frame-src   'self' blob: https://app.cursus.school http://localhost:3001;
+        object-src  'self' blob: https://app.cursus.school http://localhost:3001;
         base-uri    'none';
       "
     />
