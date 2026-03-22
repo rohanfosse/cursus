@@ -40,6 +40,20 @@ const liveSessionEndedCallbacks:   Array<(data: LiveSessionEndedPayload) => void
 const liveInviteCallbacks:         Array<(data: LiveInvitePayload) => void> = []
 const liveScoresUpdateCallbacks:   Array<(data: LiveScoresUpdatePayload) => void> = []
 
+// REX callbacks
+type RexActivityPushedPayload = { activity: unknown }
+type RexActivityClosedPayload = { activityId: number }
+type RexResultsUpdatePayload  = { activityId: number; data: unknown }
+type RexSessionStartedPayload = { sessionId: number }
+type RexSessionEndedPayload   = { sessionId: number }
+type RexInvitePayload         = { sessionId: number; title: string; joinCode: string; teacherName: string }
+const rexActivityPushedCallbacks: Array<(data: RexActivityPushedPayload) => void> = []
+const rexActivityClosedCallbacks: Array<(data: RexActivityClosedPayload) => void> = []
+const rexResultsUpdateCallbacks:  Array<(data: RexResultsUpdatePayload) => void> = []
+const rexSessionStartedCallbacks: Array<(data: RexSessionStartedPayload) => void> = []
+const rexSessionEndedCallbacks:   Array<(data: RexSessionEndedPayload) => void> = []
+const rexInviteCallbacks:         Array<(data: RexInvitePayload) => void> = []
+
 // Grade notification callbacks
 type GradeNewPayload = { devoirTitle: string; note: string | null; feedback: string | null; devoirId: number; category: string | null }
 const gradeNewCallbacks: Array<(data: GradeNewPayload) => void> = []
@@ -68,6 +82,12 @@ function connectSocket(token: string): void {
   socket.on('live:session-ended',   (data: LiveSessionEndedPayload) => liveSessionEndedCallbacks.forEach(cb => cb(data)))
   socket.on('live:invite',          (data: LiveInvitePayload) => liveInviteCallbacks.forEach(cb => cb(data)))
   socket.on('live:scores-update',  (data: LiveScoresUpdatePayload) => liveScoresUpdateCallbacks.forEach(cb => cb(data)))
+  socket.on('rex:activity-pushed', (data: RexActivityPushedPayload) => rexActivityPushedCallbacks.forEach(cb => cb(data)))
+  socket.on('rex:activity-closed', (data: RexActivityClosedPayload) => rexActivityClosedCallbacks.forEach(cb => cb(data)))
+  socket.on('rex:results-update',  (data: RexResultsUpdatePayload) => rexResultsUpdateCallbacks.forEach(cb => cb(data)))
+  socket.on('rex:session-started', (data: RexSessionStartedPayload) => rexSessionStartedCallbacks.forEach(cb => cb(data)))
+  socket.on('rex:session-ended',   (data: RexSessionEndedPayload) => rexSessionEndedCallbacks.forEach(cb => cb(data)))
+  socket.on('rex:invite',          (data: RexInvitePayload) => rexInviteCallbacks.forEach(cb => cb(data)))
   socket.on('grade:new',           (data: GradeNewPayload) => gradeNewCallbacks.forEach(cb => cb(data)))
   socket.on('connect', () => socketStateCallbacks.forEach(cb => cb(true)))
   socket.on('disconnect', () => socketStateCallbacks.forEach(cb => cb(false)))
@@ -412,6 +432,48 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   onLiveScoresUpdate(cb: (data: LiveScoresUpdatePayload) => void) {
     liveScoresUpdateCallbacks.push(cb)
     return () => { const i = liveScoresUpdateCallbacks.indexOf(cb); if (i !== -1) liveScoresUpdateCallbacks.splice(i, 1) }
+  },
+
+  // ── REX (Retour d'Experience) ──────────────────────────────────────────────
+  createRexSession:       (payload: unknown)  => post('/api/rex/sessions', payload),
+  getRexSession:          (id: number)         => get(`/api/rex/sessions/${id}`),
+  getRexSessionByCode:    (code: string)       => get(`/api/rex/sessions/code/${code}`),
+  getActiveRexSession:    (promoId: number)    => get(`/api/rex/sessions/promo/${promoId}/active`),
+  updateRexSessionStatus: (id: number, status: string) => patch(`/api/rex/sessions/${id}/status`, { status }),
+  addRexActivity:         (sessionId: number, payload: unknown) => post(`/api/rex/sessions/${sessionId}/activities`, payload),
+  deleteRexActivity:      (id: number)         => del(`/api/rex/activities/${id}`),
+  setRexActivityStatus:   (id: number, status: string) => patch(`/api/rex/activities/${id}/status`, { status }),
+  submitRexResponse:      (activityId: number, payload: unknown) => post(`/api/rex/activities/${activityId}/respond`, payload),
+  getRexActivityResults:  (activityId: number) => get(`/api/rex/activities/${activityId}/results`),
+  toggleRexPin:           (responseId: number, pinned: boolean) => post(`/api/rex/responses/${responseId}/pin`, { pinned }),
+  exportRexSession:       (sessionId: number, format: string) => get(`/api/rex/sessions/${sessionId}/export?format=${format}`),
+
+  emitRexJoin(promoId: number)  { socket?.emit('rex:join', { promoId }) },
+  emitRexLeave(promoId: number) { socket?.emit('rex:leave', { promoId }) },
+
+  onRexActivityPushed(cb: (data: RexActivityPushedPayload) => void) {
+    rexActivityPushedCallbacks.push(cb)
+    return () => { const i = rexActivityPushedCallbacks.indexOf(cb); if (i !== -1) rexActivityPushedCallbacks.splice(i, 1) }
+  },
+  onRexActivityClosed(cb: (data: RexActivityClosedPayload) => void) {
+    rexActivityClosedCallbacks.push(cb)
+    return () => { const i = rexActivityClosedCallbacks.indexOf(cb); if (i !== -1) rexActivityClosedCallbacks.splice(i, 1) }
+  },
+  onRexResultsUpdate(cb: (data: RexResultsUpdatePayload) => void) {
+    rexResultsUpdateCallbacks.push(cb)
+    return () => { const i = rexResultsUpdateCallbacks.indexOf(cb); if (i !== -1) rexResultsUpdateCallbacks.splice(i, 1) }
+  },
+  onRexSessionStarted(cb: (data: RexSessionStartedPayload) => void) {
+    rexSessionStartedCallbacks.push(cb)
+    return () => { const i = rexSessionStartedCallbacks.indexOf(cb); if (i !== -1) rexSessionStartedCallbacks.splice(i, 1) }
+  },
+  onRexSessionEnded(cb: (data: RexSessionEndedPayload) => void) {
+    rexSessionEndedCallbacks.push(cb)
+    return () => { const i = rexSessionEndedCallbacks.indexOf(cb); if (i !== -1) rexSessionEndedCallbacks.splice(i, 1) }
+  },
+  onRexInvite(cb: (data: RexInvitePayload) => void) {
+    rexInviteCallbacks.push(cb)
+    return () => { const i = rexInviteCallbacks.indexOf(cb); if (i !== -1) rexInviteCallbacks.splice(i, 1) }
   },
 
   // ── Grade notifications ─────────────────────────────────────────────────────

@@ -227,6 +227,30 @@ export interface LiveScoreResult {
   isCorrect: boolean | null; points: number; rank: number | null
 }
 
+// ─── REX (Retour d'Experience) ──────────────────────────────────────────────
+
+export interface RexSession {
+  id: number; teacher_id: number; promo_id: number; title: string
+  join_code: string; status: 'waiting' | 'active' | 'ended'
+  created_at: string; ended_at: string | null; activities?: RexActivity[]
+}
+
+export interface RexActivity {
+  id: number; session_id: number
+  type: 'sondage_libre' | 'nuage' | 'echelle' | 'question_ouverte'
+  title: string; max_words: number; max_rating: number
+  position: number; status: 'pending' | 'live' | 'closed'
+  started_at: string | null; closed_at: string | null
+}
+
+export interface RexResults {
+  type: string; total: number
+  counts?: { text: string; count: number }[]
+  freq?: { word: string; count: number }[]
+  average?: number; distribution?: { rating: number; count: number }[]
+  answers?: { id: number; answer: string; pinned: boolean; created_at: string }[]
+}
+
 // ─── Payloads IPC ────────────────────────────────────────────────────────────
 
 export interface SendMessagePayload {

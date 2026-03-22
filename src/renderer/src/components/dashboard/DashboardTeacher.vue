@@ -7,12 +7,15 @@
 <script setup lang="ts">
 import {
   PlusCircle, CalendarDays, GraduationCap, Settings,
-  LayoutDashboard, Users, BarChart2, TrendingUp, Radio,
+  LayoutDashboard, Users, BarChart2, TrendingUp, Radio, MessageSquare,
 } from 'lucide-vue-next'
 import { useLiveStore } from '@/stores/live'
+import { useRexStore }  from '@/stores/rex'
 import TeacherLiveView from '@/components/live/TeacherLiveView.vue'
+import TeacherRexView  from '@/components/rex/TeacherRexView.vue'
 
 const liveStore = useLiveStore()
+const rexStore  = useRexStore()
 import type { Promotion, Depot } from '@/types'
 import type { GanttRow, ProjectCard, Reminder } from '@/composables/useDashboardTeacher'
 import type { SavedMessage, AgendaItem } from '@/composables/useDashboardWidgets'
@@ -88,7 +91,7 @@ const props = defineProps<{
   totalThisWeek: number
 
   // Tabs
-  dashTab: 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live'
+  dashTab: 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live' | 'rex'
 
   // Analytics
   analyticsStats: { total: number; graded: number; notGraded: number }
@@ -117,7 +120,7 @@ const props = defineProps<{
 // ── Emits ────────────────────────────────────────────────────────────────────
 const emit = defineEmits<{
   'update:activePromoId': [id: number]
-  'update:dashTab': [tab: 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live']
+  'update:dashTab': [tab: 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live' | 'rex']
   'update:renamingPromoId': [id: number | null]
   'update:renamingPromoValue': [val: string]
   'update:friseOffset': [val: number]
@@ -151,7 +154,7 @@ const emit = defineEmits<{
   'update:analyticsRange': [range: '7d' | '30d' | 'all']
 }>()
 
-type DashTabType = 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live'
+type DashTabType = 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live' | 'rex'
 
 function setTab(tab: DashTabType) {
   emit('update:dashTab', tab)
@@ -206,6 +209,13 @@ function setTab(tab: DashTabType) {
         <span
           v-if="liveStore.currentSession && liveStore.currentSession.status !== 'ended'"
           class="db-tab-live-dot"
+        />
+      </button>
+      <button class="db-tab db-tab-rex" :class="{ active: dashTab === 'rex' }" @click="setTab('rex')">
+        <MessageSquare :size="13" /> REX
+        <span
+          v-if="rexStore.currentSession && rexStore.currentSession.status !== 'ended'"
+          class="db-tab-rex-dot"
         />
       </button>
     </div>
@@ -279,6 +289,10 @@ function setTab(tab: DashTabType) {
 
     <TeacherLiveView
       v-else-if="dashTab === 'live'"
+    />
+
+    <TeacherRexView
+      v-else-if="dashTab === 'rex'"
     />
 
     <TabFrise
@@ -358,5 +372,17 @@ function setTab(tab: DashTabType) {
 @keyframes pulse-live-dot {
   0%, 100% { opacity: 1; }
   50% { opacity: .4; }
+}
+
+/* ── REX tab indicator ── */
+.db-tab-rex { position: relative; }
+.db-tab-rex-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0d9488;
+  display: inline-block;
+  margin-left: 4px;
+  animation: pulse-live-dot 2s infinite;
 }
 </style>

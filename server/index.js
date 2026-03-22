@@ -101,6 +101,7 @@ app.use('/api/teachers',    require('./routes/teachers'))
 app.use('/api/rubrics',     require('./routes/rubrics'))
 app.use('/api/admin',       require('./routes/admin/index'))
 app.use('/api/live',        require('./routes/live'))
+app.use('/api/rex',         require('./routes/rex'))
 
 // ── Fichiers statiques & SPA ──────────────────────────────────────────────────
 const path = require('path')
@@ -264,6 +265,14 @@ io.on('connection', (socket) => {
   })
   socket.on('live:leave', ({ promoId }) => {
     if (promoId) socket.leave(`live:${promoId}`)
+  })
+
+  // REX : rejoindre/quitter une salle de session
+  socket.on('rex:join', ({ promoId }) => {
+    if (promoId) socket.join(`rex:${promoId}`)
+  })
+  socket.on('rex:leave', ({ promoId }) => {
+    if (promoId) socket.leave(`rex:${promoId}`)
   })
 
   // Indicateur de frappe

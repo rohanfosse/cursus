@@ -16,6 +16,7 @@ const router = createRouter({
     { path: '/travaux',    redirect: '/devoirs' },
     { path: '/documents',  component: DocumentsView,  name: 'documents'  },
     { path: '/live',       component: () => import('@/views/LiveView.vue'), name: 'live' },
+    { path: '/rex',        component: () => import('@/views/RexView.vue'),  name: 'rex'  },
   ],
 })
 

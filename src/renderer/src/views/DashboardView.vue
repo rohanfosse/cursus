@@ -42,8 +42,8 @@ function goToProject(key: string) {
 }
 
 // ── Tabs ────────────────────────────────────────────────────────────────────
-const dashTab = ref<'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live' | 'projets' | 'notes' | 'planning'>(
-  route.query.tab === 'frise' ? 'frise' : route.query.tab === 'planning' ? 'planning' : route.query.tab === 'analytique' ? 'analytique' : route.query.tab === 'promotions' ? 'promotions' : route.query.tab === 'live' ? 'live' : route.query.tab === 'projets' ? 'projets' : route.query.tab === 'notes' ? 'notes' : 'accueil',
+const dashTab = ref<'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live' | 'rex' | 'projets' | 'notes' | 'planning'>(
+  route.query.tab === 'frise' ? 'frise' : route.query.tab === 'planning' ? 'planning' : route.query.tab === 'analytique' ? 'analytique' : route.query.tab === 'promotions' ? 'promotions' : route.query.tab === 'live' ? 'live' : route.query.tab === 'rex' ? 'rex' : route.query.tab === 'projets' ? 'projets' : route.query.tab === 'notes' ? 'notes' : 'accueil',
 )
 watch(() => route.query.tab, (tab) => {
   if (tab === 'frise') dashTab.value = 'frise'
@@ -52,6 +52,7 @@ watch(() => route.query.tab, (tab) => {
   else if (tab === 'promotions') dashTab.value = 'promotions'
   else if (tab === 'reglages') dashTab.value = 'reglages'
   else if (tab === 'live') dashTab.value = 'live'
+  else if (tab === 'rex') dashTab.value = 'rex'
   else if (tab === 'projets') dashTab.value = 'projets'
   else if (tab === 'notes') dashTab.value = 'notes'
   else dashTab.value = 'accueil'
@@ -199,7 +200,7 @@ onUnmounted(() => {
       :this-week-reminders="thisWeekReminders"
       :done-this-week="doneThisWeek"
       :total-this-week="totalThisWeek"
-      :dash-tab="dashTab as 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live'"
+      :dash-tab="dashTab as 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live' | 'rex'"
       :analytics-stats="analyticsStats"
       :grade-distribution="gradeDistribution"
       :submission-rates="submissionRates"

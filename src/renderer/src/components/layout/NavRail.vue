@@ -1,12 +1,13 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
-  import { MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame, Search, Shield, Bug, Radio } from 'lucide-vue-next'
+  import { MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame, Search, Shield, Bug, Radio, ClipboardList } from 'lucide-vue-next'
   import logoUrl from '@/assets/logo.png'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
   import { useTravauxStore } from '@/stores/travaux'
   import { useLiveStore }   from '@/stores/live'
+  import { useRexStore }    from '@/stores/rex'
   import { avatarColor }    from '@/utils/format'
   import NotificationPanel from './NotificationPanel.vue'
 
@@ -14,6 +15,7 @@
   const modals      = useModalsStore()
   const travauxStore = useTravauxStore()
   const liveStore    = useLiveStore()
+  const rexStore     = useRexStore()
   const router      = useRouter()
   const route       = useRoute()
 
@@ -187,6 +189,20 @@
       <span class="nav-live-dot" />
     </button>
 
+    <!-- REX indicator pour étudiants - visible uniquement quand session active -->
+    <button
+      v-if="!appStore.isStaff && rexStore.currentSession && rexStore.currentSession.status !== 'ended'"
+      class="nav-btn"
+      :class="{ active: route.name === 'rex' }"
+      title="Session REX en cours"
+      aria-label="Session REX en cours"
+      @click="router.push('/rex')"
+    >
+      <ClipboardList :size="20" />
+      <span class="nav-label">REX</span>
+      <span class="nav-rex-dot" />
+    </button>
+
     <!-- ── Cloche de notifications ── -->
     <div class="nav-notif-wrapper">
       <button
@@ -326,6 +342,19 @@
   height: 8px;
   border-radius: 50%;
   background: #ef4444;
+  border: 2px solid var(--bg-primary, #111214);
+  animation: pulse-dot 2s infinite;
+}
+
+/* ── REX dot pulsing indicator (teal) ── */
+.nav-rex-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0d9488;
   border: 2px solid var(--bg-primary, #111214);
   animation: pulse-dot 2s infinite;
 }
