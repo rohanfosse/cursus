@@ -458,52 +458,68 @@ watch(() => appStore.currentUser?.id, () => load())
   white-space: nowrap;
 }
 
-/* ── Channel categories (scoped - not inherited from Sidebar.vue) ── */
+/* ── Section headers (CANAUX, MESSAGES DIRECTS) ── */
 .sidebar-section-header {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   text-transform: uppercase;
-  letter-spacing: .08em;
-  font-size: 10px;
+  letter-spacing: .06em;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
-  padding: 8px 14px 4px 14px;
+  padding: 10px 12px 6px;
   cursor: pointer;
   user-select: none;
-  justify-content: flex-start;
 }
-.sidebar-collapsible-header:hover { color: var(--text-secondary); }
+.sidebar-collapsible-header {
+  margin: 4px 8px 2px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s;
+}
+.sidebar-collapsible-header:hover {
+  color: var(--text-secondary);
+  background: rgba(255,255,255,.04);
+}
 
-.sidebar-category { margin-bottom: 2px; }
-
+/* ── Category groups (Projet Web, Maths, etc.) ── */
+.sidebar-category { margin-bottom: 4px; }
 .sidebar-category-header-wrap { position: relative; }
 
 .sidebar-category-header {
   display: flex;
   align-items: center;
-  gap: 5px;
-  width: 100%;
-  background: transparent;
+  gap: 6px;
+  width: calc(100% - 16px);
+  margin: 0 8px;
+  background: rgba(255,255,255,.02);
   border: none;
-  padding: 4px 12px 4px 10px;
+  border-left: 2px solid rgba(255,255,255,.06);
+  padding: 5px 10px;
   cursor: pointer;
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: .05em;
+  letter-spacing: .04em;
   font-family: var(--font);
-  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0 6px 6px 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.sidebar-category-header:hover { color: var(--text-secondary); }
+.sidebar-category-header:hover {
+  color: var(--text-secondary);
+  background: rgba(255,255,255,.04);
+  border-left-color: var(--accent);
+}
 
-.sidebar-category-icon { flex-shrink: 0; opacity: .85; }
-
+.sidebar-category-icon { flex-shrink: 0; opacity: .7; }
 .sidebar-category-chevron {
   flex-shrink: 0;
-  transition: transform .18s ease;
+  opacity: .5;
+  transition: transform .18s ease, opacity .15s;
 }
+.sidebar-category-header:hover .sidebar-category-chevron { opacity: .8; }
 .sidebar-category-chevron.rotated { transform: rotate(-90deg); }
 
 .sidebar-category-label {
@@ -514,66 +530,80 @@ watch(() => appStore.currentUser?.id, () => load())
   text-overflow: ellipsis;
 }
 
-/* ── Sidebar items ── */
+/* ── Sidebar scroll list ── */
 .sidebar-scroll-list { padding: 0 4px; }
 
-/* ── DM section ── */
-.dm-list { padding: 0 4px; }
+/* ── DM items ── */
 .dm-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: calc(100% - 8px);
-  margin: 0 4px;
-  padding: 5px 10px 5px 14px;
-  border-radius: 5px;
+  gap: 10px;
+  width: calc(100% - 12px);
+  margin: 1px 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
   font-family: var(--font);
   font-size: 13.5px;
   cursor: pointer;
-  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: left;
+  position: relative;
 }
 .dm-item:hover { background: rgba(255,255,255,.05); }
-.dm-item.active { background: rgba(74,144,217,.18); color: #fff; font-weight: 700; }
+.dm-item.active {
+  background: rgba(74,144,217,.14);
+  color: var(--text-primary);
+}
+.dm-item.active::before {
+  content: '';
+  position: absolute; left: 0; top: 25%; bottom: 25%;
+  width: 2px; background: var(--accent); border-radius: 1px;
+}
 
+.dm-avatar-wrap { position: relative; flex-shrink: 0; }
 .dm-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
 }
-.dm-name {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.dm-avatar-teacher { border-radius: 50%; }
+.dm-info {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 1px;
 }
-.dm-badge {
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 8px;
-  padding: 0 5px;
-  min-width: 18px;
-  text-align: center;
+.dm-preview {
+  font-size: 11px; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: .7;
 }
+.dm-muted-icon { font-size: 11px; opacity: .5; margin-left: 4px; }
+
+/* Presence dots */
+.presence-dot {
+  position: absolute; bottom: -1px; right: -1px;
+  width: 9px; height: 9px; border-radius: 50%;
+  border: 2px solid var(--bg-sidebar);
+}
+.presence-online { background: var(--color-success, #22c55e); }
+.presence-offline { background: var(--text-muted); width: 7px; height: 7px; }
+
 /* Unread DM state */
 .dm-has-unread .channel-name {
   font-weight: 700;
   color: var(--text-primary);
 }
+.dm-has-unread .dm-preview { opacity: 1; color: var(--text-secondary); }
+
 .dm-unread-badge {
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 10px;
@@ -581,17 +611,18 @@ watch(() => appStore.currentUser?.id, () => load())
   background: var(--accent);
   color: #fff;
   border-radius: 10px;
-  padding: 1px 6px;
+  padding: 2px 7px;
   min-width: 20px;
   text-align: center;
   flex-shrink: 0;
   margin-left: auto;
+  line-height: 1.2;
 }
 
 .dm-empty {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
-  padding: 6px 16px;
+  padding: 8px 16px;
   font-style: italic;
 }
 
