@@ -1,53 +1,55 @@
 <p align="center">
   <img src="src/renderer/src/assets/logo.png" alt="Cursus" width="80" />
-  <br />
-  <strong style="font-size: 2em;">Cursus</strong>
+</p>
+
+<h1 align="center">Cursus</h1>
+
+<p align="center">
+  Plateforme pedagogique tout-en-un pour l'enseignement superieur.<br />
+  Messagerie, devoirs, quiz en direct, documents. Un seul espace pour toute la promotion.
 </p>
 
 <p align="center">
-  <strong>La plateforme de communication pensee pour l'enseignement.</strong>
-  <br />
-  Messagerie, travaux, documents, quiz en direct. Tout au meme endroit.
+  <a href="https://github.com/rohanfosse/cursus/actions"><img src="https://img.shields.io/github/actions/workflow/status/rohanfosse/cursus/test.yml?style=flat-square&label=tests" alt="Tests" /></a>
+  <a href="https://github.com/rohanfosse/cursus/releases"><img src="https://img.shields.io/github/v/release/rohanfosse/cursus?style=flat-square&label=version" alt="Version" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/rohanfosse/cursus?style=flat-square" alt="License" /></a>
+  <a href="https://github.com/rohanfosse/cursus/stargazers"><img src="https://img.shields.io/github/stars/rohanfosse/cursus?style=flat-square" alt="Stars" /></a>
+  <a href="https://github.com/rohanfosse/cursus/issues"><img src="https://img.shields.io/github/issues/rohanfosse/cursus?style=flat-square" alt="Issues" /></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/rohanfosse/slack-like-electron/actions"><img src="https://img.shields.io/github/actions/workflow/status/rohanfosse/slack-like-electron/release.yml?style=flat-square&label=build" alt="Build" /></a>
-  <a href="https://github.com/rohanfosse/slack-like-electron/releases"><img src="https://img.shields.io/github/v/release/rohanfosse/slack-like-electron?style=flat-square&label=version" alt="Release" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/rohanfosse/slack-like-electron?style=flat-square" alt="License" /></a>
-  <a href="https://github.com/rohanfosse/slack-like-electron/stargazers"><img src="https://img.shields.io/github/stars/rohanfosse/slack-like-electron?style=flat-square" alt="Stars" /></a>
-</p>
-
-<p align="center">
-  <a href="https://app.cursus.school"><img src="https://img.shields.io/badge/Application-app.cursus.school-4f46e5?style=for-the-badge&logo=google-chrome&logoColor=white" alt="App" /></a>
-  &nbsp;
-  <a href="https://cursus.school"><img src="https://img.shields.io/badge/Site_web-cursus.school-4f46e5?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Site web" /></a>
-  &nbsp;
-  <a href="https://github.com/rohanfosse/slack-like-electron/issues"><img src="https://img.shields.io/badge/Issues-GitHub-24292e?style=for-the-badge&logo=github&logoColor=white" alt="Issues" /></a>
-  &nbsp;
-  <a href="https://github.com/rohanfosse/slack-like-electron/releases"><img src="https://img.shields.io/badge/Releases-Telecharger-22c55e?style=for-the-badge&logo=windows&logoColor=white" alt="Releases" /></a>
+  <a href="https://app.cursus.school">Application</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://cursus.school">Site web</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://admin.cursus.school">Administration</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://github.com/rohanfosse/cursus/releases">Telecharger</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://github.com/rohanfosse/cursus/discussions">Discussions</a>
 </p>
 
 <br />
 
-## Pourquoi Cursus ?
+## Le probleme
 
-Les formations s'appuient sur un patchwork d'outils : mails institutionnels, groupes WhatsApp, Moodle, dossiers partages sur Teams ou Drive. Chaque outil couvre un besoin, mais aucun ne couvre le quotidien. Les etudiants ratent des annonces parce qu'elles sont sur le mauvais canal. Les enseignants passent plus de temps a relancer qu'a accompagner. Les deadlines se perdent entre trois plateformes.
+Les formations s'appuient sur un patchwork d'outils : mails, groupes WhatsApp, Moodle, dossiers partages sur Teams ou Drive. Les etudiants ratent des annonces, les deadlines se perdent, les enseignants passent plus de temps a relancer qu'a accompagner.
 
-Cursus part d'un constat simple : **une promo a besoin d'un seul endroit pour communiquer, deposer du travail et acceder a ses ressources**. L'application remplace la dispersion par un espace unifie, accessible en version desktop (Electron), en version web (PWA) et sur mobile.
+**Cursus reunit tout dans un seul endroit** : messagerie, devoirs, quiz, documents. Accessible en desktop (Electron), en web (PWA) et sur mobile.
 
 <table>
   <tr>
     <td width="33%" valign="top">
-      <strong>Moins de friction</strong><br />
-      L'interface est construite pour que chaque action soit a un ou deux clics. Un etudiant qui ouvre l'application voit directement ses canaux, ses devoirs en cours et ses documents.
+      <h4>Moins de friction</h4>
+      Chaque action est a un ou deux clics. L'etudiant voit directement ses canaux, ses devoirs et ses documents.
     </td>
     <td width="33%" valign="top">
-      <strong>Droit a l'erreur</strong><br />
-      Un etudiant peut remplacer son rendu avant l'echeance sans demander a l'enseignant. Apres la deadline, les depots se verrouillent automatiquement.
+      <h4>Droit a l'erreur</h4>
+      L'etudiant remplace son rendu avant l'echeance sans intervention. Apres la deadline, les depots se verrouillent.
     </td>
     <td width="33%" valign="top">
-      <strong>Plus de temps pour l'humain</strong><br />
-      Grilles d'evaluation par criteres, notation par lettres, export CSV. L'enseignant passe moins de temps sur la logistique et plus sur les retours qualitatifs.
+      <h4>Plus de temps pour l'humain</h4>
+      Grilles d'evaluation, notation par lettres, export CSV. Moins de logistique, plus de retours qualitatifs.
     </td>
   </tr>
 </table>
@@ -56,45 +58,35 @@ Cursus part d'un constat simple : **une promo a besoin d'un seul endroit pour co
 
 ## Fonctionnalites
 
-### Messagerie
+### Messagerie temps reel
 
-Canaux publics organises par promotion ou par thematique. Canaux d'annonce en lecture seule pour les communications officielles. Messages prives entre etudiants ou avec les enseignants. Chaque message supporte les reponses avec citation du message d'origine, les reactions par emoji, l'epinglage (jusqu'a 5 par canal) et les mentions `@nom` ou `@everyone` avec compteur de non-lus. La recherche plein texte permet de retrouver n'importe quel message dans un canal. Les notifications de bureau signalent les mentions et les messages directs.
+Canaux par promotion, canaux d'annonce en lecture seule, messages prives. Reponses avec citation, reactions emoji, epinglage, mentions `@nom` et `@everyone`, recherche plein texte, notifications desktop. Commandes slash integrees : `/devoir`, `/doc`, `/annonce`, `/sondage`, `/code`.
 
-Des commandes slash sont disponibles directement dans la zone de saisie : `/devoir`, `/doc`, `/annonce`, `/sondage` et d'autres raccourcis pour creer du contenu sans quitter la conversation.
+### Devoirs et evaluation
 
-### Travaux et evaluation
+Cinq types de devoirs : livrable, soutenance, CCTL, etude de cas, memoire. Mode brouillon, blocage automatique apres deadline, grilles multicriteres avec ponderation, notation A-F depuis la liste des rendus, feedback individuel, export CSV. Notifications en temps reel a l'etudiant des qu'une note est attribuee.
 
-L'enseignant cree un devoir en choisissant son type (livrable, soutenance, CCTL, etude de cas, memoire) et sa date limite. Un mode brouillon permet de preparer un devoir sans le rendre visible. Une fois publie, les etudiants deposent leur travail depuis l'application. Les depots sont automatiquement bloques apres l'echeance, sauf pour les soutenances et CCTL qui suivent un calendrier different.
+### Quiz en direct
 
-Chaque devoir peut avoir sa propre grille d'evaluation multicriteres avec ponderation. La notation se fait par lettres (A a F) directement depuis la liste des rendus, avec possibilite d'ajouter un commentaire de retour individuel. Les notes sont exportables en CSV pour integration dans les outils de scolarite. Les etudiants recoivent une notification en temps reel via Socket.IO des qu'une note est attribuee.
+Sessions interactives avec trois formats : QCM (correction instantanee), sondages (vote libre), nuage de mots (reponses en direct). Resultats affiches en temps reel pour le pilote et partageables avec la classe.
 
-### Quiz en direct (Live)
+### Documents
 
-L'enseignant peut lancer une session interactive en direct avec ses etudiants. Trois formats sont disponibles : QCM (questions a choix multiples avec correction instantanee), sondages (vote anonyme ou nominatif) et nuage de mots (les reponses apparaissent en direct a l'ecran). Les resultats s'affichent en temps reel pour le professeur et peuvent etre partages avec la classe.
+Upload fichiers et liens, categorisation, description. Visionneuse integree pour PDF, images, Word (.docx) et Excel (.xlsx). Drag and drop depuis n'importe quelle page.
 
-### Documents et ressources
+### Dashboards
 
-Fichiers et liens externes attaches a un canal ou a un projet entier. Les documents peuvent etre categorises et decrits. La visionneuse integree ouvre les PDF, les images, les documents Word (.docx) et les tableurs Excel (.xlsx) sans quitter l'application.
+**Pilote** : layout Bento-box avec focus widget adaptatif, stats par promotion, frise chronologique, analytique (distribution notes, taux de depot), centre d'actions prioritaires.
 
-### Promotions et groupes
+**Etudiant** : widgets personnalisables (prochaines epreuves, livrables, soutenances, projet en cours, conversations recentes), notifications de notes en temps reel.
 
-Chaque promotion dispose de sa couleur et de ses canaux dedies. Les groupes de travail sont crees par l'enseignant avec des membres assignes, un canal prive automatique et des devoirs cibles. L'import en masse des etudiants se fait par fichier CSV.
+### Smart Focus
 
-### Dashboard enseignant
-
-Vue d'ensemble de l'avancement des depots par promotion avec indicateurs visuels. Frise chronologique des jalons (deadlines, soutenances, examens). Rappels automatiques envoyes la veille de chaque echeance. Analytique par promotion : repartition des notes, taux de depot, activite recente.
-
-### Dashboard etudiant
-
-Vue personnalisee avec les devoirs a rendre classes par urgence, les notes recues (systeme A/B/C/D), les annonces recentes et l'acces rapide aux canaux et documents de sa promotion. Le dashboard est personnalisable avec des widgets que l'etudiant peut reorganiser selon ses besoins.
-
-### Smart Focus et notifications
-
-La sidebar Smart Focus regroupe les informations proactives : devoirs a rendre bientot, annonces non lues, notes recemment publiees. Un mode Focus (zen) permet de masquer temporairement toutes les notifications et distractions pour se concentrer sur une tache.
+Sidebar proactive : devoirs a rendre bientot, annonces non lues, notes recentes. Mode Focus pour masquer les distractions.
 
 ### Mobile PWA
 
-L'application est accessible sur mobile via une Progressive Web App. La navigation utilise une barre inferieure adaptee au tactile, le pull-to-refresh recharge les donnees et le swipe permet de naviguer entre les vues. L'experience est optimisee pour les ecrans de petite taille.
+Navigation tactile avec barre inferieure, swipe entre les vues, optimise pour les petits ecrans.
 
 <br />
 
@@ -103,70 +95,79 @@ L'application est accessible sur mobile via une Progressive Web App. La navigati
 **Prerequis** : Node.js 18+ et npm.
 
 ```bash
-git clone https://github.com/rohanfosse/slack-like-electron.git
-cd slack-like-electron
+git clone https://github.com/rohanfosse/cursus.git
+cd cursus
 npm install
-```
-
-Lancer en developpement :
-
-```bash
 npm run dev
 ```
 
-Construire l'executable :
+La base SQLite est creee automatiquement au premier lancement.
+
+<br />
+
+## Deploiement
+
+### Docker (recommande)
 
 ```bash
-npm run build
+docker compose build
+docker compose up -d
 ```
 
-La base de donnees SQLite est creee automatiquement au premier lancement dans le repertoire utilisateur. Pour charger des donnees de demonstration, ouvrir le panneau d'administration et utiliser **Reinitialiser et peupler**.
+Le Dockerfile multi-stage compile le frontend et ne garde que le serveur Node.js en production.
 
-<br />
-
-## Version web
-
-L'application est aussi disponible en version web (PWA), deployee automatiquement a chaque push sur `main`. Le build web utilise un shim qui remplace les appels IPC Electron par des requetes HTTP vers le serveur Node.js.
+### Serveur web
 
 ```bash
-npm run build:web
+npm run build:web    # compile le SPA dans dist-web/
+npm run server       # lance le serveur Express
 ```
 
-Les fichiers sont generes dans `dist-web/` et servis par le serveur Express integre.
+### Domaines
+
+| Domaine | Usage |
+|---------|-------|
+| [app.cursus.school](https://app.cursus.school) | Application |
+| [cursus.school](https://cursus.school) | Page vitrine |
+| [admin.cursus.school](https://admin.cursus.school) | Console d'administration |
 
 <br />
 
-## Deploiement Docker
+## Stack
 
-Un Dockerfile multi-stage est fourni pour deployer le serveur web en production. Le premier stage compile le frontend, le second ne contient que les fichiers de production et le serveur Node.js.
-
-Les deux domaines principaux sont `app.cursus.school` (application) et `admin.cursus.school` (administration). La configuration Nginx correspondante se trouve dans le dossier `config/`.
-
-<br />
-
-## Mise a jour automatique
-
-La version desktop pour Windows integre electron-updater. Lorsqu'une nouvelle version est publiee sur GitHub Releases, l'application propose automatiquement le telechargement et l'installation de la mise a jour au demarrage.
-
-<br />
-
-## Stack technique
-
-| Couche | Technologie |
-|--------|------------|
-| Desktop | Electron 29, context isolation, Node integration desactive cote renderer, auto-update via electron-updater |
+| Couche | Technologies |
+|--------|-------------|
+| Desktop | Electron 29, context isolation, auto-update |
 | Frontend | Vue 3 (Composition API), TypeScript, Pinia, Vue Router |
-| Base de donnees | SQLite via Better-SQLite3, schema versionne avec migrations |
-| Build | electron-vite + Vite, packaging via electron-builder |
-| Serveur web | Express, Socket.IO pour le temps reel, deploye derriere Nginx |
-| Mobile | PWA avec barre de navigation inferieure, pull-to-refresh, swipe |
-| Deploiement | Docker multi-stage, Nginx, domaines app.cursus.school et admin.cursus.school |
-| Tests | Vitest, coverage v8, supertest |
+| Backend | Express, Socket.IO, SQLite (Better-SQLite3) |
+| Build | electron-vite, Vite, electron-builder |
+| Mobile | PWA, service worker, manifest |
+| Deploiement | Docker multi-stage, Nginx, Let's Encrypt |
+| Tests | Vitest, supertest |
+
+<br />
+
+## Contribuer
+
+Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les instructions detaillees.
+
+```bash
+git checkout dev          # travailler sur la branche dev
+npm run dev               # lancer en developpement
+npx vue-tsc --noEmit      # verifier les types
+npm test                  # lancer les tests
+```
+
+Workflow : `dev` > Pull Request > `main` (tests CI obligatoires).
+
+<br />
+
+## Securite
+
+Voir [SECURITY.md](SECURITY.md). Pour signaler une vulnerabilite : rohan.fosse@viacesi.fr
 
 <br />
 
 ## Licence
 
-MIT. Voir le fichier [LICENSE](LICENSE) pour les details.
-
-Projet developpe par [Rohan Fosse](https://github.com/rohanfosse)
+[MIT](LICENSE). Projet developpe par [Rohan Fosse](https://github.com/rohanfosse).
