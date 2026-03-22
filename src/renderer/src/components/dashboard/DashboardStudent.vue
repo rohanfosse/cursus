@@ -4,7 +4,8 @@
  * stats, projects grid, and frise sub-components.
  */
 <script setup lang="ts">
-import { FolderOpen, Award, CalendarDays, Home } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { FolderOpen, Award, CalendarDays, Home, Menu } from 'lucide-vue-next'
 import type { StudentProjectCard } from '@/composables/useDashboardStudent'
 import type { FriseMilestone, FrisePromo } from '@/composables/useFrise'
 import type { GradedDevoir } from './StudentGradesTab.vue'
@@ -16,6 +17,9 @@ import TabFrise from './TabFrise.vue'
 
 // ── Props ────────────────────────────────────────────────────────────────────
 const props = defineProps<{
+  toggleSidebar?: () => void
+  greetingName: string
+  today: string
   loadingStudent: boolean
   showOnboarding: boolean
   hasDevoirsLoaded: boolean
@@ -81,6 +85,19 @@ const emit = defineEmits<{
   </div>
 
   <template v-else>
+    <!-- Header (meme design que pilote) -->
+    <div class="db-header">
+      <div class="db-header-left">
+        <button v-if="props.toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="props.toggleSidebar">
+          <Menu :size="22" />
+        </button>
+        <div>
+          <h1 class="db-title">Bonjour, {{ greetingName }}</h1>
+          <p class="db-date">{{ today }}</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Compact welcome banner -->
     <div v-if="showOnboarding" class="db-welcome-banner">
       <div class="db-welcome-text">
@@ -156,6 +173,15 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
+/* ── Header (meme style que pilote) ── */
+.db-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 4px 0;
+}
+.db-header-left { display: flex; align-items: center; gap: 12px; }
+.db-title { font-size: 20px; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
+.db-date { font-size: 12px; color: var(--text-muted); margin-top: 2px; text-transform: capitalize; }
+
 /* ── Chargement ── */
 .db-loading { display: flex; flex-direction: column; gap: 14px; padding: 32px 0; }
 .db-skel-card { height: 76px; border-radius: 10px; flex-shrink: 0; }
