@@ -1,47 +1,68 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <!-- Logo v4 : Connexion - C comme noeud central d'un réseau -->
-  <!-- Phase sessions live/groupes : collaboration, communauté -->
+  <!-- Logo v4 : Connexion — Monogramme C/U devenu hub vivant, noeuds orbitaux -->
   <defs>
-    <linearGradient id="arc-v4" x1="20%" y1="0%" x2="80%" y2="100%">
-      <stop offset="0%" stop-color="#7EB8FF"/>
-      <stop offset="50%" stop-color="#4A90D9"/>
-      <stop offset="100%" stop-color="#2e6dae"/>
+    <linearGradient id="g4a" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="40%" stop-color="#4A90D9"/>
+      <stop offset="100%" stop-color="#6D28D9"/>
     </linearGradient>
-    <linearGradient id="link-v4" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4A90D9" stop-opacity="0.6"/>
-      <stop offset="100%" stop-color="#9B87F5" stop-opacity="0.4"/>
+    <linearGradient id="g4glow" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#6D28D9" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="g4link" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4A90D9" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#A78BFA" stop-opacity="0.3"/>
+    </linearGradient>
+    <linearGradient id="g4orbit" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#A78BFA" stop-opacity="0.15"/>
     </linearGradient>
   </defs>
-  <!-- Lignes de connexion (derrière l'arc) -->
-  <line x1="256" y1="256" x2="420" y2="120" stroke="url(#link-v4)" stroke-width="2.5"/>
-  <line x1="256" y1="256" x2="450" y2="256" stroke="url(#link-v4)" stroke-width="2.5"/>
-  <line x1="256" y1="256" x2="420" y2="400" stroke="url(#link-v4)" stroke-width="2.5"/>
-  <line x1="256" y1="256" x2="350" y2="170" stroke="url(#link-v4)" stroke-width="2"/>
-  <line x1="256" y1="256" x2="380" y2="330" stroke="url(#link-v4)" stroke-width="2"/>
-  <line x1="256" y1="256" x2="330" y2="420" stroke="url(#link-v4)" stroke-width="2"/>
-  <!-- Connexions inter-noeuds -->
-  <line x1="420" y1="120" x2="450" y2="256" stroke="#9B87F5" stroke-width="1.5" opacity="0.3"/>
-  <line x1="450" y1="256" x2="420" y2="400" stroke="#9B87F5" stroke-width="1.5" opacity="0.3"/>
-  <line x1="350" y1="170" x2="420" y2="120" stroke="#9B87F5" stroke-width="1.5" opacity="0.3"/>
-  <line x1="380" y1="330" x2="420" y2="400" stroke="#9B87F5" stroke-width="1.5" opacity="0.3"/>
-  <!-- Arc du C -->
-  <path d="M300 90 C185 40, 55 110, 55 256 C55 402, 185 472, 300 422"
-        stroke="url(#arc-v4)" stroke-width="48" stroke-linecap="round" fill="none"/>
-  <!-- Noeud central -->
-  <circle cx="256" cy="256" r="18" fill="#4A90D9"/>
-  <circle cx="256" cy="256" r="10" fill="#7EB8FF"/>
-  <!-- Noeuds externes principaux -->
-  <circle cx="420" cy="120" r="14" fill="#9B87F5"/>
-  <circle cx="420" cy="120" r="7" fill="#b8a9f7"/>
-  <circle cx="450" cy="256" r="14" fill="#4A90D9"/>
-  <circle cx="450" cy="256" r="7" fill="#7EB8FF"/>
-  <circle cx="420" cy="400" r="14" fill="#9B87F5"/>
-  <circle cx="420" cy="400" r="7" fill="#b8a9f7"/>
-  <!-- Noeuds secondaires -->
-  <circle cx="350" cy="170" r="10" fill="#5da3f0"/>
-  <circle cx="350" cy="170" r="5" fill="#a8c8f0"/>
-  <circle cx="380" cy="330" r="10" fill="#7c6dd8"/>
-  <circle cx="380" cy="330" r="5" fill="#b8a9f7"/>
-  <circle cx="330" cy="420" r="10" fill="#5da3f0"/>
-  <circle cx="330" cy="420" r="5" fill="#a8c8f0"/>
+  <!-- Halo -->
+  <circle cx="256" cy="256" r="230" fill="url(#g4glow)"/>
+  <!-- Orbites -->
+  <ellipse cx="256" cy="256" rx="210" ry="210" stroke="url(#g4orbit)" stroke-width="1.5" fill="none" stroke-dasharray="6 10"/>
+  <ellipse cx="256" cy="256" rx="155" ry="155" stroke="url(#g4orbit)" stroke-width="1" fill="none" stroke-dasharray="4 8"/>
+  <!-- Liens depuis le centre vers les noeuds -->
+  <line x1="256" y1="260" x2="110" y2="130" stroke="url(#g4link)" stroke-width="2"/>
+  <line x1="256" y1="260" x2="440" y2="170" stroke="url(#g4link)" stroke-width="2"/>
+  <line x1="256" y1="260" x2="420" y2="400" stroke="url(#g4link)" stroke-width="2"/>
+  <line x1="256" y1="260" x2="100" y2="380" stroke="url(#g4link)" stroke-width="2"/>
+  <line x1="256" y1="260" x2="256" y2="48" stroke="url(#g4link)" stroke-width="1.5"/>
+  <line x1="256" y1="260" x2="460" y2="280" stroke="url(#g4link)" stroke-width="1.5"/>
+  <!-- Liens inter-noeuds -->
+  <line x1="110" y1="130" x2="256" y2="48" stroke="#A78BFA" stroke-width="1" opacity="0.2"/>
+  <line x1="256" y1="48" x2="440" y2="170" stroke="#A78BFA" stroke-width="1" opacity="0.2"/>
+  <line x1="440" y1="170" x2="460" y2="280" stroke="#A78BFA" stroke-width="1" opacity="0.2"/>
+  <line x1="460" y1="280" x2="420" y2="400" stroke="#A78BFA" stroke-width="1" opacity="0.2"/>
+  <line x1="420" y1="400" x2="100" y2="380" stroke="#A78BFA" stroke-width="1" opacity="0.2"/>
+  <line x1="100" y1="380" x2="110" y2="130" stroke="#A78BFA" stroke-width="1" opacity="0.2"/>
+  <!-- Monogramme C/U central — plus compact, plus iconique -->
+  <path d="M290 148
+           C220 128, 140 178, 140 260
+           C140 335, 190 378, 230 388
+           Q256 394, 256 368 L256 345"
+        stroke="url(#g4a)" stroke-width="34" stroke-linecap="round" fill="none"/>
+  <path d="M256 345
+           L256 368
+           Q256 394, 282 388
+           C322 378, 372 335, 372 260
+           C372 210, 352 175, 328 158"
+        stroke="url(#g4a)" stroke-width="34" stroke-linecap="round" fill="none"/>
+  <!-- Point central du U -->
+  <circle cx="256" cy="358" r="7" fill="#38BDF8"/>
+  <!-- Noeuds orbitaux — les utilisateurs/groupes -->
+  <circle cx="110" cy="130" r="16" fill="#6D28D9" opacity="0.8"/>
+  <circle cx="110" cy="130" r="8" fill="#A78BFA"/>
+  <circle cx="440" cy="170" r="14" fill="#4A90D9" opacity="0.8"/>
+  <circle cx="440" cy="170" r="7" fill="#7ECBFF"/>
+  <circle cx="420" cy="400" r="15" fill="#6D28D9" opacity="0.8"/>
+  <circle cx="420" cy="400" r="8" fill="#A78BFA"/>
+  <circle cx="100" cy="380" r="13" fill="#4A90D9" opacity="0.8"/>
+  <circle cx="100" cy="380" r="7" fill="#7ECBFF"/>
+  <circle cx="256" cy="48" r="12" fill="#2ECC71" opacity="0.8"/>
+  <circle cx="256" cy="48" r="6" fill="#6EE7A0"/>
+  <circle cx="460" cy="280" r="11" fill="#F59E0B" opacity="0.7"/>
+  <circle cx="460" cy="280" r="6" fill="#FCD34D"/>
 </svg>

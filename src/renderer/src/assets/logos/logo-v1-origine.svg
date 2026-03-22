@@ -1,6 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <!-- Logo v1 : Origine - C minimaliste -->
-  <!-- Phase MVP : simplicité, communication de base -->
-  <path d="M320 100 C190 40, 60 120, 60 256 C60 392, 190 472, 320 412"
-        stroke="#4A90D9" stroke-width="42" stroke-linecap="round" fill="none"/>
+  <!-- Logo v1 : Origine — Monogramme C+U fusionné, naissance de l'identité -->
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60B4FF"/>
+      <stop offset="100%" stop-color="#3366CC"/>
+    </linearGradient>
+  </defs>
+  <!-- Fond cercle subtil -->
+  <circle cx="256" cy="256" r="220" fill="#f0f6ff" opacity="0.08"/>
+  <!-- Monogramme : le C s'ouvre en haut à droite, le U se forme dans la partie basse
+       Le trait unique fusionne les deux lettres en un geste continu -->
+  <!-- Bras gauche du C qui descend et forme le U en bas -->
+  <path d="M310 72
+           C200 42, 82 130, 82 256
+           C82 370, 150 440, 220 452
+           Q256 458, 256 420
+           L256 380"
+        stroke="url(#g1)" stroke-width="48" stroke-linecap="round" fill="none"/>
+  <!-- Bras droit : remonte du U pour suggérer le C ouvert -->
+  <path d="M256 380
+           L256 420
+           Q256 458, 292 452
+           C362 440, 430 370, 430 256
+           C430 190, 400 138, 360 105"
+        stroke="url(#g1)" stroke-width="48" stroke-linecap="round" fill="none"/>
+  <!-- Point de connexion en bas du U — le point de rencontre -->
+  <circle cx="256" cy="395" r="8" fill="#60B4FF"/>
 </svg>

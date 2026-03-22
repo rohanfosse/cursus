@@ -1,40 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <!-- Logo v3 : Académique - C avec mortier et barres de progression -->
-  <!-- Phase devoirs/notations : éducation formelle, évaluation -->
+  <!-- Logo v3 : Académique — Monogramme C/U avec chemin ascendant et étoile de progression -->
   <defs>
-    <linearGradient id="arc-v3" x1="20%" y1="0%" x2="80%" y2="100%">
-      <stop offset="0%" stop-color="#7EB8FF"/>
+    <linearGradient id="g3a" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2563EB"/>
       <stop offset="50%" stop-color="#4A90D9"/>
-      <stop offset="100%" stop-color="#2e6dae"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
     </linearGradient>
-    <linearGradient id="prog1" x1="0%" y1="0%" x2="100%" y2="0%">
+    <linearGradient id="g3b" x1="50%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="g3arrow" x1="50%" y1="100%" x2="50%" y2="0%">
       <stop offset="0%" stop-color="#4A90D9"/>
       <stop offset="100%" stop-color="#2ECC71"/>
     </linearGradient>
-    <linearGradient id="prog2" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#4A90D9"/>
-      <stop offset="100%" stop-color="#27ae60"/>
-    </linearGradient>
   </defs>
-  <!-- Arc du C -->
-  <path d="M300 105 C190 55, 60 125, 60 256 C60 387, 190 457, 300 410"
-        stroke="url(#arc-v3)" stroke-width="46" stroke-linecap="round" fill="none"/>
-  <!-- Mortier de diplômé stylisé -->
-  <polygon points="220,58 340,58 360,78 200,78" fill="#2e6dae"/>
-  <rect x="255" y="78" width="50" height="12" rx="3" fill="#4A90D9"/>
-  <line x1="280" y1="58" x2="280" y2="38" stroke="#4A90D9" stroke-width="3"/>
-  <circle cx="280" cy="34" r="6" fill="#7EB8FF"/>
-  <!-- Pompon et fil -->
-  <path d="M280 38 Q310 30, 330 50" stroke="#7EB8FF" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <circle cx="332" cy="52" r="5" fill="#2ECC71"/>
-  <!-- Barres de progression -->
-  <!-- Barre 1 : fond + remplissage 85% -->
-  <rect x="230" y="200" width="200" height="26" rx="13" fill="#1c2a3d" opacity="0.3"/>
-  <rect x="230" y="200" width="170" height="26" rx="13" fill="url(#prog1)"/>
-  <!-- Barre 2 : fond + remplissage 60% -->
-  <rect x="210" y="285" width="210" height="26" rx="13" fill="#1c2a3d" opacity="0.3"/>
-  <rect x="210" y="285" width="126" height="26" rx="13" fill="url(#prog2)"/>
-  <!-- Barre 3 : fond + remplissage 40% -->
-  <rect x="235" y="370" width="170" height="26" rx="13" fill="#1c2a3d" opacity="0.3"/>
-  <rect x="235" y="370" width="68" height="26" rx="13" fill="#4A90D9"/>
+  <!-- Monogramme C/U — forme englobante -->
+  <path d="M305 78
+           C192 42, 72 135, 72 260
+           C72 375, 150 448, 225 458
+           Q256 462, 256 428
+           L256 392"
+        stroke="url(#g3a)" stroke-width="42" stroke-linecap="round" fill="none"/>
+  <path d="M256 392
+           L256 428
+           Q256 462, 287 458
+           C362 448, 440 375, 440 260
+           C440 192, 412 140, 372 108"
+        stroke="url(#g3a)" stroke-width="42" stroke-linecap="round" fill="none"/>
+  <!-- Chemin ascendant intérieur : une ligne qui monte en zigzag comme un parcours éducatif -->
+  <path d="M175 370 L220 310 L190 260 L240 200 L210 155 L270 90"
+        stroke="url(#g3arrow)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Étoile / diamant au sommet du chemin — objectif atteint -->
+  <polygon points="270,58 280,80 304,80 285,94 292,116 270,102 248,116 255,94 236,80 260,80"
+           fill="url(#g3b)" opacity="0.9"/>
+  <!-- Petits jalons sur le chemin -->
+  <circle cx="175" cy="370" r="6" fill="#2563EB" opacity="0.6"/>
+  <circle cx="190" cy="260" r="6" fill="#4A90D9" opacity="0.7"/>
+  <circle cx="210" cy="155" r="6" fill="#22D3EE" opacity="0.8"/>
+  <!-- Trois points à droite : notes / évaluations -->
+  <circle cx="370" cy="220" r="10" fill="#2ECC71" opacity="0.6"/>
+  <circle cx="385" cy="280" r="8" fill="#4A90D9" opacity="0.5"/>
+  <circle cx="375" cy="340" r="9" fill="#F59E0B" opacity="0.5"/>
 </svg>
