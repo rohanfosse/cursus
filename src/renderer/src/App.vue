@@ -185,9 +185,9 @@
     const section = ROUTE_LABELS[route.name as string] ?? 'Cursus'
     const count = totalUnreadBadge.value
     if (count > 0) {
-      document.title = `(${count}) ${section} - Cursus`
+      document.title = `(${count}) ${section} · Cursus`
     } else {
-      document.title = `${section} - Cursus`
+      document.title = `${section} · Cursus`
     }
   })
 
