@@ -4,7 +4,7 @@
   import { useAppStore } from '@/stores/app'
   import { avatarColor }  from '@/utils/format'
   import type { LoginResponse } from '@/types'
-  import logoUrl from '@/assets/logo.svg'
+  import logoUrl from '@/assets/logo.png'
 
   const appStore = useAppStore()
   const router   = useRouter()
