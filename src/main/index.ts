@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog } from 'electron'
 import { join } from 'path'
+import { autoUpdater } from 'electron-updater'
 
 // Modules CommonJS - import default : Rollup + @rollup/plugin-commonjs convertit
 // module.exports en export default, ce qui permet le bundling correct.
@@ -118,6 +119,41 @@ app.whenReady().then(() => {
   ipc.register()
   notifications.start()
   createWindow()
+
+  // ── Auto-update (production uniquement) ──────────────────────────────────
+  if (app.isPackaged) {
+    autoUpdater.autoDownload = true
+    autoUpdater.autoInstallOnAppQuit = true
+
+    autoUpdater.on('update-available', (info) => {
+      console.log('[Updater] Mise à jour disponible:', info.version)
+      const win = BrowserWindow.getAllWindows()[0]
+      if (win) win.webContents.send('updater:available', info.version)
+    })
+
+    autoUpdater.on('update-downloaded', (info) => {
+      console.log('[Updater] Mise à jour téléchargée:', info.version)
+      const win = BrowserWindow.getAllWindows()[0]
+      if (win) {
+        dialog.showMessageBox(win, {
+          type: 'info',
+          title: 'Mise à jour prête',
+          message: `La version ${info.version} a été téléchargée.`,
+          detail: 'L\'application va redémarrer pour appliquer la mise à jour.',
+          buttons: ['Redémarrer maintenant', 'Plus tard'],
+          defaultId: 0,
+        }).then(({ response }) => {
+          if (response === 0) autoUpdater.quitAndInstall()
+        })
+      }
+    })
+
+    autoUpdater.on('error', (err) => {
+      console.error('[Updater] Erreur:', err.message)
+    })
+
+    autoUpdater.checkForUpdatesAndNotify()
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
