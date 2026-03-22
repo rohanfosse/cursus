@@ -46,6 +46,21 @@ export function useDashboardStudent() {
       .map(t => ({ title: t.title, note: t.note!, category: t.category }))
   })
 
+  // ── Toutes les notes (pour l'onglet Mes notes) ───────────────────────────────
+  const allGradedDevoirs = computed(() => {
+    return travauxStore.devoirs
+      .filter(t => t.note != null && t.note !== 'NA')
+      .sort((a, b) => (b.depot_id ?? 0) - (a.depot_id ?? 0))
+      .map(t => ({
+        id: t.id,
+        title: t.title,
+        note: t.note!,
+        category: t.category,
+        feedback: t.feedback ?? null,
+        deadline: t.deadline,
+      }))
+  })
+
   // ── Derniers feedbacks (3 max) ──────────────────────────────────────────────
   const recentFeedback = computed(() => {
     return travauxStore.devoirs
@@ -125,7 +140,7 @@ export function useDashboardStudent() {
 
   return {
     loadingStudent, studentNow,
-    studentStats, recentGrades, recentFeedback, urgentActions, studentProjectCards,
+    studentStats, recentGrades, allGradedDevoirs, recentFeedback, urgentActions, studentProjectCards,
     loadStudentData, cleanupTimers,
   }
 }

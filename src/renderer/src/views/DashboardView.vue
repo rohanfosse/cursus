@@ -42,15 +42,18 @@ function goToProject(key: string) {
 }
 
 // ── Tabs ────────────────────────────────────────────────────────────────────
-const dashTab = ref<'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live'>(
-  route.query.tab === 'frise' ? 'frise' : route.query.tab === 'analytique' ? 'analytique' : route.query.tab === 'promotions' ? 'promotions' : route.query.tab === 'live' ? 'live' : 'accueil',
+const dashTab = ref<'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live' | 'projets' | 'notes' | 'planning'>(
+  route.query.tab === 'frise' ? 'frise' : route.query.tab === 'planning' ? 'planning' : route.query.tab === 'analytique' ? 'analytique' : route.query.tab === 'promotions' ? 'promotions' : route.query.tab === 'live' ? 'live' : route.query.tab === 'projets' ? 'projets' : route.query.tab === 'notes' ? 'notes' : 'accueil',
 )
 watch(() => route.query.tab, (tab) => {
   if (tab === 'frise') dashTab.value = 'frise'
+  else if (tab === 'planning') dashTab.value = 'planning'
   else if (tab === 'analytique') dashTab.value = 'analytique'
   else if (tab === 'promotions') dashTab.value = 'promotions'
   else if (tab === 'reglages') dashTab.value = 'reglages'
   else if (tab === 'live') dashTab.value = 'live'
+  else if (tab === 'projets') dashTab.value = 'projets'
+  else if (tab === 'notes') dashTab.value = 'notes'
   else dashTab.value = 'accueil'
 })
 
@@ -69,7 +72,7 @@ const {
 
 const {
   loadingStudent,
-  studentStats, recentGrades, recentFeedback, urgentActions, studentProjectCards,
+  studentStats, recentGrades, allGradedDevoirs, recentFeedback, urgentActions, studentProjectCards,
   loadStudentData, cleanupTimers,
 } = useDashboardStudent()
 
@@ -186,7 +189,7 @@ onUnmounted(() => {
       :this-week-reminders="thisWeekReminders"
       :done-this-week="doneThisWeek"
       :total-this-week="totalThisWeek"
-      :dash-tab="dashTab"
+      :dash-tab="dashTab as 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live'"
       :analytics-stats="analyticsStats"
       :grade-distribution="gradeDistribution"
       :submission-rates="submissionRates"
@@ -248,9 +251,11 @@ onUnmounted(() => {
       :student-stats="studentStats"
       :urgent-actions="urgentActions"
       :recent-grades="recentGrades"
+      :all-graded-devoirs="allGradedDevoirs"
       :recent-feedback="recentFeedback"
       :student-project-cards="studentProjectCards"
       :dash-tab="dashTab"
+      :frise-offset="friseOffset"
       :frise-dragging="friseDragging"
       :gantt-date-range="ganttDateRange"
       :frise="frise"
@@ -259,6 +264,7 @@ onUnmounted(() => {
       :milestone-left="milestoneLeft"
       :project-line-style="projectLineStyle"
       @update:dash-tab="dashTab = $event"
+      @update:frise-offset="friseOffset = $event"
       @dismiss-onboarding="dismissOnboarding"
       @go-to-project="goToProject"
       @on-frise-wheel="onFriseWheel"
@@ -266,6 +272,7 @@ onUnmounted(() => {
       @on-frise-drag-move="onFriseDragMove"
       @on-frise-drag-end="onFriseDragEnd"
       @on-milestone-click="onMilestoneClick"
+      @set-frise-zoom="setFriseZoom"
       @open-student-timeline="modals.studentTimeline = true"
       @navigate-devoirs="router.push('/devoirs')"
     />

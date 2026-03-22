@@ -4,14 +4,16 @@
  * stats, projects grid, and frise sub-components.
  */
 <script setup lang="ts">
-import { FolderOpen, BarChart2, BookOpen } from 'lucide-vue-next'
+import { FolderOpen, Award, CalendarDays, Home } from 'lucide-vue-next'
 import type { StudentProjectCard } from '@/composables/useDashboardStudent'
 import type { FriseMilestone, FrisePromo } from '@/composables/useFrise'
+import type { GradedDevoir } from './StudentGradesTab.vue'
 
 import StudentHeader from './StudentHeader.vue'
 import StudentBento from './StudentBento.vue'
-import StudentProjects from './StudentProjects.vue'
-import StudentFrise from './StudentFrise.vue'
+import StudentProjectsTab from './StudentProjectsTab.vue'
+import StudentGradesTab from './StudentGradesTab.vue'
+import TabFrise from './TabFrise.vue'
 
 // ── Props ────────────────────────────────────────────────────────────────────
 const props = defineProps<{
@@ -31,6 +33,9 @@ const props = defineProps<{
   // Recent grades
   recentGrades: { title: string; note: string }[]
 
+  // All graded devoirs (for Mes notes tab)
+  allGradedDevoirs: GradedDevoir[]
+
   // Recent feedback
   recentFeedback?: { title: string; feedback: string; note: string | null; category: string | null }[]
 
@@ -41,6 +46,7 @@ const props = defineProps<{
   dashTab: string
 
   // Frise
+  friseOffset: number
   friseDragging: boolean
   ganttDateRange: { start: Date; end: Date } | null
   frise: FrisePromo[]
@@ -54,7 +60,8 @@ const props = defineProps<{
 
 // ── Emits ────────────────────────────────────────────────────────────────────
 const emit = defineEmits<{
-  'update:dashTab': [tab: 'accueil' | 'frise']
+  'update:dashTab': [tab: 'accueil' | 'projets' | 'notes' | 'planning']
+  'update:friseOffset': [val: number]
   dismissOnboarding: []
   goToProject: [key: string]
   onFriseWheel: [e: WheelEvent]
@@ -62,6 +69,7 @@ const emit = defineEmits<{
   onFriseDragMove: [e: MouseEvent]
   onFriseDragEnd: [e: MouseEvent]
   onMilestoneClick: [ms: FriseMilestone]
+  setFriseZoom: [days: number]
   openStudentTimeline: []
   navigateDevoirs: []
 }>()
@@ -86,7 +94,7 @@ const emit = defineEmits<{
       @navigate-devoirs="emit('navigateDevoirs')"
     />
 
-    <!-- Encart première connexion (guide) -->
+    <!-- Encart premiere connexion (guide) -->
     <div v-if="showOnboarding" class="db-welcome">
       <div class="db-welcome-hero">
         <div class="db-welcome-hero-text">
@@ -100,7 +108,7 @@ const emit = defineEmits<{
       <div class="db-welcome-grid">
         <div class="db-welcome-card db-welcome-card--devoirs">
           <div class="db-welcome-card-icon">
-            <BookOpen :size="18" />
+            <Award :size="18" />
           </div>
           <div class="db-welcome-card-body">
             <strong>Devoirs et rendus</strong>
@@ -118,7 +126,7 @@ const emit = defineEmits<{
         </div>
         <div class="db-welcome-card db-welcome-card--docs">
           <div class="db-welcome-card-icon">
-            <BarChart2 :size="18" />
+            <CalendarDays :size="18" />
           </div>
           <div class="db-welcome-card-body">
             <strong>Documents partages</strong>
@@ -135,13 +143,20 @@ const emit = defineEmits<{
     <!-- Tabs -->
     <div class="db-tabs">
       <button class="db-tab" :class="{ active: dashTab === 'accueil' }" @click="emit('update:dashTab', 'accueil')">
-        <FolderOpen :size="13" /> Accueil
+        <Home :size="13" /> Accueil
       </button>
-      <button class="db-tab" :class="{ active: dashTab === 'frise' }" @click="emit('update:dashTab', 'frise')">
-        <BarChart2 :size="13" /> Frise
+      <button class="db-tab" :class="{ active: dashTab === 'projets' }" @click="emit('update:dashTab', 'projets')">
+        <FolderOpen :size="13" /> Mes projets
+      </button>
+      <button class="db-tab" :class="{ active: dashTab === 'notes' }" @click="emit('update:dashTab', 'notes')">
+        <Award :size="13" /> Mes notes
+      </button>
+      <button class="db-tab" :class="{ active: dashTab === 'planning' }" @click="emit('update:dashTab', 'planning')">
+        <CalendarDays :size="13" /> Planning
       </button>
     </div>
 
+    <!-- Tab: Accueil -->
     <StudentBento
       v-if="dashTab === 'accueil'"
       :student-stats="studentStats"
@@ -155,8 +170,25 @@ const emit = defineEmits<{
       @go-to-project="(k) => emit('goToProject', k)"
     />
 
-    <StudentFrise
-      v-else
+    <!-- Tab: Mes projets -->
+    <StudentProjectsTab
+      v-else-if="dashTab === 'projets'"
+      :student-project-cards="studentProjectCards"
+      @go-to-project="(k) => emit('goToProject', k)"
+      @navigate-devoirs="emit('navigateDevoirs')"
+    />
+
+    <!-- Tab: Mes notes -->
+    <StudentGradesTab
+      v-else-if="dashTab === 'notes'"
+      :graded-devoirs="allGradedDevoirs"
+      :mode-grade="studentStats.modeGrade"
+    />
+
+    <!-- Tab: Planning (TabFrise) -->
+    <TabFrise
+      v-else-if="dashTab === 'planning'"
+      :frise-offset="friseOffset"
       :frise-dragging="friseDragging"
       :gantt-date-range="ganttDateRange"
       :frise="frise"
@@ -170,6 +202,8 @@ const emit = defineEmits<{
       @on-frise-drag-move="(e) => emit('onFriseDragMove', e)"
       @on-frise-drag-end="(e) => emit('onFriseDragEnd', e)"
       @on-milestone-click="(ms) => emit('onMilestoneClick', ms)"
+      @set-frise-zoom="(days) => emit('setFriseZoom', days)"
+      @update:frise-offset="(val) => emit('update:friseOffset', val)"
     />
   </template>
 </template>
