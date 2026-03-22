@@ -146,7 +146,7 @@
           authorName: appStore.currentUser?.name ?? 'Système',
           authorType: appStore.currentUser?.type ?? 'teacher',
           promoId: appStore.activePromoId ?? undefined,
-          content: `\\[${travail.value.title}](devoir:${travail.value.id}) — ${devoirMeta.value.isEvent ? `le **${formatDate(travail.value.deadline)}**` : `à rendre avant le **${formatDate(travail.value.deadline)}**`}${devoirMeta.value.salle ? ` — Salle : **${devoirMeta.value.salle}**` : ''}`,
+          content: `@everyone Bonjour,\n\n\\[${travail.value.title}](devoir:${travail.value.id}) — ${devoirMeta.value.isEvent ? `le **${formatDate(travail.value.deadline)}**` : `à rendre avant le **${formatDate(travail.value.deadline)}**`}${devoirMeta.value.salle ? ` — Salle : **${devoirMeta.value.salle}**` : ''}`,
         })
       }
       showToast('Publié et notifié.', 'success')
@@ -236,6 +236,10 @@
     const t = travail.value
     const meta = devoirMeta.value
     const parts: string[] = []
+
+    // Salutation
+    parts.push('@everyone Bonjour,')
+    parts.push('')
 
     // Titre avec lien
     if (reminderOpts.value.lien) {
