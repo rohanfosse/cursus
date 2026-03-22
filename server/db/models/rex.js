@@ -126,7 +126,7 @@ function getRexActivityResultsAggregated(activityId) {
       'SELECT answer, COUNT(*) as count FROM rex_responses WHERE activity_id = ? GROUP BY answer ORDER BY count DESC'
     ).all(activityId);
     const total = rows.reduce((s, r) => s + r.count, 0);
-    return { type: 'sondage_libre', total, counts: rows };
+    return { type: 'sondage_libre', total, counts: rows.map(r => ({ text: r.answer, count: r.count })) };
   }
 
   if (activity.type === 'nuage') {
@@ -134,7 +134,7 @@ function getRexActivityResultsAggregated(activityId) {
       'SELECT answer, COUNT(*) as count FROM rex_responses WHERE activity_id = ? GROUP BY answer ORDER BY count DESC'
     ).all(activityId);
     const total = rows.reduce((s, r) => s + r.count, 0);
-    return { type: 'nuage', total, counts: rows };
+    return { type: 'nuage', total, freq: rows.map(r => ({ word: r.answer, count: r.count })) };
   }
 
   if (activity.type === 'echelle') {
@@ -144,14 +144,14 @@ function getRexActivityResultsAggregated(activityId) {
     const total = rows.reduce((s, r) => s + r.count, 0);
     const sum = rows.reduce((s, r) => s + Number(r.answer) * r.count, 0);
     const average = total > 0 ? Math.round((sum / total) * 100) / 100 : 0;
-    return { type: 'echelle', total, counts: rows, average };
+    return { type: 'echelle', total, distribution: rows.map(r => ({ rating: Number(r.answer), count: r.count })), average };
   }
 
   if (activity.type === 'question_ouverte') {
     const rows = db.prepare(
       'SELECT id, answer, pinned, created_at FROM rex_responses WHERE activity_id = ? ORDER BY pinned DESC, created_at DESC'
     ).all(activityId);
-    return { type: 'question_ouverte', total: rows.length, responses: rows };
+    return { type: 'question_ouverte', total: rows.length, answers: rows.map(r => ({ id: r.id, answer: r.answer, pinned: !!r.pinned, created_at: r.created_at })) };
   }
 
   return { type: activity.type, total: 0 };
