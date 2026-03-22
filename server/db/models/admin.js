@@ -442,6 +442,91 @@ function getUserFeedback(userId) {
   return getDb().prepare(`SELECT * FROM feedback WHERE user_id = ? ORDER BY created_at DESC`).all(userId)
 }
 
+// ── Métriques de visites ────────────────────────────────────────────────────
+
+function recordVisit({ userId, userName, userType, path }) {
+  try {
+    return getDb().prepare(`
+      INSERT INTO page_visits (user_id, user_name, user_type, path)
+      VALUES (?, ?, ?, ?)
+    `).run(userId, userName, userType, path)
+  } catch { /* table peut ne pas exister en migration */ }
+}
+
+function getVisitStats() {
+  const db = getDb()
+
+  const dau = db.prepare(`
+    SELECT COUNT(DISTINCT user_id) AS count
+    FROM page_visits WHERE created_at >= datetime('now', '-1 day')
+  `).get()
+
+  const wau = db.prepare(`
+    SELECT COUNT(DISTINCT user_id) AS count
+    FROM page_visits WHERE created_at >= datetime('now', '-7 days')
+  `).get()
+
+  const mau = db.prepare(`
+    SELECT COUNT(DISTINCT user_id) AS count
+    FROM page_visits WHERE created_at >= datetime('now', '-30 days')
+  `).get()
+
+  const visitsPerDay = db.prepare(`
+    SELECT date(created_at) AS day, COUNT(*) AS count, COUNT(DISTINCT user_id) AS unique_users
+    FROM page_visits
+    WHERE created_at >= datetime('now', '-30 days')
+    GROUP BY date(created_at)
+    ORDER BY day ASC
+  `).all()
+
+  const topPages = db.prepare(`
+    SELECT path, COUNT(*) AS count
+    FROM page_visits
+    WHERE created_at >= datetime('now', '-30 days')
+    GROUP BY path
+    ORDER BY count DESC
+    LIMIT 10
+  `).all()
+
+  const visitsPerHour = db.prepare(`
+    SELECT CAST(strftime('%H', created_at) AS INTEGER) AS hour, COUNT(*) AS count
+    FROM page_visits
+    WHERE created_at >= datetime('now', '-7 days')
+    GROUP BY hour
+    ORDER BY hour ASC
+  `).all()
+
+  // Connexions réussies / échouées (depuis login_attempts existant)
+  const loginStats = db.prepare(`
+    SELECT
+      SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) AS successful,
+      SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS failed
+    FROM login_attempts
+    WHERE created_at >= datetime('now', '-30 days')
+  `).get()
+
+  const loginsPerDay = db.prepare(`
+    SELECT date(created_at) AS day,
+      SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) AS successful,
+      SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS failed
+    FROM login_attempts
+    WHERE created_at >= datetime('now', '-30 days')
+    GROUP BY date(created_at)
+    ORDER BY day ASC
+  `).all()
+
+  return {
+    dau: dau.count,
+    wau: wau.count,
+    mau: mau.count,
+    visitsPerDay,
+    topPages,
+    visitsPerHour,
+    loginStats: { successful: loginStats?.successful ?? 0, failed: loginStats?.failed ?? 0 },
+    loginsPerDay,
+  }
+}
+
 // ── Politique de rétention ───────────────────────────────────────────────────
 
 function purgeOldData({ auditDays = 90, loginDays = 30, sessionDays = 30 }) {
@@ -451,6 +536,7 @@ function purgeOldData({ auditDays = 90, loginDays = 30, sessionDays = 30 }) {
   try { results.logins = db.prepare(`DELETE FROM login_attempts WHERE created_at < datetime('now', '-' || ? || ' days')`).run(loginDays).changes } catch { results.logins = 0 }
   try { results.sessions = db.prepare(`DELETE FROM active_sessions WHERE last_seen < datetime('now', '-' || ? || ' days')`).run(sessionDays).changes } catch { results.sessions = 0 }
   try { results.reports = db.prepare(`DELETE FROM reports WHERE status != 'pending' AND created_at < datetime('now', '-' || ? || ' days')`).run(auditDays).changes } catch { results.reports = 0 }
+  try { results.visits = db.prepare(`DELETE FROM page_visits WHERE created_at < datetime('now', '-' || ? || ' days')`).run(auditDays).changes } catch { results.visits = 0 }
   return results
 }
 
@@ -475,4 +561,6 @@ module.exports = {
   purgeOldData,
   // Feedback
   createFeedback, getFeedbackList, updateFeedbackStatus, getFeedbackStats, getUserFeedback,
+  // Visites
+  recordVisit, getVisitStats,
 }

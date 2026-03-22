@@ -64,8 +64,7 @@ a { color: var(--accent); text-decoration: none; }
 .login-footer a { color: var(--accent); }
 
 /* ── Tabs ── */
-.tab-bar { display: flex; gap: .25rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; }
-.tab-btn { background: none; border: none; color: var(--text-muted); font-size: .85rem; font-weight: 500; padding: .75rem 1.25rem; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all .2s; }
+.tab-btn { background: none; border: none; color: var(--text-muted); font-size: .85rem; font-weight: 500; padding: .75rem 1rem; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all .2s; }
 .tab-btn:hover { color: var(--text-secondary); }
 .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 .tab-panel { display: none; }
@@ -204,3 +203,72 @@ a { color: var(--accent); text-decoration: none; }
 .badge.pending  { background: rgba(243,156,18,.15); color: var(--orange); }
 .badge.reviewed { background: rgba(46,204,113,.15); color: var(--green); }
 .badge.dismissed { background: rgba(78,82,96,.2); color: var(--text-muted); }
+
+/* ── Docker badge ── */
+.badge.docker-badge { background: rgba(74,144,217,.15); color: var(--accent); font-size: .6rem; vertical-align: middle; }
+
+/* ── Env list (monitor Docker) ── */
+.env-list { display: flex; flex-direction: column; gap: .4rem; }
+.env-row { display: flex; align-items: center; gap: .75rem; font-size: .8rem; }
+.env-key { font-weight: 600; color: var(--text-secondary); min-width: 80px; }
+.env-row code { background: var(--bg); padding: 2px 8px; border-radius: 4px; font-size: .75rem; }
+
+/* ── Tab groups ── */
+.tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.tab-bar::-webkit-scrollbar { height: 4px; }
+.tab-bar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.tab-group { display: flex; align-items: flex-end; gap: .1rem; position: relative; }
+.tab-group + .tab-group { margin-left: .25rem; padding-left: .5rem; }
+.tab-group + .tab-group::before {
+  content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+  width: 1px; background: var(--border);
+}
+.tab-group-label {
+  position: absolute; top: -2px; left: .5rem;
+  font-size: .5rem; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-muted); pointer-events: none; white-space: nowrap;
+}
+
+/* ── Section title (stats) ── */
+.section-title {
+  font-size: .85rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-secondary); margin-bottom: 1rem; padding-bottom: .5rem;
+  border-bottom: 1px solid var(--border);
+}
+.section-divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+
+/* ── Visit counters accent ── */
+.counter.accent { border-color: rgba(74,144,217,.2); }
+.counter.accent .counter-value { color: var(--accent); }
+
+/* ── Stacked bar chart (logins) ── */
+.chart-stacked { display: flex; align-items: flex-end; gap: 2px; height: 120px; padding: .5rem 0; }
+.chart-bar-stack {
+  flex: 1; display: flex; flex-direction: column; min-width: 4px; border-radius: 2px 2px 0 0;
+  overflow: hidden; position: relative; cursor: default;
+}
+.chart-bar-stack:hover::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px;
+  font-size: .65rem; white-space: nowrap; color: var(--text); pointer-events: none; z-index: 5; }
+.bar-success { background: var(--green); width: 100%; }
+.bar-fail { background: var(--red); width: 100%; }
+
+/* ── Chart legend ── */
+.chart-legend { display: flex; gap: 1rem; margin-top: .5rem; font-size: .7rem; color: var(--text-secondary); }
+.legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: .3rem; vertical-align: middle; }
+
+/* ── Hour bar chart ── */
+.chart-hours { display: flex; align-items: flex-end; gap: 1px; height: 80px; padding: .5rem 0; }
+.chart-hours .chart-bar { background: rgba(74,144,217,.5); }
+.chart-hours .chart-bar:hover { background: var(--accent); }
+
+/* ── Visit bar ── */
+.visit-bar { background: rgba(74,144,217,.6); }
+.visit-bar:hover { background: var(--accent); }
+
+/* ── Deploy Docker info ── */
+.deploy-docker-msg {
+  padding: 1rem 1.25rem; background: rgba(74,144,217,.06); border: 1px solid rgba(74,144,217,.15);
+  border-radius: var(--radius-sm); color: var(--text-secondary); font-size: .85rem; line-height: 1.6;
+}
+.deploy-docker-msg code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: .8rem; }

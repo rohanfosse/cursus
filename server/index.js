@@ -72,6 +72,22 @@ app.use('/api', (req, _res, next) => {
   next()
 })
 
+// ── Visit tracking (async, non bloquant) ─────────────────────────────────────
+app.use('/api', (req, _res, next) => {
+  if (req.method === 'GET' && req.user && !req.path.startsWith('/admin')) {
+    try {
+      const { recordVisit } = require('./db/models/admin')
+      recordVisit({
+        userId: req.user.id,
+        userName: req.user.name,
+        userType: req.user.type,
+        path: req.path,
+      })
+    } catch {}
+  }
+  next()
+})
+
 // ── Routes protégées ─────────────────────────────────────────────────────────
 app.use('/api/promotions',  require('./routes/promotions'))
 app.use('/api/students',    require('./routes/students'))

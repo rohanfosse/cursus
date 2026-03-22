@@ -22,4 +22,13 @@ router.get('/heatmap', (req, res) => {
   }
 })
 
+router.get('/visits', (req, res) => {
+  try {
+    const data = queries.getVisitStats()
+    res.json({ ok: true, data })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
 module.exports = router

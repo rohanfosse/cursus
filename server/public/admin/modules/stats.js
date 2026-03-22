@@ -4,9 +4,14 @@ import { loadHeatmap } from './heatmap.js'
 export async function loadStats() {
   const el = document.getElementById('stats-content')
   el.innerHTML = 'Chargement...'
-  const json = await apiFetch('/api/admin/stats')
-  if (!json?.ok) { el.innerHTML = 'Erreur de chargement'; return }
-  const d = json.data
+
+  const [statsJson, visitsJson] = await Promise.all([
+    apiFetch('/api/admin/stats'),
+    apiFetch('/api/admin/visits'),
+  ])
+  if (!statsJson?.ok) { el.innerHTML = 'Erreur de chargement'; return }
+  const d = statsJson.data
+  const v = visitsJson?.ok ? visitsJson.data : null
 
   // Messages chart
   const maxMsg = Math.max(...d.messagesPerDay.map(x => x.count), 1)
@@ -26,7 +31,88 @@ export async function loadStats() {
     </div>`
   ).join('')
 
+  // Visits chart
+  let visitsSection = ''
+  if (v) {
+    const maxVisit = Math.max(...(v.visitsPerDay || []).map(x => x.count), 1)
+    const visitBars = (v.visitsPerDay || []).map(x =>
+      `<div class="chart-bar visit-bar" style="height:${Math.max((x.count / maxVisit) * 100, 2)}%" data-tip="${x.day}: ${x.count} visites (${x.unique_users} uniques)"></div>`
+    ).join('')
+
+    // Logins chart
+    const maxLogin = Math.max(...(v.loginsPerDay || []).map(x => x.successful + x.failed), 1)
+    const loginBars = (v.loginsPerDay || []).map(x => {
+      const total = x.successful + x.failed
+      const successPct = total > 0 ? (x.successful / total) * 100 : 100
+      return `<div class="chart-bar-stack" style="height:${Math.max((total / maxLogin) * 100, 2)}%" data-tip="${x.day}: ${x.successful} OK / ${x.failed} \u00e9checs">
+        <div class="bar-success" style="height:${successPct}%"></div>
+        <div class="bar-fail" style="height:${100 - successPct}%"></div>
+      </div>`
+    }).join('')
+
+    // Activity per hour
+    const hours = Array.from({ length: 24 }, (_, i) => {
+      const found = (v.visitsPerHour || []).find(h => h.hour === i)
+      return found ? found.count : 0
+    })
+    const maxHour = Math.max(...hours, 1)
+    const hourBars = hours.map((count, i) =>
+      `<div class="chart-bar hour-bar" style="height:${Math.max((count / maxHour) * 100, 2)}%" data-tip="${i}h: ${count} visites"></div>`
+    ).join('')
+
+    visitsSection = `
+    <div class="section-title">Visites & Connexions</div>
+    <div class="counter-grid">
+      <div class="counter accent"><div class="counter-value">${v.dau}</div><div class="counter-label">Actifs aujourd'hui</div></div>
+      <div class="counter accent"><div class="counter-value">${v.wau}</div><div class="counter-label">Actifs 7 jours</div></div>
+      <div class="counter accent"><div class="counter-value">${v.mau}</div><div class="counter-label">Actifs 30 jours</div></div>
+      <div class="counter"><div class="counter-value" style="color:var(--green)">${v.loginStats.successful}</div><div class="counter-label">Connexions OK (30j)</div></div>
+      <div class="counter"><div class="counter-value" style="color:var(--red)">${v.loginStats.failed}</div><div class="counter-label">\u00c9checs (30j)</div></div>
+    </div>
+
+    <div class="grid">
+      <div class="card wide">
+        <div class="card-title">Visites par jour (30j)</div>
+        <div class="chart-container">${visitBars || '<span style="color:var(--text-muted)">Aucune donn\u00e9e</span>'}</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">Connexions par jour (30j)</div>
+        <div class="chart-container chart-stacked">${loginBars || '<span style="color:var(--text-muted)">Aucune donn\u00e9e</span>'}</div>
+        <div class="chart-legend">
+          <span><span class="legend-dot" style="background:var(--green)"></span>R\u00e9ussies</span>
+          <span><span class="legend-dot" style="background:var(--red)"></span>\u00c9chou\u00e9es</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Activit\u00e9 par heure (7j)</div>
+        <div class="chart-container chart-hours">${hourBars}</div>
+        <div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--text-muted);margin-top:.25rem">
+          <span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span>
+        </div>
+      </div>
+    </div>
+
+    ${v.topPages?.length ? `
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">Pages les plus visit\u00e9es (30j)</div>
+        <table class="data-table">
+          <tr><th>Route</th><th>Visites</th></tr>
+          ${v.topPages.map(p => `<tr><td><code>${escHtml(p.path)}</code></td><td><strong>${p.count}</strong></td></tr>`).join('')}
+        </table>
+      </div>
+    </div>` : ''}
+
+    <hr class="section-divider">`
+  }
+
   el.innerHTML = `
+    ${visitsSection}
+
+    <div class="section-title">Vue d'ensemble</div>
     <div class="counter-grid">
       <div class="counter"><div class="counter-value">${d.counts.students}</div><div class="counter-label">\u00c9tudiants</div></div>
       <div class="counter"><div class="counter-value">${d.counts.teachers}</div><div class="counter-label">Enseignants</div></div>

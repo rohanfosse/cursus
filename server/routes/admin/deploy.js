@@ -9,10 +9,16 @@ const { execSync } = require('child_process')
 
 const ROOT = path.join(__dirname, '../../..')
 
+const isDocker = fs.existsSync('/.dockerenv') || process.env.DOCKER === '1'
+
 function run(cmd) {
   try { return execSync(cmd, { encoding: 'utf8', timeout: 5000 }).trim() }
   catch { return null }
 }
+
+router.get('/deploy-info', (req, res) => {
+  res.json({ ok: true, data: { isDocker, hasGit: fs.existsSync(path.join(ROOT, '.git')) } })
+})
 
 router.get('/git-status', (req, res) => {
   try {

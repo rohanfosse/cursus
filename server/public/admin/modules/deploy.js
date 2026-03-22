@@ -4,6 +4,27 @@ export async function loadDeploy() {
   const el = document.getElementById('deploy-content')
   el.innerHTML = 'Chargement...'
 
+  // Check environment
+  const infoJson = await apiFetch('/api/admin/deploy-info')
+  const isDocker = infoJson?.data?.isDocker
+  const hasGit = infoJson?.data?.hasGit
+
+  if (isDocker && !hasGit) {
+    el.innerHTML = `
+      <div class="deploy-docker-msg">
+        <strong>Mode Docker d\u00e9tect\u00e9</strong><br><br>
+        L'application tourne dans un container Docker. Les op\u00e9rations de d\u00e9ploiement
+        (git pull, rebuild, nginx) doivent \u00eatre ex\u00e9cut\u00e9es depuis la <strong>machine h\u00f4te</strong>.<br><br>
+        Commandes typiques depuis l'h\u00f4te :
+        <pre style="margin-top:.75rem;font-size:.75rem;background:var(--bg);padding:.75rem;border-radius:var(--radius-sm);color:var(--text-secondary);overflow-x:auto">cd /opt/cursus
+git pull origin main
+docker compose build --no-cache
+docker compose up -d --force-recreate
+docker image prune -f</pre>
+      </div>`
+    return
+  }
+
   const json = await apiFetch('/api/admin/git-status')
   if (!json?.ok) { el.innerHTML = '<div class="alert alert-danger">Erreur : ' + escHtml(json?.error || 'impossible de contacter le serveur') + '</div>'; return }
   const g = json.data
@@ -99,7 +120,6 @@ export async function gitPull() {
       <strong>Pull r\u00e9ussi</strong>
       <pre style="margin-top:.5rem;font-size:.7rem;color:var(--text-secondary);white-space:pre-wrap">${escHtml(json.data.output)}</pre>
     </div>`
-    // Rafraîchir le statut après 1s
     setTimeout(loadDeploy, 1000)
   } else {
     out.innerHTML = `<div class="alert alert-danger">

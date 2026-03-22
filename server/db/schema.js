@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 23;
+const CURRENT_VERSION = 24;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -580,6 +580,21 @@ function runMigrations(db) {
           created_at TEXT NOT NULL DEFAULT (datetime('now')),
           UNIQUE(activity_id, student_id)
         );
+      `);
+    },
+    // v24 : métriques de visites (page views / DAU / WAU / MAU)
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS page_visits (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id    INTEGER,
+          user_name  TEXT,
+          user_type  TEXT,
+          path       TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_visits_created ON page_visits(created_at);
+        CREATE INDEX IF NOT EXISTS idx_visits_user ON page_visits(user_id);
       `);
     },
   ];

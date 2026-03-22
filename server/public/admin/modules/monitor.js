@@ -20,7 +20,9 @@ function renderServer(d) {
   const diskPct = d.disk?.percent ?? 0
   const swapPct = d.swap?.total ? Math.round((d.swap.used / d.swap.total) * 100) : 0
 
-  grid.innerHTML = `
+  const heapPct = d.process ? Math.round((d.process.heapUsed / d.process.heapTotal) * 100) : 0
+
+  let html = `
     <div class="card">
       <div class="card-title">CPU</div>
       <div class="card-value">${d.cpu.usage}%</div>
@@ -54,7 +56,42 @@ function renderServer(d) {
       <div class="card-title">Base de donn\u00e9es & Logs</div>
       <div class="card-value">${fmtBytes(d.db.size)}</div>
       <div class="card-sub">DB SQLite \u2014 Logs: ${fmtBytes(d.logs.size)}</div>
-    </div>
+    </div>`
+
+  // ── Process Node (toujours affiché, particulièrement utile en Docker) ──
+  if (d.process) {
+    html += `
+    <div class="card">
+      <div class="card-title">Process Node${d.isDocker ? ' <span class="badge docker-badge">Docker</span>' : ''}</div>
+      <div class="card-value">${fmtBytes(d.process.rss)}</div>
+      <div class="card-sub">
+        Heap: ${fmtBytes(d.process.heapUsed)} / ${fmtBytes(d.process.heapTotal)} (${heapPct}%)
+        \u2014 PID ${d.process.pid}
+      </div>
+      <div class="bar-bg"><div class="bar-fill ${barColor(heapPct)}" style="width:${heapPct}%"></div></div>
+      <div class="card-sub" style="margin-top:.5rem">
+        Uptime process: ${fmtDuration(d.process.uptime)}
+        \u2014 Connexions WS: <strong>${d.socketConnections ?? 0}</strong>
+      </div>
+    </div>`
+  }
+
+  // ── Environnement Docker ──
+  if (d.isDocker && d.env) {
+    html += `
+    <div class="card">
+      <div class="card-title">Environnement</div>
+      <div class="env-list">
+        <div class="env-row"><span class="env-key">NODE_ENV</span><code>${escHtml(d.env.NODE_ENV || '\u2014')}</code></div>
+        <div class="env-row"><span class="env-key">PORT</span><code>${escHtml(d.env.PORT || '\u2014')}</code></div>
+        <div class="env-row"><span class="env-key">DB_PATH</span><code>${escHtml(d.env.DB_PATH || '\u2014')}</code></div>
+      </div>
+    </div>`
+  }
+
+  // ── Services (bare-metal uniquement) ──
+  if (d.services) {
+    html += `
     <div class="card">
       <div class="card-title">Services</div>
       <div class="svc-grid">
@@ -75,17 +112,21 @@ function renderServer(d) {
           </span>
         </div>
       `).join('') : '<div class="card-sub">Aucun certificat d\u00e9tect\u00e9</div>'}
-    </div>
+    </div>`
+  }
+
+  // ── Docker / PM2 (bare-metal : containers détectés, Docker : non disponible) ──
+  if (!d.isDocker && (d.docker?.length || d.pm2?.length)) {
+    html += `
     <div class="card wide">
       <div class="card-title">Container Docker</div>
-      ${d.docker ? `<table class="data-table">
-        <tr><th>Nom</th><th>Status</th><th>Image</th><th>Ports</th><th>Uptime</th></tr>
+      ${d.docker?.length ? `<table class="data-table">
+        <tr><th>Nom</th><th>Status</th><th>Image</th><th>Ports</th></tr>
         ${d.docker.map(c => `<tr>
           <td><strong>${escHtml(c.name)}</strong></td>
           <td><span class="badge ${c.status.includes('Up') ? 'online' : 'stopped'}">${escHtml(c.status)}</span></td>
           <td style="color:var(--text-secondary)">${escHtml(c.image)}</td>
           <td style="color:var(--text-secondary)">${escHtml(c.ports)}</td>
-          <td>${escHtml(c.uptime || '\u2014')}</td>
         </tr>`).join('')}
       </table>` : d.pm2?.length ? `<table class="data-table">
         <tr><th>Nom</th><th>Status</th><th>CPU</th><th>RAM</th><th>Uptime</th><th>Restarts</th></tr>
@@ -95,8 +136,13 @@ function renderServer(d) {
           <td>${p.cpu ?? 0}%</td><td>${fmtBytes(p.memory)}</td>
           <td>${fmtDuration(p.uptime / 1000)}</td><td>${p.restart}</td>
         </tr>`).join('')}
-      </table>` : '<div class="card-sub">Aucun processus d\u00e9tect\u00e9</div>'}
-    </div>
+      </table>` : ''}
+    </div>`
+  }
+
+  // ── Git ──
+  if (d.git?.commit) {
+    html += `
     <div class="card wide">
       <div class="card-title">D\u00e9ploiement Git</div>
       <div class="git-info">
@@ -106,4 +152,13 @@ function renderServer(d) {
         Derni\u00e8re MAJ: <span style="color:var(--text-secondary)">${escHtml(d.git.date || '\u2014')}</span>
       </div>
     </div>`
+  } else if (d.isDocker) {
+    html += `
+    <div class="card wide">
+      <div class="card-title">D\u00e9ploiement</div>
+      <div class="card-sub">Info Git non disponible (container Docker). Utilisez l'onglet D\u00e9ploiement depuis l'h\u00f4te.</div>
+    </div>`
+  }
+
+  grid.innerHTML = html
 }
