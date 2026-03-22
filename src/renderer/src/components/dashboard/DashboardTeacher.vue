@@ -262,10 +262,24 @@ function setTab(tab: DashTabType) {
 
     <TabAccueil
       v-else-if="dashTab === 'accueil'"
+      :a-noter-count="aNoterCount"
+      :submission-rate="submissionRate"
+      :online-students="onlineStudents"
+      :brouillons-count="brouillonsCount"
+      :action-items="actionItems"
+      :global-mode-grade="globalModeGrade"
+      :next48h="next48h"
+      :unread-dm-entries="unreadDmEntries"
+      :total-unread-dms="totalUnreadDms"
+      :forgotten-drafts="forgottenDrafts"
       :project-cards="projectCards"
       :recent-rendus="recentRendus"
       @go-to-project="key => emit('goToProject', key)"
       @open-new-devoir="emit('openNewDevoir')"
+      @open-dm-from-dashboard="name => emit('openDmFromDashboard', name)"
+      @publish-draft="id => emit('publishDraft', id)"
+      @switch-to-frise="setTab('frise')"
+      @open-active-devoir="emit('navigateDevoirs')"
     />
 
     <TabReglages
