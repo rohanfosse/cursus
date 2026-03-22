@@ -3,7 +3,7 @@ import { STORAGE_KEYS } from '@/constants'
 
 interface Prefs {
   docsOpenByDefault: boolean
-  theme: 'dark' | 'light' | 'night' | 'marine' | 'cursus'
+  theme: 'auto' | 'dark' | 'light' | 'night' | 'marine' | 'cursus'
   fontSize: 'small' | 'default' | 'large'
   density: 'compact' | 'default' | 'cozy'
   notifSound: boolean
@@ -15,7 +15,7 @@ interface Prefs {
 
 const DEFAULTS: Prefs = {
   docsOpenByDefault: false,
-  theme: 'dark',
+  theme: 'auto',
   fontSize: 'default',
   density: 'default',
   notifSound: true,
