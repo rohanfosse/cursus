@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Logo v4 : Connexion - C comme noeud central d'un réseau -->
+  <!-- Phase sessions live/groupes : collaboration, communauté -->
+  <defs>
+    <linearGradient id="arc-v4" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#7EB8FF"/>
+      <stop offset="50%" stop-color="#4A90D9"/>
+      <stop offset="100%" stop-color="#2e6dae"/>
+    </linearGradient>
+    <linearGradient id="link-v4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4A90D9" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#9B87F5" stop-opacity="0.4"/>
+    </linearGradient>
+  </defs>
+  <!-- Lignes de connexion (derrière l'arc) -->
+  <line x1="256" y1="256" x2="420" y2="120" stroke="url(#link-v4)" stroke-width="2.5"/>
+  <line x1="256" y1="256" x2="450" y2="256" stroke="url(#link-v4)" stroke-width="2.5"/>
+  <line x1="256" y1="256" x2="420" y2="400" stroke="url(#link-v4)" stroke-width="2.5"/>
+  <line x1="256" y1="256" x2="350" y2="170" stroke="url(#link-v4)" stroke-width="2"/>
+  <line x1="256" y1="256" x2="380" y2="330" stroke="url(#link-v4)" stroke-width="2"/>
+  <line x1="256" y1="256" x2="330" y2="420" stroke="url(#link-v4)" stroke-width="2"/>
+  <!-- Connexions inter-noeuds -->
+  <line x1="420" y1="120" x2="450" y2="256" stroke="#9B87F5" stroke-width="1.5" opacity="0.3"/>
+  <line x1="450" y1="256" x2="420" y2="400" stroke="#9B87F5" stroke-width="1.5" opacity="0.3"/>
+  <line x1="350" y1="170" x2="420" y2="120" stroke="#9B87F5" stroke-width="1.5" opacity="0.3"/>
+  <line x1="380" y1="330" x2="420" y2="400" stroke="#9B87F5" stroke-width="1.5" opacity="0.3"/>
+  <!-- Arc du C -->
+  <path d="M300 90 C185 40, 55 110, 55 256 C55 402, 185 472, 300 422"
+        stroke="url(#arc-v4)" stroke-width="48" stroke-linecap="round" fill="none"/>
+  <!-- Noeud central -->
+  <circle cx="256" cy="256" r="18" fill="#4A90D9"/>
+  <circle cx="256" cy="256" r="10" fill="#7EB8FF"/>
+  <!-- Noeuds externes principaux -->
+  <circle cx="420" cy="120" r="14" fill="#9B87F5"/>
+  <circle cx="420" cy="120" r="7" fill="#b8a9f7"/>
+  <circle cx="450" cy="256" r="14" fill="#4A90D9"/>
+  <circle cx="450" cy="256" r="7" fill="#7EB8FF"/>
+  <circle cx="420" cy="400" r="14" fill="#9B87F5"/>
+  <circle cx="420" cy="400" r="7" fill="#b8a9f7"/>
+  <!-- Noeuds secondaires -->
+  <circle cx="350" cy="170" r="10" fill="#5da3f0"/>
+  <circle cx="350" cy="170" r="5" fill="#a8c8f0"/>
+  <circle cx="380" cy="330" r="10" fill="#7c6dd8"/>
+  <circle cx="380" cy="330" r="5" fill="#b8a9f7"/>
+  <circle cx="330" cy="420" r="10" fill="#5da3f0"/>
+  <circle cx="330" cy="420" r="5" fill="#a8c8f0"/>
+</svg>

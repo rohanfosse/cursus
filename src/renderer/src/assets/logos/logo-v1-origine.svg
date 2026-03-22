@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Logo v1 : Origine - C minimaliste -->
+  <!-- Phase MVP : simplicité, communication de base -->
+  <path d="M320 100 C190 40, 60 120, 60 256 C60 392, 190 472, 320 412"
+        stroke="#4A90D9" stroke-width="42" stroke-linecap="round" fill="none"/>
+</svg>
