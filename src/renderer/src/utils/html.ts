@@ -140,6 +140,9 @@ export function renderMessageContent(raw: string, searchTerm = '', currentUserNa
     return `<span class="devoir-ref" data-devoir-id="${escapeHtml(id)}" role="link" tabindex="0">${escapeHtml(title)}</span>`
   })
   let html = marked.parse(preprocessed) as string
+  // marked encode les apostrophes en &#39; ce qui casse l'affichage du texte francais
+  html = html.replace(/&#39;/g, "'")
+  html = html.replace(/&amp;#39;/g, "'")
   html = applyMentions(html, currentUserName)
   html = applyChannelRefs(html)
   html = applyInlineRefs(html)

@@ -228,8 +228,16 @@ io.on('connection', (socket) => {
   const role = socket.user?.role ?? 'student'
   console.log(`[WS] + ${name}`)
 
-  // Rejoindre la salle de la promo pour les broadcasts ciblés
-  if (socket.user?.promo_id) socket.join(`promo:${socket.user.promo_id}`)
+  // Rejoindre les salles promo pour les broadcasts cibles
+  if (socket.user?.promo_id) {
+    socket.join(`promo:${socket.user.promo_id}`)
+  } else if (socket.user?.type === 'teacher' || socket.user?.type === 'ta') {
+    // Les profs/intervenants rejoignent TOUTES les promos pour recevoir les messages
+    try {
+      const promos = queries.getPromotions?.() ?? []
+      for (const p of promos) socket.join(`promo:${p.id}`)
+    } catch { /* pas critique */ }
+  }
   socket.join('all')
 
   // Salle personnelle pour envoi ciblé (DMs, typing DM)
