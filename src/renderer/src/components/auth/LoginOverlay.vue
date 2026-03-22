@@ -26,7 +26,9 @@
     try {
       const res = await window.api.loginWithCredentials(email.value.trim(), password.value)
       if (!res?.ok || !res.data) {
-        loginErr.value = res?.error ?? 'Email ou mot de passe incorrect.'
+        const serverErr = (res as { error?: string })?.error
+        loginErr.value = serverErr ?? 'Email ou mot de passe incorrect.'
+        console.warn('[Login] Reponse serveur:', JSON.stringify(res))
         password.value = ''
         return
       }
@@ -39,12 +41,9 @@
       }
       router.replace('/dashboard')
     } catch (e: unknown) {
-      const msg = (e as Error)?.message ?? ''
-      if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed')) {
-        loginErr.value = 'Impossible de contacter le serveur. Vérifiez votre connexion.'
-      } else {
-        loginErr.value = msg || 'Erreur inattendue lors de la connexion.'
-      }
+      const msg = (e as Error)?.message ?? String(e)
+      console.error('[Login] Erreur:', msg)
+      loginErr.value = msg || 'Erreur inattendue lors de la connexion.'
     } finally {
       submitting.value = false
     }
@@ -216,7 +215,10 @@
             </label>
 
             <Transition name="err-pop">
-              <div v-if="loginErr" class="auth-error">{{ loginErr }}</div>
+              <div v-if="loginErr" class="auth-error">
+                {{ loginErr }}
+                <button v-if="loginErr.includes('→')" type="button" class="auth-error-retry" @click="handleLogin">Reessayer</button>
+              </div>
             </Transition>
 
             <button type="submit" class="auth-submit" :disabled="submitting">

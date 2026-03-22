@@ -5,6 +5,7 @@ import { io, Socket } from 'socket.io-client'
 const SERVER_URL: string = process.env.VITE_SERVER_URL || (
   process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : 'https://app.cursus.school'
 )
+console.log('[Preload] SERVER_URL =', SERVER_URL, '| NODE_ENV =', process.env.NODE_ENV, '| VITE_SERVER_URL =', process.env.VITE_SERVER_URL ?? '(unset)')
 
 /** Décodage base64 protégé contre les données corrompues */
 function safeAtob(b64: string): string {
@@ -120,9 +121,15 @@ async function apiFetch(path: string, options: RequestInit = {}, retries = MAX_R
       }
     } catch (e: unknown) {
       const isAbort = e instanceof Error && e.name === 'AbortError'
+      const errMsg = e instanceof Error ? e.message : String(e)
+      const errCode = (e as NodeJS.ErrnoException)?.code ?? ''
+      console.warn(`[API] ${path} tentative ${attempt + 1}/${retries + 1} echouee:`, errMsg, errCode ? `(${errCode})` : '')
       if (attempt === retries) {
-        console.warn(`[API] ${path} échoué après ${retries + 1} tentative(s):`, isAbort ? 'timeout' : (e as Error).message)
-        return { ok: false, error: isAbort ? 'Délai d\'attente dépassé' : 'Erreur réseau - vérifiez votre connexion' }
+        const detail = isAbort
+          ? `Timeout apres ${FETCH_TIMEOUT / 1000}s sur ${SERVER_URL}${path}`
+          : `${errMsg}${errCode ? ` [${errCode}]` : ''} → ${SERVER_URL}${path}`
+        console.error(`[API] ECHEC FINAL: ${detail}`)
+        return { ok: false, error: detail }
       }
       // Backoff avant retry (1s, 3s)
       await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
