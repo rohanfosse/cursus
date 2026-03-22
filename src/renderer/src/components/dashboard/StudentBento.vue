@@ -4,7 +4,7 @@
  * quels widgets afficher et dans quel ordre.
  */
 <script setup lang="ts">
-import { computed, ref, type Component } from 'vue'
+import { computed, ref, watch, nextTick, type Component } from 'vue'
 import { Settings, Smile } from 'lucide-vue-next'
 import { useBentoPrefs } from '@/composables/useBentoPrefs'
 import type { StudentProjectCard } from '@/composables/useDashboardStudent'
@@ -34,7 +34,20 @@ const emit = defineEmits<{
 }>()
 
 const showCustomizer = ref(false)
+const gearBtnRef = ref<HTMLButtonElement | null>(null)
+const customizerRef = ref<InstanceType<typeof BentoCustomizer> | null>(null)
 const { visibleWidgets, allWidgets, isVisible, toggleWidget, moveWidget, resetDefaults } = useBentoPrefs()
+
+watch(showCustomizer, (visible) => {
+  nextTick(() => {
+    if (visible) {
+      const el = customizerRef.value?.$el as HTMLElement | undefined
+      el?.focus()
+    } else {
+      gearBtnRef.value?.focus()
+    }
+  })
+})
 
 // ── Computed data for widgets ──────────────────────────────────────────────
 const activeProject = computed(() => {
@@ -102,7 +115,7 @@ const widgetEvents: Record<string, Record<string, (...args: unknown[]) => void>>
 }
 
 const showAllClear = computed(() =>
-  !nextExams.value.length && !nextLivrables.value.length && !nextSoutenances.value.length && props.hasDevoirsLoaded,
+  !nextExams.value.length && !nextLivrables.value.length && !nextSoutenances.value.length && props.hasDevoirsLoaded && props.studentProjectCards.length > 0,
 )
 </script>
 
@@ -111,9 +124,11 @@ const showAllClear = computed(() =>
 
     <div class="sa-header">
       <button
+        ref="gearBtnRef"
         class="sa-customize-btn"
         :class="{ 'sa-customize-btn--active': showCustomizer }"
         title="Personnaliser"
+        aria-label="Personnaliser le tableau de bord"
         @click="showCustomizer = !showCustomizer"
       >
         <Settings :size="14" />
@@ -122,6 +137,7 @@ const showAllClear = computed(() =>
 
     <Transition name="sa-customizer">
       <BentoCustomizer
+        ref="customizerRef"
         v-if="showCustomizer"
         :all-widgets="allWidgets"
         :is-visible="isVisible"

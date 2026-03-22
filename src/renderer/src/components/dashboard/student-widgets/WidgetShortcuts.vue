@@ -6,6 +6,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Hash } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
+import { STORAGE_KEYS } from '@/constants'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -13,7 +14,7 @@ const recentChannels = ref<{ id: number; name: string }[]>([])
 
 onMounted(() => {
   try {
-    const raw = localStorage.getItem('cc_recent_channels')
+    const raw = localStorage.getItem(STORAGE_KEYS.RECENT_CHANNELS)
     if (raw) recentChannels.value = (JSON.parse(raw) as { id: number; name: string }[]).slice(0, 4)
   } catch { /* ignore */ }
 })

@@ -85,8 +85,10 @@ export function useBentoPrefs() {
         prefs.value.order.push(id)
       }
     } else {
-      // Hide: add to hidden
+      // Hide: add to hidden, remove from order
       prefs.value.hidden.push(id)
+      const orderIdx = prefs.value.order.indexOf(id)
+      if (orderIdx >= 0) prefs.value.order.splice(orderIdx, 1)
     }
   }
 

@@ -21,7 +21,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="hasLive" class="sa-live" @click="router.push('/live')">
+  <div v-if="hasLive" class="sa-live" role="button" tabindex="0" aria-label="Rejoindre la session live en cours" @click="router.push('/live')" @keydown.enter="router.push('/live')">
     <Radio :size="16" class="sa-live-icon" />
     <span class="sa-live-dot" />
     <span class="sa-live-text">Session live en cours : <strong>{{ liveStore.currentSession?.title }}</strong></span>

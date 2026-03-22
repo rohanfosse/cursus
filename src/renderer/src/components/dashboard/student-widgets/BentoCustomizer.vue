@@ -20,7 +20,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="bc-panel">
+  <div class="bc-panel" tabindex="-1">
     <div class="bc-header">
       <span class="bc-title">Personnaliser le tableau de bord</span>
       <button class="bc-reset" @click="emit('reset')">
@@ -64,7 +64,7 @@ const emit = defineEmits<{
               :checked="isVisible(w.id)"
               @change="emit('toggle', w.id)"
             />
-            <span class="bc-toggle-track" />
+            <span class="bc-toggle-track" role="switch" :aria-checked="isVisible(w.id)" :aria-label="'Afficher ' + w.label" />
           </label>
         </div>
       </div>

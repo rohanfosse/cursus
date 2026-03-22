@@ -21,7 +21,7 @@ const emit = defineEmits<{ goToProject: [key: string] }>()
       <span class="sa-section-label">{{ exams.length > 1 ? 'Prochaines épreuves' : 'Prochaine épreuve' }}</span>
     </div>
     <div class="sa-next-list">
-      <div v-for="e in exams" :key="e.id" class="sa-next-item" @click="emit('goToProject', e.category ?? '')">
+      <div v-for="e in exams" :key="e.id" class="sa-next-item" role="button" tabindex="0" :aria-label="'Voir l\'épreuve ' + e.title" @click="emit('goToProject', e.category ?? '')" @keydown.enter="emit('goToProject', e.category ?? '')">
         <span class="sa-next-type devoir-type-badge" :class="`type-${e.type}`">{{ typeLabel(e.type ?? 'cctl') }}</span>
         <span class="sa-next-title">{{ e.title }}</span>
         <span class="deadline-badge" :class="deadlineClass(e.deadline!)">{{ deadlineLabel(e.deadline!) }}</span>

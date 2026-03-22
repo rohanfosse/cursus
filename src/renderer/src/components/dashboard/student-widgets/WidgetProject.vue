@@ -17,7 +17,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div v-if="project" class="sa-card sa-project" @click="emit('goToProject', project.key)">
+  <div v-if="project" class="sa-card sa-project" role="button" tabindex="0" aria-label="Voir le projet en cours" @click="emit('goToProject', project.key)" @keydown.enter="emit('goToProject', project.key)">
     <div class="sa-card-header">
       <FolderOpen :size="14" class="sa-card-icon" />
       <span class="sa-section-label">Projet en cours</span>
