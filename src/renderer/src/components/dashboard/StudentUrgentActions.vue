@@ -51,7 +51,7 @@ function countdown(deadline?: string): string {
 .db-urgent-list { margin-bottom: 16px; }
 .db-urgent-title {
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px;
 }
 .db-urgent-item {
@@ -75,6 +75,6 @@ function countdown(deadline?: string): string {
 }
 .all-done-check { color: var(--color-success); animation: pop .4s ease; }
 @keyframes pop { 0% { transform: scale(0); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
-.db-urgent-countdown { font-size: 10px; font-weight: 700; color: var(--color-warning); background: rgba(243,156,18,.12); padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+.db-urgent-countdown { font-size: 10px; font-weight: 700; color: var(--color-warning); background: rgba(243,156,18,.12); padding: 2px 6px; border-radius: 6px; flex-shrink: 0; }
 .db-voir-tous { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; margin-top: 6px; }
 </style>

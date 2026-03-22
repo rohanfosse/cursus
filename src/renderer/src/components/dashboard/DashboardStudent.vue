@@ -200,7 +200,7 @@ const emit = defineEmits<{
 }
 .db-welcome-card {
   background: rgba(255,255,255,.02); border: 1px solid var(--border);
-  border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px;
+  border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 4px;
 }
 .db-welcome-card strong {
   font-size: 13px; font-weight: 700; color: var(--text-primary);

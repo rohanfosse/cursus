@@ -92,7 +92,7 @@ const gradeTrend = computed(() => {
 <style scoped>
 .db-urgent-title {
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px;
 }
 .db-recent-grades { margin-bottom: 16px; }
@@ -104,9 +104,9 @@ const gradeTrend = computed(() => {
 }
 .db-recent-grade-title { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
 .db-grade-badge { font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 6px; }
-.db-grade-badge.grade-a { background: rgba(39,174,96,.15); color: #27ae60; }
-.db-grade-badge.grade-b { background: rgba(39,174,96,.08); color: #2ecc71; }
-.db-grade-badge.grade-c { background: rgba(243,156,18,.12); color: #e67e22; }
+.db-grade-badge.grade-a { background: rgba(39,174,96,.15); color: var(--color-success); }
+.db-grade-badge.grade-b { background: rgba(74,144,217,.15); color: var(--accent); }
+.db-grade-badge.grade-c { background: rgba(243,156,18,.12); color: var(--color-warning); }
 .db-grade-badge.grade-d { background: rgba(231,76,60,.12); color: var(--color-danger); }
 
 /* ── Feedback cards ── */

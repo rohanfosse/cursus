@@ -257,7 +257,7 @@ function gradeColor(note: string | null | undefined): string {
   transition: all .15s;
 }
 .stl-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
-.stl-tab.active { border-color: var(--color-cctl); background: rgba(155,135,245,.12); color: var(--color-cctl); }
+.stl-tab.active { border-color: var(--accent); background: var(--accent-subtle); color: var(--accent); }
 
 .stl-search-wrap {
   display: flex;
@@ -369,7 +369,7 @@ function gradeColor(note: string | null | undefined): string {
   min-width: 0;
   padding: 8px 12px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: rgba(255,255,255,.02);
   margin-bottom: 8px;
   display: flex;
@@ -390,7 +390,7 @@ function gradeColor(note: string | null | undefined): string {
 .stl-type-badge {
   font-size: 10px;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
   flex-shrink: 0;
 }
@@ -480,5 +480,5 @@ function gradeColor(note: string | null | undefined): string {
   color: var(--text-muted);
   font-size: 13px;
 }
-.stl-empty-icon { opacity: .3; }
+.stl-empty-icon { opacity: .3; color: var(--text-muted); }
 </style>

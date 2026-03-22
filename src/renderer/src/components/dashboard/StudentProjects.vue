@@ -67,8 +67,9 @@ const emit = defineEmits<{
 
 .db-empty-hint {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 60px 20px; color: var(--text-muted); font-size: 13px; text-align: center; gap: 4px;
+  padding: 60px 20px; color: var(--text-muted); font-size: 13px; text-align: center; gap: 6px;
 }
+.db-empty-hint :deep(svg) { opacity: .3; }
 
 .db-project-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -107,7 +108,7 @@ const emit = defineEmits<{
   background: rgba(255,255,255,.06); overflow: hidden;
 }
 .db-student-fill {
-  height: 100%; border-radius: 2px; background: #9B87F5; transition: width .3s ease;
+  height: 100%; border-radius: 2px; background: var(--color-cctl); transition: width .3s ease;
 }
 .db-student-fill.fill-done { background: var(--color-success); }
 .db-student-fill.fill-overdue { background: var(--color-danger); }

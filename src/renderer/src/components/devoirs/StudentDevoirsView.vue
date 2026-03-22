@@ -225,13 +225,13 @@ const depositProps = computed(() => ({
 
 .empty-icon {
   color: var(--text-muted);
-  opacity: 0.35;
+  opacity: 0.3;
   margin-bottom: 16px;
 }
 
 .empty-state-custom h3 {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 6px;
 }

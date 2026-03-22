@@ -105,9 +105,9 @@ function isExpired(deadline: string | null | undefined): boolean {
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
   margin-bottom: 4px;
   width: 100%;
   border: none;

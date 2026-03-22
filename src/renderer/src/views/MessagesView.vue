@@ -365,19 +365,19 @@
       </p>
       <div v-if="appStore.isStudent" class="welcome-tips">
         <div class="welcome-tip">
-          <span class="welcome-tip-icon">💬</span>
+          <MessageSquare :size="16" class="welcome-tip-icon" />
           <span><strong>Canaux</strong> - Échangez avec votre promo dans les canaux à gauche</span>
         </div>
         <div class="welcome-tip">
-          <span class="welcome-tip-icon">📝</span>
+          <ClipboardList :size="16" class="welcome-tip-icon" />
           <span><strong>Devoirs</strong> - Consultez et rendez vos travaux dans l'onglet Devoirs</span>
         </div>
         <div class="welcome-tip">
-          <span class="welcome-tip-icon">👤</span>
+          <Users :size="16" class="welcome-tip-icon" />
           <span><strong>Messages directs</strong> - Cliquez sur un nom dans le chat pour lui écrire en privé</span>
         </div>
         <div class="welcome-tip">
-          <span class="welcome-tip-icon">🐛</span>
+          <FileText :size="16" class="welcome-tip-icon" />
           <span><strong>Feedback</strong> - Signalez un bug ou suggérez une amélioration via le bouton en bas à gauche</span>
         </div>
       </div>
