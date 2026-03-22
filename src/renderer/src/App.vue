@@ -321,8 +321,7 @@
     <!-- Barre de titre custom (fenêtre sans chrome natif) -->
     <TitleBar />
 
-    <!-- En-tête global (étudiants uniquement) -->
-    <AppHeader v-if="!appStore.isStaff" />
+    <!-- AppHeader retire pour tous les utilisateurs -->
 
     <!-- Colonnes nav + sidebar + main -->
     <div class="app-columns">
