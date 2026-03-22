@@ -15,6 +15,7 @@
   <a href="https://github.com/rohanfosse/cursus/releases"><img src="https://img.shields.io/github/v/release/rohanfosse/cursus?style=flat-square&label=version&color=22c55e" alt="Version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/rohanfosse/cursus?style=flat-square" alt="License" /></a>
   <a href="https://github.com/rohanfosse/cursus/stargazers"><img src="https://img.shields.io/github/stars/rohanfosse/cursus?style=flat-square" alt="Stars" /></a>
+  <a href="https://app.cursus.school"><img src="https://img.shields.io/website?url=https%3A%2F%2Fapp.cursus.school&style=flat-square&label=app&logo=statuspage&logoColor=white" alt="App Status" /></a>
 </p>
 
 <p align="center">
@@ -24,6 +25,7 @@
   <img src="https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite" />
   <img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
   <img src="https://img.shields.io/badge/PWA-5A0FC8?style=flat-square&logo=pwa&logoColor=white" alt="PWA" />
+  <img src="https://img.shields.io/badge/SSL-A+-22c55e?style=flat-square&logo=letsencrypt&logoColor=white" alt="SSL A+" />
 </p>
 
 <p align="center">
