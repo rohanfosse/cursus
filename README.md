@@ -175,7 +175,7 @@ Workflow : `dev` > Pull Request > `main` (tests CI obligatoires).
 
 ## Securite
 
-Voir [SECURITY.md](SECURITY.md). Pour signaler une vulnerabilite : rohan.fosse@viacesi.fr
+Voir [SECURITY.md](SECURITY.md).
 
 <br />
 
