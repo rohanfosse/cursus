@@ -1,4 +1,8 @@
-<h1 align="center">Cursus</h1>
+<p align="center">
+  <img src="src/web/public/assets/icon-512.png" alt="Cursus" width="80" />
+  <br />
+  <strong style="font-size: 2em;">Cursus</strong>
+</p>
 
 <p align="center">
   <strong>La plateforme de communication pensée pour l'enseignement.</strong>
