@@ -19,9 +19,10 @@ function validatePasswordStrength(pwd) {
   if (!/[^A-Za-z0-9]/.test(pwd))    throw new Error('Le mot de passe doit contenir au moins un caractère spécial.');
 }
 
-/** Génère un mot de passe aléatoire temporaire (pour imports CSV). */
+/** Mot de passe par défaut pour les comptes créés sans mot de passe explicite. */
+const DEFAULT_PASSWORD = 'Cursus2026!';
 function generateTempPassword() {
-  return crypto.randomBytes(12).toString('base64url');
+  return DEFAULT_PASSWORD;
 }
 
 /** Compare un mot de passe avec un hash stocké.
@@ -157,8 +158,7 @@ function registerStudent({ name, email, promoId, photoData, password }) {
   if (existing) throw new Error('Cette adresse email est déjà utilisée.');
 
   const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  const plain    = (password ?? '').trim();
-  if (!plain) throw new Error('Le mot de passe est obligatoire.');
+  const plain    = (password ?? '').trim() || DEFAULT_PASSWORD;
   validatePasswordStrength(plain);
   const hashed   = hashPassword(plain);
 
