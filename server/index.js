@@ -148,10 +148,13 @@ app.get('/admin-monitor', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public/admin/index.html'))
 })
 
-// ── Landing page vitrine (page d'accueil) ──────────────────────────────────
+// ── Landing page vitrine (uniquement sur cursus.school, pas app.cursus.school) ─
 const LANDING = path.join(__dirname, '../src/landing/index.html')
 if (fs.existsSync(LANDING)) {
-  app.get('/', (_req, res) => {
+  app.get('/', (req, res, next) => {
+    const host = req.hostname || req.headers.host || ''
+    // Ne servir la landing que si le hostname est cursus.school (pas app.cursus.school)
+    if (host.startsWith('app.') || host.includes('localhost')) return next()
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate')
     res.sendFile(LANDING)
   })
@@ -177,7 +180,12 @@ if (fs.existsSync(WEB_DIST)) {
     },
   }))
 
-  app.get(/^(?!\/api|\/socket\.io|\/uploads|\/health|\/$).*/, (_req, res) => {
+  // SPA fallback : toutes les routes non-API servent index.html (routing Vue)
+  app.get('*', (req, res, next) => {
+    // Skip API, socket, uploads, health, admin-monitor
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io') ||
+        req.path.startsWith('/uploads') || req.path === '/health' ||
+        req.path === '/admin-monitor') return next()
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate')
     res.sendFile(path.join(WEB_DIST, 'index.html'))
   })
