@@ -321,6 +321,7 @@ nav[aria-label="Messages directs"] {
 
 /* Items de la barre latérale */
 .sidebar-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -342,6 +343,14 @@ nav[aria-label="Messages directs"] {
   text-overflow: ellipsis;
   transition: background var(--t-fast), color var(--t-fast);
 }
+
+.sidebar-item::before {
+  content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+  width: 2px; background: var(--accent); border-radius: 1px;
+  transform: scaleY(0); transition: transform 0.15s ease;
+}
+.sidebar-item:hover::before { transform: scaleY(1); }
+.sidebar-item.active::before { transform: scaleY(1); }
 
 .sidebar-item:hover {
   background: var(--bg-hover);

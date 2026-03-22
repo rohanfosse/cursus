@@ -55,7 +55,7 @@ const dashOffset = computed(() =>
         stroke-linecap="round"
         :stroke-dasharray="circumference"
         :stroke-dashoffset="dashOffset"
-        :style="{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }"
+        :style="{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', filter: `drop-shadow(0 0 3px ${color})` }"
       />
     </svg>
     <span class="micro-ring-label">{{ value }}/{{ total }}</span>

@@ -55,7 +55,13 @@ const emit = defineEmits<{
 .db-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .db-header-left { display: flex; align-items: center; gap: 12px; }
 .db-header-icon { color: var(--accent); }
-.db-title { font-size: 20px; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
+.db-title {
+  font-size: 20px; font-weight: 800; line-height: 1.2;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 .db-date  { font-size: 12px; color: var(--text-muted); margin-top: 2px; text-transform: capitalize; }
 .db-echeancier-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 8px 14px; flex-shrink: 0; min-height: 36px; }
 .header-badge {

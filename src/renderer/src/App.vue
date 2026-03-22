@@ -9,8 +9,9 @@
   import { useToast }       from '@/composables/useToast'
   import Toast        from '@/components/ui/Toast.vue'
   import ConfirmModal from '@/components/ui/ConfirmModal.vue'
-  import NavRail  from '@/components/layout/NavRail.vue'
-  import TitleBar from '@/components/layout/TitleBar.vue'
+  import NavRail    from '@/components/layout/NavRail.vue'
+  import TitleBar   from '@/components/layout/TitleBar.vue'
+  import AppHeader  from '@/components/layout/AppHeader.vue'
   import SidebarWrapper from '@/components/sidebar/SidebarWrapper.vue'
   import LoginOverlay        from '@/components/auth/LoginOverlay.vue'
   import ChangePasswordModal from '@/components/modals/ChangePasswordModal.vue'
@@ -281,6 +282,9 @@
   <div v-else id="app-shell" class="app-shell">
     <!-- Barre de titre custom (fenêtre sans chrome natif) -->
     <TitleBar />
+
+    <!-- En-tête global -->
+    <AppHeader />
 
     <!-- Colonnes nav + sidebar + main -->
     <div class="app-columns">

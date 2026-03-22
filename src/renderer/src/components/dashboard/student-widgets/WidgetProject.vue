@@ -6,6 +6,7 @@ import { FolderOpen, ChevronRight, Clock } from 'lucide-vue-next'
 import { deadlineLabel } from '@/utils/date'
 import type { StudentProjectCard } from '@/composables/useDashboardStudent'
 import MicroRing from '@/components/ui/MicroRing.vue'
+import CountdownArc from '@/components/ui/CountdownArc.vue'
 
 const props = defineProps<{
   project: StudentProjectCard | null
@@ -30,6 +31,7 @@ const emit = defineEmits<{
       <span v-if="project.overdue" class="sa-badge sa-badge--danger">{{ project.overdue }} en retard</span>
     </div>
     <div v-if="project.nextDeadline" class="sa-project-deadline">
+      <CountdownArc :deadline="project.nextDeadline" :size="20" />
       <Clock :size="12" />
       <span>Prochaine échéance : <strong class="sa-mono">{{ deadlineLabel(project.nextDeadline) }}</strong></span>
     </div>

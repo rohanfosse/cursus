@@ -5,6 +5,7 @@
 import { computed } from 'vue'
 import { CheckCircle, ArrowRight } from 'lucide-vue-next'
 import { deadlineLabel, deadlineClass } from '@/utils/date'
+import CountdownArc from '@/components/ui/CountdownArc.vue'
 
 interface Action {
   id: number
@@ -51,6 +52,7 @@ const countdownLabel = computed(() => {
       </div>
       <div class="sb-next-action-meta">
         <span v-if="action.category" class="sb-next-action-cat">{{ action.category }}</span>
+        <CountdownArc :deadline="action.deadline" :size="18" />
         <span class="sb-next-action-deadline" :class="{ overdue: action.isOverdue }">
           {{ countdownLabel }}
         </span>

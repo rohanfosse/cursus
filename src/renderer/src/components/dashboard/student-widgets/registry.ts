@@ -6,6 +6,7 @@
 import type { Component } from 'vue'
 import {
   Radio, FolderOpen, Award, FileText, Mic, Hash, BookOpen,
+  MessageSquare, FileBox, Activity,
 } from 'lucide-vue-next'
 
 export interface WidgetDef {
@@ -24,4 +25,7 @@ export const STUDENT_WIDGETS: WidgetDef[] = [
   { id: 'soutenances', label: 'Soutenances', icon: Mic, description: 'Présentations à venir', defaultEnabled: true },
   { id: 'shortcuts', label: 'Conversations', icon: Hash, description: 'Accès rapide aux canaux récents', defaultEnabled: true },
   { id: 'actions', label: 'Raccourcis', icon: BookOpen, description: 'Liens rapides', defaultEnabled: true },
+  { id: 'feedback', label: 'Dernier retour', icon: MessageSquare, description: 'Dernier retour sur un devoir', defaultEnabled: true },
+  { id: 'recentDoc', label: 'Document récent', icon: FileBox, description: 'Dernier document partagé', defaultEnabled: true },
+  { id: 'promoActivity', label: 'Activité promo', icon: Activity, description: 'Présence et rendus de la promo', defaultEnabled: true },
 ]
