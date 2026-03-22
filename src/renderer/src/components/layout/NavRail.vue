@@ -2,7 +2,7 @@
   import { computed, ref, watch } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
   import { MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame, Search, Shield, Bug, Radio } from 'lucide-vue-next'
-  import logoUrl from '@/assets/logo.svg'
+  import logoUrl from '@/assets/logo.png'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
   import { useTravauxStore } from '@/stores/travaux'

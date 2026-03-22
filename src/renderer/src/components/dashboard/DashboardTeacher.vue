@@ -181,32 +181,7 @@ function setTab(tab: DashTabType) {
       :submission-trend="submissionTrend"
     />
 
-    <TeacherWidgets
-      v-if="dashTab === 'accueil'"
-      :unread-dm-entries="unreadDmEntries"
-      :total-unread-dms="totalUnreadDms"
-      :saved-messages="savedMessages"
-      :unread-mentions="unreadMentions"
-      :total-unread-mentions="totalUnreadMentions"
-      :recent-channel-activity="recentChannelActivity"
-      :next48h="next48h"
-      :forgotten-drafts="forgottenDrafts"
-      :devoirs-without-resources="devoirsWithoutResources"
-      @open-dm-from-dashboard="name => emit('openDmFromDashboard', name)"
-      @remove-saved-message="id => emit('removeSavedMessage', id)"
-      @go-to-saved-message="msg => emit('goToSavedMessage', msg)"
-      @go-to-channel="(chId, chName) => emit('goToChannel', chId, chName)"
-      @publish-draft="id => emit('publishDraft', id)"
-      @open-gestion-devoir="id => emit('openGestionDevoir', id)"
-    />
-
-    <TeacherReminders
-      v-if="dashTab === 'accueil'"
-      :this-week-reminders="thisWeekReminders"
-      :done-this-week="doneThisWeek"
-      :total-this-week="totalThisWeek"
-      @toggle-reminder="(id, done) => emit('toggleReminder', id, done)"
-    />
+    <!-- Widgets et rappels retires du dashboard prof (infos deja dans le bento) -->
 
     <!-- Tabs -->
     <div class="db-tabs">
