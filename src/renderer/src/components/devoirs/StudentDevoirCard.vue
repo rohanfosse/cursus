@@ -395,12 +395,12 @@ const showDepositForm = props.variant !== 'overdue' && props.variant !== 'event'
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border: 1.5px solid #27AE60;
+  border: 1.5px solid var(--color-success);
   border-radius: 8px;
   background: rgba(39, 174, 96, 0.08);
 }
 
-.deposit-file-selected-icon { color: #27AE60; flex-shrink: 0; }
+.deposit-file-selected-icon { color: var(--color-success); flex-shrink: 0; }
 
 .deposit-file-selected-name {
   flex: 1;
@@ -487,7 +487,7 @@ const showDepositForm = props.variant !== 'overdue' && props.variant !== 'event'
 /* ── Badges de type ──────────────────────────────────────────────────────── */
 .devoir-type-badge {
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 2px 7px;

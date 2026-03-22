@@ -100,8 +100,9 @@ const emit = defineEmits<{
 .db-tab-content { display: flex; flex-direction: column; gap: 0; }
 .db-empty-hint {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 60px 20px; color: var(--text-muted); font-size: 13px; text-align: center; gap: 4px;
+  padding: 60px 20px; color: var(--text-muted); font-size: 13px; text-align: center; gap: 6px;
 }
+.db-empty-hint :deep(svg) { opacity: .3; }
 
 .db-frise-outer { flex: 1; min-height: 0; overflow: hidden; padding-top: 12px; }
 .frise-wrap {
@@ -182,10 +183,10 @@ const emit = defineEmits<{
 .frise-ms-cctl .frise-ms-dot { border-radius: 2px; transform: rotate(45deg); }
 .frise-ms-livrable .frise-ms-dot     { background: var(--accent); }
 .frise-ms-soutenance .frise-ms-dot   { background: var(--color-warning); }
-.frise-ms-cctl .frise-ms-dot         { background: #9b87f5; }
+.frise-ms-cctl .frise-ms-dot         { background: var(--color-cctl); }
 .frise-ms-etude_de_cas .frise-ms-dot { background: var(--color-success); }
-.frise-ms-memoire .frise-ms-dot      { background: #e74c3c; }
-.frise-ms-autre .frise-ms-dot        { background: #95a5a6; }
+.frise-ms-memoire .frise-ms-dot      { background: var(--color-danger); }
+.frise-ms-autre .frise-ms-dot        { background: var(--color-autre); }
 .frise-ms-draft .frise-ms-dot { opacity: .35; }
 .frise-ms-done .frise-ms-dot { filter: brightness(1.2); box-shadow: 0 0 0 2px rgba(255,255,255,.2); }
 .frise-ms-label {
@@ -201,4 +202,12 @@ const emit = defineEmits<{
 .frise-ms-date { font-size: 8.5px; color: var(--text-muted); font-weight: 500; }
 .frise-interactive { cursor: grab; user-select: none; }
 .frise-grabbing    { cursor: grabbing; }
+
+@media (max-width: 600px) {
+  .frise-label-col { width: 120px; min-width: 120px; font-size: 10px; }
+  .frise-row { height: 72px; }
+  .frise-project-label { padding: 0 6px 0 8px; font-size: 11px; }
+  .frise-ms-title { font-size: 8px; max-width: 60px; }
+  .frise-ms-date { font-size: 7.5px; }
+}
 </style>

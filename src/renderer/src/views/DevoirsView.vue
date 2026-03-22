@@ -191,5 +191,6 @@ watch(() => appStore.activeChannelId, () => {
 .devoirs-content {
   flex: 1;
   overflow-y: auto;
+  padding: 20px;
 }
 </style>

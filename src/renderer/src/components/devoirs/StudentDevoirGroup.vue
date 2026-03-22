@@ -58,7 +58,7 @@ function isExpired(deadline: string | null | undefined): boolean {
 
 <template>
   <template v-if="devoirs.length">
-    <button class="group-header" :class="[headerClass, { 'group-header--clickable': true }]" :title="title" role="button" :aria-expanded="!collapsed" tabindex="0" @click="toggleCollapse">
+    <button class="group-header" :class="[headerClass, { 'group-header--clickable': true }]" :title="title" :aria-expanded="!collapsed" :aria-label="`${label} — ${count} devoir${typeof count === 'number' && count > 1 ? 's' : ''}`" @click="toggleCollapse">
       <component :is="icon" :size="12" /> {{ label }}
       <span class="group-count">{{ count }}</span>
       <ChevronDown :size="12" class="group-chevron" :class="{ 'group-chevron--collapsed': collapsed }" />
@@ -105,9 +105,9 @@ function isExpired(deadline: string | null | undefined): boolean {
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
   margin-bottom: 4px;
   width: 100%;
   border: none;

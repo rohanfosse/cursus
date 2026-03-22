@@ -400,7 +400,7 @@
   gap: 10px;
 }
 
-.docs-header-icon { color: #27AE60; flex-shrink: 0; }
+.docs-header-icon { color: var(--accent); flex-shrink: 0; }
 
 .docs-header-title-block {
   display: flex;
@@ -593,9 +593,9 @@
 }
 
 .doc-card:hover {
-  border-color: rgba(255,255,255,.18);
-  box-shadow: 0 4px 16px rgba(0,0,0,.18);
-  transform: translateY(-2px) scale(1.015);
+  border-color: rgba(74,144,217,.3);
+  box-shadow: 0 2px 12px rgba(0,0,0,.15);
+  background: rgba(74,144,217,.07);
 }
 
 .doc-card--skel {
@@ -705,8 +705,8 @@
   text-align: center;
 }
 
-.docs-empty-icon { color: var(--text-muted); opacity: .4; }
-.docs-empty-title { font-size: 16px; font-weight: 600; color: var(--text-secondary); }
+.docs-empty-icon { color: var(--text-muted); opacity: .3; }
+.docs-empty-title { font-size: 15px; font-weight: 600; color: var(--text-secondary); }
 .docs-empty-sub   { font-size: 13px; color: var(--text-muted); }
 
 /* ── Form ajout ── */
@@ -780,7 +780,7 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 24px 14px;
+  padding: 20px 14px;
   border: 1.5px dashed var(--border-input);
   border-radius: var(--radius-sm);
   background: rgba(255,255,255,.02);
@@ -807,13 +807,13 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border: 1.5px solid #27AE60;
+  border: 1.5px solid var(--color-success);
   border-radius: var(--radius-sm);
   background: rgba(39,174,96,.08);
 }
 
 .docs-file-selected-icon {
-  color: #27AE60;
+  color: var(--color-success);
   flex-shrink: 0;
 }
 
@@ -956,7 +956,7 @@
   padding: 1px 6px;
   border-radius: 8px;
   background: rgba(39, 174, 96, .18);
-  color: #27AE60;
+  color: var(--color-success);
   vertical-align: middle;
   margin-left: 4px;
 }

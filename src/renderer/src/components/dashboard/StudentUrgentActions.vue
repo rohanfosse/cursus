@@ -29,21 +29,21 @@ function countdown(deadline?: string): string {
 <template>
   <div v-if="urgentActions.length" class="db-urgent-list">
     <h4 class="db-urgent-title"><Clock :size="14" /> À rendre prochainement</h4>
-    <div v-for="ua in urgentActions" :key="ua.id" class="db-urgent-item" :class="{ 'db-urgent-item--overdue': ua.isOverdue }" @click="emit('goToProject', ua.category ?? '')">
+    <button v-for="ua in urgentActions" :key="ua.id" class="db-urgent-item" :class="{ 'db-urgent-item--overdue': ua.isOverdue }" :aria-label="`Voir le projet : ${ua.title}`" @click="emit('goToProject', ua.category ?? '')">
       <AlertTriangle v-if="ua.isOverdue" :size="14" class="db-urgent-icon--danger" />
       <Clock v-else :size="14" style="opacity:.5" />
       <span class="db-urgent-item-title">{{ ua.title }}</span>
       <span v-if="countdown(ua.deadline)" class="db-urgent-countdown">{{ countdown(ua.deadline) }}</span>
       <span class="db-urgent-item-urgency" :class="{ 'text-danger': ua.isOverdue }">{{ ua.urgency }}</span>
       <ChevronRight :size="12" style="opacity:.3" />
-    </div>
-    <button class="btn-ghost db-voir-tous" @click="emit('navigateDevoirs')">
+    </button>
+    <button class="btn-ghost db-voir-tous" aria-label="Voir tous mes devoirs" @click="emit('navigateDevoirs')">
       Voir tous les devoirs <ArrowRight :size="12" />
     </button>
   </div>
   <div v-else-if="hasDevoirsLoaded" class="db-all-done">
     <CheckCircle2 :size="22" class="all-done-check" />
-    <span>Bravo, tout est a jour ! Aucun devoir en attente.</span>
+    <span>Bravo, tout est à jour ! Aucun devoir en attente.</span>
   </div>
 </template>
 
@@ -51,14 +51,15 @@ function countdown(deadline?: string): string {
 .db-urgent-list { margin-bottom: 16px; }
 .db-urgent-title {
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px;
 }
 .db-urgent-item {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; width: 100%;
   padding: 8px 12px; border-radius: 8px; cursor: pointer;
   background: rgba(255,255,255,.02); transition: background .15s;
   margin-bottom: 4px; font-size: 13px; color: var(--text-primary);
+  border: none; font-family: var(--font); text-align: left;
 }
 .db-urgent-item:hover { background: rgba(255,255,255,.06); }
 .db-urgent-item--overdue { background: rgba(231,76,60,.06); }
@@ -75,6 +76,6 @@ function countdown(deadline?: string): string {
 }
 .all-done-check { color: var(--color-success); animation: pop .4s ease; }
 @keyframes pop { 0% { transform: scale(0); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
-.db-urgent-countdown { font-size: 10px; font-weight: 700; color: var(--color-warning); background: rgba(243,156,18,.12); padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+.db-urgent-countdown { font-size: 10px; font-weight: 700; color: var(--color-warning); background: rgba(243,156,18,.12); padding: 2px 6px; border-radius: 6px; flex-shrink: 0; }
 .db-voir-tous { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; margin-top: 6px; }
 </style>

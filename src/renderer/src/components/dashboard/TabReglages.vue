@@ -120,13 +120,13 @@ const emit = defineEmits<{
         </div>
       </div>
 
-      <!-- Card 6: A propos -->
+      <!-- Card 6: À propos -->
       <div class="tr-card" style="--card-accent: #94a3b8">
         <div class="tr-card-icon-wrap" style="--icon-bg: rgba(148,163,184,.12)">
           <Info :size="18" style="color: #94a3b8" />
         </div>
         <div class="tr-card-body">
-          <h4 class="tr-card-title">A propos</h4>
+          <h4 class="tr-card-title">À propos</h4>
           <p class="tr-card-desc">Informations sur la plateforme et statistiques.</p>
           <div class="tr-about-stats">
             <span>Version Cursus v2.0.0</span>
@@ -136,7 +136,7 @@ const emit = defineEmits<{
           </div>
         </div>
         <div class="tr-card-footer">
-          <span class="tr-card-update">Derniere mise a jour : mars 2026</span>
+          <span class="tr-card-update">Dernière mise à jour : mars 2026</span>
         </div>
       </div>
     </div>

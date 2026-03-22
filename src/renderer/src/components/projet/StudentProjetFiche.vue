@@ -360,7 +360,7 @@ function fileTypeIcon(name: string): typeof FileText {
       <!-- Prochaine échéance banner -->
       <div v-if="nextDeadlineSoon" class="spf-deadline-banner">
         <AlertTriangle :size="14" />
-        <span><strong>Prochaine echeance :</strong> {{ nextDeadlineSoon.title }} &mdash; {{ nextDeadlineSoon.label }}</span>
+        <span><strong>Prochaine échéance :</strong> {{ nextDeadlineSoon.title }} &mdash; {{ nextDeadlineSoon.label }}</span>
       </div>
     </header>
 
@@ -473,7 +473,7 @@ function fileTypeIcon(name: string): typeof FileText {
           <template v-if="devoirsEvent.length">
             <div class="spf-section-label spf-section-toggle" style="margin-top:16px" @click="toggleSection('events')">
               <component :is="collapsedSections.events ? ChevronRight : ChevronDown" :size="12" />
-              <CalendarDays :size="12" /> Evenements
+              <CalendarDays :size="12" /> Événements
               <span class="spf-section-count">{{ devoirsEvent.length }}</span>
             </div>
             <div v-show="!collapsedSections.events" class="spf-devoir-list">
@@ -512,7 +512,7 @@ function fileTypeIcon(name: string): typeof FileText {
                   <CheckCircle2 :size="14" class="spf-done-check" />
                 </div>
                 <div class="spf-card-sub">
-                  <span class="spf-card-date">Echeance : {{ formatDate(t.deadline) }}</span>
+                  <span class="spf-card-date">Échéance : {{ formatDate(t.deadline) }}</span>
                 </div>
                 <!-- Note + feedback -->
                 <div v-if="t.note" class="spf-grade-row">

@@ -115,9 +115,9 @@ function gradeColor(note: string | null | undefined): string {
       <div class="stl-filter-bar">
         <div class="stl-tabs">
           <button class="stl-tab" :class="{ active: activeFilter === 'all' }" @click="activeFilter = 'all'">Tous</button>
-          <button class="stl-tab" :class="{ active: activeFilter === 'pending' }" @click="activeFilter = 'pending'">A rendre</button>
+          <button class="stl-tab" :class="{ active: activeFilter === 'pending' }" @click="activeFilter = 'pending'">À rendre</button>
           <button class="stl-tab" :class="{ active: activeFilter === 'done' }" @click="activeFilter = 'done'">Rendus</button>
-          <button class="stl-tab" :class="{ active: activeFilter === 'event' }" @click="activeFilter = 'event'">Evenements</button>
+          <button class="stl-tab" :class="{ active: activeFilter === 'event' }" @click="activeFilter = 'event'">Événements</button>
         </div>
         <div class="stl-search-wrap">
           <Search :size="12" class="stl-search-icon" />
@@ -143,8 +143,8 @@ function gradeColor(note: string | null | undefined): string {
           <span class="stl-leg-item stl-leg-done" :class="{ 'stl-leg-off': !legendFilters.done }" @click="toggleLegend('done')"><CheckCircle2 :size="11" /> Rendu</span>
           <span class="stl-leg-item stl-leg-urgent" :class="{ 'stl-leg-off': !legendFilters.urgent }" @click="toggleLegend('urgent')"><AlertTriangle :size="11" /> Urgent</span>
           <span class="stl-leg-item stl-leg-overdue" :class="{ 'stl-leg-off': !legendFilters.overdue }" @click="toggleLegend('overdue')"><Clock :size="11" /> En retard</span>
-          <span class="stl-leg-item stl-leg-event" :class="{ 'stl-leg-off': !legendFilters.event }" @click="toggleLegend('event')"><CalendarDays :size="11" /> Evenement</span>
-          <span class="stl-leg-item stl-leg-pending" :class="{ 'stl-leg-off': !legendFilters.pending }" @click="toggleLegend('pending')"><Upload :size="11" /> A rendre</span>
+          <span class="stl-leg-item stl-leg-event" :class="{ 'stl-leg-off': !legendFilters.event }" @click="toggleLegend('event')"><CalendarDays :size="11" /> Événement</span>
+          <span class="stl-leg-item stl-leg-pending" :class="{ 'stl-leg-off': !legendFilters.pending }" @click="toggleLegend('pending')"><Upload :size="11" /> À rendre</span>
         </div>
 
         <!-- Mois groupés -->
@@ -257,7 +257,7 @@ function gradeColor(note: string | null | undefined): string {
   transition: all .15s;
 }
 .stl-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
-.stl-tab.active { border-color: var(--color-cctl); background: rgba(155,135,245,.12); color: var(--color-cctl); }
+.stl-tab.active { border-color: var(--accent); background: var(--accent-subtle); color: var(--accent); }
 
 .stl-search-wrap {
   display: flex;
@@ -369,7 +369,7 @@ function gradeColor(note: string | null | undefined): string {
   min-width: 0;
   padding: 8px 12px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: rgba(255,255,255,.02);
   margin-bottom: 8px;
   display: flex;
@@ -390,7 +390,7 @@ function gradeColor(note: string | null | undefined): string {
 .stl-type-badge {
   font-size: 10px;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
   flex-shrink: 0;
 }
@@ -480,5 +480,5 @@ function gradeColor(note: string | null | undefined): string {
   color: var(--text-muted);
   font-size: 13px;
 }
-.stl-empty-icon { opacity: .3; }
+.stl-empty-icon { opacity: .3; color: var(--text-muted); }
 </style>

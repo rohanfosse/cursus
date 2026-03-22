@@ -124,7 +124,7 @@ const depositProps = computed(() => ({
   <div v-else-if="filteredDevoirs.length === 0" class="empty-state-custom">
     <CheckCircle2 :size="48" class="empty-icon" />
     <h3>Aucun devoir assigné</h3>
-    <p>Vos devoirs apparaitront ici des qu'un enseignant en creera pour votre promotion.</p>
+    <p>Vos devoirs apparaîtront ici dès qu'un enseignant en créera pour votre promotion.</p>
   </div>
 
   <!-- Aperçu par projet -->
@@ -251,13 +251,13 @@ const depositProps = computed(() => ({
 
 .empty-icon {
   color: var(--text-muted);
-  opacity: 0.35;
+  opacity: 0.3;
   margin-bottom: 16px;
 }
 
 .empty-state-custom h3 {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 6px;
 }

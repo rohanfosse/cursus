@@ -48,7 +48,7 @@ const appStore = useAppStore()
   gap: 6px;
   padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-sidebar);
   cursor: pointer;
   text-align: left;
@@ -56,8 +56,8 @@ const appStore = useAppStore()
   transition: background var(--t-fast), border-color var(--t-fast);
 }
 .student-proj-card:hover {
-  background: var(--bg-hover);
-  border-color: var(--color-cctl);
+  background: rgba(74,144,217,.07);
+  border-color: rgba(74,144,217,.3);
 }
 
 .student-proj-label { font-size: 13px; font-weight: 700; color: var(--text-primary); }
@@ -66,15 +66,15 @@ const appStore = useAppStore()
 .student-proj-pending   { color: var(--color-warning); }
 
 .student-proj-bar {
-  height: 4px;
-  border-radius: 4px;
-  background: rgba(255,255,255,.08);
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,255,255,.06);
   overflow: hidden;
 }
 .student-proj-bar-fill {
   height: 100%;
-  border-radius: 4px;
-  background: var(--color-success);
+  border-radius: 2px;
+  background: var(--accent);
   transition: width .3s ease;
 }
 </style>
