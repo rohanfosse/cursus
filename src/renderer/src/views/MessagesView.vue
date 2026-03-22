@@ -11,7 +11,8 @@
   import MessageInput        from '@/components/chat/MessageInput.vue'
   import PinnedBanner        from '@/components/chat/PinnedBanner.vue'
   import ChannelMembersPanel from '@/components/panels/ChannelMembersPanel.vue'
-  import ChannelDocsPanel    from '@/components/panels/ChannelDocsPanel.vue'
+  import ChannelDocsPanel      from '@/components/panels/ChannelDocsPanel.vue'
+  import ChannelTravauxPanel   from '@/components/panels/ChannelTravauxPanel.vue'
   import { deadlineClass } from '@/utils/date'
 
   const props = defineProps<{ toggleSidebar?: () => void }>()
@@ -25,14 +26,14 @@
 
   const searchInput      = ref('')
   const bannerDismissed  = ref(false)
-  const rightPanel       = ref<'members' | 'docs' | null>(null)
+  const rightPanel       = ref<'members' | 'docs' | 'travaux' | null>(null)
 
   // ── Rafraîchir les DMs en temps réel ────────────────────────────────────
   function onDmLive() { messagesStore.fetchMessages() }
   onMounted(() => appStore.onDmRefresh(onDmLive))
   onUnmounted(() => appStore.offDmRefresh(onDmLive))
 
-  function togglePanel(panel: 'members' | 'docs') {
+  function togglePanel(panel: 'members' | 'docs' | 'travaux') {
     rightPanel.value = rightPanel.value === panel ? null : panel
   }
 
@@ -242,8 +243,9 @@
           id="btn-timeline"
           class="btn-icon"
           title="Échéancier"
-          aria-label="Ouvrir l'échéancier"
-          @click="modals.timeline = true"
+          :class="{ active: rightPanel === 'travaux' }"
+          aria-label="Travaux du canal"
+          @click="togglePanel('travaux')"
         >
           <CalendarRange :size="16" />
         </button>
@@ -347,6 +349,12 @@
       <Transition name="panel-slide">
         <ChannelDocsPanel
           v-if="rightPanel === 'docs' && appStore.activeChannelId"
+          @close="rightPanel = null"
+        />
+      </Transition>
+      <Transition name="panel-slide">
+        <ChannelTravauxPanel
+          v-if="rightPanel === 'travaux' && appStore.activeChannelId"
           @close="rightPanel = null"
         />
       </Transition>
