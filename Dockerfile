@@ -38,7 +38,7 @@ RUN mkdir -p /data/db /data/uploads logs
 
 ENV NODE_ENV=production
 ENV PORT=3001
-ENV DB_PATH=/data/db/cesi-classroom.db
+ENV DB_PATH=/data/db/cursus.db
 ENV UPLOAD_DIR=/data/uploads
 
 EXPOSE 3001

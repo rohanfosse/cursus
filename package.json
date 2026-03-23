@@ -119,7 +119,7 @@
     "publish": {
       "provider": "github",
       "owner": "rohanfosse",
-      "repo": "slack-like-electron"
+      "repo": "cursus"
     },
     "compression": "maximum",
     "nsis": {

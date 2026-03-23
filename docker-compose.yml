@@ -16,7 +16,7 @@ services:
       - PORT=3001
       - JWT_SECRET=${JWT_SECRET}
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
-      - DB_PATH=/data/db/cesi-classroom.db
+      - DB_PATH=/data/db/cursus.db
       - UPLOAD_DIR=/data/uploads
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
