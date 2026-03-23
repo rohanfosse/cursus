@@ -312,7 +312,7 @@
       <!-- Liste des projets (section Devoirs) -->
       <template v-else-if="route.name === 'devoirs'">
         <div class="sidebar-section-header">
-          <span>Projets</span>
+          <span>{{ appStore.isStaff ? 'Projets' : 'Mes projets' }}</span>
         </div>
 
         <nav aria-label="Projets" class="sidebar-projects-nav">
@@ -375,7 +375,7 @@
       <!-- Liste des projets (section Documents) -->
       <template v-else-if="route.name === 'documents'">
         <div class="sidebar-section-header">
-          <span>Projets</span>
+          <span>{{ appStore.isStaff ? 'Projets' : 'Mes projets' }}</span>
         </div>
 
         <nav aria-label="Filtrer les documents par projet">
@@ -766,15 +766,17 @@
   width: 100%;
   background: transparent;
   border: none;
-  padding: 4px 12px 4px 10px;
+  padding: 5px 12px 4px 10px;
+  margin-top: 6px;
   cursor: pointer;
   color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .05em;
+  letter-spacing: .06em;
   font-family: var(--font);
   transition: color var(--t-fast);
+  border-top: 1px solid rgba(255,255,255,.04);
 }
 
 .sidebar-category-header:hover { color: var(--text-secondary); }
