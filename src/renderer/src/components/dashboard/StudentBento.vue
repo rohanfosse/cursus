@@ -1,10 +1,9 @@
 /**
- * StudentBento.vue - Dashboard etudiant en grille bento (style prof).
- * Affiche les widgets dans une grille 4 colonnes avec tuile focus.
+ * StudentBento.vue - Dashboard etudiant en grille bento compacte.
  */
 <script setup lang="ts">
 import { computed, ref, watch, nextTick, type Component } from 'vue'
-import { Settings, CheckCircle2, Clock, AlertTriangle, ChevronRight, Award, BookOpen, Percent, FileText } from 'lucide-vue-next'
+import { Settings, CheckCircle2, Clock, AlertTriangle, Award, BookOpen, Percent, FileText } from 'lucide-vue-next'
 import { useBentoPrefs } from '@/composables/useBentoPrefs'
 import { nextUpcoming } from '@/utils/devoirFilters'
 import type { StudentProjectCard } from '@/composables/useDashboardStudent'
@@ -153,6 +152,9 @@ const submissionRate = computed(() =>
     ? Math.round(((props.studentStats.submitted + props.studentStats.graded) / totalDevoirs.value) * 100)
     : 0,
 )
+
+// Rouge uniquement si devoirs en retard, pas juste "a rendre"
+const pendingIsAlert = computed(() => overdueCount.value > 0)
 </script>
 
 <template>
@@ -191,18 +193,21 @@ const submissionRate = computed(() =>
     <!-- ═══ BENTO GRID ═══ -->
     <div class="bento-grid">
 
-      <!-- FOCUS TILE (2x2) -->
+      <!-- ROW 1: Focus (2 cols) + 2 stats -->
       <div class="dashboard-card bento-tile bento-focus" :class="focusBgClass">
-        <div class="focus-icon">
-          <AlertTriangle v-if="focusState.type === 'overdue'" :size="28" />
-          <Clock v-else-if="focusState.type === 'pending'" :size="28" />
-          <CheckCircle2 v-else :size="28" />
+        <div class="focus-row">
+          <div class="focus-icon">
+            <AlertTriangle v-if="focusState.type === 'overdue'" :size="20" />
+            <Clock v-else-if="focusState.type === 'pending'" :size="20" />
+            <CheckCircle2 v-else :size="20" />
+          </div>
+          <div class="focus-text">
+            <h2 class="focus-title">{{ focusState.title }}</h2>
+            <p class="focus-subtitle">{{ focusState.subtitle }}</p>
+          </div>
         </div>
-        <h2 class="focus-title">{{ focusState.title }}</h2>
-        <p class="focus-subtitle">{{ focusState.subtitle }}</p>
       </div>
 
-      <!-- STAT: Soumission % -->
       <div class="dashboard-card bento-tile bento-stat">
         <div class="stat-ring">
           <svg viewBox="0 0 36 36" class="stat-ring-svg">
@@ -219,31 +224,29 @@ const submissionRate = computed(() =>
         </div>
         <span class="stat-number">{{ submissionRate }}%</span>
         <span class="stat-label">soumis</span>
-        <Percent :size="14" class="stat-icon" />
+        <Percent :size="12" class="stat-icon" />
       </div>
 
-      <!-- STAT: En attente -->
-      <div class="dashboard-card bento-tile bento-stat" :class="{ 'stat--alert': studentStats.pending > 0 }">
+      <div class="dashboard-card bento-tile bento-stat" :class="{ 'stat--alert': pendingIsAlert }">
         <span class="stat-number">{{ studentStats.pending }}</span>
-        <span class="stat-label">a rendre</span>
-        <FileText :size="14" class="stat-icon" />
+        <span class="stat-label">à rendre</span>
+        <FileText :size="12" class="stat-icon" />
       </div>
 
-      <!-- STAT: Moyenne -->
+      <!-- ROW 2: 2 more stats (take 1 col each) + promo activity (2 cols) -->
       <div class="dashboard-card bento-tile bento-stat">
         <span class="stat-number">{{ studentStats.modeGrade ?? '--' }}</span>
         <span class="stat-label">moyenne</span>
-        <Award :size="14" class="stat-icon" />
+        <Award :size="12" class="stat-icon" />
       </div>
 
-      <!-- STAT: Notes obtenues -->
       <div class="dashboard-card bento-tile bento-stat">
         <span class="stat-number">{{ studentStats.graded }}</span>
         <span class="stat-label">notes</span>
-        <BookOpen :size="14" class="stat-icon" />
+        <BookOpen :size="12" class="stat-icon" />
       </div>
 
-      <!-- WIDGET AREA: remaining widgets in 2-col spans -->
+      <!-- WIDGET AREA -->
       <template v-for="w in visibleWidgets.filter(w => w.id !== 'live')" :key="w.id">
         <div class="bento-tile bento-widget">
           <component
@@ -254,7 +257,7 @@ const submissionRate = computed(() =>
         </div>
       </template>
 
-    </div><!-- /.bento-grid -->
+    </div>
   </div>
 </template>
 
@@ -262,18 +265,15 @@ const submissionRate = computed(() =>
 .sb-bento {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding-top: 14px;
+  gap: 10px;
+  padding-top: 10px;
 }
 
 /* ── Header ── */
-.sb-header {
-  display: flex;
-  justify-content: flex-end;
-}
+.sb-header { display: flex; justify-content: flex-end; }
 .sa-customize-btn {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px; border-radius: 8px;
+  width: 28px; height: 28px; border-radius: 8px;
   background: var(--bg-elevated); border: 1px solid var(--border);
   color: var(--text-muted); cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -289,79 +289,76 @@ const submissionRate = computed(() =>
 .bento-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: minmax(100px, auto);
-  gap: 12px;
+  grid-auto-rows: minmax(auto, auto);
+  gap: 10px;
 }
 
-/* ── Focus tile (2x2) ── */
+/* ── Focus tile (2x1 compact) ── */
 .bento-focus {
   grid-column: span 2;
-  grid-row: span 2;
-  display: flex; flex-direction: column;
-  align-items: flex-start; justify-content: center;
-  gap: 8px; padding: 28px 24px;
-  border-radius: 14px;
+  padding: 16px 18px;
+  border-radius: 12px;
   transition: all .3s;
 }
+.focus-row {
+  display: flex; align-items: center; gap: 12px;
+}
+.focus-icon { flex-shrink: 0; }
+.focus-text { min-width: 0; }
+.focus-title {
+  font-size: 15px; font-weight: 700; color: var(--text-primary);
+  margin: 0; line-height: 1.3;
+}
+.focus-subtitle {
+  font-size: 12px; color: var(--text-muted); margin: 2px 0 0;
+}
 .focus--critical {
-  background: rgba(231, 76, 60, 0.08);
-  border-color: rgba(231, 76, 60, 0.2);
+  background: rgba(231, 76, 60, 0.06);
+  border-color: rgba(231, 76, 60, 0.18);
 }
 .focus--critical .focus-icon { color: #e74c3c; }
 .focus--warning {
-  background: rgba(243, 156, 18, 0.08);
-  border-color: rgba(243, 156, 18, 0.2);
+  background: rgba(243, 156, 18, 0.06);
+  border-color: rgba(243, 156, 18, 0.18);
 }
 .focus--warning .focus-icon { color: #f39c12; }
 .focus--clear {
-  background: rgba(46, 204, 113, 0.06);
-  border-color: rgba(46, 204, 113, 0.2);
+  background: rgba(46, 204, 113, 0.05);
+  border-color: rgba(46, 204, 113, 0.15);
 }
 .focus--clear .focus-icon { color: var(--color-success); }
-.focus-icon { margin-bottom: 4px; }
-.focus-title {
-  font-size: 20px; font-weight: 700; color: var(--text-primary);
-  margin: 0; line-height: 1.2;
-}
-.focus-subtitle {
-  font-size: 13px; color: var(--text-muted); margin: 0;
-}
 
-/* ── Stat tiles (1x1) ── */
+/* ── Stat tiles (1x1 compact) ── */
 .bento-stat {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  gap: 4px; text-align: center;
-  min-height: 100px; position: relative;
-  border-radius: 14px;
+  gap: 2px; text-align: center;
+  padding: 14px 10px;
+  position: relative; border-radius: 12px;
 }
 .stat-number {
-  font-size: 28px; font-weight: 700;
+  font-size: 22px; font-weight: 700;
   color: var(--text-primary); line-height: 1;
 }
 .stat-label {
-  font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .05em;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em;
   color: var(--text-muted);
 }
 .stat-icon {
-  position: absolute; top: 10px; right: 10px;
-  color: var(--text-muted); opacity: .4;
+  position: absolute; top: 8px; right: 8px;
+  color: var(--text-muted); opacity: .3;
 }
-.stat-ring { position: relative; width: 40px; height: 40px; }
+.stat-ring { position: relative; width: 32px; height: 32px; }
 .stat-ring-svg { width: 100%; height: 100%; }
 
 .stat--alert {
-  background: rgba(231, 76, 60, 0.06);
-  border-color: rgba(231, 76, 60, 0.2);
+  background: rgba(231, 76, 60, 0.05);
+  border-color: rgba(231, 76, 60, 0.18);
 }
 .stat--alert .stat-number { color: #e74c3c; }
-.stat-online-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--color-success);
-}
 
-/* ── Widget tiles (span 2 cols) ── */
+/* ── Widget tiles ── */
 .bento-widget {
   grid-column: span 2;
 }
@@ -375,7 +372,7 @@ const submissionRate = computed(() =>
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .bento-grid { grid-template-columns: repeat(2, 1fr); }
-  .bento-focus { grid-column: span 2; grid-row: span 1; }
+  .bento-focus { grid-column: span 2; }
 }
 @media (max-width: 480px) {
   .bento-grid { grid-template-columns: 1fr; }

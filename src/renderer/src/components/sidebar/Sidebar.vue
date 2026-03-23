@@ -250,7 +250,7 @@
         <!-- Liste des projets (enrichie) -->
         <template v-if="allProjects.length">
           <div class="sidebar-section-header" style="margin-top:8px">
-            <span>Projets</span>
+            <span>{{ appStore.isStaff ? 'Projets' : 'Mes projets' }}</span>
             <button
               v-if="appStore.isTeacher"
               class="btn-icon"
