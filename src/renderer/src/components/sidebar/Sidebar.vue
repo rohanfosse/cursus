@@ -881,6 +881,7 @@
 .sidebar-collapsible-header {
   display: flex !important;
   align-items: center;
+  justify-content: flex-start;
   gap: 4px;
   cursor: pointer;
   user-select: none;
