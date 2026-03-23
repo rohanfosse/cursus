@@ -20,7 +20,8 @@ const emit = defineEmits<{
 <template>
   <div v-if="project" class="dashboard-card sa-card sa-project" role="button" tabindex="0" aria-label="Voir le projet en cours" @click="emit('goToProject', project.key)" @keydown.enter="emit('goToProject', project.key)">
     <div class="sa-card-header">
-      <FolderOpen :size="14" class="sa-card-icon" />
+      <component :is="project.icon" v-if="project.icon" :size="14" class="sa-card-icon" />
+      <FolderOpen v-else :size="14" class="sa-card-icon" />
       <span class="sa-section-label">Projet en cours</span>
       <ChevronRight :size="13" class="sa-chevron" />
     </div>

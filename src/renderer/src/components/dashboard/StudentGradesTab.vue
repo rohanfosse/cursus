@@ -7,6 +7,7 @@
 import { computed, ref } from 'vue'
 import { Award } from 'lucide-vue-next'
 import { formatDate } from '@/utils/date'
+import { parseCategoryIcon } from '@/utils/categoryIcon'
 
 export interface GradedDevoir {
   id: number
@@ -106,7 +107,7 @@ function toggleExpand(id: number) {
       >
         <div class="sgt-card-top">
           <div class="sgt-card-left">
-            <span v-if="d.category" class="sgt-card-cat">{{ d.category }}</span>
+            <span v-if="d.category" class="sgt-card-cat">{{ parseCategoryIcon(d.category).label }}</span>
             <span class="sgt-card-title">{{ d.title }}</span>
           </div>
           <span class="sgt-card-badge" :class="'sgt-badge--' + d.note.toLowerCase()">{{ d.note }}</span>
