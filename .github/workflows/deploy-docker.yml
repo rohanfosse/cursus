@@ -52,6 +52,8 @@ jobs:
       - name: Call /deploy webhook
         run: |
           STATUS=$(curl -s -o /tmp/deploy_resp.json -w "%{http_code}" \
+            --max-time 30 --connect-timeout 15 \
+            --retry 3 --retry-delay 5 --retry-connrefused \
             -X POST "${{ secrets.VITE_SERVER_URL }}/webhook/deploy" \
             -H "x-deploy-secret: ${{ secrets.DEPLOY_SECRET }}" \
             -H "Content-Type: application/json")
