@@ -208,3 +208,137 @@ function toggleSection(key: string) { collapsedSections.value[key] = !collapsedS
     </div>
   </template>
 </template>
+
+<style scoped>
+/* ── Section headers ── */
+.spf-section-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-muted); margin-bottom: 6px;
+}
+.spf-section-toggle { cursor: pointer; user-select: none; }
+.spf-section-toggle:hover { color: var(--text-secondary); }
+.spf-section-count {
+  font-size: 10px; font-weight: 600;
+  background: var(--bg-hover); padding: 1px 5px;
+  border-radius: 8px; color: var(--text-muted);
+}
+
+.spf-devoir-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Card ── */
+.spf-devoir-card {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; background: var(--bg-elevated);
+  display: flex; flex-direction: column; gap: 6px;
+  transition: background var(--t-fast);
+}
+.spf-card--overdue { border-color: rgba(231,76,60,.3); background: rgba(231,76,60,.04); }
+.spf-card--urgent  { border-color: rgba(243,156,18,.3); background: rgba(243,156,18,.04); }
+.spf-card--event   { border-color: rgba(155,135,245,.25); background: rgba(155,135,245,.04); }
+.spf-card--done    { opacity: .75; }
+
+.spf-card-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.spf-type-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+.type-livrable     { background: rgba(74,144,217,.2);   color: var(--accent); }
+.type-soutenance   { background: rgba(243,156,18,.2);   color: var(--color-warning); }
+.type-cctl         { background: rgba(123,104,238,.2);  color: var(--color-cctl); }
+.type-etude_de_cas { background: rgba(39,174,96,.2);    color: var(--color-success); }
+.type-memoire      { background: rgba(231,76,60,.2);    color: var(--color-danger); }
+.type-autre        { background: rgba(127,140,141,.2);  color: var(--color-autre); }
+
+.spf-card-title { flex: 1; font-size: 13.5px; font-weight: 600; color: var(--text-primary); min-width: 0; }
+.spf-deadline-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 600; padding: 2px 6px;
+  border-radius: 8px; flex-shrink: 0;
+}
+.deadline-ok       { background: rgba(39,174,96,.1);  color: var(--color-success); }
+.deadline-warning  { background: rgba(243,156,18,.1); color: #F39C12; }
+.deadline-soon     { background: rgba(243,156,18,.12); color: var(--color-warning); }
+.deadline-critical,
+.deadline-passed   { background: rgba(231,76,60,.12); color: #ff7b6b; }
+
+.spf-card-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.spf-card-date  { font-size: 11px; color: var(--text-muted); }
+.spf-card-group { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--color-cctl); }
+.spf-card-desc  { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.4; }
+
+/* ── Done ── */
+.spf-done-check { color: var(--color-success); margin-left: auto; flex-shrink: 0; }
+.badge-new {
+  font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 8px;
+  background: rgba(74,144,217,.15); color: var(--accent);
+}
+
+/* ── Grade ── */
+.spf-grade-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.spf-grade-badge { font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 6px; flex-shrink: 0; }
+.grade-a { background: rgba(39,174,96,.15); color: var(--color-success); }
+.grade-b { background: rgba(74,144,217,.15); color: var(--accent); }
+.grade-c { background: rgba(243,156,18,.15); color: var(--color-warning); }
+.grade-d { background: rgba(231,76,60,.15); color: var(--color-danger); }
+.grade-letter { background: rgba(155,135,245,.15); color: var(--color-cctl); }
+
+.spf-feedback-text { font-size: 11.5px; font-style: italic; color: var(--text-secondary); flex: 1; }
+.spf-grade-pending { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); font-style: italic; }
+
+/* ── Event ── */
+.spf-event-notice {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--color-cctl);
+  background: rgba(155,135,245,.08); padding: 4px 10px;
+  border-radius: 6px; width: fit-content;
+}
+
+/* ── Actions ── */
+.spf-card-actions { display: flex; justify-content: flex-end; }
+.spf-btn-deposit { font-size: 12px; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px; }
+.spf-btn-expired {
+  font-size: 11px; padding: 4px 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: var(--text-muted);
+  cursor: not-allowed; display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font);
+}
+
+/* ── Deposit form ── */
+.spf-deposit-form {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px; background: var(--bg-elevated);
+  border-radius: 8px; border: 1px solid var(--border-input);
+}
+.spf-deposit-toggle { display: flex; gap: 4px; }
+.spf-toggle-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border: 1px solid var(--border-input);
+  border-radius: 5px; background: transparent; color: var(--text-muted);
+  font-size: 11.5px; font-family: var(--font); cursor: pointer; transition: all .15s;
+}
+.spf-toggle-btn.active { border-color: var(--color-cctl); background: rgba(155,135,245,.12); color: var(--color-cctl); }
+.spf-file-zone {
+  border: 2px dashed var(--border-input); border-radius: 8px;
+  padding: 20px; display: flex; flex-direction: column;
+  align-items: center; gap: 6px; cursor: pointer;
+  color: var(--text-muted); font-size: 12px;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.spf-file-zone:hover { border-color: var(--color-cctl); background: rgba(155,135,245,.05); }
+.spf-file-zone--drag { border-color: var(--color-cctl); background: rgba(155,135,245,.10); border-style: solid; }
+.spf-file-zone-icon { opacity: .5; }
+.spf-file-selected {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background: rgba(39,174,96,.06);
+  border: 1px solid rgba(39,174,96,.2); border-radius: 6px;
+}
+.spf-file-ok { color: var(--color-success); flex-shrink: 0; }
+.spf-file-name { flex: 1; font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spf-file-clear {
+  background: transparent; border: none; color: var(--text-muted);
+  cursor: pointer; padding: 2px; display: flex; align-items: center;
+  border-radius: 4px; flex-shrink: 0; transition: color var(--t-fast);
+}
+.spf-file-clear:hover { color: var(--color-danger); }
+.spf-deposit-actions { display: flex; justify-content: flex-end; gap: 6px; }
+</style>
