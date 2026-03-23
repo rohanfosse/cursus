@@ -15,8 +15,9 @@ const router = createRouter({
     { path: '/devoirs',    component: DevoirsView,    name: 'devoirs'    },
     { path: '/travaux',    redirect: '/devoirs' },
     { path: '/documents',  component: DocumentsView,  name: 'documents'  },
-    { path: '/live',       component: () => import('@/views/LiveView.vue'), name: 'live' },
-    { path: '/rex',        component: () => import('@/views/RexView.vue'),  name: 'rex'  },
+    { path: '/live',       component: () => import('@/views/LiveView.vue'),   name: 'live'   },
+    { path: '/rex',        component: () => import('@/views/RexView.vue'),   name: 'rex'    },
+    { path: '/agenda',     component: () => import('@/views/AgendaView.vue'), name: 'agenda' },
   ],
 })
 

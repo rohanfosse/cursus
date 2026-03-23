@@ -15,6 +15,7 @@ import { deadlineClass, deadlineLabel } from '@/utils/date'
 import type { Devoir, Rubric } from '@/types'
 import StudentProjetFiche    from '@/components/projet/StudentProjetFiche.vue'
 import StudentStatsBar       from './StudentStatsBar.vue'
+import KanbanBoard           from './KanbanBoard.vue'
 import StudentDevoirGroup    from './StudentDevoirGroup.vue'
 import DevoirsProjectCard    from './DevoirsProjectCard.vue'
 
@@ -110,6 +111,13 @@ const cachedProjectStats = computed(() => {
   for (const cat of props.studentCategories) map[cat] = props.studentProjectStats(cat)
   return map
 })
+
+/** Group devoirs for current student (travaux assigned to a group) */
+const groupDevoirs = computed<Devoir[]>(() =>
+  props.filteredDevoirs.filter(d => d.assigned_to === 'group' && d.group_id != null),
+)
+
+const kanbanExpanded = ref<Record<number, boolean>>({})
 </script>
 
 <template>
@@ -316,6 +324,23 @@ const cachedProjectStats = computed(() => {
     </div>
   </template>
 
+  <!-- ═══ Kanbans de groupe ═══ -->
+  <div v-if="groupDevoirs.length && appStore.activeProject" class="sdv-kb-section">
+    <div class="sdv-kb-header">
+      <FolderOpen :size="14" />
+      <span>Kanbans de groupe</span>
+    </div>
+    <div v-for="d in groupDevoirs" :key="d.id" class="sdv-kb-item">
+      <button class="sdv-kb-item-toggle" @click="kanbanExpanded[d.id] = !kanbanExpanded[d.id]">
+        <span class="sdv-kb-item-title">{{ d.title }}</span>
+        <span class="sdv-kb-item-arrow">{{ kanbanExpanded[d.id] ? '▲' : '▼' }}</span>
+      </button>
+      <div v-if="kanbanExpanded[d.id]" class="sdv-kb-board">
+        <KanbanBoard :travail-id="d.id" :group-id="d.group_id!" :read-only="false" />
+      </div>
+    </div>
+  </div>
+
   <!-- Scroll to top -->
   <Transition name="scroll-btn-fade">
     <button v-if="showScrollTop" class="devoirs-scroll-top" aria-label="Remonter en haut" @click="scrollToTop">
@@ -389,4 +414,19 @@ const cachedProjectStats = computed(() => {
 }
 .scroll-btn-fade-enter-active, .scroll-btn-fade-leave-active { transition: opacity .2s, transform .2s; }
 .scroll-btn-fade-enter-from, .scroll-btn-fade-leave-to { opacity: 0; transform: translateY(8px); }
+
+/* ── Kanban de groupe ── */
+.sdv-kb-section { display: flex; flex-direction: column; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border); }
+.sdv-kb-header { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #3b82f6; }
+.sdv-kb-item { border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+.sdv-kb-item-toggle {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 14px; background: var(--bg-elevated);
+  border: none; cursor: pointer; font-family: var(--font);
+  text-align: left; transition: background .15s;
+}
+.sdv-kb-item-toggle:hover { background: var(--bg-hover); }
+.sdv-kb-item-title { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.sdv-kb-item-arrow { font-size: 11px; color: var(--text-muted); }
+.sdv-kb-board { padding: 14px; background: var(--bg-main); }
 </style>

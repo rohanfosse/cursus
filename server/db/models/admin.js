@@ -540,6 +540,42 @@ function purgeOldData({ auditDays = 90, loginDays = 30, sessionDays = 30 }) {
   return results
 }
 
+// ── Rappels enseignant (teacher_reminders) ───────────────────────────────────
+
+function getReminders(promoTag) {
+  const db = getDb();
+  if (promoTag) {
+    return db.prepare('SELECT * FROM teacher_reminders WHERE promo_tag = ? ORDER BY date ASC').all(promoTag);
+  }
+  return db.prepare('SELECT * FROM teacher_reminders ORDER BY date ASC').all();
+}
+
+function createReminder({ promoTag, date, title, description = '', bloc = null }) {
+  const db = getDb();
+  const res = db.prepare(
+    'INSERT INTO teacher_reminders (promo_tag, date, title, description, bloc) VALUES (?, ?, ?, ?, ?)'
+  ).run(promoTag, date, title, description, bloc);
+  return db.prepare('SELECT * FROM teacher_reminders WHERE id = ?').get(res.lastInsertRowid);
+}
+
+function updateReminder(id, { date, title, description, bloc }) {
+  const db = getDb();
+  const allowed = [];
+  const vals = [];
+  if (date        !== undefined) { allowed.push('date = ?');        vals.push(date); }
+  if (title       !== undefined) { allowed.push('title = ?');       vals.push(title); }
+  if (description !== undefined) { allowed.push('description = ?'); vals.push(description); }
+  if (bloc        !== undefined) { allowed.push('bloc = ?');        vals.push(bloc); }
+  if (allowed.length === 0) return db.prepare('SELECT * FROM teacher_reminders WHERE id = ?').get(id);
+  vals.push(id);
+  db.prepare(`UPDATE teacher_reminders SET ${allowed.join(', ')} WHERE id = ?`).run(...vals);
+  return db.prepare('SELECT * FROM teacher_reminders WHERE id = ?').get(id);
+}
+
+function deleteReminder(id) {
+  return getDb().prepare('DELETE FROM teacher_reminders WHERE id = ?').run(id);
+}
+
 module.exports = {
   getAdminStats,
   getAdminUsers, getAdminUserDetail,
@@ -563,4 +599,6 @@ module.exports = {
   createFeedback, getFeedbackList, updateFeedbackStatus, getFeedbackStats, getUserFeedback,
   // Visites
   recordVisit, getVisitStats,
+  // Rappels enseignant
+  getReminders, createReminder, updateReminder, deleteReminder,
 }

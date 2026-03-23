@@ -18,10 +18,10 @@ function throttledResultsEmit(io, activityId, promoId) {
 
 // POST /sessions - creer une session REX
 router.post('/sessions', wrap((req) => {
-  const { promoId, title } = req.body
+  const { promoId, title, is_async, open_until } = req.body
   const teacherId = req.user?.id
   if (!teacherId || !promoId || !title) throw new Error('promoId et title requis (teacherId extrait du token)')
-  return queries.createRexSession({ teacherId, promoId, title })
+  return queries.createRexSession({ teacherId, promoId, title, isAsync: is_async, openUntil: open_until })
 }))
 
 // GET /sessions/:id - recuperer une session + activites

@@ -108,6 +108,12 @@ app.use('/api/rubrics',     require('./routes/rubrics'))
 app.use('/api/admin',       require('./routes/admin/index'))
 app.use('/api/live',        require('./routes/live'))
 app.use('/api/rex',         require('./routes/rex'))
+app.use('/api/kanban',      require('./routes/kanban'))
+
+// ── Auto-fermeture des sessions REX async expirées (toutes les 60s) ───────────
+setInterval(() => {
+  try { queries.autoCloseExpiredAsyncSessions() } catch {}
+}, 60_000)
 
 // ── Fichiers statiques & SPA ──────────────────────────────────────────────────
 const path = require('path')

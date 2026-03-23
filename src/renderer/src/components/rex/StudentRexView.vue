@@ -1,10 +1,11 @@
 /** StudentRexView — Vue etudiant pour les sessions REX anonymes. */
 <script setup lang="ts">
   import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-  import { Radio, CheckCircle2, Send, LogOut } from 'lucide-vue-next'
+  import { Radio, CheckCircle2, Send, LogOut, Clock } from 'lucide-vue-next'
   import { Star } from 'lucide-vue-next'
   import { useAppStore }  from '@/stores/app'
   import { useRexStore }  from '@/stores/rex'
+  import type { RexActivity } from '@/types'
 
   import RexSondageResults          from './RexSondageResults.vue'
   import RexWordCloud               from './RexWordCloud.vue'
@@ -14,18 +15,29 @@
   const appStore = useAppStore()
   const rex      = useRexStore()
 
-  const joinCode   = ref('')
-  const joining    = ref(false)
-  const textInput  = ref('')
-  const wordInputs = ref<string[]>([])
+  const joinCode    = ref('')
+  const joining     = ref(false)
+  const textInput   = ref('')
+  const wordInputs  = ref<string[]>([])
   const ratingInput = ref(0)
+
+  // Async mode: track responded activity IDs + expanded activity
+  const respondedIds       = ref<Set<number>>(new Set())
+  const asyncExpandedId    = ref<number | null>(null)
+  const asyncTextInputs    = ref<Record<number, string>>({})
+  const asyncWordInputs    = ref<Record<number, string[]>>({})
+  const asyncRatingInputs  = ref<Record<number, number>>({})
 
   const promoId  = computed(() => appStore.currentUser?.promo_id ?? 0)
   const session  = computed(() => rex.currentSession)
   const activity = computed(() => rex.currentActivity)
   const results  = computed(() => rex.results)
+  const isAsync  = computed(() => !!session.value?.is_async)
+  const liveActivities = computed(() =>
+    (session.value?.activities ?? []).filter(a => a.status === 'live')
+  )
 
-  // Reset inputs when activity changes
+  // Reset inputs when activity changes (sync mode)
   watch(activity, (act) => {
     if (act?.type === 'nuage') {
       wordInputs.value = Array.from({ length: act.max_words || 2 }, () => '')
@@ -52,6 +64,7 @@
     joining.value = false
   }
 
+  // ── Sync submit helpers ─────────────────────────────────────────────────
   async function submitText() {
     if (!activity.value || !textInput.value.trim()) return
     await rex.submitResponse(activity.value.id, { text: textInput.value.trim() })
@@ -69,6 +82,39 @@
     await rex.submitResponse(activity.value.id, { rating: ratingInput.value })
   }
 
+  // ── Async submit helpers ────────────────────────────────────────────────
+  function initAsyncInputs(act: RexActivity) {
+    if (!(act.id in asyncTextInputs.value))   asyncTextInputs.value[act.id] = ''
+    if (!(act.id in asyncRatingInputs.value)) asyncRatingInputs.value[act.id] = 0
+    if (!(act.id in asyncWordInputs.value))   asyncWordInputs.value[act.id] = Array.from({ length: act.max_words || 2 }, () => '')
+  }
+
+  function expandAsyncActivity(act: RexActivity) {
+    initAsyncInputs(act)
+    asyncExpandedId.value = asyncExpandedId.value === act.id ? null : act.id
+  }
+
+  async function asyncSubmitText(actId: number) {
+    const text = asyncTextInputs.value[actId]?.trim()
+    if (!text) return
+    const ok = await rex.submitResponse(actId, { text })
+    if (ok) respondedIds.value = new Set([...respondedIds.value, actId])
+  }
+
+  async function asyncSubmitWords(actId: number) {
+    const filtered = (asyncWordInputs.value[actId] ?? []).map(w => w.trim()).filter(Boolean)
+    if (!filtered.length) return
+    const ok = await rex.submitResponse(actId, { words: filtered })
+    if (ok) respondedIds.value = new Set([...respondedIds.value, actId])
+  }
+
+  async function asyncSubmitRating(actId: number) {
+    const rating = asyncRatingInputs.value[actId]
+    if (!rating || rating <= 0) return
+    const ok = await rex.submitResponse(actId, { rating })
+    if (ok) respondedIds.value = new Set([...respondedIds.value, actId])
+  }
+
   function leave() {
     rex.leaveSession()
   }
@@ -78,6 +124,12 @@
     if (type === 'nuage') return 'Nuage de mots'
     if (type === 'echelle') return 'Echelle'
     return 'Question ouverte'
+  }
+
+  function formatOpenUntil(dt: string | null) {
+    if (!dt) return ''
+    const d = new Date(dt)
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
   }
 </script>
 
@@ -119,6 +171,88 @@
           <LogOut :size="14" /> Quitter
         </button>
       </div>
+
+      <!-- Async mode: open_until banner -->
+      <div v-if="isAsync && session.open_until" class="rex-async-info">
+        <Clock :size="14" />
+        Ce sondage est ouvert jusqu'au {{ formatOpenUntil(session.open_until) }}
+      </div>
+
+      <!-- ═══ B1) Async mode — list of all live activities ═══ -->
+      <template v-if="isAsync">
+        <div v-if="liveActivities.length === 0" class="rex-waiting">
+          <div class="rex-waiting-pulse" />
+          <p class="rex-waiting-text">Ce sondage n'a pas encore été ouvert.</p>
+        </div>
+        <div v-else class="rex-async-list">
+          <div
+            v-for="act in liveActivities"
+            :key="act.id"
+            class="rex-async-card"
+            :class="{ responded: respondedIds.has(act.id), expanded: asyncExpandedId === act.id }"
+          >
+            <!-- Card header -->
+            <div class="rex-async-card-header" @click="!respondedIds.has(act.id) && expandAsyncActivity(act)">
+              <span class="rex-respond-type">{{ activityTypeLabel(act.type) }}</span>
+              <span class="rex-async-card-title">{{ act.title }}</span>
+              <CheckCircle2 v-if="respondedIds.has(act.id)" :size="16" class="rex-async-done-icon" />
+              <span v-else class="rex-async-arrow">{{ asyncExpandedId === act.id ? '▲' : '▼' }}</span>
+            </div>
+
+            <!-- Responded confirmation -->
+            <div v-if="respondedIds.has(act.id)" class="rex-async-done">
+              <CheckCircle2 :size="16" /> Réponse envoyée
+            </div>
+
+            <!-- Expanded form -->
+            <div v-else-if="asyncExpandedId === act.id" class="rex-respond-body rex-async-form">
+
+              <!-- Sondage libre -->
+              <template v-if="act.type === 'sondage_libre'">
+                <input v-model="asyncTextInputs[act.id]" type="text" class="rex-respond-input" placeholder="Votre réponse..." @keydown.enter="asyncSubmitText(act.id)" />
+                <button class="rex-btn-primary" :disabled="!asyncTextInputs[act.id]?.trim()" @click="asyncSubmitText(act.id)">
+                  <Send :size="14" /> Envoyer
+                </button>
+              </template>
+
+              <!-- Nuage de mots -->
+              <template v-else-if="act.type === 'nuage'">
+                <input v-for="(_, i) in asyncWordInputs[act.id]" :key="i" v-model="asyncWordInputs[act.id][i]" type="text" class="rex-respond-input" :placeholder="`Mot ${i + 1}`" />
+                <button class="rex-btn-primary" :disabled="!asyncWordInputs[act.id]?.some(w => w.trim())" @click="asyncSubmitWords(act.id)">
+                  <Send :size="14" /> Envoyer
+                </button>
+              </template>
+
+              <!-- Echelle -->
+              <template v-else-if="act.type === 'echelle'">
+                <div v-if="act.max_rating <= 5" class="rex-star-row">
+                  <button v-for="s in act.max_rating" :key="s" class="rex-star-btn" :class="{ filled: s <= (asyncRatingInputs[act.id] || 0) }" @click="asyncRatingInputs[act.id] = s">
+                    <Star :size="28" />
+                  </button>
+                </div>
+                <div v-else class="rex-slider-row">
+                  <input v-model.number="asyncRatingInputs[act.id]" type="range" min="1" :max="act.max_rating" class="rex-slider" />
+                  <span class="rex-slider-val">{{ asyncRatingInputs[act.id] || '-' }} / {{ act.max_rating }}</span>
+                </div>
+                <button class="rex-btn-primary" :disabled="!(asyncRatingInputs[act.id] > 0)" @click="asyncSubmitRating(act.id)">
+                  <Send :size="14" /> Envoyer
+                </button>
+              </template>
+
+              <!-- Question ouverte -->
+              <template v-else-if="act.type === 'question_ouverte'">
+                <textarea v-model="asyncTextInputs[act.id]" class="rex-respond-textarea" placeholder="Votre retour..." rows="4" />
+                <button class="rex-btn-primary" :disabled="!asyncTextInputs[act.id]?.trim()" @click="asyncSubmitText(act.id)">
+                  <Send :size="14" /> Envoyer
+                </button>
+              </template>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- ═══ B2) Sync mode (original behavior) ═══ -->
+      <template v-else>
 
       <!-- Waiting -->
       <div v-if="!activity || activity.status === 'pending'" class="rex-waiting">
@@ -239,6 +373,13 @@
       <!-- Session ended -->
       <div v-if="session.status === 'ended'" class="rex-ended">
         <p class="rex-ended-text">La session est terminee. Merci pour votre participation !</p>
+      </div>
+
+      </template> <!-- end sync mode -->
+
+      <!-- Session ended (async) -->
+      <div v-if="isAsync && session.status === 'ended'" class="rex-ended">
+        <p class="rex-ended-text">Ce sondage est maintenant fermé. Merci pour votre participation !</p>
       </div>
     </template>
   </div>
@@ -502,5 +643,46 @@
 .rex-ended-text {
   font-size: 15px;
   color: var(--text-muted, #888);
+}
+
+/* ── Async ── */
+.rex-async-info {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: rgba(251, 146, 60, 0.08);
+  border: 1px solid rgba(251, 146, 60, 0.2);
+  color: #fb923c;
+  font-size: 13px; font-weight: 500;
+}
+.rex-async-list {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.rex-async-card {
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(255,255,255,.08));
+  background: var(--bg-elevated, #1e1f21);
+  overflow: hidden;
+  transition: border-color .15s;
+}
+.rex-async-card:not(.responded):hover { border-color: rgba(13, 148, 136, 0.4); }
+.rex-async-card.responded { border-color: rgba(13, 148, 136, 0.2); opacity: 0.7; }
+.rex-async-card-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; cursor: pointer;
+}
+.rex-async-card.responded .rex-async-card-header { cursor: default; }
+.rex-async-card-title {
+  flex: 1; font-size: 14px; font-weight: 600; color: var(--text-primary, #fff);
+}
+.rex-async-done-icon { color: #0d9488; flex-shrink: 0; }
+.rex-async-arrow { color: var(--text-muted, #888); font-size: 11px; }
+.rex-async-done {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 16px 14px;
+  font-size: 13px; color: #0d9488;
+}
+.rex-async-form {
+  padding: 0 16px 16px;
 }
 </style>

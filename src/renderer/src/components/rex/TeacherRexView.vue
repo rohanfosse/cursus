@@ -4,7 +4,7 @@
   import {
     Plus, Play, Square, Trash2, Users,
     MessageSquare, Cloud, Star, FileText, LogOut,
-    ChevronDown, Download, Pencil, GripVertical, Copy,
+    ChevronDown, Download, Pencil, GripVertical, Copy, Clock,
   } from 'lucide-vue-next'
   import { useAppStore }  from '@/stores/app'
   import { useRexStore }  from '@/stores/rex'
@@ -21,6 +21,8 @@
   const rex      = useRexStore()
 
   const newTitle        = ref('')
+  const isAsync         = ref(false)
+  const openUntil       = ref('')
   const showForm        = ref(false)
   const exportOpen      = ref(false)
   const editingActivity = ref<RexActivity | null>(null)
@@ -59,8 +61,19 @@
   // ── Actions ──────────────────────────────────────────────────────────────
   async function createSession() {
     if (!newTitle.value.trim() || !promoId.value) return
-    await rex.createSession(newTitle.value.trim(), promoId.value)
+    const opts = isAsync.value
+      ? { isAsync: true, openUntil: openUntil.value || undefined }
+      : undefined
+    await rex.createSession(newTitle.value.trim(), promoId.value, opts)
     newTitle.value = ''
+    isAsync.value = false
+    openUntil.value = ''
+  }
+
+  function formatOpenUntil(dt: string | null) {
+    if (!dt) return ''
+    const d = new Date(dt)
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
   }
 
   async function selectSession(s: RexSession) {
@@ -188,7 +201,13 @@
           class="rex-draft-card"
         >
           <div class="rex-draft-body" @click="selectSession(s)">
-            <span class="rex-draft-title">{{ s.title }}</span>
+            <div class="rex-draft-title-row">
+              <span class="rex-draft-title">{{ s.title }}</span>
+              <span v-if="s.is_async" class="rex-async-badge">
+                <Clock :size="10" /> ASYNC
+                <template v-if="s.open_until"> · {{ formatOpenUntil(s.open_until) }}</template>
+              </span>
+            </div>
             <span class="rex-draft-meta">{{ s.status === 'active' ? 'Active' : 'Brouillon' }}</span>
           </div>
           <div class="rex-draft-actions">
@@ -213,6 +232,18 @@
         <select v-if="appStore.activePromoId === null" v-model="selectedPromoId" class="rex-select">
           <option :value="null" disabled>Choisir une promotion</option>
         </select>
+        <!-- Async toggle -->
+        <label class="rex-async-toggle">
+          <input v-model="isAsync" type="checkbox" />
+          <Clock :size="13" /> Asynchrone
+        </label>
+        <input
+          v-if="isAsync"
+          v-model="openUntil"
+          type="datetime-local"
+          class="rex-input rex-input-dt"
+          title="Ouvert jusqu'au..."
+        />
         <button class="rex-btn-primary" :disabled="!newTitle.trim() || !promoId" @click="createSession">
           Créer la session
         </button>
@@ -227,6 +258,9 @@
           <h2 class="rex-title">{{ session.title }}</h2>
           <span class="rex-status-badge" :class="session.status">
             {{ session.status === 'waiting' ? 'En attente' : session.status === 'active' ? 'Active' : 'Terminee' }}
+          </span>
+          <span v-if="session.is_async" class="rex-async-badge">
+            <Clock :size="10" /> ASYNC<template v-if="session.open_until"> · Ouvert jusqu'au {{ formatOpenUntil(session.open_until) }}</template>
           </span>
         </div>
         <div class="rex-session-actions">
@@ -395,12 +429,27 @@
 }
 .rex-draft-card:hover { border-color: #0d9488; }
 .rex-draft-body { flex: 1; min-width: 0; }
+.rex-draft-title-row { display: flex; align-items: center; gap: 8px; }
 .rex-draft-title {
-  display: block; font-size: 13px; font-weight: 600;
+  font-size: 13px; font-weight: 600;
   color: var(--text-primary, #fff);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .rex-draft-meta { display: block; font-size: 11px; color: var(--text-muted, #888); margin-top: 2px; }
+.rex-async-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 20px;
+  font-size: 10px; font-weight: 700; white-space: nowrap;
+  background: rgba(251, 146, 60, 0.12); color: #fb923c;
+  flex-shrink: 0;
+}
+.rex-async-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text-secondary, #aaa); cursor: pointer;
+  user-select: none; white-space: nowrap;
+}
+.rex-async-toggle input[type="checkbox"] { cursor: pointer; accent-color: #fb923c; }
+.rex-input-dt { flex: unset; min-width: 0; width: auto; font-size: 13px; }
 .rex-draft-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .rex-drag-handle {
   color: var(--text-muted, #888); cursor: grab; display: flex; align-items: center; flex-shrink: 0;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { watch, onMounted, computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import { Plus, ChevronDown, FolderOpen, Layers, BookOpen, BarChart2, CalendarDays, Pencil, Trash2 } from 'lucide-vue-next'
+  import { Plus, ChevronDown, FolderOpen, Layers, BookOpen, BarChart2, CalendarDays, Calendar, Pencil, Trash2 } from 'lucide-vue-next'
   import { useTravauxStore } from '@/stores/travaux'
   import NewProjectModal from '@/components/modals/NewProjectModal.vue'
   import type { ProjectMeta } from '@/components/modals/NewProjectModal.vue'
@@ -221,6 +221,10 @@
               <BookOpen :size="13" class="project-icon" />
               <span class="channel-name">Tous les devoirs</span>
             </button>
+            <button class="sidebar-item" :class="{ active: route.name === 'agenda' }" @click="router.push('/agenda')">
+              <Calendar :size="13" class="project-icon" />
+              <span class="channel-name">Calendrier</span>
+            </button>
           </template>
           <template v-else-if="appStore.isStudent">
             <button class="sidebar-item" @click="modals.studentTimeline = true">
@@ -230,6 +234,10 @@
             <button class="sidebar-item" @click="router.push('/devoirs')">
               <BookOpen :size="13" class="project-icon" />
               <span class="channel-name">Mes devoirs</span>
+            </button>
+            <button class="sidebar-item" :class="{ active: route.name === 'agenda' }" @click="router.push('/agenda')">
+              <Calendar :size="13" class="project-icon" />
+              <span class="channel-name">Calendrier</span>
             </button>
           </template>
         </nav>

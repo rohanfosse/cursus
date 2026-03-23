@@ -313,6 +313,12 @@ contextBridge.exposeInMainWorld('api', {
   markNonSubmittedAsD:    (travailId: number)  => post(`/api/assignments/${travailId}/mark-missing`, {}),
   getTravailGroupMembers: (travailId: number)  => get(`/api/assignments/${travailId}/group-members`),
 
+  // ── Rappels enseignant ───────────────────────────────────────────────────────
+  getReminders:    (promoTag?: string)          => get(`/api/assignments/reminders${promoTag ? `?promoTag=${promoTag}` : ''}`),
+  createReminder:  (payload: unknown)           => post('/api/assignments/reminders', payload),
+  updateReminder:  (id: number, payload: unknown) => patch(`/api/assignments/reminders/${id}`, payload),
+  deleteReminder:  (id: number)                 => del(`/api/assignments/reminders/${id}`),
+
   // ── Dépôts ──────────────────────────────────────────────────────────────────
   getDepots:   (travailId: number) => get(`/api/depots?travailId=${travailId}`),
   addDepot:    (payload: unknown)  => post('/api/depots', payload),
@@ -422,6 +428,12 @@ contextBridge.exposeInMainWorld('api', {
   getRexActivityResults:  (activityId: number) => get(`/api/rex/activities/${activityId}/results`),
   toggleRexPin:           (responseId: number, pinned: boolean) => post(`/api/rex/responses/${responseId}/pin`, { pinned }),
   exportRexSession:       (sessionId: number, format: string) => get(`/api/rex/sessions/${sessionId}/export?format=${format}`),
+
+  // ── Kanban ─────────────────────────────────────────────────────────────────
+  getKanbanCards:   (travailId: number, groupId: number)                       => get(`/api/kanban/travaux/${travailId}/groups/${groupId}`),
+  createKanbanCard: (travailId: number, groupId: number, payload: unknown)     => post(`/api/kanban/travaux/${travailId}/groups/${groupId}`, payload),
+  updateKanbanCard: (cardId: number, payload: unknown)                         => patch(`/api/kanban/cards/${cardId}`, payload),
+  deleteKanbanCard: (cardId: number)                                           => del(`/api/kanban/cards/${cardId}`),
 
   emitRexJoin:  (promoId: number) => { socket?.emit('rex:join', { promoId }) },
   emitRexLeave: (promoId: number) => { socket?.emit('rex:leave', { promoId }) },

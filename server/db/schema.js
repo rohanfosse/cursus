@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 27;
+const CURRENT_VERSION = 29;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -668,6 +668,31 @@ function runMigrations(db) {
         CREATE INDEX IF NOT EXISTS idx_rex_sessions_status  ON rex_sessions(status);
         CREATE INDEX IF NOT EXISTS idx_travaux_promo        ON travaux(promo_id);
         CREATE INDEX IF NOT EXISTS idx_depots_student       ON depots(student_id);
+      `);
+    },
+
+    // v28 : REX asynchrone — sondages différés avec date de clôture
+    (db) => {
+      tryAlter(db, 'ALTER TABLE rex_sessions ADD COLUMN is_async INTEGER NOT NULL DEFAULT 0');
+      tryAlter(db, 'ALTER TABLE rex_sessions ADD COLUMN open_until TEXT DEFAULT NULL');
+    },
+
+    // v29 : Kanban de projet — suivi de tâches par groupe
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS kanban_cards (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          travail_id  INTEGER NOT NULL REFERENCES travaux(id) ON DELETE CASCADE,
+          group_id    INTEGER NOT NULL REFERENCES groups(id)  ON DELETE CASCADE,
+          title       TEXT    NOT NULL,
+          description TEXT    NOT NULL DEFAULT '',
+          status      TEXT    NOT NULL DEFAULT 'todo'
+                      CHECK(status IN ('todo','doing','blocked','done')),
+          position    INTEGER NOT NULL DEFAULT 0,
+          created_by  TEXT    NOT NULL DEFAULT '',
+          created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_kanban_travail_group ON kanban_cards(travail_id, group_id);
       `);
     },
   ];

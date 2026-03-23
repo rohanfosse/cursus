@@ -3,7 +3,7 @@
  */
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { BookOpen, Clock, Plus, Eye, RotateCw } from 'lucide-vue-next'
+import { BookOpen, Clock, Plus, Eye, RotateCw, LayoutDashboard, ChevronDown, ChevronRight } from 'lucide-vue-next'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { useModalsStore }  from '@/stores/modals'
@@ -12,6 +12,7 @@ import { deadlineClass, deadlineLabel } from '@/utils/date'
 import { typeLabel, extractDuration, isRattrapage } from '@/utils/devoir'
 import type { GanttRow } from '@/types'
 import type { UnifiedFlatRow } from '@/composables/useDevoirsTeacher'
+import KanbanBoard from './KanbanBoard.vue'
 
 const props = defineProps<{
   unifiedFlat: UnifiedFlatRow[]
@@ -35,6 +36,13 @@ const { confirm }  = useConfirm()
 const currentProjectStats = computed(() => props.projectStats(appStore.activeProject!))
 
 const publishingAll = ref(false)
+
+/** Group devoirs with a valid group_id (for kanban) */
+const groupDevoirs = computed(() =>
+  props.unifiedFlat.filter(t => t.assigned_to === 'group' && t.group_id != null),
+)
+
+const kanbanExpanded = ref<Record<number, boolean>>({})
 
 async function handlePublishAll() {
   const ok = await confirm(
@@ -160,6 +168,25 @@ async function handlePublishAll() {
       <button v-if="!devoirsByType.length" class="dc-add-btn dc-add-btn--first" @click="modals.newDevoir = true">
         <Plus :size="14" /> Créer un devoir
       </button>
+    </div>
+
+    <!-- ═══ Kanbans de groupe ═══ -->
+    <div v-if="groupDevoirs.length" class="kb-section">
+      <div class="kb-section-header">
+        <LayoutDashboard :size="15" />
+        <span class="kb-section-title">Kanbans de groupe</span>
+        <span class="kb-section-sub">Lecture seule · {{ groupDevoirs.length }} travail{{ groupDevoirs.length > 1 ? 'x' : '' }}</span>
+      </div>
+      <div v-for="t in groupDevoirs" :key="t.id" class="kb-item">
+        <button class="kb-item-header" @click="kanbanExpanded[t.id] = !kanbanExpanded[t.id]">
+          <component :is="kanbanExpanded[t.id] ? ChevronDown : ChevronRight" :size="14" />
+          <span class="kb-item-title">{{ t.title }}</span>
+          <span v-if="t.group_name" class="kb-item-group">{{ t.group_name }}</span>
+        </button>
+        <div v-if="kanbanExpanded[t.id]" class="kb-item-board">
+          <KanbanBoard :travail-id="t.id" :group-id="t.group_id!" :read-only="true" />
+        </div>
+      </div>
     </div>
   </template>
 </template>
@@ -304,4 +331,21 @@ async function handlePublishAll() {
 .empty-icon { color: var(--text-muted); opacity: 0.35; margin-bottom: 16px; }
 .empty-state-custom h3 { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
 .empty-state-custom p { font-size: 13px; color: var(--text-muted); max-width: 320px; line-height: 1.5; }
+
+/* ── Kanban section (teacher read-only) ── */
+.kb-section { padding: 16px 20px; border-top: 1px solid var(--border); margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+.kb-section-header { display: flex; align-items: center; gap: 8px; color: #3b82f6; }
+.kb-section-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.kb-section-sub { font-size: 11px; color: var(--text-muted); margin-left: 4px; }
+.kb-item { border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+.kb-item-header {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 10px 14px; background: var(--bg-elevated);
+  border: none; cursor: pointer; text-align: left; font-family: var(--font);
+  color: var(--text-secondary); transition: background .15s;
+}
+.kb-item-header:hover { background: var(--bg-hover); }
+.kb-item-title { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.kb-item-group { font-size: 11px; color: #3b82f6; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: rgba(59,130,246,.1); }
+.kb-item-board { padding: 14px; background: var(--bg-main); }
 </style>

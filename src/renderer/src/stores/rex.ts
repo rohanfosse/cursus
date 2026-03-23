@@ -26,12 +26,12 @@ export const useRexStore = defineStore('rex', () => {
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
-  async function createSession(title: string, promoId: number): Promise<boolean> {
+  async function createSession(title: string, promoId: number, options?: { isAsync: boolean; openUntil?: string }): Promise<boolean> {
     loading.value = true
     error.value = null
     try {
       const data = await api<RexSession>(
-        () => window.api.createRexSession({ title, promoId }),
+        () => window.api.createRexSession({ title, promoId, is_async: options?.isAsync ? 1 : 0, open_until: options?.openUntil ?? null }),
       )
       if (data) {
         currentSession.value = data

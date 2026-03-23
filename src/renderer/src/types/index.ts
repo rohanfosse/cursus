@@ -232,6 +232,7 @@ export interface LiveScoreResult {
 export interface RexSession {
   id: number; teacher_id: number; promo_id: number; title: string
   join_code: string; status: 'waiting' | 'active' | 'ended'
+  is_async: number; open_until: string | null
   created_at: string; ended_at: string | null; activities?: RexActivity[]
 }
 
@@ -249,6 +250,33 @@ export interface RexResults {
   freq?: { word: string; count: number }[]
   average?: number; distribution?: { rating: number; count: number }[]
   answers?: { id: number; answer: string; pinned: boolean; created_at: string }[]
+}
+
+// ─── Kanban ──────────────────────────────────────────────────────────────────
+
+export interface KanbanCard {
+  id: number; travail_id: number; group_id: number
+  title: string; description: string
+  status: 'todo' | 'doing' | 'blocked' | 'done'
+  position: number; created_by: string; created_at: string
+}
+
+// ─── Calendrier ──────────────────────────────────────────────────────────────
+
+export interface Reminder {
+  id: number; promo_tag: string | null; date: string
+  title: string; description: string; bloc: string | null; created_at: string
+}
+
+export interface CalendarEvent {
+  id: string          // unique key
+  start: string       // ISO date or datetime
+  end: string
+  title: string
+  color: 'blue' | 'green' | 'orange'
+  eventType: 'deadline' | 'start_date' | 'reminder'
+  sourceId: number    // travail_id or reminder_id
+  category?: string | null
 }
 
 // ─── Payloads IPC ────────────────────────────────────────────────────────────

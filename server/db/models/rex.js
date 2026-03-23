@@ -4,7 +4,7 @@ const generateJoinCode   = require('../../utils/joinCode');
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
-function createRexSession({ teacherId, promoId, title }) {
+function createRexSession({ teacherId, promoId, title, isAsync = 0, openUntil = null }) {
   const db = getDb();
   // Generer un code unique (retry si collision)
   let code;
@@ -14,8 +14,8 @@ function createRexSession({ teacherId, promoId, title }) {
     if (!exists) break;
   }
   const res = db.prepare(
-    'INSERT INTO rex_sessions (teacher_id, promo_id, title, join_code) VALUES (?, ?, ?, ?)'
-  ).run(teacherId, promoId, title, code);
+    'INSERT INTO rex_sessions (teacher_id, promo_id, title, join_code, is_async, open_until) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(teacherId, promoId, title, code, isAsync ? 1 : 0, openUntil);
   return db.prepare('SELECT * FROM rex_sessions WHERE id = ?').get(res.lastInsertRowid);
 }
 
@@ -34,9 +34,12 @@ function getRexSessionByCode(code) {
 }
 
 function getActiveRexSession(promoId) {
-  return getDb().prepare(
-    "SELECT * FROM rex_sessions WHERE promo_id = ? AND status = 'active' LIMIT 1"
-  ).get(promoId) || null;
+  return getDb().prepare(`
+    SELECT * FROM rex_sessions
+    WHERE promo_id = ? AND status = 'active'
+      AND (is_async = 0 OR open_until IS NULL OR open_until > datetime('now'))
+    LIMIT 1
+  `).get(promoId) || null;
 }
 
 function getRexSessionsForPromo(promoId) {
@@ -49,10 +52,31 @@ function updateRexSessionStatus(id, status) {
   const db = getDb();
   if (status === 'ended') {
     db.prepare("UPDATE rex_sessions SET status = ?, ended_at = datetime('now') WHERE id = ?").run(status, id);
+  } else if (status === 'active') {
+    db.prepare('UPDATE rex_sessions SET status = ? WHERE id = ?').run(status, id);
+    // En mode async : passer toutes les activités en 'live' immédiatement
+    const session = db.prepare('SELECT is_async FROM rex_sessions WHERE id = ?').get(id);
+    if (session?.is_async) {
+      db.prepare(
+        "UPDATE rex_activities SET status = 'live', started_at = datetime('now') WHERE session_id = ? AND status = 'pending'"
+      ).run(id);
+    }
   } else {
     db.prepare('UPDATE rex_sessions SET status = ? WHERE id = ?').run(status, id);
   }
   return db.prepare('SELECT * FROM rex_sessions WHERE id = ?').get(id);
+}
+
+/** Ferme automatiquement les sessions async dont la date d'expiration est dépassée. */
+function autoCloseExpiredAsyncSessions() {
+  const db = getDb();
+  const expired = db.prepare(
+    "SELECT id FROM rex_sessions WHERE is_async = 1 AND status = 'active' AND open_until IS NOT NULL AND open_until < datetime('now')"
+  ).all();
+  if (expired.length === 0) return;
+  const close = db.prepare("UPDATE rex_sessions SET status = 'ended', ended_at = datetime('now') WHERE id = ?");
+  db.transaction(() => { expired.forEach(s => close.run(s.id)); })();
+  console.log(`[REX] ${expired.length} session(s) async expirée(s) fermée(s) automatiquement.`);
 }
 
 function deleteRexSession(id) {
@@ -246,6 +270,7 @@ module.exports = {
   getActiveRexSession,
   getRexSessionsForPromo,
   updateRexSessionStatus,
+  autoCloseExpiredAsyncSessions,
   deleteRexSession,
   addRexActivity,
   updateRexActivity,

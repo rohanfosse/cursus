@@ -40,4 +40,17 @@ router.post('/:id/mark-missing',        wrap((req) => queries.markNonSubmittedAs
 router.delete('/:id',                   wrap((req) => queries.deleteTravail(Number(req.params.id))))
 router.patch('/:id',                    wrap((req) => queries.updateTravail(Number(req.params.id), req.body)))
 
+// ── Rappels enseignant ────────────────────────────────────────────────────────
+router.get('/reminders',    wrap((req) => queries.getReminders(req.query.promoTag || null)))
+router.post('/reminders',   wrap((req) => {
+  const { promoTag, date, title, description, bloc } = req.body
+  if (!date || !title) throw new Error('date et title requis')
+  return queries.createReminder({ promoTag, date, title, description, bloc })
+}))
+router.patch('/reminders/:id',  wrap((req) => queries.updateReminder(Number(req.params.id), req.body)))
+router.delete('/reminders/:id', wrap((req) => {
+  queries.deleteReminder(Number(req.params.id))
+  return null
+}))
+
 module.exports = router

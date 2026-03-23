@@ -50,6 +50,8 @@
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "vue": "^3.5.30",
+    "vue-cal": "^4.10.2",
+    "vue-draggable-plus": "^0.6.1",
     "vue-router": "^4.6.4",
     "xlsx": "^0.18.5",
     "zod": "^4.3.6"
