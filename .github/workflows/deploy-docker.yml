@@ -52,7 +52,7 @@ jobs:
       - name: Call /deploy webhook
         run: |
           STATUS=$(curl -s -o /tmp/deploy_resp.json -w "%{http_code}" \
-            -X POST "${{ secrets.VITE_SERVER_URL }}/deploy" \
+            -X POST "${{ secrets.VITE_SERVER_URL }}/webhook/deploy" \
             -H "x-deploy-secret: ${{ secrets.DEPLOY_SECRET }}" \
             -H "Content-Type: application/json")
           cat /tmp/deploy_resp.json
