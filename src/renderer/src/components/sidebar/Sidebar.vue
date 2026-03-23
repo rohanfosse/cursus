@@ -418,9 +418,16 @@
         </nav>
       </template>
 
-      <!-- Canaux groupés par catégorie (autres sections) -->
+      <!-- Salons groupes par categorie (autres sections) -->
       <template v-else>
-        <div id="sidebar-channels-header" class="sidebar-section-header sidebar-collapsible-header" :style="!appStore.isStaff ? 'padding-top: 6px' : ''" @click="channelsCollapsed = !channelsCollapsed">
+        <!-- Spacer accent (etudiants) -->
+        <div v-if="!appStore.isStaff" class="sb-accent-spacer">
+          <span class="sb-accent-line" />
+          <span class="sb-accent-dot" />
+          <span class="sb-accent-line" />
+        </div>
+
+        <div id="sidebar-channels-header" class="sidebar-section-header sidebar-collapsible-header" @click="channelsCollapsed = !channelsCollapsed">
           <ChevronDown
             :size="12"
             class="sidebar-category-chevron"
@@ -755,9 +762,24 @@
 }
 .sidebar-rename-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 
-/* ── Catégories de canaux ── */
+/* ── Accent spacer (etudiants) ── */
+.sb-accent-spacer {
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 16px 6px;
+}
+.sb-accent-line {
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent, #4a90d9), transparent);
+  opacity: .2;
+}
+.sb-accent-dot {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--accent, #4a90d9); opacity: .4;
+}
+
+/* ── Categories de canaux ── */
 .sidebar-category {
-  margin-bottom: 2px;
+  margin-bottom: 0;
 }
 
 /* ── Separateur entre sections ── */
@@ -771,12 +793,13 @@
 .sidebar-category-header {
   display: flex;
   align-items: center;
-  gap: 4px;
-  width: 100%;
+  gap: 5px;
+  width: calc(100% - 16px);
+  margin: 4px 8px 2px;
+  padding: 4px 8px;
+  border-radius: 6px;
   background: transparent;
   border: none;
-  padding: 3px 12px 2px 8px;
-  margin-top: 2px;
   cursor: pointer;
   color: var(--text-muted);
   font-size: 11px;
@@ -784,23 +807,27 @@
   text-transform: none;
   letter-spacing: 0;
   font-family: var(--font);
-  transition: color var(--t-fast);
+  transition: all .15s;
 }
-
-.sidebar-category-header:hover { color: var(--text-secondary); }
-.sidebar-category-header:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 3px; }
+.sidebar-category-header:hover {
+  color: var(--text-secondary);
+  background: rgba(255,255,255,.03);
+}
+.sidebar-category-header:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
 
 .sidebar-category-icon {
   flex-shrink: 0;
-  opacity: .6;
+  opacity: .5;
   color: var(--text-muted);
 }
 
 .sidebar-category-chevron {
   flex-shrink: 0;
   transition: transform .18s ease;
+  opacity: .4;
 }
 .sidebar-category-chevron.rotated { transform: rotate(-90deg); }
+.sidebar-category-header:hover .sidebar-category-chevron { opacity: .8; }
 
 /* Canaux indentes sous la categorie */
 .sidebar-category-channels {

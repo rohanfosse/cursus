@@ -84,7 +84,7 @@ export function useSidebarNav(emit: (event: 'navigate') => void) {
   const channelSectionLabel = computed(() => {
     if (route.name === 'devoirs')   return 'Devoirs par canal'
     if (route.name === 'documents') return 'Docs par canal'
-    return 'Canaux'
+    return 'Salons'
   })
 
   const channelActionLabel = computed(() => {
