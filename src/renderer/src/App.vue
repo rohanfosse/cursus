@@ -218,7 +218,19 @@
   let unsubAuthExpired: (() => void) | null = null
   let unsubGradeNew:    (() => void) | null = null
 
+  // ── Raccourcis clavier globaux ────────────────────────────────────────────
+  function onGlobalShortcut(e: KeyboardEvent) {
+    if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+      if (e.key === '1') { e.preventDefault(); router.push('/dashboard') }
+      if (e.key === '2') { e.preventDefault(); router.push('/messages') }
+      if (e.key === '3') { e.preventDefault(); router.push('/devoirs') }
+      if (e.key === '4') { e.preventDefault(); router.push('/documents') }
+    }
+  }
+
   onMounted(() => {
+    document.addEventListener('keydown', onGlobalShortcut)
+
     // Appliquer le theme sauvegarde
     const theme = getPref('theme') ?? 'dark'
     document.body.classList.remove('light', 'night', 'marine', 'cursus')
@@ -331,6 +343,7 @@
   })
 
   onUnmounted(() => {
+    document.removeEventListener('keydown', onGlobalShortcut)
     unsubUnread?.(); unsubOnline?.(); unsubSocket?.(); unsubTyping?.(); unsubPresence?.(); unsubAuthExpired?.()
     _unsubLiveInvite?.()
     unsubGradeNew?.()
