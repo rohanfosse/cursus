@@ -55,11 +55,14 @@ describe('getSessionByCode', () => {
 })
 
 describe('getActiveSessionForPromo', () => {
-  it('returns active or waiting session for a promo', () => {
+  it('returns only active (not waiting) session for a promo', () => {
     const session = queries.createSession({ teacherId: 1, promoId: 1, title: 'Active Session' })
+    // waiting sessions must NOT be visible to students (draft mode)
+    expect(queries.getActiveSessionForPromo(1)).toBeNull()
+    queries.updateSessionStatus(session.id, 'active')
     const active = queries.getActiveSessionForPromo(1)
-    expect(active).toBeDefined()
-    expect(['waiting', 'active']).toContain(active.status)
+    expect(active).not.toBeNull()
+    expect(active.status).toBe('active')
   })
 
   it('returns null for promo with no active sessions', () => {
