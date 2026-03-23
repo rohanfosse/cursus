@@ -18,6 +18,7 @@ services:
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
       - DB_PATH=/data/db/cursus.db
       - UPLOAD_DIR=/data/uploads
+      - DEPLOY_SECRET=${DEPLOY_SECRET}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
       interval: 30s
