@@ -28,8 +28,16 @@
   transition: color var(--t-fast), border-color var(--t-fast);
   -webkit-appearance: none; appearance: none;
 }
-.db-tab:hover { color: var(--text-primary); }
+.db-tab:hover:not(:disabled) { color: var(--text-primary); }
 .db-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.db-tab--coming { opacity: .5; cursor: default; }
+.db-tab--coming:hover { color: var(--text-secondary); }
+.db-tab-soon {
+  font-size: 9px; font-weight: 700;
+  padding: 1px 5px; border-radius: 8px;
+  background: rgba(74, 144, 217, .15); color: var(--accent);
+  letter-spacing: .3px;
+}
 
 /* ── Loading skeleton ─────────────────────────────────────────────────────── */
 .db-loading { display: flex; flex-direction: column; gap: 14px; padding: 32px 0; }

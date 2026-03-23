@@ -5,7 +5,7 @@
  */
 <script setup lang="ts">
 import { computed } from 'vue'
-import { FolderOpen, Award, CalendarDays, Home, Menu } from 'lucide-vue-next'
+import { FolderOpen, Award, CalendarDays, Home, Menu, Radio, ClipboardList } from 'lucide-vue-next'
 import type { StudentProjectCard } from '@/composables/useDashboardStudent'
 import type { FriseMilestone, FrisePromo } from '@/composables/useFrise'
 import type { GradedDevoir } from './StudentGradesTab.vue'
@@ -119,6 +119,12 @@ const emit = defineEmits<{
       </button>
       <button class="db-tab" :class="{ active: dashTab === 'planning' }" @click="emit('update:dashTab', 'planning')">
         <CalendarDays :size="13" /> Planning
+      </button>
+      <button class="db-tab db-tab--coming" disabled>
+        <Radio :size="13" /> Quiz <span class="db-tab-soon">Bientot</span>
+      </button>
+      <button class="db-tab db-tab--coming" disabled>
+        <ClipboardList :size="13" /> REX <span class="db-tab-soon">Bientot</span>
       </button>
     </div>
 
