@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 29;
+const CURRENT_VERSION = 30;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -693,6 +693,15 @@ function runMigrations(db) {
           created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
         );
         CREATE INDEX IF NOT EXISTS idx_kanban_travail_group ON kanban_cards(travail_id, group_id);
+      `);
+    },
+    // v30 : index sur les messages pour la recherche et les performances
+    (db) => {
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_messages_channel    ON messages(channel_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_messages_dm         ON messages(dm_student_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_messages_author     ON messages(author_name);
+        CREATE INDEX IF NOT EXISTS idx_channels_promo      ON channels(promo_id);
       `);
     },
   ];
