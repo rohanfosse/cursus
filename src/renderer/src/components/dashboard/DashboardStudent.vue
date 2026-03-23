@@ -122,10 +122,10 @@ const emit = defineEmits<{
       <button class="db-tab" :class="{ active: dashTab === 'planning' }" @click="emit('update:dashTab', 'planning')">
         <CalendarDays :size="13" /> Planning
       </button>
-      <button class="db-tab db-tab--coming" disabled>
+      <button class="db-tab db-tab--coming" :class="{ active: dashTab === 'quiz' }" @click="emit('update:dashTab', 'quiz' as any)">
         <Radio :size="13" /> Quiz <span class="db-tab-soon">Bientôt</span>
       </button>
-      <button class="db-tab db-tab--coming" disabled>
+      <button class="db-tab db-tab--coming" :class="{ active: dashTab === 'rex' }" @click="emit('update:dashTab', 'rex' as any)">
         <ClipboardList :size="13" /> REX <span class="db-tab-soon">Bientôt</span>
       </button>
       <button
@@ -186,6 +186,22 @@ const emit = defineEmits<{
       @set-frise-zoom="(days) => emit('setFriseZoom', days)"
       @update:frise-offset="(val) => emit('update:friseOffset', val)"
     />
+
+    <!-- Tab: Quiz (coming soon) -->
+    <div v-else-if="dashTab === 'quiz'" class="db-coming-placeholder">
+      <Radio :size="40" class="db-coming-icon" />
+      <h3 class="db-coming-title">Quiz interactifs</h3>
+      <p class="db-coming-desc">Participez a des quiz en direct avec votre classe. QCM, sondages et nuages de mots en temps reel.</p>
+      <span class="db-coming-badge">En cours de developpement</span>
+    </div>
+
+    <!-- Tab: REX (coming soon) -->
+    <div v-else-if="dashTab === 'rex'" class="db-coming-placeholder">
+      <ClipboardList :size="40" class="db-coming-icon" />
+      <h3 class="db-coming-title">Retour d'Experience</h3>
+      <p class="db-coming-desc">Donnez votre avis de maniere anonyme sur vos cours. Sondages, echelles et questions ouvertes.</p>
+      <span class="db-coming-badge">En cours de developpement</span>
+    </div>
   </template>
 </template>
 
@@ -232,4 +248,26 @@ const emit = defineEmits<{
   color: var(--text-primary);
 }
 
+/* ── Coming soon placeholder ── */
+.db-coming-placeholder {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; gap: 12px;
+  padding: 60px 24px;
+}
+.db-coming-icon { color: var(--text-muted); opacity: .3; }
+.db-coming-title {
+  font-size: 18px; font-weight: 700; color: var(--text-primary);
+  margin: 0;
+}
+.db-coming-desc {
+  font-size: 13px; color: var(--text-muted);
+  max-width: 360px; line-height: 1.5; margin: 0;
+}
+.db-coming-badge {
+  font-size: 11px; font-weight: 600;
+  padding: 4px 12px; border-radius: 20px;
+  background: rgba(74, 144, 217, .1);
+  color: var(--accent);
+}
 </style>
