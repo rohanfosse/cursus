@@ -33,7 +33,8 @@
       "Bash(rm:*)",
       "Bash(for method:*)",
       "Bash(do echo:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

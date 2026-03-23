@@ -66,7 +66,13 @@
   }) {
     if (!liveStore.currentSession) return
     if (editingActivity.value) {
-      await liveStore.updateActivity(editingActivity.value.id, payload)
+      const updatePayload: Partial<LiveActivity> = {
+        ...payload,
+        correct_answers: payload.correct_answers !== undefined
+          ? JSON.stringify(payload.correct_answers)
+          : undefined,
+      }
+      await liveStore.updateActivity(editingActivity.value.id, updatePayload)
       editingActivity.value = null
     } else {
       await liveStore.pushActivity(liveStore.currentSession.id, payload)

@@ -216,6 +216,11 @@ declare global {
       onLiveSessionEnded(cb: (data: { sessionId: number }) => void): () => void
       onLiveInvite(cb: (data: { sessionId: number; title: string; joinCode: string; teacherName: string }) => void): () => void
       onLiveScoresUpdate(cb: (data: { sessionId: number; activityId: number; leaderboard: unknown[] }) => void): () => void
+      getLiveSessionsForPromo(promoId: number): Promise<IpcResponse<LiveSession[]>>
+      cloneLiveSession(id: number, payload: unknown): Promise<IpcResponse<LiveSession>>
+      reorderLiveActivities(sessionId: number, order: number[]): Promise<IpcResponse<LiveSession>>
+      deleteLiveSession(id: number): Promise<IpcResponse<null>>
+      updateLiveActivity(id: number, payload: unknown): Promise<IpcResponse<LiveActivity>>
 
       // REX (Retour d'Experience)
       createRexSession(payload: unknown): Promise<IpcResponse<RexSession>>
@@ -238,6 +243,11 @@ declare global {
       onRexSessionStarted(cb: (data: { sessionId: number }) => void): () => void
       onRexSessionEnded(cb: (data: { sessionId: number }) => void): () => void
       onRexInvite(cb: (data: { sessionId: number; title: string; joinCode: string; teacherName: string }) => void): () => void
+      getRexSessionsForPromo(promoId: number): Promise<IpcResponse<RexSession[]>>
+      cloneRexSession(id: number, payload: unknown): Promise<IpcResponse<RexSession>>
+      reorderRexActivities(sessionId: number, order: number[]): Promise<IpcResponse<RexSession>>
+      deleteRexSession(id: number): Promise<IpcResponse<null>>
+      updateRexActivity(id: number, payload: unknown): Promise<IpcResponse<RexActivity>>
 
       // Grade notifications
       onGradeNew(cb: (data: { devoirTitle: string; note: string | null; feedback: string | null; devoirId: number; category: string | null }) => void): () => void
