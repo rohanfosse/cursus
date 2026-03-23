@@ -3,11 +3,11 @@
   import { ref, computed, onMounted, onUnmounted } from 'vue'
   import {
     Plus, Play, Square, ChevronRight, Trash2, Users, Radio,
-    ListChecks, MessageCircle, Cloud, X, LogOut, Trophy,
+    ListChecks, MessageCircle, Cloud, LogOut, Pencil, GripVertical, Copy,
   } from 'lucide-vue-next'
   import { useAppStore }  from '@/stores/app'
   import { useLiveStore } from '@/stores/live'
-  import type { LiveActivity } from '@/types'
+  import type { LiveActivity, LiveSession } from '@/types'
   import JoinCodeDisplay from './JoinCodeDisplay.vue'
   import ActivityForm    from './ActivityForm.vue'
   import CountdownTimer  from './CountdownTimer.vue'
@@ -20,24 +20,43 @@
   const appStore  = useAppStore()
   const liveStore = useLiveStore()
 
-  const newTitle = ref('')
+  const newTitle        = ref('')
   const showActivityForm = ref(false)
-  const showLeaderboard = ref(false)
-  const promoId = computed(() => appStore.activePromoId ?? appStore.currentUser?.promo_id ?? 0)
-  const showPodium = ref(false)
+  const showLeaderboard  = ref(false)
+  const showPodium       = ref(false)
+  const editingActivity  = ref<LiveActivity | null>(null)
+  const promoId          = computed(() => appStore.activePromoId ?? appStore.currentUser?.promo_id ?? 0)
 
-  onMounted(() => {
+  // Drag & drop state
+  const dragSrcId = ref<number | null>(null)
+
+  onMounted(async () => {
     liveStore.initSocketListeners()
+    if (promoId.value) await liveStore.fetchDraftSessions(promoId.value)
   })
   onUnmounted(() => {
     liveStore.disposeSocketListeners()
   })
 
-  // ── Create session ───────────────────────────────────────────────────────
+  // ── Create / select session ──────────────────────────────────────────────
   async function createSession() {
     if (!newTitle.value.trim() || !promoId.value) return
     await liveStore.createSession(newTitle.value.trim(), promoId.value)
     newTitle.value = ''
+  }
+
+  async function selectSession(session: LiveSession) {
+    await liveStore.fetchSession(session.id)
+    window.api.emitLiveJoin(session.promo_id)
+  }
+
+  async function onCloneSession(session: LiveSession) {
+    if (!promoId.value) return
+    await liveStore.cloneSession(session.id, promoId.value)
+  }
+
+  async function onDeleteDraftSession(session: LiveSession) {
+    await liveStore.deleteSession(session.id)
   }
 
   // ── Activity management ──────────────────────────────────────────────────
@@ -46,7 +65,22 @@
     max_words?: number; timer_seconds?: number; correct_answers?: number[]
   }) {
     if (!liveStore.currentSession) return
-    await liveStore.pushActivity(liveStore.currentSession.id, payload)
+    if (editingActivity.value) {
+      await liveStore.updateActivity(editingActivity.value.id, payload)
+      editingActivity.value = null
+    } else {
+      await liveStore.pushActivity(liveStore.currentSession.id, payload)
+    }
+    showActivityForm.value = false
+  }
+
+  function startEditActivity(activity: LiveActivity) {
+    editingActivity.value = activity
+    showActivityForm.value = true
+  }
+
+  function cancelActivityForm() {
+    editingActivity.value = null
     showActivityForm.value = false
   }
 
@@ -57,7 +91,6 @@
   async function closeCurrentActivity() {
     if (!liveStore.currentActivity) return
     await liveStore.closeActivity(liveStore.currentActivity.id)
-    // Show leaderboard after closing
     if (liveStore.currentSession) {
       await liveStore.fetchLeaderboard(liveStore.currentSession.id)
       showLeaderboard.value = true
@@ -72,22 +105,44 @@
     await liveStore.deleteActivity(activity.id)
   }
 
-  async function startSession() {
+  async function broadcastSession() {
     if (!liveStore.currentSession) return
     await liveStore.startSession(liveStore.currentSession.id)
   }
 
   async function endSession() {
     if (!liveStore.currentSession) return
-    // Fetch final leaderboard before ending
     await liveStore.fetchLeaderboard(liveStore.currentSession.id)
     showPodium.value = true
     await liveStore.endSession(liveStore.currentSession.id)
   }
 
-  const podiumTop3 = computed(() => {
-    return liveStore.leaderboard.slice(0, 3).map(e => ({ name: e.name, points: e.points }))
-  })
+  // ── Drag & drop reorder ──────────────────────────────────────────────────
+  function onDragStart(activityId: number) {
+    dragSrcId.value = activityId
+  }
+
+  function onDragOver(e: DragEvent) {
+    e.preventDefault()
+  }
+
+  async function onDrop(targetId: number) {
+    if (dragSrcId.value === null || dragSrcId.value === targetId) return
+    const acts = liveStore.sessionActivities
+    const fromIdx = acts.findIndex(a => a.id === dragSrcId.value)
+    const toIdx   = acts.findIndex(a => a.id === targetId)
+    if (fromIdx === -1 || toIdx === -1) return
+    const reordered = [...acts]
+    const [moved] = reordered.splice(fromIdx, 1)
+    reordered.splice(toIdx, 0, moved)
+    await liveStore.reorderActivities(reordered.map(a => a.id))
+    dragSrcId.value = null
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  const podiumTop3 = computed(() =>
+    liveStore.leaderboard.slice(0, 3).map(e => ({ name: e.name, points: e.points })),
+  )
 
   function activityIcon(type: string) {
     if (type === 'qcm') return ListChecks
@@ -100,16 +155,46 @@
     if (type === 'sondage') return 'Sondage'
     return 'Nuage de mots'
   }
+
+  const hasLiveActivity = computed(() => liveStore.sessionActivities.some(a => a.status === 'live'))
 </script>
 
 <template>
   <div class="teacher-live">
-    <!-- ══════════ Pas de session ══════════ -->
+    <!-- ══════════ Pas de session — écran de sélection ══════════ -->
     <div v-if="!liveStore.currentSession" class="live-empty">
       <div class="live-hero">
         <Radio :size="48" class="hero-icon" />
         <h1 class="hero-title">Live Quiz</h1>
-        <p class="hero-desc">Créez une session interactive pour vos étudiants</p>
+        <p class="hero-desc">Préparez votre session à l'avance, puis diffusez-la quand vous êtes prêt</p>
+      </div>
+
+      <!-- Brouillons existants -->
+      <div v-if="liveStore.draftSessions.length > 0" class="drafts-section">
+        <h3 class="drafts-title">Brouillons</h3>
+        <div class="draft-list">
+          <div
+            v-for="s in liveStore.draftSessions"
+            :key="s.id"
+            class="draft-card"
+          >
+            <div class="draft-card-body" @click="selectSession(s)">
+              <span class="draft-card-title">{{ s.title }}</span>
+              <span class="draft-card-meta">
+                {{ s.status === 'active' ? 'Active' : 'Brouillon' }}
+                · {{ (s as any).activities?.length ?? '?' }} activité(s)
+              </span>
+            </div>
+            <div class="draft-card-actions">
+              <button class="btn-draft-clone" title="Dupliquer" @click.stop="onCloneSession(s)">
+                <Copy :size="14" />
+              </button>
+              <button class="btn-draft-delete" title="Supprimer" @click.stop="onDeleteDraftSession(s)">
+                <Trash2 :size="14" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="create-card">
@@ -153,10 +238,10 @@
           <button
             v-if="liveStore.currentSession.status === 'waiting'"
             class="btn-start"
-            @click="startSession"
+            @click="broadcastSession"
           >
             <Play :size="16" />
-            Démarrer
+            Diffuser aux étudiants
           </button>
           <button class="btn-end" @click="endSession">
             <LogOut :size="16" />
@@ -184,8 +269,9 @@
 
         <div v-if="showActivityForm" class="activity-form-wrapper">
           <ActivityForm
+            :initial-data="editingActivity"
             @save="onAddActivity"
-            @cancel="showActivityForm = false"
+            @cancel="cancelActivityForm"
           />
         </div>
 
@@ -198,8 +284,19 @@
             v-for="act in liveStore.sessionActivities"
             :key="act.id"
             class="activity-card"
-            :class="{ closed: act.status === 'closed' }"
+            :class="{ closed: act.status === 'closed', dragging: dragSrcId === act.id }"
+            :draggable="act.status === 'pending' && !hasLiveActivity"
+            @dragstart="onDragStart(act.id)"
+            @dragover="onDragOver"
+            @drop="onDrop(act.id)"
           >
+            <div
+              v-if="act.status === 'pending' && !hasLiveActivity"
+              class="drag-handle"
+              title="Réordonner"
+            >
+              <GripVertical :size="16" />
+            </div>
             <div class="activity-card-icon">
               <component :is="activityIcon(act.type)" :size="18" />
             </div>
@@ -209,6 +306,14 @@
             </div>
             <span v-if="act.status === 'closed'" class="activity-card-done">Terminé</span>
             <div class="activity-card-actions">
+              <button
+                v-if="act.status === 'pending'"
+                class="btn-edit-activity"
+                title="Modifier"
+                @click="startEditActivity(act)"
+              >
+                <Pencil :size="14" />
+              </button>
               <button
                 v-if="act.status === 'pending'"
                 class="btn-launch"
@@ -299,6 +404,67 @@
   flex-direction: column;
   align-items: center;
 }
+
+/* ── Drafts section ── */
+.drafts-section {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.drafts-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-muted, #888);
+}
+.draft-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.draft-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-elevated, #1e1f21);
+  border: 1px solid var(--border, rgba(255,255,255,.08));
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.draft-card:hover { border-color: var(--accent, #4a90d9); }
+.draft-card-body { flex: 1; min-width: 0; }
+.draft-card-title {
+  display: block;
+  font-size: 14px; font-weight: 600;
+  color: var(--text-primary, #fff);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.draft-card-meta {
+  display: block;
+  font-size: 12px; color: var(--text-muted, #888); margin-top: 2px;
+}
+.draft-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.btn-draft-clone {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: rgba(74,144,217,.08); color: var(--accent, #4a90d9);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.btn-draft-clone:hover { background: rgba(74,144,217,.18); }
+.btn-draft-delete {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: rgba(239,68,68,.08); color: #f87171;
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.btn-draft-delete:hover { background: rgba(239,68,68,.18); }
 
 /* ── Empty / Create ── */
 .live-empty {
@@ -529,6 +695,14 @@
   cursor: pointer; transition: all .15s;
 }
 .btn-launch:hover { filter: brightness(1.1); }
+.btn-edit-activity {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: rgba(74,144,217,.08); color: var(--accent, #4a90d9);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.btn-edit-activity:hover { background: rgba(74,144,217,.18); }
 .btn-delete-activity {
   width: 28px; height: 28px; border-radius: 6px;
   background: rgba(239,68,68,.08); color: #f87171;
@@ -537,6 +711,14 @@
   transition: all .15s;
 }
 .btn-delete-activity:hover { background: rgba(239,68,68,.18); }
+.drag-handle {
+  color: var(--text-muted, #888);
+  cursor: grab;
+  display: flex; align-items: center;
+  flex-shrink: 0;
+}
+.drag-handle:active { cursor: grabbing; }
+.activity-card.dragging { opacity: .4; border-style: dashed; }
 
 /* ── Activity live (presentation) ── */
 .live-activity-view {

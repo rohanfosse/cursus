@@ -60,6 +60,27 @@ router.get('/sessions/promo/:promoId/active', wrap((req) => {
   return queries.getActiveSessionForPromo(Number(req.params.promoId))
 }))
 
+// GET /sessions/promo/:promoId - toutes les sessions non terminées (brouillons + actives)
+router.get('/sessions/promo/:promoId', wrap((req) => {
+  return queries.getSessionsForPromo(Number(req.params.promoId))
+}))
+
+// POST /sessions/:id/clone - dupliquer une session
+router.post('/sessions/:id/clone', wrap((req) => {
+  const teacherId = req.user?.id
+  const { promoId, title } = req.body
+  if (!teacherId || !promoId) throw new Error('promoId requis')
+  return queries.cloneSession(Number(req.params.id), { teacherId, promoId, title })
+}))
+
+// PATCH /sessions/:id/activities/reorder - réordonner les activités
+router.patch('/sessions/:id/activities/reorder', wrap((req) => {
+  const { order } = req.body
+  if (!Array.isArray(order)) throw new Error('order (tableau d\'IDs) requis')
+  queries.reorderActivities(Number(req.params.id), order)
+  return queries.getSession(Number(req.params.id))
+}))
+
 // PATCH /sessions/:id/status - mettre à jour le statut
 router.patch('/sessions/:id/status', (req, res) => {
   try {

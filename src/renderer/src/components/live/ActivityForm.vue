@@ -1,7 +1,10 @@
-<!-- ActivityForm.vue - Formulaire de création d'activité Live (QCM / Sondage / Nuage) -->
+<!-- ActivityForm.vue - Formulaire de création/édition d'activité Live (QCM / Sondage / Nuage) -->
 <script setup lang="ts">
   import { ref } from 'vue'
   import { ListChecks, MessageCircle, Cloud, Plus, X } from 'lucide-vue-next'
+  import type { LiveActivity } from '@/types'
+
+  const props = defineProps<{ initialData?: LiveActivity | null }>()
 
   const emit = defineEmits<{
     save: [payload: {
@@ -12,12 +15,23 @@
     cancel: []
   }>()
 
-  const activityType = ref<'qcm' | 'sondage' | 'nuage'>('qcm')
-  const title = ref('')
-  const options = ref<string[]>(['', ''])
-  const maxWords = ref(2)
-  const timerSeconds = ref(30)
-  const correctAnswers = ref<number[]>([])
+  const isEditing = !!props.initialData
+
+  function parseOptions(data?: LiveActivity | null): string[] {
+    if (!data?.options) return ['', '']
+    try { return JSON.parse(data.options as unknown as string) } catch { return ['', ''] }
+  }
+  function parseCorrectAnswers(data?: LiveActivity | null): number[] {
+    if (!data?.correct_answers) return []
+    try { return JSON.parse(data.correct_answers as unknown as string) } catch { return [] }
+  }
+
+  const activityType = ref<'qcm' | 'sondage' | 'nuage'>(props.initialData?.type ?? 'qcm')
+  const title        = ref(props.initialData?.title ?? '')
+  const options      = ref<string[]>(parseOptions(props.initialData))
+  const maxWords     = ref(props.initialData?.max_words ?? 2)
+  const timerSeconds = ref(props.initialData?.timer_seconds ?? 30)
+  const correctAnswers = ref<number[]>(parseCorrectAnswers(props.initialData))
   const timerOptions = [10, 20, 30, 60]
 
   const typeCards = [
@@ -75,7 +89,7 @@
 
 <template>
   <div class="activity-form">
-    <h3 class="form-title">Nouvelle activité</h3>
+    <h3 class="form-title">{{ isEditing ? 'Modifier l\'activité' : 'Nouvelle activité' }}</h3>
 
     <!-- Type selector -->
     <div class="type-cards">
@@ -167,7 +181,7 @@
     <!-- Actions -->
     <div class="form-actions">
       <button class="btn-cancel" @click="emit('cancel')">Annuler</button>
-      <button class="btn-save" :disabled="!title.trim()" @click="save">Ajouter</button>
+      <button class="btn-save" :disabled="!title.trim()" @click="save">{{ isEditing ? 'Enregistrer' : 'Ajouter' }}</button>
     </div>
   </div>
 </template>

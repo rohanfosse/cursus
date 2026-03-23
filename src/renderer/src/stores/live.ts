@@ -16,6 +16,7 @@ export const useLiveStore = defineStore('live', () => {
   const participantCount = ref(0)
   const hasResponded     = ref(false)
   const loading          = ref(false)
+  const draftSessions    = ref<LiveSession[]>([])
   const pastSessions     = ref<LiveSession[]>([])
   const leaderboard      = ref<LeaderboardEntry[]>([])
   const myScore          = ref<LiveScoreResult | null>(null)
@@ -243,6 +244,71 @@ export const useLiveStore = defineStore('live', () => {
     return false
   }
 
+  async function fetchDraftSessions(promoId: number): Promise<void> {
+    const data = await api<LiveSession[]>(
+      () => window.api.getLiveSessionsForPromo(promoId),
+    )
+    if (data) draftSessions.value = data
+  }
+
+  async function updateActivity(activityId: number, payload: Partial<LiveActivity>): Promise<boolean> {
+    const data = await api<LiveActivity>(
+      () => window.api.updateLiveActivity(activityId, payload),
+    )
+    if (data && currentSession.value?.activities) {
+      currentSession.value = {
+        ...currentSession.value,
+        activities: currentSession.value.activities.map(a => a.id === activityId ? data : a),
+      }
+      return true
+    }
+    return false
+  }
+
+  async function reorderActivities(orderedIds: number[]): Promise<boolean> {
+    if (!currentSession.value) return false
+    // Optimistic update
+    const ordered = orderedIds.map((id, i) => {
+      const a = currentSession.value!.activities!.find(x => x.id === id)!
+      return { ...a, position: i }
+    })
+    currentSession.value = { ...currentSession.value, activities: ordered }
+    const data = await api<LiveSession>(
+      () => window.api.reorderLiveActivities(currentSession.value!.id, orderedIds),
+    )
+    if (data) currentSession.value = data
+    return !!data
+  }
+
+  async function cloneSession(sourceId: number, promoId: number, title?: string): Promise<boolean> {
+    loading.value = true
+    try {
+      const data = await api<LiveSession>(
+        () => window.api.cloneLiveSession(sourceId, { promoId, title }),
+      )
+      if (data) {
+        currentSession.value = data
+        draftSessions.value = [data, ...draftSessions.value]
+        return true
+      }
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function deleteSession(sessionId: number): Promise<boolean> {
+    const data = await api(
+      () => window.api.deleteLiveSession(sessionId),
+    )
+    if (data !== undefined) {
+      draftSessions.value = draftSessions.value.filter(s => s.id !== sessionId)
+      if (currentSession.value?.id === sessionId) leaveSession()
+      return true
+    }
+    return false
+  }
+
   // ── Socket listeners ─────────────────────────────────────────────────────
   const _cleanups: (() => void)[] = []
 
@@ -328,12 +394,13 @@ export const useLiveStore = defineStore('live', () => {
   return {
     // state
     currentSession, currentActivity, results, participantCount,
-    hasResponded, loading, pastSessions,
+    hasResponded, loading, draftSessions, pastSessions,
     leaderboard, myScore, timerStartedAt,
     // computed
     sessionActivities, liveActivity,
     // actions
     createSession, joinByCode, leaveSession, fetchSession, fetchActiveForPromo,
+    fetchDraftSessions, updateActivity, reorderActivities, cloneSession, deleteSession,
     pushActivity, launchActivity, closeActivity, deleteActivity,
     submitResponse, fetchResults, fetchLeaderboard, endSession, startSession,
     initSocketListeners, disposeSocketListeners,

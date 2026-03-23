@@ -1,18 +1,24 @@
-/** RexActivityForm — Formulaire de creation d'activite REX pour enseignants. */
+/** RexActivityForm — Formulaire de creation/edition d'activite REX pour enseignants. */
 <script setup lang="ts">
   import { ref, computed } from 'vue'
   import { MessageSquare, Cloud, Star, FileText } from 'lucide-vue-next'
+  import type { RexActivity } from '@/types'
 
   type RexType = 'sondage_libre' | 'nuage' | 'echelle' | 'question_ouverte'
 
+  const props = defineProps<{ initialData?: RexActivity | null }>()
+
   const emit = defineEmits<{
     add: [payload: { type: RexType; title: string; max_words?: number; max_rating?: number }]
+    cancel: []
   }>()
 
-  const selectedType = ref<RexType | null>(null)
-  const title = ref('')
-  const maxWords = ref(2)
-  const maxRating = ref(5)
+  const isEditing = !!props.initialData
+
+  const selectedType = ref<RexType | null>(props.initialData?.type ?? null)
+  const title        = ref(props.initialData?.title ?? '')
+  const maxWords     = ref(props.initialData?.max_words ?? 2)
+  const maxRating    = ref(props.initialData?.max_rating ?? 5)
 
   const types: { value: RexType; label: string; icon: typeof MessageSquare }[] = [
     { value: 'sondage_libre', label: 'Sondage libre', icon: MessageSquare },
@@ -32,8 +38,7 @@
     if (selectedType.value === 'nuage') payload.max_words = maxWords.value
     if (selectedType.value === 'echelle') payload.max_rating = maxRating.value
     emit('add', payload)
-    title.value = ''
-    selectedType.value = null
+    if (!isEditing) { title.value = ''; selectedType.value = null }
   }
 </script>
 
@@ -75,9 +80,12 @@
       </div>
     </div>
 
-    <button class="rex-form-submit" :disabled="!canSubmit" @click="submit">
-      Ajouter
-    </button>
+    <div class="rex-form-footer">
+      <button v-if="isEditing" class="rex-form-cancel" @click="emit('cancel')">Annuler</button>
+      <button class="rex-form-submit" :disabled="!canSubmit" @click="submit">
+        {{ isEditing ? 'Enregistrer' : 'Ajouter' }}
+      </button>
+    </div>
   </div>
 </template>
 
@@ -183,4 +191,22 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+.rex-form-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.rex-form-cancel {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255,255,255,.08));
+  background: transparent;
+  color: var(--text-secondary, #aaa);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font, inherit);
+}
+.rex-form-cancel:hover { background: var(--bg-hover); }
 </style>

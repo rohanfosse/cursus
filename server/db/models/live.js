@@ -44,8 +44,16 @@ function getSessionByCode(code) {
 
 function getActiveSessionForPromo(promoId) {
   return getDb().prepare(
-    "SELECT * FROM live_sessions WHERE promo_id = ? AND status IN ('waiting','active') LIMIT 1"
+    "SELECT * FROM live_sessions WHERE promo_id = ? AND status = 'active' LIMIT 1"
   ).get(promoId) || null;
+}
+
+function getSessionsForPromo(promoId) {
+  const db = getDb();
+  const sessions = db.prepare(
+    "SELECT * FROM live_sessions WHERE promo_id = ? AND status != 'ended' ORDER BY created_at DESC"
+  ).all(promoId);
+  return sessions;
 }
 
 function updateSessionStatus(id, status) {
@@ -98,6 +106,46 @@ function updateActivity(id, fields) {
 
 function deleteActivity(id) {
   return getDb().prepare('DELETE FROM live_activities WHERE id = ?').run(id);
+}
+
+function reorderActivities(sessionId, orderedIds) {
+  const db = getDb();
+  const update = db.prepare('UPDATE live_activities SET position = ? WHERE id = ? AND session_id = ?');
+  const transaction = db.transaction((ids) => {
+    ids.forEach((id, index) => update.run(index, id, sessionId));
+  });
+  transaction(orderedIds);
+}
+
+function cloneSession(sourceId, { teacherId, promoId, title }) {
+  const db = getDb();
+  const source = getSession(sourceId);
+  if (!source) return null;
+
+  let code;
+  for (let i = 0; i < 10; i++) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    const exists = db.prepare('SELECT 1 FROM live_sessions WHERE join_code = ?').get(code);
+    if (!exists) break;
+  }
+
+  const newSession = db.prepare(
+    'INSERT INTO live_sessions (teacher_id, promo_id, title, join_code) VALUES (?, ?, ?, ?)'
+  ).run(teacherId, promoId, title ?? source.title, code);
+
+  const sessionId = newSession.lastInsertRowid;
+  const insertActivity = db.prepare(
+    'INSERT INTO live_activities (session_id, type, title, options, multi, max_words, position, timer_seconds, correct_answers) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  );
+  const transaction = db.transaction((activities) => {
+    for (const a of activities) {
+      insertActivity.run(sessionId, a.type, a.title, a.options, a.multi, a.max_words, a.position, a.timer_seconds, a.correct_answers);
+    }
+  });
+  transaction(source.activities);
+
+  return getSession(sessionId);
 }
 
 function setActivityStatus(id, status) {
@@ -282,11 +330,14 @@ module.exports = {
   getSession,
   getSessionByCode,
   getActiveSessionForPromo,
+  getSessionsForPromo,
   updateSessionStatus,
   deleteSession,
   addActivity,
   updateActivity,
   deleteActivity,
+  reorderActivities,
+  cloneSession,
   setActivityStatus,
   submitResponse,
   getActivityResults,

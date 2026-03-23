@@ -2,13 +2,13 @@
 <script setup lang="ts">
   import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
   import {
-    Plus, Play, Square, Trash2, Users, Radio,
+    Plus, Play, Square, Trash2, Users,
     MessageSquare, Cloud, Star, FileText, LogOut,
-    ChevronDown, Download,
+    ChevronDown, Download, Pencil, GripVertical, Copy,
   } from 'lucide-vue-next'
   import { useAppStore }  from '@/stores/app'
   import { useRexStore }  from '@/stores/rex'
-  import type { RexActivity } from '@/types'
+  import type { RexActivity, RexSession } from '@/types'
 
   import RexJoinCodeDisplay         from './RexJoinCodeDisplay.vue'
   import RexActivityForm            from './RexActivityForm.vue'
@@ -20,18 +20,22 @@
   const appStore = useAppStore()
   const rex      = useRexStore()
 
-  const newTitle = ref('')
-  const showForm = ref(false)
-  const exportOpen = ref(false)
+  const newTitle        = ref('')
+  const showForm        = ref(false)
+  const exportOpen      = ref(false)
+  const editingActivity = ref<RexActivity | null>(null)
+  const dragSrcId       = ref<number | null>(null)
   const selectedPromoId = ref<number | null>(appStore.activePromoId)
 
-  const promoId = computed(() => selectedPromoId.value ?? appStore.activePromoId ?? appStore.currentUser?.promo_id ?? 0)
-  const session = computed(() => rex.currentSession)
+  const promoId  = computed(() => selectedPromoId.value ?? appStore.activePromoId ?? appStore.currentUser?.promo_id ?? 0)
+  const session  = computed(() => rex.currentSession)
   const activity = computed(() => rex.currentActivity)
   const results  = computed(() => rex.results)
+  const hasLiveActivity = computed(() => rex.sessionActivities.some(a => a.status === 'live'))
 
-  onMounted(() => {
+  onMounted(async () => {
     rex.initSocketListeners()
+    if (promoId.value) await rex.fetchDraftSessions(promoId.value)
   })
   onUnmounted(() => {
     rex.disposeSocketListeners()
@@ -59,13 +63,58 @@
     newTitle.value = ''
   }
 
+  async function selectSession(s: RexSession) {
+    await rex.fetchSession(s.id)
+    window.api.emitRexJoin(s.promo_id)
+  }
+
+  async function onCloneSession(s: RexSession) {
+    if (!promoId.value) return
+    await rex.cloneSession(s.id, promoId.value)
+  }
+
+  async function onDeleteDraftSession(s: RexSession) {
+    await rex.deleteSession(s.id)
+  }
+
   async function onAddActivity(payload: {
     type: 'sondage_libre' | 'nuage' | 'echelle' | 'question_ouverte'
     title: string; max_words?: number; max_rating?: number
   }) {
     if (!session.value) return
-    await rex.pushActivity(session.value.id, payload)
+    if (editingActivity.value) {
+      await rex.updateActivity(editingActivity.value.id, payload)
+      editingActivity.value = null
+    } else {
+      await rex.pushActivity(session.value.id, payload)
+    }
     showForm.value = false
+  }
+
+  function startEditActivity(act: RexActivity) {
+    editingActivity.value = act
+    showForm.value = true
+  }
+
+  function cancelForm() {
+    editingActivity.value = null
+    showForm.value = false
+  }
+
+  // Drag & drop reorder
+  function onDragStart(actId: number) { dragSrcId.value = actId }
+  function onDragOver(e: DragEvent) { e.preventDefault() }
+  async function onDrop(targetId: number) {
+    if (dragSrcId.value === null || dragSrcId.value === targetId) return
+    const acts = rex.sessionActivities
+    const fromIdx = acts.findIndex(a => a.id === dragSrcId.value)
+    const toIdx   = acts.findIndex(a => a.id === targetId)
+    if (fromIdx === -1 || toIdx === -1) return
+    const reordered = [...acts]
+    const [moved] = reordered.splice(fromIdx, 1)
+    reordered.splice(toIdx, 0, moved)
+    await rex.reorderActivities(reordered.map(a => a.id))
+    dragSrcId.value = null
   }
 
   async function launch(act: RexActivity) {
@@ -128,7 +177,30 @@
     <!-- ═══ A) Pas de session ═══ -->
     <div v-if="!session" class="rex-create">
       <h2 class="rex-title">Retour d'Experience</h2>
-      <p class="rex-subtitle">Creez une session pour recueillir les retours anonymes de vos etudiants</p>
+      <p class="rex-subtitle">Préparez votre session à l'avance, puis diffusez-la quand vous êtes prêt</p>
+
+      <!-- Brouillons existants -->
+      <div v-if="rex.draftSessions.length > 0" class="rex-drafts">
+        <h3 class="rex-drafts-title">Brouillons</h3>
+        <div
+          v-for="s in rex.draftSessions"
+          :key="s.id"
+          class="rex-draft-card"
+        >
+          <div class="rex-draft-body" @click="selectSession(s)">
+            <span class="rex-draft-title">{{ s.title }}</span>
+            <span class="rex-draft-meta">{{ s.status === 'active' ? 'Active' : 'Brouillon' }}</span>
+          </div>
+          <div class="rex-draft-actions">
+            <button class="rex-btn-sm rex-btn-ghost" title="Dupliquer" @click.stop="onCloneSession(s)">
+              <Copy :size="13" />
+            </button>
+            <button class="rex-btn-sm rex-btn-ghost-danger" title="Supprimer" @click.stop="onDeleteDraftSession(s)">
+              <Trash2 :size="13" />
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div class="rex-create-form">
         <input
@@ -142,7 +214,7 @@
           <option :value="null" disabled>Choisir une promotion</option>
         </select>
         <button class="rex-btn-primary" :disabled="!newTitle.trim() || !promoId" @click="createSession">
-          Creer la session
+          Créer la session
         </button>
       </div>
     </div>
@@ -169,7 +241,7 @@
             </div>
           </div>
           <button v-if="session.status === 'waiting'" class="rex-btn-primary" @click="startSession">
-            <Play :size="14" /> Demarrer
+            <Play :size="14" /> Diffuser aux étudiants
           </button>
           <button v-if="session.status === 'active'" class="rex-btn-danger" @click="endSession">
             <Square :size="14" /> Terminer
@@ -237,12 +309,36 @@
       <!-- Activity list -->
       <div v-if="session.status !== 'ended'" class="rex-activities">
         <h3 class="rex-section-title">Activites</h3>
-        <div v-for="act in rex.sessionActivities" :key="act.id" class="rex-act-row">
+        <div
+          v-for="act in rex.sessionActivities"
+          :key="act.id"
+          class="rex-act-row"
+          :class="{ 'rex-act-dragging': dragSrcId === act.id }"
+          :draggable="act.status === 'pending' && !hasLiveActivity"
+          @dragstart="onDragStart(act.id)"
+          @dragover="onDragOver"
+          @drop="onDrop(act.id)"
+        >
+          <div
+            v-if="act.status === 'pending' && !hasLiveActivity"
+            class="rex-drag-handle"
+            title="Réordonner"
+          >
+            <GripVertical :size="14" />
+          </div>
           <component :is="activityIcon(act.type)" :size="15" class="rex-act-icon" />
           <span class="rex-act-title">{{ act.title }}</span>
           <span class="rex-act-type">{{ activityTypeLabel(act.type) }}</span>
           <span class="rex-act-status" :class="act.status">{{ act.status }}</span>
           <div class="rex-act-actions">
+            <button
+              v-if="act.status === 'pending'"
+              class="rex-btn-sm rex-btn-ghost"
+              title="Modifier"
+              @click="startEditActivity(act)"
+            >
+              <Pencil :size="12" />
+            </button>
             <button
               v-if="act.status === 'pending' && session.status === 'active'"
               class="rex-btn-sm rex-btn-teal"
@@ -255,7 +351,7 @@
               class="rex-btn-sm rex-btn-ghost"
               @click="viewResults(act)"
             >
-              Resultats
+              Résultats
             </button>
             <button
               v-if="act.status === 'pending'"
@@ -267,11 +363,11 @@
           </div>
         </div>
 
-        <!-- Add activity -->
+        <!-- Add / edit activity form -->
         <button v-if="!showForm" class="rex-add-btn" @click="showForm = true">
-          <Plus :size="14" /> Ajouter une activite
+          <Plus :size="14" /> Ajouter une activité
         </button>
-        <RexActivityForm v-else @add="onAddActivity" />
+        <RexActivityForm v-else :initial-data="editingActivity" @add="onAddActivity" @cancel="cancelForm" />
       </div>
     </template>
   </div>
@@ -283,6 +379,34 @@
   flex-direction: column;
   gap: 20px;
 }
+
+/* ── Drafts ── */
+.rex-drafts { display: flex; flex-direction: column; gap: 8px; }
+.rex-drafts-title {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--text-muted, #888); margin: 0;
+}
+.rex-draft-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-elevated, #1e1f21);
+  border: 1px solid var(--border, rgba(255,255,255,.08));
+  border-radius: 10px; cursor: pointer; transition: all .15s;
+}
+.rex-draft-card:hover { border-color: #0d9488; }
+.rex-draft-body { flex: 1; min-width: 0; }
+.rex-draft-title {
+  display: block; font-size: 13px; font-weight: 600;
+  color: var(--text-primary, #fff);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rex-draft-meta { display: block; font-size: 11px; color: var(--text-muted, #888); margin-top: 2px; }
+.rex-draft-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.rex-drag-handle {
+  color: var(--text-muted, #888); cursor: grab; display: flex; align-items: center; flex-shrink: 0;
+}
+.rex-drag-handle:active { cursor: grabbing; }
+.rex-act-row.rex-act-dragging { opacity: .4; border-style: dashed; }
 
 /* ── Create state ── */
 .rex-create {

@@ -49,6 +49,27 @@ router.get('/sessions/promo/:promoId/active', wrap((req) => {
   return queries.getActiveRexSession(Number(req.params.promoId))
 }))
 
+// GET /sessions/promo/:promoId - toutes les sessions non terminées (brouillons + actives)
+router.get('/sessions/promo/:promoId', wrap((req) => {
+  return queries.getRexSessionsForPromo(Number(req.params.promoId))
+}))
+
+// POST /sessions/:id/clone - dupliquer une session REX
+router.post('/sessions/:id/clone', wrap((req) => {
+  const teacherId = req.user?.id
+  const { promoId, title } = req.body
+  if (!teacherId || !promoId) throw new Error('promoId requis')
+  return queries.cloneRexSession(Number(req.params.id), { teacherId, promoId, title })
+}))
+
+// PATCH /sessions/:id/activities/reorder - réordonner les activités
+router.patch('/sessions/:id/activities/reorder', wrap((req) => {
+  const { order } = req.body
+  if (!Array.isArray(order)) throw new Error('order (tableau d\'IDs) requis')
+  queries.reorderRexActivities(Number(req.params.id), order)
+  return queries.getRexSession(Number(req.params.id))
+}))
+
 // PATCH /sessions/:id/status - demarrer/terminer
 router.patch('/sessions/:id/status', (req, res) => {
   try {
@@ -82,6 +103,11 @@ router.post('/sessions/:id/activities', wrap((req) => {
   return queries.addRexActivity({
     sessionId: Number(req.params.id), type, title, maxWords, maxRating, position,
   })
+}))
+
+// PATCH /activities/:id - modifier une activité REX
+router.patch('/activities/:id', wrap((req) => {
+  return queries.updateRexActivity(Number(req.params.id), req.body)
 }))
 
 // DELETE /activities/:id

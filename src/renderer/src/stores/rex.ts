@@ -13,6 +13,7 @@ export const useRexStore = defineStore('rex', () => {
   const results         = ref<RexResults | null>(null)
   const hasResponded    = ref(false)
   const loading         = ref(false)
+  const draftSessions   = ref<RexSession[]>([])
 
   // ── Computed ─────────────────────────────────────────────────────────────
   const sessionActivities = computed<RexActivity[]>(() =>
@@ -229,6 +230,70 @@ export const useRexStore = defineStore('rex', () => {
     )
   }
 
+  async function fetchDraftSessions(promoId: number): Promise<void> {
+    const data = await api<RexSession[]>(
+      () => window.api.getRexSessionsForPromo(promoId),
+    )
+    if (data) draftSessions.value = data
+  }
+
+  async function updateActivity(activityId: number, payload: Partial<RexActivity>): Promise<boolean> {
+    const data = await api<RexActivity>(
+      () => window.api.updateRexActivity(activityId, payload),
+    )
+    if (data && currentSession.value?.activities) {
+      currentSession.value = {
+        ...currentSession.value,
+        activities: currentSession.value.activities.map(a => a.id === activityId ? data : a),
+      }
+      return true
+    }
+    return false
+  }
+
+  async function reorderActivities(orderedIds: number[]): Promise<boolean> {
+    if (!currentSession.value) return false
+    const ordered = orderedIds.map((id, i) => {
+      const a = currentSession.value!.activities!.find(x => x.id === id)!
+      return { ...a, position: i }
+    })
+    currentSession.value = { ...currentSession.value, activities: ordered }
+    const data = await api<RexSession>(
+      () => window.api.reorderRexActivities(currentSession.value!.id, orderedIds),
+    )
+    if (data) currentSession.value = data
+    return !!data
+  }
+
+  async function cloneSession(sourceId: number, promoId: number, title?: string): Promise<boolean> {
+    loading.value = true
+    try {
+      const data = await api<RexSession>(
+        () => window.api.cloneRexSession(sourceId, { promoId, title }),
+      )
+      if (data) {
+        currentSession.value = data
+        draftSessions.value = [data, ...draftSessions.value]
+        return true
+      }
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function deleteSession(sessionId: number): Promise<boolean> {
+    const data = await api(
+      () => window.api.deleteRexSession(sessionId),
+    )
+    if (data !== undefined) {
+      draftSessions.value = draftSessions.value.filter(s => s.id !== sessionId)
+      if (currentSession.value?.id === sessionId) leaveSession()
+      return true
+    }
+    return false
+  }
+
   // ── Socket listeners ─────────────────────────────────────────────────────
   const _cleanups: (() => void)[] = []
 
@@ -299,11 +364,12 @@ export const useRexStore = defineStore('rex', () => {
   return {
     // state
     currentSession, currentActivity, results,
-    hasResponded, loading,
+    hasResponded, loading, draftSessions,
     // computed
     sessionActivities, liveActivity,
     // actions
     createSession, joinByCode, leaveSession, fetchSession, fetchActiveForPromo,
+    fetchDraftSessions, updateActivity, reorderActivities, cloneSession, deleteSession,
     pushActivity, launchActivity, closeActivity, deleteActivity,
     submitResponse, fetchResults, startSession, endSession,
     togglePin, exportSession,

@@ -44,8 +44,14 @@ function getRexSessionByCode(code) {
 
 function getActiveRexSession(promoId) {
   return getDb().prepare(
-    "SELECT * FROM rex_sessions WHERE promo_id = ? AND status IN ('waiting','active') LIMIT 1"
+    "SELECT * FROM rex_sessions WHERE promo_id = ? AND status = 'active' LIMIT 1"
   ).get(promoId) || null;
+}
+
+function getRexSessionsForPromo(promoId) {
+  return getDb().prepare(
+    "SELECT * FROM rex_sessions WHERE promo_id = ? AND status != 'ended' ORDER BY created_at DESC"
+  ).all(promoId);
 }
 
 function updateRexSessionStatus(id, status) {
@@ -72,8 +78,64 @@ function addRexActivity({ sessionId, type, title, maxWords, maxRating, position 
   return db.prepare('SELECT * FROM rex_activities WHERE id = ?').get(res.lastInsertRowid);
 }
 
+function updateRexActivity(id, fields) {
+  const db = getDb();
+  const allowed = ['title', 'type', 'max_words', 'max_rating', 'position'];
+  const sets = [];
+  const vals = [];
+  for (const key of allowed) {
+    if (fields[key] !== undefined) { sets.push(`${key} = ?`); vals.push(fields[key]); }
+  }
+  if (fields.maxWords !== undefined && fields.max_words === undefined) { sets.push('max_words = ?'); vals.push(fields.maxWords); }
+  if (fields.maxRating !== undefined && fields.max_rating === undefined) { sets.push('max_rating = ?'); vals.push(fields.maxRating); }
+  if (sets.length === 0) return db.prepare('SELECT * FROM rex_activities WHERE id = ?').get(id);
+  vals.push(id);
+  db.prepare(`UPDATE rex_activities SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
+  return db.prepare('SELECT * FROM rex_activities WHERE id = ?').get(id);
+}
+
 function deleteRexActivity(id) {
   return getDb().prepare('DELETE FROM rex_activities WHERE id = ?').run(id);
+}
+
+function reorderRexActivities(sessionId, orderedIds) {
+  const db = getDb();
+  const update = db.prepare('UPDATE rex_activities SET position = ? WHERE id = ? AND session_id = ?');
+  const transaction = db.transaction((ids) => {
+    ids.forEach((id, index) => update.run(index, id, sessionId));
+  });
+  transaction(orderedIds);
+}
+
+function cloneRexSession(sourceId, { teacherId, promoId, title }) {
+  const db = getDb();
+  const source = getRexSession(sourceId);
+  if (!source) return null;
+
+  let code;
+  for (let i = 0; i < 10; i++) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    const exists = db.prepare('SELECT 1 FROM rex_sessions WHERE join_code = ?').get(code);
+    if (!exists) break;
+  }
+
+  const newSession = db.prepare(
+    'INSERT INTO rex_sessions (teacher_id, promo_id, title, join_code) VALUES (?, ?, ?, ?)'
+  ).run(teacherId, promoId, title ?? source.title, code);
+
+  const sessionId = newSession.lastInsertRowid;
+  const insertActivity = db.prepare(
+    'INSERT INTO rex_activities (session_id, type, title, max_words, max_rating, position) VALUES (?, ?, ?, ?, ?, ?)'
+  );
+  const transaction = db.transaction((activities) => {
+    for (const a of activities) {
+      insertActivity.run(sessionId, a.type, a.title, a.max_words, a.max_rating, a.position);
+    }
+  });
+  transaction(source.activities);
+
+  return getRexSession(sessionId);
 }
 
 function setRexActivityStatus(id, status) {
@@ -192,10 +254,14 @@ module.exports = {
   getRexSession,
   getRexSessionByCode,
   getActiveRexSession,
+  getRexSessionsForPromo,
   updateRexSessionStatus,
   deleteRexSession,
   addRexActivity,
+  updateRexActivity,
   deleteRexActivity,
+  reorderRexActivities,
+  cloneRexSession,
   setRexActivityStatus,
   submitRexResponse,
   hasRexStudentResponded,
