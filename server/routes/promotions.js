@@ -42,5 +42,6 @@ router.patch('/channels/:id/name',   wrap((req) => queries.renameChannel(Number(
 router.delete('/channels/:id',       wrap((req) => queries.deleteChannel(Number(req.params.id))))
 router.post('/channels/members',     wrap((req) => queries.updateChannelMembers(req.body)))
 router.patch('/channels/:id/category', wrap((req) => queries.updateChannelCategory(Number(req.params.id), req.body.category)))
+router.patch('/channels/:id/privacy',  wrap((req) => queries.updateChannelPrivacy(Number(req.params.id), req.body.isPrivate, req.body.members)))
 
 module.exports = router

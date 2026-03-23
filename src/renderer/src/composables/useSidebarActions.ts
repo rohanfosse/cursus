@@ -3,7 +3,7 @@
  * Used by AppSidebar.vue
  */
 import { ref, computed, watch, nextTick, type Ref } from 'vue'
-import { PlusCircle, Pencil, Trash2, VolumeX, Volume2 } from 'lucide-vue-next'
+import { PlusCircle, Pencil, Trash2, VolumeX, Volume2, Lock, Unlock } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
 import { useToast } from '@/composables/useToast'
@@ -147,6 +147,16 @@ export function useSidebarActions(
           label:  isMuted(ch.id) ? 'Retirer la sourdine' : 'Mettre en sourdine',
           icon:   isMuted(ch.id) ? Volume2 : VolumeX,
           action: () => toggleMute(ch),
+        },
+        {
+          label:  ch.is_private ? 'Rendre public' : 'Rendre privé',
+          icon:   ch.is_private ? Unlock : Lock,
+          action: async () => {
+            const newPrivate = !ch.is_private
+            await window.api.updateChannelPrivacy(ch.id, newPrivate)
+            await loadTeacherChannels()
+            showToast(newPrivate ? 'Canal rendu privé.' : 'Canal rendu public.', 'success')
+          },
         },
         {
           label: 'Supprimer le canal',

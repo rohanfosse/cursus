@@ -156,7 +156,13 @@
 
       <!-- En-tete etudiant -->
       <div v-if="!appStore.isStaff && activePromoName" class="sb-student-header">
-        <div class="sb-student-promo">{{ activePromoName }}</div>
+        <div class="sb-student-promo-icon">
+          <BookOpen :size="14" />
+        </div>
+        <div class="sb-student-promo-text">
+          <span class="sb-student-promo-name">{{ activePromoName }}</span>
+          <span class="sb-student-promo-badge">Etudiant</span>
+        </div>
       </div>
 
       <!-- Squelette de chargement -->
@@ -420,8 +426,8 @@
 
       <!-- Salons groupes par categorie (autres sections) -->
       <template v-else>
-        <!-- Spacer accent (etudiants) -->
-        <div v-if="!appStore.isStaff" class="sb-accent-spacer">
+        <!-- Spacer accent -->
+        <div class="sb-accent-spacer">
           <span class="sb-accent-line" />
           <span class="sb-accent-dot" />
           <span class="sb-accent-line" />
@@ -1125,15 +1131,31 @@
 /* ── Résumé promo card ── */
 /* ── Student header ── */
 .sb-student-header {
-  margin: 0 10px 4px;
-  padding: 10px 12px;
+  display: flex; align-items: center; gap: 10px;
+  margin: 4px 10px 2px;
+  padding: 10px 14px;
   border-radius: 10px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: linear-gradient(135deg, rgba(74,144,217,.08), rgba(74,144,217,.02));
+  border: 1px solid rgba(74,144,217,.12);
 }
-.sb-student-promo {
+.sb-student-promo-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 8px;
+  background: rgba(74,144,217,.12); color: var(--accent);
+  flex-shrink: 0;
+}
+.sb-student-promo-text {
+  display: flex; flex-direction: column; min-width: 0;
+}
+.sb-student-promo-name {
   font-size: 13px; font-weight: 700; color: var(--text-primary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1.2;
+}
+.sb-student-promo-badge {
+  font-size: 9px; font-weight: 600;
+  color: var(--accent); opacity: .7;
+  text-transform: uppercase; letter-spacing: .04em;
 }
 
 .sb-promo-card {

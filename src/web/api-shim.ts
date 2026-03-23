@@ -283,6 +283,8 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   updateChannelMembers:  (payload: unknown) => post('/api/promotions/channels/members', payload),
   updateChannelCategory: (channelId: number, category: string | null) =>
     patch(`/api/promotions/channels/${channelId}/category`, { category }),
+  updateChannelPrivacy: (channelId: number, isPrivate: boolean, members?: number[]) =>
+    patch(`/api/promotions/channels/${channelId}/privacy`, { isPrivate, members }),
 
   // ── Étudiants ───────────────────────────────────────────────────────────────
   getStudents:      (promoId: number)   => get(`/api/promotions/${promoId}/students`),

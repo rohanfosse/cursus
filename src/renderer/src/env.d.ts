@@ -88,6 +88,7 @@ declare global {
       deleteCategory(promoId: number, category: string): Promise<IpcResponse<null>>
       updateChannelMembers(payload: object): Promise<IpcResponse<null>>
       updateChannelCategory(channelId: number, category: string | null): Promise<IpcResponse<null>>
+      updateChannelPrivacy(channelId: number, isPrivate: boolean, members?: number[]): Promise<IpcResponse<unknown>>
 
       // Inscription
       getStudentByEmail(email: string): Promise<IpcResponse<Student>>

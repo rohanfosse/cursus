@@ -60,8 +60,15 @@ function updateChannelCategory(channelId, category) {
   return getDb().prepare('UPDATE channels SET category = ? WHERE id = ?').run(category ?? null, channelId);
 }
 
+function updateChannelPrivacy(channelId, isPrivate, members) {
+  const db = getDb();
+  const membersJson = isPrivate && members?.length ? JSON.stringify(members) : null;
+  db.prepare('UPDATE channels SET is_private = ?, members = ? WHERE id = ?').run(isPrivate ? 1 : 0, membersJson, channelId);
+  return db.prepare('SELECT * FROM channels WHERE id = ?').get(channelId);
+}
+
 module.exports = {
   getPromotions, getChannels, createPromotion, deletePromotion, createChannel,
   renameChannel, deleteChannel, renameCategory, deleteCategory,
-  updateChannelMembers, updateChannelCategory,
+  updateChannelMembers, updateChannelCategory, updateChannelPrivacy,
 };

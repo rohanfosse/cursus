@@ -267,16 +267,6 @@
 
     </div>
 
-    <!-- Sidebar preview -->
-    <div v-if="channelName.trim()" class="cc-preview">
-      <span class="cc-preview-label">Apercu sidebar</span>
-      <div class="cc-preview-item">
-        <span class="cc-preview-prefix">{{ channelType === 'annonce' ? '\uD83D\uDCE2' : '#' }}</span>
-        <span class="cc-preview-name">{{ channelName.trim() }}</span>
-        <Lock v-if="visibility === 'private'" :size="10" class="cc-preview-lock" />
-      </div>
-    </div>
-
     <div class="cc-footer">
       <button class="btn-ghost" @click="emit('update:modelValue', false)">Annuler</button>
       <button class="btn-primary" :disabled="!channelName.trim() || creating" @click="create">
