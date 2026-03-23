@@ -15,6 +15,7 @@ import {
   Mic,
 } from 'lucide-vue-next'
 import { avatarColor, gradeClass } from '@/utils/format'
+import { relativeTime } from '@/utils/date'
 import type { ProjectCard, GanttRow } from '@/composables/useDashboardTeacher'
 import type { AgendaItem } from '@/composables/useDashboardWidgets'
 import type { Depot } from '@/types'
@@ -188,16 +189,7 @@ const activityFeed = computed((): ActivityGroup[] => {
   return items.sort((a, b) => items.indexOf(a) - items.indexOf(b)).slice(0, 5)
 })
 
-function relativeTime(ts: number): string {
-  const diff = Date.now() - ts
-  const mins = Math.floor(diff / 60_000)
-  if (mins < 1) return "a l'instant"
-  if (mins < 60) return `il y a ${mins}min`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `il y a ${hours}h`
-  const days = Math.floor(hours / 24)
-  return `il y a ${days}j`
-}
+// relativeTime imported from @/utils/date
 
 // ── Stat: average grade letter ────────────────────────────────────────────────
 

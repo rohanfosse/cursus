@@ -2,6 +2,7 @@
 <script setup lang="ts">
   import { computed } from 'vue'
   import { Pin } from 'lucide-vue-next'
+  import { relativeTime } from '@/utils/date'
 
   const props = defineProps<{
     answers: { id: number; answer: string; pinned: boolean; created_at: string }[]
@@ -19,13 +20,7 @@
     }),
   )
 
-  function relativeTime(date: string): string {
-    const diff = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
-    if (diff < 60) return 'a l\'instant'
-    if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`
-    if (diff < 86400) return `il y a ${Math.floor(diff / 3600)}h`
-    return `il y a ${Math.floor(diff / 86400)}j`
-  }
+  // relativeTime imported from @/utils/date
 </script>
 
 <template>

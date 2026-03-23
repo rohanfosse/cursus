@@ -69,3 +69,18 @@ export function deadlineLabel(deadlineStr: string): string {
   if (d <= 30) return `Dans ${Math.round(d / 7)} sem.`
   return `Dans ${Math.ceil(d / 30)} mois`
 }
+
+/** Temps relatif passe ("a l'instant", "il y a 5 min", "il y a 2h", "il y a 3j") */
+export function relativeTime(input: number | string | Date): string {
+  const ts = typeof input === 'number' ? input : new Date(input).getTime()
+  const diff = Math.max(0, Date.now() - ts)
+  const mins = Math.floor(diff / 60_000)
+  if (mins < 1) return "à l'instant"
+  if (mins < 60) return `il y a ${mins} min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `il y a ${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days === 1) return 'Hier'
+  if (days < 7) return `il y a ${days}j`
+  return `il y a ${Math.floor(days / 7)} sem.`
+}
