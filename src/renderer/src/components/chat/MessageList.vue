@@ -239,8 +239,8 @@ const dateGroups = computed<DateGroup[]>(() => {
           <div class="empty-icon-wrap">
             <MessageSquare :size="28" />
           </div>
-          <p class="empty-title">Sélectionnez un canal</p>
-          <p class="empty-sub">Choisissez un canal ou une conversation dans la barre latérale.</p>
+          <p class="empty-title">Sélectionnez un salon</p>
+          <p class="empty-sub">Choisissez un salon ou une conversation dans la barre latérale.</p>
         </template>
       </div>
     </template>
