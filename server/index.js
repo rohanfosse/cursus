@@ -32,12 +32,18 @@ const io     = new Server(server, {
 app.use(cors({ origin: ORIGIN }))
 app.use(express.json({ limit: '20mb' }))
 
+const rateLimit = require('express-rate-limit')
+// Limite générale : 300 req/min par IP
+app.use(rateLimit({ windowMs: 60_000, max: 300, standardHeaders: true, legacyHeaders: false }))
+// Limite stricte sur l'auth : 20 req/min par IP
+const authLimiter = rateLimit({ windowMs: 60_000, max: 20, standardHeaders: true, legacyHeaders: false })
+
 // Expose io et secret pour les routes
 app.set('io', io)
 app.set('jwtSecret', SECRET)
 
 // ── Routes publiques (auth) ───────────────────────────────────────────────────
-app.use('/api/auth', require('./routes/auth'))
+app.use('/api/auth', authLimiter, require('./routes/auth'))
 
 // ── Middleware JWT pour toutes les routes /api/* suivantes ─────────────────────
 const authMiddleware = require('./middleware/auth')

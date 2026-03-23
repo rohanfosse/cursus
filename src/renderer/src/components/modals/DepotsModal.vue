@@ -215,7 +215,7 @@
   function parseGithubRepo(url: string): { owner: string; repo: string } | null {
     try {
       const u = new URL(url)
-      if (!u.hostname.endsWith('github.com')) return null
+      if (u.hostname !== 'github.com' && u.hostname !== 'www.github.com') return null
       const parts = u.pathname.replace(/^\//, '').split('/')
       if (parts.length < 2) return null
       return { owner: parts[0], repo: parts[1].replace(/\.git$/, '') }
