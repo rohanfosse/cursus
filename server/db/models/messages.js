@@ -199,38 +199,60 @@ function togglePinMessage(messageId, pinned) {
 }
 
 /** Recherche cross-canal dans une promo (ou toutes promos si promoId = null). */
-function searchAllMessages(promoId, query, limit = 8) {
-  if (promoId) {
-    return getDb().prepare(`
-      SELECT m.id, m.content, m.author_name, m.created_at,
+function searchAllMessages(promoId, query, limit = 8, userId = null) {
+  const db = getDb();
+
+  // Channel messages
+  const channelSql = promoId
+    ? `SELECT m.id, m.content, m.author_name, m.created_at,
              c.id AS channel_id, c.name AS channel_name, c.promo_id,
              COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
-             COALESCE(s.photo_data, t.photo_data) AS author_photo
+             COALESCE(s.photo_data, t.photo_data) AS author_photo,
+             'channel' AS source_type
+       FROM messages m
+       JOIN channels c ON m.channel_id = c.id
+       LEFT JOIN students s ON s.name = m.author_name
+       LEFT JOIN teachers t ON t.name = m.author_name
+       WHERE c.promo_id = ? AND m.dm_student_id IS NULL
+         AND m.content LIKE '%' || ? || '%'
+       ORDER BY m.created_at DESC LIMIT ?`
+    : `SELECT m.id, m.content, m.author_name, m.created_at,
+             c.id AS channel_id, c.name AS channel_name, c.promo_id,
+             COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
+             COALESCE(s.photo_data, t.photo_data) AS author_photo,
+             'channel' AS source_type
+       FROM messages m
+       JOIN channels c ON m.channel_id = c.id
+       LEFT JOIN students s ON s.name = m.author_name
+       LEFT JOIN teachers t ON t.name = m.author_name
+       WHERE m.dm_student_id IS NULL AND m.content LIKE '%' || ? || '%'
+       ORDER BY m.created_at DESC LIMIT ?`;
+
+  const channelResults = promoId
+    ? db.prepare(channelSql).all(promoId, query, limit)
+    : db.prepare(channelSql).all(query, limit);
+
+  // DM messages (if userId provided)
+  if (userId) {
+    const dmResults = db.prepare(`
+      SELECT m.id, m.content, m.author_name, m.created_at,
+             NULL AS channel_id, 'Message direct' AS channel_name, NULL AS promo_id,
+             COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
+             COALESCE(s.photo_data, t.photo_data) AS author_photo,
+             'dm' AS source_type
       FROM messages m
-      JOIN channels c ON m.channel_id = c.id
       LEFT JOIN students s ON s.name = m.author_name
       LEFT JOIN teachers t ON t.name = m.author_name
-      WHERE c.promo_id = ?
-        AND m.dm_student_id IS NULL
-        AND m.content LIKE '%' || ? || '%'
-      ORDER BY m.created_at DESC
-      LIMIT ?
-    `).all(promoId, query, limit);
+      WHERE m.dm_student_id = ? AND m.content LIKE '%' || ? || '%'
+      ORDER BY m.created_at DESC LIMIT ?
+    `).all(userId, query, Math.ceil(limit / 2));
+
+    return [...channelResults, ...dmResults]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, limit);
   }
-  return getDb().prepare(`
-    SELECT m.id, m.content, m.author_name, m.created_at,
-           c.id AS channel_id, c.name AS channel_name, c.promo_id,
-           COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
-           COALESCE(s.photo_data, t.photo_data) AS author_photo
-    FROM messages m
-    JOIN channels c ON m.channel_id = c.id
-    LEFT JOIN students s ON s.name = m.author_name
-    LEFT JOIN teachers t ON t.name = m.author_name
-    WHERE m.dm_student_id IS NULL
-      AND m.content LIKE '%' || ? || '%'
-    ORDER BY m.created_at DESC
-    LIMIT ?
-  `).all(query, limit);
+
+  return channelResults;
 }
 
 /**

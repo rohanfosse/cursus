@@ -25,7 +25,7 @@
   const allPromos   = ref<Promotion[]>([])
 
   // Résultats messages (async, debounced)
-  type MsgResult = { id: number; content: string; author_name: string; created_at: string; channel_id: number; channel_name: string; promo_id: number }
+  type MsgResult = { id: number; content: string; author_name: string; created_at: string; channel_id: number; channel_name: string; promo_id: number; source_type?: string }
   const msgResults    = ref<MsgResult[]>([])
   const msgSearching  = ref(false)
   let   debounceTimer = 0
@@ -119,7 +119,9 @@
     const msgs: ResultItem[] = msgResults.value.map((m): ResultItem => ({
       type:  'message',
       label: excerpt(m.content, query.value.trim()),
-      sub:   `#${m.channel_name} · ${formatDate(m.created_at)}`,
+      sub:   m.source_type === 'dm'
+        ? `@ ${m.author_name} · ${formatDate(m.created_at)}`
+        : `#${m.channel_name} · ${formatDate(m.created_at)}`,
       data:  m,
     }))
     return [...structureResults.value, ...msgs]
@@ -131,7 +133,8 @@
     msgSearching.value = true
     try {
       const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id ?? null
-      const res = await window.api.searchAllMessages({ promoId, query: q, limit: 10 })
+      const userId = appStore.currentUser?.id ?? null
+      const res = await window.api.searchAllMessages({ promoId, query: q, limit: 12, userId })
       msgResults.value = res?.ok ? res.data : []
     } finally {
       msgSearching.value = false
@@ -241,7 +244,7 @@
               ref="inputEl"
               v-model="query"
               type="text"
-              placeholder="Canaux, contacts, messages…"
+              placeholder="Rechercher un salon, une personne, un message…"
               class="cmd-search-input"
               aria-label="Rechercher des canaux, contacts ou messages"
               @keydown.escape="modals.cmdPalette = false"
@@ -289,7 +292,21 @@
               Aucun résultat pour « {{ query }} »
             </li>
             <li v-else class="cmd-empty cmd-empty-hint">
-              <kbd>↑</kbd><kbd>↓</kbd> naviguer &nbsp;·&nbsp; <kbd>↵</kbd> ouvrir &nbsp;·&nbsp; <kbd>Ctrl K</kbd> ouvrir/fermer
+              <div class="cmd-shortcuts">
+                <div class="cmd-shortcut-row">
+                  <kbd>↑</kbd><kbd>↓</kbd>
+                  <span>Naviguer</span>
+                </div>
+                <div class="cmd-shortcut-row">
+                  <kbd>↵</kbd>
+                  <span>Ouvrir</span>
+                </div>
+                <div class="cmd-shortcut-row">
+                  <kbd>Esc</kbd>
+                  <span>Fermer</span>
+                </div>
+              </div>
+              <p class="cmd-hint-text">Tapez pour rechercher des salons, personnes ou messages</p>
             </li>
           </ul>
         </div>
@@ -468,7 +485,19 @@
 .cmd-empty-hint {
   font-size: 11.5px;
   font-style: normal;
-  gap: 4px;
+  flex-direction: column;
+  gap: 12px;
+}
+.cmd-shortcuts {
+  display: flex; gap: 16px; justify-content: center;
+}
+.cmd-shortcut-row {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--text-muted);
+}
+.cmd-hint-text {
+  font-size: 12px; color: var(--text-muted); opacity: .6;
+  margin: 0;
 }
 .cmd-results-count {
   padding: 4px 16px;
@@ -482,8 +511,8 @@
   font-family: var(--font);
   background: var(--bg-active);
   border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 1px 5px;
+  border-radius: 4px;
+  padding: 2px 6px;
   color: var(--text-secondary);
 }
 </style>

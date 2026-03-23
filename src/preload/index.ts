@@ -281,7 +281,7 @@ contextBridge.exposeInMainWorld('api', {
     if (peer != null) params.set('peer', String(peer))
     return get(`/api/messages/dm/${studentId}/search?${params}`)
   },
-  searchAllMessages: (args: { promoId: number | null; query: string; limit?: number }) =>
+  searchAllMessages: (args: { promoId: number | null; query: string; limit?: number; userId?: number | null }) =>
     post('/api/messages/search-all', args),
   sendMessage:       (payload: unknown) => post('/api/messages', payload),
   getPinnedMessages: (channelId: number) => get(`/api/messages/pinned/${channelId}`),
