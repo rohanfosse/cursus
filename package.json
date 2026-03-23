@@ -33,7 +33,7 @@
   "license": "MIT",
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^9.4.3",
+    "better-sqlite3": "^12.8.0",
     "cors": "^2.8.6",
     "dompurify": "^3.3.3",
     "dotenv": "^16.6.1",
