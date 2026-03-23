@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { watch, onMounted, computed } from 'vue'
+  import { ref, watch, onMounted, computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { Plus, ChevronDown, FolderOpen, Layers, BookOpen, BarChart2, CalendarDays, Calendar, Pencil, Trash2 } from 'lucide-vue-next'
   import { useTravauxStore } from '@/stores/travaux'
@@ -31,7 +31,7 @@
   // ── Composables ───────────────────────────────────────────────────────────
   const {
     promotions, channels, students, loading, user, activePromoName,
-    loadTeacherChannels, load, visibleChannels, channelGroups, dmStudents,
+    loadTeacherChannels, load, visibleChannels, channelGroups, sortedChannelGroups, reorderCategories, dmStudents,
     selectPromo, setLoadRecentDmContacts,
   } = useSidebarData()
 
@@ -80,6 +80,32 @@
     }
 
     ctx.value = { x: e.clientX, y: e.clientY, items }
+  }
+
+  // ── Drag & drop categories (reorder) ─────────────────────────────────────
+  interface CategoryGroup { label: string; key: string; channels: { id: number; name: string }[] }
+  const draggingCategory = ref<CategoryGroup | null>(null)
+
+  function onCategoryDragStart(e: DragEvent, group: CategoryGroup) {
+    draggingCategory.value = group
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+  }
+  function onCategoryDragOver(e: DragEvent, _group: CategoryGroup) {
+    e.preventDefault()
+  }
+  function onCategoryDrop(_e: DragEvent, targetGroup: CategoryGroup) {
+    if (!draggingCategory.value || draggingCategory.value.key === targetGroup.key) return
+    const groups = [...sortedChannelGroups.value]
+    const fromIdx = groups.findIndex(g => g.key === draggingCategory.value!.key)
+    const toIdx = groups.findIndex(g => g.key === targetGroup.key)
+    if (fromIdx < 0 || toIdx < 0) return
+    const [moved] = groups.splice(fromIdx, 1)
+    groups.splice(toIdx, 0, moved)
+    reorderCategories(groups)
+    draggingCategory.value = null
+  }
+  function onCategoryDragEnd() {
+    draggingCategory.value = null
   }
 
   function onProjectEditSave(proj: string, meta: ProjectMeta) {
@@ -161,7 +187,7 @@
         </div>
         <div class="sb-student-promo-text">
           <span class="sb-student-promo-name">{{ activePromoName }}</span>
-          <span class="sb-student-promo-badge">Etudiant</span>
+          <span class="sb-student-promo-badge">Étudiant</span>
         </div>
       </div>
 
@@ -454,17 +480,19 @@
 
         <div v-show="!channelsCollapsed" class="sidebar-scroll-list">
         <div
-          v-for="group in channelGroups"
+          v-for="group in sortedChannelGroups"
           :key="group.key"
           class="sidebar-category"
           :class="{ 'drag-over': appStore.isStaff && dragOverCategory === group.key }"
-          @dragover="appStore.isStaff ? onDragOver($event, group.key) : undefined"
-          @dragleave="appStore.isStaff ? onDragLeave($event, group.key) : undefined"
-          @drop="appStore.isStaff ? onDrop($event, group.key) : undefined"
+          draggable="true"
+          @dragstart.stop="onCategoryDragStart($event, group)"
+          @dragover.prevent="onCategoryDragOver($event, group)"
+          @drop.prevent="onCategoryDrop($event, group)"
+          @dragend="onCategoryDragEnd"
         >
           <!-- En-tête de catégorie (affiché seulement s'il y a plusieurs groupes) -->
           <div
-            v-if="channelGroups.length > 1"
+            v-if="sortedChannelGroups.length > 1"
             class="sidebar-category-header-wrap"
           >
             <!-- Renommage inline -->

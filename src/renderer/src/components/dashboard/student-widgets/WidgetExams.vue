@@ -18,7 +18,7 @@ const emit = defineEmits<{ goToProject: [key: string] }>()
   <div class="dashboard-card sa-card sa-next sa-next--exam">
     <div class="sa-card-header">
       <Award :size="14" class="sa-card-icon sa-icon--exam" />
-      <span class="sa-section-label">CCTLs & Etudes de cas</span>
+      <span class="sa-section-label">CCTLs & Études de cas</span>
     </div>
     <div v-if="exams.length" class="sa-next-list">
       <div v-for="e in exams" :key="e.id" class="sa-next-item" role="button" tabindex="0" :aria-label="'Voir l\'épreuve ' + e.title" @click="emit('goToProject', e.category ?? '')" @keydown.enter="emit('goToProject', e.category ?? '')">

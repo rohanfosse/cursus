@@ -128,6 +128,39 @@ export function useSidebarData() {
     return groups
   })
 
+  // ── Ordre des categories (localStorage) ──────────────────────────────────
+  const CHANNEL_ORDER_KEY = 'cc_channel_order'
+
+  function _loadCategoryOrder(): string[] {
+    try {
+      const promoId = appStore.activePromoId ?? user.value?.promo_id
+      const raw = localStorage.getItem(`${CHANNEL_ORDER_KEY}_${promoId}`)
+      return raw ? JSON.parse(raw) : []
+    } catch { return [] }
+  }
+
+  function _saveCategoryOrder(order: string[]) {
+    const promoId = appStore.activePromoId ?? user.value?.promo_id
+    localStorage.setItem(`${CHANNEL_ORDER_KEY}_${promoId}`, JSON.stringify(order))
+  }
+
+  const sortedChannelGroups = computed((): CategoryGroup[] => {
+    const groups = channelGroups.value
+    const savedOrder = _loadCategoryOrder()
+    if (!savedOrder.length) return groups
+
+    const orderMap = new Map(savedOrder.map((key, idx) => [key, idx]))
+    return [...groups].sort((a, b) => {
+      const ia = orderMap.get(a.key) ?? 999
+      const ib = orderMap.get(b.key) ?? 999
+      return ia - ib
+    })
+  })
+
+  function reorderCategories(newOrder: CategoryGroup[]) {
+    _saveCategoryOrder(newOrder.map(g => g.key))
+  }
+
   // ── DM students ─────────────────────────────────────────────────────────
   const dmStudents = computed(() => {
     const promoId = appStore.isStaff ? appStore.activePromoId : user.value?.promo_id
@@ -156,7 +189,7 @@ export function useSidebarData() {
     loadStudentSidebar,
     load,
     visibleChannels,
-    channelGroups,
+    channelGroups, sortedChannelGroups, reorderCategories,
     dmStudents,
     selectPromo,
     setLoadRecentDmContacts,

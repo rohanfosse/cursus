@@ -44,7 +44,7 @@ useDraggable(listRef, localWidgets, {
       <span class="bc-title">Personnaliser</span>
       <button class="bc-reset" @click="emit('reset')">
         <RotateCcw :size="11" />
-        Reinitialiser
+        Réinitialiser
       </button>
     </div>
 

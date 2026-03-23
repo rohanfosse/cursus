@@ -123,10 +123,10 @@ const emit = defineEmits<{
         <CalendarDays :size="13" /> Planning
       </button>
       <button class="db-tab db-tab--coming" disabled>
-        <Radio :size="13" /> Quiz <span class="db-tab-soon">Bientot</span>
+        <Radio :size="13" /> Quiz <span class="db-tab-soon">Bientôt</span>
       </button>
       <button class="db-tab db-tab--coming" disabled>
-        <ClipboardList :size="13" /> REX <span class="db-tab-soon">Bientot</span>
+        <ClipboardList :size="13" /> REX <span class="db-tab-soon">Bientôt</span>
       </button>
       <button
         v-if="dashTab === 'accueil'"

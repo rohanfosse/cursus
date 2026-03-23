@@ -112,8 +112,11 @@
 
       <ul class="ch-member-list">
         <li v-for="s in memberObjects" :key="s.id" class="ch-member-row">
-          <div class="ch-avatar" :style="s.photo ? { backgroundImage: `url(${s.photo})`, backgroundSize: 'cover' } : {}">
-            <span v-if="!s.photo">{{ initials(s.name) }}</span>
+          <div class="ch-avatar-wrap">
+            <div class="ch-avatar" :style="s.photo ? { backgroundImage: `url(${s.photo})`, backgroundSize: 'cover' } : {}">
+              <span v-if="!s.photo">{{ initials(s.name) }}</span>
+            </div>
+            <span class="ch-presence-dot" :class="appStore.isUserOnline(s.name) ? 'ch-presence--online' : 'ch-presence--offline'" />
           </div>
           <div class="ch-member-info">
             <span class="ch-member-name">{{ s.name }}</span>
@@ -292,6 +295,17 @@
   background-position: center;
   overflow: hidden;
 }
+.ch-avatar-wrap {
+  position: relative; flex-shrink: 0;
+}
+.ch-presence-dot {
+  position: absolute; bottom: -1px; right: -1px;
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid var(--bg-sidebar);
+}
+.ch-presence--online { background: #22c55e; }
+.ch-presence--offline { background: #6b7280; }
+
 .ch-avatar-muted {
   background: var(--bg-hover);
   color: var(--text-muted);
