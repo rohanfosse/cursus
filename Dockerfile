@@ -19,7 +19,7 @@ RUN npx vite build --config vite.web.config.ts --mode production
 # ── Stage 2 : Image de production (serveur uniquement) ───────────────────────
 FROM node:22-alpine
 
-RUN apk add --no-cache tini python3 make g++
+RUN apk add --no-cache tini python3 make g++ docker-cli docker-cli-compose git
 
 WORKDIR /app
 

@@ -11,6 +11,7 @@ services:
     volumes:
       - cursus-db:/data/db
       - cursus-uploads:/data/uploads
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_ENV=production
       - PORT=3001
