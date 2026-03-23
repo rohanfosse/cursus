@@ -208,6 +208,7 @@
   let _unsubUpdaterDownloaded: (() => void) | null = null
 
   function dismissUpdate() { updateState.value = 'idle' }
+  function quitAndInstall() { window.api.updaterQuitAndInstall() }
 
   let unsubUnread:   (() => void) | null = null
   let unsubOnline:   (() => void) | null = null
@@ -399,7 +400,7 @@
           <span v-else>Mise à jour {{ updateVersion }} prête à installer</span>
         </div>
         <div class="update-banner-actions">
-          <button v-if="updateState === 'ready'" class="update-btn-restart" @click="() => window.api.updaterQuitAndInstall()">
+          <button v-if="updateState === 'ready'" class="update-btn-restart" @click="quitAndInstall">
             Redémarrer maintenant
           </button>
           <button class="update-btn-dismiss" @click="dismissUpdate">&times;</button>

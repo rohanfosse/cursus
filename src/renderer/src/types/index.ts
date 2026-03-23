@@ -180,6 +180,7 @@ export interface GanttRow {
   aavs?:          string | null
   assigned_to:    string
   group_id:       number | null
+  group_name?:    string | null
   depot_id:       number | null
 }
 

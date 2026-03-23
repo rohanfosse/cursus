@@ -2,7 +2,7 @@
 <script setup lang="ts">
   import { ref, computed, onMounted } from 'vue'
   import { Plus, Trash2, GripVertical, AlertCircle } from 'lucide-vue-next'
-  import { VueDraggable } from 'vue-draggable-plus'
+  import { VueDraggable, type DraggableEvent } from 'vue-draggable-plus'
   import { useKanbanStore } from '@/stores/kanban'
   import type { KanbanCard } from '@/types'
 
@@ -40,10 +40,12 @@
   onMounted(() => kanban.fetchCards(props.travailId, props.groupId))
 
   // ── Drag & drop ──────────────────────────────────────────────────────────
-  function onEnd(evt: { item: HTMLElement; from: HTMLElement; to: HTMLElement; newIndex: number }) {
-    const cardId = Number(evt.item.dataset.id)
-    const newStatus = evt.to.dataset.status as KanbanCard['status']
-    kanban.moveCard(cardId, newStatus, evt.newIndex)
+  function onEnd(evt: DraggableEvent<KanbanCard>) {
+    const el = evt.item as HTMLElement
+    const cardId = Number(el.dataset.id)
+    const to = evt.to as HTMLElement
+    const newStatus = to.dataset.status as KanbanCard['status']
+    kanban.moveCard(cardId, newStatus, evt.newIndex ?? 0)
   }
 
   // ── Add card ─────────────────────────────────────────────────────────────
@@ -80,7 +82,7 @@
         :data-status="col.key"
         group="kanban"
         item-key="id"
-        animation="150"
+        :animation="150"
         ghost-class="kb-ghost"
         class="kb-cards"
         @end="onEnd"

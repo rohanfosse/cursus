@@ -221,7 +221,7 @@
               <BookOpen :size="13" class="project-icon" />
               <span class="channel-name">Tous les devoirs</span>
             </button>
-            <button class="sidebar-item" :class="{ active: route.name === 'agenda' }" @click="router.push('/agenda')">
+            <button class="sidebar-item" :class="{ active: (route.name as string) === 'agenda' }" @click="router.push('/agenda')">
               <Calendar :size="13" class="project-icon" />
               <span class="channel-name">Calendrier</span>
             </button>
@@ -235,7 +235,7 @@
               <BookOpen :size="13" class="project-icon" />
               <span class="channel-name">Mes devoirs</span>
             </button>
-            <button class="sidebar-item" :class="{ active: route.name === 'agenda' }" @click="router.push('/agenda')">
+            <button class="sidebar-item" :class="{ active: (route.name as string) === 'agenda' }" @click="router.push('/agenda')">
               <Calendar :size="13" class="project-icon" />
               <span class="channel-name">Calendrier</span>
             </button>
