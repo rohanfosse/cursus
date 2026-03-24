@@ -8,8 +8,10 @@
     Volume2, Clock, MousePointer, Home, AlignJustify,
   } from 'lucide-vue-next'
   import ChangePasswordModal  from '@/components/modals/ChangePasswordModal.vue'
+  import SettingsGeneral      from './settings/SettingsGeneral.vue'
   import SettingsAppearance   from './settings/SettingsAppearance.vue'
   import SettingsPreferences  from './settings/SettingsPreferences.vue'
+  import SettingsAccount      from './settings/SettingsAccount.vue'
   import SettingsAbout        from './settings/SettingsAbout.vue'
   import { useAppStore } from '@/stores/app'
   import Modal from '@/components/ui/Modal.vue'
@@ -119,63 +121,7 @@
       <div class="stg-body">
 
         <!-- ════ General ════ -->
-        <section v-if="activeSection === 'general'" class="stg-section">
-          <div class="stg-section-header">
-            <Home :size="18" />
-            <h3 class="stg-section-title">General</h3>
-          </div>
-
-          <!-- Informations utilisateur -->
-          <div class="stg-group">
-            <div class="stg-group-header">
-              <User :size="13" class="stg-group-icon" />
-              <h4 class="stg-group-title">Informations</h4>
-            </div>
-            <div class="stg-info-grid">
-              <div class="stg-info-cell">
-                <span class="stg-info-label">Nom</span>
-                <span class="stg-info-value">{{ appStore.currentUser?.name ?? '-' }}</span>
-              </div>
-              <div class="stg-info-cell">
-                <span class="stg-info-label">Role</span>
-                <span class="stg-info-value">{{ roleLabels[appStore.currentUser?.type ?? ''] ?? '-' }}</span>
-              </div>
-              <div class="stg-info-cell">
-                <span class="stg-info-label">Promotion</span>
-                <span class="stg-info-value">{{ appStore.currentUser?.promo_name ?? 'Aucune' }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Langue -->
-          <div class="stg-group">
-            <div class="stg-group-header">
-              <Globe :size="13" class="stg-group-icon" />
-              <h4 class="stg-group-title">Langue</h4>
-            </div>
-            <div class="stg-info-chip">
-              <span>Francais</span>
-              <span class="stg-chip-badge">Seule langue disponible</span>
-            </div>
-          </div>
-
-          <!-- Se souvenir de moi -->
-          <div class="stg-group">
-            <div class="stg-group-header">
-              <Lock :size="13" class="stg-group-icon" />
-              <h4 class="stg-group-title">Connexion</h4>
-            </div>
-            <label class="stg-toggle-row">
-              <div class="stg-toggle-info">
-                <span class="stg-toggle-label">Se souvenir de moi</span>
-                <span class="stg-toggle-desc">Remplir automatiquement l'adresse e-mail lors de la prochaine connexion.</span>
-              </div>
-              <div class="stg-switch" :class="{ on: rememberMe }" @click="rememberMe = !rememberMe">
-                <div class="stg-switch-thumb" />
-              </div>
-            </label>
-          </div>
-        </section>
+        <SettingsGeneral v-if="activeSection === 'general'" />
 
         <!-- ════ Apparence ════ -->
         <SettingsAppearance v-else-if="activeSection === 'apparence'" />
@@ -184,108 +130,12 @@
         <SettingsPreferences v-else-if="activeSection === 'preferences'" />
 
         <!-- ════ Mon compte ════ -->
-        <section v-else-if="activeSection === 'compte'" class="stg-section">
-          <div class="stg-section-header">
-            <User :size="18" />
-            <h3 class="stg-section-title">Mon compte</h3>
-          </div>
-
-          <!-- Profil card -->
-          <div class="stg-profile-card">
-            <div class="stg-profile-top">
-              <div class="stg-avatar" :style="{ background: pendingPhoto ? 'transparent' : avatarBg }">
-                <img v-if="pendingPhoto" :src="pendingPhoto" class="stg-avatar-img" alt="Photo de profil" />
-                <span v-else class="stg-avatar-initials">{{ appStore.currentUser?.avatar_initials }}</span>
-              </div>
-              <div class="stg-profile-info">
-                <h4 class="stg-profile-name">{{ appStore.currentUser?.name }}</h4>
-                <div class="stg-profile-role">
-                  <component :is="roleIcon" :size="12" />
-                  <span>{{ roleLabel }}</span>
-                </div>
-                <div v-if="appStore.currentUser?.promo_name" class="stg-profile-promo">
-                  {{ appStore.currentUser.promo_name }}
-                </div>
-              </div>
-            </div>
-            <div class="stg-profile-actions">
-              <button class="stg-btn stg-btn-ghost" @click="pickPhoto">
-                <Camera :size="13" /> Changer la photo
-              </button>
-              <button v-if="pendingPhoto" class="stg-btn stg-btn-ghost stg-btn-remove" @click="removePhoto">
-                <X :size="13" /> Supprimer
-              </button>
-              <button v-if="photoChanged" class="stg-btn stg-btn-accent" @click="savePhoto">
-                Enregistrer
-              </button>
-            </div>
-          </div>
-
-          <!-- Securite -->
-          <div class="stg-group">
-            <div class="stg-group-header">
-              <Shield :size="13" class="stg-group-icon" />
-              <h4 class="stg-group-title">Securite</h4>
-            </div>
-            <div class="stg-action-row">
-              <div class="stg-toggle-info">
-                <span class="stg-toggle-label">Mot de passe</span>
-                <span class="stg-toggle-desc">Modifiez votre mot de passe de connexion.</span>
-              </div>
-              <button class="stg-btn stg-btn-ghost" @click="showChangePwd = true">
-                <KeyRound :size="13" /> Modifier
-              </button>
-            </div>
-          </div>
-
-          <!-- Confidentialite -->
-          <div class="stg-group">
-            <div class="stg-group-header">
-              <Lock :size="13" class="stg-group-icon" />
-              <h4 class="stg-group-title">Confidentialite</h4>
-            </div>
-            <div class="stg-action-row">
-              <div class="stg-toggle-info">
-                <span class="stg-toggle-label">Politique de confidentialite</span>
-                <span class="stg-toggle-desc">Consultez comment vos donnees sont protegees et vos droits RGPD.</span>
-              </div>
-              <button class="stg-btn stg-btn-ghost" @click="openPrivacyFromSettings">
-                <Shield :size="13" /> Consulter
-              </button>
-            </div>
-          </div>
-
-          <!-- Donnees personnelles (etudiants) -->
-          <div v-if="appStore.isStudent" class="stg-group">
-            <div class="stg-group-header">
-              <Download :size="13" class="stg-group-icon" />
-              <h4 class="stg-group-title">Donnees personnelles</h4>
-            </div>
-            <div class="stg-action-row">
-              <div class="stg-toggle-info">
-                <span class="stg-toggle-label">Exporter mes donnees</span>
-                <span class="stg-toggle-desc">Fichier JSON avec vos messages, rendus et profil (Art. 20 RGPD).</span>
-              </div>
-              <button class="stg-btn stg-btn-ghost" :disabled="exporting" @click="exportData">
-                <Download :size="13" />
-                {{ exporting ? 'Export...' : 'Exporter' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Simulation banner -->
-          <div v-if="appStore.isSimulating" class="stg-simulation-banner">
-            <span>Simulation active en tant que <strong>{{ appStore.currentUser?.name }}</strong></span>
-            <button class="stg-btn stg-btn-ghost" @click="appStore.stopSimulation()">
-              Quitter
-            </button>
-          </div>
-        </section>
+        <SettingsAccount v-else-if="activeSection === 'compte'" />
 
         <!-- ════ A propos ════ -->
         <SettingsAbout v-else />
-        <!-- Dead code removal: old A propos section was here -->
-        <section v-if="false" class="stg-section"><div class="stg-section-header"><Info :size="18" /><h3 class="stg-section-title">Dead</h3>
+        <!-- Dead code cleaned -->
+        <section v-if="false" class="stg-section"><div class="stg-section-header"><h3 class="stg-section-title">_</h3>
           </div>
 
           <!-- Hero a propos -->
