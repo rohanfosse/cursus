@@ -37,7 +37,8 @@
   async function loadDmFiles() {
     if (!appStore.activeDmStudentId) return
     dmFilesLoading.value = true
-    const res = await api<DmFile[]>(() => window.api.getDmFiles())
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await api<DmFile[]>(() => window.api.getDmFiles() as any)
     const sid = appStore.activeDmStudentId
     dmFiles.value = (res ?? []).filter(f => f.student_id === sid)
     dmFilesLoading.value = false
@@ -57,7 +58,7 @@
   onMounted(() => appStore.onDmRefresh(onDmLive))
   onUnmounted(() => appStore.offDmRefresh(onDmLive))
 
-  function togglePanel(panel: 'members' | 'docs' | 'travaux') {
+  function togglePanel(panel: 'members' | 'docs' | 'travaux' | 'dm-files') {
     rightPanel.value = rightPanel.value === panel ? null : panel
   }
 
