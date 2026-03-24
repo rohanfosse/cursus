@@ -18,8 +18,10 @@ export const THEMES: { id: ThemeId; label: string; icon: typeof Moon; colors: st
 ]
 
 function applyTheme(theme: string) {
+  document.body.classList.add('theme-transitioning')
   document.body.classList.remove('light', 'night', 'marine', 'cursus')
   if (theme !== 'dark') document.body.classList.add(theme)
+  setTimeout(() => document.body.classList.remove('theme-transitioning'), 350)
 }
 
 export function useSettingsAppearance() {

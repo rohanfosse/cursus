@@ -4,6 +4,14 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 button { border: none; background: transparent; font-family: inherit; cursor: pointer; color: inherit; }
 
+/* Transition fluide lors du changement de theme */
+body.theme-transitioning,
+body.theme-transitioning *,
+body.theme-transitioning *::before,
+body.theme-transitioning *::after {
+  transition: background-color .3s ease, color .2s ease, border-color .3s ease, box-shadow .3s ease !important;
+}
+
 /* ════════════════════════════════════════════
    VARIABLES
 ════════════════════════════════════════════ */
