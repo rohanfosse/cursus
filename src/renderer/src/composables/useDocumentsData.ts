@@ -11,33 +11,35 @@ import { useConfirm }        from '@/composables/useConfirm'
 import { useOpenExternal }   from '@/composables/useOpenExternal'
 import type { AppDocument }  from '@/types'
 
-export type DocIconType = 'image' | 'pdf' | 'video' | 'link' | 'file'
+export type DocIconType = 'image' | 'pdf' | 'video' | 'link' | 'file' | 'spreadsheet'
   | 'moodle' | 'github' | 'linkedin' | 'web' | 'package'
 
 export const iconColors: Record<DocIconType, string> = {
-  pdf:      '#E74C3C',
-  image:    '#3498DB',
-  video:    '#9B59B6',
-  link:     '#27AE60',
-  file:     '#4A90D9',
-  moodle:   '#f59e0b',
-  github:   '#6e7681',
-  linkedin: '#0a66c2',
-  web:      '#22c55e',
-  package:  '#8b5cf6',
+  pdf:         '#E74C3C',
+  image:       '#3498DB',
+  video:       '#9B59B6',
+  link:        '#27AE60',
+  file:        '#4A90D9',
+  spreadsheet: '#059669',
+  moodle:      '#f59e0b',
+  github:      '#6e7681',
+  linkedin:    '#0a66c2',
+  web:         '#22c55e',
+  package:     '#8b5cf6',
 }
 
 export const iconLabels: Record<DocIconType, string> = {
-  pdf:      'PDF',
-  image:    'Image',
-  video:    'Vidéo',
-  link:     'Lien',
-  file:     'Fichier',
-  moodle:   'Moodle',
-  github:   'GitHub',
-  linkedin: 'LinkedIn',
-  web:      'Site Web',
-  package:  'Package',
+  pdf:         'PDF',
+  image:       'Image',
+  video:       'Vidéo',
+  link:        'Lien',
+  file:        'Fichier',
+  spreadsheet: 'Tableur',
+  moodle:      'Moodle',
+  github:      'GitHub',
+  linkedin:    'LinkedIn',
+  web:         'Site Web',
+  package:     'Package',
 }
 
 export const TYPE_FILTERS: { id: DocIconType | null; label: string }[] = [
@@ -66,6 +68,7 @@ export function docIconType(doc: AppDocument): DocIconType {
   if (['jpg','jpeg','png','gif','svg','webp','bmp'].includes(ext)) return 'image'
   if (ext === 'pdf') return 'pdf'
   if (['mp4','mov','avi','mkv','webm'].includes(ext)) return 'video'
+  if (['xlsx','xls','csv','ods'].includes(ext)) return 'spreadsheet'
   return 'file'
 }
 

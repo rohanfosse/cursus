@@ -4,22 +4,23 @@
     FileText, Image, Link2, Video, File, Plus, Trash2,
     ExternalLink, Download, Search, X, Upload, FolderOpen, Eye, CheckCircle2, Menu,
     LayoutGrid, List, Star, Copy, Pencil,
-    BookOpen, Github, Linkedin, Globe, Package, HelpCircle, BookMarked,
+    BookOpen, Github, Linkedin, Globe, Package, HelpCircle, BookMarked, FileSpreadsheet,
   } from 'lucide-vue-next'
   import type { Component } from 'vue'
 
   // Mapping type → composant icône (pour les icônes catégorie des liens)
   const TYPE_ICON_MAP: Record<string, Component> = {
-    moodle:   BookOpen,
-    github:   Github,
-    linkedin: Linkedin,
-    web:      Globe,
-    package:  Package,
-    link:     Link2,
-    image:    Image,
-    pdf:      FileText,
-    video:    Video,
-    file:     File,
+    moodle:      BookOpen,
+    github:      Github,
+    linkedin:    Linkedin,
+    web:         Globe,
+    package:     Package,
+    link:        Link2,
+    image:       Image,
+    pdf:         FileText,
+    video:       Video,
+    spreadsheet: FileSpreadsheet,
+    file:        File,
   }
   import { useAppStore }       from '@/stores/app'
   import { useDocumentsStore } from '@/stores/documents'
