@@ -128,11 +128,12 @@
           <span class="cc-input-prefix">#</span>
           <input
             id="new-channel-name"
-            v-model="channelName"
+            :value="channelName"
             type="text"
             class="cc-input"
-            placeholder="ex : général, tp-réseaux…"
+            placeholder="ex : general, tp-reseaux…"
             autofocus
+            @input="channelName = ($event.target as HTMLInputElement).value.toLowerCase().replace(/[^a-z0-9àâéèêëïîôùûüç\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')"
           />
         </div>
       </div>
