@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Eye, EyeOff, ShieldCheck, KeyRound } from 'lucide-vue-next'
+import { Eye, EyeOff, ShieldCheck, KeyRound, Check, Circle } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useToast }    from '@/composables/useToast'
 import { useApi }      from '@/composables/useApi'
@@ -176,16 +176,16 @@ function tryClose() {
               <!-- Critères -->
               <div v-if="newPwd" class="cpw-criteria">
                 <div class="cpw-criterion" :class="{ ok: criteria.length }">
-                  {{ criteria.length ? '✓' : '○' }} 8 caractères minimum
+                  <Check v-if="criteria.length" :size="12" /> <Circle v-else :size="12" /> 8 caractères minimum
                 </div>
                 <div class="cpw-criterion" :class="{ ok: criteria.uppercase }">
-                  {{ criteria.uppercase ? '✓' : '○' }} Une majuscule
+                  <Check v-if="criteria.uppercase" :size="12" /> <Circle v-else :size="12" /> Une majuscule
                 </div>
                 <div class="cpw-criterion" :class="{ ok: criteria.number }">
-                  {{ criteria.number ? '✓' : '○' }} Un chiffre
+                  <Check v-if="criteria.number" :size="12" /> <Circle v-else :size="12" /> Un chiffre
                 </div>
                 <div class="cpw-criterion" :class="{ ok: criteria.special }">
-                  {{ criteria.special ? '✓' : '○' }} Un caractère spécial
+                  <Check v-if="criteria.special" :size="12" /> <Circle v-else :size="12" /> Un caractère spécial
                 </div>
               </div>
             </div>

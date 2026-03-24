@@ -222,7 +222,7 @@
       <div class="cc-field">
         <label class="cc-label">Catégorie <span class="cc-label-opt">(optionnelle)</span></label>
         <select v-model="selectedCategory" class="cc-select">
-          <option value="">- Aucune catégorie -</option>
+          <option value="">Aucune catégorie</option>
           <optgroup v-if="existingCategories.length" label="Catégories existantes">
             <option v-for="cat in existingCategories" :key="cat" :value="cat">
               {{ parseCategoryIcon(cat).label }}

@@ -91,24 +91,41 @@
     | { type: 'message'; label: string; sub: string; data: MsgResult }
 
   const structureResults = computed((): ResultItem[] => {
-    const q = query.value.trim()
-    if (!q) return []
+    const raw = query.value.trim()
+    if (!raw) return []
 
-    const channels = allChannels.value
+    // Prefixes: # for channels only, @ for contacts only
+    const isChannelFilter = raw.startsWith('#')
+    const isDmFilter = raw.startsWith('@')
+    const q = (isChannelFilter || isDmFilter) ? raw.slice(1).trim() : raw
+
+    if (!q && (isChannelFilter || isDmFilter)) {
+      // Show all channels or all contacts
+      if (isChannelFilter) {
+        return allChannels.value.slice(0, 10).map((c): ResultItem => ({
+          type: 'channel', label: `#${c.name}`, sub: c.promo_name ?? '', data: c,
+        }))
+      }
+      return allStudents.value.slice(0, 10).map((s): ResultItem => ({
+        type: 'dm', label: s.name, sub: (s as Student & { promo_name?: string }).promo_name ?? '', data: s,
+      }))
+    }
+
+    const channels = isDmFilter ? [] : allChannels.value
       .map((c) => ({ item: c, score: fuzzyScore(c.name, q) }))
       .filter(({ score }) => score >= 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
+      .slice(0, isChannelFilter ? 10 : 5)
       .map(({ item: c }): ResultItem => ({ type: 'channel', label: `#${c.name}`, sub: c.promo_name ?? '', data: c }))
 
-    const students = allStudents.value
+    const students = isChannelFilter ? [] : allStudents.value
       .map((s) => ({ item: s, score: fuzzyScore(s.name, q) }))
       .filter(({ score }) => score >= 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 4)
+      .slice(0, isDmFilter ? 10 : 4)
       .map(({ item: s }): ResultItem => ({ type: 'dm', label: s.name, sub: (s as Student & { promo_name?: string }).promo_name ?? '', data: s }))
 
-    const sections = SECTIONS
+    const sections = (isChannelFilter || isDmFilter) ? [] : SECTIONS
       .filter(({ key }) => fuzzyScore(key, q) >= 0)
       .map(({ key, label }): ResultItem => ({ type: 'section', label, sub: 'Section', data: key }))
 
@@ -127,7 +144,7 @@
     return [...structureResults.value, ...msgs]
   })
 
-  // ── Recherche asynchrone de messages (debounce 300ms) ────────────────────
+  // ── Recherche asynchrone de messages (debounce 150ms) ────────────────────
   async function searchMessages(q: string) {
     if (q.length < 2) { msgResults.value = []; return }
     msgSearching.value = true
@@ -145,7 +162,7 @@
     clearTimeout(debounceTimer)
     const trimmed = q.trim()
     if (!trimmed) { msgResults.value = []; return }
-    debounceTimer = window.setTimeout(() => searchMessages(trimmed), 300)
+    debounceTimer = window.setTimeout(() => searchMessages(trimmed), 150)
   })
 
   // ── Navigation ────────────────────────────────────────────────────────────
@@ -244,7 +261,7 @@
               ref="inputEl"
               v-model="query"
               type="text"
-              placeholder="Rechercher un salon, une personne, un message…"
+              placeholder="Rechercher… (#salon, @personne, ou texte libre)"
               class="cmd-search-input"
               aria-label="Rechercher des canaux, contacts ou messages"
               @keydown.escape="modals.cmdPalette = false"
