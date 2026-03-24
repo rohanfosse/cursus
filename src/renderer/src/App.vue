@@ -7,6 +7,7 @@
   import { useLiveStore }     from '@/stores/live'
   import { usePrefs }       from '@/composables/usePrefs'
   import { useToast }       from '@/composables/useToast'
+  import { useAppListeners } from '@/composables/useAppListeners'
   import { useSwipeNav }    from '@/composables/useSwipeNav'
   import { MessageSquare, FileText, Camera, Lock, Trash2, Download, UserX, Download as DownloadIcon, RefreshCw } from 'lucide-vue-next'
   import Toast        from '@/components/ui/Toast.vue'
@@ -210,27 +211,12 @@
   function dismissUpdate() { updateState.value = 'idle' }
   function quitAndInstall() { window.api.updaterQuitAndInstall() }
 
-  let unsubUnread:   (() => void) | null = null
-  let unsubOnline:   (() => void) | null = null
-  let unsubSocket:   (() => void) | null = null
-  let unsubTyping:   (() => void) | null = null
-  let unsubPresence:    (() => void) | null = null
-  let unsubAuthExpired: (() => void) | null = null
-  let unsubGradeNew:    (() => void) | null = null
-
-  // ── Raccourcis clavier globaux ────────────────────────────────────────────
-  function onGlobalShortcut(e: KeyboardEvent) {
-    if (e.ctrlKey && !e.shiftKey && !e.altKey) {
-      if (e.key === '1') { e.preventDefault(); router.push('/dashboard') }
-      if (e.key === '2') { e.preventDefault(); router.push('/messages') }
-      if (e.key === '3') { e.preventDefault(); router.push('/devoirs') }
-      if (e.key === '4') { e.preventDefault(); router.push('/documents') }
-      if (e.key === 'n') { e.preventDefault(); modals.cmdPalette = true }
-    }
-  }
+  // Listeners extraits dans un composable dedie
+  const { initListeners, cleanupListeners } = useAppListeners()
+  let unsubGradeNew: (() => void) | null = null
 
   onMounted(() => {
-    document.addEventListener('keydown', onGlobalShortcut)
+    initListeners()
 
     // Appliquer le theme sauvegarde
     const theme = getPref('theme') ?? 'dark'
@@ -278,20 +264,7 @@
     const restored = appStore.restoreSession()
     if (restored) router.replace('/messages')
 
-    // Écouter les messages temps-réel (IPC push)
-    unsubUnread = appStore.initUnreadListener()
-
-    // Écouter les changements de connectivité réseau
-    unsubOnline = appStore.initOnlineListener()
-
-    // Écouter l'état du socket temps-réel
-    unsubSocket = appStore.initSocketListener()
-    unsubPresence = appStore.initPresenceListener()
-    unsubAuthExpired = appStore.initAuthExpiredListener()
-
-    // Écouter les indicateurs de frappe
-    const messagesStore = useMessagesStore()
-    unsubTyping = messagesStore.initTypingListener()
+    // Listeners globaux deja initialises via initListeners()
 
     // Écouter les invitations live (étudiants uniquement)
     _unsubLiveInvite = window.api.onLiveInvite((data) => {
@@ -344,8 +317,7 @@
   })
 
   onUnmounted(() => {
-    document.removeEventListener('keydown', onGlobalShortcut)
-    unsubUnread?.(); unsubOnline?.(); unsubSocket?.(); unsubTyping?.(); unsubPresence?.(); unsubAuthExpired?.()
+    cleanupListeners()
     _unsubLiveInvite?.()
     unsubGradeNew?.()
     _unsubUpdaterAvailable?.()
