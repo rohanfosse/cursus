@@ -6,7 +6,7 @@
  */
 <script setup lang="ts">
 import {
-  PlusCircle, CalendarDays, GraduationCap, Settings,
+  PlusCircle, CalendarDays, Settings,
   LayoutDashboard, Users, BarChart2, TrendingUp, Radio, MessageSquare,
   Notebook, Activity,
 } from 'lucide-vue-next'
@@ -335,16 +335,11 @@ function setTab(tab: DashTabType) {
     <!-- Barre d'actions rapides flottante -->
     <div class="db-fab-bar">
       <button class="db-fab" title="Nouveau devoir" @click="emit('openNewDevoir')">
-        <PlusCircle :size="15" /> Nouveau devoir
+        <PlusCircle :size="14" /> Nouveau devoir
       </button>
+      <div class="db-fab-divider" />
       <button class="db-fab db-fab-ghost" title="Échéancier" @click="emit('openEcheancier')">
         <CalendarDays :size="14" />
-      </button>
-      <button class="db-fab db-fab-ghost" title="Classe" @click="emit('openClasse')">
-        <GraduationCap :size="14" />
-      </button>
-      <button class="db-fab db-fab-ghost" title="Réglages" @click="emit('openSettings')">
-        <Settings :size="14" />
       </button>
     </div>
   </template>
@@ -355,25 +350,60 @@ function setTab(tab: DashTabType) {
 
 /* ── Barre d'actions rapides flottante ── */
 .db-fab-bar {
-  position: sticky; bottom: 16px;
-  display: flex; align-items: center; gap: 6px; justify-content: center;
-  padding: 8px 14px;
-  background: color-mix(in srgb, var(--bg-primary) 85%, transparent);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border); border-radius: 14px;
+  position: sticky; bottom: 14px;
+  display: flex; align-items: center; gap: 2px; justify-content: center;
+  padding: 4px;
+  background: color-mix(in srgb, var(--bg-secondary, #1e1e2e) 90%, transparent);
+  backdrop-filter: blur(14px);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 12px;
   width: fit-content; margin: 0 auto;
-  box-shadow: 0 4px 20px rgba(0,0,0,.25); z-index: 5;
+  box-shadow: 0 2px 12px rgba(0,0,0,.2), 0 0 0 1px rgba(255,255,255,.03);
+  z-index: 5;
+  opacity: .35; transition: opacity .25s ease;
 }
+.db-fab-bar:hover { opacity: 1; }
 .db-fab {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 14px; font-size: 12.5px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 30px; padding: 0 12px; font-size: 12px; font-weight: 600;
   background: var(--accent); color: #fff;
   border: none; border-radius: 8px; cursor: pointer;
-  transition: all .15s ease; font-family: var(--font);
+  transition: filter .12s ease, transform .1s ease; font-family: var(--font);
+  letter-spacing: .01em; white-space: nowrap;
 }
-.db-fab:hover { filter: brightness(1.1); transform: translateY(-1px); }
-.db-fab-ghost { background: transparent; color: var(--text-secondary); padding: 7px 10px; }
-.db-fab-ghost:hover { background: var(--bg-active); color: var(--text-primary); filter: none; }
+.db-fab:hover { filter: brightness(1.12); }
+.db-fab:active { transform: scale(.96); filter: brightness(.95); }
+.db-fab-divider {
+  width: 1px; height: 16px; margin: 0 3px;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+  flex-shrink: 0;
+}
+.db-fab-ghost {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0;
+  background: transparent; color: var(--text-muted);
+  border: none; border-radius: 8px; cursor: pointer;
+  transition: background .12s ease, color .12s ease, transform .1s ease;
+  flex-shrink: 0;
+}
+.db-fab-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+.db-fab-ghost:active { transform: scale(.9); }
+/* Tooltip CSS */
+.db-fab-ghost::after {
+  content: attr(title);
+  position: absolute;
+  bottom: calc(100% + 7px); left: 50%;
+  transform: translateX(-50%) translateY(3px);
+  background: var(--bg-elevated, #2a2a3e);
+  color: var(--text-primary); font-size: 10.5px; font-family: var(--font);
+  padding: 3px 8px; border-radius: 5px; white-space: nowrap;
+  border: 1px solid var(--border);
+  pointer-events: none; opacity: 0;
+  transition: opacity .15s ease, transform .15s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+.db-fab-ghost:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ── Live tab indicator ── */
 .db-tab-live { position: relative; }

@@ -153,3 +153,86 @@ const promoSummary = computed(() => {
 
   <NewProjectModal v-model="modals.newProject" @created="(k: string) => emit('projectCreated', k)" />
 </template>
+
+<style scoped>
+/* ── Résumé promo card ── */
+.sb-promo-card {
+  margin: 6px 10px 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+.sb-promo-card-header {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 4px;
+}
+.sb-promo-card-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.sb-promo-card-name {
+  font-size: 12px; font-weight: 700; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-promo-card-stats {
+  font-size: 10.5px; color: var(--text-muted);
+  display: flex; flex-wrap: wrap; gap: 2px;
+}
+.sb-promo-card-sep { margin: 0 2px; }
+
+/* ── Icônes et points de projet ── */
+.project-icon { flex-shrink: 0; opacity: .8; }
+.project-bullet {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #9B87F5; flex-shrink: 0;
+  margin-left: 4px; margin-right: 2px; opacity: .7;
+}
+.project-color-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  flex-shrink: 0; opacity: .8;
+}
+
+/* ── Enriched project items ── */
+.sb-project-rich {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 3px !important;
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+}
+.sb-project-rich-top {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+}
+.sb-project-rich-bar-wrap {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; padding-left: 20px;
+}
+.sb-project-rich-bar {
+  flex: 1; height: 3px; border-radius: 2px;
+  background: var(--bg-active); overflow: hidden;
+}
+.sb-project-rich-bar-fill {
+  height: 100%; border-radius: 2px;
+  transition: width .3s ease;
+}
+.sb-project-rich-sub {
+  font-size: 10px; color: var(--text-muted); white-space: nowrap;
+}
+
+/* ── Activité récente ── */
+.sb-recent-list { padding: 0 10px 4px; }
+.sb-recent-item {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 6px; padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+.sb-recent-item:last-child { border-bottom: none; }
+.sb-recent-text {
+  font-size: 10.5px; color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1; min-width: 0;
+}
+.sb-recent-time {
+  font-size: 9.5px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0;
+}
+</style>
