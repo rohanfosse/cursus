@@ -9,6 +9,7 @@
   } from 'lucide-vue-next'
   import ChangePasswordModal  from '@/components/modals/ChangePasswordModal.vue'
   import SettingsAppearance   from './settings/SettingsAppearance.vue'
+  import SettingsPreferences  from './settings/SettingsPreferences.vue'
   import SettingsAbout        from './settings/SettingsAbout.vue'
   import { useAppStore } from '@/stores/app'
   import Modal from '@/components/ui/Modal.vue'
@@ -180,90 +181,7 @@
         <SettingsAppearance v-else-if="activeSection === 'apparence'" />
 
         <!-- ════ Preferences ════ -->
-        <section v-else-if="activeSection === 'preferences'" class="stg-section">
-          <div class="stg-section-header">
-            <Settings :size="18" />
-            <h3 class="stg-section-title">Preferences</h3>
-          </div>
-
-          <!-- Notifications -->
-          <div class="stg-group">
-            <div class="stg-group-header">
-              <BellRing :size="13" class="stg-group-icon" />
-              <h4 class="stg-group-title">Notifications</h4>
-            </div>
-            <label class="stg-toggle-row">
-              <div class="stg-toggle-info">
-                <span class="stg-toggle-label">Notifications bureau</span>
-                <span class="stg-toggle-desc">Afficher les notifications systeme pour les nouveaux messages.</span>
-              </div>
-              <div class="stg-switch" :class="{ on: notifDesktop }" @click="notifDesktop = !notifDesktop">
-                <div class="stg-switch-thumb" />
-              </div>
-            </label>
-            <label class="stg-toggle-row">
-              <div class="stg-toggle-info">
-                <span class="stg-toggle-label">Son de notification</span>
-                <span class="stg-toggle-desc">Jouer un son lors de la reception d'un message.</span>
-              </div>
-              <div class="stg-switch" :class="{ on: notifSound }" @click="notifSound = !notifSound">
-                <div class="stg-switch-thumb" />
-              </div>
-            </label>
-          </div>
-
-          <!-- Saisie -->
-          <div class="stg-group">
-            <div class="stg-group-header">
-              <MousePointer :size="13" class="stg-group-icon" />
-              <h4 class="stg-group-title">Saisie</h4>
-            </div>
-            <label class="stg-toggle-row">
-              <div class="stg-toggle-info">
-                <span class="stg-toggle-label">Entree pour envoyer</span>
-                <span class="stg-toggle-desc">Appuyer sur Entree envoie le message. Desactive : Ctrl+Entree pour envoyer.</span>
-              </div>
-              <div class="stg-switch" :class="{ on: enterToSend }" @click="enterToSend = !enterToSend">
-                <div class="stg-switch-thumb" />
-              </div>
-            </label>
-          </div>
-
-          <!-- Documents -->
-          <div class="stg-group">
-            <div class="stg-group-header">
-              <FileText :size="13" class="stg-group-icon" />
-              <h4 class="stg-group-title">Documents</h4>
-            </div>
-            <label class="stg-toggle-row">
-              <div class="stg-toggle-info">
-                <span class="stg-toggle-label">Ouvrir dans l'explorateur par defaut</span>
-                <span class="stg-toggle-desc">Double-clic sur un fichier l'ouvre directement avec l'application systeme.</span>
-              </div>
-              <div class="stg-switch" :class="{ on: docsDefault }" @click="docsDefault = !docsDefault">
-                <div class="stg-switch-thumb" />
-              </div>
-            </label>
-          </div>
-
-          <!-- Demo (profs) -->
-          <div v-if="appStore.isTeacher" class="stg-group">
-            <div class="stg-group-header">
-              <RotateCcw :size="13" class="stg-group-icon" />
-              <h4 class="stg-group-title">Donnees de demonstration</h4>
-            </div>
-            <div class="stg-action-row stg-action-danger">
-              <div class="stg-toggle-info">
-                <span class="stg-toggle-label">Réinitialiser les données</span>
-                <span class="stg-toggle-desc">Recharge les promotions d'exemple avec devoirs, dépôts et documents de test.</span>
-              </div>
-              <button class="stg-btn stg-btn-danger" :disabled="resetting" @click="resetDemoData">
-                <RotateCcw :size="13" />
-                {{ resetting ? 'En cours...' : 'Réinitialiser' }}
-              </button>
-            </div>
-          </div>
-        </section>
+        <SettingsPreferences v-else-if="activeSection === 'preferences'" />
 
         <!-- ════ Mon compte ════ -->
         <section v-else-if="activeSection === 'compte'" class="stg-section">
