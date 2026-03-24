@@ -4,6 +4,7 @@
     FileText, Image, Link2, Video, File, Plus, Trash2,
     ExternalLink, Download, Search, X, Upload, FolderOpen, Eye, CheckCircle2, Menu,
     LayoutGrid, List, Star,
+    BookOpen, Github, Linkedin, Globe, Package, HelpCircle,
   } from 'lucide-vue-next'
   import { useAppStore }       from '@/stores/app'
   import { useDocumentsStore } from '@/stores/documents'
@@ -67,6 +68,15 @@
   }
 
   // ── Add modal ───────────────────────────────────────────────────────────
+  const CATEGORIES = [
+    { id: 'moodle',   label: 'Moodle',    icon: BookOpen,   color: '#f59e0b' },
+    { id: 'github',   label: 'GitHub',    icon: Github,     color: '#24292e' },
+    { id: 'linkedin', label: 'LinkedIn',  icon: Linkedin,   color: '#0a66c2' },
+    { id: 'web',      label: 'Site Web',  icon: Globe,      color: '#22c55e' },
+    { id: 'package',  label: 'Package',   icon: Package,    color: '#8b5cf6' },
+    { id: 'autre',    label: 'Autre',     icon: HelpCircle, color: '#8b8d91' },
+  ]
+
   const {
     showAddModal,
     addName,
@@ -84,6 +94,7 @@
     pickFile,
     clearFile,
     submitAdd,
+    detectCategory,
   } = useDocumentsAdd()
 </script>
 
@@ -321,13 +332,13 @@
           </button>
         </div>
 
-        <!-- Zone de depot fichier (en haut, bien visible) -->
+        <!-- Zone de dépôt fichier -->
         <div v-if="addType === 'file'" class="da-drop-zone">
           <div v-if="addFile" class="da-file-selected">
             <CheckCircle2 :size="20" class="da-file-icon" />
             <div class="da-file-info">
               <span class="da-file-name">{{ addFileName }}</span>
-              <span class="da-file-hint">Fichier pret a etre envoye</span>
+              <span class="da-file-hint">Fichier prêt à être envoyé</span>
             </div>
             <button class="da-file-clear" type="button" title="Changer de fichier" @click="clearFile">
               <X :size="14" />
@@ -336,42 +347,49 @@
           <button v-else class="da-file-picker" type="button" @click="pickFile">
             <Upload :size="24" class="da-picker-icon" />
             <span class="da-picker-label">Cliquer ou glisser un fichier ici</span>
-            <span class="da-picker-hint">PDF, Word, Excel, images, videos, archives</span>
+            <span class="da-picker-hint">PDF, Word, Excel, images, vidéos, archives</span>
           </button>
         </div>
 
         <!-- URL -->
         <div v-else class="da-field">
           <label class="da-label">Adresse URL</label>
-          <input v-model="addLink" type="url" class="da-input" placeholder="https://drive.google.com/..." />
+          <input
+            v-model="addLink"
+            type="url"
+            class="da-input"
+            placeholder="https://…"
+            @blur="detectCategory(addLink)"
+          />
         </div>
 
         <!-- Nom -->
         <div class="da-field">
           <label class="da-label">Nom du document</label>
-          <input v-model="addName" type="text" class="da-input" placeholder="ex : Cours reseaux - chapitre 3" autofocus />
+          <input v-model="addName" type="text" class="da-input" placeholder="ex : Cours réseaux - chapitre 3" autofocus />
         </div>
 
-        <!-- Categorie (dropdown des existantes + saisie libre) -->
-        <div class="da-row">
-          <div class="da-field da-flex1">
-            <label class="da-label">Categorie</label>
-            <select v-if="categories.length && addCategory !== '__new__'" v-model="addCategory" class="da-input">
-              <option value="">Sans categorie</option>
-              <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
-              <option value="__new__">+ Nouvelle categorie...</option>
-            </select>
-            <div v-if="!categories.length || addCategory === '__new__'" style="display:flex;gap:6px">
-              <input
-                v-model="newCatName"
-                type="text"
-                class="da-input"
-                style="flex:1"
-                placeholder="Nom de la categorie"
-              />
-              <button v-if="addCategory === '__new__'" type="button" class="btn-ghost" style="font-size:11px;padding:4px 8px" @click="addCategory = ''">Annuler</button>
-            </div>
+        <!-- Catégorie — pills -->
+        <div class="da-field">
+          <label class="da-label">Catégorie</label>
+          <div class="da-cat-pills">
+            <button
+              v-for="cat in CATEGORIES"
+              :key="cat.id"
+              type="button"
+              class="da-cat-pill"
+              :class="{ active: addCategory === cat.label }"
+              :style="addCategory === cat.label ? { background: cat.color + '22', color: cat.color, borderColor: cat.color } : {}"
+              @click="addCategory = cat.label"
+            >
+              <component :is="cat.icon" :size="12" />
+              {{ cat.label }}
+            </button>
           </div>
+        </div>
+
+        <!-- Projet + Description -->
+        <div class="da-row">
           <div class="da-field da-flex1">
             <label class="da-label">Projet</label>
             <select v-model="addProject" class="da-input">
@@ -381,10 +399,9 @@
           </div>
         </div>
 
-        <!-- Description -->
         <div class="da-field">
           <label class="da-label">Description <span class="da-hint">(optionnelle)</span></label>
-          <textarea v-model="addDescription" class="da-input da-textarea" rows="2" placeholder="Breve description, consignes, contexte..." />
+          <textarea v-model="addDescription" class="da-input da-textarea" rows="2" placeholder="Brève description, consignes, contexte…" />
         </div>
 
         <!-- Footer -->
@@ -394,7 +411,7 @@
             type="submit" class="btn-primary da-submit"
             :disabled="!addName.trim() || (addType === 'file' && !addFile) || (addType === 'link' && !addLink.trim()) || adding"
           >
-            {{ adding ? 'Envoi en cours...' : 'Ajouter' }}
+            {{ adding ? 'Envoi en cours…' : 'Ajouter' }}
           </button>
         </div>
       </form>
@@ -811,6 +828,23 @@
   cursor: pointer; transition: all .15s; flex-shrink: 0;
 }
 .da-file-clear:hover { background: rgba(231,76,60,.1); color: var(--color-danger); }
+
+/* ── Pills catégorie ── */
+.da-cat-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.da-cat-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 11px;
+  border: 1.5px solid var(--border-input);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.da-cat-pill:hover { background: var(--bg-hover); color: var(--text-primary); }
+.da-cat-pill.active { font-weight: 600; }
 
 .da-footer {
   display: flex; align-items: center; justify-content: flex-end; gap: 8px;

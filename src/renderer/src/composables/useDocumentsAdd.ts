@@ -36,9 +36,20 @@ export function useDocumentsAdd() {
     return Array.from(cats).sort((a, b) => a.localeCompare(b, 'fr'))
   })
 
+  // ── Détection automatique de catégorie depuis une URL ───────────────────
+  function detectCategory(url: string) {
+    if (!url) return
+    const lower = url.toLowerCase()
+    if (lower.includes('moodle'))                                        { addCategory.value = 'Moodle';   return }
+    if (lower.includes('github'))                                        { addCategory.value = 'GitHub';   return }
+    if (lower.includes('linkedin'))                                      { addCategory.value = 'LinkedIn'; return }
+    if (lower.includes('npm') || lower.includes('pypi') || lower.includes('packag')) { addCategory.value = 'Package'; return }
+    addCategory.value = 'Site Web'
+  }
+
   function openAddModal() {
     addName.value        = ''
-    addCategory.value    = ''
+    addCategory.value    = 'Autre'
     addDescription.value = ''
     addType.value        = 'file'
     addLink.value        = ''
@@ -114,5 +125,6 @@ export function useDocumentsAdd() {
     pickFile,
     clearFile,
     submitAdd,
+    detectCategory,
   }
 }
