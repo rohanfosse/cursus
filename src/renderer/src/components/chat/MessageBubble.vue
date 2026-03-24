@@ -72,6 +72,13 @@ function startEdit()    { showMenu.value = false; _startEdit() }
 function deleteMessage(){ showMenu.value = false; _deleteMessage() }
 
 function closeAll() { _closeAll(showPicker, confirmingDelete) }
+
+// ── Click sur le texte du message : lightbox si image, sinon handler normal ──
+function onTextClick(e: MouseEvent) {
+  const img = (e.target as HTMLElement).closest('img.msg-inline-img') as HTMLImageElement | null
+  if (img?.src) { lightboxUrl.value = img.src; return }
+  onMsgClick(e)
+}
 </script>
 
 <template>
@@ -128,10 +135,10 @@ function closeAll() { _closeAll(showPicker, confirmingDelete) }
       <!-- Texte - mode lecture -->
       <template v-if="!editing">
         <!-- eslint-disable vue/no-v-html -->
-        <p class="msg-text" v-html="content" @click="onMsgClick" />
+        <p class="msg-text" v-html="content" @click="onTextClick" />
         <!-- eslint-enable vue/no-v-html -->
 
-        <!-- Prévisualisation image inline -->
+        <!-- Prévisualisation image inline (bare URL hors markdown, ex. lien collé) -->
         <div v-if="imagePreviewUrl" class="msg-img-preview">
           <img :src="imagePreviewUrl" alt="Aperçu" loading="lazy" @click="lightboxUrl = imagePreviewUrl!" />
         </div>

@@ -2,8 +2,12 @@
  * Pièce jointe de message : sélection de fichier, upload, insertion de lien markdown.
  * Used by MessageInput.vue
  */
-import { ref, nextTick, type Ref } from 'vue'
+import { ref, watch, nextTick, type Ref } from 'vue'
 import { useToast } from '@/composables/useToast'
+
+// ── Singleton : injection externe de markdown (ex. DnD depuis MessagesView) ──
+const _pendingMd = ref<string | null>(null)
+export function injectMd(md: string) { _pendingMd.value = md }
 
 /**
  * File attachment: pick, upload, insert markdown link.
@@ -15,6 +19,14 @@ export function useMsgAttachment(
 ) {
   const { showToast } = useToast()
   const attaching = ref(false)
+
+  // Écoute les injections externes (DnD en DM depuis MessagesView)
+  watch(_pendingMd, (md) => {
+    if (!md) return
+    content.value += content.value ? `\n${md}` : md
+    _pendingMd.value = null
+    nextTick(() => { autoResize(); inputEl.value?.focus() })
+  })
 
   async function attachFile() {
     if (attaching.value) return

@@ -253,8 +253,13 @@ button { font-family: var(--font); }
 }
 
 /* Mise en forme dans les messages */
-.msg-text strong, .msg-text b { font-weight: 700; }
+.msg-text strong, .msg-text b { font-weight: 600; }
 .msg-text em, .msg-text i     { font-style: italic; }
+
+/* Titres markdown dans les messages — taille réduite pour ne pas écraser le contenu */
+.msg-text h1, .msg-text h2 { font-size: 15px; font-weight: 600; margin: 6px 0 2px; }
+.msg-text h3, .msg-text h4 { font-size: 14px; font-weight: 600; margin: 4px 0 2px; }
+.msg-text h5, .msg-text h6 { font-size: 13.5px; font-weight: 600; margin: 3px 0 1px; }
 .msg-text code {
   background: var(--bg-elevated);
   border: 1px solid var(--border-input);
@@ -303,6 +308,43 @@ button { font-family: var(--font); }
 .msg-text > p { margin: 0; }
 .msg-text > p + p { margin-top: 4px; }
 
+/* ── Images inline (envoyées via markdown ![name](url)) ── */
+.msg-text .msg-inline-img {
+  display: block;
+  max-width: 320px;
+  max-height: 240px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-top: 6px;
+  cursor: pointer;
+  object-fit: cover;
+  transition: opacity .15s;
+}
+.msg-text .msg-inline-img:hover { opacity: .88; }
+
+/* ── Carte pièce jointe 📎 ── */
+.msg-text .msg-file-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 7px 11px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  max-width: 320px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.msg-text .msg-file-card:hover { background: var(--bg-hover); border-color: var(--border-input); }
+.msg-file-card-icon { font-size: 16px; flex-shrink: 0; }
+.msg-file-card-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.msg-file-card-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+.msg-file-card-ext  { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; }
+
 .msg-link {
   color: var(--accent, #4a90d9);
   text-decoration: underline;
@@ -324,43 +366,48 @@ button { font-family: var(--font); }
 /* Mentions dans les messages */
 /* ── Mentions @utilisateur ── */
 .mention-tag {
-  background: rgba(74,144,217,.08);
-  color: var(--accent-light);
-  border-radius: 4px;
-  padding: 1px 5px;
-  font-weight: 500;
-  cursor: default;
-}
-
-/* ── Référence #canal ── */
-.channel-ref {
   background: rgba(74,144,217,.06);
   color: var(--accent-light);
   border-radius: 4px;
   padding: 1px 5px;
   font-weight: 500;
+  cursor: default;
+  opacity: .85;
+}
+
+/* ── Référence #canal ── */
+.channel-ref {
+  background: rgba(74,144,217,.05);
+  color: var(--accent-light);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background .15s;
+  opacity: .85;
+  transition: background .15s, opacity .15s;
 }
 .channel-ref:hover {
-  background: rgba(74,144,217,.14);
+  background: rgba(74,144,217,.10);
+  opacity: 1;
   text-decoration: underline;
 }
 
 /* ── Référence devoir ── */
 .devoir-ref {
-  background: rgba(155,135,245,.08);
+  background: rgba(155,135,245,.06);
   color: var(--color-cctl);
   border-radius: 4px;
   padding: 1px 5px;
   font-weight: 500;
-  transition: background .15s;
+  opacity: .85;
+  transition: background .15s, opacity .15s;
 }
 .devoir-ref[data-devoir-id] {
   cursor: pointer;
 }
 .devoir-ref[data-devoir-id]:hover {
-  background: rgba(155,135,245,.16);
+  background: rgba(155,135,245,.12);
+  opacity: 1;
 }
 .devoir-ref[data-devoir-id]:focus-visible {
   outline: 2px solid var(--color-cctl);
@@ -369,8 +416,8 @@ button { font-family: var(--font); }
 
 /* ── Message avec lien devoir (rappel prof) ── */
 .msg-text:has(.devoir-ref) {
-  background: rgba(155,135,245,.04);
-  border-left: 2px solid rgba(155,135,245,.3);
+  background: rgba(155,135,245,.03);
+  border-left: 2px solid rgba(155,135,245,.18);
   border-radius: 4px;
   padding: 8px 12px;
   margin: 2px 0;
@@ -391,8 +438,8 @@ button { font-family: var(--font); }
 
 /* Mention de l'utilisateur courant ou @everyone */
 .mention-me {
-  background: rgba(243,156,18,.1);
-  color: #f0c674;
+  background: rgba(243,156,18,.06);
+  color: #c8a85a;
   border-radius: 4px;
   padding: 1px 5px;
   font-weight: 500;

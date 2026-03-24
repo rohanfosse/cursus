@@ -7,6 +7,7 @@ import { useRouter }        from 'vue-router'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
 import { useModalsStore }   from '@/stores/modals'
+import { useTravauxStore }  from '@/stores/travaux'
 import { useToast }         from '@/composables/useToast'
 import { useOpenExternal }  from '@/composables/useOpenExternal'
 import type { Message, Channel } from '@/types'
@@ -19,6 +20,7 @@ export function useBubbleActions(msg: () => Message) {
   const appStore      = useAppStore()
   const messagesStore = useMessagesStore()
   const modals        = useModalsStore()
+  const travauxStore  = useTravauxStore()
   const { openExternal } = useOpenExternal()
   const { showToast }    = useToast()
 
@@ -132,8 +134,7 @@ export function useBubbleActions(msg: () => Message) {
       e.preventDefault()
       const devoirId = Number(devoirRef.dataset.devoirId)
       if (devoirId) {
-        appStore.currentTravailId = devoirId
-        modals.gestionDevoir = true
+        travauxStore.openTravail(devoirId).then(() => { modals.gestionDevoir = true })
       }
       return
     }

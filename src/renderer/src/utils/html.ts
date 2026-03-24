@@ -50,7 +50,25 @@ marked.use({
     link({ href, tokens }: { href: string; title?: string | null; tokens: unknown[] }) {
       const text = (this as any).parser.parseInline(tokens)
       const safe = escapeHtml(href ?? '')
+      // Pièce jointe 📎 → card visuel au lieu d'un lien texte
+      if (text.includes('📎')) {
+        const name = text.replace(/📎\s*/g, '').replace(/<[^>]+>/g, '').trim()
+        const ext  = name.split('.').pop()?.toUpperCase() ?? 'FILE'
+        return (
+          `<a class="msg-file-card" data-url="${safe}" href="#" tabindex="0">` +
+          `<span class="msg-file-card-icon">📎</span>` +
+          `<span class="msg-file-card-body"><span class="msg-file-card-name">${escapeHtml(name)}</span>` +
+          `<span class="msg-file-card-ext">${escapeHtml(ext)}</span></span>` +
+          `</a>`
+        )
+      }
       return `<a class="msg-link" data-url="${safe}" href="#" tabindex="0">${text}</a>`
+    },
+    // Images : ajout de class pour styling + lightbox
+    image({ href, text }: { href: string; title?: string | null; text: string }) {
+      const safe = escapeHtml(href ?? '')
+      const alt  = escapeHtml(text ?? '')
+      return `<img class="msg-inline-img" src="${safe}" alt="${alt}" loading="lazy" />`
     },
     // Blocs de code : coloration syntaxique via highlight.js
     code({ text, lang }: { text: string; lang?: string; escaped?: boolean }) {

@@ -1,12 +1,13 @@
 <script setup lang="ts">
   import { computed, watch, ref, nextTick, onMounted, onUnmounted } from 'vue'
-  import { Search, X as XIcon, ClipboardList, BookCheck, FileText, FolderPlus, X as Close, CalendarRange, Users, FolderOpen, Menu, MessageSquare } from 'lucide-vue-next'
+  import { Search, X as XIcon, ClipboardList, BookCheck, FileText, FolderPlus, X as Close, CalendarRange, Users, FolderOpen, Menu, MessageSquare, Paperclip, Image as ImageIcon, ExternalLink } from 'lucide-vue-next'
   import { useAppStore }      from '@/stores/app'
   import { useMessagesStore } from '@/stores/messages'
   import { useTravauxStore }  from '@/stores/travaux'
   import { useModalsStore }   from '@/stores/modals'
   import { useToast }         from '@/composables/useToast'
   import { useApi }           from '@/composables/useApi'
+  import { injectMd }         from '@/composables/useMsgAttachment'
   import MessageList         from '@/components/chat/MessageList.vue'
   import MessageInput        from '@/components/chat/MessageInput.vue'
   import PinnedBanner        from '@/components/chat/PinnedBanner.vue'
@@ -26,7 +27,30 @@
 
   const searchInput      = ref('')
   const bannerDismissed  = ref(false)
-  const rightPanel       = ref<'members' | 'docs' | 'travaux' | null>(null)
+  const rightPanel       = ref<'members' | 'docs' | 'travaux' | 'dm-files' | null>(null)
+
+  // ── Fichiers partagés en DM ──────────────────────────────────────────────
+  interface DmFile { message_id: number; student_id: number; student_name: string; file_name: string; file_url: string; is_image: boolean; sent_at: string }
+  const dmFiles        = ref<DmFile[]>([])
+  const dmFilesLoading = ref(false)
+
+  async function loadDmFiles() {
+    if (!appStore.activeDmStudentId) return
+    dmFilesLoading.value = true
+    const res = await api<DmFile[]>(() => window.api.getDmFiles())
+    const sid = appStore.activeDmStudentId
+    dmFiles.value = (res ?? []).filter(f => f.student_id === sid)
+    dmFilesLoading.value = false
+  }
+
+  function dmInitials(name: string) {
+    return name.split(' ').map(w => w[0]?.toUpperCase() ?? '').slice(0, 2).join('')
+  }
+  function dmAvatarColor(name: string) {
+    const colors = ['#4a90d9','#9b87f5','#2ecc71','#e67e22','#e91e8c','#00bcd4']
+    let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff
+    return colors[h % colors.length]
+  }
 
   // ── Rafraîchir les DMs en temps réel ────────────────────────────────────
   function onDmLive() { messagesStore.fetchMessages() }
@@ -37,8 +61,12 @@
     rightPanel.value = rightPanel.value === panel ? null : panel
   }
 
-  // Fermer le panel quand on change de canal
+  // Fermer le panel quand on change de canal/DM
   watch(() => appStore.activeChannelId, () => { rightPanel.value = null })
+  watch(() => appStore.activeDmStudentId, (id) => {
+    rightPanel.value = null
+    if (id) loadDmFiles()
+  })
 
   // Escape ferme le panneau lateral ou la recherche
   function onEscapeKey(e: KeyboardEvent) {
@@ -53,8 +81,9 @@
   onMounted(() => document.addEventListener('keydown', onEscapeKey))
   onUnmounted(() => document.removeEventListener('keydown', onEscapeKey))
 
-  // ── Drag & drop → Documents ───────────────────────────────────────────────
+  // ── Drag & drop ──────────────────────────────────────────────────────────
   const isDragOver    = ref(false)
+  const dmUploading   = ref(false)
   const pendingDoc    = ref<{ name: string; path: string } | null>(null)
   const docAddName    = ref('')
   const docAddCat     = ref('')
@@ -62,7 +91,7 @@
   let   dragCounter   = 0
 
   function onDragEnter(e: DragEvent) {
-    if (!appStore.activeChannelId) return
+    if (!appStore.activeChannelId && !appStore.activeDmStudentId) return
     if (!e.dataTransfer?.types.includes('Files')) return
     dragCounter++
     isDragOver.value = true
@@ -78,18 +107,53 @@
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
   }
 
-  function onDrop(e: DragEvent) {
+  async function onDrop(e: DragEvent) {
     e.preventDefault()
     dragCounter = 0
     isDragOver.value = false
-    if (!appStore.activeChannelId) return
     const file = e.dataTransfer?.files[0]
     if (!file) return
-    const path = (file as unknown as { path: string }).path
-    if (!path) return
-    pendingDoc.value = { name: file.name, path }
-    docAddName.value = file.name
-    docAddCat.value  = ''
+
+    // ── Mode canal : ajouter aux documents ─────────────────────────────────
+    if (appStore.activeChannelId) {
+      const path = (file as unknown as { path?: string }).path
+      if (!path) return
+      pendingDoc.value = { name: file.name, path }
+      docAddName.value = file.name
+      docAddCat.value  = ''
+      return
+    }
+
+    // ── Mode DM : upload → injecter dans le champ de saisie ────────────────
+    if (!appStore.activeDmStudentId) return
+    dmUploading.value = true
+    try {
+      let url: string | null = null
+      const electronPath = (file as unknown as { path?: string }).path
+      if (electronPath) {
+        // Electron : upload via preload
+        const res = await window.api.uploadFile(electronPath) as { ok: boolean; data?: string } | null
+        if (res?.ok && res.data) url = res.data
+      } else {
+        // Web : upload direct FormData
+        const formData = new FormData()
+        formData.append('file', file, file.name)
+        const token = localStorage.getItem('cc_session') ?? ''
+        const resp = await fetch('/api/files/upload', {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        })
+        const json = await resp.json() as { ok: boolean; data?: string }
+        if (json.ok && json.data) url = window.location.origin + json.data
+      }
+      if (!url) { showToast('Échec de l\'upload.', 'error'); return }
+      const isImage = /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(file.name)
+      injectMd(isImage ? `![${file.name}](${url})` : `[📎 ${file.name}](${url})`)
+      // Rafraîchir la liste des fichiers DM si le panel est ouvert
+      if (rightPanel.value === 'dm-files') loadDmFiles()
+    } catch { showToast('Erreur lors de l\'upload.', 'error') }
+    finally { dmUploading.value = false }
   }
 
   async function confirmDocAdd() {
@@ -205,12 +269,20 @@
         <button v-if="props.toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="props.toggleSidebar">
           <Menu :size="22" />
         </button>
-        <span id="channel-icon" class="channel-icon">{{ appStore.activeDmStudentId ? '@' : '#' }}</span>
+
+        <!-- Avatar DM -->
+        <div v-if="appStore.activeDmStudentId" class="dm-avatar" :style="{ background: dmAvatarColor(appStore.activeChannelName ?? '') }">
+          {{ dmInitials(appStore.activeChannelName ?? '?') }}
+        </div>
+        <!-- Icône canal classique -->
+        <span v-else id="channel-icon" class="channel-icon">#</span>
+
         <div class="channel-header-info">
           <div class="channel-header-title-row">
             <span id="channel-name" class="channel-name">{{ appStore.activeChannelName }}</span>
+            <span v-if="appStore.activeDmStudentId" class="channel-type-badge channel-type-badge--dm">Message privé</span>
             <span
-              v-if="channelHeader?.type === 'annonce'"
+              v-else-if="channelHeader?.type === 'annonce'"
               id="channel-type-badge"
               class="channel-type-badge channel-type-badge--annonce"
             >
@@ -223,7 +295,8 @@
               Chat
             </span>
           </div>
-          <span v-if="channelHeader?.type === 'annonce' && appStore.isStudent" class="channel-annonce-hint">Canal d'annonce - seuls les pilotes peuvent publier</span>
+          <span v-if="appStore.activeDmStudentId" class="channel-annonce-hint">Conversation privée</span>
+          <span v-else-if="channelHeader?.type === 'annonce' && appStore.isStudent" class="channel-annonce-hint">Canal d'annonce - seuls les pilotes peuvent publier</span>
           <span v-else-if="appStore.activeChannelDescription" class="channel-description" :title="appStore.activeChannelDescription">{{ appStore.activeChannelDescription }}</span>
         </div>
       </div>
@@ -250,9 +323,9 @@
           </button>
         </div>
 
-        <!-- Timeline (prof) -->
+        <!-- Timeline (prof, canal uniquement) -->
         <button
-          v-if="appStore.isTeacher"
+          v-if="appStore.isTeacher && !appStore.activeDmStudentId"
           id="btn-timeline"
           class="btn-icon"
           title="Échéancier"
@@ -263,8 +336,9 @@
           <CalendarRange :size="16" />
         </button>
 
-        <!-- Membres du canal -->
+        <!-- Membres du canal (canal uniquement) -->
         <button
+          v-if="!appStore.activeDmStudentId"
           id="btn-members"
           class="btn-icon header-panel-btn"
           :class="{ active: rightPanel === 'members' }"
@@ -275,8 +349,9 @@
           <Users :size="16" />
         </button>
 
-        <!-- Documents du canal -->
+        <!-- Documents du canal (canal uniquement) -->
         <button
+          v-if="!appStore.activeDmStudentId"
           id="btn-docs"
           class="btn-icon header-panel-btn"
           :class="{ active: rightPanel === 'docs' }"
@@ -285,6 +360,19 @@
           @click="togglePanel('docs')"
         >
           <FolderOpen :size="16" />
+        </button>
+
+        <!-- Fichiers partagés (DM uniquement) -->
+        <button
+          v-if="appStore.activeDmStudentId"
+          id="btn-dm-files"
+          class="btn-icon header-panel-btn"
+          :class="{ active: rightPanel === 'dm-files' }"
+          title="Fichiers partagés"
+          aria-label="Fichiers partagés dans cette conversation"
+          @click="togglePanel('dm-files')"
+        >
+          <Paperclip :size="16" />
         </button>
       </div>
     </header>
@@ -371,6 +459,39 @@
           @close="rightPanel = null"
         />
       </Transition>
+
+      <!-- Panel fichiers partagés DM -->
+      <Transition name="panel-slide">
+        <div v-if="rightPanel === 'dm-files' && appStore.activeDmStudentId" class="dm-files-panel">
+          <div class="dm-files-panel-header">
+            <span class="dm-files-panel-title"><Paperclip :size="14" /> Fichiers partagés</span>
+            <button class="btn-icon" aria-label="Fermer" @click="rightPanel = null"><XIcon :size="14" /></button>
+          </div>
+          <div v-if="dmFilesLoading" class="dm-files-empty">Chargement…</div>
+          <div v-else-if="!dmFiles.length" class="dm-files-empty">Aucun fichier partagé dans cette conversation.</div>
+          <div v-else class="dm-files-list">
+            <a
+              v-for="f in dmFiles"
+              :key="f.message_id + f.file_url"
+              class="dm-file-item"
+              :href="f.file_url"
+              target="_blank"
+              rel="noopener"
+            >
+              <div class="dm-file-thumb">
+                <img v-if="f.is_image" :src="f.file_url" :alt="f.file_name" class="dm-file-img" />
+                <ImageIcon v-else-if="f.is_image" :size="18" />
+                <Paperclip v-else :size="18" />
+              </div>
+              <div class="dm-file-meta">
+                <span class="dm-file-name">{{ f.file_name }}</span>
+                <span class="dm-file-date">{{ new Date(f.sent_at).toLocaleDateString('fr') }}</span>
+              </div>
+              <ExternalLink :size="12" class="dm-file-ext" />
+            </a>
+          </div>
+        </div>
+      </Transition>
     </div>
 
     <!-- Aucun canal sélectionné - écran d'accueil -->
@@ -406,11 +527,18 @@
 
     <!-- Overlay drag & drop -->
     <Transition name="drop-fade">
-      <div v-if="isDragOver && appStore.activeChannelId" class="drop-overlay">
+      <div v-if="isDragOver && (appStore.activeChannelId || appStore.activeDmStudentId)" class="drop-overlay">
         <div class="drop-overlay-inner">
-          <FolderPlus :size="40" class="drop-overlay-icon" />
-          <p class="drop-overlay-title">Déposer pour ajouter aux documents</p>
-          <p class="drop-overlay-sub">#{{ appStore.activeChannelName }}</p>
+          <template v-if="appStore.activeDmStudentId">
+            <Paperclip :size="40" class="drop-overlay-icon" />
+            <p class="drop-overlay-title">Envoyer dans la conversation</p>
+            <p class="drop-overlay-sub">{{ appStore.activeChannelName }}</p>
+          </template>
+          <template v-else>
+            <FolderPlus :size="40" class="drop-overlay-icon" />
+            <p class="drop-overlay-title">Déposer pour ajouter aux documents</p>
+            <p class="drop-overlay-sub">#{{ appStore.activeChannelName }}</p>
+          </template>
         </div>
       </div>
     </Transition>
@@ -442,9 +570,19 @@
   min-width: 0;
 }
 
+/* ── Avatar DM dans le header ── */
+.dm-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #fff;
+  flex-shrink: 0; letter-spacing: .5px;
+  box-shadow: 0 0 0 2px var(--bg-sidebar);
+}
+
 /* ── Channel type badges ── */
 .channel-type-badge--annonce { background: rgba(231,76,60,.15); color: #e74c3c; }
 .channel-type-badge--chat    { background: rgba(74,144,217,.15); color: var(--accent); }
+.channel-type-badge--dm      { background: rgba(155,135,245,.12); color: var(--color-cctl); font-size: 10px; }
 .channel-annonce-hint {
   font-size: 11px;
   color: var(--text-muted);
@@ -510,7 +648,7 @@
 /* ── Amélioration bannière ── */
 .banner-icon { flex-shrink: 0; }
 .banner-text { flex: 1; min-width: 0; }
-.banner-urgent { color: var(--color-danger); font-weight: 700; }
+.banner-urgent { color: var(--color-warning, #c8a85a); font-weight: 600; }
 .banner-close-btn {
   padding: 3px;
   flex-shrink: 0;
@@ -518,6 +656,46 @@
   transition: opacity var(--t-fast);
 }
 .banner-close-btn:hover { opacity: 1; }
+
+/* ── Panel fichiers partagés DM ── */
+.dm-files-panel {
+  width: 260px; min-width: 260px; max-width: 260px;
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+.dm-files-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px; font-weight: 600; color: var(--text-primary);
+  flex-shrink: 0;
+}
+.dm-files-panel-title { display: flex; align-items: center; gap: 6px; }
+.dm-files-empty { padding: 24px 16px; font-size: 12.5px; color: var(--text-muted); text-align: center; }
+.dm-files-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+.dm-file-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: background .12s;
+  cursor: pointer;
+}
+.dm-file-item:hover { background: var(--bg-hover); }
+.dm-file-item:hover .dm-file-ext { opacity: .7; }
+.dm-file-thumb {
+  width: 36px; height: 36px; border-radius: 6px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; overflow: hidden; color: var(--text-muted);
+}
+.dm-file-img { width: 100%; height: 100%; object-fit: cover; }
+.dm-file-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dm-file-name { font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-file-date { font-size: 11px; color: var(--text-muted); }
+.dm-file-ext { color: var(--text-muted); opacity: 0; transition: opacity .12s; flex-shrink: 0; }
 
 /* ── Barre de confirmation ── */
 .doc-drop-confirm {

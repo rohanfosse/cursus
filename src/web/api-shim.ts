@@ -468,6 +468,15 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   },
   getRexStatsForPromo:    (promoId: number) => get(`/api/rex/sessions/promo/${promoId}/stats`),
 
+  // Kanban
+  getKanbanCards:   (travailId: number, groupId: number)                   => get(`/api/kanban/travaux/${travailId}/groups/${groupId}`),
+  createKanbanCard: (travailId: number, groupId: number, payload: unknown) => post(`/api/kanban/travaux/${travailId}/groups/${groupId}`, payload),
+  updateKanbanCard: (cardId: number, payload: unknown)                     => patch(`/api/kanban/cards/${cardId}`, payload),
+  deleteKanbanCard: (cardId: number)                                       => del(`/api/kanban/cards/${cardId}`),
+
+  // Fichiers DM
+  getDmFiles: () => get('/api/messages/dm-files'),
+
   // Carnet de suivi
   getTeacherNotes:        (studentId: number) => get(`/api/teacher-notes/student/${studentId}`),
   getTeacherNotesByPromo: (promoId: number)   => get(`/api/teacher-notes/promo/${promoId}`),
