@@ -71,6 +71,14 @@ function addChannelDocument({ channelId, promoId, project, category, type, name,
   });
 }
 
+function updateProjectDocument({ id, name, category, description, travailId }) {
+  return getDb().prepare(`
+    UPDATE channel_documents
+    SET name = ?, category = ?, description = ?, travail_id = ?
+    WHERE id = ?
+  `).run(name, category || 'Général', description ?? null, travailId ?? null, id);
+}
+
 function deleteChannelDocument(id) {
   return getDb().prepare('DELETE FROM channel_documents WHERE id = ?').run(id);
 }
@@ -98,6 +106,6 @@ function getChannelDocumentCategories(channelId) {
 module.exports = {
   getProjectDocuments, getChannelDocuments,
   getPromoDocuments, addProjectDocument, addChannelDocument,
-  deleteChannelDocument,
+  updateProjectDocument, deleteChannelDocument,
   getProjectDocumentCategories, getChannelDocumentCategories,
 };

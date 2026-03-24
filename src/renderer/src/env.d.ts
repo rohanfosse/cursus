@@ -128,6 +128,7 @@ declare global {
       // Documents de projet
       getProjectDocuments(promoId: number, project?: string | null): Promise<IpcResponse<AppDocument[]>>
       addProjectDocument(payload: object): Promise<IpcResponse<{ id: number }>>
+      updateProjectDocument(id: number, payload: object): Promise<IpcResponse<unknown>>
 
       // Messages épinglés
       getPinnedMessages(channelId: number): Promise<IpcResponse<Message[]>>

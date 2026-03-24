@@ -376,6 +376,7 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
     return get(`/api/documents/project?promoId=${promoId}${qs}`)
   },
   addProjectDocument:           (payload: unknown)  => post('/api/documents/project', payload),
+  updateProjectDocument:        (id: number, payload: unknown) => patch(`/api/documents/project/${id}`, payload),
 
   // ── Intervenants ────────────────────────────────────────────────────────────
   getIntervenants:    ()                 => get('/api/teachers'),

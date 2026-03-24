@@ -1,9 +1,9 @@
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import {
     FileText, Image, Link2, Video, File, Plus, Trash2,
     ExternalLink, Download, Search, X, Upload, FolderOpen, Eye, CheckCircle2, Menu,
-    LayoutGrid, List, Star,
+    LayoutGrid, List, Star, Copy, Pencil,
     BookOpen, Github, Linkedin, Globe, Package, HelpCircle, BookMarked,
   } from 'lucide-vue-next'
   import type { Component } from 'vue'
@@ -29,7 +29,9 @@
 
   import { useDocumentsData, docIconType, iconColors, iconLabels, TYPE_FILTERS } from '@/composables/useDocumentsData'
   import { useDocumentsAdd } from '@/composables/useDocumentsAdd'
+  import { useDocumentsEdit } from '@/composables/useDocumentsEdit'
   import { useFileDrop } from '@/composables/useFileDrop'
+  import { useToast } from '@/composables/useToast'
   import DropOverlay from '@/components/ui/DropOverlay.vue'
 
   const props = defineProps<{ toggleSidebar?: () => void }>()
@@ -38,8 +40,12 @@
   const appStore = useAppStore()
   const docStore = useDocumentsStore()
 
-  // ── View mode: grid vs list ───────────────────────────────────────────
-  const viewMode = ref<'grid' | 'list'>('grid')
+  // ── View mode: grid vs list (persisté en localStorage) ───────────────
+  const VIEW_MODE_KEY = 'cc_docs_view_mode'
+  const viewMode = ref<'grid' | 'list'>(
+    (localStorage.getItem(VIEW_MODE_KEY) as 'grid' | 'list') ?? 'grid',
+  )
+  watch(viewMode, (v) => localStorage.setItem(VIEW_MODE_KEY, v))
 
   // ── Drag & drop ────────────────────────────────────────────────────────
   const { isDragOver, pendingFile, uploading, onDragEnter, onDragLeave, onDragOver, onDrop, submitDocument, cancelDrop } = useFileDrop()
@@ -113,6 +119,26 @@
     submitAdd,
     detectCategory,
   } = useDocumentsAdd()
+
+  // ── Edit modal ──────────────────────────────────────────────────────────
+  const {
+    showEditModal,
+    editName,
+    editCategory,
+    editDescription,
+    editTravailId,
+    travailList: editTravailList,
+    saving,
+    openEditModal,
+    submitEdit,
+  } = useDocumentsEdit()
+
+  // ── Copy link ───────────────────────────────────────────────────────────
+  const { showToast } = useToast()
+  async function copyDocLink(doc: import('@/types').AppDocument) {
+    await navigator.clipboard.writeText(doc.content)
+    showToast('Lien copié !', 'success')
+  }
 </script>
 
 <template>
@@ -285,6 +311,13 @@
                 </button>
                 <button
                   class="doc-card-action-btn"
+                  title="Copier le lien"
+                  @click="copyDocLink(doc)"
+                >
+                  <Copy :size="14" />
+                </button>
+                <button
+                  class="doc-card-action-btn"
                   :title="doc.type === 'link' ? 'Ouvrir le lien' : 'Prévisualiser'"
                   @click="openDoc(doc)"
                 >
@@ -298,6 +331,14 @@
                   @click="api.downloadFile(doc.content)"
                 >
                   <Download :size="14" />
+                </button>
+                <button
+                  v-if="appStore.isTeacher"
+                  class="doc-card-action-btn"
+                  title="Modifier"
+                  @click="openEditModal(doc)"
+                >
+                  <Pencil :size="14" />
                 </button>
                 <button
                   v-if="appStore.isTeacher"
@@ -433,6 +474,68 @@
             :disabled="!addName.trim() || (addType === 'file' && !addFile) || (addType === 'link' && !addLink.trim()) || adding"
           >
             {{ adding ? 'Envoi en cours…' : 'Ajouter' }}
+          </button>
+        </div>
+      </form>
+    </Modal>
+
+    <!-- ── Modal édition ───────────────────────────────────────────────── -->
+    <Modal v-model="showEditModal" title="Modifier le document" max-width="520px">
+      <form class="da" @submit.prevent="submitEdit">
+
+        <!-- Nom -->
+        <div class="da-field">
+          <label class="da-label">Nom du document</label>
+          <input v-model="editName" type="text" class="da-input" placeholder="ex : Cours réseaux - chapitre 3" autofocus />
+        </div>
+
+        <!-- Catégorie — pills -->
+        <div class="da-field">
+          <label class="da-label">Catégorie</label>
+          <div class="da-cat-pills">
+            <button
+              v-for="cat in CATEGORIES"
+              :key="cat.id"
+              type="button"
+              class="da-cat-pill"
+              :class="{ active: editCategory === cat.label }"
+              :style="editCategory === cat.label ? { background: cat.color + '22', color: cat.color, borderColor: cat.color } : {}"
+              @click="editCategory = cat.label"
+            >
+              <component :is="cat.icon" :size="12" />
+              {{ cat.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Lien vers un devoir -->
+        <div v-if="editTravailList.length" class="da-field">
+          <label class="da-label">Lien vers un devoir <span class="da-hint">(optionnel)</span></label>
+          <div class="da-travail-select-wrap">
+            <BookMarked :size="14" class="da-travail-icon" />
+            <select v-model="editTravailId" class="da-input da-travail-select">
+              <option :value="null">— Aucun —</option>
+              <option v-for="t in editTravailList" :key="t.id" :value="t.id">
+                {{ t.title }}{{ t.category ? ` · ${t.category}` : '' }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="da-field">
+          <label class="da-label">Description <span class="da-hint">(optionnelle)</span></label>
+          <textarea v-model="editDescription" class="da-input da-textarea" rows="2" placeholder="Brève description, consignes, contexte…" />
+        </div>
+
+        <!-- Footer -->
+        <div class="da-footer">
+          <button type="button" class="btn-ghost" @click="showEditModal = false">Annuler</button>
+          <button
+            type="submit" class="btn-primary da-submit"
+            :disabled="!editName.trim() || saving"
+          >
+            {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
           </button>
         </div>
       </form>
