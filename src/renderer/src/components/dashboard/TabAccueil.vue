@@ -8,6 +8,7 @@
  */
 <script setup lang="ts">
 import { computed } from 'vue'
+import TeacherTodoWidget from './TeacherTodoWidget.vue'
 import {
   Edit3, Clock, FileText, CheckCircle2,
   PlusCircle, Bell, BarChart2, MessageSquare, ChevronRight,
@@ -349,6 +350,11 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
       </div>
     </div>
 
+    <!-- ═══ TODO WIDGET (2x1) ═══ -->
+    <div class="dashboard-card bento-tile bento-todo">
+      <TeacherTodoWidget />
+    </div>
+
   </div>
 </template>
 
@@ -680,6 +686,9 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
 
 /* ── ACTIVITY FEED (spans 2 cols) ── */
 .bento-activity {
+  grid-column: span 2;
+}
+.bento-todo {
   grid-column: span 2;
 }
 .activity-list {
