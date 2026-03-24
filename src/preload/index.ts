@@ -455,6 +455,17 @@ contextBridge.exposeInMainWorld('api', {
   updateKanbanCard: (cardId: number, payload: unknown)                         => patch(`/api/kanban/cards/${cardId}`, payload),
   deleteKanbanCard: (cardId: number)                                           => del(`/api/kanban/cards/${cardId}`),
 
+  // ── Carnet de suivi ──────────────────────────────────────────────────────
+  getTeacherNotes:        (studentId: number) => get(`/api/teacher-notes/student/${studentId}`),
+  getTeacherNotesByPromo: (promoId: number)   => get(`/api/teacher-notes/promo/${promoId}`),
+  getTeacherNotesSummary: (promoId: number)   => get(`/api/teacher-notes/promo/${promoId}/summary`),
+  createTeacherNote:      (payload: unknown)  => post('/api/teacher-notes', payload),
+  updateTeacherNote:      (id: number, payload: unknown) => patch(`/api/teacher-notes/${id}`, payload),
+  deleteTeacherNote:      (id: number)        => del(`/api/teacher-notes/${id}`),
+
+  // ── Engagement analytics ─────────────────────────────────────────────────
+  getEngagementScores: (promoId: number) => get(`/api/engagement/${promoId}`),
+
   emitRexJoin:  (promoId: number) => { socket?.emit('rex:join', { promoId }) },
   emitRexLeave: (promoId: number) => { socket?.emit('rex:leave', { promoId }) },
 

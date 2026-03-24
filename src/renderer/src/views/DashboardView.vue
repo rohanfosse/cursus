@@ -42,8 +42,8 @@ function goToProject(key: string) {
 }
 
 // ── Tabs ────────────────────────────────────────────────────────────────────
-const dashTab = ref<'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live' | 'rex' | 'projets' | 'notes' | 'planning'>(
-  route.query.tab === 'frise' ? 'frise' : route.query.tab === 'planning' ? 'planning' : route.query.tab === 'analytique' ? 'analytique' : route.query.tab === 'promotions' ? 'promotions' : route.query.tab === 'live' ? 'live' : route.query.tab === 'rex' ? 'rex' : route.query.tab === 'projets' ? 'projets' : route.query.tab === 'notes' ? 'notes' : 'accueil',
+const dashTab = ref<'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live' | 'rex' | 'suivi' | 'engagement' | 'projets' | 'notes' | 'planning'>(
+  route.query.tab === 'frise' ? 'frise' : route.query.tab === 'planning' ? 'planning' : route.query.tab === 'analytique' ? 'analytique' : route.query.tab === 'promotions' ? 'promotions' : route.query.tab === 'live' ? 'live' : route.query.tab === 'rex' ? 'rex' : route.query.tab === 'suivi' ? 'suivi' : route.query.tab === 'engagement' ? 'engagement' : route.query.tab === 'projets' ? 'projets' : route.query.tab === 'notes' ? 'notes' : 'accueil',
 )
 watch(() => route.query.tab, (tab) => {
   if (tab === 'frise') dashTab.value = 'frise'

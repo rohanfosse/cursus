@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 30;
+const CURRENT_VERSION = 31;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -702,6 +702,24 @@ function runMigrations(db) {
         CREATE INDEX IF NOT EXISTS idx_messages_dm         ON messages(dm_student_id, created_at);
         CREATE INDEX IF NOT EXISTS idx_messages_author     ON messages(author_name);
         CREATE INDEX IF NOT EXISTS idx_channels_promo      ON channels(promo_id);
+      `);
+    },
+    // v31 : carnet de suivi etudiant (notes privees du prof)
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS teacher_notes (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          teacher_id  INTEGER NOT NULL,
+          student_id  INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+          promo_id    INTEGER NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+          content     TEXT    NOT NULL,
+          tag         TEXT    NOT NULL DEFAULT 'observation' CHECK(tag IN ('progression','objectif','observation','alerte','autre')),
+          created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+          updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_teacher_notes_student ON teacher_notes(student_id);
+        CREATE INDEX IF NOT EXISTS idx_teacher_notes_promo   ON teacher_notes(promo_id);
+        CREATE INDEX IF NOT EXISTS idx_teacher_notes_teacher  ON teacher_notes(teacher_id);
       `);
     },
   ];

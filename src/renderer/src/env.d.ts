@@ -240,6 +240,17 @@ declare global {
       exportRexSession(sessionId: number, format: string): Promise<IpcResponse<unknown>>
       getRexHistoryForPromo(promoId: number, params?: { search?: string; dateFrom?: string; dateTo?: string }): Promise<IpcResponse<import('./types').RexSessionWithStats[]>>
       getRexStatsForPromo(promoId: number): Promise<IpcResponse<import('./types').RexStats>>
+
+      // Carnet de suivi
+      getTeacherNotes(studentId: number): Promise<IpcResponse<unknown[]>>
+      getTeacherNotesByPromo(promoId: number): Promise<IpcResponse<unknown[]>>
+      getTeacherNotesSummary(promoId: number): Promise<IpcResponse<unknown[]>>
+      createTeacherNote(payload: object): Promise<IpcResponse<unknown>>
+      updateTeacherNote(id: number, payload: object): Promise<IpcResponse<unknown>>
+      deleteTeacherNote(id: number): Promise<IpcResponse<null>>
+
+      // Engagement
+      getEngagementScores(promoId: number): Promise<IpcResponse<unknown[]>>
       emitRexJoin(promoId: number): void
       emitRexLeave(promoId: number): void
       onRexActivityPushed(cb: (data: { activity: unknown }) => void): () => void

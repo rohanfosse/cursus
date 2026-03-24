@@ -14,7 +14,9 @@ const teachers    = require('./models/teachers');
 const admin       = require('./models/admin');
 const live        = require('./models/live');
 const rex         = require('./models/rex');
-const kanban      = require('./models/kanban');
+const kanban         = require('./models/kanban');
+const teacherNotes   = require('./models/teacherNotes');
+const engagement     = require('./models/engagement');
 
 // Initialisation complète : schema + migrations + seed
 function init() {
@@ -39,4 +41,6 @@ module.exports = {
   ...live,
   ...rex,
   ...kanban,
+  ...teacherNotes,
+  ...engagement,
 };
