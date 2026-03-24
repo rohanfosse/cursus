@@ -181,10 +181,7 @@ const promoSummary = computed(() => {
 .sb-promo-card-sep { margin: 0 2px; }
 
 /* ── Icônes et points de projet ── */
-.project-icon {
-  flex-shrink: 0;
-  opacity: .8;
-}
+.project-icon { flex-shrink: 0; opacity: .8; }
 .project-bullet {
   width: 6px; height: 6px; border-radius: 50%;
   background: #9B87F5; flex-shrink: 0;
