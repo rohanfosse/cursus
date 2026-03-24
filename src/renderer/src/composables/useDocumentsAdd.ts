@@ -24,6 +24,7 @@ export function useDocumentsAdd() {
   const addFile        = ref<string | null>(null)
   const addFileName    = ref<string | null>(null)
   const addProject     = ref('')
+  const addTravailId   = ref<number | null>(null)
   const newCatName     = ref('')
   const adding         = ref(false)
 
@@ -35,6 +36,14 @@ export function useDocumentsAdd() {
     }
     return Array.from(cats).sort((a, b) => a.localeCompare(b, 'fr'))
   })
+
+  // Liste des devoirs disponibles (pour le lien vers un devoir)
+  const travailList = computed(() =>
+    travauxStore.ganttData
+      .filter((t) => t.published !== 0)
+      .map((t) => ({ id: t.id, title: t.title, category: t.category ?? '' }))
+      .sort((a, b) => a.title.localeCompare(b.title, 'fr'))
+  )
 
   // ── Détection automatique de catégorie depuis une URL ───────────────────
   function detectCategory(url: string) {
@@ -56,8 +65,14 @@ export function useDocumentsAdd() {
     addFile.value        = null
     addFileName.value    = null
     addProject.value     = appStore.activeProject ?? ''
+    addTravailId.value   = null
     newCatName.value     = ''
     showAddModal.value   = true
+    // Charger les devoirs si pas encore fait
+    const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id
+    if (promoId && travauxStore.ganttData.length === 0) {
+      travauxStore.fetchGantt(promoId)
+    }
   }
 
   async function pickFile() {
@@ -94,6 +109,7 @@ export function useDocumentsAdd() {
         pathOrUrl,
         category:    (addCategory.value === '__new__' ? newCatName.value.trim() : addCategory.value.trim()) || null,
         description: addDescription.value.trim() || null,
+        travailId:   addTravailId.value ?? null,
         authorName:  appStore.currentUser?.name ?? 'Système',
         authorType:  appStore.currentUser?.type ?? 'teacher',
       })
@@ -118,8 +134,10 @@ export function useDocumentsAdd() {
     addFile,
     addFileName,
     addProject,
+    addTravailId,
     newCatName,
     projectList,
+    travailList,
     adding,
     openAddModal,
     pickFile,

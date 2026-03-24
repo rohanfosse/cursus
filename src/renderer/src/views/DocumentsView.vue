@@ -4,8 +4,23 @@
     FileText, Image, Link2, Video, File, Plus, Trash2,
     ExternalLink, Download, Search, X, Upload, FolderOpen, Eye, CheckCircle2, Menu,
     LayoutGrid, List, Star,
-    BookOpen, Github, Linkedin, Globe, Package, HelpCircle,
+    BookOpen, Github, Linkedin, Globe, Package, HelpCircle, BookMarked,
   } from 'lucide-vue-next'
+  import type { Component } from 'vue'
+
+  // Mapping type → composant icône (pour les icônes catégorie des liens)
+  const TYPE_ICON_MAP: Record<string, Component> = {
+    moodle:   BookOpen,
+    github:   Github,
+    linkedin: Linkedin,
+    web:      Globe,
+    package:  Package,
+    link:     Link2,
+    image:    Image,
+    pdf:      FileText,
+    video:    Video,
+    file:     File,
+  }
   import { useAppStore }       from '@/stores/app'
   import { useDocumentsStore } from '@/stores/documents'
   import Modal     from '@/components/ui/Modal.vue'
@@ -87,8 +102,10 @@
     addFile,
     addFileName,
     addProject,
+    addTravailId,
     newCatName,
     projectList,
+    travailList,
     adding,
     openAddModal,
     pickFile,
@@ -234,11 +251,7 @@
               @click="openDoc(doc)"
             >
               <div class="doc-card-icon" :style="{ background: iconColors[docIconType(doc)] + '1A', color: iconColors[docIconType(doc)] }">
-                <Image    v-if="docIconType(doc) === 'image'" :size="viewMode === 'list' ? 20 : 28" />
-                <Video    v-else-if="docIconType(doc) === 'video'" :size="viewMode === 'list' ? 20 : 28" />
-                <Link2    v-else-if="docIconType(doc) === 'link'" :size="viewMode === 'list' ? 20 : 28" />
-                <FileText v-else-if="docIconType(doc) === 'pdf'" :size="viewMode === 'list' ? 20 : 28" />
-                <File     v-else :size="viewMode === 'list' ? 20 : 28" />
+                <component :is="TYPE_ICON_MAP[docIconType(doc)] ?? File" :size="viewMode === 'list' ? 20 : 28" />
               </div>
 
               <span class="doc-card-type-badge" :style="{ background: iconColors[docIconType(doc)] + '22', color: iconColors[docIconType(doc)] }">
@@ -249,6 +262,11 @@
                 {{ doc.name }}
                 <span v-if="isRecent(doc.created_at)" class="doc-new-badge">Nouveau</span>
               </p>
+
+              <span v-if="doc.travail_title" class="doc-devoir-badge">
+                <BookMarked :size="10" />
+                {{ doc.travail_title }}
+              </span>
 
               <p class="doc-card-meta">
                 <span v-if="!appStore.activeChannelId && doc.channel_name">#{{ doc.channel_name }}</span>
@@ -388,13 +406,16 @@
           </div>
         </div>
 
-        <!-- Projet + Description -->
-        <div class="da-row">
-          <div class="da-field da-flex1">
-            <label class="da-label">Projet</label>
-            <select v-model="addProject" class="da-input">
-              <option value="">Aucun projet</option>
-              <option v-for="p in projectList" :key="p" :value="p">{{ p }}</option>
+        <!-- Lien vers un devoir -->
+        <div v-if="travailList.length" class="da-field">
+          <label class="da-label">Lien vers un devoir <span class="da-hint">(optionnel)</span></label>
+          <div class="da-travail-select-wrap">
+            <BookMarked :size="14" class="da-travail-icon" />
+            <select v-model="addTravailId" class="da-input da-travail-select">
+              <option :value="null">— Aucun —</option>
+              <option v-for="t in travailList" :key="t.id" :value="t.id">
+                {{ t.title }}{{ t.category ? ` · ${t.category}` : '' }}
+              </option>
             </select>
           </div>
         </div>
@@ -845,6 +866,41 @@
 }
 .da-cat-pill:hover { background: var(--bg-hover); color: var(--text-primary); }
 .da-cat-pill.active { font-weight: 600; }
+
+/* Devoir select */
+.da-travail-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.da-travail-icon {
+  position: absolute;
+  left: 9px;
+  color: var(--text-muted);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+.da-travail-select {
+  padding-left: 28px !important;
+}
+
+/* Badge devoir sur la card */
+.doc-devoir-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: 20px;
+  padding: 2px 7px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
 
 .da-footer {
   display: flex; align-items: center; justify-content: flex-end; gap: 8px;

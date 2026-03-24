@@ -132,6 +132,8 @@ export interface AppDocument {
   created_at: string
   channel_name?: string
   file_size?: number
+  travail_id?: number | null
+  travail_title?: string | null
 }
 
 export interface Ressource {

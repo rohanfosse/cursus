@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 33;
+const CURRENT_VERSION = 34;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -109,6 +109,7 @@ function initSchema() {
       name        TEXT NOT NULL,
       path_or_url TEXT NOT NULL,
       description TEXT,
+      travail_id  INTEGER REFERENCES travaux(id) ON DELETE SET NULL,
       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -733,6 +734,10 @@ function runMigrations(db) {
     // v33 : ressources — ajout catégorie (Moodle, Github, LinkedIn, Site Web, Autre)
     (db) => {
       tryAlter(db, "ALTER TABLE ressources ADD COLUMN category TEXT NOT NULL DEFAULT 'autre'");
+    },
+    // v34 : documents — lien vers un devoir (travail_id)
+    (db) => {
+      tryAlter(db, 'ALTER TABLE channel_documents ADD COLUMN travail_id INTEGER REFERENCES travaux(id) ON DELETE SET NULL');
     },
   ];
 

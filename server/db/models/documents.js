@@ -3,15 +3,19 @@ const { getDb } = require('../connection');
 function getProjectDocuments(promoId, project) {
   if (project) {
     return getDb().prepare(`
-      SELECT *, path_or_url AS content FROM channel_documents
-      WHERE promo_id = ? AND project = ?
-      ORDER BY category ASC, created_at ASC
+      SELECT cd.*, cd.path_or_url AS content, t.title AS travail_title
+      FROM channel_documents cd
+      LEFT JOIN travaux t ON t.id = cd.travail_id
+      WHERE cd.promo_id = ? AND cd.project = ?
+      ORDER BY cd.category ASC, cd.created_at ASC
     `).all(promoId, project);
   }
   return getDb().prepare(`
-    SELECT *, path_or_url AS content FROM channel_documents
-    WHERE promo_id = ?
-    ORDER BY category ASC, created_at ASC
+    SELECT cd.*, cd.path_or_url AS content, t.title AS travail_title
+    FROM channel_documents cd
+    LEFT JOIN travaux t ON t.id = cd.travail_id
+    WHERE cd.promo_id = ?
+    ORDER BY cd.category ASC, cd.created_at ASC
   `).all(promoId);
 }
 
@@ -21,30 +25,38 @@ function getChannelDocuments(channelId) {
   // Récupérer la catégorie (projet) et promo du canal
   const ch = db.prepare('SELECT promo_id, category FROM channels WHERE id = ?').get(channelId)
   if (ch?.category) {
-    // Documents du canal OU du même projet (catégorie)
     return db.prepare(`
-      SELECT *, path_or_url AS content FROM channel_documents
-      WHERE channel_id = ? OR (promo_id = ? AND project = ?)
-      ORDER BY category ASC, created_at ASC
+      SELECT cd.*, cd.path_or_url AS content, t.title AS travail_title
+      FROM channel_documents cd
+      LEFT JOIN travaux t ON t.id = cd.travail_id
+      WHERE cd.channel_id = ? OR (cd.promo_id = ? AND cd.project = ?)
+      ORDER BY cd.category ASC, cd.created_at ASC
     `).all(channelId, ch.promo_id, ch.category)
   }
   return db.prepare(`
-    SELECT *, path_or_url AS content FROM channel_documents WHERE channel_id = ? ORDER BY category ASC, created_at ASC
+    SELECT cd.*, cd.path_or_url AS content, t.title AS travail_title
+    FROM channel_documents cd
+    LEFT JOIN travaux t ON t.id = cd.travail_id
+    WHERE cd.channel_id = ?
+    ORDER BY cd.category ASC, cd.created_at ASC
   `).all(channelId)
 }
 
 function getPromoDocuments(promoId) {
   return getDb().prepare(`
-    SELECT *, path_or_url AS content FROM channel_documents WHERE promo_id = ?
-    ORDER BY category ASC, created_at ASC
+    SELECT cd.*, cd.path_or_url AS content, t.title AS travail_title
+    FROM channel_documents cd
+    LEFT JOIN travaux t ON t.id = cd.travail_id
+    WHERE cd.promo_id = ?
+    ORDER BY cd.category ASC, cd.created_at ASC
   `).all(promoId);
 }
 
-function addProjectDocument({ promoId, project, category, type, name, pathOrUrl, description }) {
+function addProjectDocument({ promoId, project, category, type, name, pathOrUrl, description, travailId }) {
   return getDb().prepare(`
-    INSERT INTO channel_documents (promo_id, project, category, type, name, path_or_url, description)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(promoId, project ?? null, category || 'Général', type, name, pathOrUrl, description ?? null);
+    INSERT INTO channel_documents (promo_id, project, category, type, name, path_or_url, description, travail_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(promoId, project ?? null, category || 'Général', type, name, pathOrUrl, description ?? null, travailId ?? null);
 }
 
 // Alias for backwards compat
