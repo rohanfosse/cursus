@@ -41,8 +41,11 @@ function toggleLegend(key: string) { legendFilters.value[key] = !legendFilters.v
 function countdownLabel(deadline: string): string | null {
   const diff = new Date(deadline).getTime() - now.value
   if (diff <= 0) return null
+  const hours = Math.ceil(diff / 3_600_000)
+  if (hours < 1) return "moins d'1h"
+  if (hours < 24) return `dans ${hours}h`
   const days = Math.ceil(diff / 86_400_000)
-  if (days <= 0) return "aujourd'hui"
+  if (days < 3) return `dans ${days}j ${hours % 24}h`
   return `dans ${days}j`
 }
 
