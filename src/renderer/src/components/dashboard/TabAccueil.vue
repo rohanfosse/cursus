@@ -7,7 +7,7 @@
  *   Messages (1x1) | Quick actions (2x1) | Activity feed (2x1)
  */
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import TeacherTodoWidget from './TeacherTodoWidget.vue'
 import { useTeacherBento } from '@/composables/useTeacherBento'
 
@@ -15,6 +15,7 @@ const bento = useTeacherBento()
 import {
   Edit3, Clock, FileText, CheckCircle2,
   PlusCircle, Bell, BarChart2, MessageSquare, ChevronRight,
+  X, Plus, Settings as SettingsIcon,
   Percent, Wifi, Award,
   Mic,
 } from 'lucide-vue-next'
@@ -198,10 +199,20 @@ const activityFeed = computed((): ActivityGroup[] => {
 // ── Stat: average grade letter ────────────────────────────────────────────────
 
 const averageGrade = computed(() => props.globalModeGrade ?? '--')
+
+// ── Edit mode (reuse composable for hide/show) ──────────────────────────────
+const editMode = ref(false)
+const showTileDrawer = ref(false)
+const hiddenTileDefs = computed(() => bento.allTiles.filter(t => bento.hidden.value.has(t.id)))
 </script>
 
 <template>
-  <div class="bento-grid">
+  <div class="bento-controls">
+    <button class="bento-edit-btn" :class="{ active: editMode }" @click="editMode = !editMode">
+      <SettingsIcon :size="13" /> {{ editMode ? 'Terminer' : 'Personnaliser' }}
+    </button>
+  </div>
+  <div class="bento-grid" :class="{ 'bento-grid--editing': editMode }">
 
     <!-- ═══ FOCUS TILE (2x2) ═══ -->
     <div v-if="bento.isVisible('focus')" class="dashboard-card bento-tile bento-focus" :class="focusBgClass">
@@ -267,7 +278,8 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
     </div>
 
     <!-- ═══ SCHEDULE STRIP (2x1) ═══ -->
-    <div v-if="bento.isVisible('schedule')" class="dashboard-card bento-tile bento-schedule">
+    <div v-if="bento.isVisible('schedule')" class="dashboard-card bento-tile bento-schedule" :class="{ 'bento-tile--editing': editMode }">
+      <button v-if="editMode" class="bento-tile-remove" @click="bento.toggleTile('schedule')"><X :size="12" /></button>
       <h3 class="tile-title"><Clock :size="14" /> Aujourd'hui</h3>
       <div v-if="!todayEvents.length" class="schedule-empty">
         Aucun evenement prevu aujourd'hui
@@ -296,7 +308,8 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
     </div>
 
     <!-- ═══ MESSAGES TILE (1x1) ═══ -->
-    <div v-if="bento.isVisible('messages')" class="dashboard-card bento-tile bento-messages">
+    <div v-if="bento.isVisible('messages')" class="dashboard-card bento-tile bento-messages" :class="{ 'bento-tile--editing': editMode }">
+      <button v-if="editMode" class="bento-tile-remove" @click="bento.toggleTile('messages')"><X :size="12" /></button>
       <h3 class="tile-title"><MessageSquare :size="14" /> Messages</h3>
       <div v-if="!unreadDmEntries.length" class="messages-empty">
         Aucun message non lu
@@ -321,7 +334,8 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
     </div>
 
     <!-- ═══ QUICK ACTIONS (2x1) ═══ -->
-    <div v-if="bento.isVisible('actions')" class="dashboard-card bento-tile bento-actions">
+    <div v-if="bento.isVisible('actions')" class="dashboard-card bento-tile bento-actions" :class="{ 'bento-tile--editing': editMode }">
+      <button v-if="editMode" class="bento-tile-remove" @click="bento.toggleTile('actions')"><X :size="12" /></button>
       <button class="action-btn action-btn--primary" @click="emit('openNewDevoir')">
         <PlusCircle :size="22" />
         <span class="action-label">Creer un devoir</span>
@@ -337,7 +351,8 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
     </div>
 
     <!-- ═══ ACTIVITY FEED (2x1) ═══ -->
-    <div v-if="bento.isVisible('activity')" class="dashboard-card bento-tile bento-activity">
+    <div v-if="bento.isVisible('activity')" class="dashboard-card bento-tile bento-activity" :class="{ 'bento-tile--editing': editMode }">
+      <button v-if="editMode" class="bento-tile-remove" @click="bento.toggleTile('activity')"><X :size="12" /></button>
       <h3 class="tile-title"><Clock :size="14" /> Derniers rendus</h3>
       <div v-if="!activityFeed.length" class="activity-empty">
         Aucune activite recente
@@ -354,14 +369,56 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
     </div>
 
     <!-- ═══ TODO WIDGET (2x1) ═══ -->
-    <div v-if="bento.isVisible('todo')" class="dashboard-card bento-tile bento-todo">
+    <div v-if="bento.isVisible('todo')" class="dashboard-card bento-tile bento-todo" :class="{ 'bento-tile--editing': editMode }">
+      <button v-if="editMode" class="bento-tile-remove" @click="bento.toggleTile('todo')"><X :size="12" /></button>
       <TeacherTodoWidget />
     </div>
 
+    <!-- ═══ ADD WIDGET (edit mode) ═══ -->
+    <button v-if="editMode && hiddenTileDefs.length" class="bento-add-tile" @click="showTileDrawer = !showTileDrawer">
+      <Plus :size="20" />
+      <span>Ajouter une tuile</span>
+    </button>
   </div>
+
+  <!-- Tile drawer -->
+  <Transition name="bento-drawer">
+    <div v-if="editMode && showTileDrawer && hiddenTileDefs.length" class="bento-drawer">
+      <div class="bento-drawer-header">
+        <h4>Tuiles masquees</h4>
+        <button @click="showTileDrawer = false"><X :size="14" /></button>
+      </div>
+      <div class="bento-drawer-list">
+        <button
+          v-for="t in hiddenTileDefs"
+          :key="t.id"
+          class="bento-drawer-item"
+          @click="bento.toggleTile(t.id)"
+        >
+          <component :is="t.icon" :size="16" />
+          <span>{{ t.label }}</span>
+          <Plus :size="14" class="bento-drawer-item-add" />
+        </button>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <style scoped>
+/* ── Bento Controls ── */
+.bento-controls {
+  display: flex; justify-content: flex-end; margin-bottom: 8px;
+}
+.bento-edit-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-main);
+  color: var(--text-muted); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .2s; font-family: var(--font);
+}
+.bento-edit-btn:hover { color: var(--text-primary); border-color: var(--accent); }
+.bento-edit-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
 /* ── Bento Grid ── */
 .bento-grid {
   display: grid;
@@ -770,5 +827,92 @@ const averageGrade = computed(() => props.globalModeGrade ?? '--')
   .schedule-item {
     flex-shrink: initial;
   }
+}
+
+/* ── Edit mode ── */
+.bento-grid--editing { gap: 14px; }
+
+.bento-tile--editing {
+  border: 2px dashed transparent;
+  animation: bento-jiggle .3s ease infinite alternate;
+}
+.bento-tile--editing:hover { border-color: rgba(74,144,217,.3); }
+
+@keyframes bento-jiggle {
+  from { transform: rotate(-0.2deg); }
+  to   { transform: rotate(0.2deg); }
+}
+
+.bento-tile-remove {
+  position: absolute; top: -8px; right: -8px; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #ef4444; color: #fff; border: 2px solid var(--bg-main);
+  cursor: pointer; transition: transform .15s;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+.bento-tile-remove:hover { transform: scale(1.15); }
+
+.bento-tile { position: relative; }
+
+/* Add tile button */
+.bento-add-tile {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 16px; border-radius: 14px; grid-column: span 4;
+  border: 2px dashed rgba(74,144,217,.3);
+  background: rgba(74,144,217,.03);
+  color: var(--accent); cursor: pointer;
+  transition: all .2s; font-family: var(--font); font-size: 13px; font-weight: 600;
+}
+.bento-add-tile:hover {
+  border-color: var(--accent); background: rgba(74,144,217,.06);
+}
+
+/* Drawer */
+.bento-drawer {
+  margin-top: 12px; padding: 16px; border-radius: 14px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+}
+.bento-drawer-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.bento-drawer-header h4 { font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0; }
+.bento-drawer-header button {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 6px;
+  border: none; background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.bento-drawer-header button:hover { background: var(--bg-hover); }
+
+.bento-drawer-list {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.bento-drawer-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: 10px;
+  background: var(--bg-main); border: 1px solid var(--border);
+  cursor: pointer; transition: all .2s; font-family: var(--font);
+  color: var(--text-primary); font-size: 12px; font-weight: 600;
+}
+.bento-drawer-item:hover {
+  border-color: var(--accent); transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+.bento-drawer-item-add { color: var(--accent); opacity: .5; }
+.bento-drawer-item:hover .bento-drawer-item-add { opacity: 1; }
+
+/* Drawer transition */
+.bento-drawer-enter-active { transition: all .25s cubic-bezier(.4,0,.2,1); }
+.bento-drawer-leave-active { transition: all .15s ease; }
+.bento-drawer-enter-from { opacity: 0; transform: translateY(12px); }
+.bento-drawer-leave-to { opacity: 0; transform: translateY(8px); }
+
+@media (max-width: 768px) {
+  .bento-add-tile { grid-column: span 2; }
+}
+@media (max-width: 480px) {
+  .bento-add-tile { grid-column: span 1; }
 }
 </style>
