@@ -129,7 +129,10 @@
             <span class="ch-presence-dot" :class="appStore.isUserOnline(s.name) ? 'ch-presence--online' : 'ch-presence--offline'" />
           </div>
           <div class="ch-member-info">
-            <span class="ch-member-name">{{ s.name }}</span>
+            <span class="ch-member-name">
+              {{ s.name }}
+              <span v-if="s.id < 0" class="ch-member-role">Enseignant</span>
+            </span>
             <span class="ch-member-email">{{ s.email }}</span>
           </div>
           <button
@@ -341,6 +344,12 @@
 }
 .ch-member-name  { font-size: 12.5px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ch-member-email { font-size: 10.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-member-role {
+  font-size: 9px; font-weight: 600;
+  padding: 1px 5px; border-radius: 8px;
+  background: rgba(74,144,217,.12); color: var(--accent);
+  margin-left: 4px;
+}
 
 .ch-remove-btn { color: var(--text-muted); padding: 3px; opacity: 0; transition: opacity .1s, color .1s; }
 .ch-member-row:hover .ch-remove-btn { opacity: 1; }
