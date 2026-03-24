@@ -118,7 +118,7 @@ function register() {
   ipcMain.handle('dialog:openFile', async () => {
     try {
       const result = await dialog.showOpenDialog({
-        properties: ['openFile'],
+        properties: ['openFile', 'multiSelections'],
         filters: [
           { name: 'Tous les fichiers', extensions: ['*'] },
           { name: 'PDF',               extensions: ['pdf'] },
@@ -128,7 +128,7 @@ function register() {
         ],
       })
       if (result.canceled || !result.filePaths.length) return { ok: true, data: null }
-      return { ok: true, data: result.filePaths[0] }
+      return { ok: true, data: result.filePaths }
     } catch (err) {
       return { ok: false, error: err.message }
     }

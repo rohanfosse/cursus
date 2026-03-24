@@ -1,5 +1,6 @@
 /**
- * Add-document modal: form state, file picker, and submit logic.
+ * Add-document modal: form state, multi-file picker, drag & drop,
+ * upload progress, and submit logic.
  * Used by DocumentsView.vue
  */
 import { ref, computed } from 'vue'
@@ -7,6 +8,18 @@ import { useAppStore }       from '@/stores/app'
 import { useDocumentsStore } from '@/stores/documents'
 import { useTravauxStore }   from '@/stores/travaux'
 import { useToast }          from '@/composables/useToast'
+
+// Extensions bloquées (même liste que le serveur)
+const BLOCKED_EXTENSIONS = new Set([
+  '.exe', '.bat', '.cmd', '.com', '.msi', '.dll', '.scr', '.pif', '.vbs', '.wsf',
+])
+
+export interface PendingFile {
+  /** Chemin local (Electron) ou URL serveur (Web, déjà uploadé via openFileDialog) */
+  path: string
+  /** Nom affiché */
+  name: string
+}
 
 export function useDocumentsAdd() {
   const api      = window.api
@@ -21,12 +34,22 @@ export function useDocumentsAdd() {
   const addDescription = ref('')
   const addType        = ref<'file' | 'link'>('file')
   const addLink        = ref('')
-  const addFile        = ref<string | null>(null)
-  const addFileName    = ref<string | null>(null)
   const addProject     = ref('')
   const addTravailId   = ref<number | null>(null)
   const newCatName     = ref('')
   const adding         = ref(false)
+
+  // ── Multi-fichiers ──────────────────────────────────────────────────────
+  const addFiles = ref<PendingFile[]>([])
+
+  // Progression de l'upload (0–100, par fichier)
+  const uploadProgress     = ref(0)
+  const uploadCurrentIndex = ref(0)
+  const uploadTotal        = ref(0)
+
+  // Compat : getter simple pour le premier fichier
+  const addFile     = computed(() => addFiles.value.length ? addFiles.value[0].path : null)
+  const addFileName = computed(() => addFiles.value.length ? addFiles.value[0].name : null)
 
   // Liste des projets disponibles (depuis les devoirs)
   const projectList = computed(() => {
@@ -56,17 +79,25 @@ export function useDocumentsAdd() {
     addCategory.value = 'Site Web'
   }
 
+  /** Vérifie que l'extension n'est pas bloquée. */
+  function isExtensionAllowed(fileName: string): boolean {
+    const ext = ('.' + fileName.split('.').pop()!).toLowerCase()
+    return !BLOCKED_EXTENSIONS.has(ext)
+  }
+
   function openAddModal() {
     addName.value        = ''
     addCategory.value    = 'Autre'
     addDescription.value = ''
     addType.value        = 'file'
     addLink.value        = ''
-    addFile.value        = null
-    addFileName.value    = null
+    addFiles.value       = []
     addProject.value     = appStore.activeProject ?? ''
     addTravailId.value   = null
     newCatName.value     = ''
+    uploadProgress.value     = 0
+    uploadCurrentIndex.value = 0
+    uploadTotal.value        = 0
     showAddModal.value   = true
     // Charger les devoirs si pas encore fait
     const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id
@@ -78,35 +109,177 @@ export function useDocumentsAdd() {
   async function pickFile() {
     const res = await api.openFileDialog()
     if (res?.ok && res.data) {
-      addFile.value     = res.data
-      addFileName.value = res.data.split(/[\\/]/).pop()?.replace(/^__web__\S+/, '') || res.data.split(/[\\/]/).pop() || res.data
-      if (!addName.value) addName.value = addFileName.value ?? ''
+      const paths = res.data as string[]
+      for (const p of paths) {
+        const name = p.split(/[\\/]/).pop()?.replace(/^__web__\S+/, '') || p.split(/[\\/]/).pop() || p
+        if (!isExtensionAllowed(name)) {
+          showToast(`Type non autorisé : ${name}`, 'error')
+          continue
+        }
+        // Éviter les doublons
+        if (addFiles.value.some(f => f.path === p)) continue
+        addFiles.value.push({ path: p, name })
+      }
+      // Pré-remplir le nom si c'est le premier fichier et que le champ est vide
+      if (!addName.value && addFiles.value.length === 1) {
+        addName.value = addFiles.value[0].name
+      }
     }
   }
 
-  function clearFile() {
-    addFile.value     = null
-    addFileName.value = null
+  function removeFile(index: number) {
+    addFiles.value.splice(index, 1)
   }
 
+  function clearFile() {
+    addFiles.value = []
+  }
+
+  // ── Drag & drop dans la modale ──────────────────────────────────────────
+  const modalDragOver = ref(false)
+  let modalDragCounter = 0
+
+  function onModalDragEnter(e: DragEvent) {
+    if (!e.dataTransfer?.types.includes('Files')) return
+    modalDragCounter++
+    modalDragOver.value = true
+  }
+
+  function onModalDragLeave() {
+    modalDragCounter--
+    if (modalDragCounter <= 0) { modalDragCounter = 0; modalDragOver.value = false }
+  }
+
+  function onModalDragOver(e: DragEvent) {
+    e.preventDefault()
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+  }
+
+  async function onModalDrop(e: DragEvent) {
+    e.preventDefault()
+    modalDragCounter = 0
+    modalDragOver.value = false
+    const files = e.dataTransfer?.files
+    if (!files?.length) return
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (!isExtensionAllowed(file.name)) {
+        showToast(`Type non autorisé : ${file.name}`, 'error')
+        continue
+      }
+
+      // Electron : file.path disponible
+      const electronPath = (file as unknown as { path?: string }).path
+      if (electronPath) {
+        if (!addFiles.value.some(f => f.path === electronPath)) {
+          addFiles.value.push({ path: electronPath, name: file.name })
+        }
+        continue
+      }
+
+      // Web : upload immédiat via FormData
+      const formData = new FormData()
+      formData.append('file', file, file.name)
+      const SERVER_URL = window.location.origin
+      const token = localStorage.getItem('cc_session') ?? ''
+      try {
+        const response = await fetch(`${SERVER_URL}/api/files/upload`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        })
+        const json = await response.json() as { ok: boolean; data?: string; error?: string }
+        if (json.ok && json.data) {
+          const url = `${SERVER_URL}${json.data}`
+          if (!addFiles.value.some(f => f.path === url)) {
+            addFiles.value.push({ path: url, name: file.name })
+          }
+        } else {
+          showToast(json.error ?? `Erreur upload : ${file.name}`, 'error')
+        }
+      } catch {
+        showToast(`Erreur upload : ${file.name}`, 'error')
+      }
+    }
+
+    // Pré-remplir le nom si c'est le premier fichier
+    if (!addName.value && addFiles.value.length === 1) {
+      addName.value = addFiles.value[0].name
+    }
+    // Forcer le mode fichier si on drop des fichiers
+    addType.value = 'file'
+  }
+
+  // ── Soumission ──────────────────────────────────────────────────────────
   async function submitAdd() {
-    if (!addName.value.trim()) return
-    if (addType.value === 'file' && !addFile.value) return
-    if (addType.value === 'link' && !addLink.value.trim()) return
+    if (addType.value === 'link') {
+      if (!addName.value.trim() || !addLink.value.trim()) return
+      return submitLink()
+    }
+    // Mode fichier
+    if (!addFiles.value.length) return
+    if (addFiles.value.length === 1 && !addName.value.trim()) return
+    adding.value = true
+    uploadTotal.value = addFiles.value.length
+    uploadCurrentIndex.value = 0
+    uploadProgress.value = 0
+    let successCount = 0
+    try {
+      for (let i = 0; i < addFiles.value.length; i++) {
+        uploadCurrentIndex.value = i + 1
+        uploadProgress.value = Math.round((i / addFiles.value.length) * 100)
+        const file = addFiles.value[i]
+        const uploadRes = await api.uploadFile(file.path)
+        if (!uploadRes?.ok || !uploadRes.data) {
+          showToast(`Erreur upload : ${file.name}`, 'error')
+          continue
+        }
+        const docName = addFiles.value.length === 1
+          ? addName.value.trim()
+          : file.name
+        const ok = await docStore.addDocument({
+          promoId:     appStore.activePromoId ?? appStore.currentUser?.promo_id,
+          project:     addProject.value.trim() || appStore.activeProject || null,
+          name:        docName,
+          type:        'file',
+          pathOrUrl:   uploadRes.data.url,
+          category:    (addCategory.value === '__new__' ? newCatName.value.trim() : addCategory.value.trim()) || null,
+          description: addDescription.value.trim() || null,
+          travailId:   addTravailId.value ?? null,
+          fileSize:    uploadRes.data.file_size ?? null,
+          authorName:  appStore.currentUser?.name ?? 'Système',
+          authorType:  appStore.currentUser?.type ?? 'teacher',
+        })
+        if (ok) successCount++
+      }
+      uploadProgress.value = 100
+      if (successCount > 0) {
+        const msg = successCount === 1
+          ? 'Document ajouté.'
+          : `${successCount} documents ajoutés.`
+        showToast(msg, 'success')
+        showAddModal.value = false
+      } else {
+        showToast('Erreur lors de l\'ajout.', 'error')
+      }
+    } finally {
+      adding.value = false
+      uploadProgress.value = 0
+      uploadCurrentIndex.value = 0
+      uploadTotal.value = 0
+    }
+  }
+
+  async function submitLink() {
     adding.value = true
     try {
-      let pathOrUrl: string | null = addType.value === 'link' ? addLink.value.trim() : addFile.value
-      if (addType.value === 'file' && addFile.value) {
-        const uploadRes = await api.uploadFile(addFile.value)
-        if (!uploadRes?.ok) { showToast('Erreur lors de l\'upload.', 'error'); adding.value = false; return }
-        pathOrUrl = uploadRes.data as string
-      }
       const ok = await docStore.addDocument({
         promoId:     appStore.activePromoId ?? appStore.currentUser?.promo_id,
         project:     addProject.value.trim() || appStore.activeProject || null,
         name:        addName.value.trim(),
-        type:        addType.value,
-        pathOrUrl,
+        type:        'link',
+        pathOrUrl:   addLink.value.trim(),
         category:    (addCategory.value === '__new__' ? newCatName.value.trim() : addCategory.value.trim()) || null,
         description: addDescription.value.trim() || null,
         travailId:   addTravailId.value ?? null,
@@ -133,16 +306,26 @@ export function useDocumentsAdd() {
     addLink,
     addFile,
     addFileName,
+    addFiles,
     addProject,
     addTravailId,
     newCatName,
     projectList,
     travailList,
     adding,
+    uploadProgress,
+    uploadCurrentIndex,
+    uploadTotal,
+    modalDragOver,
     openAddModal,
     pickFile,
+    removeFile,
     clearFile,
     submitAdd,
     detectCategory,
+    onModalDragEnter,
+    onModalDragLeave,
+    onModalDragOver,
+    onModalDrop,
   }
 }

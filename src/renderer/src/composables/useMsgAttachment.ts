@@ -34,13 +34,16 @@ export function useMsgAttachment(
     try {
       const res = await window.api.openFileDialog()
       if (!res?.ok || !res.data) return
-      const uploadRes = await window.api.uploadFile(res.data as string)
-      if (!uploadRes?.ok) {
+      const filePaths = res.data as string[]
+      const firstPath = filePaths[0]
+      if (!firstPath) return
+      const uploadRes = await window.api.uploadFile(firstPath)
+      if (!uploadRes?.ok || !uploadRes.data) {
         showToast('Erreur lors du chargement du fichier.', 'error')
         return
       }
-      const url = uploadRes.data as string
-      const fileName = (res.data as string).split(/[\\/]/).pop() || 'fichier'
+      const url = uploadRes.data.url
+      const fileName = firstPath.split(/[\\/]/).pop() || 'fichier'
       const isImage = /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(fileName)
       const md = isImage ? `![${fileName}](${url})` : `[📎 ${fileName}](${url})`
       content.value += content.value ? `\n${md}` : md

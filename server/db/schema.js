@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 34;
+const CURRENT_VERSION = 35;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -110,6 +110,7 @@ function initSchema() {
       path_or_url TEXT NOT NULL,
       description TEXT,
       travail_id  INTEGER REFERENCES travaux(id) ON DELETE SET NULL,
+      file_size   INTEGER,
       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -738,6 +739,10 @@ function runMigrations(db) {
     // v34 : documents — lien vers un devoir (travail_id)
     (db) => {
       tryAlter(db, 'ALTER TABLE channel_documents ADD COLUMN travail_id INTEGER REFERENCES travaux(id) ON DELETE SET NULL');
+    },
+    // v35 : documents — taille du fichier (file_size en octets)
+    (db) => {
+      tryAlter(db, 'ALTER TABLE channel_documents ADD COLUMN file_size INTEGER');
     },
   ];
 

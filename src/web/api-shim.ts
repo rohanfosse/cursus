@@ -143,15 +143,31 @@ const del  = (p: string)              => apiFetch(p, { method: 'DELETE' })
 
 // ─── Utilitaires browser ─────────────────────────────────────────────────────
 
-/** Ouvre un sélecteur de fichier et résout avec le File sélectionné (ou null). */
-function pickFile(accept = '*'): Promise<File | null> {
+/** Ouvre un sélecteur de fichier et résout avec le(s) File sélectionné(s) (ou null). */
+function pickFile(accept = '*', multiple = false): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type   = 'file'
     input.accept = accept
+    if (multiple) input.multiple = true
     input.style.display = 'none'
     document.body.appendChild(input)
     input.onchange = () => { document.body.removeChild(input); resolve(input.files?.[0] ?? null) }
+    input.oncancel = () => { document.body.removeChild(input); resolve(null) }
+    input.click()
+  })
+}
+
+/** Ouvre un sélecteur multi-fichiers et résout avec les Files sélectionnés (ou null). */
+function pickFiles(accept = '*'): Promise<File[] | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type     = 'file'
+    input.accept   = accept
+    input.multiple = true
+    input.style.display = 'none'
+    document.body.appendChild(input)
+    input.onchange = () => { document.body.removeChild(input); resolve(input.files?.length ? Array.from(input.files) : null) }
     input.oncancel = () => { document.body.removeChild(input); resolve(null) }
     input.click()
   })
@@ -376,6 +392,7 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
     return get(`/api/documents/project?promoId=${promoId}${qs}`)
   },
   addProjectDocument:           (payload: unknown)  => post('/api/documents/project', payload),
+  updateProjectDocument:        (id: number, payload: unknown) => patch(`/api/documents/project/${id}`, payload),
 
   // ── Intervenants ────────────────────────────────────────────────────────────
   getIntervenants:    ()                 => get('/api/teachers'),
@@ -529,7 +546,7 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   async uploadFile(filePath: string) {
     // Si c'est déjà une URL serveur (uploadé via openFileDialog), retourner directement
     if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-      return { ok: true, data: filePath }
+      return { ok: true, data: { url: filePath } }
     }
     // Legacy : pseudo-path __web__ (ancien format, garde la compat)
     const cached = fileCache.get(filePath)
@@ -544,9 +561,11 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
         headers: jwtToken ? { Authorization: `Bearer ${jwtToken}` } : {},
         body: formData,
       })
-      const json = await res.json() as { ok: boolean; data?: string; error?: string }
-      if (json.ok && json.data) json.data = `${SERVER_URL}${json.data}`
-      return json
+      const json = await res.json() as { ok: boolean; data?: string; file_size?: number; error?: string }
+      if (json.ok && json.data) {
+        return { ok: true, data: { url: `${SERVER_URL}${json.data}`, file_size: json.file_size } }
+      }
+      return { ok: false, error: json.error ?? 'Upload échoué' }
     } catch (err) {
       return { ok: false, error: String(err) }
     }
@@ -565,30 +584,31 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   },
 
   async openFileDialog() {
-    const file = await pickFile()
-    if (!file) return { ok: true, data: null }
-    // Upload immédiatement au serveur (pas de cache mémoire volatile)
-    const formData = new FormData()
-    formData.append('file', file, file.name)
-    try {
-      const res  = await fetch(`${SERVER_URL}/api/files/upload`, {
-        method: 'POST',
-        headers: jwtToken ? { Authorization: `Bearer ${jwtToken}` } : {},
-        body: formData,
-      })
-      const json = await res.json() as { ok: boolean; data?: string; error?: string }
-      if (json.ok && json.data) {
-        const serverUrl = `${SERVER_URL}${json.data}`
-        // Garder aussi en cache pour readFileBase64/download (session courante)
-        const data = await fileToBase64(file)
-        const id = serverUrl
-        fileCache.set(id, { ...data, name: file.name })
-        return { ok: true, data: serverUrl }
+    const files = await pickFiles()
+    if (!files || files.length === 0) return { ok: true, data: null }
+    // Upload chaque fichier au serveur et retourne les URLs
+    const urls: string[] = []
+    for (const file of files) {
+      const formData = new FormData()
+      formData.append('file', file, file.name)
+      try {
+        const res  = await fetch(`${SERVER_URL}/api/files/upload`, {
+          method: 'POST',
+          headers: jwtToken ? { Authorization: `Bearer ${jwtToken}` } : {},
+          body: formData,
+        })
+        const json = await res.json() as { ok: boolean; data?: string; error?: string }
+        if (json.ok && json.data) {
+          const serverUrl = `${SERVER_URL}${json.data}`
+          const data = await fileToBase64(file)
+          fileCache.set(serverUrl, { ...data, name: file.name })
+          urls.push(serverUrl)
+        }
+      } catch {
+        // Skip failed uploads, continue with the rest
       }
-      return { ok: false, error: json.error ?? 'Erreur upload' }
-    } catch (err) {
-      return { ok: false, error: String(err) }
     }
+    return { ok: true, data: urls.length ? urls : null }
   },
 
   async readFileBase64(filePath: string) {

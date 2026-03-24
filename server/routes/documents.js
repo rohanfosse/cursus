@@ -8,6 +8,7 @@ router.get('/channel/:channelId',             wrap((req) => queries.getChannelDo
 router.get('/channel/:channelId/categories',  wrap((req) => queries.getChannelDocumentCategories(Number(req.params.channelId))))
 router.get('/promo/:promoId',                 wrap((req) => queries.getPromoDocuments(Number(req.params.promoId))))
 router.post('/channel',                       wrap((req) => queries.addChannelDocument(req.body)))
+router.patch('/project/:id',                  wrap((req) => queries.updateProjectDocument({ id: Number(req.params.id), ...req.body })))
 router.delete('/channel/:id',                 wrap((req) => queries.deleteChannelDocument(Number(req.params.id))))
 
 // ── Documents de projet ───────────────────────────────────────────────────────

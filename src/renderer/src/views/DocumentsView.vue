@@ -1,25 +1,26 @@
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import {
     FileText, Image, Link2, Video, File, Plus, Trash2,
     ExternalLink, Download, Search, X, Upload, FolderOpen, Eye, CheckCircle2, Menu,
-    LayoutGrid, List, Star,
-    BookOpen, Github, Linkedin, Globe, Package, HelpCircle, BookMarked,
+    LayoutGrid, List, Star, Copy, Pencil,
+    BookOpen, Github, Linkedin, Globe, Package, HelpCircle, BookMarked, FileSpreadsheet,
   } from 'lucide-vue-next'
   import type { Component } from 'vue'
 
   // Mapping type → composant icône (pour les icônes catégorie des liens)
   const TYPE_ICON_MAP: Record<string, Component> = {
-    moodle:   BookOpen,
-    github:   Github,
-    linkedin: Linkedin,
-    web:      Globe,
-    package:  Package,
-    link:     Link2,
-    image:    Image,
-    pdf:      FileText,
-    video:    Video,
-    file:     File,
+    moodle:      BookOpen,
+    github:      Github,
+    linkedin:    Linkedin,
+    web:         Globe,
+    package:     Package,
+    link:        Link2,
+    image:       Image,
+    pdf:         FileText,
+    video:       Video,
+    spreadsheet: FileSpreadsheet,
+    file:        File,
   }
   import { useAppStore }       from '@/stores/app'
   import { useDocumentsStore } from '@/stores/documents'
@@ -29,7 +30,9 @@
 
   import { useDocumentsData, docIconType, iconColors, iconLabels, TYPE_FILTERS } from '@/composables/useDocumentsData'
   import { useDocumentsAdd } from '@/composables/useDocumentsAdd'
+  import { useDocumentsEdit } from '@/composables/useDocumentsEdit'
   import { useFileDrop } from '@/composables/useFileDrop'
+  import { useToast } from '@/composables/useToast'
   import DropOverlay from '@/components/ui/DropOverlay.vue'
 
   const props = defineProps<{ toggleSidebar?: () => void }>()
@@ -38,8 +41,12 @@
   const appStore = useAppStore()
   const docStore = useDocumentsStore()
 
-  // ── View mode: grid vs list ───────────────────────────────────────────
-  const viewMode = ref<'grid' | 'list'>('grid')
+  // ── View mode: grid vs list (persisté en localStorage) ───────────────
+  const VIEW_MODE_KEY = 'cc_docs_view_mode'
+  const viewMode = ref<'grid' | 'list'>(
+    (localStorage.getItem(VIEW_MODE_KEY) as 'grid' | 'list') ?? 'grid',
+  )
+  watch(viewMode, (v) => localStorage.setItem(VIEW_MODE_KEY, v))
 
   // ── Drag & drop ────────────────────────────────────────────────────────
   const { isDragOver, pendingFile, uploading, onDragEnter, onDragLeave, onDragOver, onDrop, submitDocument, cancelDrop } = useFileDrop()
@@ -99,20 +106,48 @@
     addDescription,
     addType,
     addLink,
-    addFile,
-    addFileName,
+    addFiles,
     addProject,
     addTravailId,
     newCatName,
     projectList,
     travailList,
     adding,
+    uploadProgress,
+    uploadCurrentIndex,
+    uploadTotal,
+    modalDragOver,
     openAddModal,
     pickFile,
+    removeFile,
     clearFile,
     submitAdd,
     detectCategory,
+    onModalDragEnter,
+    onModalDragLeave,
+    onModalDragOver,
+    onModalDrop,
   } = useDocumentsAdd()
+
+  // ── Edit modal ──────────────────────────────────────────────────────────
+  const {
+    showEditModal,
+    editName,
+    editCategory,
+    editDescription,
+    editTravailId,
+    travailList: editTravailList,
+    saving,
+    openEditModal,
+    submitEdit,
+  } = useDocumentsEdit()
+
+  // ── Copy link ───────────────────────────────────────────────────────────
+  const { showToast } = useToast()
+  async function copyDocLink(doc: import('@/types').AppDocument) {
+    await navigator.clipboard.writeText(doc.content)
+    showToast('Lien copié !', 'success')
+  }
 </script>
 
 <template>
@@ -285,6 +320,13 @@
                 </button>
                 <button
                   class="doc-card-action-btn"
+                  title="Copier le lien"
+                  @click="copyDocLink(doc)"
+                >
+                  <Copy :size="14" />
+                </button>
+                <button
+                  class="doc-card-action-btn"
                   :title="doc.type === 'link' ? 'Ouvrir le lien' : 'Prévisualiser'"
                   @click="openDoc(doc)"
                 >
@@ -298,6 +340,14 @@
                   @click="api.downloadFile(doc.content)"
                 >
                   <Download :size="14" />
+                </button>
+                <button
+                  v-if="appStore.isTeacher"
+                  class="doc-card-action-btn"
+                  title="Modifier"
+                  @click="openEditModal(doc)"
+                >
+                  <Pencil :size="14" />
                 </button>
                 <button
                   v-if="appStore.isTeacher"
@@ -343,34 +393,57 @@
         <!-- Toggle fichier / lien -->
         <div class="da-type-row">
           <button class="da-type-btn" :class="{ active: addType === 'file' }" type="button" @click="addType = 'file'">
-            <Upload :size="15" /> Fichier
+            <Upload :size="15" /> Fichier{{ addFiles.length > 1 ? 's' : '' }}
           </button>
           <button class="da-type-btn" :class="{ active: addType === 'link' }" type="button" @click="addType = 'link'">
             <Link2 :size="15" /> Lien URL
           </button>
         </div>
 
-        <!-- Zone de dépôt fichier -->
-        <div v-if="addType === 'file'" class="da-drop-zone">
-          <div v-if="addFile" class="da-file-selected">
-            <CheckCircle2 :size="20" class="da-file-icon" />
-            <div class="da-file-info">
-              <span class="da-file-name">{{ addFileName }}</span>
-              <span class="da-file-hint">Fichier prêt à être envoyé</span>
+        <!-- Zone de dépôt fichier (drag & drop) -->
+        <div
+          v-if="addType === 'file'"
+          class="da-drop-zone"
+          :class="{ 'da-drop-zone--active': modalDragOver }"
+          @dragenter="onModalDragEnter"
+          @dragleave="onModalDragLeave"
+          @dragover="onModalDragOver"
+          @drop="onModalDrop"
+        >
+          <!-- Fichiers sélectionnés -->
+          <div v-if="addFiles.length" class="da-files-list">
+            <div v-for="(f, idx) in addFiles" :key="f.path" class="da-file-selected">
+              <CheckCircle2 :size="16" class="da-file-icon" />
+              <div class="da-file-info">
+                <span class="da-file-name">{{ f.name }}</span>
+              </div>
+              <button class="da-file-clear" type="button" title="Retirer" @click="removeFile(idx)">
+                <X :size="14" />
+              </button>
             </div>
-            <button class="da-file-clear" type="button" title="Changer de fichier" @click="clearFile">
-              <X :size="14" />
+            <button class="da-add-more" type="button" @click="pickFile">
+              <Plus :size="14" /> Ajouter d'autres fichiers
             </button>
           </div>
           <button v-else class="da-file-picker" type="button" @click="pickFile">
             <Upload :size="24" class="da-picker-icon" />
-            <span class="da-picker-label">Cliquer ou glisser un fichier ici</span>
-            <span class="da-picker-hint">PDF, Word, Excel, images, vidéos, archives</span>
+            <span class="da-picker-label">Cliquer ou glisser des fichiers ici</span>
+            <span class="da-picker-hint">PDF, Word, Excel, images, vidéos, archives — sélection multiple possible</span>
           </button>
         </div>
 
+        <!-- Barre de progression -->
+        <div v-if="adding && uploadTotal > 0" class="da-progress">
+          <div class="da-progress-bar">
+            <div class="da-progress-fill" :style="{ width: uploadProgress + '%' }" />
+          </div>
+          <span class="da-progress-text">
+            Fichier {{ uploadCurrentIndex }}/{{ uploadTotal }}… {{ uploadProgress }}%
+          </span>
+        </div>
+
         <!-- URL -->
-        <div v-else class="da-field">
+        <div v-if="addType === 'link'" class="da-field">
           <label class="da-label">Adresse URL</label>
           <input
             v-model="addLink"
@@ -381,8 +454,8 @@
           />
         </div>
 
-        <!-- Nom -->
-        <div class="da-field">
+        <!-- Nom (masqué si multi-fichiers, chaque fichier utilise son nom) -->
+        <div v-if="addType === 'link' || addFiles.length <= 1" class="da-field">
           <label class="da-label">Nom du document</label>
           <input v-model="addName" type="text" class="da-input" placeholder="ex : Cours réseaux - chapitre 3" autofocus />
         </div>
@@ -430,9 +503,74 @@
           <button type="button" class="btn-ghost" @click="showAddModal = false">Annuler</button>
           <button
             type="submit" class="btn-primary da-submit"
-            :disabled="!addName.trim() || (addType === 'file' && !addFile) || (addType === 'link' && !addLink.trim()) || adding"
+            :disabled="(addType === 'file' ? !addFiles.length : (!addName.trim() || !addLink.trim())) || (addType === 'file' && addFiles.length === 1 && !addName.trim()) || adding"
           >
-            {{ adding ? 'Envoi en cours…' : 'Ajouter' }}
+            {{ adding
+              ? (uploadTotal > 1 ? `Envoi ${uploadCurrentIndex}/${uploadTotal}…` : 'Envoi en cours…')
+              : (addFiles.length > 1 ? `Ajouter ${addFiles.length} fichiers` : 'Ajouter')
+            }}
+          </button>
+        </div>
+      </form>
+    </Modal>
+
+    <!-- ── Modal édition ───────────────────────────────────────────────── -->
+    <Modal v-model="showEditModal" title="Modifier le document" max-width="520px">
+      <form class="da" @submit.prevent="submitEdit">
+
+        <!-- Nom -->
+        <div class="da-field">
+          <label class="da-label">Nom du document</label>
+          <input v-model="editName" type="text" class="da-input" placeholder="ex : Cours réseaux - chapitre 3" autofocus />
+        </div>
+
+        <!-- Catégorie — pills -->
+        <div class="da-field">
+          <label class="da-label">Catégorie</label>
+          <div class="da-cat-pills">
+            <button
+              v-for="cat in CATEGORIES"
+              :key="cat.id"
+              type="button"
+              class="da-cat-pill"
+              :class="{ active: editCategory === cat.label }"
+              :style="editCategory === cat.label ? { background: cat.color + '22', color: cat.color, borderColor: cat.color } : {}"
+              @click="editCategory = cat.label"
+            >
+              <component :is="cat.icon" :size="12" />
+              {{ cat.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Lien vers un devoir -->
+        <div v-if="editTravailList.length" class="da-field">
+          <label class="da-label">Lien vers un devoir <span class="da-hint">(optionnel)</span></label>
+          <div class="da-travail-select-wrap">
+            <BookMarked :size="14" class="da-travail-icon" />
+            <select v-model="editTravailId" class="da-input da-travail-select">
+              <option :value="null">— Aucun —</option>
+              <option v-for="t in editTravailList" :key="t.id" :value="t.id">
+                {{ t.title }}{{ t.category ? ` · ${t.category}` : '' }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="da-field">
+          <label class="da-label">Description <span class="da-hint">(optionnelle)</span></label>
+          <textarea v-model="editDescription" class="da-input da-textarea" rows="2" placeholder="Brève description, consignes, contexte…" />
+        </div>
+
+        <!-- Footer -->
+        <div class="da-footer">
+          <button type="button" class="btn-ghost" @click="showEditModal = false">Annuler</button>
+          <button
+            type="submit" class="btn-primary da-submit"
+            :disabled="!editName.trim() || saving"
+          >
+            {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
           </button>
         </div>
       </form>
@@ -822,7 +960,8 @@
 .da-type-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 .da-type-btn.active { background: var(--accent); color: #fff; }
 
-.da-drop-zone { margin: 0; }
+.da-drop-zone { margin: 0; transition: border-color .2s, background .2s; border-radius: 12px; }
+.da-drop-zone--active { border-color: var(--accent) !important; background: rgba(74,144,217,.08) !important; }
 .da-file-picker {
   width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;
   padding: 28px 16px; border: 2px dashed var(--border-input); border-radius: 12px;
@@ -834,21 +973,47 @@
 .da-picker-label { font-size: 13px; font-weight: 600; }
 .da-picker-hint { font-size: 11px; opacity: .5; }
 
+.da-files-list {
+  display: flex; flex-direction: column; gap: 6px;
+  border: 2px dashed var(--border-input); border-radius: 12px;
+  padding: 10px;
+}
 .da-file-selected {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 14px; border: 1.5px solid var(--color-success); border-radius: 10px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 1px solid var(--color-success); border-radius: 8px;
   background: rgba(39,174,96,.06);
 }
 .da-file-icon { color: var(--color-success); flex-shrink: 0; }
 .da-file-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.da-file-name { font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.da-file-name { font-size: 12px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .da-file-hint { font-size: 11px; color: var(--color-success); }
 .da-file-clear {
-  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
   border-radius: 6px; background: transparent; border: none; color: var(--text-muted);
   cursor: pointer; transition: all .15s; flex-shrink: 0;
 }
 .da-file-clear:hover { background: rgba(231,76,60,.1); color: var(--color-danger); }
+.da-add-more {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 6px 10px; border: 1px dashed var(--border-input); border-radius: 8px;
+  background: transparent; color: var(--text-muted);
+  font-family: var(--font); font-size: 12px; cursor: pointer; transition: all .15s;
+}
+.da-add-more:hover { border-color: var(--accent); color: var(--accent); background: rgba(74,144,217,.04); }
+
+/* ── Barre de progression upload ── */
+.da-progress { margin-top: 4px; }
+.da-progress-bar {
+  height: 6px; border-radius: 3px; background: var(--bg-hover); overflow: hidden;
+}
+.da-progress-fill {
+  height: 100%; background: var(--accent); border-radius: 3px;
+  transition: width .3s ease;
+}
+.da-progress-text {
+  display: block; margin-top: 4px;
+  font-size: 11px; color: var(--text-muted); text-align: center;
+}
 
 /* ── Pills catégorie ── */
 .da-cat-pills { display: flex; flex-wrap: wrap; gap: 6px; }

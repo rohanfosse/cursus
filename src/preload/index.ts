@@ -347,6 +347,7 @@ contextBridge.exposeInMainWorld('api', {
     return get(`/api/documents/project?promoId=${promoId}${qs}`)
   },
   addProjectDocument:           (payload: unknown)  => post('/api/documents/project', payload),
+  updateProjectDocument:        (id: number, payload: unknown) => patch(`/api/documents/project/${id}`, payload),
 
   // ── Intervenants ────────────────────────────────────────────────────────────
   getIntervenants:    ()                 => get('/api/teachers'),
@@ -518,7 +519,7 @@ contextBridge.exposeInMainWorld('api', {
   openFileDialog:  () => invoke('dialog:openFile'),
   exportCsv:       (travailId: number) => invoke('export:csv', travailId),
 
-  // Upload d'un fichier local vers le serveur → retourne l'URL publique
+  // Upload d'un fichier local vers le serveur → retourne l'URL publique + taille
   uploadFile: async (localPath: string) => {
     const b64Res = await invoke('fs:readFileBase64', localPath) as { ok: boolean; data?: { b64: string; mime: string; ext: string } }
     if (!b64Res?.ok || !b64Res.data) return b64Res
@@ -537,9 +538,11 @@ contextBridge.exposeInMainWorld('api', {
         headers: jwtToken ? { Authorization: `Bearer ${jwtToken}` } : {},
         body: formData,
       })
-      const json = await res.json() as { ok: boolean; data?: string; error?: string }
-      if (json.ok && json.data) json.data = `${SERVER_URL}${json.data}`
-      return json
+      const json = await res.json() as { ok: boolean; data?: string; file_size?: number; error?: string }
+      if (json.ok && json.data) {
+        return { ok: true, data: { url: `${SERVER_URL}${json.data}`, file_size: json.file_size } }
+      }
+      return { ok: false, error: json.error ?? 'Upload échoué' }
     } catch (err) {
       return { ok: false, error: String(err) }
     }

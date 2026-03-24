@@ -3,7 +3,7 @@ const { getDb } = require('../connection');
 function getProjectDocuments(promoId, project) {
   if (project) {
     return getDb().prepare(`
-      SELECT cd.*, cd.path_or_url AS content, t.title AS travail_title
+      SELECT cd.*, cd.path_or_url AS content, cd.file_size, t.title AS travail_title
       FROM channel_documents cd
       LEFT JOIN travaux t ON t.id = cd.travail_id
       WHERE cd.promo_id = ? AND cd.project = ?
@@ -11,7 +11,7 @@ function getProjectDocuments(promoId, project) {
     `).all(promoId, project);
   }
   return getDb().prepare(`
-    SELECT cd.*, cd.path_or_url AS content, t.title AS travail_title
+    SELECT cd.*, cd.path_or_url AS content, cd.file_size, t.title AS travail_title
     FROM channel_documents cd
     LEFT JOIN travaux t ON t.id = cd.travail_id
     WHERE cd.promo_id = ?
@@ -26,7 +26,7 @@ function getChannelDocuments(channelId) {
   const ch = db.prepare('SELECT promo_id, category FROM channels WHERE id = ?').get(channelId)
   if (ch?.category) {
     return db.prepare(`
-      SELECT cd.*, cd.path_or_url AS content, t.title AS travail_title
+      SELECT cd.*, cd.path_or_url AS content, cd.file_size, t.title AS travail_title
       FROM channel_documents cd
       LEFT JOIN travaux t ON t.id = cd.travail_id
       WHERE cd.channel_id = ? OR (cd.promo_id = ? AND cd.project = ?)
@@ -34,7 +34,7 @@ function getChannelDocuments(channelId) {
     `).all(channelId, ch.promo_id, ch.category)
   }
   return db.prepare(`
-    SELECT cd.*, cd.path_or_url AS content, t.title AS travail_title
+    SELECT cd.*, cd.path_or_url AS content, cd.file_size, t.title AS travail_title
     FROM channel_documents cd
     LEFT JOIN travaux t ON t.id = cd.travail_id
     WHERE cd.channel_id = ?
@@ -44,7 +44,7 @@ function getChannelDocuments(channelId) {
 
 function getPromoDocuments(promoId) {
   return getDb().prepare(`
-    SELECT cd.*, cd.path_or_url AS content, t.title AS travail_title
+    SELECT cd.*, cd.path_or_url AS content, cd.file_size, t.title AS travail_title
     FROM channel_documents cd
     LEFT JOIN travaux t ON t.id = cd.travail_id
     WHERE cd.promo_id = ?
@@ -52,11 +52,11 @@ function getPromoDocuments(promoId) {
   `).all(promoId);
 }
 
-function addProjectDocument({ promoId, project, category, type, name, pathOrUrl, description, travailId }) {
+function addProjectDocument({ promoId, project, category, type, name, pathOrUrl, description, travailId, fileSize }) {
   return getDb().prepare(`
-    INSERT INTO channel_documents (promo_id, project, category, type, name, path_or_url, description, travail_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(promoId, project ?? null, category || 'Général', type, name, pathOrUrl, description ?? null, travailId ?? null);
+    INSERT INTO channel_documents (promo_id, project, category, type, name, path_or_url, description, travail_id, file_size)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(promoId, project ?? null, category || 'Général', type, name, pathOrUrl, description ?? null, travailId ?? null, fileSize ?? null);
 }
 
 // Alias for backwards compat
@@ -69,6 +69,14 @@ function addChannelDocument({ channelId, promoId, project, category, type, name,
     project: project ?? ch?.category ?? null,
     category, type, name, pathOrUrl, description,
   });
+}
+
+function updateProjectDocument({ id, name, category, description, travailId }) {
+  return getDb().prepare(`
+    UPDATE channel_documents
+    SET name = ?, category = ?, description = ?, travail_id = ?
+    WHERE id = ?
+  `).run(name, category || 'Général', description ?? null, travailId ?? null, id);
 }
 
 function deleteChannelDocument(id) {
@@ -98,6 +106,6 @@ function getChannelDocumentCategories(channelId) {
 module.exports = {
   getProjectDocuments, getChannelDocuments,
   getPromoDocuments, addProjectDocument, addChannelDocument,
-  deleteChannelDocument,
+  updateProjectDocument, deleteChannelDocument,
   getProjectDocumentCategories, getChannelDocumentCategories,
 };

@@ -30,11 +30,27 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 Mo max
 })
 
+// ── Extensions dangereuses rejetées ─────────────────────────────────────────
+const BLOCKED_EXTENSIONS = new Set([
+  '.exe', '.bat', '.cmd', '.com', '.msi', '.dll', '.scr', '.pif', '.vbs', '.wsf',
+])
+
 // POST /api/files/upload
-router.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ ok: false, error: 'Aucun fichier reçu.' })
-  // Retourne le chemin relatif - le client préfixe avec SERVER_URL
-  res.json({ ok: true, data: `/uploads/${req.file.filename}` })
+router.post('/upload', (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ ok: false, error: 'Fichier trop volumineux (max 50 Mo).' })
+      return res.status(400).json({ ok: false, error: err.message })
+    }
+    if (!req.file) return res.status(400).json({ ok: false, error: 'Aucun fichier reçu.' })
+    const ext = path.extname(req.file.originalname).toLowerCase()
+    if (BLOCKED_EXTENSIONS.has(ext)) {
+      // Supprimer le fichier déjà écrit sur disque
+      fs.unlink(path.join(UPLOAD_DIR, req.file.filename), () => {})
+      return res.status(400).json({ ok: false, error: `Type de fichier non autorisé (${ext}).` })
+    }
+    res.json({ ok: true, data: `/uploads/${req.file.filename}`, file_size: req.file.size })
+  })
 })
 
 module.exports = router

@@ -41,8 +41,11 @@ export function useStudentDeposit(now: { value: number }) {
   async function pickFile() {
     const res = await window.api.openFileDialog()
     if (res?.ok && res.data) {
-      depositFile.value     = res.data
-      depositFileName.value = res.data.split(/[\\/]/).pop() ?? res.data
+      const paths = res.data as string[]
+      const firstPath = paths[0]
+      if (!firstPath) return
+      depositFile.value     = firstPath
+      depositFileName.value = firstPath.split(/[\\/]/).pop() ?? firstPath
     }
   }
 

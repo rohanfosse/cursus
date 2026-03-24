@@ -133,8 +133,8 @@
       const electronPath = (file as unknown as { path?: string }).path
       if (electronPath) {
         // Electron : upload via preload
-        const res = await window.api.uploadFile(electronPath) as { ok: boolean; data?: string } | null
-        if (res?.ok && res.data) url = res.data
+        const res = await window.api.uploadFile(electronPath) as { ok: boolean; data?: { url: string } } | null
+        if (res?.ok && res.data) url = res.data.url
       } else {
         // Web : upload direct FormData
         const formData = new FormData()

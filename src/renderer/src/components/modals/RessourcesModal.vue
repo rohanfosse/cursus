@@ -92,8 +92,11 @@
   async function pickFile() {
     const res = await window.api.openFileDialog()
     if (res?.ok && res.data) {
-      addFile.value     = res.data
-      addFileName.value = res.data.split(/[\\/]/).pop()?.replace(/^__web__\S+/, '') || res.data.split(/[\\/]/).pop() || res.data
+      const paths = res.data as string[]
+      const firstPath = paths[0]
+      if (!firstPath) return
+      addFile.value     = firstPath
+      addFileName.value = firstPath.split(/[\\/]/).pop()?.replace(/^__web__\S+/, '') || firstPath.split(/[\\/]/).pop() || firstPath
       if (!addName.value) addName.value = addFileName.value ?? ''
     }
   }
@@ -112,8 +115,8 @@
       let pathOrUrl: string | null = addType.value === 'link' ? addLink.value.trim() : addFile.value
       if (addType.value === 'file' && addFile.value) {
         const uploadRes = await window.api.uploadFile(addFile.value)
-        if (!uploadRes?.ok) { showToast('Erreur lors de l\'upload.', 'error'); return }
-        pathOrUrl = uploadRes.data as string
+        if (!uploadRes?.ok || !uploadRes.data) { showToast('Erreur lors de l\'upload.', 'error'); return }
+        pathOrUrl = uploadRes.data.url
       }
       const res = await window.api.addRessource({
         travailId:  selectedTravailId.value,

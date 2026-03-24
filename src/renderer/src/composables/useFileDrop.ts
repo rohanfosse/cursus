@@ -53,9 +53,6 @@ export function useFileDrop() {
     // Web : upload immédiat via FormData
     uploading.value = true
     try {
-      const res = await window.api.openFileDialog()
-      // Fallback: on ne peut pas accéder au File directement sur le web via drag
-      // On utilise l'upload API avec le fichier brut
       const formData = new FormData()
       formData.append('file', file, file.name)
       const SERVER_URL = window.location.origin

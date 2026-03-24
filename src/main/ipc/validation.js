@@ -96,6 +96,7 @@ const addDocumentPayload = z.object({
   description: optStr,
   authorName:  optStr,
   authorType:  optStr,
+  fileSize:    z.number().int().positive().nullish(),
 })
 
 // ── Wrapper ─────────────────────────────────────────────────────────────────

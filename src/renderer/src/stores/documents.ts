@@ -56,6 +56,15 @@ export const useDocumentsStore = defineStore('documents', () => {
     return data !== null
   }
 
+  async function updateDocument(id: number, payload: object): Promise<boolean> {
+    const data = await api(() => window.api.updateProjectDocument(id, payload), 'upload')
+    if (data !== null) {
+      const pid = appStore.activePromoId ?? appStore.currentUser?.promo_id
+      await fetchDocuments(pid ?? undefined, appStore.activeProject)
+    }
+    return data !== null
+  }
+
   async function deleteDocument(id: number): Promise<boolean> {
     const data = await api(() => window.api.deleteChannelDocument(id), 'delete')
     if (data !== null) {
@@ -71,7 +80,7 @@ export const useDocumentsStore = defineStore('documents', () => {
   return {
     documents, categories, loading, searchQuery,
     activeCategory, previewDoc, favoriteIds,
-    fetchDocuments, addDocument, deleteDocument,
+    fetchDocuments, addDocument, updateDocument, deleteDocument,
     openPreview, closePreview, toggleFavorite, isFavorite,
   }
 })

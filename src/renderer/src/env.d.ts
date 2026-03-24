@@ -102,8 +102,8 @@ declare global {
       changePassword(userId: number, isTeacher: boolean, currentPwd: string, newPwd: string): Promise<IpcResponse<null>>
       exportPersonalData(studentId: number): Promise<IpcResponse<object>>
 
-      // Upload fichier vers le serveur → URL publique
-      uploadFile(localPath: string): Promise<IpcResponse<string>>
+      // Upload fichier vers le serveur → URL publique + taille
+      uploadFile(localPath: string): Promise<IpcResponse<{ url: string; file_size?: number }>>
 
       // Shell
       openPath(filePath: string): Promise<IpcResponse<null>>
@@ -111,7 +111,7 @@ declare global {
 
       // Fichiers & export
       openImageDialog(): Promise<IpcResponse<string | null>>
-      openFileDialog(): Promise<IpcResponse<string | null>>
+      openFileDialog(): Promise<IpcResponse<string[] | null>>
       exportCsv(travailId: number): Promise<IpcResponse<string | null>>
 
       // Données prof
@@ -128,6 +128,7 @@ declare global {
       // Documents de projet
       getProjectDocuments(promoId: number, project?: string | null): Promise<IpcResponse<AppDocument[]>>
       addProjectDocument(payload: object): Promise<IpcResponse<{ id: number }>>
+      updateProjectDocument(id: number, payload: object): Promise<IpcResponse<unknown>>
 
       // Messages épinglés
       getPinnedMessages(channelId: number): Promise<IpcResponse<Message[]>>

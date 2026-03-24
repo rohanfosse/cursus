@@ -150,11 +150,13 @@ function displayName(pathOrUrl: string): string {
 async function pickFile() {
   const res = await window.api.openFileDialog()
   if (!res?.ok || !res.data) return
-  const localPath = res.data
+  const paths = res.data as string[]
+  const localPath = paths[0]
+  if (!localPath) return
   const localName = displayName(localPath)
   const uploadRes = await window.api.uploadFile(localPath)
-  if (uploadRes?.ok) {
-    depositFile.value     = uploadRes.data as string
+  if (uploadRes?.ok && uploadRes.data) {
+    depositFile.value     = uploadRes.data.url
     depositFileName.value = localName
   } else {
     showToast('Erreur lors du chargement du fichier.', 'error')
@@ -177,8 +179,8 @@ async function onDrop(e: DragEvent) {
   const filePath = (file as File & { path?: string }).path
   if (!filePath) return  // web sans path natif → utiliser le sélecteur
   const uploadRes = await window.api.uploadFile(filePath)
-  if (uploadRes?.ok) {
-    depositFile.value     = uploadRes.data as string
+  if (uploadRes?.ok && uploadRes.data) {
+    depositFile.value     = uploadRes.data.url
     depositFileName.value = file.name
   } else {
     showToast('Erreur lors du chargement du fichier.', 'error')
