@@ -3,7 +3,7 @@
   import {
     FileText, Image, Link2, Video, File, Plus, Trash2,
     ExternalLink, Download, Search, X, Upload, FolderOpen, Eye, CheckCircle2, Menu,
-    LayoutGrid, List, Star, Copy, Pencil,
+    LayoutGrid, List, Grid3x3, Star, Copy, Pencil,
     BookOpen, Github, Linkedin, Globe, Package, HelpCircle, BookMarked, FileSpreadsheet,
   } from 'lucide-vue-next'
   import type { Component } from 'vue'
@@ -43,8 +43,8 @@
 
   // ── View mode: grid vs list (persisté en localStorage) ───────────────
   const VIEW_MODE_KEY = 'cc_docs_view_mode'
-  const viewMode = ref<'grid' | 'list'>(
-    (localStorage.getItem(VIEW_MODE_KEY) as 'grid' | 'list') ?? 'grid',
+  const viewMode = ref<'grid' | 'list' | 'dense'>(
+    (localStorage.getItem(VIEW_MODE_KEY) as 'grid' | 'list' | 'dense') ?? 'grid',
   )
   watch(viewMode, (v) => localStorage.setItem(VIEW_MODE_KEY, v))
 
@@ -187,20 +187,28 @@
         </div>
         <span v-if="searchResultsCount !== null" class="docs-results-count">{{ searchResultsCount }} résultat{{ searchResultsCount !== 1 ? 's' : '' }}</span>
 
-        <!-- Toggle grille / liste -->
+        <!-- Toggle grille / dense / liste -->
         <div class="docs-view-toggle">
           <button
             class="docs-view-btn"
             :class="{ active: viewMode === 'grid' }"
-            title="Affichage grille"
+            title="Grille"
             @click="viewMode = 'grid'"
           >
             <LayoutGrid :size="15" />
           </button>
           <button
             class="docs-view-btn"
+            :class="{ active: viewMode === 'dense' }"
+            title="Dense"
+            @click="viewMode = 'dense'"
+          >
+            <Grid3x3 :size="15" />
+          </button>
+          <button
+            class="docs-view-btn"
             :class="{ active: viewMode === 'list' }"
-            title="Affichage liste"
+            title="Liste"
             @click="viewMode = 'list'"
           >
             <List :size="15" />
@@ -296,7 +304,44 @@
         </div>
       </template>
 
-      <!-- Documents groupés par catégorie -->
+      <!-- ── Dense mode (flat grid, no categories) ── -->
+      <template v-else-if="filtered.length && viewMode === 'dense'">
+        <div class="docs-grid docs-grid--dense">
+          <div
+            v-for="doc in filtered"
+            :key="doc.id"
+            class="doc-card doc-card--dense"
+            :class="{ 'doc-card--fav': docStore.isFavorite(doc.id) }"
+            :title="doc.description ?? doc.name"
+            @click="openDoc(doc)"
+          >
+            <button
+              class="doc-card-fav doc-card-fav--dense"
+              :class="{ 'doc-card-fav--active': docStore.isFavorite(doc.id) }"
+              @click.stop="docStore.toggleFavorite(doc.id)"
+            >
+              <Star :size="10" />
+            </button>
+            <div class="doc-dense-icon" :style="{ background: iconColors[docIconType(doc)] + '1A', color: iconColors[docIconType(doc)] }">
+              <component :is="TYPE_ICON_MAP[docIconType(doc)] ?? File" :size="18" />
+            </div>
+            <p class="doc-dense-name">{{ doc.name }}</p>
+            <span class="doc-dense-meta">{{ formatDate(doc.created_at) }}</span>
+
+            <div class="doc-card-actions" @click.stop>
+              <button class="doc-card-action-btn" title="Copier le lien" @click="copyDocLink(doc)"><Copy :size="12" /></button>
+              <button class="doc-card-action-btn" :title="doc.type === 'link' ? 'Ouvrir' : 'Aperçu'" @click="openDoc(doc)">
+                <Eye v-if="doc.type === 'file'" :size="12" />
+                <ExternalLink v-else :size="12" />
+              </button>
+              <button v-if="doc.type === 'file'" class="doc-card-action-btn" title="Télécharger" @click="api.downloadFile(doc.content)"><Download :size="12" /></button>
+              <button v-if="appStore.isTeacher" class="doc-card-action-btn doc-card-action-btn--danger" title="Supprimer" @click="deleteDoc(doc.id)"><Trash2 :size="12" /></button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- ── Normal grouped view (grid / list) ── -->
       <template v-else-if="filtered.length">
         <template v-for="[cat, docs] in byCategory" :key="cat">
           <div v-if="byCategory.size > 1" class="docs-group-header">
@@ -1359,6 +1404,43 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* ── Dense mode ── */
+.docs-grid--dense {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+.doc-card--dense {
+  padding: 10px 10px 8px;
+  gap: 0;
+  align-items: center;
+  text-align: center;
+}
+.doc-card--dense .doc-card-fav--dense {
+  position: absolute; top: 4px; left: 4px;
+  width: 20px; height: 20px;
+}
+.doc-dense-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 6px;
+}
+.doc-dense-name {
+  font-size: 11px; font-weight: 600; color: var(--text-primary);
+  line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+  margin: 0 0 2px; word-break: break-word;
+}
+.doc-dense-meta {
+  font-size: 9px; color: var(--text-muted);
+}
+.doc-card--dense .doc-card-actions {
+  gap: 3px; padding: 4px;
+}
+.doc-card--dense .doc-card-action-btn {
+  width: 26px; height: 26px; border-radius: 6px;
 }
 
 .doc-card--list {
