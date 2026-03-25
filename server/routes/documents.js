@@ -2,14 +2,15 @@
 const router  = require('express').Router()
 const queries = require('../db/index')
 const wrap    = require('../utils/wrap')
+const { requireTeacher, requirePromo, promoFromChannel, promoFromParam } = require('../middleware/authorize')
 
 // ── Documents de canal ────────────────────────────────────────────────────────
-router.get('/channel/:channelId',             wrap((req) => queries.getChannelDocuments(Number(req.params.channelId))))
-router.get('/channel/:channelId/categories',  wrap((req) => queries.getChannelDocumentCategories(Number(req.params.channelId))))
-router.get('/promo/:promoId',                 wrap((req) => queries.getPromoDocuments(Number(req.params.promoId))))
+router.get('/channel/:channelId',             requirePromo(promoFromChannel), wrap((req) => queries.getChannelDocuments(Number(req.params.channelId))))
+router.get('/channel/:channelId/categories',  requirePromo(promoFromChannel), wrap((req) => queries.getChannelDocumentCategories(Number(req.params.channelId))))
+router.get('/promo/:promoId',                 requirePromo(promoFromParam), wrap((req) => queries.getPromoDocuments(Number(req.params.promoId))))
 router.post('/channel',                       wrap((req) => queries.addChannelDocument(req.body)))
-router.patch('/project/:id',                  wrap((req) => queries.updateProjectDocument({ id: Number(req.params.id), ...req.body })))
-router.delete('/channel/:id',                 wrap((req) => queries.deleteChannelDocument(Number(req.params.id))))
+router.patch('/project/:id',                  requireTeacher, wrap((req) => queries.updateProjectDocument({ id: Number(req.params.id), ...req.body })))
+router.delete('/channel/:id',                 requireTeacher, wrap((req) => queries.deleteChannelDocument(Number(req.params.id))))
 
 // ── Recherche & liaison ───────────────────────────────────────────────────────
 router.get('/search', wrap((req) => queries.searchDocuments(Number(req.query.promoId), req.query.q ?? '')))

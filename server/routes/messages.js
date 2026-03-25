@@ -4,6 +4,7 @@ const { z }   = require('zod')
 const queries = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap         = require('../utils/wrap')
+const { requireTeacher, requirePromo, promoFromChannel, requireMessageOwner } = require('../middleware/authorize')
 
 // ── Schémas de validation ─────────────────────────────────────────────────────
 const sendMessageSchema = z.object({
@@ -30,9 +31,9 @@ const reportSchema = z.object({
 })
 
 // ── Lecture ───────────────────────────────────────────────────────────────────
-router.get('/channel/:channelId',       wrap((req) => queries.getChannelMessages(Number(req.params.channelId))))
+router.get('/channel/:channelId',       requirePromo(promoFromChannel), wrap((req) => queries.getChannelMessages(Number(req.params.channelId))))
 router.get('/dm/:studentId',            wrap((req) => queries.getDmMessages(Number(req.params.studentId))))
-router.get('/channel/:channelId/page',  wrap((req) => {
+router.get('/channel/:channelId/page',  requirePromo(promoFromChannel), wrap((req) => {
   const before = req.query.before ? Number(req.query.before) : null
   return queries.getChannelMessagesPage(Number(req.params.channelId), before)
 }))
@@ -41,19 +42,19 @@ router.get('/dm/:studentId/page', wrap((req) => {
   const peer   = req.query.peer ? Number(req.query.peer) : null
   return queries.getDmMessagesPage(Number(req.params.studentId), before, peer)
 }))
-router.get('/search', wrap((req) => queries.searchMessages(Number(req.query.channelId), req.query.q)))
+router.get('/search', requirePromo(promoFromChannel), wrap((req) => queries.searchMessages(Number(req.query.channelId), req.query.q)))
 router.post('/search-all', wrap((req) => {
   const { promoId, query, limit, userId } = req.body
   return queries.searchAllMessages(promoId ?? null, query, limit ?? 8, userId ?? null)
 }))
-router.get('/pinned/:channelId', wrap((req) => queries.getPinnedMessages(Number(req.params.channelId))))
+router.get('/pinned/:channelId', requirePromo(promoFromChannel), wrap((req) => queries.getPinnedMessages(Number(req.params.channelId))))
 router.get('/dm-contacts/:studentId', wrap((req) => queries.getRecentDmContacts(Number(req.params.studentId), Number(req.query.limit) || 15)))
 router.get('/dm/:studentId/search', wrap((req) => {
   const peer = req.query.peer ? Number(req.query.peer) : null
   return queries.searchDmMessages(Number(req.params.studentId), req.query.q, peer)
 }))
 
-router.get('/dm-files', wrap(() => queries.getDmFiles()))
+router.get('/dm-files', requireTeacher, wrap(() => queries.getDmFiles()))
 
 // ── Écriture ──────────────────────────────────────────────────────────────────
 router.post('/', validate(sendMessageSchema), (req, res) => {
@@ -145,8 +146,8 @@ router.post('/', validate(sendMessageSchema), (req, res) => {
 
 router.post('/pin',       wrap((req) => queries.togglePinMessage(req.body.messageId, req.body.pinned)))
 router.post('/reactions', wrap((req) => queries.updateReactions(req.body.msgId, req.body.reactionsJson)))
-router.delete('/:id',     wrap((req) => queries.deleteMessage(Number(req.params.id))))
-router.patch('/:id', validate(editMessageSchema), wrap((req) => queries.editMessage(Number(req.params.id), req.body.content)))
+router.delete('/:id',     requireMessageOwner, wrap((req) => queries.deleteMessage(Number(req.params.id))))
+router.patch('/:id', requireMessageOwner, validate(editMessageSchema), wrap((req) => queries.editMessage(Number(req.params.id), req.body.content)))
 
 // ── Signalement de message ──────────────────────────────────────────────────
 router.post('/:id/report', validate(reportSchema), wrap((req) => {

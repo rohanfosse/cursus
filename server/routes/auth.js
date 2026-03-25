@@ -106,11 +106,19 @@ router.post('/register', validate(registerSchema), wrap((req) => queries.registe
 // POST /api/auth/change-password  (requiert JWT)
 router.post('/change-password', auth, validate(changePasswordSchema), wrap((req) => {
   const { userId, isTeacher, currentPwd, newPwd } = req.body
+  if (req.user.type === 'student' && req.user.id !== userId) {
+    throw new Error('Vous ne pouvez modifier que votre propre mot de passe.')
+  }
   return queries.changePassword(userId, isTeacher, currentPwd, newPwd)
 }))
 
 // GET /api/auth/export/:studentId  (requiert JWT)
-router.get('/export/:studentId', auth, wrap((req) => {
+router.get('/export/:studentId', auth, (req, res, next) => {
+  if (req.user.type === 'student' && req.user.id !== Number(req.params.studentId)) {
+    return res.status(403).json({ ok: false, error: 'Accès non autorisé.' })
+  }
+  next()
+}, wrap((req) => {
   return queries.exportStudentData(Number(req.params.studentId))
 }))
 
