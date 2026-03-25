@@ -29,6 +29,14 @@
   const bannerDismissed  = ref(false)
   const rightPanel       = ref<'members' | 'docs' | 'travaux' | 'dm-files' | null>(null)
 
+  // ── Indicateur en ligne du peer DM ─────────────────────────────────────
+  const peerIsOnline = computed(() => {
+    if (!appStore.activeDmStudentId) return false
+    const peerName = appStore.activeChannelName
+    if (!peerName) return false
+    return (appStore.onlineUsers ?? []).some((u: { name: string }) => u.name === peerName)
+  })
+
   // ── Fichiers partagés en DM ──────────────────────────────────────────────
   interface DmFile { message_id: number; student_id: number; student_name: string; file_name: string; file_url: string; is_image: boolean; sent_at: string }
   const dmFiles        = ref<DmFile[]>([])
@@ -301,7 +309,11 @@
               Chat
             </span>
           </div>
-          <span v-if="appStore.activeDmStudentId" class="channel-annonce-hint">Conversation privée</span>
+          <span v-if="appStore.activeDmStudentId" class="dm-status">
+            <span v-if="messagesStore.typingText" class="dm-typing">{{ messagesStore.typingText }}</span>
+            <span v-else-if="peerIsOnline" class="dm-online"><span class="dm-online-dot" /> En ligne</span>
+            <span v-else class="dm-offline">Hors ligne</span>
+          </span>
           <span v-else-if="channelHeader?.type === 'annonce' && appStore.isStudent" class="channel-annonce-hint">Canal d'annonce - seuls les pilotes peuvent publier</span>
           <span v-else-if="appStore.activeChannelDescription" class="channel-description" :title="appStore.activeChannelDescription">{{ appStore.activeChannelDescription }}</span>
         </div>
@@ -582,6 +594,16 @@
   color: var(--accent-light);
   flex-shrink: 0;
 }
+
+/* ── DM status indicator ── */
+.dm-status { font-size: 12px; font-weight: 500; }
+.dm-online { display: inline-flex; align-items: center; gap: 5px; color: #4ade80; }
+.dm-online-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: #4ade80;
+  box-shadow: 0 0 4px rgba(74, 222, 128, .4); display: inline-block;
+}
+.dm-typing { color: var(--accent); font-style: italic; }
+.dm-offline { color: var(--text-muted); }
 
 /* ── Channel type badges ── */
 .channel-type-badge--annonce { background: rgba(231,76,60,.15); color: #e74c3c; }

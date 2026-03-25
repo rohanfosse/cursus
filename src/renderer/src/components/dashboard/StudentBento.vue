@@ -3,6 +3,7 @@
  */
 <script setup lang="ts">
 import { computed, ref, watch, nextTick, type Component } from 'vue'
+import { VueDraggable } from 'vue-draggable-plus'
 import { Settings, CheckCircle2, Clock, AlertTriangle, Wifi, X, Plus } from 'lucide-vue-next'
 import { useBentoPrefs } from '@/composables/useBentoPrefs'
 import { useAppStore } from '@/stores/app'
@@ -110,8 +111,13 @@ const hiddenWidgets = computed(() =>
   STUDENT_WIDGETS.filter(w => !isVisible(w.id) && w.id !== 'live' && w.id !== 'promoActivity'),
 )
 
-// Focus : only show if overdue (critical) -- pending is shown in stats, no need to duplicate
+// Focus : only show if overdue (critical)
 const showFocusAlert = computed(() => overdueCount.value > 0)
+
+// Drag-and-drop : liste réordonnée des widgets visibles (hors live/promoActivity)
+const draggableWidgets = ref(visibleWidgets.value.filter(w => w.id !== 'live' && w.id !== 'promoActivity'))
+watch(visibleWidgets, (v) => { draggableWidgets.value = v.filter(w => w.id !== 'live' && w.id !== 'promoActivity') })
+function onDragEnd() { reorderWidgets(draggableWidgets.value) }
 </script>
 
 <template>
@@ -125,55 +131,33 @@ const showFocusAlert = computed(() => overdueCount.value > 0)
       <span>{{ overdueCount }} devoir{{ overdueCount > 1 ? 's' : '' }} en retard</span>
     </div>
 
-    <!-- Stats row (horizontal, compact) -->
-    <div class="sb-stats">
-      <div class="sb-stat">
-        <span class="sb-stat-value">{{ submissionRate }}%</span>
-        <span class="sb-stat-label">soumis</span>
+    <!-- Widgets grid (2 colonnes, drag-and-drop en mode édition) -->
+    <VueDraggable
+      v-model="draggableWidgets"
+      :disabled="!showCustomizer"
+      ghost-class="sb-widget--ghost"
+      :animation="200"
+      class="sb-grid"
+      :class="{ 'sb-grid--editing': showCustomizer }"
+      @end="onDragEnd"
+    >
+      <div v-for="w in draggableWidgets" :key="w.id" class="sb-widget" :class="{ 'sb-widget--editing': showCustomizer }">
+        <button v-if="showCustomizer" class="sb-widget-remove" title="Retirer" @click="toggleWidget(w.id)">
+          <X :size="14" />
+        </button>
+        <component
+          :is="widgetComponents[w.id]"
+          v-bind="widgetProps[w.id]"
+          v-on="widgetEvents[w.id] ?? {}"
+        />
       </div>
-      <div class="sb-stat-sep" />
-      <div class="sb-stat">
-        <span class="sb-stat-value" :class="{ 'sb-stat--warn': overdueCount > 0 }">{{ studentStats.pending }}</span>
-        <span class="sb-stat-label">à rendre</span>
-      </div>
-      <div class="sb-stat-sep" />
-      <div class="sb-stat">
-        <span class="sb-stat-value">{{ studentStats.modeGrade ?? '--' }}</span>
-        <span class="sb-stat-label">moyenne</span>
-      </div>
-      <div class="sb-stat-sep" />
-      <div class="sb-stat">
-        <span class="sb-stat-value">{{ studentStats.graded }}</span>
-        <span class="sb-stat-label">notes</span>
-      </div>
-      <div class="sb-stat-online">
-        <span class="sb-online-dot" />
-        <span>{{ onlineCount }}</span>
-      </div>
-    </div>
+    </VueDraggable>
 
-    <!-- Widgets grid (2 colonnes) -->
-    <div class="sb-grid" :class="{ 'sb-grid--editing': showCustomizer }">
-      <template v-for="w in visibleWidgets.filter(w => w.id !== 'live' && w.id !== 'promoActivity')" :key="w.id">
-        <div class="sb-widget" :class="{ 'sb-widget--editing': showCustomizer }">
-          <!-- Remove button in edit mode -->
-          <button v-if="showCustomizer" class="sb-widget-remove" title="Retirer" @click="toggleWidget(w.id)">
-            <X :size="14" />
-          </button>
-          <component
-            :is="widgetComponents[w.id]"
-            v-bind="widgetProps[w.id]"
-            v-on="widgetEvents[w.id] ?? {}"
-          />
-        </div>
-      </template>
-
-      <!-- Add widget button (edit mode) -->
-      <button v-if="showCustomizer" class="sb-add-widget" @click="showWidgetDrawer = !showWidgetDrawer">
-        <Plus :size="24" />
-        <span>Ajouter un widget</span>
-      </button>
-    </div>
+    <!-- Add widget button (edit mode) -->
+    <button v-if="showCustomizer" class="sb-add-widget" @click="showWidgetDrawer = !showWidgetDrawer">
+      <Plus :size="24" />
+      <span>Ajouter un widget</span>
+    </button>
 
     <!-- Widget drawer (edit mode) -->
     <Transition name="sb-drawer">
@@ -273,6 +257,11 @@ const showFocusAlert = computed(() => overdueCount.value > 0)
 }
 .sb-widget--editing:hover {
   border-color: rgba(74,144,217,.3);
+}
+.sb-widget--ghost {
+  opacity: 0.3;
+  border: 2px dashed var(--accent) !important;
+  border-radius: 14px;
 }
 
 @keyframes sb-fade {

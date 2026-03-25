@@ -94,6 +94,9 @@ export const useMessagesStore = defineStore('messages', () => {
     initReactions(message.id, message.reactions)
     firstUnreadId.value = null
     markLatestAsRead(message.id)
+    // Invalider le cache pour cette conversation
+    const ck = _cacheKey()
+    if (ck) _messageCache.set(ck, { messages: messages.value, hasMore: hasMore.value, timestamp: Date.now() })
   }
 
   function setPinnedState(messageId: number, isPinned: boolean) {
@@ -118,11 +121,40 @@ export const useMessagesStore = defineStore('messages', () => {
       .slice(0, 5)
   }
 
+  // ── Cache conversations (évite le refetch au switch) ─────────────────────
+  const _messageCache = new Map<string, { messages: Message[]; hasMore: boolean; timestamp: number }>()
+  const CACHE_TTL = 60_000 // 1 minute
+
+  function _cacheKey(): string | null {
+    const { activeChannelId, activeDmStudentId, activeDmPeerId } = appStore
+    if (activeDmStudentId) return `dm:${activeDmStudentId}:${activeDmPeerId}`
+    if (activeChannelId) return `ch:${activeChannelId}`
+    return null
+  }
+
+  function invalidateCache(key?: string) {
+    if (key) _messageCache.delete(key)
+    else _messageCache.clear()
+  }
+
   // ── Fetch initial ──────────────────────────────────────────────────────────
   async function fetchMessages() {
-    loading.value    = true
-    hasMore.value    = false
+    hasMore.value       = false
     firstUnreadId.value = null
+
+    // Essayer le cache (sauf recherche)
+    if (!searchTerm.value) {
+      const ck = _cacheKey()
+      const cached = ck ? _messageCache.get(ck) : null
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        messages.value = cached.messages
+        hasMore.value  = cached.hasMore
+        loading.value  = false
+        return
+      }
+    }
+
+    loading.value = true
 
     try {
       const { activeChannelId, activeDmStudentId } = appStore
@@ -151,6 +183,12 @@ export const useMessagesStore = defineStore('messages', () => {
       }
 
       messages.value = fetched
+
+      // Mettre en cache (hors recherche)
+      if (!searchTerm.value) {
+        const ck = _cacheKey()
+        if (ck) _messageCache.set(ck, { messages: fetched, hasMore: hasMore.value, timestamp: Date.now() })
+      }
 
       if (!searchTerm.value && lastReadId > 0) {
         const first = fetched.find((m) => m.id > lastReadId)
