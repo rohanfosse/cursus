@@ -12,7 +12,7 @@ import { useOpenExternal }   from '@/composables/useOpenExternal'
 import type { AppDocument }  from '@/types'
 
 export type DocIconType = 'image' | 'pdf' | 'video' | 'link' | 'file' | 'spreadsheet'
-  | 'moodle' | 'github' | 'linkedin' | 'web' | 'package'
+  | 'moodle' | 'github' | 'linkedin' | 'web' | 'package' | 'grille'
 
 export const iconColors: Record<DocIconType, string> = {
   pdf:         '#E74C3C',
@@ -26,6 +26,7 @@ export const iconColors: Record<DocIconType, string> = {
   linkedin:    '#0a66c2',
   web:         '#22c55e',
   package:     '#8b5cf6',
+  grille:      '#ef4444',
 }
 
 export const iconLabels: Record<DocIconType, string> = {
@@ -40,6 +41,7 @@ export const iconLabels: Record<DocIconType, string> = {
   linkedin:    'LinkedIn',
   web:         'Site Web',
   package:     'Package',
+  grille:      'Grille',
 }
 
 export const TYPE_FILTERS: { id: DocIconType | null; label: string }[] = [
@@ -57,6 +59,7 @@ const CAT_TO_TYPE: Record<string, DocIconType> = {
   'LinkedIn': 'linkedin',
   'Site Web': 'web',
   'Package':  'package',
+  'Grille':   'grille',
 }
 
 export function docIconType(doc: AppDocument): DocIconType {

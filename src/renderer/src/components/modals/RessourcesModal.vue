@@ -2,7 +2,7 @@
   import { ref, computed, watch } from 'vue'
   import {
     ExternalLink, FileText, Trash2, Upload, Link2, Plus, X, CheckCircle2,
-    BookOpen, Github, Linkedin, Globe, Package, HelpCircle,
+    BookOpen, Github, Linkedin, Globe, Package, HelpCircle, ClipboardList,
   } from 'lucide-vue-next'
   import { useTravauxStore } from '@/stores/travaux'
   import { useAppStore }     from '@/stores/app'
@@ -26,8 +26,9 @@
     { id: 'github',   label: 'GitHub',    icon: Github,       color: '#24292e' },
     { id: 'linkedin', label: 'LinkedIn',  icon: Linkedin,     color: '#0a66c2' },
     { id: 'web',      label: 'Site Web',  icon: Globe,        color: '#22c55e' },
-    { id: 'package',  label: 'Package',   icon: Package,      color: '#8b5cf6' },
-    { id: 'autre',    label: 'Autre',     icon: HelpCircle,   color: '#8b8d91' },
+    { id: 'package',  label: 'Package',   icon: Package,        color: '#8b5cf6' },
+    { id: 'grille',   label: 'Grille',    icon: ClipboardList, color: '#ef4444' },
+    { id: 'autre',    label: 'Autre',     icon: HelpCircle,    color: '#8b8d91' },
   ]
 
   // ── Formulaire d'ajout ────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
   import {
     FileText, Image, Link2, Video, File, Plus, Trash2,
     ExternalLink, Download, Search, X, Upload, FolderOpen, Eye, CheckCircle2, Menu,
-    LayoutGrid, List, Grid3x3, Star, Copy, Pencil,
+    LayoutGrid, List, Grid3x3, Star, Copy, Pencil, ClipboardList,
     BookOpen, Github, Linkedin, Globe, Package, HelpCircle, BookMarked, FileSpreadsheet,
   } from 'lucide-vue-next'
   import type { Component } from 'vue'
@@ -15,6 +15,7 @@
     linkedin:    Linkedin,
     web:         Globe,
     package:     Package,
+    grille:      ClipboardList,
     link:        Link2,
     image:       Image,
     pdf:         FileText,
@@ -95,8 +96,9 @@
     { id: 'github',   label: 'GitHub',    icon: Github,     color: '#24292e' },
     { id: 'linkedin', label: 'LinkedIn',  icon: Linkedin,   color: '#0a66c2' },
     { id: 'web',      label: 'Site Web',  icon: Globe,      color: '#22c55e' },
-    { id: 'package',  label: 'Package',   icon: Package,    color: '#8b5cf6' },
-    { id: 'autre',    label: 'Autre',     icon: HelpCircle, color: '#8b8d91' },
+    { id: 'package',  label: 'Package',   icon: Package,       color: '#8b5cf6' },
+    { id: 'grille',   label: 'Grille',    icon: ClipboardList, color: '#ef4444' },
+    { id: 'autre',    label: 'Autre',     icon: HelpCircle,    color: '#8b8d91' },
   ]
 
   const {

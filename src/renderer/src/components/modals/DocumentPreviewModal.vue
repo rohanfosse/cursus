@@ -205,7 +205,6 @@ function openWith() {
         :src="blobUrl!"
         class="preview-pdf"
         title="Aperçu PDF"
-        sandbox="allow-scripts allow-same-origin"
       />
 
       <!-- Vidéo -->
