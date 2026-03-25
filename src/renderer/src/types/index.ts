@@ -311,6 +311,21 @@ export interface CalendarEvent {
 
 // ─── Payloads IPC ────────────────────────────────────────────────────────────
 
+export interface SignatureRequest {
+  id: number
+  message_id: number
+  dm_student_id: number
+  file_url: string
+  file_name: string
+  status: 'pending' | 'signed' | 'rejected'
+  rejection_reason: string | null
+  signed_file_url: string | null
+  signer_name: string | null
+  signed_at: string | null
+  created_at: string
+  student_name?: string
+}
+
 export interface SendMessagePayload {
   channelId?: number | null
   dmStudentId?: number | null

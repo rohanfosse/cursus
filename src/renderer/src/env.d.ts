@@ -256,6 +256,14 @@ declare global {
       updateTeacherNote(id: number, payload: object): Promise<IpcResponse<unknown>>
       deleteTeacherNote(id: number): Promise<IpcResponse<null>>
 
+      // Signatures
+      createSignatureRequest(data: { message_id: number; dm_student_id: number; file_url: string; file_name: string }): Promise<IpcResponse<{ id: number }>>
+      getSignatureRequests(status?: string): Promise<IpcResponse<unknown[]>>
+      getPendingSignatureCount(): Promise<IpcResponse<{ count: number }>>
+      getSignatureByMessage(messageId: number): Promise<IpcResponse<unknown>>
+      signDocument(id: number, signatureImage: string): Promise<IpcResponse<{ signed_file_url: string }>>
+      rejectSignature(id: number, reason: string): Promise<IpcResponse<unknown>>
+
       // Engagement
       getEngagementScores(promoId: number): Promise<IpcResponse<unknown[]>>
       emitRexJoin(promoId: number): void

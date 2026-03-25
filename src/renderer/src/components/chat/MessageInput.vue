@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Send, Paperclip, Loader2, X as XIcon, Reply, Bold, Italic, Code, SquareCode, Strikethrough, Quote, List, ListOrdered, Smile, Eye, EyeOff } from 'lucide-vue-next'
+import { Send, Paperclip, Loader2, X as XIcon, Reply, Bold, Italic, Code, SquareCode, Strikethrough, Quote, List, ListOrdered, Smile, Eye, EyeOff, Pen } from 'lucide-vue-next'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
 import { usePrefs }         from '@/composables/usePrefs'
@@ -27,6 +27,14 @@ const { getPref }   = usePrefs()
 const inputEl = ref<HTMLTextAreaElement | null>(null)
 const content = ref('')
 const showEmojiPicker = ref(false)
+const requestSignature = ref(false)
+
+// Detecter si le contenu contient un fichier attache (pour afficher le toggle signature)
+const hasFileAttachment = computed(() => content.value.includes('📎'))
+const isDm = computed(() => !!appStore.activeDmStudentId)
+const showSignatureToggle = computed(() => isDm.value && hasFileAttachment.value && !appStore.isTeacher)
+
+defineExpose({ requestSignature })
 
 // ── Auto-resize textarea ──────────────────────────────────────────────────
 function autoResize() {
@@ -62,7 +70,27 @@ const {
   sending, everyoneWarning, isOfflineOrDisconnected,
   charCount, showCharCount, charCountOver,
   send, cancelEveryone, emitTyping,
-} = useMsgSend(content, inputEl, clearDraft, closeMention)
+} = useMsgSend(content, inputEl, clearDraft, closeMention, async (sentContent: string) => {
+  // Creer une signature request si le toggle est actif
+  if (requestSignature.value && appStore.activeDmStudentId) {
+    const fileMatch = sentContent.match(/\[📎\s*([^\]]+)\]\(([^)#]+)/)
+    if (fileMatch) {
+      const fileName = fileMatch[1].trim()
+      const fileUrl = fileMatch[2]
+      // On a besoin du message_id — on prend le dernier message envoye
+      const lastMsg = messagesStore.messages[messagesStore.messages.length - 1]
+      if (lastMsg) {
+        await window.api.createSignatureRequest({
+          message_id: lastMsg.id,
+          dm_student_id: appStore.activeDmStudentId,
+          file_url: fileUrl,
+          file_name: fileName,
+        })
+      }
+    }
+    requestSignature.value = false
+  }
+})
 
 const { fmtWrap, fmtLinePrefix, fmtInsertBlock } =
   useMsgFormatting(content, inputEl, autoResize)
@@ -428,6 +456,16 @@ function onKeydown(e: KeyboardEvent) {
               <Paperclip v-else :size="14" />
             </button>
 
+            <button
+              v-if="showSignatureToggle"
+              class="mi-icon-btn mi-sig-toggle"
+              :class="{ active: requestSignature }"
+              title="Demander une signature"
+              @click="requestSignature = !requestSignature"
+            >
+              <Pen :size="14" />
+            </button>
+
             <span v-if="showCharCount" class="mi-char-count" :class="{ over: charCountOver }">
               {{ charCount }}/{{ messagesStore.MAX_MESSAGE_LENGTH }}
             </span>
@@ -776,6 +814,10 @@ function onKeydown(e: KeyboardEvent) {
   color: var(--text-secondary);
 }
 .mi-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+.mi-icon-btn.active { color: var(--accent); background: rgba(59,130,246,.1); }
+
+/* Signature toggle */
+.mi-sig-toggle.active { color: var(--color-success, #059669); background: rgba(5,150,105,.1); }
 
 /* Bouton Envoyer */
 .mi-char-count {

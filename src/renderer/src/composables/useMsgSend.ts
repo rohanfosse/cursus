@@ -15,6 +15,7 @@ export function useMsgSend(
   inputEl: Ref<HTMLTextAreaElement | null>,
   clearDraft: () => void,
   closeMention: () => void,
+  onAfterSend?: (sentContent: string) => void,
 ) {
   const appStore      = useAppStore()
   const messagesStore = useMessagesStore()
@@ -49,11 +50,13 @@ export function useMsgSend(
     closeMention()
     sending.value = true
     try {
-      const ok = await messagesStore.sendMessage(content.value)
+      const msgContent = content.value
+      const ok = await messagesStore.sendMessage(msgContent)
       if (ok) {
         clearDraft()
         content.value = ''
         if (inputEl.value) inputEl.value.style.height = 'auto'
+        onAfterSend?.(msgContent)
       } else {
         showToast('Message non envoyé - réessayez.', 'error')
       }

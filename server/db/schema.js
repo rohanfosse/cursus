@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 36;
+const CURRENT_VERSION = 37;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -749,6 +749,28 @@ function runMigrations(db) {
       db.exec('CREATE INDEX IF NOT EXISTS idx_messages_dm_author ON messages(dm_student_id, author_name, created_at)');
       db.exec('CREATE INDEX IF NOT EXISTS idx_students_name ON students(name)');
       db.exec('CREATE INDEX IF NOT EXISTS idx_teachers_name ON teachers(name)');
+    },
+    // v37 : signature requests
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS signature_requests (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          message_id INTEGER NOT NULL,
+          dm_student_id INTEGER NOT NULL,
+          file_url TEXT NOT NULL,
+          file_name TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          rejection_reason TEXT,
+          signed_file_url TEXT,
+          signer_name TEXT,
+          signed_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (dm_student_id) REFERENCES students(id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_sig_req_student ON signature_requests(dm_student_id);
+        CREATE INDEX IF NOT EXISTS idx_sig_req_status ON signature_requests(status);
+        CREATE INDEX IF NOT EXISTS idx_sig_req_message ON signature_requests(message_id);
+      `);
     },
   ];
 

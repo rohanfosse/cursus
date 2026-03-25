@@ -111,6 +111,7 @@ app.use('/api/rex',         require('./routes/rex'))
 app.use('/api/kanban',          require('./routes/kanban'))
 app.use('/api/teacher-notes',   require('./routes/teacher-notes'))
 app.use('/api/engagement',      require('./routes/engagement'))
+app.use('/api/signatures',      require('./routes/signatures'))
 
 // ── Auto-fermeture des sessions REX async expirées (toutes les 60s) ───────────
 setInterval(() => {

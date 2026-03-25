@@ -482,6 +482,18 @@ contextBridge.exposeInMainWorld('api', {
   // ── Engagement analytics ─────────────────────────────────────────────────
   getEngagementScores: (promoId: number) => get(`/api/engagement/${promoId}`),
 
+  // ── Signatures ──────────────────────────────────────────────────────────
+  createSignatureRequest: (data: { message_id: number; dm_student_id: number; file_url: string; file_name: string }) =>
+    post('/api/signatures', data),
+  getSignatureRequests: (status?: string) =>
+    get(status ? `/api/signatures?status=${status}` : '/api/signatures'),
+  getPendingSignatureCount: () => get('/api/signatures/pending-count'),
+  getSignatureByMessage: (messageId: number) => get(`/api/signatures/by-message/${messageId}`),
+  signDocument: (id: number, signatureImage: string) =>
+    post(`/api/signatures/${id}/sign`, { signature_image: signatureImage }),
+  rejectSignature: (id: number, reason: string) =>
+    post(`/api/signatures/${id}/reject`, { reason }),
+
   emitRexJoin:  (promoId: number) => { socket?.emit('rex:join', { promoId }) },
   emitRexLeave: (promoId: number) => { socket?.emit('rex:leave', { promoId }) },
 
