@@ -161,6 +161,9 @@
             <div class="demo-tab" data-tab="frise" onclick="switchTab('frise')">
               <i data-lucide="calendar-range"></i> Frise
             </div>
+            <div class="demo-tab" data-tab="feedback" onclick="switchTab('feedback')">
+              <i data-lucide="message-circle"></i> Feedback
+            </div>
           </div>
 
           <div class="demo-body">
@@ -195,53 +198,50 @@
 
 
 <!-- Dashboard -->
-            <div class="demo-main dashboard-panel" id="panel-dashboard">
+            <div class="demo-main dashboard-panel" id="panel-dashboard" style="display:none">
               <div class="demo-dash-grid">
-                <div class="demo-dash-widget" data-delay="0" style="border-left:3px solid var(--accent)">
+                <div class="demo-dash-widget" data-delay="0" style="border-left:3px solid var(--accent)" onclick="dashReminder(this)">
                   <div class="ddw-title">Prochain devoir</div>
                   <div class="ddw-value">Projet Web E4</div>
                   <div class="ddw-sub"><span class="ddw-badge ddw-badge--urgent">Dans 3j</span> Équipe B</div>
+                  <div class="ddw-reminder" style="display:none">Rappel activé ✓</div>
                 </div>
                 <div class="demo-dash-widget" data-delay="80" style="border-left:3px solid var(--green)">
                   <div class="ddw-title">Dernière note</div>
                   <div class="ddw-value">13.5<span style="font-size:12px;color:var(--text-3)">/20</span></div>
                   <div class="ddw-sub">TP Algo</div>
+                  <div class="ddw-sparkline">
+                    <div class="ddw-spark" style="height:60%"></div>
+                    <div class="ddw-spark" style="height:45%"></div>
+                    <div class="ddw-spark" style="height:80%"></div>
+                    <div class="ddw-spark ddw-spark--current" style="height:67%"></div>
+                  </div>
                 </div>
                 <div class="demo-dash-widget" data-delay="160" style="border-left:3px solid var(--orange)">
                   <div class="ddw-title">Pomodoro</div>
-                  <div class="ddw-value" style="font-family:'SF Mono','Fira Code',monospace">25:00</div>
+                  <div class="ddw-value" id="demo-pomodoro" style="font-family:'SF Mono','Fira Code',monospace">25:00</div>
                   <div class="ddw-sub">Session de travail</div>
                 </div>
                 <div class="demo-dash-widget" data-delay="240" style="border-left:3px solid var(--purple)">
                   <div class="ddw-title">Progression</div>
-                  <div class="ddw-progress"><div class="ddw-progress-fill" style="width:72%"></div></div>
+                  <div class="ddw-progress"><div class="ddw-progress-fill" id="demo-progress-fill" style="width:0"></div></div>
                   <div class="ddw-sub">72% du semestre</div>
                 </div>
               </div>
             </div>
 
             <!-- Quiz -->
-            <div class="demo-main quiz-panel" id="panel-quiz">
+            <div class="demo-main quiz-panel" id="panel-quiz" style="display:none">
               <div class="demo-quiz">
-                <div class="quiz-question">Quel protocole est utilisé pour le web sécurisé ?</div>
-                <div class="quiz-options">
-                  <div class="quiz-option">HTTP</div>
-                  <div class="quiz-option quiz-option--correct">HTTPS</div>
-                  <div class="quiz-option">FTP</div>
-                  <div class="quiz-option">SSH</div>
-                </div>
-                <div class="quiz-results">
-                  <div class="quiz-bar"><span class="quiz-bar-label">HTTP</span><div class="quiz-bar-fill" style="--pct:15%">15%</div></div>
-                  <div class="quiz-bar"><span class="quiz-bar-label">HTTPS</span><div class="quiz-bar-fill quiz-bar--correct" style="--pct:72%">72%</div></div>
-                  <div class="quiz-bar"><span class="quiz-bar-label">FTP</span><div class="quiz-bar-fill" style="--pct:8%">8%</div></div>
-                  <div class="quiz-bar"><span class="quiz-bar-label">SSH</span><div class="quiz-bar-fill" style="--pct:5%">5%</div></div>
-                </div>
-                <div class="quiz-footer">24 réponses · Résultats en direct</div>
+                <div class="quiz-question" id="quiz-question"></div>
+                <div class="quiz-options" id="quiz-options"></div>
+                <div class="quiz-results" id="quiz-results"></div>
+                <div class="quiz-footer">Cliquez sur une réponse</div>
               </div>
             </div>
 
             <!-- Frise -->
-            <div class="demo-main frise-panel" id="panel-frise">
+            <div class="demo-main frise-panel" id="panel-frise" style="display:none">
               <div class="frise-header">
                 <span class="frise-title">Frise · Promo 2026</span>
                 <div class="frise-zoom">
@@ -254,23 +254,51 @@
                 <span>Fév</span><span class="frise-month-active">Mars</span><span>Avr</span><span>Mai</span><span>Juin</span>
               </div>
               <div class="frise-track">
-                <div class="frise-bar frise-bar--green" data-delay="0" style="left:2%;width:18%">
-                  <span class="frise-bar-label">TP Algo</span>
+                <div class="frise-line"></div>
+                <div class="frise-today" style="left:32%"></div>
+                <div class="frise-dot" data-delay="0" style="left:8%" data-info="TP Algo · 8 fév · Rendu ✓">
+                  <div class="fd-circle fd-done" style="background:#2ECC71"></div>
+                  <div class="fd-name">TP Algo</div>
                 </div>
-                <div class="frise-bar frise-bar--blue" data-delay="100" style="left:15%;width:30%">
-                  <span class="frise-bar-label">Projet Web E4</span>
+                <div class="frise-dot" data-delay="150" style="left:30%" data-info="Projet Web E4 · 25 mars · Dans 3j !">
+                  <div class="fd-circle fd-done" style="background:#4A90D9"></div>
+                  <div class="fd-name">Projet Web</div>
                 </div>
-                <div class="frise-bar frise-bar--orange" data-delay="200" style="left:38%;width:14%">
-                  <span class="frise-bar-label">Rapport stage</span>
+                <div class="frise-dot" data-delay="300" style="left:50%" data-info="Rapport stage · 15 avr · 21 jours">
+                  <div class="fd-circle fd-future" style="border-color:#F39C12"></div>
+                  <div class="fd-name">Rapport</div>
                 </div>
-                <div class="frise-bar frise-bar--purple" data-delay="300" style="left:55%;width:22%">
-                  <span class="frise-bar-label">Soutenance E5</span>
+                <div class="frise-dot" data-delay="450" style="left:68%" data-info="Soutenance E5 · 12 mai · Oral 20min">
+                  <div class="fd-circle fd-future fd-diamond" style="border-color:#9B87F5"></div>
+                  <div class="fd-name">Soutenance</div>
                 </div>
-                <div class="frise-bar frise-bar--red" data-delay="400" style="left:72%;width:18%">
-                  <span class="frise-bar-label">REX final</span>
+                <div class="frise-dot" data-delay="600" style="left:86%" data-info="REX final · 5 juin">
+                  <div class="fd-circle fd-future" style="border-color:#E74C3C"></div>
+                  <div class="fd-name">REX final</div>
                 </div>
-                <div class="frise-today" style="left:28%"></div>
+                <div class="frise-tooltip" id="frise-tooltip"></div>
               </div>
+            </div>
+
+            <!-- Feedback -->
+            <div class="demo-main feedback-panel" id="panel-feedback" style="display:none">
+              <div class="fb-header">
+                <span class="fb-question">Comment s'est passé le cours ?</span>
+                <span class="fb-live"><span class="fb-live-dot"></span>18 réponses</span>
+              </div>
+              <div class="fb-cloud" id="fb-cloud">
+                <span class="fb-word" data-delay="0" style="font-size:22px;color:var(--accent)">Intéressant</span>
+                <span class="fb-word" data-delay="120" style="font-size:15px;color:var(--green)">Clair</span>
+                <span class="fb-word" data-delay="240" style="font-size:18px;color:var(--purple)">Pratique</span>
+                <span class="fb-word" data-delay="360" style="font-size:12px;color:var(--text-3)">Rapide</span>
+                <span class="fb-word" data-delay="480" style="font-size:20px;color:var(--orange)">Utile</span>
+                <span class="fb-word" data-delay="600" style="font-size:13px;color:var(--text-2)">Dense</span>
+                <span class="fb-word" data-delay="720" style="font-size:16px;color:var(--green)">Concret</span>
+                <span class="fb-word" data-delay="840" style="font-size:11px;color:var(--text-3)">Complexe</span>
+                <span class="fb-word" data-delay="960" style="font-size:14px;color:var(--accent)">Motivant</span>
+                <span class="fb-word" data-delay="1080" style="font-size:17px;color:var(--purple)">Enrichissant</span>
+              </div>
+              <div class="fb-footer">Nuage de mots en temps réel</div>
             </div>
 
           </div>

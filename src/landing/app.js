@@ -68,8 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ══════════════════════════════════════════════════════════════════════
   // DEMO INTERACTIVE
   // ══════════════════════════════════════════════════════════════════════
-  const TABS         = ['chat', 'dashboard', 'quiz', 'frise']
-  const TAB_DURATION = 10000
+  const TABS         = ['chat', 'dashboard', 'quiz', 'frise', 'feedback']
+  const TAB_DURATION = 8000
   let currentTab     = 0
   let cycleTimer     = null
 
@@ -251,17 +251,61 @@ document.addEventListener('DOMContentLoaded', () => {
       w.classList.remove('visible')
       setTimeout(() => w.classList.add('visible'), parseInt(w.dataset.delay || 0) + 50)
     })
+    // Animate progress bar
+    const pf = document.getElementById('demo-progress-fill')
+    if (pf) { pf.style.width = '0'; setTimeout(() => pf.style.width = '72%', 400) }
+    // Pomodoro countdown
+    const pomo = document.getElementById('demo-pomodoro')
+    if (pomo) {
+      let sec = 0; pomo.textContent = '25:00'
+      const iv = setInterval(() => {
+        sec++
+        const s = 60 - (sec % 60)
+        pomo.textContent = '24:' + String(s === 60 ? '00' : String(s).padStart(2, '0'))
+        if (sec >= 5) { clearInterval(iv); pomo.textContent = '24:55' }
+      }, 1000)
+    }
+    // Reset reminder
+    document.querySelectorAll('.ddw-reminder').forEach(r => r.style.display = 'none')
+  }
+
+  window.dashReminder = function(widget) {
+    const rem = widget.querySelector('.ddw-reminder')
+    if (rem) { rem.style.display = ''; setTimeout(() => rem.style.display = 'none', 2000) }
   }
 
   // ── Quiz ─────────────────────────────────────────────────────────────
+  const QUIZ_POOL = [
+    { q: 'Combien de planètes compte le système solaire ?', opts: ['7', '8', '9', '10'], correct: 1, pcts: [5, 74, 16, 5] },
+    { q: 'Quelle est la capitale de l\'Australie ?', opts: ['Sydney', 'Canberra', 'Melbourne', 'Brisbane'], correct: 1, pcts: [42, 38, 15, 5] },
+    { q: 'Combien font 7 × 8 ?', opts: ['54', '56', '58', '48'], correct: 1, pcts: [8, 78, 10, 4] },
+    { q: 'Quel gaz les plantes absorbent-elles ?', opts: ['Oxygène', 'Azote', 'CO₂', 'Hydrogène'], correct: 2, pcts: [12, 5, 76, 7] },
+    { q: 'En quelle année a eu lieu la Révolution française ?', opts: ['1776', '1789', '1804', '1815'], correct: 1, pcts: [8, 72, 14, 6] },
+    { q: 'Quel est le plus grand océan du monde ?', opts: ['Atlantique', 'Indien', 'Arctique', 'Pacifique'], correct: 3, pcts: [18, 6, 3, 73] },
+  ]
   let quizAnswered = false
+
   function renderQuiz() {
     quizAnswered = false
-    // Reset bars
-    document.querySelectorAll('.quiz-bar').forEach(bar => bar.classList.remove('animated'))
-    // Reset options
-    document.querySelectorAll('.quiz-option').forEach((opt, i) => {
-      opt.classList.remove('quiz-option--selected', 'quiz-option--disabled')
+    const quiz = QUIZ_POOL[Math.floor(Math.random() * QUIZ_POOL.length)]
+
+    document.getElementById('quiz-question').textContent = quiz.q
+
+    const optsEl = document.getElementById('quiz-options')
+    optsEl.innerHTML = quiz.opts.map((opt, i) =>
+      '<div class="quiz-option' + (i === quiz.correct ? ' quiz-option--correct' : '') + '">' + opt + '</div>'
+    ).join('')
+
+    const resultsEl = document.getElementById('quiz-results')
+    resultsEl.innerHTML = quiz.opts.map((opt, i) =>
+      '<div class="quiz-bar"><span class="quiz-bar-label">' + opt + '</span>' +
+      '<div class="quiz-bar-fill' + (i === quiz.correct ? ' quiz-bar--correct' : '') + '" style="--pct:' + quiz.pcts[i] + '%">' + quiz.pcts[i] + '%</div></div>'
+    ).join('')
+
+    const footer = document.querySelector('.quiz-footer')
+    if (footer) footer.textContent = 'Cliquez sur une réponse'
+
+    optsEl.querySelectorAll('.quiz-option').forEach((opt, i) => {
       opt.style.opacity = '0'
       opt.style.transform = 'translateX(-8px)'
       opt.style.cursor = 'pointer'
@@ -272,10 +316,10 @@ document.addEventListener('DOMContentLoaded', () => {
         opt.style.transform = 'translateX(0)'
       }, 200 + i * 120)
     })
-    // Auto-answer after 5s if visitor doesn't click (for cycling)
+
     setTimeout(() => {
       if (!quizAnswered) {
-        const correct = document.querySelector('.quiz-option--correct')
+        const correct = optsEl.querySelector('.quiz-option--correct')
         if (correct) answerQuiz(correct)
       }
     }, 5000)
@@ -284,25 +328,76 @@ document.addEventListener('DOMContentLoaded', () => {
   function answerQuiz(optEl) {
     if (quizAnswered) return
     quizAnswered = true
-    optEl.classList.add('quiz-option--selected')
     document.querySelectorAll('.quiz-option').forEach(o => {
       o.classList.add('quiz-option--disabled')
       o.style.cursor = 'default'
       o.onclick = null
     })
-    // Show results after selection
+    const isCorrect = optEl.classList.contains('quiz-option--correct')
+    if (isCorrect) {
+      optEl.classList.add('quiz-option--selected')
+    } else {
+      optEl.classList.add('quiz-option--wrong')
+      const correct = document.querySelector('.quiz-option--correct')
+      if (correct) correct.classList.add('quiz-option--correct-reveal')
+    }
     setTimeout(() => {
       document.querySelectorAll('.quiz-bar').forEach((bar, i) => {
         setTimeout(() => bar.classList.add('animated'), i * 200)
       })
-    }, 300)
+      const footer = document.querySelector('.quiz-footer')
+      if (footer) {
+        let c = 0
+        const iv = setInterval(() => {
+          c++; footer.textContent = c + ' réponses · Résultats en direct'
+          if (c >= 24) clearInterval(iv)
+        }, 40)
+      }
+    }, 400)
   }
 
   // ── Frise ───────────────────────────────────────────────────────────
   function renderFrise() {
-    document.querySelectorAll('.frise-bar').forEach(bar => {
-      bar.classList.remove('visible')
-      setTimeout(() => bar.classList.add('visible'), parseInt(bar.dataset.delay || 0) + 50)
+    const dots = document.querySelectorAll('.frise-dot')
+    const tooltip = document.getElementById('frise-tooltip')
+    dots.forEach(d => d.classList.remove('visible'))
+    if (tooltip) { tooltip.classList.remove('visible'); tooltip.textContent = '' }
+
+    // Stagger dots
+    dots.forEach(dot => {
+      setTimeout(() => dot.classList.add('visible'), parseInt(dot.dataset.delay || 0) + 50)
+    })
+
+    // Auto-tour tooltip
+    if (tooltip) {
+      let tourIdx = 0
+      const tour = () => {
+        if (tourIdx >= dots.length) { tooltip.classList.remove('visible'); return }
+        const dot = dots[tourIdx]
+        const circle = dot.querySelector('.fd-circle')
+        tooltip.textContent = dot.dataset.info || ''
+        tooltip.style.left = dot.style.left
+        tooltip.style.top = '70%'
+        tooltip.classList.add('visible')
+        const isDiamond = circle.classList.contains('fd-diamond')
+        circle.style.transform = isDiamond ? 'rotate(45deg) scale(1.5)' : 'scale(1.5)'
+        circle.style.boxShadow = '0 0 0 5px var(--bg-hover)'
+        setTimeout(() => {
+          circle.style.transform = isDiamond ? 'rotate(45deg) scale(1)' : 'scale(1)'
+          circle.style.boxShadow = ''
+        }, 800)
+        tourIdx++
+        setTimeout(tour, 1500)
+      }
+      setTimeout(tour, 800)
+    }
+  }
+
+  // ── Feedback ────────────────────────────────────────────────────────
+  function renderFeedback() {
+    document.querySelectorAll('.fb-word').forEach(word => {
+      word.classList.remove('visible')
+      setTimeout(() => word.classList.add('visible'), parseInt(word.dataset.delay || 0) + 100)
     })
   }
 
@@ -334,8 +429,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sidebar) sidebar.style.display = name === 'chat' ? '' : 'none'
 
     // Crossfade: fade out current, then fade in new
-    const panels = ['panel-chat', 'panel-dashboard', 'panel-quiz', 'panel-frise']
-    const panelMap = { chat: 'panel-chat', dashboard: 'panel-dashboard', quiz: 'panel-quiz', frise: 'panel-frise' }
+    const panels = ['panel-chat', 'panel-dashboard', 'panel-quiz', 'panel-frise', 'panel-feedback']
+    const panelMap = { chat: 'panel-chat', dashboard: 'panel-dashboard', quiz: 'panel-quiz', frise: 'panel-frise', feedback: 'panel-feedback' }
     const targetId = panelMap[name]
 
     panels.forEach(id => {
@@ -365,6 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (name === 'dashboard') setTimeout(renderDashboard, 100)
     if (name === 'quiz')      setTimeout(renderQuiz, 200)
     if (name === 'frise')     setTimeout(renderFrise, 100)
+    if (name === 'feedback')  setTimeout(renderFeedback, 100)
     startProgress()
   }
 
