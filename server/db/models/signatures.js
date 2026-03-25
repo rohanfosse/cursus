@@ -17,7 +17,7 @@ function getSignatureRequests({ status, studentId } = {}) {
   const params = [];
   if (status) { sql += ' AND sr.status = ?'; params.push(status); }
   if (studentId) { sql += ' AND sr.dm_student_id = ?'; params.push(studentId); }
-  sql += ' ORDER BY sr.created_at DESC LIMIT 100';
+  sql += ' ORDER BY sr.created_at DESC, sr.id DESC LIMIT 100';
   return getDb().prepare(sql).all(...params);
 }
 
