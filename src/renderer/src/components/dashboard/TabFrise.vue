@@ -72,11 +72,14 @@ const projectColorMap = computed(() => {
 type EnrichedMs = FriseMilestone & { projectKey: string; projectLabel: string; color: string }
 
 const flatMilestones = computed((): EnrichedMs[] => {
+  const now = Date.now()
   const all: EnrichedMs[] = []
   for (const promo of props.frise) {
     for (const proj of promo.projects) {
       const color = projectColorMap.value.get(proj.key) ?? '#4A90D9'
       for (const ms of proj.milestones) {
+        // Exclure les devoirs dans le passé
+        if (new Date(ms.deadline).getTime() < now) continue
         all.push({ ...ms, projectKey: proj.key, projectLabel: proj.label, color })
       }
     }

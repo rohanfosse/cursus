@@ -188,11 +188,7 @@ function setTab(tab: DashTabType) {
       @update:active-promo-id="id => emit('update:activePromoId', id)"
     />
 
-    <TeacherActionCenter
-      :action-items="actionItems"
-      :class-health="classHealth"
-      :submission-trend="submissionTrend"
-    />
+    <!-- Action center retiré — infos disponibles dans le bento Accueil -->
 
     <!-- Widgets et rappels retires du dashboard prof (infos deja dans le bento) -->
 
@@ -231,7 +227,7 @@ function setTab(tab: DashTabType) {
         />
       </button>
       <button class="db-tab" :class="{ active: dashTab === 'reglages' }" @click="setTab('reglages')">
-        <Settings :size="13" /> Administration
+        <Settings :size="13" /> Admin
       </button>
       <!-- Bouton personnalisation bento (onglet Accueil uniquement) -->
       <button
