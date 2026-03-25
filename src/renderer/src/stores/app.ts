@@ -399,6 +399,9 @@ export const useAppStore = defineStore('app', () => {
 
       if (!channelId) return
 
+      // ── Isolation promo : un étudiant ignore les messages d'une autre promo ──
+      if (currentUser.value?.type === 'student' && promoId && currentUser.value.promo_id && promoId !== currentUser.value.promo_id) return
+
       // ── Message de canal ──────────────────────────────────────────────────
       if (channelId === activeChannelId.value) {
         _dmRefreshCallbacks.forEach(cb => cb(message))

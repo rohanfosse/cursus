@@ -120,12 +120,20 @@ router.post('/', validate(sendMessageSchema), (req, res) => {
         if (peerId !== payload.dmStudentId) {
           io.to(`user:${peerId}`).emit('msg:new', push)
         }
-      } else if (payload.promoId) {
-        // Canal → envoyer à la promo
-        io.to(`promo:${payload.promoId}`).emit('msg:new', push)
-      } else {
-        // Fallback
-        io.to('all').emit('msg:new', push)
+      } else if (payload.channelId) {
+        // Canal → envoyer à la promo du canal uniquement
+        let targetPromo = payload.promoId
+        if (!targetPromo) {
+          try {
+            const ch = queries.getDb?.()?.prepare('SELECT promo_id FROM channels WHERE id = ?').get(payload.channelId)
+              ?? require('../db/connection').getDb().prepare('SELECT promo_id FROM channels WHERE id = ?').get(payload.channelId)
+            targetPromo = ch?.promo_id
+          } catch { /* fallback ci-dessous */ }
+        }
+        if (targetPromo) {
+          io.to(`promo:${targetPromo}`).emit('msg:new', push)
+        }
+        // Pas de fallback 'all' — un message sans promo n'est jamais broadcasté
       }
     }
 
