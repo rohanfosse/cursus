@@ -120,10 +120,16 @@ const positionedGroups = computed(() => {
   }))
   // Sort by position
   groups.sort((a, b) => a.pct - b.pct)
-  // Push close groups apart vertically
+  // Push close groups apart vertically — distribute across multiple levels
+  const offsets = [-50, -30, -10, 10, 30, 50]
+  let level = 0
   for (let i = 1; i < groups.length; i++) {
-    if (Math.abs(groups[i].pct - groups[i - 1].pct) < 4) {
-      groups[i].offsetY = groups[i - 1].offsetY === 0 ? 20 : -20
+    if (Math.abs(groups[i].pct - groups[i - 1].pct) < 5) {
+      level = (level + 1) % offsets.length
+      groups[i].offsetY = offsets[level]
+    } else {
+      level = 0
+      groups[i].offsetY = 0
     }
   }
   return groups
@@ -225,29 +231,22 @@ function dotClassForGroup(group: DayGroup) {
           :style="{ left: milestoneLeft(group.deadline), transform: `translate(-50%, -50%) translateY(${group.offsetY}px)` }"
           @click.stop="group.items.length > 1 ? toggleGroup(group.dateKey) : emit('onMilestoneClick', group.items[0])"
         >
-          <!-- Label au-dessus (index pair) -->
-          <div v-if="gi % 2 === 0" class="tf-ms-labels">
-            <template v-if="group.items.length === 1">
-              <span class="tf-ms-label" :style="{ color: group.mainColor }">{{ truncateLabel(typeLabel(group.items[0].type)) }}</span>
-            </template>
-            <template v-else>
-              <span class="tf-ms-label tf-ms-label--count" :style="{ color: group.mainColor }">{{ group.items.length }} devoirs</span>
-            </template>
-          </div>
-
           <!-- Point -->
-          <div class="tf-dot" :class="dotClassForGroup(group)" :style="{ background: group.mainColor }">
+          <div
+            class="tf-dot"
+            :class="dotClassForGroup(group)"
+            :style="{ background: group.mainColor }"
+            :title="group.items.length === 1 ? group.items[0].title : `${group.items.length} devoirs`"
+          >
             <span v-if="group.items.length > 1" class="tf-dot-count">{{ group.items.length }}</span>
           </div>
 
-          <!-- Label en dessous (index impair) -->
-          <div v-if="gi % 2 !== 0" class="tf-ms-labels">
-            <template v-if="group.items.length === 1">
-              <span class="tf-ms-label" :style="{ color: group.mainColor }">{{ truncateLabel(typeLabel(group.items[0].type)) }}</span>
-            </template>
-            <template v-else>
-              <span class="tf-ms-label tf-ms-label--count" :style="{ color: group.mainColor }">{{ group.items.length }} devoirs</span>
-            </template>
+          <!-- Label hover-only -->
+          <div class="tf-ms-labels">
+            <span class="tf-ms-label" :style="{ color: group.mainColor }">
+              {{ group.items.length === 1 ? truncateLabel(group.items[0].title, 18) : `${group.items.length} devoirs` }}
+            </span>
+            <span class="tf-ms-date">{{ formatDate(group.deadline) }}</span>
           </div>
 
           <!-- Expanded dropdown (quand on clique sur un groupe multi) -->
@@ -346,7 +345,7 @@ function dotClassForGroup(group: DayGroup) {
 .tf-month-bg { position: absolute; top: 0; bottom: 0; }
 .tf-month-bg.even { background: var(--bg-active); }
 .tf-today {
-  position: absolute; top: 0; bottom: -120px; width: 2px;
+  position: absolute; top: 0; bottom: -180px; width: 2px;
   background: rgba(74,144,217,.4); z-index: 3; pointer-events: none;
 }
 .tf-today-label {
@@ -358,7 +357,7 @@ function dotClassForGroup(group: DayGroup) {
 
 /* Lane */
 .tf-lane {
-  position: relative; height: 100px;
+  position: relative; height: 160px;
   display: flex; align-items: center;
 }
 .tf-lane-line {
@@ -375,14 +374,24 @@ function dotClassForGroup(group: DayGroup) {
   transition: transform .15s ease;
 }
 .tf-milestone--expanded { z-index: 10; }
-.tf-ms-labels { display: flex; flex-direction: column; align-items: center; gap: 1px; pointer-events: none; }
-.tf-ms-label {
-  font-size: 9px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .3px; white-space: nowrap;
-  opacity: .8; transition: opacity .15s;
+.tf-ms-labels {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  pointer-events: none; position: absolute; top: calc(100% + 4px);
+  opacity: 0; transform: translateY(2px);
+  transition: opacity .2s, transform .2s;
+  background: var(--bg-modal); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  white-space: nowrap; z-index: 15;
 }
-.tf-ms-label--count { font-size: 10px; font-weight: 800; }
-.tf-milestone:hover .tf-ms-label { opacity: 1; }
+.tf-milestone:hover .tf-ms-labels { opacity: 1; transform: translateY(0); }
+.tf-ms-label {
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.tf-ms-date {
+  font-size: 9px; font-weight: 500; color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
 
 /* Dot */
 .tf-dot {
