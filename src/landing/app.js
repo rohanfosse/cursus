@@ -33,16 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ;['cl-version','footer-version','pill-version'].forEach(id => {
         const el = document.getElementById(id); if (el) el.textContent = v
       })
-      const pillLabel = document.getElementById('pill-label')
-      if (pillLabel) {
-        if (data.name) {
-          pillLabel.textContent = data.name
-        } else if (data.published_at) {
-          const d = new Date(data.published_at)
-          const rel = Math.floor((Date.now() - d) / 86400000)
-          pillLabel.textContent = rel === 0 ? 'Publi\u00e9e aujourd\'hui' : rel === 1 ? 'Publi\u00e9e hier' : 'Publi\u00e9e il y a ' + rel + ' jours'
-        }
-      }
       if (data.published_at) {
         const label = new Date(data.published_at).toLocaleDateString('fr-FR', { month:'long', year:'numeric' })
         const cl = document.getElementById('cl-date')
@@ -62,42 +52,31 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.fade-up').forEach(el => obs.observe(el))
 
   // ══════════════════════════════════════════════════════════════════════
-  // WHO TABS
+  // FEATURE FILTERS
   // ══════════════════════════════════════════════════════════════════════
-  window.switchWhoTab = function(tabName) {
-    document.querySelectorAll('.who-tab').forEach(t =>
-      t.classList.toggle('active', t.dataset.who === tabName)
+  window.filterFeats = function(filter) {
+    document.querySelectorAll('.feat-filter').forEach(f =>
+      f.classList.toggle('active', f.dataset.filter === filter)
     )
-    document.querySelectorAll('.who-panel').forEach(p => p.classList.remove('active'))
-    const target = document.getElementById('who-' + tabName)
-    if (target) {
-      target.classList.add('active')
-      if (window.lucide) lucide.createIcons()
-    }
-  }
-
-  window.selectFeature = function(cardEl) {
-    const panel = cardEl.closest('.who-panel')
-    panel.querySelectorAll('.who-feature-card').forEach(c => c.classList.remove('selected'))
-    cardEl.classList.add('selected')
-    const visual = panel.querySelector('.who-feature-visual')
-    visual.querySelectorAll('.who-visual-content').forEach(v => v.classList.remove('active'))
-    const target = visual.querySelector('[data-for="' + cardEl.dataset.feature + '"]')
-    if (target) target.classList.add('active')
+    document.querySelectorAll('.feat-card[data-audience]').forEach(card => {
+      const audience = card.dataset.audience
+      const show = filter === 'all' || audience === 'both' || audience === filter
+      card.classList.toggle('hidden', !show)
+    })
   }
 
   // ══════════════════════════════════════════════════════════════════════
   // DEMO INTERACTIVE
   // ══════════════════════════════════════════════════════════════════════
-  const TABS         = ['chat', 'devoirs', 'docs', 'quiz', 'kanban']
-  const TAB_DURATION = 12000
+  const TABS         = ['chat', 'dashboard', 'quiz', 'frise']
+  const TAB_DURATION = 10000
   let currentTab     = 0
   let cycleTimer     = null
 
   // ── Messages par canal ───────────────────────────────────────────────
   const CHANNELS = {
     'général': [
-      { av:'PM', color:'#3b82f6', name:'Pilote Martin', nameColor:'#3b82f6',
+      { av:'PM', color:'#3b82f6', name:'Prof. Martin', nameColor:'#3b82f6',
         text: 'Le rendu du <strong>Projet Web E4</strong> est pour vendredi soir. Consultez la grille dans <code>#projet-web</code>.',
         reactions: [{ emoji:'\uD83D\uDC4D', count:4, active:false }, { emoji:'\u2705', count:2, active:false }], delay:300 },
       { av:'JD', color:'#6366f1', name:'Jean Dupont', nameColor:'',
@@ -106,15 +85,15 @@ document.addEventListener('DOMContentLoaded', () => {
       { av:'EL', color:'#ec4899', name:'Emma Lefèvre', nameColor:'',
         text: 'On avait la même question - notre groupe commence le code demain.',
         reactions: [{ emoji:'\uD83D\uDE04', count:1, active:false }], delay:3000 },
-      { av:'PM', color:'#3b82f6', name:'Pilote Martin', nameColor:'#3b82f6',
+      { av:'PM', color:'#3b82f6', name:'Prof. Martin', nameColor:'#3b82f6',
         text: 'Maquettes <strong>optionnelles</strong>. Concentrez-vous sur l\'architecture et la qualité du code.',
         reactions: [{ emoji:'\uD83C\uDF89', count:6, active:false }, { emoji:'\uD83D\uDC4D', count:3, active:false }], delay:4600 },
     ],
     'annonces': [
-      { av:'PM', color:'#3b82f6', name:'Pilote Martin', nameColor:'#3b82f6',
+      { av:'PM', color:'#3b82f6', name:'Prof. Martin', nameColor:'#3b82f6',
         text: '\uD83D\uDCE2 <strong>Planning semaine 12 :</strong> pas de cours jeudi. Rattrapé le vendredi 14h\u201317h en salle B203.',
         reactions: [{ emoji:'\uD83D\uDC4D', count:8, active:false }], delay:300 },
-      { av:'PM', color:'#3b82f6', name:'Pilote Martin', nameColor:'#3b82f6',
+      { av:'PM', color:'#3b82f6', name:'Prof. Martin', nameColor:'#3b82f6',
         text: 'Les résultats du TP Algo sont disponibles dans l\'application. Consultez vos notes et les commentaires.',
         reactions: [{ emoji:'\uD83D\uDE05', count:5, active:false }, { emoji:'\u2705', count:2, active:false }], delay:1800 },
     ],
@@ -125,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { av:'JD', color:'#6366f1', name:'Jean Dupont', nameColor:'',
         text: 'PR ouverte pour la partie auth. Quelqu\'un peut relire avant ce soir ?',
         reactions: [], delay:1500 },
-      { av:'PM', color:'#3b82f6', name:'Pilote Martin', nameColor:'#3b82f6',
+      { av:'PM', color:'#3b82f6', name:'Prof. Martin', nameColor:'#3b82f6',
         text: 'Bon avancement ! Pensez à documenter vos endpoints dans le <code>README</code>.',
         reactions: [{ emoji:'\uD83D\uDC4D', count:2, active:false }], delay:2900 },
     ],
@@ -138,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reactions: [{ emoji:'\uD83D\uDE4F', count:2, active:false }], delay:1700 },
     ],
     'prof': [
-      { av:'PM', color:'#3b82f6', name:'Pilote Martin', nameColor:'#3b82f6',
+      { av:'PM', color:'#3b82f6', name:'Prof. Martin', nameColor:'#3b82f6',
         text: 'Bonjour ! Votre rendu est bien reçu. Je le corrige ce week-end.',
         reactions: [], delay:300 },
     ],
@@ -266,75 +245,64 @@ document.addEventListener('DOMContentLoaded', () => {
     renderChat()
   }
 
-  // ── Devoirs ──────────────────────────────────────────────────────────
-  function renderDevoirs() {
-    document.querySelectorAll('.devoir-row').forEach(row => {
-      row.classList.remove('visible')
-      setTimeout(() => row.classList.add('visible'), parseInt(row.dataset.delay || 0) + 50)
+  // ── Dashboard ────────────────────────────────────────────────────────
+  function renderDashboard() {
+    document.querySelectorAll('.demo-dash-widget').forEach(w => {
+      w.classList.remove('visible')
+      setTimeout(() => w.classList.add('visible'), parseInt(w.dataset.delay || 0) + 50)
     })
-    updateDevoirsCount()
-  }
-
-  function updateDevoirsCount() {
-    const total = document.querySelectorAll('.devoir-row').length
-    const done  = document.querySelectorAll('.devoir-check.done').length
-    const todo  = total - done
-    const count = document.getElementById('devoirs-count')
-    if (count) count.textContent = total + ' travaux \u00B7 ' + todo + ' à rendre'
-  }
-
-  window.toggleDevoir = function(checkEl) {
-    const row = checkEl.closest('.devoir-row')
-    const isDone = checkEl.classList.contains('done')
-    checkEl.classList.toggle('done', !isDone)
-    row.classList.toggle('strikethrough', !isDone)
-    updateDevoirsCount()
-  }
-
-  // ── Documents ────────────────────────────────────────────────────────
-  function renderDocs() {
-    document.querySelectorAll('.doc-row').forEach(row => {
-      row.classList.remove('visible')
-      setTimeout(() => row.classList.add('visible'), parseInt(row.dataset.delay || 0) + 50)
-    })
-    if (window.lucide) lucide.createIcons()
-  }
-
-  window.downloadDoc = function(btn) {
-    btn.classList.add('doc-dl-done')
-    const orig = btn.innerHTML
-    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
-    setTimeout(() => {
-      btn.classList.remove('doc-dl-done')
-      btn.innerHTML = orig
-      if (window.lucide) lucide.createIcons()
-    }, 1800)
   }
 
   // ── Quiz ─────────────────────────────────────────────────────────────
+  let quizAnswered = false
   function renderQuiz() {
-    // Animate the result bars in with slower, staggered timing
-    document.querySelectorAll('.quiz-bar').forEach((bar, i) => {
-      bar.classList.remove('animated')
-      setTimeout(() => bar.classList.add('animated'), 400 + i * 250)
-    })
-    // Animate quiz options appearing
+    quizAnswered = false
+    // Reset bars
+    document.querySelectorAll('.quiz-bar').forEach(bar => bar.classList.remove('animated'))
+    // Reset options
     document.querySelectorAll('.quiz-option').forEach((opt, i) => {
+      opt.classList.remove('quiz-option--selected', 'quiz-option--disabled')
       opt.style.opacity = '0'
       opt.style.transform = 'translateX(-8px)'
+      opt.style.cursor = 'pointer'
+      opt.onclick = function() { answerQuiz(this) }
       setTimeout(() => {
         opt.style.transition = 'opacity 0.35s ease, transform 0.35s ease'
         opt.style.opacity = '1'
         opt.style.transform = 'translateX(0)'
       }, 200 + i * 120)
     })
+    // Auto-answer after 5s if visitor doesn't click (for cycling)
+    setTimeout(() => {
+      if (!quizAnswered) {
+        const correct = document.querySelector('.quiz-option--correct')
+        if (correct) answerQuiz(correct)
+      }
+    }, 5000)
   }
 
-  // ── Kanban ──────────────────────────────────────────────────────────
-  function renderKanban() {
-    document.querySelectorAll('.kanban-card').forEach(card => {
-      card.classList.remove('visible')
-      setTimeout(() => card.classList.add('visible'), parseInt(card.dataset.delay || 0) + 50)
+  function answerQuiz(optEl) {
+    if (quizAnswered) return
+    quizAnswered = true
+    optEl.classList.add('quiz-option--selected')
+    document.querySelectorAll('.quiz-option').forEach(o => {
+      o.classList.add('quiz-option--disabled')
+      o.style.cursor = 'default'
+      o.onclick = null
+    })
+    // Show results after selection
+    setTimeout(() => {
+      document.querySelectorAll('.quiz-bar').forEach((bar, i) => {
+        setTimeout(() => bar.classList.add('animated'), i * 200)
+      })
+    }, 300)
+  }
+
+  // ── Frise ───────────────────────────────────────────────────────────
+  function renderFrise() {
+    document.querySelectorAll('.frise-bar').forEach(bar => {
+      bar.classList.remove('visible')
+      setTimeout(() => bar.classList.add('visible'), parseInt(bar.dataset.delay || 0) + 50)
     })
   }
 
@@ -361,9 +329,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function activateTab(name) {
     document.querySelectorAll('.demo-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name))
 
+    // Show/hide sidebar (only visible on chat)
+    const sidebar = document.getElementById('demo-sidebar')
+    if (sidebar) sidebar.style.display = name === 'chat' ? '' : 'none'
+
     // Crossfade: fade out current, then fade in new
-    const panels = ['panel-chat', 'panel-devoirs', 'panel-docs', 'panel-quiz', 'panel-kanban']
-    const panelMap = { chat: 'panel-chat', devoirs: 'panel-devoirs', docs: 'panel-docs', quiz: 'panel-quiz', kanban: 'panel-kanban' }
+    const panels = ['panel-chat', 'panel-dashboard', 'panel-quiz', 'panel-frise']
+    const panelMap = { chat: 'panel-chat', dashboard: 'panel-dashboard', quiz: 'panel-quiz', frise: 'panel-frise' }
     const targetId = panelMap[name]
 
     panels.forEach(id => {
@@ -389,11 +361,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     })
 
-    if (name === 'chat')    setTimeout(renderChat, 100)
-    if (name === 'devoirs') setTimeout(renderDevoirs, 100)
-    if (name === 'docs')    setTimeout(renderDocs, 100)
-    if (name === 'quiz')    setTimeout(renderQuiz, 200)
-    if (name === 'kanban')  setTimeout(renderKanban, 100)
+    if (name === 'chat')      setTimeout(renderChat, 100)
+    if (name === 'dashboard') setTimeout(renderDashboard, 100)
+    if (name === 'quiz')      setTimeout(renderQuiz, 200)
+    if (name === 'frise')     setTimeout(renderFrise, 100)
     startProgress()
   }
 
