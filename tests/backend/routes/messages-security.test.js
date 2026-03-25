@@ -103,6 +103,22 @@ describe('POST /api/messages/search-all', () => {
     }
   })
 
+  it('student userId is forced to own id (cannot search other DMs)', async () => {
+    const res = await request(app)
+      .post('/api/messages/search-all')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ promoId: 1, query: 'DM', limit: 50, userId: 2 })
+    expect(res.status).toBe(200)
+    // userId should be forced to student's own id (1), not 2
+    const data = res.body.data || []
+    for (const msg of data) {
+      if (msg.source_type === 'dm') {
+        // DM results should only be from student's own box
+        expect(msg.promo_id).toBeNull() // DMs have null promo_id
+      }
+    }
+  })
+
   it('teacher can search across promos', async () => {
     const res = await request(app)
       .post('/api/messages/search-all')

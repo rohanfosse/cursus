@@ -17,6 +17,7 @@ import WidgetLivrables from './student-widgets/WidgetLivrables.vue'
 import WidgetSoutenances from './student-widgets/WidgetSoutenances.vue'
 import WidgetLastFeedback from './student-widgets/WidgetLastFeedback.vue'
 import WidgetRecentDoc from './student-widgets/WidgetRecentDoc.vue'
+import WidgetPromoActivity from './student-widgets/WidgetPromoActivity.vue'
 import WidgetClock from './student-widgets/WidgetClock.vue'
 import WidgetQuote from './student-widgets/WidgetQuote.vue'
 import WidgetCalendar from './student-widgets/WidgetCalendar.vue'
@@ -66,7 +67,7 @@ const nextSoutenances = computed(() => nextUpcoming(props.urgentActions, ['soute
 const widgetComponents: Record<string, Component> = {
   live: WidgetLive, project: WidgetProject, exams: WidgetExams,
   livrables: WidgetLivrables, soutenances: WidgetSoutenances,
-  feedback: WidgetLastFeedback, recentDoc: WidgetRecentDoc,
+  feedback: WidgetLastFeedback, recentDoc: WidgetRecentDoc, promoActivity: WidgetPromoActivity,
   clock: WidgetClock, quote: WidgetQuote, calendar: WidgetCalendar,
   progress: WidgetProgress, quicklinks: WidgetQuickLinks, pomodoro: WidgetPomodoro,
 }
@@ -81,7 +82,7 @@ const widgetProps = computed<Record<string, Record<string, unknown>>>(() => ({
   live: {}, project: { project: activeProject.value },
   exams: { exams: nextExams.value }, livrables: { livrables: nextLivrables.value },
   soutenances: { soutenances: nextSoutenances.value },
-  feedback: { feedback: latestFeedback.value }, recentDoc: {},
+  feedback: { feedback: latestFeedback.value }, recentDoc: {}, promoActivity: {},
   clock: {}, quote: {},
   calendar: { deadlines: calendarDeadlines.value },
   progress: { submitted: props.studentStats.submitted, total: totalDevoirs.value, graded: props.studentStats.graded },
@@ -99,12 +100,6 @@ const widgetEvents: Record<string, Record<string, (...args: unknown[]) => void>>
 // ── Stats ──────────────────────────────────────────────────────────────────
 const totalDevoirs = computed(() => props.studentStats.pending + props.studentStats.submitted + props.studentStats.graded)
 const overdueCount = computed(() => props.urgentActions.filter(a => a.isOverdue).length)
-const submissionRate = computed(() =>
-  totalDevoirs.value > 0
-    ? Math.round(((props.studentStats.submitted + props.studentStats.graded) / totalDevoirs.value) * 100)
-    : 0,
-)
-const onlineCount = computed(() => appStore.onlineUsers?.length ?? 0)
 
 // Widgets masques (pour le drawer)
 const hiddenWidgets = computed(() =>
@@ -199,42 +194,6 @@ function onDragEnd() { reorderWidgets(draggableWidgets.value) }
   background: rgba(231, 76, 60, 0.08);
   border: 1px solid rgba(231, 76, 60, 0.2);
   color: #e74c3c; font-size: 13px; font-weight: 600;
-}
-
-/* ── Stats row ── */
-.sb-stats {
-  display: flex; align-items: center; gap: 0;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-}
-.sb-stat {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; gap: 1px;
-}
-.sb-stat-value {
-  font-size: 18px; font-weight: 700;
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  color: var(--text-primary); line-height: 1;
-}
-.sb-stat--warn { color: #e74c3c; }
-.sb-stat-label {
-  font-size: 10px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .04em;
-  color: var(--text-muted);
-}
-.sb-stat-sep {
-  width: 1px; height: 24px;
-  background: var(--border); opacity: .5;
-}
-.sb-stat-online {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 12px; font-weight: 600; color: var(--text-muted);
-  padding-left: 12px; margin-left: auto; flex-shrink: 0;
-}
-.sb-online-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: #4ade80;
-  box-shadow: 0 0 4px rgba(74, 222, 128, .4);
 }
 
 /* ── Widgets grid ── */
@@ -365,7 +324,5 @@ function onDragEnd() { reorderWidgets(draggableWidgets.value) }
 /* ── Responsive ── */
 @media (max-width: 600px) {
   .sb-grid { grid-template-columns: 1fr; }
-  .sb-stats { flex-wrap: wrap; gap: 8px; }
-  .sb-stat-sep { display: none; }
 }
 </style>

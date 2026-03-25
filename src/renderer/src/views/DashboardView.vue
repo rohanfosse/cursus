@@ -46,16 +46,8 @@ const dashTab = ref<'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglage
   route.query.tab === 'frise' ? 'frise' : route.query.tab === 'planning' ? 'planning' : route.query.tab === 'analytique' ? 'analytique' : route.query.tab === 'promotions' ? 'promotions' : route.query.tab === 'live' ? 'live' : route.query.tab === 'rex' ? 'rex' : route.query.tab === 'suivi' ? 'suivi' : route.query.tab === 'engagement' ? 'engagement' : route.query.tab === 'projets' ? 'projets' : route.query.tab === 'notes' ? 'notes' : 'accueil',
 )
 watch(() => route.query.tab, (tab) => {
-  if (tab === 'frise') dashTab.value = 'frise'
-  else if (tab === 'planning') dashTab.value = 'planning'
-  else if (tab === 'analytique') dashTab.value = 'analytique'
-  else if (tab === 'promotions') dashTab.value = 'promotions'
-  else if (tab === 'reglages') dashTab.value = 'reglages'
-  else if (tab === 'live') dashTab.value = 'live'
-  else if (tab === 'rex') dashTab.value = 'rex'
-  else if (tab === 'projets') dashTab.value = 'projets'
-  else if (tab === 'notes') dashTab.value = 'notes'
-  else dashTab.value = 'accueil'
+  const valid = ['frise', 'planning', 'analytique', 'promotions', 'reglages', 'live', 'rex', 'projets', 'notes', 'suivi', 'engagement'] as const
+  dashTab.value = valid.includes(tab as typeof valid[number]) ? (tab as typeof dashTab.value) : 'accueil'
 })
 
 // ── Composables ─────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { Info, Globe, Monitor, Heart, Github, ExternalLink } from 'lucide-vue-next'
 import logoUrl from '@/assets/logo.png'
+import { version } from '../../../../../../package.json'
 </script>
 
 <template>
@@ -15,7 +16,7 @@ import logoUrl from '@/assets/logo.png'
       <img :src="logoUrl" class="stg-about-logo" alt="Cursus" />
       <div class="stg-about-hero-text">
         <h4 class="stg-about-name">Cursus</h4>
-        <span class="stg-about-version">v0.5.0</span>
+        <span class="stg-about-version">v{{ version }}</span>
       </div>
       <p class="stg-about-tagline">Suivez votre parcours de formation</p>
     </div>

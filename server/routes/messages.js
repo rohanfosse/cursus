@@ -44,10 +44,11 @@ router.get('/dm/:studentId/page', requireDmParticipant, wrap((req) => {
 }))
 router.get('/search', requirePromo(promoFromChannel), wrap((req) => queries.searchMessages(Number(req.query.channelId), req.query.q)))
 router.post('/search-all', wrap((req) => {
-  const { query, limit, userId } = req.body
-  // Étudiants : forcé à leur propre promo (pas de recherche cross-promo)
+  const { query, limit } = req.body
+  // Étudiants : forcé à leur propre promo + leur propre userId (pas de recherche cross-promo/user)
   const promoId = req.user.type === 'student' ? req.user.promo_id : (req.body.promoId ?? null)
-  return queries.searchAllMessages(promoId, query, limit ?? 8, userId ?? null)
+  const userId  = req.user.type === 'student' ? req.user.id : (req.body.userId ?? null)
+  return queries.searchAllMessages(promoId, query, limit ?? 8, userId)
 }))
 router.get('/pinned/:channelId', requirePromo(promoFromChannel), wrap((req) => queries.getPinnedMessages(Number(req.params.channelId))))
 router.get('/dm-contacts/:studentId', requireDmParticipant, wrap((req) => queries.getRecentDmContacts(Number(req.params.studentId), Number(req.query.limit) || 15)))
