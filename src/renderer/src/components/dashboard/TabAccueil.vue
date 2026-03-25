@@ -16,6 +16,7 @@ import WidgetPomodoro from './student-widgets/WidgetPomodoro.vue'
 import WidgetQuickLinks from './student-widgets/WidgetQuickLinks.vue'
 import WidgetDmFiles from './teacher-widgets/WidgetDmFiles.vue'
 import WidgetWeekCal from './teacher-widgets/WidgetWeekCal.vue'
+import WidgetSignatures from './teacher-widgets/WidgetSignatures.vue'
 import { useTeacherBento } from '@/composables/useTeacherBento'
 
 const bento = useTeacherBento()
@@ -222,8 +223,9 @@ defineExpose({ toggleEditMode, editMode })
 const optWidgetComponents: Record<string, Component> = {
   clock: WidgetClock, quote: WidgetQuote, pomodoro: WidgetPomodoro,
   quicklinks: WidgetQuickLinks, 'dm-files': WidgetDmFiles, 'week-cal': WidgetWeekCal,
+  signatures: WidgetSignatures,
 }
-const wideWidgets = new Set(['quote', 'quicklinks', 'dm-files', 'week-cal'])
+const wideWidgets = new Set(['quote', 'quicklinks', 'dm-files', 'week-cal', 'signatures'])
 
 const draggableOpt = ref([...bento.visibleOptionalTiles.value])
 watch(() => bento.visibleOptionalTiles.value, (v) => { draggableOpt.value = [...v] })

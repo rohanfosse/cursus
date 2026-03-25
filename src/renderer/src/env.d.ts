@@ -296,6 +296,7 @@ declare global {
       deleteReminder(id: number): Promise<IpcResponse<null>>
 
       // Auto-update
+      onSignatureUpdate(cb: (data: { id: number; status: string; signed_file_url?: string; signer_name?: string; rejection_reason?: string }) => void): () => void
       onUpdaterAvailable(cb: (version: string) => void): () => void
       onUpdaterDownloaded(cb: (version: string) => void): () => void
       updaterQuitAndInstall(): void

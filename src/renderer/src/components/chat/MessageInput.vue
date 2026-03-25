@@ -456,16 +456,6 @@ function onKeydown(e: KeyboardEvent) {
               <Paperclip v-else :size="14" />
             </button>
 
-            <button
-              v-if="showSignatureToggle"
-              class="mi-icon-btn mi-sig-toggle"
-              :class="{ active: requestSignature }"
-              title="Demander une signature"
-              @click="requestSignature = !requestSignature"
-            >
-              <Pen :size="14" />
-            </button>
-
             <span v-if="showCharCount" class="mi-char-count" :class="{ over: charCountOver }">
               {{ charCount }}/{{ messagesStore.MAX_MESSAGE_LENGTH }}
             </span>
@@ -486,14 +476,20 @@ function onKeydown(e: KeyboardEvent) {
 
       </div>
 
-      <p class="mi-hint">
-        <template v-if="getPref('enterToSend') ?? true">
-          <kbd>Entrée</kbd> envoyer · <kbd>Shift+Entrée</kbd> saut de ligne
-        </template>
-        <template v-else>
-          <kbd>Ctrl+Entrée</kbd> envoyer · <kbd>Entrée</kbd> saut de ligne
-        </template>
-      </p>
+      <div class="mi-hint-row">
+        <p class="mi-hint">
+          <template v-if="getPref('enterToSend') ?? true">
+            <kbd>Entrée</kbd> envoyer · <kbd>Shift+Entrée</kbd> saut de ligne
+          </template>
+          <template v-else>
+            <kbd>Ctrl+Entrée</kbd> envoyer · <kbd>Entrée</kbd> saut de ligne
+          </template>
+        </p>
+        <button v-if="showSignatureToggle" class="mi-sig-link" :class="{ active: requestSignature }" @click="requestSignature = !requestSignature">
+          <Pen :size="10" />
+          {{ requestSignature ? 'Signature demandee ✓' : 'Demander une signature' }}
+        </button>
+      </div>
 
     </template>
 
@@ -816,9 +812,6 @@ function onKeydown(e: KeyboardEvent) {
 .mi-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
 .mi-icon-btn.active { color: var(--accent); background: rgba(59,130,246,.1); }
 
-/* Signature toggle */
-.mi-sig-toggle.active { color: var(--color-success, #059669); background: rgba(5,150,105,.1); }
-
 /* Bouton Envoyer */
 .mi-char-count {
   font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums;
@@ -855,13 +848,23 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 /* ── Hint clavier ── */
+.mi-hint-row { display: flex; align-items: center; justify-content: space-between; margin: 4px 2px 0; }
 .mi-hint {
-  margin: 4px 2px 0;
   font-size: 10.5px;
   color: var(--text-muted);
   opacity: .7;
   user-select: none;
+  margin: 0;
 }
+.mi-sig-link {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10.5px; font-weight: 500; color: var(--text-muted);
+  background: none; border: none; cursor: pointer;
+  font-family: inherit; padding: 2px 6px; border-radius: 4px;
+  transition: color .12s, background .12s;
+}
+.mi-sig-link:hover { color: var(--text-secondary); background: var(--bg-hover); }
+.mi-sig-link.active { color: var(--color-success, #059669); font-weight: 600; }
 .mi-hint kbd {
   font-family: var(--font);
   font-size: 10.5px;

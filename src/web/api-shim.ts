@@ -703,6 +703,12 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   windowIsMaximized: () => Promise.resolve({ ok: true, data: false }),
   onMaximizeChange:  (_cb: unknown) => () => {},
 
+  // ── Signature notifications ──────────────────────────────────────────────
+  onSignatureUpdate(cb: (data: { id: number; status: string; signed_file_url?: string }) => void) {
+    socket?.on('signature:update', cb)
+    return () => { socket?.off('signature:update', cb) }
+  },
+
   // ── Updater - no-ops en web ──────────────────────────────────────────────
   onUpdaterAvailable:  (_cb: unknown) => () => {},
   onUpdaterDownloaded: (_cb: unknown) => () => {},

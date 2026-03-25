@@ -6,7 +6,7 @@ import { ref } from 'vue'
 import {
   LayoutDashboard, Percent, Edit3, Award, Wifi, Clock, MessageSquare,
   PlusCircle, Activity, CheckSquare,
-  Quote, Timer, Bookmark, CalendarDays, FileBox,
+  Quote, Timer, Bookmark, CalendarDays, FileBox, Pen,
 } from 'lucide-vue-next'
 import type { FunctionalComponent } from 'vue'
 
@@ -35,6 +35,7 @@ export const TEACHER_TILES: TeacherTileDef[] = [
   { id: 'quicklinks',  label: 'Liens rapides',    icon: Bookmark,     defaultHidden: true },
   { id: 'dm-files',    label: 'Fichiers DM',      icon: FileBox,      defaultHidden: true },
   { id: 'week-cal',    label: 'Semaine',          icon: CalendarDays, defaultHidden: true },
+  { id: 'signatures', label: 'Signatures',       icon: Pen,          defaultHidden: true },
 ]
 
 const STORAGE_KEY = 'teacher_bento_hidden'
