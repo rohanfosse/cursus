@@ -62,9 +62,34 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.fade-up').forEach(el => obs.observe(el))
 
   // ══════════════════════════════════════════════════════════════════════
+  // WHO TABS
+  // ══════════════════════════════════════════════════════════════════════
+  window.switchWhoTab = function(tabName) {
+    document.querySelectorAll('.who-tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.who === tabName)
+    )
+    document.querySelectorAll('.who-panel').forEach(p => p.classList.remove('active'))
+    const target = document.getElementById('who-' + tabName)
+    if (target) {
+      target.classList.add('active')
+      if (window.lucide) lucide.createIcons()
+    }
+  }
+
+  window.selectFeature = function(cardEl) {
+    const panel = cardEl.closest('.who-panel')
+    panel.querySelectorAll('.who-feature-card').forEach(c => c.classList.remove('selected'))
+    cardEl.classList.add('selected')
+    const visual = panel.querySelector('.who-feature-visual')
+    visual.querySelectorAll('.who-visual-content').forEach(v => v.classList.remove('active'))
+    const target = visual.querySelector('[data-for="' + cardEl.dataset.feature + '"]')
+    if (target) target.classList.add('active')
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
   // DEMO INTERACTIVE
   // ══════════════════════════════════════════════════════════════════════
-  const TABS         = ['chat', 'devoirs', 'docs', 'quiz']
+  const TABS         = ['chat', 'devoirs', 'docs', 'quiz', 'kanban']
   const TAB_DURATION = 12000
   let currentTab     = 0
   let cycleTimer     = null
@@ -174,7 +199,25 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       const iv = setInterval(() => {
         if (i < draft.length) inputEl.textContent = draft.slice(0, ++i)
-        else clearInterval(iv)
+        else {
+          clearInterval(iv)
+          // Slash command demo after draft
+          if (activeChannel === 'général') {
+            setTimeout(() => {
+              inputEl.textContent = ''
+              const slash = '/dev'
+              let si = 0
+              const siv = setInterval(() => {
+                if (si < slash.length) inputEl.textContent = slash.slice(0, ++si)
+                else {
+                  clearInterval(siv)
+                  const popup = document.getElementById('slash-popup')
+                  if (popup) { popup.classList.add('visible'); setTimeout(() => popup.classList.remove('visible'), 2500) }
+                }
+              }, 80)
+            }, 1200)
+          }
+        }
       }, 55)
     }, typingStart)
   }
@@ -287,6 +330,14 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   }
 
+  // ── Kanban ──────────────────────────────────────────────────────────
+  function renderKanban() {
+    document.querySelectorAll('.kanban-card').forEach(card => {
+      card.classList.remove('visible')
+      setTimeout(() => card.classList.add('visible'), parseInt(card.dataset.delay || 0) + 50)
+    })
+  }
+
   // ── Tab cycling ──────────────────────────────────────────────────────
   function startProgress() {
     const bar = document.getElementById('demo-progress-bar')
@@ -311,8 +362,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.demo-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name))
 
     // Crossfade: fade out current, then fade in new
-    const panels = ['panel-chat', 'panel-devoirs', 'panel-docs', 'panel-quiz']
-    const panelMap = { chat: 'panel-chat', devoirs: 'panel-devoirs', docs: 'panel-docs', quiz: 'panel-quiz' }
+    const panels = ['panel-chat', 'panel-devoirs', 'panel-docs', 'panel-quiz', 'panel-kanban']
+    const panelMap = { chat: 'panel-chat', devoirs: 'panel-devoirs', docs: 'panel-docs', quiz: 'panel-quiz', kanban: 'panel-kanban' }
     const targetId = panelMap[name]
 
     panels.forEach(id => {
@@ -342,6 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (name === 'devoirs') setTimeout(renderDevoirs, 100)
     if (name === 'docs')    setTimeout(renderDocs, 100)
     if (name === 'quiz')    setTimeout(renderQuiz, 200)
+    if (name === 'kanban')  setTimeout(renderKanban, 100)
     startProgress()
   }
 

@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Cursus - Messagerie, devoirs, quiz live et suivi. Le tout-en-un éducatif, en desktop et mobile." />
+  <meta name="description" content="Cursus - Messagerie, devoirs, quiz live, kanban, REX et slash commands. Le tout-en-un éducatif, en desktop et mobile." />
   <meta name="theme-color" content="#f9fafb" />
   <title>Cursus · Plateforme pédagogique</title>
 
   <!-- SEO : Open Graph -->
   <meta property="og:title" content="Cursus · Plateforme pédagogique" />
-  <meta property="og:description" content="Messagerie, devoirs, quiz live et suivi. Le tout-en-un éducatif." />
+  <meta property="og:description" content="Messagerie, devoirs, quiz live, kanban, REX et slash commands. Le tout-en-un éducatif." />
   <meta property="og:image" content="https://cursus.school/assets/icon-512.png" />
   <meta property="og:url" content="https://cursus.school/" />
   <meta property="og:type" content="website" />
@@ -19,7 +19,7 @@
   <!-- SEO : Twitter Card -->
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="Cursus · Plateforme pédagogique" />
-  <meta name="twitter:description" content="Messagerie, devoirs, quiz live et suivi. Le tout-en-un éducatif." />
+  <meta name="twitter:description" content="Messagerie, devoirs, quiz live, kanban, REX et slash commands. Le tout-en-un éducatif." />
   <meta name="twitter:image" content="https://cursus.school/assets/icon-512.png" />
 
   <!-- SEO : Canonical -->
@@ -32,7 +32,7 @@
     "@type": "WebApplication",
     "name": "Cursus",
     "url": "https://cursus.school",
-    "description": "Messagerie, devoirs, quiz live et suivi. Le tout-en-un éducatif, en desktop et mobile.",
+    "description": "Messagerie, devoirs, quiz live, kanban, REX et slash commands. Le tout-en-un éducatif, en desktop et mobile.",
     "applicationCategory": "EducationalApplication",
     "operatingSystem": "Windows, macOS, Web",
     "inLanguage": "fr",
@@ -72,12 +72,17 @@
     .nav-logo img { width: 28px; height: 28px; border-radius: 7px; }
     .hero { padding: 120px 0 80px; position: relative; overflow: hidden; }
     .container { max-width: 1080px; margin: 0 auto; padding: 0 28px; position: relative; z-index: 1; }
-    .fade-up { opacity: 0; transform: translateY(24px); transition: opacity .65s cubic-bezier(.4,0,.2,1), transform .65s cubic-bezier(.4,0,.2,1); }
-    .fade-up.visible { opacity: 1; transform: translateY(0); }
+    .fade-up { opacity: 0; transform: translateY(24px) scale(0.98); transition: opacity .65s cubic-bezier(.22,1,.36,1), transform .65s cubic-bezier(.22,1,.36,1); }
+    .fade-up.visible { opacity: 1; transform: translateY(0) scale(1); }
   </style>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
+  <!-- Background blobs -->
+  <div class="bg-blob bg-blob-1"></div>
+  <div class="bg-blob bg-blob-2"></div>
+  <div class="bg-blob bg-blob-3"></div>
 
   <!-- NAV -->
   <nav class="nav">
@@ -110,28 +115,39 @@
   <section class="hero">
     <div class="hero-glow"></div>
     <div class="container">
-      <div class="hero-inner">
+      <div class="hero-center">
 
-        <div class="hero-left">
-          <h1>Cursus</h1>
-          <p class="hero-sub">
-            La plateforme tout-en-un pour les formations : messagerie, devoirs, quiz live et suivi de progression. Disponible sur Windows, macOS et web.
-          </p>
+        <h1 class="hero-title gradient-text">Cursus</h1>
+        <p class="hero-sub">
+          Tout ce qu'il faut pour enseigner et apprendre, dans une seule app.
+        </p>
 
-          <div class="hero-actions">
-            <a href="https://app.cursus.school" class="btn btn-dark">
-              <i data-lucide="arrow-right" style="width:15px;height:15px"></i>
-              Commencer gratuitement
-            </a>
-            <a href="#download" class="btn btn-outline">
-              <i data-lucide="download" style="width:15px;height:15px"></i>
-              Télécharger
-            </a>
-          </div>
+        <div class="hero-actions">
+          <a href="https://app.cursus.school" class="btn btn-dark">
+            <i data-lucide="arrow-right" style="width:15px;height:15px"></i>
+            Commencer gratuitement
+          </a>
+          <a href="#download" class="btn btn-outline">
+            <i data-lucide="download" style="width:15px;height:15px"></i>
+            Télécharger
+          </a>
         </div>
 
         <!-- DÉMO INTERACTIVE -->
         <div class="demo-wrapper fade-up" id="demo">
+
+        <!-- Floating decorative cards -->
+        <div class="floating-card fc-notif">
+          <span class="fc-icon fc-icon-green">&#10003;</span>
+          Nouvelle note : 16/20
+        </div>
+        <div class="floating-card fc-badge">
+          <span class="fc-icon fc-icon-orange">&#9998;</span>
+          3 devoirs à rendre
+        </div>
+        <div class="floating-card fc-reaction">
+          &#128077; <span class="fc-count">+6</span>
+        </div>
         <div class="demo-window">
 
           <div class="demo-titlebar">
@@ -158,6 +174,9 @@
             <div class="demo-tab" data-tab="quiz" onclick="switchTab('quiz')">
               <i data-lucide="help-circle"></i> Quiz
             </div>
+            <div class="demo-tab" data-tab="kanban" onclick="switchTab('kanban')">
+              <i data-lucide="columns"></i> Kanban
+            </div>
           </div>
 
           <div class="demo-body">
@@ -180,6 +199,11 @@
               <div class="chat-messages" id="chat-messages"></div>
               <div class="typing-indicator" id="typing-indicator"></div>
               <div class="chat-input-row">
+                <div class="slash-popup" id="slash-popup">
+                  <div class="slash-item slash-item--active"><span class="slash-cmd">/devoir</span><span class="slash-desc">Créer un devoir</span></div>
+                  <div class="slash-item"><span class="slash-cmd">/doc</span><span class="slash-desc">Partager un document</span></div>
+                  <div class="slash-item"><span class="slash-cmd">/annonce</span><span class="slash-desc">Envoyer une annonce</span></div>
+                </div>
                 <span class="chat-input-text" id="chat-input-text">&nbsp;</span>
                 <span class="chat-cursor"></span>
               </div>
@@ -301,11 +325,50 @@
               </div>
             </div>
 
+            <!-- Kanban -->
+            <div class="demo-main kanban-panel" id="panel-kanban">
+              <div class="kanban-header">
+                <span class="kanban-title">Projet Web E4 · Kanban</span>
+                <span class="kanban-team">Équipe B</span>
+              </div>
+              <div class="kanban-board">
+                <div class="kanban-col">
+                  <div class="kanban-col-head kanban-todo">À faire <span class="kanban-count">2</span></div>
+                  <div class="kanban-card" data-delay="0">
+                    <div class="kanban-card-title">Tests unitaires</div>
+                    <div class="kanban-card-sub">Jean Dupont</div>
+                  </div>
+                  <div class="kanban-card" data-delay="80">
+                    <div class="kanban-card-title">Documentation API</div>
+                    <div class="kanban-card-sub">Emma Lefèvre</div>
+                  </div>
+                </div>
+                <div class="kanban-col">
+                  <div class="kanban-col-head kanban-progress">En cours <span class="kanban-count">2</span></div>
+                  <div class="kanban-card" data-delay="160">
+                    <div class="kanban-card-title">Page authentification</div>
+                    <div class="kanban-card-sub">Thomas Klein</div>
+                  </div>
+                  <div class="kanban-card" data-delay="240">
+                    <div class="kanban-card-title">Endpoint REST /users</div>
+                    <div class="kanban-card-sub">Jean Dupont</div>
+                  </div>
+                </div>
+                <div class="kanban-col">
+                  <div class="kanban-col-head kanban-done">Terminé <span class="kanban-count">1</span></div>
+                  <div class="kanban-card kanban-card--done" data-delay="320">
+                    <div class="kanban-card-title">Maquettes Figma</div>
+                    <div class="kanban-card-sub">Emma Lefèvre</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
         </div><!-- /demo-wrapper -->
 
-      </div><!-- /hero-inner -->
+      </div><!-- /hero-center -->
     </div><!-- /container -->
   </section>
 
@@ -342,10 +405,10 @@
       <a href="#download" class="version-pill fade-up" id="version-pill">
         <span class="version-pill-tag">
           <span class="version-pill-dot"></span>
-          <span id="pill-version">v0.1.0-beta</span>
+          <span id="pill-version">v0.7.3</span>
         </span>
         <span class="version-pill-sep"></span>
-        <span id="pill-label">Kahoot + REX disponibles</span>
+        <span id="pill-label">Kanban, Slash Commands et 16 widgets</span>
         <span class="version-pill-arrow">→</span>
       </a>
     </div>
@@ -354,94 +417,210 @@
   <!-- POUR QUI -->
   <section id="who" class="who">
     <div class="container">
+      <div class="section-head" style="text-align:center">
+        <div class="section-eyebrow fade-up" style="text-align:center">Pour qui ?</div>
+        <h2 class="section-title gradient-text fade-up">Concu pour tous les acteurs</h2>
+      </div>
 
-      <div class="who-block fade-up">
-        <div class="who-text">
-          <div class="who-eyebrow">
-            <div class="who-eyebrow-icon"><i data-lucide="graduation-cap"></i></div>
-            Étudiants
+      <div class="who-tabs fade-up">
+        <button class="who-tab active" data-who="students" onclick="switchWhoTab('students')">
+          <i data-lucide="graduation-cap"></i> Étudiants
+        </button>
+        <button class="who-tab" data-who="pilots" onclick="switchWhoTab('pilots')">
+          <i data-lucide="book-marked"></i> Pilotes
+        </button>
+      </div>
+
+      <!-- Students -->
+      <div class="who-panel active" id="who-students">
+        <div class="who-features-grid fade-up">
+          <div class="who-feature-card selected" data-feature="s-dashboard" onclick="selectFeature(this)">
+            <div class="wf-icon fi-blue"><i data-lucide="layout-dashboard"></i></div>
+            <span class="wf-label">Dashboard 16 widgets</span>
           </div>
-          <h2 class="who-title">Un suivi complet de votre formation</h2>
-          <p class="who-desc">Retrouvez vos travaux, vos rendus, vos notes et vos quiz en un seul endroit, accessible depuis n'importe quel appareil.</p>
-          <ul class="who-list">
-            <li>Dashboard avec widgets personnalisables : devoirs, notes, agenda</li>
-            <li>Notifications en temps réel sur les notes et retours des pilotes</li>
-            <li>Mode focus pour réviser sans distractions</li>
-            <li>Quiz live avec résultats instantanés et classement</li>
-            <li>Frise unifiée : cours, devoirs, rendus et événements sur une timeline</li>
-            <li>PWA : accès mobile sans installation, même hors ligne</li>
-          </ul>
+          <div class="who-feature-card" data-feature="s-notif" onclick="selectFeature(this)">
+            <div class="wf-icon fi-orange"><i data-lucide="bell"></i></div>
+            <span class="wf-label">Notifications temps réel</span>
+          </div>
+          <div class="who-feature-card" data-feature="s-quiz" onclick="selectFeature(this)">
+            <div class="wf-icon fi-red"><i data-lucide="zap"></i></div>
+            <span class="wf-label">Quiz live</span>
+          </div>
+          <div class="who-feature-card" data-feature="s-kanban" onclick="selectFeature(this)">
+            <div class="wf-icon fi-green"><i data-lucide="columns"></i></div>
+            <span class="wf-label">Kanban projet</span>
+          </div>
+          <div class="who-feature-card" data-feature="s-dm" onclick="selectFeature(this)">
+            <div class="wf-icon fi-purple"><i data-lucide="lock"></i></div>
+            <span class="wf-label">Messages privés</span>
+          </div>
+          <div class="who-feature-card" data-feature="s-slash" onclick="selectFeature(this)">
+            <div class="wf-icon fi-blue"><i data-lucide="terminal"></i></div>
+            <span class="wf-label">Commandes slash</span>
+          </div>
+          <div class="who-feature-card" data-feature="s-focus" onclick="selectFeature(this)">
+            <div class="wf-icon fi-green"><i data-lucide="eye-off"></i></div>
+            <span class="wf-label">Mode focus</span>
+          </div>
+          <div class="who-feature-card" data-feature="s-pwa" onclick="selectFeature(this)">
+            <div class="wf-icon fi-orange"><i data-lucide="smartphone"></i></div>
+            <span class="wf-label">PWA mobile</span>
+          </div>
         </div>
-        <div class="who-visual">
-          <div class="visual-label">Ma timeline</div>
-          <div class="timeline-item">
-            <div class="tl-col">
-              <div class="tl-dot" style="background:var(--green)"></div>
-              <div class="tl-line"></div>
-            </div>
-            <div>
-              <div class="tl-title">Rapport de stage déposé</div>
-              <div class="tl-sub">Il y a 2 jours · Note : 16/20</div>
+        <div class="who-feature-visual fade-up">
+          <div class="who-visual-content active" data-for="s-dashboard">
+            <div class="visual-label">Dashboard personnalisable</div>
+            <div class="mini-dashboard">
+              <div class="mini-widget mw-wide" style="border-left:3px solid var(--accent)"><span class="mw-title">Prochain devoir</span><span class="mw-sub">Projet Web E4 · 3j</span></div>
+              <div class="mini-widget" style="border-left:3px solid var(--green)"><span class="mw-title">Dernière note</span><span class="mw-sub">16/20</span></div>
+              <div class="mini-widget" style="border-left:3px solid var(--orange)"><span class="mw-title">Pomodoro</span><span class="mw-sub">25:00</span></div>
+              <div class="mini-widget mw-wide" style="border-left:3px solid var(--purple)"><span class="mw-title">Progression</span><span class="mw-sub">72% du semestre</span></div>
             </div>
           </div>
-          <div class="timeline-item">
-            <div class="tl-col">
-              <div class="tl-dot" style="background:var(--orange)"></div>
-              <div class="tl-line"></div>
-            </div>
-            <div>
-              <div class="tl-title">Projet Web E4 · deadline vendredi</div>
-              <div class="tl-sub">3 jours restants · Groupe : Équipe B</div>
+          <div class="who-visual-content" data-for="s-notif">
+            <div class="visual-label">Notifications en direct</div>
+            <div class="mini-notifs">
+              <div class="mini-notif"><span class="mn-dot" style="background:var(--green)"></span>Nouvelle note : TP Algo 13.5/20</div>
+              <div class="mini-notif"><span class="mn-dot" style="background:var(--accent)"></span>Pilote Martin a commenté votre rendu</div>
+              <div class="mini-notif"><span class="mn-dot" style="background:var(--orange)"></span>Deadline Projet Web E4 dans 3 jours</div>
             </div>
           </div>
-          <div class="timeline-item">
-            <div class="tl-col"><div class="tl-dot" style="background:var(--text-3)"></div></div>
-            <div>
-              <div class="tl-title">Soutenance E5</div>
-              <div class="tl-sub">Dans 3 semaines</div>
-            </div>
+          <div class="who-visual-content" data-for="s-quiz">
+            <div class="visual-label">Quiz en direct</div>
+            <div class="mini-quiz"><div class="mq-bar" style="width:72%;background:var(--green)">HTTPS · 72%</div><div class="mq-bar" style="width:15%;background:var(--text-3)">HTTP · 15%</div><div class="mq-bar" style="width:8%;background:var(--text-3)">FTP · 8%</div></div>
+          </div>
+          <div class="who-visual-content" data-for="s-kanban">
+            <div class="visual-label">Kanban par projet</div>
+            <div class="mini-kanban"><div class="mk-col"><div class="mk-head" style="color:var(--orange)">À faire</div><div class="mk-card">Tests unitaires</div><div class="mk-card">Docs API</div></div><div class="mk-col"><div class="mk-head" style="color:var(--accent)">En cours</div><div class="mk-card">Page auth</div></div><div class="mk-col"><div class="mk-head" style="color:var(--green)">Terminé</div><div class="mk-card" style="opacity:.5">Maquettes</div></div></div>
+          </div>
+          <div class="who-visual-content" data-for="s-dm">
+            <div class="visual-label">Messages privés sécurisés</div>
+            <div class="mini-notifs"><div class="mini-notif"><span class="mn-dot" style="background:var(--green)"></span>Pilote Martin · en ligne</div><div class="mini-notif"><span class="mn-dot" style="background:var(--text-3)"></span>Emma Lefèvre · hors ligne</div></div>
+          </div>
+          <div class="who-visual-content" data-for="s-slash">
+            <div class="visual-label">Commandes slash</div>
+            <div class="mini-slash"><span class="ms-cmd">/devoir</span> Créer un devoir<br><span class="ms-cmd">/doc</span> Partager un document<br><span class="ms-cmd">/annonce</span> Envoyer une annonce</div>
+          </div>
+          <div class="who-visual-content" data-for="s-focus">
+            <div class="visual-label">Mode focus</div>
+            <div class="mini-notifs"><div class="mini-notif">Notifications masquées</div><div class="mini-notif">Sidebar réduite</div><div class="mini-notif">Concentration maximale</div></div>
+          </div>
+          <div class="who-visual-content" data-for="s-pwa">
+            <div class="visual-label">PWA mobile</div>
+            <div class="mini-notifs"><div class="mini-notif">Installable sans app store</div><div class="mini-notif">Fonctionne hors ligne</div><div class="mini-notif">Navigation par swipe</div></div>
           </div>
         </div>
       </div>
 
-      <div class="who-block reverse fade-up">
-        <div class="who-text">
-          <div class="who-eyebrow">
-            <div class="who-eyebrow-icon"><i data-lucide="book-marked"></i></div>
-            Pilotes
+      <!-- Pilots -->
+      <div class="who-panel" id="who-pilots">
+        <div class="who-features-grid fade-up">
+          <div class="who-feature-card selected" data-feature="p-dashboard" onclick="selectFeature(this)">
+            <div class="wf-icon fi-blue"><i data-lucide="layout-dashboard"></i></div>
+            <span class="wf-label">9 onglets dashboard</span>
           </div>
-          <h2 class="who-title">Une vue d'ensemble sur votre promotion</h2>
-          <p class="who-desc">Pilotez les travaux, les groupes et les évaluations depuis une interface pensée pour le pilotage.</p>
-          <ul class="who-list">
-            <li>Dashboard intelligent avec vue consolidée par promotion</li>
-            <li>Quiz live : créez des QCM et suivez les réponses en direct</li>
-            <li>Rappels modulaires et notifications automatiques avant les deadlines</li>
-            <li>Annotez les rendus, attribuez les notes et rédigez des retours</li>
-            <li>Exportez les résultats au format CSV ou Excel</li>
-            <li>Visualisez le calendrier des livrables en vue Gantt</li>
-          </ul>
+          <div class="who-feature-card" data-feature="p-rex" onclick="selectFeature(this)">
+            <div class="wf-icon fi-red"><i data-lucide="message-circle"></i></div>
+            <span class="wf-label">Quiz + REX</span>
+          </div>
+          <div class="who-feature-card" data-feature="p-frise" onclick="selectFeature(this)">
+            <div class="wf-icon fi-blue"><i data-lucide="calendar-range"></i></div>
+            <span class="wf-label">Frise chronologique</span>
+          </div>
+          <div class="who-feature-card" data-feature="p-kanban" onclick="selectFeature(this)">
+            <div class="wf-icon fi-green"><i data-lucide="columns"></i></div>
+            <span class="wf-label">Kanban suivi</span>
+          </div>
+          <div class="who-feature-card" data-feature="p-grilles" onclick="selectFeature(this)">
+            <div class="wf-icon fi-orange"><i data-lucide="clipboard-check"></i></div>
+            <span class="wf-label">Grilles + notation A-F</span>
+          </div>
+          <div class="who-feature-card" data-feature="p-brouillon" onclick="selectFeature(this)">
+            <div class="wf-icon fi-purple"><i data-lucide="file-edit"></i></div>
+            <span class="wf-label">Mode brouillon</span>
+          </div>
+          <div class="who-feature-card" data-feature="p-widgets" onclick="selectFeature(this)">
+            <div class="wf-icon fi-blue"><i data-lucide="grid-2x2"></i></div>
+            <span class="wf-label">Widgets optionnels</span>
+          </div>
+          <div class="who-feature-card" data-feature="p-export" onclick="selectFeature(this)">
+            <div class="wf-icon fi-green"><i data-lucide="download"></i></div>
+            <span class="wf-label">Export CSV/Excel</span>
+          </div>
         </div>
-        <div class="who-visual">
-          <div class="visual-label">Suivi · Projet Web E4</div>
-          <div class="dash-row">
-            <span class="dash-name">Jean Dupont</span>
-            <span class="dash-badge" style="background:rgba(5,150,105,.1);color:var(--green)">Rendu · 16/20</span>
+        <div class="who-feature-visual fade-up">
+          <div class="who-visual-content active" data-for="p-dashboard">
+            <div class="visual-label">Suivi · Projet Web E4</div>
+            <div class="mini-notifs">
+              <div class="mini-notif"><span class="mn-dot" style="background:var(--green)"></span>Jean Dupont · Rendu · 16/20</div>
+              <div class="mini-notif"><span class="mn-dot" style="background:var(--green)"></span>Marie Martin · Rendu · 14/20</div>
+              <div class="mini-notif"><span class="mn-dot" style="background:var(--orange)"></span>Équipe C · En attente</div>
+              <div class="mini-notif"><span class="mn-dot" style="background:var(--red)"></span>Lucas Bernard · Non rendu</div>
+            </div>
           </div>
-          <div class="dash-row">
-            <span class="dash-name">Marie Martin</span>
-            <span class="dash-badge" style="background:rgba(5,150,105,.1);color:var(--green)">Rendu · 14/20</span>
+          <div class="who-visual-content" data-for="p-rex">
+            <div class="visual-label">Quiz + REX temps réel</div>
+            <div class="mini-quiz"><div class="mq-bar" style="width:65%;background:var(--green)">Satisfait · 65%</div><div class="mq-bar" style="width:25%;background:var(--accent)">Neutre · 25%</div><div class="mq-bar" style="width:10%;background:var(--orange)">Insatisfait · 10%</div></div>
           </div>
-          <div class="dash-row">
-            <span class="dash-name">Équipe C</span>
-            <span class="dash-badge" style="background:rgba(217,119,6,.1);color:var(--orange)">En attente</span>
+          <div class="who-visual-content" data-for="p-frise">
+            <div class="visual-label">Frise chronologique</div>
+            <div class="mini-notifs"><div class="mini-notif">Zoom : semaine / mois / trimestre / année</div><div class="mini-notif">Navigation drag-and-drop + molette</div><div class="mini-notif">Distribution verticale intelligente</div></div>
           </div>
-          <div class="dash-row">
-            <span class="dash-name">Lucas Bernard</span>
-            <span class="dash-badge" style="background:rgba(220,38,38,.08);color:#dc2626">Non rendu</span>
+          <div class="who-visual-content" data-for="p-kanban">
+            <div class="visual-label">Kanban de suivi</div>
+            <div class="mini-kanban"><div class="mk-col"><div class="mk-head" style="color:var(--orange)">À faire</div><div class="mk-card">Équipe A</div><div class="mk-card">Équipe D</div></div><div class="mk-col"><div class="mk-head" style="color:var(--accent)">En cours</div><div class="mk-card">Équipe B</div></div><div class="mk-col"><div class="mk-head" style="color:var(--green)">Corrigé</div><div class="mk-card">Équipe C</div></div></div>
+          </div>
+          <div class="who-visual-content" data-for="p-grilles">
+            <div class="visual-label">Grilles multicritères</div>
+            <div class="mini-notifs"><div class="mini-notif">5 types : livrable, soutenance, CCTL, étude de cas, mémoire</div><div class="mini-notif">Pondération par critère</div><div class="mini-notif">Notation A-F automatique</div></div>
+          </div>
+          <div class="who-visual-content" data-for="p-brouillon">
+            <div class="visual-label">Mode brouillon</div>
+            <div class="mini-notifs"><div class="mini-notif">Préparez vos sessions sans les exposer</div><div class="mini-notif">Publiez quand vous êtes prêt</div></div>
+          </div>
+          <div class="who-visual-content" data-for="p-widgets">
+            <div class="visual-label">Widgets réorganisables</div>
+            <div class="mini-dashboard"><div class="mini-widget" style="border-left:3px solid var(--accent)"><span class="mw-title">Horloge</span><span class="mw-sub">14:32</span></div><div class="mini-widget" style="border-left:3px solid var(--green)"><span class="mw-title">Pomodoro</span><span class="mw-sub">25:00</span></div><div class="mini-widget" style="border-left:3px solid var(--orange)"><span class="mw-title">Calendrier</span><span class="mw-sub">Semaine 12</span></div><div class="mini-widget" style="border-left:3px solid var(--purple)"><span class="mw-title">Liens rapides</span><span class="mw-sub">4 liens</span></div></div>
+          </div>
+          <div class="who-visual-content" data-for="p-export">
+            <div class="visual-label">Export des résultats</div>
+            <div class="mini-notifs"><div class="mini-notif">Export CSV pour tableurs</div><div class="mini-notif">Export Excel avec mise en forme</div><div class="mini-notif">Données par promotion</div></div>
           </div>
         </div>
       </div>
 
+    </div>
+  </section>
+
+  <!-- COMPARATIF -->
+  <section class="compare">
+    <div class="container">
+      <div class="section-head" style="text-align:center">
+        <div class="section-eyebrow fade-up" style="text-align:center">Pourquoi Cursus ?</div>
+        <h2 class="section-title gradient-text fade-up">Remplacez 5 outils par un seul</h2>
+      </div>
+      <div class="compare-grid">
+        <div class="compare-row fade-up">
+          <div class="compare-before"><i data-lucide="x" class="compare-icon compare-icon--no"></i><span>Moodle pour les cours</span></div>
+          <div class="compare-after"><i data-lucide="check" class="compare-icon compare-icon--yes"></i><span>Un seul outil unifié</span></div>
+        </div>
+        <div class="compare-row fade-up">
+          <div class="compare-before"><i data-lucide="x" class="compare-icon compare-icon--no"></i><span>Teams / Discord pour le chat</span></div>
+          <div class="compare-after"><i data-lucide="check" class="compare-icon compare-icon--yes"></i><span>Messagerie intégrée + /slash</span></div>
+        </div>
+        <div class="compare-row fade-up">
+          <div class="compare-before"><i data-lucide="x" class="compare-icon compare-icon--no"></i><span>Excel pour les notes</span></div>
+          <div class="compare-after"><i data-lucide="check" class="compare-icon compare-icon--yes"></i><span>Dashboard + export CSV</span></div>
+        </div>
+        <div class="compare-row fade-up">
+          <div class="compare-before"><i data-lucide="x" class="compare-icon compare-icon--no"></i><span>Aucun suivi projet</span></div>
+          <div class="compare-after"><i data-lucide="check" class="compare-icon compare-icon--yes"></i><span>Kanban + frise chronologique</span></div>
+        </div>
+        <div class="compare-row fade-up">
+          <div class="compare-before"><i data-lucide="x" class="compare-icon compare-icon--no"></i><span>Pas de feedback live</span></div>
+          <div class="compare-after"><i data-lucide="check" class="compare-icon compare-icon--yes"></i><span>Quiz live + REX temps réel</span></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -450,40 +629,34 @@
     <div class="container">
       <div class="section-head">
         <div class="section-eyebrow fade-up">Fonctionnalités</div>
-        <h2 class="section-title fade-up">Des outils conçus pour l'enseignement</h2>
+        <h2 class="section-title gradient-text fade-up">Des outils conçus pour l'enseignement</h2>
         <p class="section-sub fade-up">Chaque fonctionnalité répond à un besoin concret, identifié sur le terrain.</p>
       </div>
-      <div class="feat-grid">
-        <div class="feat-big fade-up">
-          <div class="feat-big-text">
-            <div class="feat-icon fi-blue"><i data-lucide="messages-square"></i></div>
-            <h3>Messagerie temps réel</h3>
-            <p>Canaux par promotion, messages directs, mentions @utilisateur et @everyone. Formatage Markdown complet avec aperçu, coloration syntaxique, réactions et messages épinglés.</p>
-            <div class="feat-tags">
-              <span class="feat-tag">Markdown</span>
-              <span class="feat-tag">Socket.io</span>
-              <span class="feat-tag">Mentions</span>
-              <span class="feat-tag">Épingles</span>
-              <span class="feat-tag">Typing indicator</span>
-            </div>
+      <div class="feat-grid bento">
+        <div class="feat-card feat-2col fade-up">
+          <div class="feat-icon fi-blue"><i data-lucide="messages-square"></i></div>
+          <h3>Messagerie temps réel</h3>
+          <p>Canaux par promotion, messages directs, mentions @utilisateur et @everyone. Formatage Markdown, coloration syntaxique, réactions, épingles et commandes slash intégrées.</p>
+          <div class="feat-tags">
+            <span class="feat-tag">Markdown</span>
+            <span class="feat-tag">Socket.io</span>
+            <span class="feat-tag">Mentions</span>
+            <span class="feat-tag">Slash commands</span>
+            <span class="feat-tag">Signalement</span>
           </div>
-          <div class="feat-big-preview">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-3);margin-bottom:10px">Aperçu Markdown</div>
-            <div style="font-size:12px;color:var(--text-2);line-height:1.7">
-              Code rendu avec coloration :
-              <code style="display:block;background:#1e1e2e;padding:10px 12px;border-radius:6px;margin-top:8px;font-size:11px;font-family:'SF Mono','Fira Code',monospace;color:#a5d6a7">
-                <span style="color:#81d4fa">function</span> <span style="color:#fff">hello</span>() {<br>
-                &nbsp;&nbsp;<span style="color:#81d4fa">return</span> <span style="color:#a5d6a7">"Cursus"</span><br>
-                }
-              </code>
-            </div>
+          <div class="feat-illus">
+            <code style="display:block;background:#1e1e2e;padding:10px 12px;border-radius:8px;font-size:11px;font-family:'SF Mono','Fira Code',monospace;color:#a5d6a7;width:100%">
+              <span style="color:#81d4fa">function</span> <span style="color:#fff">hello</span>() {<br>
+              &nbsp;&nbsp;<span style="color:#81d4fa">return</span> <span style="color:#a5d6a7">"Cursus"</span><br>
+              }
+            </code>
           </div>
         </div>
         <div class="feat-card fade-up">
           <div class="feat-icon fi-orange"><i data-lucide="clipboard-check"></i></div>
           <h3>Devoirs et rendus</h3>
-          <p>Publiez des travaux avec date limite, recevez les rendus et évaluez avec des grilles de critères personnalisées.</p>
-          <div class="feat-tags"><span class="feat-tag">Rubriques</span><span class="feat-tag">Gantt</span></div>
+          <p>Cinq types de devoirs : livrable, soutenance, CCTL, étude de cas, mémoire. Grilles multicritères avec pondération, notation A-F et mode brouillon.</p>
+          <div class="feat-tags"><span class="feat-tag">5 types</span><span class="feat-tag">Notation A-F</span><span class="feat-tag">Brouillon</span><span class="feat-tag">Gantt</span></div>
         </div>
         <div class="feat-card fade-up">
           <div class="feat-icon fi-green"><i data-lucide="file-text"></i></div>
@@ -497,23 +670,68 @@
           <p>Tableau de bord par promotion, progression par étudiant, notes par matière et export des résultats.</p>
           <div class="feat-tags"><span class="feat-tag">Dashboard</span><span class="feat-tag">Export CSV</span></div>
         </div>
-        <div class="feat-card fade-up">
+        <div class="feat-card feat-2row fade-up">
           <div class="feat-icon fi-red"><i data-lucide="zap"></i></div>
           <h3>Quiz Live</h3>
           <p>QCM en temps réel avec résultats instantanés, classement et statistiques. Engagez vos étudiants pendant le cours.</p>
           <div class="feat-tags"><span class="feat-tag">Temps réel</span><span class="feat-tag">Classement</span></div>
+          <div class="feat-illus">
+            <div style="display:flex;flex-direction:column;gap:4px;width:100%">
+              <div style="background:var(--green);height:8px;border-radius:4px;width:72%"></div>
+              <div style="background:var(--text-3);height:8px;border-radius:4px;width:15%;opacity:.4"></div>
+              <div style="background:var(--text-3);height:8px;border-radius:4px;width:8%;opacity:.3"></div>
+              <div style="background:var(--text-3);height:8px;border-radius:4px;width:5%;opacity:.2"></div>
+            </div>
+          </div>
         </div>
         <div class="feat-card fade-up">
           <div class="feat-icon fi-blue"><i data-lucide="layout-dashboard"></i></div>
           <h3>Dashboard intelligent</h3>
-          <p>Widgets personnalisables, rappels modulaires, frise unifiée et notifications contextuelles pour ne rien manquer.</p>
-          <div class="feat-tags"><span class="feat-tag">Widgets</span><span class="feat-tag">Rappels</span></div>
+          <p>16+ widgets personnalisables et réorganisables par drag-and-drop. Countdown, pomodoro, progression, calendrier. Pilotes : 9 onglets de Accueil à Administration.</p>
+          <div class="feat-tags"><span class="feat-tag">Drag-and-drop</span><span class="feat-tag">16 widgets</span><span class="feat-tag">9 onglets</span></div>
         </div>
         <div class="feat-card fade-up">
           <div class="feat-icon fi-green"><i data-lucide="smartphone"></i></div>
           <h3>Mobile & PWA</h3>
           <p>Application progressive installable sur mobile et desktop. Fonctionne hors ligne avec synchronisation automatique.</p>
           <div class="feat-tags"><span class="feat-tag">PWA</span><span class="feat-tag">Offline</span><span class="feat-tag">Push</span></div>
+        </div>
+        <div class="feat-card fade-up">
+          <div class="feat-icon fi-purple"><i data-lucide="lock"></i></div>
+          <h3>Messages privés</h3>
+          <p>Conversations sécurisées entre étudiants et enseignants. Indicateur en ligne, envoi de fichiers par drag-and-drop, cache 60s pour un switch instantané.</p>
+          <div class="feat-tags"><span class="feat-tag">Chiffré</span><span class="feat-tag">Fichiers</span><span class="feat-tag">En ligne</span></div>
+        </div>
+        <div class="feat-card fade-up">
+          <div class="feat-icon fi-orange"><i data-lucide="columns"></i></div>
+          <h3>Kanban par projet</h3>
+          <p>Tableau de suivi par groupe et par devoir. Cartes avec titre, description et assignation. Drag-and-drop entre colonnes : À faire, En cours, Terminé.</p>
+          <div class="feat-tags"><span class="feat-tag">Drag-and-drop</span><span class="feat-tag">Équipes</span></div>
+        </div>
+        <div class="feat-card fade-up">
+          <div class="feat-icon fi-red"><i data-lucide="message-circle"></i></div>
+          <h3>REX interactif</h3>
+          <p>Sessions de feedback en temps réel : sondages, nuage de mots, échelle de notation, questions ouvertes. Résultats agrégés et partageables en direct.</p>
+          <div class="feat-tags"><span class="feat-tag">Temps réel</span><span class="feat-tag">Nuage de mots</span><span class="feat-tag">Sondages</span></div>
+        </div>
+        <div class="feat-card feat-2col fade-up">
+          <div class="feat-icon fi-green"><i data-lucide="shield-check"></i></div>
+          <h3>Sécurité et confidentialité</h3>
+          <p>Isolation par rôle et promotion, JWT, validation Zod, bcrypt, CSRF, CSP stricte. Export RGPD des données personnelles.</p>
+          <div class="feat-tags"><span class="feat-tag">RGPD</span><span class="feat-tag">JWT</span><span class="feat-tag">Isolation</span><span class="feat-tag">CSRF</span></div>
+          <div class="feat-illus">
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text-2);width:100%">
+              <div style="display:flex;align-items:center;gap:8px"><span style="color:var(--green);font-weight:700;font-size:14px">&#9679;</span> Pilote → accès complet promotion</div>
+              <div style="display:flex;align-items:center;gap:8px"><span style="color:var(--accent);font-weight:700;font-size:14px">&#9679;</span> Étudiant → sa promotion uniquement</div>
+              <div style="display:flex;align-items:center;gap:8px"><span style="color:var(--orange);font-weight:700;font-size:14px">&#9679;</span> DMs → participants vérifiés</div>
+            </div>
+          </div>
+        </div>
+        <div class="feat-card fade-up">
+          <div class="feat-icon fi-blue"><i data-lucide="calendar-range"></i></div>
+          <h3>Frise chronologique</h3>
+          <p>Timeline interactive des devoirs par projet. Zoom semaine, mois, trimestre ou année. Navigation par drag et molette avec distribution verticale intelligente.</p>
+          <div class="feat-tags"><span class="feat-tag">Zoom</span><span class="feat-tag">Drag</span><span class="feat-tag">Timeline</span></div>
         </div>
       </div>
     </div>
@@ -556,15 +774,17 @@
       <div class="changelog fade-up">
         <div class="changelog-head">
           <span class="cl-title">Dernière version</span>
-          <span class="cl-ver" id="cl-version">v0.1.0-beta</span>
+          <span class="cl-ver" id="cl-version">v0.7.3</span>
           <span class="cl-date" id="cl-date">Mars 2026</span>
         </div>
         <ul class="cl-list">
-          <li>Mode Kahoot — timer, scoring vitesse, leaderboard et podium animé</li>
-          <li>REX — sondages libres, nuage de mots, échelle de notation, questions ouvertes</li>
-          <li>Mode brouillon : préparez vos sessions Live et REX sans les exposer aux étudiants</li>
-          <li>Édition, réordonnancement et clonage des activités</li>
-          <li>Sécurité renforcée : rate limiting global et corrections CodeQL</li>
+          <li>Kanban par projet avec drag-and-drop entre colonnes</li>
+          <li>16 widgets étudiants + 6 widgets pilotes réorganisables par drag-and-drop</li>
+          <li>Commandes slash dans le chat : /devoir, /doc, /annonce, /sondage, /code</li>
+          <li>Messages privés sécurisés avec indicateur en ligne et cache instantané</li>
+          <li>Frise chronologique interactive avec zoom semaine/mois/trimestre/année</li>
+          <li>Grilles multicritères, notation A-F et 5 types de devoirs</li>
+          <li>Sécurité renforcée : isolation promotion, CSRF, CSP, export RGPD</li>
         </ul>
       </div>
     </div>
@@ -584,7 +804,7 @@
         <a href="https://app.cursus.school">Se connecter</a>
         <a href="https://app.cursus.school#privacy">Confidentialité</a>
       </div>
-      <span class="footer-copy">Conçu par <a href="https://github.com/rohanfosse" target="_blank" rel="noopener" style="color:var(--text-2)">Rohan Fossé</a> · <span id="footer-version">v0.1.0-beta</span></span>
+      <span class="footer-copy">Conçu par <a href="https://github.com/rohanfosse" target="_blank" rel="noopener" style="color:var(--text-2)">Rohan Fossé</a> · <span id="footer-version">v0.7.3</span></span>
     </div>
   </footer>
 
