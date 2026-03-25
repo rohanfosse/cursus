@@ -9,6 +9,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import TeacherTodoWidget from './TeacherTodoWidget.vue'
+import WidgetClock from './student-widgets/WidgetClock.vue'
+import WidgetQuote from './student-widgets/WidgetQuote.vue'
+import WidgetPomodoro from './student-widgets/WidgetPomodoro.vue'
+import WidgetQuickLinks from './student-widgets/WidgetQuickLinks.vue'
+import WidgetDmFiles from './teacher-widgets/WidgetDmFiles.vue'
+import WidgetWeekCal from './teacher-widgets/WidgetWeekCal.vue'
 import { useTeacherBento } from '@/composables/useTeacherBento'
 
 const bento = useTeacherBento()
@@ -375,6 +381,32 @@ defineExpose({ toggleEditMode, editMode })
       <TeacherTodoWidget />
     </div>
 
+    <!-- ═══ OPTIONAL WIDGETS (shared with student) ═══ -->
+    <div v-if="bento.isVisible('clock')" class="dashboard-card bento-tile bento-optional" :class="{ 'bento-tile--editing': editMode }">
+      <button v-if="editMode" class="bento-tile-remove" @click="bento.toggleTile('clock')"><X :size="12" /></button>
+      <WidgetClock />
+    </div>
+    <div v-if="bento.isVisible('quote')" class="dashboard-card bento-tile bento-optional bento-optional--wide" :class="{ 'bento-tile--editing': editMode }">
+      <button v-if="editMode" class="bento-tile-remove" @click="bento.toggleTile('quote')"><X :size="12" /></button>
+      <WidgetQuote />
+    </div>
+    <div v-if="bento.isVisible('pomodoro')" class="dashboard-card bento-tile bento-optional" :class="{ 'bento-tile--editing': editMode }">
+      <button v-if="editMode" class="bento-tile-remove" @click="bento.toggleTile('pomodoro')"><X :size="12" /></button>
+      <WidgetPomodoro />
+    </div>
+    <div v-if="bento.isVisible('quicklinks')" class="dashboard-card bento-tile bento-optional bento-optional--wide" :class="{ 'bento-tile--editing': editMode }">
+      <button v-if="editMode" class="bento-tile-remove" @click="bento.toggleTile('quicklinks')"><X :size="12" /></button>
+      <WidgetQuickLinks />
+    </div>
+    <div v-if="bento.isVisible('dm-files')" class="dashboard-card bento-tile bento-optional bento-optional--wide" :class="{ 'bento-tile--editing': editMode }">
+      <button v-if="editMode" class="bento-tile-remove" @click="bento.toggleTile('dm-files')"><X :size="12" /></button>
+      <WidgetDmFiles />
+    </div>
+    <div v-if="bento.isVisible('week-cal')" class="dashboard-card bento-tile bento-optional bento-optional--wide" :class="{ 'bento-tile--editing': editMode }">
+      <button v-if="editMode" class="bento-tile-remove" @click="bento.toggleTile('week-cal')"><X :size="12" /></button>
+      <WidgetWeekCal :items="next48h" />
+    </div>
+
     <!-- ═══ ADD WIDGET (edit mode) ═══ -->
     <button v-if="editMode && hiddenTileDefs.length" class="bento-add-tile" @click="showTileDrawer = !showTileDrawer">
       <Plus :size="20" />
@@ -738,6 +770,10 @@ defineExpose({ toggleEditMode, editMode })
 .bento-todo {
   grid-column: span 2;
 }
+
+/* ── Optional widgets ── */
+.bento-optional { grid-column: span 1; }
+.bento-optional--wide { grid-column: span 2; }
 .activity-list {
   display: flex;
   flex-direction: column;

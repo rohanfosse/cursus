@@ -3,13 +3,18 @@
  * État partagé (module-level) + persistance localStorage.
  */
 import { ref } from 'vue'
-import { LayoutDashboard, Percent, Edit3, Award, Wifi, Clock, MessageSquare, PlusCircle, Activity, CheckSquare } from 'lucide-vue-next'
+import {
+  LayoutDashboard, Percent, Edit3, Award, Wifi, Clock, MessageSquare,
+  PlusCircle, Activity, CheckSquare,
+  Quote, Timer, Bookmark, CalendarDays, FileBox,
+} from 'lucide-vue-next'
 import type { FunctionalComponent } from 'vue'
 
 export interface TeacherTileDef {
   id:    string
   label: string
   icon:  FunctionalComponent
+  defaultHidden?: boolean
 }
 
 export const TEACHER_TILES: TeacherTileDef[] = [
@@ -23,6 +28,13 @@ export const TEACHER_TILES: TeacherTileDef[] = [
   { id: 'actions',      label: 'Actions rapides', icon: PlusCircle      },
   { id: 'activity',     label: 'Activité récente',icon: Activity        },
   { id: 'todo',         label: 'Todo',            icon: CheckSquare     },
+  // ── Widgets optionnels (masqués par défaut) ──
+  { id: 'clock',       label: 'Horloge',         icon: Clock,        defaultHidden: true },
+  { id: 'quote',       label: 'Citation du jour', icon: Quote,        defaultHidden: true },
+  { id: 'pomodoro',    label: 'Pomodoro',         icon: Timer,        defaultHidden: true },
+  { id: 'quicklinks',  label: 'Liens rapides',    icon: Bookmark,     defaultHidden: true },
+  { id: 'dm-files',    label: 'Fichiers DM',      icon: FileBox,      defaultHidden: true },
+  { id: 'week-cal',    label: 'Semaine',          icon: CalendarDays, defaultHidden: true },
 ]
 
 const STORAGE_KEY = 'teacher_bento_hidden'
@@ -30,9 +42,17 @@ const STORAGE_KEY = 'teacher_bento_hidden'
 function loadHidden(): Set<string> {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) return new Set(JSON.parse(saved) as string[])
+    if (saved) {
+      const set = new Set(JSON.parse(saved) as string[])
+      // Ajouter les nouvelles tuiles defaultHidden non encore connues
+      for (const t of TEACHER_TILES) {
+        if (t.defaultHidden && !saved.includes(t.id)) set.add(t.id)
+      }
+      return set
+    }
   } catch { /* ignore */ }
-  return new Set()
+  // Premier chargement : masquer les tuiles defaultHidden
+  return new Set(TEACHER_TILES.filter(t => t.defaultHidden).map(t => t.id))
 }
 
 // État singleton partagé entre tous les composants qui importent ce composable
