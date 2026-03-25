@@ -233,7 +233,7 @@
   <ChangePasswordModal v-model="showChangePwd" />
 </template>
 
-<style scoped>
+<style>
 .stg-layout {
   display: flex;
   min-height: 420px;
