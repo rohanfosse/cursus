@@ -207,11 +207,14 @@ function setTab(tab: DashTabType) {
       <button class="db-tab" :class="{ active: dashTab === 'frise' }" @click="setTab('frise')">
         <BarChart2 :size="13" /> Frise
       </button>
+      <button class="db-tab" :class="{ active: dashTab === 'suivi' }" @click="setTab('suivi')">
+        <Notebook :size="13" /> Suivi
+      </button>
       <button class="db-tab" :class="{ active: dashTab === 'analytique' }" @click="setTab('analytique')">
         <TrendingUp :size="13" /> Analytique
       </button>
-      <button class="db-tab" :class="{ active: dashTab === 'reglages' }" @click="setTab('reglages')">
-        <Settings :size="13" /> Administration
+      <button class="db-tab" :class="{ active: dashTab === 'engagement' }" @click="setTab('engagement')">
+        <Activity :size="13" /> Engagement
       </button>
       <button class="db-tab db-tab-live" :class="{ active: dashTab === 'live' }" @click="setTab('live')">
         <Radio :size="13" /> Quiz
@@ -227,11 +230,8 @@ function setTab(tab: DashTabType) {
           class="db-tab-rex-dot"
         />
       </button>
-      <button class="db-tab" :class="{ active: dashTab === 'suivi' }" @click="setTab('suivi')">
-        <Notebook :size="13" /> Suivi
-      </button>
-      <button class="db-tab" :class="{ active: dashTab === 'engagement' }" @click="setTab('engagement')">
-        <Activity :size="13" /> Engagement
+      <button class="db-tab" :class="{ active: dashTab === 'reglages' }" @click="setTab('reglages')">
+        <Settings :size="13" /> Administration
       </button>
       <!-- Bouton personnalisation bento (onglet Accueil uniquement) -->
       <button
@@ -349,16 +349,7 @@ function setTab(tab: DashTabType) {
       @set-frise-zoom="days => emit('setFriseZoom', days)"
     />
 
-    <!-- Barre d'actions rapides flottante -->
-    <div class="db-fab-bar">
-      <button class="db-fab" title="Nouveau devoir" @click="emit('openNewDevoir')">
-        <PlusCircle :size="14" /> Nouveau devoir
-      </button>
-      <div class="db-fab-divider" />
-      <button class="db-fab db-fab-ghost" title="Échéancier" @click="emit('openEcheancier')">
-        <CalendarDays :size="14" />
-      </button>
-    </div>
+    <!-- Removed: floating "Nouveau devoir" bar — available in TabAccueil quick actions -->
   </template>
 </template>
 
