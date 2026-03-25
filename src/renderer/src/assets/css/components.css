@@ -740,6 +740,10 @@ button { font-family: var(--font); }
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-modal);
 }
 
 .modal-header-info { flex: 1; min-width: 0; }
@@ -763,6 +767,10 @@ button { font-family: var(--font); }
   justify-content: flex-end;
   gap: 10px;
   flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: var(--bg-modal);
 }
 .modal-footer.spread { justify-content: space-between; }
 
@@ -1530,7 +1538,7 @@ button { font-family: var(--font); }
   max-height: 88vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
   box-shadow: var(--shadow-lg);
 }
 
