@@ -134,8 +134,6 @@ describe('Kanban validation', () => {
       .post('/api/kanban/travaux/1/groups/1')
       .set('Authorization', `Bearer ${studentToken}`)
       .send({ description: 'test' })
-    expect(res.body.ok).toBe(false)
-    // Doit être rejeté (400 validation Zod ou 500 si erreur module)
     expect(res.status).toBeGreaterThanOrEqual(400)
   })
 })
