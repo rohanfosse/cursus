@@ -13,6 +13,7 @@ import type { AppDocument }  from '@/types'
 
 export type DocIconType = 'image' | 'pdf' | 'video' | 'link' | 'file' | 'spreadsheet'
   | 'moodle' | 'github' | 'linkedin' | 'web' | 'package' | 'grille'
+  | 'note-peda' | 'fiche-validation'
 
 export const iconColors: Record<DocIconType, string> = {
   pdf:         '#E74C3C',
@@ -26,7 +27,9 @@ export const iconColors: Record<DocIconType, string> = {
   linkedin:    '#0a66c2',
   web:         '#22c55e',
   package:     '#8b5cf6',
-  grille:      '#ef4444',
+  grille:             '#ef4444',
+  'note-peda':        '#06b6d4',
+  'fiche-validation': '#10b981',
 }
 
 export const iconLabels: Record<DocIconType, string> = {
@@ -41,7 +44,9 @@ export const iconLabels: Record<DocIconType, string> = {
   linkedin:    'LinkedIn',
   web:         'Site Web',
   package:     'Package',
-  grille:      'Grille',
+  grille:             'Grille',
+  'note-peda':        'Note Péda',
+  'fiche-validation': 'Fiche de validation',
 }
 
 export const TYPE_FILTERS: { id: DocIconType | null; label: string }[] = [
@@ -59,7 +64,9 @@ const CAT_TO_TYPE: Record<string, DocIconType> = {
   'LinkedIn': 'linkedin',
   'Site Web': 'web',
   'Package':  'package',
-  'Grille':   'grille',
+  'Grille':              'grille',
+  'Note Péda':           'note-peda',
+  'Fiche de validation': 'fiche-validation',
 }
 
 export function docIconType(doc: AppDocument): DocIconType {

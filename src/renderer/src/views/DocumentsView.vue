@@ -5,6 +5,7 @@
     ExternalLink, Download, Search, X, Upload, FolderOpen, Eye, CheckCircle2, Menu,
     LayoutGrid, List, Grid3x3, Star, Copy, Pencil, ClipboardList,
     BookOpen, Github, Linkedin, Globe, Package, HelpCircle, BookMarked, FileSpreadsheet,
+    GraduationCap, ShieldCheck,
   } from 'lucide-vue-next'
   import type { Component } from 'vue'
 
@@ -98,6 +99,8 @@
     { id: 'web',      label: 'Site Web',  icon: Globe,      color: '#22c55e' },
     { id: 'package',  label: 'Package',   icon: Package,       color: '#8b5cf6' },
     { id: 'grille',   label: 'Grille',    icon: ClipboardList, color: '#ef4444' },
+    { id: 'note-peda', label: 'Note Péda', icon: GraduationCap, color: '#06b6d4' },
+    { id: 'fiche-validation', label: 'Fiche de validation', icon: ShieldCheck, color: '#10b981' },
     { id: 'autre',    label: 'Autre',     icon: HelpCircle,    color: '#8b8d91' },
   ]
 
