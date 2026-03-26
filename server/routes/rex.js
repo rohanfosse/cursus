@@ -15,6 +15,12 @@ function throttledResultsEmit(io, activityId, promoId) {
   io.to(`rex:${promoId}`).emit('rex:results-update', { activityId, data })
 }
 
+// ─── Nettoyage périodique de la map de throttle ─────────────────────────────
+setInterval(() => {
+  const cutoff = Date.now() - 5 * 60_000
+  for (const [k, ts] of _lastEmit) { if (ts < cutoff) _lastEmit.delete(k) }
+}, 60_000)
+
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
 // POST /sessions - creer une session REX

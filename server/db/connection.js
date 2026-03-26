@@ -22,6 +22,15 @@ function getDb() {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
+
+    // Vérification d'intégrité au premier accès
+    try {
+      const result = db.pragma('integrity_check', { simple: true })
+      if (result !== 'ok') {
+        const log = require('../utils/logger')
+        log.error('db_integrity_failed', { result, path: DB_PATH })
+      }
+    } catch { /* mode dégradé — ne pas crasher */ }
   }
   return db;
 }

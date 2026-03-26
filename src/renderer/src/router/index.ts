@@ -18,8 +18,27 @@ const router = createRouter({
     { path: '/live',       component: () => import('@/views/LiveView.vue'),   name: 'live'   },
     { path: '/rex',        component: () => import('@/views/RexView.vue'),   name: 'rex'    },
     { path: '/agenda',     component: () => import('@/views/AgendaView.vue'), name: 'agenda' },
-    { path: '/fichiers',   component: () => import('@/views/FilesView.vue'),  name: 'fichiers' },
+    { path: '/fichiers',   component: () => import('@/views/FilesView.vue'),  name: 'fichiers', meta: { requiresTeacher: true } },
+    // Catch-all → redirect au dashboard
+    { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
   ],
+})
+
+// ── Route guard : pages réservées aux enseignants ───────────────────────────
+router.beforeEach((to, _from, next) => {
+  if (to.meta?.requiresTeacher) {
+    // Vérifier le rôle depuis localStorage (le store Pinia peut ne pas être prêt)
+    try {
+      const raw = localStorage.getItem('cc_session')
+      if (raw) {
+        const user = JSON.parse(raw)
+        if (user?.type === 'student') {
+          return next('/dashboard')
+        }
+      }
+    } catch { /* session corrompue */ }
+  }
+  next()
 })
 
 export default router

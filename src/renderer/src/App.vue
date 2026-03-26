@@ -84,6 +84,8 @@
     if (connected && _wasDisconnected) {
       if (_disconnectTimer) { clearTimeout(_disconnectTimer); _disconnectTimer = null }
       showToast('Reconnecté', 'success')
+      // Re-sync : recharger les messages du canal actif pour rattraper les messages manqués
+      try { messagesStore.fetchMessages?.() } catch { /* ignore */ }
     } else if (!connected && appStore.currentUser) {
       // Afficher le toast seulement après 3s de déconnexion (éviter les micro-coupures)
       _disconnectTimer = setTimeout(() => {

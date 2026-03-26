@@ -25,9 +25,15 @@ function createPromotion({ name, color }) {
 }
 
 function deletePromotion(promoId) {
-  const res = getDb().prepare('DELETE FROM promotions WHERE id = ?').run(promoId);
-  cache.invalidate('promotions:'); cache.invalidate('channels:');
-  return res;
+  const db = getDb()
+  // Sécurité : refuser la suppression si la promo contient des étudiants → archiver à la place
+  const studentCount = db.prepare('SELECT COUNT(*) AS c FROM students WHERE promo_id = ?').get(promoId)?.c ?? 0
+  if (studentCount > 0) {
+    throw new Error(`Impossible de supprimer cette promotion (${studentCount} étudiant${studentCount > 1 ? 's' : ''} inscrit${studentCount > 1 ? 's' : ''}). Archivez-la à la place.`)
+  }
+  const res = db.prepare('DELETE FROM promotions WHERE id = ?').run(promoId)
+  cache.invalidate('promotions:'); cache.invalidate('channels:')
+  return res
 }
 
 function createChannel({ promoId, name, type, isPrivate, members, category }) {

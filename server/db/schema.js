@@ -799,4 +799,4 @@ function tryAlter(db, sql) {
   try { db.exec(sql); } catch { /* colonne déjà présente - ignoré */ }
 }
 
-module.exports = { initSchema };
+module.exports = { initSchema, runMigrations };

@@ -26,6 +26,13 @@ function throttledScoresEmit(io, sessionId, activityId, promoId) {
   io.to(`live:${promoId}`).emit('live:scores-update', { sessionId, activityId, leaderboard })
 }
 
+// ─── Nettoyage périodique des maps de throttle (évite memory leak) ───────────
+setInterval(() => {
+  const cutoff = Date.now() - 5 * 60_000 // 5 min
+  for (const [k, ts] of _lastEmit) { if (ts < cutoff) _lastEmit.delete(k) }
+  for (const [k, ts] of _lastScoresEmit) { if (ts < cutoff) _lastScoresEmit.delete(k) }
+}, 60_000)
+
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
 // POST /sessions - créer une session (prof uniquement)

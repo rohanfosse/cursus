@@ -12,12 +12,19 @@ const log        = require('./utils/logger')
 const PORT   = process.env.PORT       ?? 3001
 const ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:5173'
 
-// ── Vérification JWT_SECRET en production ───────────────────────────────────
+// ── Vérifications de sécurité au démarrage ──────────────────────────────────
 const SECRET = process.env.JWT_SECRET ?? 'changeme-dev-secret'
 if (process.env.NODE_ENV === 'production') {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
     console.error('[SECURITY] JWT_SECRET absent ou trop court (min 32 caractères). Arrêt du serveur.')
     process.exit(1)
+  }
+  if (!process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '*') {
+    console.error('[SECURITY] CORS_ORIGIN non défini ou wildcard (*) interdit en production. Arrêt du serveur.')
+    process.exit(1)
+  }
+  if (!process.env.DEPLOY_SECRET || process.env.DEPLOY_SECRET.length < 16) {
+    log.warn('deploy_secret_missing', { msg: 'DEPLOY_SECRET absent ou trop court — webhook de déploiement désactivé.' })
   }
 }
 
@@ -320,9 +327,21 @@ io.on('connection', (socket) => {
     id, name: info.name, role: info.role,
   })))
 
+  // ── Helper : re-valider le JWT sur les events critiques ────────────────────
+  function checkTokenValid() {
+    try {
+      jwt.verify(socket.handshake.auth?.token, SECRET)
+      return true
+    } catch {
+      socket.emit('auth:expired')
+      socket.disconnect(true)
+      return false
+    }
+  }
+
   // Live quiz : rejoindre/quitter une salle de session
   socket.on('live:join', ({ promoId }) => {
-    if (promoId) socket.join(`live:${promoId}`)
+    if (promoId && checkTokenValid()) socket.join(`live:${promoId}`)
   })
   socket.on('live:leave', ({ promoId }) => {
     if (promoId) socket.leave(`live:${promoId}`)
@@ -330,7 +349,7 @@ io.on('connection', (socket) => {
 
   // REX : rejoindre/quitter une salle de session
   socket.on('rex:join', ({ promoId }) => {
-    if (promoId) socket.join(`rex:${promoId}`)
+    if (promoId && checkTokenValid()) socket.join(`rex:${promoId}`)
   })
   socket.on('rex:leave', ({ promoId }) => {
     if (promoId) socket.leave(`rex:${promoId}`)
@@ -397,8 +416,9 @@ const _scheduledTimer = setInterval(() => {
 }, 30000)
 
 // ── Démarrage ─────────────────────────────────────────────────────────────────
-server.listen(PORT, () => {
-  console.log(`[Cursus] Serveur démarré → http://localhost:${PORT}`)
+server.listen(PORT, '0.0.0.0', () => {
+  log.info('server_started', { port: PORT, env: process.env.NODE_ENV || 'development' })
+  console.log(`[Cursus] Serveur démarré → http://0.0.0.0:${PORT}`)
 })
 
 // ── Arrêt gracieux ────────────────────────────────────────────────────────────
