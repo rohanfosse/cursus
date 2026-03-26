@@ -142,7 +142,8 @@ app.use('/api/signatures',      require('./routes/signatures'))
 
 // ── Auto-fermeture des sessions REX async expirées (toutes les 60s) ───────────
 setInterval(() => {
-  try { queries.autoCloseExpiredAsyncSessions() } catch {}
+  try { queries.autoCloseExpiredAsyncSessions() }
+  catch (err) { log.error('rex_autoclose_failed', { error: err.message }) }
 }, 60_000)
 
 // ── Fichiers statiques & SPA ──────────────────────────────────────────────────
@@ -392,7 +393,7 @@ const _scheduledTimer = setInterval(() => {
         console.error(`[Scheduled] Erreur envoi #${sm.id}:`, err.message)
       }
     }
-  } catch {}
+  } catch (err) { log.error('scheduled_messages_failed', { error: err.message }) }
 }, 30000)
 
 // ── Démarrage ─────────────────────────────────────────────────────────────────

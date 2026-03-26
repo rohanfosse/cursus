@@ -2,6 +2,7 @@
 const router  = require('express').Router()
 const queries = require('../db/index')
 const wrap    = require('../utils/wrap')
+const { requireTeacher } = require('../middleware/authorize')
 
 // ─── Throttle helper pour results-update ─────────────────────────────────────
 const _lastEmit = new Map() // activityId → timestamp
@@ -27,8 +28,8 @@ function throttledScoresEmit(io, sessionId, activityId, promoId) {
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
-// POST /sessions - créer une session
-router.post('/sessions', wrap((req) => {
+// POST /sessions - créer une session (prof uniquement)
+router.post('/sessions', requireTeacher, wrap((req) => {
   const { promoId, title } = req.body
   const teacherId = req.user?.id
   if (!teacherId || !promoId || !title) throw new Error('promoId et title requis (teacherId extrait du token)')
@@ -70,24 +71,24 @@ router.get('/sessions/promo/:promoId', wrap((req) => {
   return queries.getSessionsForPromo(Number(req.params.promoId))
 }))
 
-// POST /sessions/:id/clone - dupliquer une session
-router.post('/sessions/:id/clone', wrap((req) => {
+// POST /sessions/:id/clone - dupliquer une session (prof uniquement)
+router.post('/sessions/:id/clone', requireTeacher, wrap((req) => {
   const teacherId = req.user?.id
   const { promoId, title } = req.body
   if (!teacherId || !promoId) throw new Error('promoId requis')
   return queries.cloneSession(Number(req.params.id), { teacherId, promoId, title })
 }))
 
-// PATCH /sessions/:id/activities/reorder - réordonner les activités
-router.patch('/sessions/:id/activities/reorder', wrap((req) => {
+// PATCH /sessions/:id/activities/reorder (prof uniquement)
+router.patch('/sessions/:id/activities/reorder', requireTeacher, wrap((req) => {
   const { order } = req.body
   if (!Array.isArray(order)) throw new Error('order (tableau d\'IDs) requis')
   queries.reorderActivities(Number(req.params.id), order)
   return queries.getSession(Number(req.params.id))
 }))
 
-// PATCH /sessions/:id/status - mettre à jour le statut
-router.patch('/sessions/:id/status', (req, res) => {
+// PATCH /sessions/:id/status (prof uniquement)
+router.patch('/sessions/:id/status', requireTeacher, (req, res) => {
   try {
     const { status } = req.body
     if (!['waiting', 'active', 'ended'].includes(status)) {
@@ -112,8 +113,8 @@ router.patch('/sessions/:id/status', (req, res) => {
   } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
 })
 
-// DELETE /sessions/:id
-router.delete('/sessions/:id', wrap((req) => {
+// DELETE /sessions/:id (prof uniquement)
+router.delete('/sessions/:id', requireTeacher, wrap((req) => {
   const id = Number(req.params.id)
   _lastScoresEmit.delete(id)
   queries.deleteSession(id)
@@ -122,8 +123,8 @@ router.delete('/sessions/:id', wrap((req) => {
 
 // ─── Activities ──────────────────────────────────────────────────────────────
 
-// POST /sessions/:id/activities - ajouter une activité
-router.post('/sessions/:id/activities', wrap((req) => {
+// POST /sessions/:id/activities (prof uniquement)
+router.post('/sessions/:id/activities', requireTeacher, wrap((req) => {
   const { type, title, options, multi, maxWords, position, timer_seconds, correct_answers } = req.body
   if (!type || !title) throw new Error('type et title requis')
   return queries.addActivity({
@@ -133,21 +134,21 @@ router.post('/sessions/:id/activities', wrap((req) => {
   })
 }))
 
-// PATCH /activities/:id - modifier une activité
-router.patch('/activities/:id', wrap((req) => {
+// PATCH /activities/:id (prof uniquement)
+router.patch('/activities/:id', requireTeacher, wrap((req) => {
   return queries.updateActivity(Number(req.params.id), req.body)
 }))
 
-// DELETE /activities/:id
-router.delete('/activities/:id', wrap((req) => {
+// DELETE /activities/:id (prof uniquement)
+router.delete('/activities/:id', requireTeacher, wrap((req) => {
   const id = Number(req.params.id)
   _lastEmit.delete(id)
   queries.deleteActivity(id)
   return null
 }))
 
-// PATCH /activities/:id/status - push/close une activité
-router.patch('/activities/:id/status', (req, res) => {
+// PATCH /activities/:id/status (prof uniquement)
+router.patch('/activities/:id/status', requireTeacher, (req, res) => {
   try {
     const { status } = req.body
     if (!['pending', 'live', 'closed'].includes(status)) {

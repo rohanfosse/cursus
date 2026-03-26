@@ -7,6 +7,7 @@ import { PlusCircle, Pencil, Trash2, VolumeX, Volume2, Lock, Unlock, CheckCheck 
 import { useAppStore } from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
 import { useToast } from '@/composables/useToast'
+import { useApi }   from '@/composables/useApi'
 import { useConfirm } from '@/composables/useConfirm'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
 import { NO_CAT } from './useSidebarData'
@@ -21,6 +22,7 @@ export function useSidebarActions(
   const appStore      = useAppStore()
   const modals        = useModalsStore()
   const { showToast } = useToast()
+  const { api }       = useApi()
   const { confirm }   = useConfirm()
 
   // ── Mute (localStorage) ─────────────────────────────────────────────────
@@ -75,8 +77,8 @@ export function useSidebarActions(
     const name = renameValue.value.trim()
     cancelRename()
     if (!id || !name) return
-    const res = await window.api.renameChannel(id, name)
-    if (res?.ok === false) { showToast('Erreur lors du renommage.', 'error'); return }
+    const res = await api(() => window.api.renameChannel(id, name), 'channel')
+    if (res === null) return
     await loadTeacherChannels()
     showToast('Canal renommé.', 'success')
   }
@@ -88,8 +90,8 @@ export function useSidebarActions(
     if (!old || !next || !appStore.activePromoId) return
     const iconPrefix = old.includes(' ') ? old.split(' ')[0] + ' ' : ''
     const newKey = iconPrefix + next
-    const res = await window.api.renameCategory(appStore.activePromoId, old, newKey)
-    if (res?.ok === false) { showToast('Erreur lors du renommage.', 'error'); return }
+    const res = await api(() => window.api.renameCategory(appStore.activePromoId, old, newKey), 'channel')
+    if (res === null) return
     await loadTeacherChannels()
     showToast('Catégorie renommée.', 'success')
   }
@@ -123,8 +125,8 @@ export function useSidebarActions(
           action: async () => {
             if (!appStore.activePromoId) return
             if (!await confirm(`Dissoudre la catégorie « ${group.key} » ? Les canaux seront déplacés hors catégorie.`, 'warning', 'Dissoudre')) return
-            const res = await window.api.deleteCategory(appStore.activePromoId, group.key)
-            if (res?.ok === false) { showToast('Erreur.', 'error'); return }
+            const res = await api(() => window.api.deleteCategory(appStore.activePromoId, group.key), 'channel')
+            if (res === null) return
             await loadTeacherChannels()
             showToast('Catégorie dissoute.', 'success')
           },
@@ -163,7 +165,8 @@ export function useSidebarActions(
           icon:   ch.is_private ? Unlock : Lock,
           action: async () => {
             const newPrivate = !ch.is_private
-            await window.api.updateChannelPrivacy(ch.id, newPrivate)
+            const r = await api(() => window.api.updateChannelPrivacy(ch.id, newPrivate), 'channel')
+            if (r === null) return
             await loadTeacherChannels()
             showToast(newPrivate ? 'Canal rendu privé.' : 'Canal rendu public.', 'success')
           },
@@ -175,8 +178,8 @@ export function useSidebarActions(
           separator: true,
           action: async () => {
             if (!await confirm(`Supprimer le canal « #${ch.name} » et tous ses messages ? Cette action est irréversible.`, 'danger', 'Supprimer')) return
-            const res = await window.api.deleteChannel(ch.id)
-            if (res?.ok === false) { showToast('Erreur.', 'error'); return }
+            const res = await api(() => window.api.deleteChannel(ch.id), 'channel')
+            if (res === null) return
             if (appStore.activeChannelId === ch.id) appStore.activeChannelId = null
             await loadTeacherChannels()
             showToast('Canal supprimé.', 'success')
@@ -225,8 +228,8 @@ export function useSidebarActions(
     if (!ch) return
     const newCategory = groupKey === NO_CAT ? null : groupKey
     if ((ch.category ?? null) === newCategory) return
-    const res = await window.api.updateChannelCategory(ch.id, newCategory)
-    if (res?.ok === false) { showToast('Erreur lors du déplacement.', 'error'); return }
+    const res = await api(() => window.api.updateChannelCategory(ch.id, newCategory), 'channel')
+    if (res === null) return
     await loadTeacherChannels()
   }
 

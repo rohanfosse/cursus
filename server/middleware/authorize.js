@@ -38,9 +38,9 @@ function promoFromParam(req) {
   return Number(req.params.promoId ?? req.query.promoId) || null
 }
 
-/** Lookup : travailId → promo_id */
+/** Lookup : travailId → promo_id (supporte :id, :travailId, et query param) */
 function promoFromTravail(req) {
-  const travailId = Number(req.params.id ?? req.query.travailId)
+  const travailId = Number(req.params.id ?? req.params.travailId ?? req.query.travailId)
   if (!travailId) return null
   const t = getDb().prepare('SELECT promo_id FROM travaux WHERE id = ?').get(travailId)
   return t?.promo_id ?? null

@@ -34,9 +34,11 @@ function createChannel({ promoId, name, type, isPrivate, members, category }) {
   const db          = getDb();
   const membersJson = isPrivate && members?.length ? JSON.stringify(members) : null;
   const chType      = type === 'annonce' ? 'annonce' : 'chat';
-  return db.prepare(
+  const id = db.prepare(
     'INSERT INTO channels (promo_id, name, description, type, is_private, members, category) VALUES (?, ?, ?, ?, ?, ?, ?)'
   ).run(promoId, name, '', chType, isPrivate ? 1 : 0, membersJson, category ?? null).lastInsertRowid;
+  cache.invalidate('channels:');
+  return id;
 }
 
 function renameChannel(id, name) {
@@ -58,23 +60,27 @@ function renameCategory(promoId, oldCategory, newCategory) {
 
 /** Dégroupe la catégorie (met category = null) sans supprimer les canaux */
 function deleteCategory(promoId, category) {
-  return getDb().prepare('UPDATE channels SET category = NULL WHERE promo_id = ? AND category = ?')
+  const res = getDb().prepare('UPDATE channels SET category = NULL WHERE promo_id = ? AND category = ?')
     .run(promoId, category);
+  cache.invalidate('channels:'); return res;
 }
 
 function updateChannelMembers({ channelId, members }) {
   const membersJson = members?.length ? JSON.stringify(members) : null;
-  return getDb().prepare('UPDATE channels SET members = ? WHERE id = ?').run(membersJson, channelId);
+  const res = getDb().prepare('UPDATE channels SET members = ? WHERE id = ?').run(membersJson, channelId);
+  cache.invalidate('channels:'); return res;
 }
 
 function updateChannelCategory(channelId, category) {
-  return getDb().prepare('UPDATE channels SET category = ? WHERE id = ?').run(category ?? null, channelId);
+  const res = getDb().prepare('UPDATE channels SET category = ? WHERE id = ?').run(category ?? null, channelId);
+  cache.invalidate('channels:'); return res;
 }
 
 function updateChannelPrivacy(channelId, isPrivate, members) {
   const db = getDb();
   const membersJson = isPrivate && members?.length ? JSON.stringify(members) : null;
   db.prepare('UPDATE channels SET is_private = ?, members = ? WHERE id = ?').run(isPrivate ? 1 : 0, membersJson, channelId);
+  cache.invalidate('channels:');
   return db.prepare('SELECT * FROM channels WHERE id = ?').get(channelId);
 }
 

@@ -2,6 +2,7 @@
 const router  = require('express').Router()
 const queries = require('../db/index')
 const wrap    = require('../utils/wrap')
+const { requireTeacher } = require('../middleware/authorize')
 
 // ─── Throttle helper pour results-update ─────────────────────────────────────
 const _lastEmit = new Map() // activityId → timestamp
@@ -17,7 +18,7 @@ function throttledResultsEmit(io, activityId, promoId) {
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
 // POST /sessions - creer une session REX
-router.post('/sessions', wrap((req) => {
+router.post('/sessions', requireTeacher, wrap((req) => {
   const { promoId, title, is_async, open_until } = req.body
   const teacherId = req.user?.id
   if (!teacherId || !promoId || !title) throw new Error('promoId et title requis (teacherId extrait du token)')
@@ -60,7 +61,7 @@ router.get('/sessions/promo/:promoId', wrap((req) => {
 }))
 
 // POST /sessions/:id/clone - dupliquer une session REX
-router.post('/sessions/:id/clone', wrap((req) => {
+router.post('/sessions/:id/clone', requireTeacher, wrap((req) => {
   const teacherId = req.user?.id
   const { promoId, title } = req.body
   if (!teacherId || !promoId) throw new Error('promoId requis')
@@ -68,7 +69,7 @@ router.post('/sessions/:id/clone', wrap((req) => {
 }))
 
 // PATCH /sessions/:id/activities/reorder - réordonner les activités
-router.patch('/sessions/:id/activities/reorder', wrap((req) => {
+router.patch('/sessions/:id/activities/reorder', requireTeacher, wrap((req) => {
   const { order } = req.body
   if (!Array.isArray(order)) throw new Error('order (tableau d\'IDs) requis')
   queries.reorderRexActivities(Number(req.params.id), order)
@@ -76,7 +77,7 @@ router.patch('/sessions/:id/activities/reorder', wrap((req) => {
 }))
 
 // PATCH /sessions/:id/status - demarrer/terminer
-router.patch('/sessions/:id/status', (req, res) => {
+router.patch('/sessions/:id/status', requireTeacher, (req, res) => {
   try {
     const { status } = req.body
     if (!['waiting', 'active', 'ended'].includes(status)) {
@@ -94,7 +95,7 @@ router.patch('/sessions/:id/status', (req, res) => {
 })
 
 // DELETE /sessions/:id
-router.delete('/sessions/:id', wrap((req) => {
+router.delete('/sessions/:id', requireTeacher, wrap((req) => {
   queries.deleteRexSession(Number(req.params.id))
   return null
 }))
@@ -103,7 +104,7 @@ router.delete('/sessions/:id', wrap((req) => {
 // ─── Activities ──────────────────────────────────────────────────────────────
 
 // POST /sessions/:id/activities - ajouter une activite
-router.post('/sessions/:id/activities', wrap((req) => {
+router.post('/sessions/:id/activities', requireTeacher, wrap((req) => {
   const { type, title, maxWords, maxRating, position } = req.body
   if (!type || !title) throw new Error('type et title requis')
   return queries.addRexActivity({
@@ -112,12 +113,12 @@ router.post('/sessions/:id/activities', wrap((req) => {
 }))
 
 // PATCH /activities/:id - modifier une activité REX
-router.patch('/activities/:id', wrap((req) => {
+router.patch('/activities/:id', requireTeacher, wrap((req) => {
   return queries.updateRexActivity(Number(req.params.id), req.body)
 }))
 
 // DELETE /activities/:id
-router.delete('/activities/:id', wrap((req) => {
+router.delete('/activities/:id', requireTeacher, wrap((req) => {
   const id = Number(req.params.id)
   _lastEmit.delete(id)
   queries.deleteRexActivity(id)
@@ -125,7 +126,7 @@ router.delete('/activities/:id', wrap((req) => {
 }))
 
 // PATCH /activities/:id/status - lancer/fermer une activite
-router.patch('/activities/:id/status', (req, res) => {
+router.patch('/activities/:id/status', requireTeacher, (req, res) => {
   try {
     const { status } = req.body
     if (!['pending', 'live', 'closed'].includes(status)) {
@@ -184,7 +185,7 @@ router.get('/activities/:id/results', wrap((req) => {
 // ─── Pin ─────────────────────────────────────────────────────────────────────
 
 // POST /responses/:id/pin - toggle pin (teacher)
-router.post('/responses/:id/pin', wrap((req) => {
+router.post('/responses/:id/pin', requireTeacher, wrap((req) => {
   const { pinned } = req.body
   return queries.toggleRexPin(Number(req.params.id), pinned)
 }))

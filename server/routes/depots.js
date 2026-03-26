@@ -4,6 +4,7 @@ const { z }   = require('zod')
 const queries = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap         = require('../utils/wrap')
+const { requirePromo, promoFromTravail } = require('../middleware/authorize')
 
 const submitDepotSchema = z.object({
   travail_id: z.number().int().positive('Devoir invalide'),
@@ -26,7 +27,7 @@ const feedbackSchema = z.object({
   feedback: z.string().max(5000, 'Feedback trop long (max 5 000 caractères)'),
 })
 
-router.get('/',         wrap((req) => queries.getDepots(Number(req.query.travailId))))
+router.get('/',         requirePromo(promoFromTravail), wrap((req) => queries.getDepots(Number(req.query.travailId))))
 
 // Soumission de dépôt - vérifier que l'étudiant soumet pour lui-même
 router.post('/', validate(submitDepotSchema), (req, res) => {
