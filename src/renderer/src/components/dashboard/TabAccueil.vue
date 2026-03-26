@@ -519,9 +519,9 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
   background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: pointer;
-  transition: filter .15s, transform .15s;
+  transition: filter var(--t-base), transform var(--t-base);
 }
 .focus-action:hover { filter: brightness(1.1); transform: translateY(-1px); }
 .focus-action:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
@@ -579,7 +579,7 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
 .stat-online-dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: var(--color-success);
   box-shadow: 0 0 6px rgba(34, 197, 94, .5);
   margin-bottom: 2px;
@@ -622,9 +622,9 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
   padding: 6px 12px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   flex-shrink: 0;
-  transition: opacity .2s, background .2s;
+  transition: opacity var(--t-base), background var(--t-base);
 }
 .schedule-past {
   opacity: .4;
@@ -645,7 +645,7 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
   justify-content: center;
   width: 20px;
   height: 20px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
 .schedule-type-deadline   { background: rgba(74, 144, 217, .15); color: var(--accent); }
@@ -672,7 +672,7 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
   color: var(--accent);
   background: var(--accent-subtle);
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   align-self: flex-start;
 }
 .messages-list {
@@ -685,7 +685,7 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
   align-items: center;
   gap: 8px;
   padding: 5px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   background: none;
   border: none;
@@ -693,13 +693,13 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
   text-align: left;
   font-family: var(--font);
   color: var(--text-primary);
-  transition: background .12s;
+  transition: background var(--t-fast);
 }
 .messages-item:hover { background: var(--bg-hover); }
 .messages-avatar {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -722,7 +722,7 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
   color: var(--accent);
   background: var(--accent-subtle);
   padding: 1px 6px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   flex-shrink: 0;
 }
 
@@ -742,9 +742,9 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
   justify-content: center;
   gap: 8px;
   padding: 14px 10px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   cursor: pointer;
-  transition: all .15s ease;
+  transition: all var(--t-base) ease;
   font-family: var(--font);
   border: 1px solid var(--border);
   min-height: 80px;
@@ -806,14 +806,14 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 6px;
-  transition: background .12s;
+  border-radius: var(--radius-sm);
+  transition: background var(--t-fast);
 }
 .activity-item:hover { background: var(--bg-elevated); }
 .activity-icon {
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -891,9 +891,9 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
 .bento-tile-remove {
   position: absolute; top: -8px; right: -8px; z-index: 5;
   display: flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; border-radius: 50%;
+  width: 22px; height: 22px; border-radius: var(--radius-full);
   background: var(--color-danger); color: #fff; border: 2px solid var(--bg-main);
-  cursor: pointer; transition: transform .15s;
+  cursor: pointer; transition: transform var(--t-base);
   box-shadow: 0 2px 6px rgba(0,0,0,.2);
 }
 .bento-tile-remove:hover { transform: scale(1.15); }
@@ -903,11 +903,11 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
 /* Add tile button */
 .bento-add-tile {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 16px; border-radius: 14px; grid-column: span 4;
+  padding: 16px; border-radius: var(--radius-lg); grid-column: span 4;
   border: 2px dashed rgba(74, 144, 217, .3);
   background: var(--accent-subtle);
   color: var(--accent); cursor: pointer;
-  transition: all .2s; font-family: var(--font); font-size: 13px; font-weight: 600;
+  transition: all var(--t-base); font-family: var(--font); font-size: 13px; font-weight: 600;
 }
 .bento-add-tile:hover {
   border-color: var(--accent); background: var(--accent-subtle);
@@ -916,7 +916,7 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
 
 /* Drawer */
 .bento-drawer {
-  margin-top: 12px; padding: 16px; border-radius: 14px;
+  margin-top: 12px; padding: 16px; border-radius: var(--radius-lg);
   background: var(--bg-elevated); border: 1px solid var(--border);
   box-shadow: 0 8px 24px rgba(0,0,0,.12);
 }
@@ -927,7 +927,7 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
 .bento-drawer-header h4 { font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0; }
 .bento-drawer-header button {
   display: flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; border-radius: 6px;
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
   border: none; background: transparent; color: var(--text-muted); cursor: pointer;
 }
 .bento-drawer-header button:hover { background: var(--bg-hover); }
@@ -937,9 +937,9 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
 }
 .bento-drawer-item {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 14px; border-radius: 10px;
+  padding: 8px 14px; border-radius: var(--radius);
   background: var(--bg-main); border: 1px solid var(--border);
-  cursor: pointer; transition: all .2s; font-family: var(--font);
+  cursor: pointer; transition: all var(--t-base); font-family: var(--font);
   color: var(--text-primary); font-size: 12px; font-weight: 600;
 }
 .bento-drawer-item:hover {
@@ -951,8 +951,8 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
 .bento-drawer-item:hover .bento-drawer-item-add { opacity: 1; }
 
 /* Drawer transition */
-.bento-drawer-enter-active { transition: all .25s cubic-bezier(.4,0,.2,1); }
-.bento-drawer-leave-active { transition: all .15s ease; }
+.bento-drawer-enter-active { transition: all var(--t-slow) cubic-bezier(.4,0,.2,1); }
+.bento-drawer-leave-active { transition: all var(--t-base) ease; }
 .bento-drawer-enter-from { opacity: 0; transform: translateY(12px); }
 .bento-drawer-leave-to { opacity: 0; transform: translateY(8px); }
 

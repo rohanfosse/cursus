@@ -42,21 +42,21 @@
 .db-tab--settings:hover { opacity: 1; color: var(--accent); }
 .db-tab-soon {
   font-size: 9px; font-weight: 700;
-  padding: 1px 5px; border-radius: 8px;
+  padding: 1px 5px; border-radius: var(--radius);
   background: rgba(74, 144, 217, .15); color: var(--accent);
   letter-spacing: .3px;
 }
 
 /* ── Loading skeleton ─────────────────────────────────────────────────────── */
 .db-loading { display: flex; flex-direction: column; gap: 14px; padding: 32px 0; }
-.db-skel-card { height: 76px; border-radius: 10px; flex-shrink: 0; }
+.db-skel-card { height: 76px; border-radius: var(--radius); flex-shrink: 0; }
 .db-skel-content { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
 
 /* ── Unified dashboard card base ──────────────────────────────────────────── */
 .dashboard-card {
   background: var(--bg-elevated, rgba(255,255,255,.04));
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   padding: 16px;
   position: relative;
   overflow: hidden;
