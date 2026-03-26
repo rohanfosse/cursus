@@ -16,8 +16,8 @@ const addResourceSchema = z.object({
   category:    z.string().max(100).optional().default('autre'),
 }).passthrough().transform(data => ({
   ...data,
-  travail_id:  data.travail_id ?? data.travailId,
-  path_or_url: data.path_or_url ?? data.pathOrUrl,
+  travailId:  data.travailId ?? data.travail_id,
+  pathOrUrl:  data.pathOrUrl ?? data.path_or_url,
 }))
 
 router.get('/',      requirePromo(promoFromTravail), wrap((req) => queries.getRessources(Number(req.query.travailId))))
