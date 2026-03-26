@@ -208,14 +208,15 @@ function getAdminUserDetail(userId) {
     if (!user) return null
   }
 
-  // Activité
+  // Activité (author_id : négatif pour teachers, positif pour students)
+  const authorId = isTeacher ? -(realId) : realId
   const messageCount = db.prepare(
-    `SELECT COUNT(*) AS count FROM messages WHERE author_name = ?`
-  ).get(user.name)
+    `SELECT COUNT(*) AS count FROM messages WHERE author_id = ?`
+  ).get(authorId)
 
   const lastMessage = db.prepare(
-    `SELECT MAX(created_at) AS last FROM messages WHERE author_name = ?`
-  ).get(user.name)
+    `SELECT MAX(created_at) AS last FROM messages WHERE author_id = ?`
+  ).get(authorId)
 
   const depotCount = isTeacher ? { count: 0 } : db.prepare(
     `SELECT COUNT(*) AS count FROM depots WHERE student_id = ?`

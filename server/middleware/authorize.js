@@ -54,9 +54,9 @@ function requireMessageOwner(req, res, next) {
   if (req.user?.type !== 'student') return next()
   const msgId = Number(req.params.id)
   if (!msgId) return res.status(400).json({ ok: false, error: 'ID message manquant.' })
-  const msg = getDb().prepare('SELECT author_name FROM messages WHERE id = ?').get(msgId)
+  const msg = getDb().prepare('SELECT author_id FROM messages WHERE id = ?').get(msgId)
   if (!msg) return res.status(404).json({ ok: false, error: 'Message introuvable.' })
-  if (msg.author_name !== req.user.name) {
+  if (msg.author_id !== req.user.id) {
     return res.status(403).json({ ok: false, error: 'Vous ne pouvez modifier que vos propres messages.' })
   }
   next()

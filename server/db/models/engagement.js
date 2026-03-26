@@ -15,13 +15,13 @@ function computeEngagementScores(promoId) {
 
   // 1. Messages par etudiant (canaux de la promo)
   const msgCounts = db.prepare(`
-    SELECT m.author_name AS name, COUNT(*) AS msg_count
+    SELECT m.author_id, COUNT(*) AS msg_count
     FROM messages m
     JOIN channels c ON m.channel_id = c.id
-    WHERE c.promo_id = ? AND m.dm_student_id IS NULL
-    GROUP BY m.author_name
+    WHERE c.promo_id = ? AND m.dm_student_id IS NULL AND m.author_id IS NOT NULL
+    GROUP BY m.author_id
   `).all(promoId);
-  const msgMap = new Map(msgCounts.map(r => [r.name, r.msg_count]));
+  const msgMap = new Map(msgCounts.map(r => [r.author_id, r.msg_count]));
 
   // 2. Devoirs rendus (par etudiant)
   const devoirStats = db.prepare(`
@@ -40,20 +40,20 @@ function computeEngagementScores(promoId) {
 
   // 3. Derniere activite (dernier message)
   const lastActivity = db.prepare(`
-    SELECT m.author_name AS name, MAX(m.created_at) AS last_at
+    SELECT m.author_id, MAX(m.created_at) AS last_at
     FROM messages m
     JOIN channels c ON m.channel_id = c.id
-    WHERE c.promo_id = ?
-    GROUP BY m.author_name
+    WHERE c.promo_id = ? AND m.author_id IS NOT NULL
+    GROUP BY m.author_id
   `).all(promoId);
-  const lastMap = new Map(lastActivity.map(r => [r.name, r.last_at]));
+  const lastMap = new Map(lastActivity.map(r => [r.author_id, r.last_at]));
 
   // 4. Calculer le score
   const now = Date.now();
   const SEVEN_DAYS = 7 * 86400000;
 
   const results = devoirStats.map(s => {
-    const msgs = msgMap.get(s.name) ?? 0;
+    const msgs = msgMap.get(s.id) ?? 0;
     const onTime = s.on_time ?? 0;
     const late = s.late ?? 0;
     const missing = s.missing ?? 0;
@@ -62,7 +62,7 @@ function computeEngagementScores(promoId) {
     let score = (msgs * 1) + (onTime * 3) + (late * 1) + (missing * -2);
 
     // Bonus activite recente
-    const lastAt = lastMap.get(s.name);
+    const lastAt = lastMap.get(s.id);
     if (lastAt && (now - new Date(lastAt).getTime()) < SEVEN_DAYS) {
       score += 5;
     }

@@ -5,11 +5,11 @@ const PAGE_SIZE = 50;
 const MESSAGE_SELECT = `
   SELECT m.*,
          m.pinned AS is_pinned,
-         COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
+         COALESCE(s.avatar_initials, COALESCE(substr(upper(t.name), 1, 2), substr(upper(m.author_name), 1, 2))) AS author_initials,
          COALESCE(s.photo_data, t.photo_data) AS author_photo
   FROM messages m
-  LEFT JOIN students s ON s.name = m.author_name
-  LEFT JOIN teachers t ON t.name = m.author_name
+  LEFT JOIN students s ON s.id = m.author_id AND m.author_type = 'student'
+  LEFT JOIN teachers t ON t.id = -m.author_id AND m.author_type = 'teacher'
   WHERE m.deleted_at IS NULL
 `;
 
@@ -79,31 +79,26 @@ function resolveUserName(userId) {
  */
 function getDmMessagesPage(studentId, beforeId, peerStudentId) {
   if (peerStudentId) {
-    const selfName = resolveUserName(studentId)
-    const peerName = resolveUserName(peerStudentId)
+    // La boîte DM est toujours celle de l'étudiant (id positif)
+    const boxId = studentId > 0 ? studentId : (peerStudentId > 0 ? peerStudentId : studentId)
 
-    if (selfName && peerName) {
-      // La boîte DM est toujours celle de l'étudiant (id positif)
-      const boxId = studentId > 0 ? studentId : (peerStudentId > 0 ? peerStudentId : studentId)
-
-      if (beforeId) {
-        return decryptRows(getDb().prepare(
-          `${MESSAGE_SELECT}
-           AND m.dm_student_id = ?
-             AND m.author_name IN (?, ?)
-             AND m.id < ?
-           ORDER BY m.id DESC
-           LIMIT ?`
-        ).all(boxId, selfName, peerName, beforeId, PAGE_SIZE))
-      }
+    if (beforeId) {
       return decryptRows(getDb().prepare(
         `${MESSAGE_SELECT}
          AND m.dm_student_id = ?
-           AND m.author_name IN (?, ?)
+           AND m.author_id IN (?, ?)
+           AND m.id < ?
          ORDER BY m.id DESC
          LIMIT ?`
-      ).all(boxId, selfName, peerName, PAGE_SIZE))
+      ).all(boxId, studentId, peerStudentId, beforeId, PAGE_SIZE))
     }
+    return decryptRows(getDb().prepare(
+      `${MESSAGE_SELECT}
+       AND m.dm_student_id = ?
+         AND m.author_id IN (?, ?)
+       ORDER BY m.id DESC
+       LIMIT ?`
+    ).all(boxId, studentId, peerStudentId, PAGE_SIZE))
   }
 
   // Fallback : boîte unique (comportement existant)
@@ -142,12 +137,8 @@ function searchDmMessages(studentId, query, peerId) {
   const params = [studentId]
 
   if (peerId) {
-    const selfName = resolveUserName(studentId)
-    const peerName = resolveUserName(peerId)
-    if (selfName && peerName) {
-      sql += ` AND m.author_name IN (?, ?)`
-      params.push(selfName, peerName)
-    }
+    sql += ` AND m.author_id IN (?, ?)`
+    params.push(studentId, peerId)
   }
 
   sql += ` ORDER BY m.created_at ASC LIMIT 5000`
@@ -158,20 +149,21 @@ function searchDmMessages(studentId, query, peerId) {
   return rows.filter(r => r.content && r.content.toLowerCase().includes(q)).slice(0, 200)
 }
 
-function sendMessage({ channelId, dmStudentId, authorName, authorType, content, replyToId, replyToAuthor, replyToPreview }) {
+function sendMessage({ channelId, dmStudentId, authorName, authorId, authorType, content, replyToId, replyToAuthor, replyToPreview }) {
   // 'ta' n'est pas dans le CHECK constraint de la table - on le stocke comme 'teacher'
   const safeType = authorType === 'ta' ? 'teacher' : authorType;
   // Chiffrer le contenu des DMs
   const storedContent = dmStudentId ? encrypt(content) : content;
   return getDb().prepare(`
     INSERT INTO messages
-      (channel_id, dm_student_id, author_name, author_type, content,
+      (channel_id, dm_student_id, author_name, author_id, author_type, content,
        reply_to_id, reply_to_author, reply_to_preview)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     channelId ?? null,
     dmStudentId ?? null,
     authorName,
+    authorId ?? null,
     safeType,
     storedContent,
     replyToId      ?? null,
@@ -218,27 +210,27 @@ function searchAllMessages(promoId, query, limit = 8, userId = null) {
 
   // Channel messages (non chiffrés — recherche LIKE classique)
   const channelSql = promoId
-    ? `SELECT m.id, m.content, m.author_name, m.created_at,
+    ? `SELECT m.id, m.content, m.author_name, m.author_id, m.created_at,
              c.id AS channel_id, c.name AS channel_name, c.promo_id,
-             COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
+             COALESCE(s.avatar_initials, COALESCE(substr(upper(t.name), 1, 2), substr(upper(m.author_name), 1, 2))) AS author_initials,
              COALESCE(s.photo_data, t.photo_data) AS author_photo,
              'channel' AS source_type
        FROM messages m
        JOIN channels c ON m.channel_id = c.id
-       LEFT JOIN students s ON s.name = m.author_name
-       LEFT JOIN teachers t ON t.name = m.author_name
+       LEFT JOIN students s ON s.id = m.author_id AND m.author_type = 'student'
+       LEFT JOIN teachers t ON t.id = -m.author_id AND m.author_type = 'teacher'
        WHERE c.promo_id = ? AND m.dm_student_id IS NULL AND m.deleted_at IS NULL
          AND m.content LIKE '%' || ? || '%'
        ORDER BY m.created_at DESC LIMIT ?`
-    : `SELECT m.id, m.content, m.author_name, m.created_at,
+    : `SELECT m.id, m.content, m.author_name, m.author_id, m.created_at,
              c.id AS channel_id, c.name AS channel_name, c.promo_id,
-             COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
+             COALESCE(s.avatar_initials, COALESCE(substr(upper(t.name), 1, 2), substr(upper(m.author_name), 1, 2))) AS author_initials,
              COALESCE(s.photo_data, t.photo_data) AS author_photo,
              'channel' AS source_type
        FROM messages m
        JOIN channels c ON m.channel_id = c.id
-       LEFT JOIN students s ON s.name = m.author_name
-       LEFT JOIN teachers t ON t.name = m.author_name
+       LEFT JOIN students s ON s.id = m.author_id AND m.author_type = 'student'
+       LEFT JOIN teachers t ON t.id = -m.author_id AND m.author_type = 'teacher'
        WHERE m.dm_student_id IS NULL AND m.deleted_at IS NULL AND m.content LIKE '%' || ? || '%'
        ORDER BY m.created_at DESC LIMIT ?`;
 
@@ -249,15 +241,15 @@ function searchAllMessages(promoId, query, limit = 8, userId = null) {
   // DM messages (chiffrés — déchiffrement + filtrage en mémoire)
   if (userId) {
     const dmRows = decryptRows(db.prepare(`
-      SELECT m.id, m.content, m.author_name, m.created_at,
+      SELECT m.id, m.content, m.author_name, m.author_id, m.created_at,
              NULL AS channel_id, 'Message direct' AS channel_name, NULL AS promo_id,
              m.dm_student_id,
-             COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
+             COALESCE(s.avatar_initials, COALESCE(substr(upper(t.name), 1, 2), substr(upper(m.author_name), 1, 2))) AS author_initials,
              COALESCE(s.photo_data, t.photo_data) AS author_photo,
              'dm' AS source_type
       FROM messages m
-      LEFT JOIN students s ON s.name = m.author_name
-      LEFT JOIN teachers t ON t.name = m.author_name
+      LEFT JOIN students s ON s.id = m.author_id AND m.author_type = 'student'
+      LEFT JOIN teachers t ON t.id = -m.author_id AND m.author_type = 'teacher'
       WHERE m.dm_student_id = ? AND m.deleted_at IS NULL
       ORDER BY m.created_at DESC LIMIT 2000
     `).all(userId));
@@ -281,9 +273,6 @@ function searchAllMessages(promoId, query, limit = 8, userId = null) {
  * On extrait les auteurs distincts (hors l'étudiant lui-même) pour lister les contacts.
  */
 function getRecentDmContacts(studentId, limit = 15) {
-  const myName = resolveUserName(studentId)
-  if (!myName) return [];
-
   // Pour les enseignants (id négatif) : chercher les étudiants à qui ils ont envoyé des DMs
   if (studentId < 0) {
     const rows = getDb().prepare(`
@@ -291,43 +280,42 @@ function getRecentDmContacts(studentId, limit = 15) {
         s.id, s.name, s.avatar_initials, s.photo_data, s.promo_id,
         MAX(m.created_at) AS last_message_at,
         (SELECT content FROM messages m2
-         WHERE m2.dm_student_id = s.id AND m2.author_name IN (?, s.name) AND m2.deleted_at IS NULL
+         WHERE m2.dm_student_id = s.id AND m2.author_id IN (?, s.id) AND m2.deleted_at IS NULL
          ORDER BY m2.created_at DESC LIMIT 1
         ) AS last_message_preview
       FROM messages m
       JOIN students s ON m.dm_student_id = s.id
-      WHERE m.author_name = ? AND m.deleted_at IS NULL
+      WHERE m.author_id = ? AND m.deleted_at IS NULL
       GROUP BY s.id
       ORDER BY last_message_at DESC
       LIMIT ?
-    `).all(myName, myName, limit);
-    // Déchiffrer les previews
-    return rows.map(r => {
-      if (r.last_message_preview) r.last_message_preview = decrypt(r.last_message_preview)
-      return r
-    })
+    `).all(studentId, studentId, limit);
+    return rows.map(r => ({
+      ...r,
+      last_message_preview: r.last_message_preview ? decrypt(r.last_message_preview) : null,
+    }))
   }
 
   // Pour les étudiants : chercher les contacts (envoyés ET reçus)
   const rows = getDb().prepare(`
     SELECT
-      author_name AS name,
-      MAX(created_at) AS last_message_at,
+      m.author_id,
+      m.author_name AS name,
+      MAX(m.created_at) AS last_message_at,
       (SELECT content FROM messages m2
-       WHERE m2.dm_student_id = ? AND (m2.author_name = m.author_name OR m2.author_name = ?) AND m2.deleted_at IS NULL
+       WHERE m2.dm_student_id = ? AND m2.author_id IN (m.author_id, ?) AND m2.deleted_at IS NULL
        ORDER BY m2.created_at DESC LIMIT 1
       ) AS last_message_preview
     FROM messages m
-    WHERE m.dm_student_id = ? AND m.author_name != ? AND m.deleted_at IS NULL
-    GROUP BY m.author_name
+    WHERE m.dm_student_id = ? AND m.author_id != ? AND m.deleted_at IS NULL
+    GROUP BY m.author_id
     ORDER BY last_message_at DESC
     LIMIT ?
-  `).all(studentId, myName, studentId, myName, limit);
-  // Déchiffrer les previews
-  return rows.map(r => {
-    if (r.last_message_preview) r.last_message_preview = decrypt(r.last_message_preview)
-    return r
-  })
+  `).all(studentId, studentId, studentId, studentId, limit);
+  return rows.map(r => ({
+    ...r,
+    last_message_preview: r.last_message_preview ? decrypt(r.last_message_preview) : null,
+  }))
 }
 
 /**

@@ -89,6 +89,7 @@ router.post('/', messageLimiter, validate(sendMessageSchema), (req, res) => {
 
     // ── Sécurité : forcer l'identité depuis le JWT (anti-usurpation) ────────
     payload.authorName = req.user.name
+    payload.authorId   = req.user.id
     payload.authorType = req.user.type === 'ta' ? 'teacher' : req.user.type
 
     // ── Sécurité : valider le destinataire DM ────────────────────────────────

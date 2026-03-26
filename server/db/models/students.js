@@ -233,9 +233,9 @@ function exportStudentData(studentId) {
 
   const messages = db.prepare(`
     SELECT id, channel_id, dm_student_id, content, created_at, edited
-    FROM messages WHERE author_name = ?
+    FROM messages WHERE author_id = ?
     ORDER BY created_at ASC
-  `).all(profile.name);
+  `).all(studentId);
 
   const submissions = db.prepare(`
     SELECT d.id, d.submitted_at, d.note, d.feedback,
@@ -325,7 +325,7 @@ function getClasseStats(promoId) {
       (SELECT AVG(CAST(d.note AS REAL)) FROM depots d WHERE d.student_id = s.id
        AND d.note IS NOT NULL AND d.note != '') AS avg_grade,
       (SELECT MAX(m.created_at) FROM messages m
-       WHERE m.author_name = s.name AND m.channel_id IS NOT NULL) AS last_message_at
+       WHERE m.author_id = s.id AND m.channel_id IS NOT NULL) AS last_message_at
     FROM students s
     WHERE s.promo_id = ?
     ORDER BY s.name

@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 40;
+const CURRENT_VERSION = 41;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -790,6 +790,22 @@ function runMigrations(db) {
       db.exec('CREATE INDEX IF NOT EXISTS idx_doc_promo ON channel_documents(promo_id)');
       db.exec('CREATE INDEX IF NOT EXISTS idx_doc_promo_project ON channel_documents(promo_id, project)');
       db.exec('CREATE INDEX IF NOT EXISTS idx_doc_channel ON channel_documents(channel_id)');
+    },
+    // v41 : author_id sur messages (ownership par ID numerique au lieu de author_name)
+    (db) => {
+      tryAlter(db, 'ALTER TABLE messages ADD COLUMN author_id INTEGER');
+      // Backfill author_id depuis author_name (négatif pour teachers, positif pour students)
+      db.exec(`
+        UPDATE messages SET author_id = -(
+          SELECT t.id FROM teachers t WHERE t.name = messages.author_name LIMIT 1
+        ) WHERE author_type = 'teacher' AND author_id IS NULL
+      `);
+      db.exec(`
+        UPDATE messages SET author_id = (
+          SELECT s.id FROM students s WHERE s.name = messages.author_name LIMIT 1
+        ) WHERE author_type = 'student' AND author_id IS NULL
+      `);
+      db.exec('CREATE INDEX IF NOT EXISTS idx_messages_author_id ON messages(author_id)');
     },
   ];
 
