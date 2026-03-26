@@ -26,4 +26,4 @@ server/.env
 logs/
 
 *.pdf
-.claude/
+.claude/.mcp.json
