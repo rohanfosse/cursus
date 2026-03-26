@@ -119,6 +119,18 @@ function getAdminStats() {
   }
 }
 
+// ── Audit logging ───────────────────────────────────────────────────────────
+
+/** Enregistre une action dans le journal d'audit (non bloquant). */
+function logAudit({ actorId, actorName, actorType, action, target, details, ip }) {
+  try {
+    getDb().prepare(`
+      INSERT INTO audit_log (actor_id, actor_name, actor_type, action, target, details, ip)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(actorId, actorName, actorType, action, target || null, details || null, ip || null)
+  } catch { /* non bloquant — ne doit jamais casser le flux principal */ }
+}
+
 // ── Gestion des utilisateurs ─────────────────────────────────────────────────
 
 function getAdminUsers({ search, promo_id, type, page = 1, limit = 50 }) {
@@ -577,7 +589,7 @@ function deleteReminder(id) {
 }
 
 module.exports = {
-  getAdminStats,
+  getAdminStats, logAudit,
   getAdminUsers, getAdminUserDetail,
   getAdminMessages, getAdminChannels,
   // Signalements
