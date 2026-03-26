@@ -41,13 +41,31 @@ jobs:
           source: coverage/coverage-summary.json
           output: coverage/badge.svg
 
-      - name: Deploy coverage badge
-        if: github.ref == 'refs/heads/main' && hashFiles('coverage/badge.svg') != ''
+      - name: Prepare gh-pages content
+        if: github.ref == 'refs/heads/main' && hashFiles('coverage/coverage-summary.json') != ''
+        run: |
+          mkdir -p gh-pages/badges
+          cp coverage/badge.svg gh-pages/badges/ 2>/dev/null || true
+          cat > gh-pages/index.html << 'HTML'
+          <!DOCTYPE html>
+          <html lang="fr">
+          <head>
+            <meta charset="UTF-8" />
+            <meta http-equiv="refresh" content="0;url=https://cursus.school" />
+            <title>Cursus</title>
+          </head>
+          <body>
+            <p>Redirection vers <a href="https://cursus.school">cursus.school</a></p>
+          </body>
+          </html>
+          HTML
+
+      - name: Deploy to gh-pages
+        if: github.ref == 'refs/heads/main' && hashFiles('gh-pages/index.html') != ''
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./coverage
-          destination_dir: badges
+          publish_dir: ./gh-pages
           keep_files: true
 
   code-quality:
