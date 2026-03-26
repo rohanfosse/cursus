@@ -1,10 +1,21 @@
 // ─── Routes messages ─────────────────────────────────────────────────────────
-const router  = require('express').Router()
-const { z }   = require('zod')
-const queries = require('../db/index')
+const router    = require('express').Router()
+const { z }     = require('zod')
+const rateLimit = require('express-rate-limit')
+const queries   = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap         = require('../utils/wrap')
 const { requireTeacher, requirePromo, promoFromChannel, requireMessageOwner, requireDmParticipant } = require('../middleware/authorize')
+
+// ── Rate limiter spécifique messages : 30 msg/min par utilisateur ───────────
+const messageLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  keyGenerator: (req) => `msg:${req.user?.id || req.ip}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Trop de messages envoyés. Réessayez dans une minute.' },
+})
 
 // ── Schémas de validation ─────────────────────────────────────────────────────
 const sendMessageSchema = z.object({
@@ -29,6 +40,17 @@ const reportSchema = z.object({
   reason:  z.string().min(1).max(100).optional().default('other'),
   details: z.string().max(1000).nullable().optional(),
 })
+
+// ── Helper audit log ─────────────────────────────────────────────────────────
+function audit(req, action, target, details) {
+  try {
+    const { logAudit } = require('../db/models/admin')
+    logAudit({
+      actorId: req.user?.id, actorName: req.user?.name, actorType: req.user?.type,
+      action, target, details: details ? JSON.stringify(details) : null, ip: req.ip,
+    })
+  } catch { /* non bloquant */ }
+}
 
 // ── Lecture ───────────────────────────────────────────────────────────────────
 router.get('/channel/:channelId',       requirePromo(promoFromChannel), wrap((req) => queries.getChannelMessages(Number(req.params.channelId))))
@@ -60,7 +82,7 @@ router.get('/dm/:studentId/search', requireDmParticipant, wrap((req) => {
 router.get('/dm-files', requireTeacher, wrap(() => queries.getDmFiles()))
 
 // ── Écriture ──────────────────────────────────────────────────────────────────
-router.post('/', validate(sendMessageSchema), (req, res) => {
+router.post('/', messageLimiter, validate(sendMessageSchema), (req, res) => {
   try {
     const payload = req.body
 
@@ -97,8 +119,13 @@ router.post('/', validate(sendMessageSchema), (req, res) => {
     const result  = queries.sendMessage(payload)
     const message = queries.getMessageById(Number(result.lastInsertRowid))
     if (!message) {
-      throw new Error('Le message a été inséré mais n’a pas pu être relu.')
+      throw new Error('Le message a été inséré mais n\'a pas pu être relu.')
     }
+
+    // ── Audit log ──────────────────────────────────────────────────────────
+    audit(req, 'message:create', `message:${message.id}`, {
+      channelId: payload.channelId, dmStudentId: payload.dmStudentId,
+    })
 
     // ── Parsing des mentions ─────────────────────────────────────────────────
     const rawContent      = payload.content ?? ''
@@ -160,7 +187,7 @@ router.post('/reactions', (req, res, next) => {
   // Étudiants : vérifier que le message est dans leur promo
   if (req.user?.type !== 'student') return next()
   const { getDb } = require('../db/connection')
-  const msg = getDb().prepare('SELECT channel_id, dm_student_id FROM messages WHERE id = ?').get(req.body.msgId)
+  const msg = getDb().prepare('SELECT channel_id, dm_student_id FROM messages WHERE id = ? AND deleted_at IS NULL').get(req.body.msgId)
   if (!msg) return res.status(404).json({ ok: false, error: 'Message introuvable.' })
   if (msg.dm_student_id) {
     // DM : l'étudiant ne peut réagir que dans sa boîte
@@ -171,8 +198,26 @@ router.post('/reactions', (req, res, next) => {
   }
   next()
 }, wrap((req) => queries.updateReactions(req.body.msgId, req.body.reactionsJson)))
-router.delete('/:id',     requireMessageOwner, wrap((req) => queries.deleteMessage(Number(req.params.id))))
-router.patch('/:id', requireMessageOwner, validate(editMessageSchema), wrap((req) => queries.editMessage(Number(req.params.id), req.body.content)))
+
+router.delete('/:id', requireMessageOwner, (req, res) => {
+  try {
+    const changes = queries.deleteMessage(Number(req.params.id))
+    audit(req, 'message:delete', `message:${req.params.id}`)
+    res.json({ ok: true, data: changes })
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message })
+  }
+})
+
+router.patch('/:id', requireMessageOwner, validate(editMessageSchema), (req, res) => {
+  try {
+    const changes = queries.editMessage(Number(req.params.id), req.body.content)
+    audit(req, 'message:edit', `message:${req.params.id}`, { newContentLength: req.body.content.length })
+    res.json({ ok: true, data: changes })
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message })
+  }
+})
 
 // ── Signalement de message ──────────────────────────────────────────────────
 router.post('/:id/report', validate(reportSchema), (req, res, next) => {
@@ -189,6 +234,7 @@ router.post('/:id/report', validate(reportSchema), (req, res, next) => {
 }, wrap((req) => {
   const messageId = Number(req.params.id)
   const { reason, details } = req.body
+  audit(req, 'message:report', `message:${messageId}`, { reason })
   return queries.createReport({
     messageId,
     reporterId: Math.abs(req.user.id),

@@ -65,13 +65,43 @@ function requireMessageOwner(req, res, next) {
  * Vérifie que l'utilisateur est l'un des deux participants du DM.
  * Le paramètre :studentId identifie la "boîte" DM (toujours l'ID étudiant positif).
  * - Un étudiant ne peut accéder qu'à sa propre boîte (studentId === req.user.id)
- * - Un prof peut accéder à toute boîte (il est l'interlocuteur implicite)
+ * - Un enseignant ne peut accéder qu'aux DMs des étudiants dans les promos
+ *   où il est affecté (via teacher_channels). Si aucune affectation n'existe,
+ *   l'accès est total (rétrocompatibilité admin).
  */
 function requireDmParticipant(req, res, next) {
-  if (req.user?.type !== 'student') return next() // profs passent
-  const boxId = Number(req.params.studentId)
-  if (boxId && boxId !== req.user.id) {
-    return res.status(403).json({ ok: false, error: 'Vous ne pouvez accéder qu\'à vos propres conversations.' })
+  // Étudiants : uniquement leur propre boîte
+  if (req.user?.type === 'student') {
+    const boxId = Number(req.params.studentId)
+    if (boxId && boxId !== req.user.id) {
+      return res.status(403).json({ ok: false, error: 'Vous ne pouvez accéder qu\'à vos propres conversations.' })
+    }
+    return next()
+  }
+
+  // Enseignants / TAs : vérifier l'affectation promo via teacher_channels
+  const studentId = Number(req.params.studentId)
+  if (studentId) {
+    const student = getDb().prepare('SELECT promo_id FROM students WHERE id = ?').get(studentId)
+    if (student) {
+      const teacherId = Math.abs(req.user.id)
+      // Si le prof a des affectations de canaux, vérifier qu'il est dans la promo de l'étudiant
+      const hasAnyAssignment = getDb().prepare(
+        'SELECT 1 FROM teacher_channels WHERE teacher_id = ? LIMIT 1'
+      ).get(teacherId)
+      if (hasAnyAssignment) {
+        const hasPromoAccess = getDb().prepare(`
+          SELECT 1 FROM teacher_channels tc
+          JOIN channels c ON tc.channel_id = c.id
+          WHERE tc.teacher_id = ? AND c.promo_id = ?
+          LIMIT 1
+        `).get(teacherId, student.promo_id)
+        if (!hasPromoAccess) {
+          return res.status(403).json({ ok: false, error: 'Vous n\'êtes pas affecté à la promotion de cet étudiant.' })
+        }
+      }
+      // Si pas d'affectation du tout → accès total (admin / rétrocompatibilité)
+    }
   }
   next()
 }

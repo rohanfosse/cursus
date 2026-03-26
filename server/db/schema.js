@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 37;
+const CURRENT_VERSION = 38;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -771,6 +771,11 @@ function runMigrations(db) {
         CREATE INDEX IF NOT EXISTS idx_sig_req_status ON signature_requests(status);
         CREATE INDEX IF NOT EXISTS idx_sig_req_message ON signature_requests(message_id);
       `);
+    },
+    // v38 : soft delete des messages + index
+    (db) => {
+      tryAlter(db, 'ALTER TABLE messages ADD COLUMN deleted_at TEXT DEFAULT NULL');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_messages_deleted ON messages(deleted_at)');
     },
   ];
 

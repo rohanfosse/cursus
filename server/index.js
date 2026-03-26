@@ -122,12 +122,21 @@ setInterval(() => {
 const path = require('path')
 const fs   = require('fs')
 
-// Fichiers uploadés - servis sans auth (nom UUID suffisamment sécurisé)
+// Fichiers uploadés - auth JWT requise (via header ou query param ?token=)
 const UPLOAD_DIR = process.env.UPLOAD_DIR
   ? path.join(process.env.UPLOAD_DIR, 'uploads')
   : path.join(__dirname, '../uploads')
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
-app.use('/uploads', express.static(UPLOAD_DIR))
+app.use('/uploads', (req, res, next) => {
+  const token = req.query.token || req.headers.authorization?.replace('Bearer ', '')
+  if (!token) return res.status(401).json({ ok: false, error: 'Non authentifié' })
+  try {
+    jwt.verify(token, SECRET)
+    next()
+  } catch {
+    return res.status(401).json({ ok: false, error: 'Token invalide' })
+  }
+}, express.static(UPLOAD_DIR))
 
 // Route upload (auth requise - montée après authMiddleware global /api)
 app.use('/api/files', require('./routes/files'))

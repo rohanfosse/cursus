@@ -1,4 +1,5 @@
 const { getDb } = require('../connection');
+const { encrypt, decrypt, decryptRow, decryptRows } = require('../../utils/crypto');
 
 const PAGE_SIZE = 50;
 const MESSAGE_SELECT = `
@@ -9,21 +10,23 @@ const MESSAGE_SELECT = `
   FROM messages m
   LEFT JOIN students s ON s.name = m.author_name
   LEFT JOIN teachers t ON t.name = m.author_name
+  WHERE m.deleted_at IS NULL
 `;
 
 function getChannelMessages(channelId) {
   return getDb().prepare(
     `${MESSAGE_SELECT}
-     WHERE m.channel_id = ?
+     AND m.channel_id = ?
      ORDER BY m.created_at ASC`
   ).all(channelId);
 }
 
 function getMessageById(messageId) {
-  return getDb().prepare(
+  const row = getDb().prepare(
     `${MESSAGE_SELECT}
-     WHERE m.id = ?`
+     AND m.id = ?`
   ).get(messageId) ?? null;
+  return decryptRow(row);
 }
 
 /**
@@ -35,25 +38,25 @@ function getChannelMessagesPage(channelId, beforeId) {
   if (beforeId) {
     return getDb().prepare(
       `${MESSAGE_SELECT}
-       WHERE m.channel_id = ? AND m.id < ?
+       AND m.channel_id = ? AND m.id < ?
        ORDER BY m.id DESC
        LIMIT ?`
     ).all(channelId, beforeId, PAGE_SIZE);
   }
   return getDb().prepare(
     `${MESSAGE_SELECT}
-     WHERE m.channel_id = ?
+     AND m.channel_id = ?
      ORDER BY m.id DESC
      LIMIT ?`
   ).all(channelId, PAGE_SIZE);
 }
 
 function getDmMessages(studentId) {
-  return getDb().prepare(
+  return decryptRows(getDb().prepare(
     `${MESSAGE_SELECT}
-     WHERE m.dm_student_id = ?
+     AND m.dm_student_id = ?
      ORDER BY m.created_at ASC`
-  ).all(studentId);
+  ).all(studentId));
 }
 
 /**
@@ -84,76 +87,80 @@ function getDmMessagesPage(studentId, beforeId, peerStudentId) {
       const boxId = studentId > 0 ? studentId : (peerStudentId > 0 ? peerStudentId : studentId)
 
       if (beforeId) {
-        return getDb().prepare(
+        return decryptRows(getDb().prepare(
           `${MESSAGE_SELECT}
-           WHERE m.dm_student_id = ?
+           AND m.dm_student_id = ?
              AND m.author_name IN (?, ?)
              AND m.id < ?
            ORDER BY m.id DESC
            LIMIT ?`
-        ).all(boxId, selfName, peerName, beforeId, PAGE_SIZE)
+        ).all(boxId, selfName, peerName, beforeId, PAGE_SIZE))
       }
-      return getDb().prepare(
+      return decryptRows(getDb().prepare(
         `${MESSAGE_SELECT}
-         WHERE m.dm_student_id = ?
+         AND m.dm_student_id = ?
            AND m.author_name IN (?, ?)
          ORDER BY m.id DESC
          LIMIT ?`
-      ).all(boxId, selfName, peerName, PAGE_SIZE)
+      ).all(boxId, selfName, peerName, PAGE_SIZE))
     }
   }
 
   // Fallback : boîte unique (comportement existant)
   if (beforeId) {
-    return getDb().prepare(
+    return decryptRows(getDb().prepare(
       `${MESSAGE_SELECT}
-       WHERE m.dm_student_id = ? AND m.id < ?
+       AND m.dm_student_id = ? AND m.id < ?
        ORDER BY m.id DESC
        LIMIT ?`
-    ).all(studentId, beforeId, PAGE_SIZE);
+    ).all(studentId, beforeId, PAGE_SIZE))
   }
-  return getDb().prepare(
+  return decryptRows(getDb().prepare(
     `${MESSAGE_SELECT}
-     WHERE m.dm_student_id = ?
+     AND m.dm_student_id = ?
      ORDER BY m.id DESC
      LIMIT ?`
-  ).all(studentId, PAGE_SIZE);
+  ).all(studentId, PAGE_SIZE));
 }
 
 function searchMessages(channelId, query) {
   return getDb().prepare(`
     ${MESSAGE_SELECT}
-    WHERE m.channel_id = ? AND m.content LIKE '%' || ? || '%'
+    AND m.channel_id = ? AND m.content LIKE '%' || ? || '%'
     ORDER BY m.created_at ASC
     LIMIT 200
   `).all(channelId, query);
 }
 
+/**
+ * Recherche DM — déchiffrement en mémoire puis filtrage (le contenu est chiffré en DB).
+ */
 function searchDmMessages(studentId, query, peerId) {
-  const params = [studentId, `%${query}%`]
-  let where = `m.dm_student_id = ? AND m.content LIKE ?`
+  let sql = `${MESSAGE_SELECT} AND m.dm_student_id = ?`
+  const params = [studentId]
 
-  // Filtrer par peer si fourni (conversation bidirectionnelle)
   if (peerId) {
     const selfName = resolveUserName(studentId)
     const peerName = resolveUserName(peerId)
     if (selfName && peerName) {
-      where += ` AND m.author_name IN (?, ?)`
+      sql += ` AND m.author_name IN (?, ?)`
       params.push(selfName, peerName)
     }
   }
 
-  return getDb().prepare(`
-    ${MESSAGE_SELECT}
-    WHERE ${where}
-    ORDER BY m.created_at ASC
-    LIMIT 200
-  `).all(...params);
+  sql += ` ORDER BY m.created_at ASC LIMIT 5000`
+  const rows = decryptRows(getDb().prepare(sql).all(...params))
+
+  // Filtrage en mémoire après déchiffrement
+  const q = query.toLowerCase()
+  return rows.filter(r => r.content && r.content.toLowerCase().includes(q)).slice(0, 200)
 }
 
 function sendMessage({ channelId, dmStudentId, authorName, authorType, content, replyToId, replyToAuthor, replyToPreview }) {
   // 'ta' n'est pas dans le CHECK constraint de la table - on le stocke comme 'teacher'
   const safeType = authorType === 'ta' ? 'teacher' : authorType;
+  // Chiffrer le contenu des DMs
+  const storedContent = dmStudentId ? encrypt(content) : content;
   return getDb().prepare(`
     INSERT INTO messages
       (channel_id, dm_student_id, author_name, author_type, content,
@@ -164,7 +171,7 @@ function sendMessage({ channelId, dmStudentId, authorName, authorType, content, 
     dmStudentId ?? null,
     authorName,
     safeType,
-    content,
+    storedContent,
     replyToId      ?? null,
     replyToAuthor  ?? null,
     replyToPreview ?? null,
@@ -172,29 +179,34 @@ function sendMessage({ channelId, dmStudentId, authorName, authorType, content, 
 }
 
 function updateReactions(msgId, reactionsJson) {
-  return getDb().prepare('UPDATE messages SET reactions = ? WHERE id = ?')
+  return getDb().prepare('UPDATE messages SET reactions = ? WHERE id = ? AND deleted_at IS NULL')
     .run(reactionsJson, msgId).changes;
 }
 
+/** Soft delete — marque le message comme supprimé sans le retirer de la base. */
 function deleteMessage(id) {
-  return getDb().prepare('DELETE FROM messages WHERE id = ?').run(id).changes;
+  return getDb().prepare("UPDATE messages SET deleted_at = datetime('now') WHERE id = ? AND deleted_at IS NULL")
+    .run(id).changes;
 }
 
 function editMessage(id, content) {
-  return getDb().prepare('UPDATE messages SET content = ?, edited = 1 WHERE id = ?')
-    .run(content.trim(), id).changes;
+  // Vérifier si c'est un DM pour chiffrer
+  const msg = getDb().prepare('SELECT dm_student_id FROM messages WHERE id = ?').get(id)
+  const storedContent = msg?.dm_student_id ? encrypt(content.trim()) : content.trim()
+  return getDb().prepare('UPDATE messages SET content = ?, edited = 1 WHERE id = ? AND deleted_at IS NULL')
+    .run(storedContent, id).changes;
 }
 
 function getPinnedMessages(channelId) {
   return getDb().prepare(`
     SELECT id, author_name, content, created_at
-    FROM messages WHERE channel_id = ? AND pinned = 1
+    FROM messages WHERE channel_id = ? AND pinned = 1 AND deleted_at IS NULL
     ORDER BY created_at DESC LIMIT 5
   `).all(channelId);
 }
 
 function togglePinMessage(messageId, pinned) {
-  return getDb().prepare('UPDATE messages SET pinned = ? WHERE id = ?')
+  return getDb().prepare('UPDATE messages SET pinned = ? WHERE id = ? AND deleted_at IS NULL')
     .run(pinned ? 1 : 0, messageId).changes;
 }
 
@@ -202,7 +214,7 @@ function togglePinMessage(messageId, pinned) {
 function searchAllMessages(promoId, query, limit = 8, userId = null) {
   const db = getDb();
 
-  // Channel messages
+  // Channel messages (non chiffrés — recherche LIKE classique)
   const channelSql = promoId
     ? `SELECT m.id, m.content, m.author_name, m.created_at,
              c.id AS channel_id, c.name AS channel_name, c.promo_id,
@@ -213,7 +225,7 @@ function searchAllMessages(promoId, query, limit = 8, userId = null) {
        JOIN channels c ON m.channel_id = c.id
        LEFT JOIN students s ON s.name = m.author_name
        LEFT JOIN teachers t ON t.name = m.author_name
-       WHERE c.promo_id = ? AND m.dm_student_id IS NULL
+       WHERE c.promo_id = ? AND m.dm_student_id IS NULL AND m.deleted_at IS NULL
          AND m.content LIKE '%' || ? || '%'
        ORDER BY m.created_at DESC LIMIT ?`
     : `SELECT m.id, m.content, m.author_name, m.created_at,
@@ -225,29 +237,35 @@ function searchAllMessages(promoId, query, limit = 8, userId = null) {
        JOIN channels c ON m.channel_id = c.id
        LEFT JOIN students s ON s.name = m.author_name
        LEFT JOIN teachers t ON t.name = m.author_name
-       WHERE m.dm_student_id IS NULL AND m.content LIKE '%' || ? || '%'
+       WHERE m.dm_student_id IS NULL AND m.deleted_at IS NULL AND m.content LIKE '%' || ? || '%'
        ORDER BY m.created_at DESC LIMIT ?`;
 
   const channelResults = promoId
     ? db.prepare(channelSql).all(promoId, query, limit)
     : db.prepare(channelSql).all(query, limit);
 
-  // DM messages (if userId provided)
+  // DM messages (chiffrés — déchiffrement + filtrage en mémoire)
   if (userId) {
-    const dmResults = db.prepare(`
+    const dmRows = decryptRows(db.prepare(`
       SELECT m.id, m.content, m.author_name, m.created_at,
              NULL AS channel_id, 'Message direct' AS channel_name, NULL AS promo_id,
+             m.dm_student_id,
              COALESCE(s.avatar_initials, substr(upper(m.author_name), 1, 2)) AS author_initials,
              COALESCE(s.photo_data, t.photo_data) AS author_photo,
              'dm' AS source_type
       FROM messages m
       LEFT JOIN students s ON s.name = m.author_name
       LEFT JOIN teachers t ON t.name = m.author_name
-      WHERE m.dm_student_id = ? AND m.content LIKE '%' || ? || '%'
-      ORDER BY m.created_at DESC LIMIT ?
-    `).all(userId, query, Math.ceil(limit / 2));
+      WHERE m.dm_student_id = ? AND m.deleted_at IS NULL
+      ORDER BY m.created_at DESC LIMIT 2000
+    `).all(userId));
 
-    return [...channelResults, ...dmResults]
+    const q = query.toLowerCase()
+    const dmFiltered = dmRows
+      .filter(r => r.content && r.content.toLowerCase().includes(q))
+      .slice(0, Math.ceil(limit / 2))
+
+    return [...channelResults, ...dmFiltered]
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, limit);
   }
@@ -266,57 +284,71 @@ function getRecentDmContacts(studentId, limit = 15) {
 
   // Pour les enseignants (id négatif) : chercher les étudiants à qui ils ont envoyé des DMs
   if (studentId < 0) {
-    return getDb().prepare(`
+    const rows = getDb().prepare(`
       SELECT
         s.id, s.name, s.avatar_initials, s.photo_data, s.promo_id,
         MAX(m.created_at) AS last_message_at,
         (SELECT content FROM messages m2
-         WHERE m2.dm_student_id = s.id AND m2.author_name IN (?, s.name)
+         WHERE m2.dm_student_id = s.id AND m2.author_name IN (?, s.name) AND m2.deleted_at IS NULL
          ORDER BY m2.created_at DESC LIMIT 1
         ) AS last_message_preview
       FROM messages m
       JOIN students s ON m.dm_student_id = s.id
-      WHERE m.author_name = ?
+      WHERE m.author_name = ? AND m.deleted_at IS NULL
       GROUP BY s.id
       ORDER BY last_message_at DESC
       LIMIT ?
     `).all(myName, myName, limit);
+    // Déchiffrer les previews
+    return rows.map(r => {
+      if (r.last_message_preview) r.last_message_preview = decrypt(r.last_message_preview)
+      return r
+    })
   }
 
   // Pour les étudiants : chercher les contacts (envoyés ET reçus)
-  return getDb().prepare(`
+  const rows = getDb().prepare(`
     SELECT
       author_name AS name,
       MAX(created_at) AS last_message_at,
       (SELECT content FROM messages m2
-       WHERE m2.dm_student_id = ? AND (m2.author_name = m.author_name OR m2.author_name = ?)
+       WHERE m2.dm_student_id = ? AND (m2.author_name = m.author_name OR m2.author_name = ?) AND m2.deleted_at IS NULL
        ORDER BY m2.created_at DESC LIMIT 1
       ) AS last_message_preview
     FROM messages m
-    WHERE m.dm_student_id = ? AND m.author_name != ?
+    WHERE m.dm_student_id = ? AND m.author_name != ? AND m.deleted_at IS NULL
     GROUP BY m.author_name
     ORDER BY last_message_at DESC
     LIMIT ?
   `).all(studentId, myName, studentId, myName, limit);
+  // Déchiffrer les previews
+  return rows.map(r => {
+    if (r.last_message_preview) r.last_message_preview = decrypt(r.last_message_preview)
+    return r
+  })
 }
 
 /**
  * Retourne tous les fichiers (images + pièces jointes) envoyés par des étudiants
  * dans les conversations DM privées avec le professeur.
- * Parsé depuis le contenu markdown des messages.
+ * Parsé depuis le contenu markdown des messages (déchiffré en mémoire).
  */
 function getDmFiles() {
-  const rows = getDb().prepare(`
+  // Charger les messages DM étudiants, déchiffrer, puis filtrer ceux avec des fichiers
+  const allRows = decryptRows(getDb().prepare(`
     SELECT m.id AS message_id, m.content, m.created_at, m.author_name, m.dm_student_id,
            s.id AS student_id, s.name AS student_name
     FROM messages m
     LEFT JOIN students s ON s.id = m.dm_student_id
     WHERE m.dm_student_id IS NOT NULL
+      AND m.deleted_at IS NULL
       AND m.author_type = 'student'
-      AND (m.content LIKE '%📎%' OR m.content LIKE '![%')
     ORDER BY m.created_at DESC
-    LIMIT 500
-  `).all();
+    LIMIT 2000
+  `).all());
+
+  // Filtrer les messages contenant des fichiers après déchiffrement
+  const rows = allRows.filter(r => r.content && (r.content.includes('📎') || r.content.includes('![')))
 
   const fileRe  = /\[📎\s*([^\]]+)\]\(([^)]+)\)/g;
   const imageRe = /!\[([^\]]*)\]\(([^)]+)\)/g;
