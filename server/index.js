@@ -45,6 +45,7 @@ app.use((_req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN')
   res.setHeader('X-XSS-Protection', '1; mode=block')
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' wss: ws:; frame-ancestors 'self'")
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
   }
@@ -82,9 +83,9 @@ app.use('/api/auth', authLimiter, require('./routes/auth'))
 const authMiddleware = require('./middleware/auth')
 app.use('/api', authMiddleware)
 
-// ── Middleware mode lecture seule (bloque POST/PUT/PATCH/DELETE sauf admin) ──
+// ── Middleware mode lecture seule (bloque POST/PUT/PATCH/DELETE pour non-teachers) ──
 app.use('/api', (req, res, next) => {
-  if (req.method === 'GET' || req.path.startsWith('/admin')) return next()
+  if (req.method === 'GET') return next()
   try {
     const { getAppConfig } = require('./db/models/admin')
     if (getAppConfig('read_only') === '1' && req.user?.type !== 'teacher') {
@@ -380,8 +381,9 @@ io.on('connection', (socket) => {
     if (promoId) socket.leave(`rex:${promoId}`)
   })
 
-  // Indicateur de frappe
+  // Indicateur de frappe (re-validation JWT)
   socket.on('typing', ({ channelId, dmStudentId, dmPeerId }) => {
+    if (!checkTokenValid()) return
     if (channelId) {
       // Canal - envoyer à la promo du canal
       socket.to('all').emit('typing', { channelId, userName: socket.user?.name })
@@ -439,6 +441,15 @@ const _scheduledTimer = setInterval(() => {
     }
   } catch (err) { log.error('scheduled_messages_failed', { error: err.message }) }
 }, 30000)
+
+// ── Middleware d'erreur global (masque les détails internes en production) ────
+app.use((err, _req, res, _next) => {
+  log.error('unhandled_error', { error: err.message, stack: err.stack })
+  const message = process.env.NODE_ENV === 'production'
+    ? 'Erreur interne du serveur.'
+    : err.message
+  res.status(err.status || 500).json({ ok: false, error: message })
+})
 
 // ── Démarrage ─────────────────────────────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {

@@ -12,6 +12,12 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR
 
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 
+// ── Extensions dangereuses rejetées ─────────────────────────────────────────
+const BLOCKED_EXTENSIONS = new Set([
+  '.exe', '.bat', '.cmd', '.com', '.msi', '.dll', '.scr', '.pif', '.vbs', '.wsf',
+  '.html', '.htm', '.svg', '.php', '.jsp', '.aspx', '.py', '.sh', '.ps1', '.reg',
+])
+
 // ── Multer : stockage disque ──────────────────────────────────────────────────
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
@@ -28,13 +34,14 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 Mo max
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase()
+    if (BLOCKED_EXTENSIONS.has(ext)) {
+      return cb(new Error(`Type de fichier non autorisé (${ext}).`))
+    }
+    cb(null, true)
+  },
 })
-
-// ── Extensions dangereuses rejetées ─────────────────────────────────────────
-const BLOCKED_EXTENSIONS = new Set([
-  '.exe', '.bat', '.cmd', '.com', '.msi', '.dll', '.scr', '.pif', '.vbs', '.wsf',
-  '.html', '.htm', '.svg', '.php', '.jsp', '.aspx', '.py', '.sh', '.ps1', '.reg',
-])
 
 // POST /api/files/upload
 router.post('/upload', (req, res, next) => {
@@ -44,12 +51,6 @@ router.post('/upload', (req, res, next) => {
       return res.status(400).json({ ok: false, error: err.message })
     }
     if (!req.file) return res.status(400).json({ ok: false, error: 'Aucun fichier reçu.' })
-    const ext = path.extname(req.file.originalname).toLowerCase()
-    if (BLOCKED_EXTENSIONS.has(ext)) {
-      // Supprimer le fichier déjà écrit sur disque
-      fs.unlink(path.join(UPLOAD_DIR, req.file.filename), () => {})
-      return res.status(400).json({ ok: false, error: `Type de fichier non autorisé (${ext}).` })
-    }
     res.json({ ok: true, data: `/uploads/${req.file.filename}`, file_size: req.file.size })
   })
 })
