@@ -90,7 +90,7 @@ export function useSidebarActions(
     if (!old || !next || !appStore.activePromoId) return
     const iconPrefix = old.includes(' ') ? old.split(' ')[0] + ' ' : ''
     const newKey = iconPrefix + next
-    const res = await api(() => window.api.renameCategory(appStore.activePromoId, old, newKey), 'channel')
+    const res = await api(() => window.api.renameCategory(appStore.activePromoId!, old, newKey), 'channel')
     if (res === null) return
     await loadTeacherChannels()
     showToast('Catégorie renommée.', 'success')
@@ -125,7 +125,7 @@ export function useSidebarActions(
           action: async () => {
             if (!appStore.activePromoId) return
             if (!await confirm(`Dissoudre la catégorie « ${group.key} » ? Les canaux seront déplacés hors catégorie.`, 'warning', 'Dissoudre')) return
-            const res = await api(() => window.api.deleteCategory(appStore.activePromoId, group.key), 'channel')
+            const res = await api(() => window.api.deleteCategory(appStore.activePromoId!, group.key), 'channel')
             if (res === null) return
             await loadTeacherChannels()
             showToast('Catégorie dissoute.', 'success')
