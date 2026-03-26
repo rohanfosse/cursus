@@ -11,6 +11,7 @@ import bash from 'highlight.js/lib/languages/bash'
 import json from 'highlight.js/lib/languages/json'
 import cpp from 'highlight.js/lib/languages/cpp'
 import DOMPurify from 'dompurify'
+import { authUrl } from '@/utils/auth'
 
 hljs.registerLanguage('javascript', javascript)
 hljs.registerLanguage('js', javascript)
@@ -91,7 +92,7 @@ marked.use({
         const imgExts = ['PNG', 'JPG', 'JPEG', 'GIF', 'WEBP', 'SVG', 'BMP']
         const isImg = imgExts.includes(ext)
         const iconHtml = isImg
-          ? `<img class="msg-file-card-thumb" src="${cleanUrl}" alt="" />`
+          ? `<img class="msg-file-card-thumb" src="${authUrl(cleanUrl)}" alt="" />`
           : `<span class="msg-file-card-icon ${extClass}">${icon}</span>`
         return (
           `<a class="msg-file-card ${extClass}" data-url="${cleanUrl}" data-file-name="${escapeHtml(name)}" href="#" tabindex="0">` +
@@ -108,7 +109,7 @@ marked.use({
     image({ href, text }: { href: string; title?: string | null; text: string }) {
       const safe = escapeHtml(href ?? '')
       const alt  = escapeHtml(text ?? '')
-      return `<img class="msg-inline-img" src="${safe}" alt="${alt}" loading="lazy" />`
+      return `<img class="msg-inline-img" src="${authUrl(safe)}" alt="${alt}" loading="lazy" />`
     },
     // Blocs de code : coloration syntaxique via highlight.js
     code({ text, lang }: { text: string; lang?: string; escaped?: boolean }) {

@@ -8,6 +8,7 @@ import { useAppStore }       from '@/stores/app'
 import { useDocumentsStore } from '@/stores/documents'
 import { useTravauxStore }   from '@/stores/travaux'
 import { useToast }          from '@/composables/useToast'
+import { getAuthToken }      from '@/utils/auth'
 
 // Extensions bloquées (même liste que le serveur)
 const BLOCKED_EXTENSIONS = new Set([
@@ -191,7 +192,7 @@ export function useDocumentsAdd() {
       const formData = new FormData()
       formData.append('file', file, file.name)
       const SERVER_URL = window.location.origin
-      const token = localStorage.getItem('cc_session') ?? ''
+      const token = getAuthToken()
       try {
         const response = await fetch(`${SERVER_URL}/api/files/upload`, {
           method: 'POST',

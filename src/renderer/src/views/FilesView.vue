@@ -11,6 +11,7 @@ import { useDocumentsStore } from '@/stores/documents'
 import { useModalsStore } from '@/stores/modals'
 import { useApi }      from '@/composables/useApi'
 import { relativeTime } from '@/utils/date'
+import { authUrl }      from '@/utils/auth'
 
 const appStore = useAppStore()
 const documentsStore = useDocumentsStore()
@@ -127,12 +128,12 @@ function openFile(f: DmFile) {
     documentsStore.openPreview({ id: 0, channel_id: null, promo_id: null, name: f.file_name, type: 'file', content: f.file_url, category: null, description: null, created_at: f.sent_at })
     modals.documentPreview = true
   } else {
-    window.api.openPath(f.file_url)
+    window.api.openPath(authUrl(f.file_url))
   }
 }
-function downloadFile(f: DmFile) { window.api.openPath(f.file_url) }
-function copyFileLink(f: DmFile) { navigator.clipboard.writeText(f.file_url) }
-function downloadLightbox()       { if (lightboxUrl.value) window.api.openPath(lightboxUrl.value) }
+function downloadFile(f: DmFile) { window.api.openPath(authUrl(f.file_url)) }
+function copyFileLink(f: DmFile) { navigator.clipboard.writeText(authUrl(f.file_url)) }
+function downloadLightbox()       { if (lightboxUrl.value) window.api.openPath(authUrl(lightboxUrl.value)) }
 
 function toggleCollapse(studentId: number) {
   if (collapsedStudents.value.has(studentId)) collapsedStudents.value.delete(studentId)
@@ -212,7 +213,7 @@ function toggleCollapse(studentId: number) {
         @click="openFile(f)"
       >
         <div class="fv-card-thumb" :style="{ background: fileColor(f) + '15' }">
-          <img v-if="f.is_image" :src="f.file_url" class="fv-card-img" />
+          <img v-if="f.is_image" :src="authUrl(f.file_url)" class="fv-card-img" />
           <component v-else :is="fileIcon(f)" :size="26" :style="{ color: fileColor(f) }" />
           <div class="fv-card-ext" :style="{ background: fileColor(f) }">{{ extOf(f.file_name) || '?' }}</div>
         </div>
@@ -253,7 +254,7 @@ function toggleCollapse(studentId: number) {
             @click="openFile(f)"
           >
             <div class="fv-list-item-icon" :style="{ background: fileColor(f) + '18', color: fileColor(f) }">
-              <img v-if="f.is_image" :src="f.file_url" class="fv-list-thumb" />
+              <img v-if="f.is_image" :src="authUrl(f.file_url)" class="fv-list-thumb" />
               <component v-else :is="fileIcon(f)" :size="15" />
             </div>
             <span class="fv-list-item-name">{{ f.file_name }}</span>
@@ -270,7 +271,7 @@ function toggleCollapse(studentId: number) {
     <!-- ── Lightbox image ── -->
     <Transition name="lb">
       <div v-if="lightboxUrl" class="fv-lightbox" @click="lightboxUrl = null">
-        <img :src="lightboxUrl" class="fv-lightbox-img" @click.stop />
+        <img :src="authUrl(lightboxUrl!)" class="fv-lightbox-img" @click.stop />
         <button class="fv-lightbox-close" @click="lightboxUrl = null"><X :size="16" /></button>
         <button class="fv-lightbox-dl" @click.stop="downloadLightbox"><Download :size="14" /> Télécharger</button>
       </div>

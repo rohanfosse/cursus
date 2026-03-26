@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, watch } from 'vue'
 import { X, Eraser, Check, XCircle, Pen } from 'lucide-vue-next'
+import { authUrl } from '@/utils/auth'
 import { useSignature } from '@/composables/useSignature'
 import { useModalsStore } from '@/stores/modals'
 import type { SignatureRequest } from '@/types'
@@ -127,7 +128,7 @@ async function doReject() {
 
         <!-- Preview du document -->
         <div class="sig-preview">
-          <iframe :src="request.file_url" class="sig-preview-frame" />
+          <iframe :src="authUrl(request.file_url)" class="sig-preview-frame" />
         </div>
 
         <!-- Zone de signature -->

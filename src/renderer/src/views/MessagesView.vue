@@ -15,6 +15,7 @@
   import ChannelDocsPanel      from '@/components/panels/ChannelDocsPanel.vue'
   import ChannelTravauxPanel   from '@/components/panels/ChannelTravauxPanel.vue'
   import { deadlineClass } from '@/utils/date'
+  import { authUrl, getAuthToken } from '@/utils/auth'
 
   const props = defineProps<{ toggleSidebar?: () => void }>()
 
@@ -160,7 +161,7 @@
         // Web : upload direct FormData
         const formData = new FormData()
         formData.append('file', file, file.name)
-        const token = localStorage.getItem('cc_session') ?? ''
+        const token = getAuthToken()
         const resp = await fetch('/api/files/upload', {
           method: 'POST',
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -505,12 +506,12 @@
               v-for="f in filteredDmFiles"
               :key="f.message_id + f.file_url"
               class="dm-file-item"
-              :href="f.file_url"
+              :href="authUrl(f.file_url)"
               target="_blank"
               rel="noopener"
             >
               <div class="dm-file-thumb">
-                <img v-if="f.is_image" :src="f.file_url" :alt="f.file_name" class="dm-file-img" />
+                <img v-if="f.is_image" :src="authUrl(f.file_url)" :alt="f.file_name" class="dm-file-img" />
                 <ImageIcon v-else-if="f.is_image" :size="18" />
                 <Paperclip v-else :size="18" />
               </div>

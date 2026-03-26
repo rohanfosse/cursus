@@ -5,6 +5,7 @@
 import { ref } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useToast } from '@/composables/useToast'
+import { getAuthToken } from '@/utils/auth'
 
 export interface DroppedFile {
   name: string
@@ -56,7 +57,7 @@ export function useFileDrop() {
       const formData = new FormData()
       formData.append('file', file, file.name)
       const SERVER_URL = window.location.origin
-      const token = localStorage.getItem('cc_session') ?? ''
+      const token = getAuthToken()
       const response = await fetch(`${SERVER_URL}/api/files/upload`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},

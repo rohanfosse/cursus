@@ -10,6 +10,7 @@ import EmojiPicker  from '@/components/ui/EmojiPicker.vue'
 import ContextMenu  from '@/components/ui/ContextMenu.vue'
 import { formatTime }      from '@/utils/date'
 import { useOpenExternal } from '@/composables/useOpenExternal'
+import { authUrl }         from '@/utils/auth'
 import { useBubbleActions }   from '@/composables/useBubbleActions'
 import { useBubbleReactions } from '@/composables/useBubbleReactions'
 import { useBubbleBookmarks } from '@/composables/useBubbleBookmarks'
@@ -140,7 +141,7 @@ function onTextClick(e: MouseEvent) {
 
         <!-- Prévisualisation image inline (bare URL hors markdown, ex. lien collé) -->
         <div v-if="imagePreviewUrl" class="msg-img-preview">
-          <img :src="imagePreviewUrl" alt="Aperçu" loading="lazy" @click="lightboxUrl = imagePreviewUrl!" />
+          <img :src="authUrl(imagePreviewUrl)" alt="Aperçu" loading="lazy" @click="lightboxUrl = imagePreviewUrl!" />
         </div>
       </template>
 
@@ -297,7 +298,7 @@ function onTextClick(e: MouseEvent) {
     <Transition name="lightbox-fade">
       <div v-if="lightboxUrl" class="lightbox-overlay" @click.self="lightboxUrl = null">
         <div class="lightbox-toolbar">
-          <a :href="lightboxUrl" download class="lightbox-btn" title="Télécharger" @click.stop>
+          <a :href="authUrl(lightboxUrl!)" download class="lightbox-btn" title="Télécharger" @click.stop>
             <Download :size="18" />
           </a>
           <button class="lightbox-btn" title="Ouvrir dans le navigateur" @click.stop="openExternal(lightboxUrl!)">
@@ -307,7 +308,7 @@ function onTextClick(e: MouseEvent) {
             <X :size="18" />
           </button>
         </div>
-        <img :src="lightboxUrl" class="lightbox-img" alt="Image agrandie" />
+        <img :src="authUrl(lightboxUrl!)" class="lightbox-img" alt="Image agrandie" />
       </div>
     </Transition>
 

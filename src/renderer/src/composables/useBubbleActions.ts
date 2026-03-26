@@ -10,6 +10,7 @@ import { useModalsStore }   from '@/stores/modals'
 import { useDocumentsStore } from '@/stores/documents'
 import { useTravauxStore }  from '@/stores/travaux'
 import { useToast }         from '@/composables/useToast'
+import { authUrl }          from '@/utils/auth'
 import { useOpenExternal }  from '@/composables/useOpenExternal'
 import type { Message, Channel } from '@/types'
 
@@ -136,7 +137,7 @@ export function useBubbleActions(msg: () => Message) {
         documentsStore.openPreview({ id: 0, channel_id: null, promo_id: null, name: fileName, type: 'file', content: url, category: null, description: null, created_at: '' })
         modals.documentPreview = true
       } else {
-        openExternal(url)
+        openExternal(authUrl(url))
       }
       return
     }
@@ -144,7 +145,7 @@ export function useBubbleActions(msg: () => Message) {
     if (a) {
       e.preventDefault()
       const url = a.dataset.url
-      if (url) openExternal(url)
+      if (url) openExternal(authUrl(url))
       return
     }
     const devoirRef = (e.target as HTMLElement).closest('.devoir-ref[data-devoir-id]') as HTMLElement | null
