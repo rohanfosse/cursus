@@ -220,6 +220,19 @@ app.whenReady().then(() => {
       autoUpdater.quitAndInstall()
     })
 
+    // Vérification manuelle depuis les settings
+    ipcMain.handle('updater:checkNow', async () => {
+      try {
+        const result = await autoUpdater.checkForUpdates()
+        if (result?.updateInfo?.version) {
+          return { ok: true, data: { version: result.updateInfo.version, available: true } }
+        }
+        return { ok: true, data: { version: app.getVersion(), available: false } }
+      } catch (err) {
+        return { ok: false, error: (err as Error).message }
+      }
+    })
+
     autoUpdater.on('error', (err) => {
       console.error('[Updater] Erreur:', err.message)
     })

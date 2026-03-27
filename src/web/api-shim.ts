@@ -741,6 +741,7 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   // ── Updater - no-ops en web ──────────────────────────────────────────────
   onUpdaterAvailable:  (_cb: unknown) => () => {},
   onUpdaterDownloaded: (_cb: unknown) => () => {},
+  checkForUpdates: async () => ({ ok: true, data: { available: false, version: '—' } }),
 
   platform: 'web',
 

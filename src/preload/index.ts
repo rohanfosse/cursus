@@ -661,6 +661,7 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('updater:downloaded', listener)
   },
   updaterQuitAndInstall: () => ipcRenderer.send('updater:quitAndInstall'),
+  checkForUpdates: () => ipcRenderer.invoke('updater:checkNow'),
 
   // ── Temps réel (Socket.io) ───────────────────────────────────────────────────
   onNewMessage: (cb: (data: MsgNewPayload) => void) => {
