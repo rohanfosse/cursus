@@ -85,6 +85,8 @@
     }
   }
 
+  function installUpdate() { window.api.updaterQuitAndInstall() }
+
   const roleLabels: Record<string, string> = {
     teacher: 'Enseignant',
     ta: 'Intervenant',
@@ -198,7 +200,7 @@
                 <button
                   v-if="updateStatus === 'downloaded'"
                   class="stg-update-btn stg-update-btn--install"
-                  @click="() => window.api.updaterQuitAndInstall()"
+                  @click="installUpdate"
                 >Redémarrer et installer</button>
                 <button
                   v-else
