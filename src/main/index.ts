@@ -34,6 +34,20 @@ let mainWin: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuitting = false
 
+// ── Single instance : si une instance est déjà ouverte, la focus ────────────
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWin) {
+      if (mainWin.isMinimized()) mainWin.restore()
+      mainWin.show()
+      mainWin.focus()
+    }
+  })
+}
+
 function createWindow(splash: BrowserWindow | null): void {
   const win = new BrowserWindow({
     width: 1280,
