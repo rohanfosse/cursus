@@ -10,6 +10,9 @@
 </head>
 <body>
 
+<!-- Skip link -->
+<a href="#dashboard" class="skip-link" style="position:absolute;top:-40px;left:0;background:var(--accent);color:#fff;padding:8px 16px;z-index:1000;transition:top .2s" onfocus="this.style.top='0'" onblur="this.style.top='-40px'">Aller au contenu</a>
+
 <!-- Login overlay -->
 <div id="login-overlay" class="login-overlay">
   <div class="login-box">
@@ -45,6 +48,7 @@
     </div>
     <div style="display:flex;align-items:center;gap:.5rem">
       <div class="status"><div id="status-dot" class="dot"></div><span id="status-text">Connect&eacute;</span></div>
+      <button class="theme-toggle" onclick="toggleDarkMode()" title="Basculer le theme sombre" aria-label="Basculer le theme sombre">&#9790; Theme</button>
       <button class="refresh-btn" onclick="refreshActiveTab()">Rafra&icirc;chir</button>
       <button class="refresh-btn" style="color:#ef4444;border-color:rgba(239,68,68,.2)" onclick="logout()">D&eacute;connexion</button>
     </div>
@@ -178,7 +182,7 @@
 </div>
 
 <!-- Modal container -->
-<div id="modal-root"></div>
+<div id="modal-root" role="dialog" aria-modal="true" aria-label="Boite de dialogue"></div>
 
 <script type="module" src="app.js"></script>
 </body>

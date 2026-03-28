@@ -392,6 +392,38 @@ window.toast = toast
 window.confirmAction = confirmAction
 window.promptAction = promptAction
 
+// ── Dark mode toggle ─────────────────────────────────────────────────────────
+
+function initDarkMode() {
+  const saved = localStorage.getItem('admin_theme')
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.setAttribute('data-theme', 'dark')
+  }
+}
+function toggleDarkMode() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  if (isDark) {
+    document.documentElement.removeAttribute('data-theme')
+    localStorage.setItem('admin_theme', 'light')
+  } else {
+    document.documentElement.setAttribute('data-theme', 'dark')
+    localStorage.setItem('admin_theme', 'dark')
+  }
+}
+window.toggleDarkMode = toggleDarkMode
+initDarkMode()
+
+// ── Focus trap for modals ────────────────────────────────────────────────────
+
+const origShowModal = showModal
+window.showModal = function(html) {
+  origShowModal(html)
+  // Trap focus inside modal
+  const root = document.getElementById('modal-root')
+  const focusable = root.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])')
+  if (focusable.length) focusable[0].focus()
+}
+
 // ── Init ────────────────────────────────────────────────────────────────────
 
 // Search debounce on inputs

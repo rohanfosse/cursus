@@ -6,11 +6,17 @@ import { computed, ref, watch, type Component } from 'vue'
 import { VueDraggable } from 'vue-draggable-plus'
 import { AlertTriangle } from 'lucide-vue-next'
 import { useBentoPrefs } from '@/composables/useBentoPrefs'
+import { useWidgetGrid } from '@/composables/useWidgetGrid'
 import { useAppStore } from '@/stores/app'
 import { nextUpcoming } from '@/utils/devoirFilters'
+import { STUDENT_WIDGETS } from './student-widgets/registry'
+import { STUDENT_PRESETS } from '@/composables/useWidgetPresets'
+import type { WidgetSize } from '@/types/widgets'
+import type { LayoutPreset } from '@/composables/useWidgetPresets'
 import type { StudentProjectCard } from '@/composables/useDashboardStudent'
 
-import BentoCustomizer from './student-widgets/BentoCustomizer.vue'
+import WidgetShell from './WidgetShell.vue'
+import WidgetPicker from './WidgetPicker.vue'
 
 import WidgetLive from './student-widgets/WidgetLive.vue'
 import WidgetProject from './student-widgets/WidgetProject.vue'
@@ -49,7 +55,22 @@ function toggleCustomizer() {
 }
 defineExpose({ toggleCustomizer })
 
-const { visibleWidgets, allWidgets, isVisible, toggleWidget, reorderWidgets, resetDefaults } = useBentoPrefs()
+const { visibleWidgets, allWidgets, isVisible, toggleWidget, reorderWidgets, resetDefaults, getWidgetSize, setWidgetSize, applyPreset, prefs } = useBentoPrefs()
+
+function onApplyPreset(preset: LayoutPreset) {
+  applyPreset(preset.config as Parameters<typeof applyPreset>[0])
+}
+
+const gridRef = ref<HTMLElement | null>(null)
+const { clampSize, gridStyle } = useWidgetGrid(gridRef)
+
+function widgetSizes(id: string): WidgetSize[] {
+  return STUDENT_WIDGETS.find(w => w.id === id)?.sizes ?? ['1x1']
+}
+
+function effectiveSize(id: string): WidgetSize {
+  return clampSize(getWidgetSize(id))
+}
 
 // ── Widget data ──────────────────────────────────────────────────────────
 const activeProject = computed(() => {
@@ -126,41 +147,53 @@ function onReset() {
 <template>
   <div class="sb-bento">
 
-    <WidgetLive v-if="isVisible('live')" />
-
     <!-- Alert banner (only if overdue) -->
     <div v-if="showFocusAlert" class="sb-alert">
       <AlertTriangle :size="16" />
       <span>{{ overdueCount }} devoir{{ overdueCount > 1 ? 's' : '' }} en retard</span>
     </div>
 
-    <!-- Widgets grid (2 colonnes, drag-and-drop quand customizer ouvert) -->
+    <!-- Widgets grid (4 colonnes responsive, drag-and-drop quand customizer ouvert) -->
     <VueDraggable
+      ref="gridRef"
       v-model="draggableWidgets"
       :disabled="!showCustomizer"
       ghost-class="sb-widget--ghost"
       :animation="200"
       class="sb-grid"
       :class="{ 'sb-grid--editing': showCustomizer }"
+      :style="gridStyle"
       @end="onDragEnd"
     >
-      <div v-for="w in draggableWidgets" :key="w.id" class="sb-widget" :class="{ 'sb-widget--editing': showCustomizer }">
+      <WidgetShell
+        v-for="w in draggableWidgets"
+        :key="w.id"
+        :widget-id="w.id"
+        :size="effectiveSize(w.id)"
+        :editing="showCustomizer"
+        :sizes="widgetSizes(w.id)"
+        @resize="(s: WidgetSize) => setWidgetSize(w.id, s)"
+      >
         <component
           :is="widgetComponents[w.id]"
           v-bind="widgetProps[w.id]"
           v-on="widgetEvents[w.id] ?? {}"
         />
-      </div>
+      </WidgetShell>
     </VueDraggable>
 
-    <!-- Widget customizer panel -->
+    <!-- Widget picker panel -->
     <Transition name="sb-customizer">
-      <BentoCustomizer
+      <WidgetPicker
         v-if="showCustomizer"
-        :all-widgets="allWidgets"
+        :widgets="allWidgets"
         :is-visible="isVisible"
+        :get-size="getWidgetSize"
+        :presets="STUDENT_PRESETS"
+        :active-preset="prefs.preset"
         @toggle="onToggle"
-        @reorder="reorderWidgets"
+        @resize="(id: string, s: WidgetSize) => setWidgetSize(id, s)"
+        @apply-preset="onApplyPreset"
         @reset="onReset"
         @close="showCustomizer = false"
       />
@@ -182,26 +215,12 @@ function onReset() {
   color: #e74c3c; font-size: 13px; font-weight: 600;
 }
 
-/* ── Widgets grid ── */
+/* ── Widgets grid (styles inline via gridStyle, overrides ici) ── */
 .sb-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  /* gridStyle fournit display, grid-template-columns, grid-auto-rows, grid-auto-flow, gap */
 }
 .sb-grid--editing {
-  gap: 12px;
-}
-.sb-widget {
-  animation: sb-fade .3s ease both;
-  position: relative;
-}
-.sb-widget--editing {
-  border: 2px dashed transparent;
-  border-radius: 14px;
-  cursor: grab;
-}
-.sb-widget--editing:hover {
-  border-color: rgba(74,144,217,.3);
+  gap: 14px !important;
 }
 .sb-widget--ghost {
   opacity: 0.3;
@@ -220,8 +239,5 @@ function onReset() {
 .sb-customizer-enter-from { opacity: 0; transform: translateY(12px); }
 .sb-customizer-leave-to { opacity: 0; transform: translateY(8px); }
 
-/* ── Responsive ── */
-@media (max-width: 600px) {
-  .sb-grid { grid-template-columns: 1fr; }
-}
+/* Responsive gere par useWidgetGrid (ResizeObserver) */
 </style>

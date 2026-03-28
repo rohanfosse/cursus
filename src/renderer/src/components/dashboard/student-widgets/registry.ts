@@ -1,9 +1,9 @@
 /**
- * registry.ts - Registre des widgets du bento étudiant.
- * Chaque widget est décrit par un id unique, un label, une icône,
- * une description et un état par défaut.
+ * registry.ts - Registre des widgets du bento etudiant.
+ * Chaque widget est decrit par un id unique, un label, une icone,
+ * une description, une categorie, des tailles supportees et un etat par defaut.
  */
-import type { Component } from 'vue'
+import type { WidgetDef } from '@/types/widgets'
 import {
   Radio, FolderOpen, Award, FileText, Mic,
   MessageSquare, FileBox, Activity,
@@ -11,32 +11,28 @@ import {
   Hourglass, Users,
 } from 'lucide-vue-next'
 
-export interface WidgetDef {
-  id: string
-  label: string
-  icon: Component
-  description: string
-  defaultEnabled: boolean
-}
+// Re-export pour compatibilite (l'ancien WidgetDef venait d'ici)
+export type { WidgetDef } from '@/types/widgets'
 
 export const STUDENT_WIDGETS: WidgetDef[] = [
-  { id: 'live', label: 'Session Live', icon: Radio, description: 'Session interactive en cours', defaultEnabled: true },
-  { id: 'project', label: 'Projet en cours', icon: FolderOpen, description: 'Progression du projet actif', defaultEnabled: true },
-  { id: 'exams', label: 'Prochaines épreuves', icon: Award, description: 'CCTLs et études de cas à venir', defaultEnabled: true },
-  { id: 'livrables', label: 'Prochains livrables', icon: FileText, description: 'Livrables à rendre', defaultEnabled: true },
-  { id: 'soutenances', label: 'Soutenances', icon: Mic, description: 'Présentations à venir', defaultEnabled: true },
-  { id: 'feedback', label: 'Dernier retour', icon: MessageSquare, description: 'Dernier retour sur un devoir', defaultEnabled: true },
-  { id: 'recentDoc', label: 'Document récent', icon: FileBox, description: 'Dernier document partagé', defaultEnabled: true },
-  { id: 'promoActivity', label: 'Activité promo', icon: Activity, description: 'Présence et rendus de la promo', defaultEnabled: true },
-  // ── Widgets optionnels (désactivés par défaut) ──
-  { id: 'clock',      label: 'Horloge',         icon: Clock,        description: 'Heure et date en temps réel',       defaultEnabled: false },
-  { id: 'quote',      label: 'Citation du jour', icon: Quote,        description: 'Citation motivante quotidienne',    defaultEnabled: false },
-  { id: 'calendar',   label: 'Calendrier',       icon: CalendarDays, description: 'Mini calendrier avec deadlines',    defaultEnabled: false },
-  { id: 'progress',   label: 'Progression',      icon: TrendingUp,   description: 'Anneau de progression globale',     defaultEnabled: false },
-  { id: 'quicklinks', label: 'Liens rapides',    icon: Bookmark,     description: 'Accès rapide à vos liens favoris', defaultEnabled: false },
-  { id: 'pomodoro',   label: 'Pomodoro',         icon: Timer,        description: 'Minuteur de concentration 25/5',    defaultEnabled: false },
-  { id: 'grades',     label: 'Mes notes',        icon: Award,        description: 'Dernières notes reçues',             defaultEnabled: false },
-  { id: 'bookmarks',  label: 'Sauvegardés',      icon: Bookmark,     description: 'Messages sauvegardés',               defaultEnabled: false },
-  { id: 'countdown',  label: 'Compte à rebours', icon: Hourglass,    description: 'Temps restant avant la prochaine deadline', defaultEnabled: false },
-  { id: 'group',      label: 'Mon groupe',        icon: Users,        description: 'Membres de votre groupe de projet',  defaultEnabled: false },
+  // ── Widgets essentiels (actives par defaut) ──
+  { id: 'live',          label: 'Session Live',       icon: Radio,          description: 'Session interactive en cours',              category: 'essential',      sizes: ['2x1', '4x1'],                defaultSize: '2x1', defaultEnabled: true,  role: 'student' },
+  { id: 'project',       label: 'Projet en cours',    icon: FolderOpen,     description: 'Progression du projet actif',               category: 'tracking',       sizes: ['1x1', '2x1', '2x2'],         defaultSize: '2x1', defaultEnabled: true,  role: 'student' },
+  { id: 'exams',         label: 'Prochaines epreuves', icon: Award,         description: 'CCTLs et etudes de cas a venir',            category: 'essential',      sizes: ['1x1', '2x1'],                defaultSize: '2x1', defaultEnabled: true,  role: 'student' },
+  { id: 'livrables',     label: 'Prochains livrables', icon: FileText,      description: 'Livrables a rendre',                        category: 'essential',      sizes: ['1x1', '2x1'],                defaultSize: '1x1', defaultEnabled: true,  role: 'student' },
+  { id: 'soutenances',   label: 'Soutenances',         icon: Mic,           description: 'Presentations a venir',                     category: 'essential',      sizes: ['1x1', '2x1'],                defaultSize: '1x1', defaultEnabled: true,  role: 'student' },
+  { id: 'feedback',      label: 'Dernier retour',      icon: MessageSquare, description: 'Dernier retour sur un devoir',              category: 'communication',  sizes: ['1x1', '2x1'],                defaultSize: '2x1', defaultEnabled: true,  role: 'student' },
+  { id: 'recentDoc',     label: 'Document recent',     icon: FileBox,       description: 'Dernier document partage',                  category: 'communication',  sizes: ['1x1', '2x1'],                defaultSize: '1x1', defaultEnabled: true,  role: 'student' },
+  { id: 'promoActivity', label: 'Activite promo',      icon: Activity,      description: 'Presence et rendus de la promo',            category: 'tracking',       sizes: ['2x1', '4x1'],                defaultSize: '2x1', defaultEnabled: true,  role: 'student' },
+  // ── Widgets optionnels (desactives par defaut) ──
+  { id: 'clock',         label: 'Horloge',             icon: Clock,         description: 'Heure et date en temps reel',               category: 'fun',            sizes: ['1x1'],                        defaultSize: '1x1', defaultEnabled: false, role: 'both' },
+  { id: 'quote',         label: 'Citation du jour',    icon: Quote,         description: 'Citation motivante quotidienne',            category: 'fun',            sizes: ['1x1', '2x1'],                defaultSize: '2x1', defaultEnabled: false, role: 'both' },
+  { id: 'calendar',      label: 'Calendrier',          icon: CalendarDays,  description: 'Mini calendrier avec deadlines',            category: 'productivity',   sizes: ['2x1', '2x2'],                defaultSize: '2x1', defaultEnabled: false, role: 'student' },
+  { id: 'progress',      label: 'Progression',         icon: TrendingUp,    description: 'Anneau de progression globale',             category: 'tracking',       sizes: ['1x1'],                        defaultSize: '1x1', defaultEnabled: false, role: 'student' },
+  { id: 'quicklinks',    label: 'Liens rapides',       icon: Bookmark,      description: 'Acces rapide a vos liens favoris',          category: 'productivity',   sizes: ['1x1', '2x1'],                defaultSize: '1x1', defaultEnabled: false, role: 'both' },
+  { id: 'pomodoro',      label: 'Pomodoro',            icon: Timer,         description: 'Minuteur de concentration 25/5',            category: 'productivity',   sizes: ['1x1'],                        defaultSize: '1x1', defaultEnabled: false, role: 'both' },
+  { id: 'grades',        label: 'Mes notes',           icon: Award,         description: 'Dernieres notes recues',                    category: 'tracking',       sizes: ['1x1', '2x1', '2x2'],         defaultSize: '2x1', defaultEnabled: false, role: 'student' },
+  { id: 'bookmarks',     label: 'Sauvegardes',         icon: Bookmark,      description: 'Messages sauvegardes',                      category: 'communication',  sizes: ['1x1', '2x1'],                defaultSize: '1x1', defaultEnabled: false, role: 'both' },
+  { id: 'countdown',     label: 'Compte a rebours',    icon: Hourglass,     description: 'Temps restant avant la prochaine deadline', category: 'essential',      sizes: ['1x1'],                        defaultSize: '1x1', defaultEnabled: false, role: 'student' },
+  { id: 'group',         label: 'Mon groupe',          icon: Users,         description: 'Membres de votre groupe de projet',         category: 'tracking',       sizes: ['1x1', '2x1'],                defaultSize: '1x1', defaultEnabled: false, role: 'student' },
 ]

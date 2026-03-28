@@ -71,7 +71,7 @@ watch(rememberMe, (v) => {
           <span class="stg-toggle-label">Se souvenir de moi</span>
           <span class="stg-toggle-desc">Remplir automatiquement l'adresse e-mail lors de la prochaine connexion.</span>
         </div>
-        <div class="stg-switch" :class="{ on: rememberMe }" @click="rememberMe = !rememberMe">
+        <div class="stg-switch" :class="{ on: rememberMe }" role="switch" :aria-checked="rememberMe" tabindex="0" @click="rememberMe = !rememberMe" @keydown.enter.prevent="rememberMe = !rememberMe" @keydown.space.prevent="rememberMe = !rememberMe">
           <div class="stg-switch-thumb" />
         </div>
       </label>

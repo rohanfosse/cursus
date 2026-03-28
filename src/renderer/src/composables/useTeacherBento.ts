@@ -1,6 +1,6 @@
 /**
- * useTeacherBento — gestion de la visibilité des tuiles du bento professeur.
- * État partagé (module-level) + persistance localStorage.
+ * useTeacherBento — gestion de la visibilite des tuiles du bento professeur.
+ * Etat partage (module-level) + persistance localStorage.
  */
 import { ref } from 'vue'
 import {
@@ -8,67 +8,58 @@ import {
   PlusCircle, Activity, CheckSquare,
   Quote, Timer, Bookmark, CalendarDays, FileBox, Pen,
 } from 'lucide-vue-next'
-import type { FunctionalComponent } from 'vue'
+import type { WidgetDef, WidgetSize } from '@/types/widgets'
 
-export interface TeacherTileDef {
-  id:    string
-  label: string
-  icon:  FunctionalComponent
-  defaultHidden?: boolean
-}
+// Re-export pour compatibilite
+export type TeacherTileDef = WidgetDef
 
-export const TEACHER_TILES: TeacherTileDef[] = [
-  { id: 'focus',        label: 'Action urgente',  icon: LayoutDashboard },
-  { id: 'stat-soumis',  label: 'Soumissions',     icon: Percent         },
-  { id: 'stat-noter',   label: 'À noter',         icon: Edit3           },
-  { id: 'stat-moyenne', label: 'Moyenne',         icon: Award           },
-  { id: 'stat-online',  label: 'En ligne',        icon: Wifi            },
-  { id: 'schedule',     label: 'Agenda',          icon: Clock           },
-  { id: 'messages',     label: 'Messages',        icon: MessageSquare   },
-  { id: 'actions',      label: 'Actions rapides', icon: PlusCircle      },
-  { id: 'activity',     label: 'Activité récente',icon: Activity        },
-  { id: 'todo',         label: 'Todo',            icon: CheckSquare     },
-  // ── Widgets optionnels (masqués par défaut) ──
-  { id: 'clock',       label: 'Horloge',         icon: Clock,        defaultHidden: true },
-  { id: 'quote',       label: 'Citation du jour', icon: Quote,        defaultHidden: true },
-  { id: 'pomodoro',    label: 'Pomodoro',         icon: Timer,        defaultHidden: true },
-  { id: 'quicklinks',  label: 'Liens rapides',    icon: Bookmark,     defaultHidden: true },
-  { id: 'dm-files',    label: 'Fichiers DM',      icon: FileBox,      defaultHidden: true },
-  { id: 'week-cal',    label: 'Semaine',          icon: CalendarDays, defaultHidden: true },
-  { id: 'signatures', label: 'Signatures',       icon: Pen,          defaultHidden: true },
+export const TEACHER_TILES: WidgetDef[] = [
+  // ── Widgets principaux (visibles par defaut) ──
+  { id: 'focus',        label: 'Action urgente',   icon: LayoutDashboard, description: 'Actions prioritaires',              category: 'essential',     sizes: ['2x2'],                defaultSize: '2x2', defaultEnabled: true,  role: 'teacher' },
+  { id: 'stat-soumis',  label: 'Soumissions',      icon: Percent,         description: 'Nombre de soumissions',             category: 'tracking',      sizes: ['1x1'],                defaultSize: '1x1', defaultEnabled: true,  role: 'teacher' },
+  { id: 'stat-noter',   label: 'A noter',          icon: Edit3,           description: 'Rendus en attente de note',         category: 'tracking',      sizes: ['1x1'],                defaultSize: '1x1', defaultEnabled: true,  role: 'teacher' },
+  { id: 'stat-moyenne', label: 'Moyenne',          icon: Award,           description: 'Moyenne generale de la promo',      category: 'tracking',      sizes: ['1x1'],                defaultSize: '1x1', defaultEnabled: true,  role: 'teacher' },
+  { id: 'stat-online',  label: 'En ligne',         icon: Wifi,            description: 'Etudiants connectes',               category: 'tracking',      sizes: ['1x1'],                defaultSize: '1x1', defaultEnabled: true,  role: 'teacher' },
+  { id: 'schedule',     label: 'Agenda',           icon: Clock,           description: 'Agenda des prochaines 48h',         category: 'essential',     sizes: ['2x1', '4x1'],         defaultSize: '4x1', defaultEnabled: true,  role: 'teacher' },
+  { id: 'messages',     label: 'Messages',         icon: MessageSquare,   description: 'DMs et mentions non lus',           category: 'communication', sizes: ['1x1', '2x1'],         defaultSize: '2x1', defaultEnabled: true,  role: 'teacher' },
+  { id: 'actions',      label: 'Actions rapides',  icon: PlusCircle,      description: 'Raccourcis vers les actions courantes', category: 'productivity', sizes: ['1x1', '2x1'],      defaultSize: '2x1', defaultEnabled: true,  role: 'teacher' },
+  { id: 'activity',     label: 'Activite recente', icon: Activity,        description: 'Derniers evenements de la promo',   category: 'communication', sizes: ['2x1', '4x1'],         defaultSize: '2x1', defaultEnabled: true,  role: 'teacher' },
+  { id: 'todo',         label: 'Todo',             icon: CheckSquare,     description: 'Liste de taches personnelle',       category: 'productivity',  sizes: ['1x1', '2x1', '2x2'], defaultSize: '2x1', defaultEnabled: true,  role: 'teacher' },
+  // ── Widgets optionnels (masques par defaut) ──
+  { id: 'clock',        label: 'Horloge',          icon: Clock,           description: 'Heure et date en temps reel',       category: 'fun',           sizes: ['1x1'],                defaultSize: '1x1', defaultEnabled: false, role: 'both' },
+  { id: 'quote',        label: 'Citation du jour',  icon: Quote,          description: 'Citation motivante quotidienne',    category: 'fun',           sizes: ['1x1', '2x1'],         defaultSize: '2x1', defaultEnabled: false, role: 'both' },
+  { id: 'pomodoro',     label: 'Pomodoro',          icon: Timer,          description: 'Minuteur de concentration 25/5',    category: 'productivity',  sizes: ['1x1'],                defaultSize: '1x1', defaultEnabled: false, role: 'both' },
+  { id: 'quicklinks',   label: 'Liens rapides',     icon: Bookmark,       description: 'Acces rapide a vos liens favoris',  category: 'productivity',  sizes: ['1x1', '2x1'],         defaultSize: '1x1', defaultEnabled: false, role: 'both' },
+  { id: 'dm-files',     label: 'Fichiers DM',       icon: FileBox,        description: 'Fichiers recus par message direct', category: 'communication', sizes: ['1x1', '2x1'],         defaultSize: '1x1', defaultEnabled: false, role: 'teacher' },
+  { id: 'week-cal',     label: 'Semaine',           icon: CalendarDays,   description: 'Vue semaine des echeances',         category: 'productivity',  sizes: ['2x1', '2x2'],         defaultSize: '2x1', defaultEnabled: false, role: 'teacher' },
+  { id: 'signatures',   label: 'Signatures',        icon: Pen,            description: 'Feuilles de presence',              category: 'tracking',      sizes: ['1x1', '2x1'],         defaultSize: '1x1', defaultEnabled: false, role: 'teacher' },
 ]
 
 const STORAGE_KEY = 'teacher_bento_hidden'
 const ORDER_KEY   = 'teacher_bento_opt_order'
+const SIZES_KEY   = 'teacher_bento_sizes'
 
-const OPTIONAL_IDS = TEACHER_TILES.filter(t => t.defaultHidden).map(t => t.id)
+const OPTIONAL_IDS = TEACHER_TILES.filter(t => !t.defaultEnabled).map(t => t.id)
 
 function loadHidden(): Set<string> {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
       const set = new Set(JSON.parse(saved) as string[])
-      // Ajouter les nouvelles tuiles defaultHidden non encore connues
       for (const t of TEACHER_TILES) {
-        if (t.defaultHidden && !saved.includes(t.id)) set.add(t.id)
+        if (!t.defaultEnabled && !saved.includes(t.id)) set.add(t.id)
       }
       return set
     }
   } catch { /* ignore */ }
-  // Premier chargement : masquer les tuiles defaultHidden
-  return new Set(TEACHER_TILES.filter(t => t.defaultHidden).map(t => t.id))
+  return new Set(TEACHER_TILES.filter(t => !t.defaultEnabled).map(t => t.id))
 }
 
-// État singleton partagé entre tous les composants qui importent ce composable
-const hidden = ref<Set<string>>(loadHidden())
-
-// Ordre des widgets optionnels (persisté séparément)
 function loadOptOrder(): string[] {
   try {
     const saved = localStorage.getItem(ORDER_KEY)
     if (saved) {
       const arr = JSON.parse(saved) as string[]
-      // Ajouter les IDs manquants à la fin
       for (const id of OPTIONAL_IDS) {
         if (!arr.includes(id)) arr.push(id)
       }
@@ -77,33 +68,54 @@ function loadOptOrder(): string[] {
   } catch { /* ignore */ }
   return [...OPTIONAL_IDS]
 }
-const optionalOrder = ref<string[]>(loadOptOrder())
 
-function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...hidden.value]))
+function loadSizes(): Record<string, WidgetSize> {
+  try {
+    const saved = localStorage.getItem(SIZES_KEY)
+    if (saved) return JSON.parse(saved) as Record<string, WidgetSize>
+  } catch { /* ignore */ }
+  return {}
 }
-function persistOrder() {
-  localStorage.setItem(ORDER_KEY, JSON.stringify(optionalOrder.value))
-}
+
+// Etat singleton partage
+const hidden = ref<Set<string>>(loadHidden())
+const optionalOrder = ref<string[]>(loadOptOrder())
+const sizes = ref<Record<string, WidgetSize>>(loadSizes())
+
+function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify([...hidden.value])) }
+function persistOrder() { localStorage.setItem(ORDER_KEY, JSON.stringify(optionalOrder.value)) }
+function persistSizes() { localStorage.setItem(SIZES_KEY, JSON.stringify(sizes.value)) }
 
 export function useTeacherBento() {
   function isVisible(id: string) { return !hidden.value.has(id) }
 
   function toggleTile(id: string) {
     if (hidden.value.has(id)) hidden.value.delete(id)
-    else                      hidden.value.add(id)
-    hidden.value = new Set(hidden.value) // déclenche la réactivité
+    else hidden.value.add(id)
+    hidden.value = new Set(hidden.value)
     persist()
   }
 
   function resetTiles() {
-    hidden.value = new Set()
+    hidden.value = new Set(TEACHER_TILES.filter(t => !t.defaultEnabled).map(t => t.id))
     optionalOrder.value = [...OPTIONAL_IDS]
+    sizes.value = {}
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(ORDER_KEY)
+    localStorage.removeItem(SIZES_KEY)
   }
 
-  /** Widgets optionnels visibles, dans l'ordre persisté. */
+  function getWidgetSize(id: string): WidgetSize {
+    if (sizes.value[id]) return sizes.value[id]
+    const tile = TEACHER_TILES.find(t => t.id === id)
+    return tile?.defaultSize ?? '1x1'
+  }
+
+  function setWidgetSize(id: string, size: WidgetSize) {
+    sizes.value = { ...sizes.value, [id]: size }
+    persistSizes()
+  }
+
   const visibleOptionalTiles = ref(
     optionalOrder.value.filter(id => !hidden.value.has(id)).map(id => TEACHER_TILES.find(t => t.id === id)!).filter(Boolean)
   )
@@ -115,11 +127,16 @@ export function useTeacherBento() {
       .filter(Boolean)
   }
 
-  function reorderOptional(newOrder: TeacherTileDef[]) {
+  function reorderOptional(newOrder: WidgetDef[]) {
     optionalOrder.value = newOrder.map(t => t.id)
     persistOrder()
     refreshVisibleOptional()
   }
 
-  return { hidden, isVisible, toggleTile, resetTiles, allTiles: TEACHER_TILES, visibleOptionalTiles, reorderOptional, refreshVisibleOptional }
+  return {
+    hidden, isVisible, toggleTile, resetTiles,
+    allTiles: TEACHER_TILES, visibleOptionalTiles,
+    reorderOptional, refreshVisibleOptional,
+    getWidgetSize, setWidgetSize, sizes,
+  }
 }

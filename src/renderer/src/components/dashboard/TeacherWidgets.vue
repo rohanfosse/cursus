@@ -5,6 +5,7 @@
  * next 48h agenda, forgotten drafts, and devoirs without resources.
  */
 <script setup lang="ts">
+import { ref } from 'vue'
 import {
   MessageSquare, Bookmark, Trash2, ChevronRight,
   AtSign, CalendarClock, EyeOff, FileText, FileQuestion,
@@ -13,10 +14,17 @@ import {
 import { deadlineLabel } from '@/utils/date'
 import { avatarColor } from '@/utils/format'
 import { useConfirm } from '@/composables/useConfirm'
+import { useWidgetGrid } from '@/composables/useWidgetGrid'
+import { useTeacherBento } from '@/composables/useTeacherBento'
+import WidgetShell from './WidgetShell.vue'
+import type { WidgetSize } from '@/types/widgets'
 import type { GanttRow } from '@/composables/useDashboardTeacher'
 import type { SavedMessage, AgendaItem } from '@/composables/useDashboardWidgets'
 
 const { confirm } = useConfirm()
+const { getWidgetSize, setWidgetSize } = useTeacherBento()
+const gridRef = ref<HTMLElement | null>(null)
+const { clampSize, gridStyle } = useWidgetGrid(gridRef)
 
 defineProps<{
   unreadDmEntries: { name: string; count: number }[]
@@ -96,8 +104,13 @@ const emit = defineEmits<{
     </span>
   </div>
 
-  <!-- Widgets Communication + Organisation (grille) -->
-  <div v-if="unreadMentions.length || recentChannelActivity.length || next48h.length || forgottenDrafts.length || devoirsWithoutResources.length" class="db-widgets-grid">
+  <!-- Widgets Communication + Organisation (grille responsive) -->
+  <div
+    v-if="unreadMentions.length || recentChannelActivity.length || next48h.length || forgottenDrafts.length || devoirsWithoutResources.length"
+    ref="gridRef"
+    class="db-widgets-grid"
+    :style="gridStyle"
+  >
 
     <!-- Mentions @ non lues -->
     <div v-if="unreadMentions.length" class="db-widget">
@@ -280,11 +293,10 @@ const emit = defineEmits<{
 .db-saved-remove:hover { color: var(--color-danger); background: rgba(231,76,60,.1); }
 .db-saved-more { font-size: 11.5px; color: var(--text-muted); padding: 4px 0; }
 
-/* ── Grille des widgets communication + organisation ── */
+/* ── Grille des widgets (styles inline via gridStyle, responsive via useWidgetGrid) ── */
 .db-widgets-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px;
+  /* grid-template-columns, grid-auto-rows, grid-auto-flow, gap fournis par gridStyle */
 }
-@media (max-width: 700px) { .db-widgets-grid { grid-template-columns: 1fr; } }
 .db-widget {
   background: var(--bg-elevated, rgba(255,255,255,.04));
   border: 1px solid var(--border); border-radius: 10px; padding: 14px;

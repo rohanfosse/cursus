@@ -96,7 +96,7 @@ const {
           <span class="stg-toggle-label">Afficher les horodatages</span>
           <span class="stg-toggle-desc">Montrer l'heure d'envoi sur chaque message.</span>
         </div>
-        <div class="stg-switch" :class="{ on: showTimestamps }" @click="showTimestamps = !showTimestamps">
+        <div class="stg-switch" :class="{ on: showTimestamps }" role="switch" :aria-checked="showTimestamps" tabindex="0" @click="showTimestamps = !showTimestamps" @keydown.enter.prevent="showTimestamps = !showTimestamps" @keydown.space.prevent="showTimestamps = !showTimestamps">
           <div class="stg-switch-thumb" />
         </div>
       </label>
@@ -105,7 +105,7 @@ const {
           <span class="stg-toggle-label">Images compactes</span>
           <span class="stg-toggle-desc">Réduire la taille des aperçus d'images dans les messages.</span>
         </div>
-        <div class="stg-switch" :class="{ on: compactImages }" @click="compactImages = !compactImages">
+        <div class="stg-switch" :class="{ on: compactImages }" role="switch" :aria-checked="compactImages" tabindex="0" @click="compactImages = !compactImages" @keydown.enter.prevent="compactImages = !compactImages" @keydown.space.prevent="compactImages = !compactImages">
           <div class="stg-switch-thumb" />
         </div>
       </label>

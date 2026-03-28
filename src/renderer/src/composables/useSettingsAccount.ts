@@ -4,7 +4,7 @@
  * Used by SettingsModal.vue
  */
 import { ref, computed } from 'vue'
-import { User, BookOpen } from 'lucide-vue-next'
+import { User, BookOpen, GraduationCap } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useRouter }   from 'vue-router'
 import { useToast }    from '@/composables/useToast'
@@ -68,7 +68,7 @@ export function useSettingsAccount(emit: (evt: 'update:modelValue', v: boolean) 
 
   const roleIcon = computed(() => {
     const t = appStore.currentUser?.type
-    return t === 'teacher' ? BookOpen : t === 'ta' ? BookOpen : User
+    return t === 'teacher' ? BookOpen : t === 'ta' ? GraduationCap : User
   })
 
   // ── Password ───────────────────────────────────────────────────────────────

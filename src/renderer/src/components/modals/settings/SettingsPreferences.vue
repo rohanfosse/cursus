@@ -29,7 +29,7 @@ const { resetting, resetDemoData } = useSettingsAccount(emit)
           <span class="stg-toggle-label">Notifications bureau</span>
           <span class="stg-toggle-desc">Afficher les notifications système pour les nouveaux messages.</span>
         </div>
-        <div class="stg-switch" :class="{ on: notifDesktop }" @click="notifDesktop = !notifDesktop">
+        <div class="stg-switch" :class="{ on: notifDesktop }" role="switch" :aria-checked="notifDesktop" tabindex="0" @click="notifDesktop = !notifDesktop" @keydown.enter.prevent="notifDesktop = !notifDesktop" @keydown.space.prevent="notifDesktop = !notifDesktop">
           <div class="stg-switch-thumb" />
         </div>
       </label>
@@ -38,7 +38,7 @@ const { resetting, resetDemoData } = useSettingsAccount(emit)
           <span class="stg-toggle-label">Son de notification</span>
           <span class="stg-toggle-desc">Jouer un son lors de la réception d'un message.</span>
         </div>
-        <div class="stg-switch" :class="{ on: notifSound }" @click="notifSound = !notifSound">
+        <div class="stg-switch" :class="{ on: notifSound }" role="switch" :aria-checked="notifSound" tabindex="0" @click="notifSound = !notifSound" @keydown.enter.prevent="notifSound = !notifSound" @keydown.space.prevent="notifSound = !notifSound">
           <div class="stg-switch-thumb" />
         </div>
       </label>
@@ -55,7 +55,7 @@ const { resetting, resetDemoData } = useSettingsAccount(emit)
           <span class="stg-toggle-label">Entrée pour envoyer</span>
           <span class="stg-toggle-desc">Appuyer sur Entrée envoie le message. Désactivé : Ctrl+Entrée pour envoyer.</span>
         </div>
-        <div class="stg-switch" :class="{ on: enterToSend }" @click="enterToSend = !enterToSend">
+        <div class="stg-switch" :class="{ on: enterToSend }" role="switch" :aria-checked="enterToSend" tabindex="0" @click="enterToSend = !enterToSend" @keydown.enter.prevent="enterToSend = !enterToSend" @keydown.space.prevent="enterToSend = !enterToSend">
           <div class="stg-switch-thumb" />
         </div>
       </label>
@@ -72,7 +72,7 @@ const { resetting, resetDemoData } = useSettingsAccount(emit)
           <span class="stg-toggle-label">Ouvrir dans l'explorateur par défaut</span>
           <span class="stg-toggle-desc">Double-clic sur un fichier l'ouvre directement avec l'application système.</span>
         </div>
-        <div class="stg-switch" :class="{ on: docsDefault }" @click="docsDefault = !docsDefault">
+        <div class="stg-switch" :class="{ on: docsDefault }" role="switch" :aria-checked="docsDefault" tabindex="0" @click="docsDefault = !docsDefault" @keydown.enter.prevent="docsDefault = !docsDefault" @keydown.space.prevent="docsDefault = !docsDefault">
           <div class="stg-switch-thumb" />
         </div>
       </label>

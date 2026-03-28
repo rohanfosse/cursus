@@ -332,6 +332,7 @@
   box-shadow: 0 1px 4px rgba(0,0,0,.25);
 }
 .stg-switch.on .stg-switch-thumb { transform: translateX(16px); }
+.stg-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 11px; }
 
 /* ── Info chip (langue) ── */
 .stg-info-chip {
@@ -613,5 +614,11 @@
   .stg-nav { display: none; }
   .stg-info-grid { grid-template-columns: 1fr; }
   .stg-theme-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .stg-switch, .stg-switch-thumb, .stg-theme-card, .stg-nav-item,
+  .stg-btn, .stg-segmented-btn { transition: none !important; }
 }
 </style>

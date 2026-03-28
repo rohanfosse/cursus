@@ -1,20 +1,25 @@
 /**
- * useBentoPrefs - Composable de préférences du bento étudiant.
- * Gère l'ordre et la visibilité des widgets, persistés en localStorage.
+ * useBentoPrefs - Composable de preferences du bento etudiant.
+ * Gere l'ordre, la visibilite et les tailles des widgets, persistes en localStorage.
  */
 import { ref, computed, watch } from 'vue'
 import { STORAGE_KEYS } from '@/constants'
-import { STUDENT_WIDGETS, type WidgetDef } from '@/components/dashboard/student-widgets/registry'
+import { STUDENT_WIDGETS } from '@/components/dashboard/student-widgets/registry'
+import type { WidgetDef, WidgetSize } from '@/types/widgets'
 
 interface BentoPrefs {
   order: string[]
   hidden: string[]
+  sizes: Record<string, WidgetSize>
+  preset?: string | null
 }
 
 function defaultPrefs(): BentoPrefs {
   return {
     order: STUDENT_WIDGETS.filter(w => w.defaultEnabled).map(w => w.id),
     hidden: STUDENT_WIDGETS.filter(w => !w.defaultEnabled).map(w => w.id),
+    sizes: {},
+    preset: null,
   }
 }
 
@@ -23,11 +28,13 @@ function loadPrefs(): BentoPrefs {
     const raw = localStorage.getItem(STORAGE_KEYS.BENTO_PREFS)
     if (raw) {
       const parsed = JSON.parse(raw) as BentoPrefs
-      // Ensure all known widget ids are accounted for
       const knownIds = new Set(STUDENT_WIDGETS.map(w => w.id))
       parsed.order = parsed.order.filter(id => knownIds.has(id))
       parsed.hidden = parsed.hidden.filter(id => knownIds.has(id))
-      // Add any new widgets not yet in prefs
+      // Migration : ajouter sizes si absent (anciennes prefs)
+      if (!parsed.sizes) parsed.sizes = {}
+      if (parsed.preset === undefined) parsed.preset = null
+      // Ajouter les nouveaux widgets non encore dans les prefs
       for (const w of STUDENT_WIDGETS) {
         if (!parsed.order.includes(w.id) && !parsed.hidden.includes(w.id)) {
           if (w.defaultEnabled) parsed.order.push(w.id)
@@ -79,14 +86,14 @@ export function useBentoPrefs() {
   function toggleWidget(id: string) {
     const isHidden = prefs.value.hidden.includes(id)
     if (isHidden) {
-      // Show: remove from hidden, add to end of order
       prefs.value = {
+        ...prefs.value,
         order: prefs.value.order.includes(id) ? [...prefs.value.order] : [...prefs.value.order, id],
         hidden: prefs.value.hidden.filter(h => h !== id),
       }
     } else {
-      // Hide: add to hidden, remove from order
       prefs.value = {
+        ...prefs.value,
         order: prefs.value.order.filter(o => o !== id),
         hidden: [...prefs.value.hidden, id],
       }
@@ -95,13 +102,30 @@ export function useBentoPrefs() {
 
   function reorderWidgets(newOrder: WidgetDef[]) {
     const newIds = new Set(newOrder.map(w => w.id))
-    // Preserve widgets not in the draggable list (live, promoActivity, etc.)
     const preserved = prefs.value.order.filter(id => !newIds.has(id) && !prefs.value.hidden.includes(id))
     const reordered = newOrder.filter(w => !prefs.value.hidden.includes(w.id)).map(w => w.id)
     prefs.value = {
+      ...prefs.value,
       order: [...preserved, ...reordered],
-      hidden: [...prefs.value.hidden],
     }
+  }
+
+  function getWidgetSize(id: string): WidgetSize {
+    if (prefs.value.sizes[id]) return prefs.value.sizes[id]
+    const w = STUDENT_WIDGETS.find(w => w.id === id)
+    return w?.defaultSize ?? '1x1'
+  }
+
+  function setWidgetSize(id: string, size: WidgetSize) {
+    prefs.value = {
+      ...prefs.value,
+      sizes: { ...prefs.value.sizes, [id]: size },
+      preset: null, // resize manuel = plus de preset
+    }
+  }
+
+  function applyPreset(preset: BentoPrefs) {
+    prefs.value = { ...preset }
   }
 
   function resetDefaults() {
@@ -114,6 +138,9 @@ export function useBentoPrefs() {
     isVisible,
     toggleWidget,
     reorderWidgets,
+    getWidgetSize,
+    setWidgetSize,
+    applyPreset,
     resetDefaults,
     prefs,
   }

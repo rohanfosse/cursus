@@ -237,6 +237,9 @@ export interface LiveSessionWithStats extends LiveSession {
   activity_count: number; participant_count: number
 }
 
+// ─── Widget Sizing System ────────────────────────────────────────────────────
+export { type WidgetSize, type WidgetCategory, type WidgetDef, sizeToGridSpan, SIZE_LABELS } from './widgets'
+
 export interface LiveStats {
   totalSessions: number
   avgParticipationRate: number
