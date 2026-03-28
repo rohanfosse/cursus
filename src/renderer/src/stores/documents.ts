@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useAppStore } from './app'
 import { useApi } from '@/composables/useApi'
 import type { AppDocument } from '@/types'
+import { cacheData, loadCached } from '@/composables/useOfflineCache'
 
 export const useDocumentsStore = defineStore('documents', () => {
   const appStore = useAppStore()
@@ -42,6 +43,16 @@ export const useDocumentsStore = defineStore('documents', () => {
         () => window.api.getProjectDocuments(pid, project ?? appStore.activeProject ?? null),
       )
       documents.value = data ?? []
+      // Cache offline si donnees recues
+      if (documents.value.length) {
+        cacheData(`documents-${pid}`, documents.value)
+      }
+    } catch {
+      // Fallback offline
+      if (!appStore.isOnline && pid) {
+        const cached = await loadCached<AppDocument[]>(`documents-${pid}`)
+        if (cached) documents.value = cached
+      }
     } finally {
       loading.value = false
     }

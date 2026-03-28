@@ -125,6 +125,12 @@
       </button>
     </div>
 
+    <!-- ── Bandeau hors-ligne ── -->
+    <div v-if="!appStore.isOnline" class="nav-offline-banner" aria-live="polite">
+      <Wifi :size="12" />
+      <span>Hors-ligne</span>
+    </div>
+
     <!-- ── Tableau de bord ── -->
     <button
       class="nav-btn"
@@ -507,6 +513,26 @@
 }
 .nav-logo {
   position: relative;
+}
+.nav-offline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 6px;
+  margin: 0 6px 4px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: offline-pulse 2s ease-in-out infinite;
+}
+@keyframes offline-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 .nav-status-dot {
   position: absolute;

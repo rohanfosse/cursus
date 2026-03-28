@@ -2,10 +2,12 @@
  * useAppListeners - regroupe les listeners globaux de l'application.
  * Extrait de App.vue pour reduire la complexite du composant racine.
  */
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
+import { useTravauxStore }  from '@/stores/travaux'
+import { useDocumentsStore } from '@/stores/documents'
 import { useModalsStore }   from '@/stores/modals'
 
 export function useAppListeners() {
@@ -43,6 +45,19 @@ export function useAppListeners() {
 
     const messagesStore = useMessagesStore()
     unsubTyping = messagesStore.initTypingListener()
+
+    // Sync auto au retour en ligne (silencieuse)
+    watch(() => appStore.isOnline, (online, wasOnline) => {
+      if (online && !wasOnline) {
+        console.log('[Sync] Retour en ligne, re-fetch des donnees...')
+        messagesStore.fetchMessages()
+        const travauxStore = useTravauxStore()
+        travauxStore.fetchStudentDevoirs()
+        const docsStore = useDocumentsStore()
+        const pid = appStore.activePromoId ?? appStore.currentUser?.promo_id
+        if (pid) docsStore.fetchDocuments(pid)
+      }
+    })
   }
 
   function cleanupListeners() {

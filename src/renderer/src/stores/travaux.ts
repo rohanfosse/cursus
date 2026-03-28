@@ -4,6 +4,7 @@ import { useAppStore } from './app'
 import { useApi } from '@/composables/useApi'
 import type { Devoir, Depot, Ressource, GanttRow } from '@/types'
 import { deadlineClass } from '@/utils/date'
+import { cacheData, loadCached } from '@/composables/useOfflineCache'
 
 export const useTravauxStore = defineStore('travaux', () => {
   const appStore = useAppStore()
@@ -55,6 +56,16 @@ export const useTravauxStore = defineStore('travaux', () => {
         () => window.api.getStudentTravaux(appStore.currentUser!.id),
       )
       devoirs.value = data ?? []
+      // Cache offline si donnees recues
+      if (devoirs.value.length) {
+        cacheData(`devoirs-${appStore.currentUser!.id}`, devoirs.value)
+      }
+    } catch {
+      // Fallback offline
+      if (!appStore.isOnline) {
+        const cached = await loadCached<Devoir[]>(`devoirs-${appStore.currentUser!.id}`)
+        if (cached) devoirs.value = cached
+      }
     } finally {
       loading.value = false
     }

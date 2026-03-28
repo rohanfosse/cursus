@@ -7,6 +7,7 @@ import {
   STORAGE_KEYS, GROUP_THRESHOLD_MS, MESSAGE_PAGE_SIZE,
   MAX_MESSAGE_LENGTH, TYPING_TIMEOUT_MS,
 } from '@/constants'
+import { cacheData, loadCached } from '@/composables/useOfflineCache'
 
 export const useMessagesStore = defineStore('messages', () => {
   const appStore = useAppStore()
@@ -184,10 +185,25 @@ export const useMessagesStore = defineStore('messages', () => {
 
       messages.value = fetched
 
-      // Mettre en cache (hors recherche)
+      // Mettre en cache memoire + disque (hors recherche)
       if (!searchTerm.value) {
         const ck = _cacheKey()
-        if (ck) _messageCache.set(ck, { messages: fetched, hasMore: hasMore.value, timestamp: Date.now() })
+        if (ck) {
+          _messageCache.set(ck, { messages: fetched, hasMore: hasMore.value, timestamp: Date.now() })
+          if (fetched.length) cacheData(`messages-${ck}`, fetched)
+        }
+      }
+
+      // Fallback offline : si aucun message et hors-ligne, charger depuis le cache disque
+      if (!fetched.length && !appStore.isOnline && !searchTerm.value) {
+        const ck = _cacheKey()
+        if (ck) {
+          const cached = await loadCached<Message[]>(`messages-${ck}`)
+          if (cached?.length) {
+            messages.value = cached
+            return
+          }
+        }
       }
 
       if (!searchTerm.value && lastReadId > 0) {
