@@ -2,7 +2,7 @@
  * WidgetGroupMembers.vue - Membres du groupe de l'étudiant pour le projet actif.
  */
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Users } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 
@@ -38,8 +38,8 @@ async function fetchGroup() {
 
       groupName.value = group.name
 
-      // 3. Resolve names via getAllStudents (single request instead of N getStudentProfile calls)
-      const studentsRes = await window.api.getAllStudents()
+      // 3. Resolve names via getStudents (promo-scoped, accessible aux etudiants)
+      const studentsRes = await window.api.getStudents(promoId)
       const studentMap = new Map<number, string>()
       if (studentsRes.ok && studentsRes.data) {
         for (const s of studentsRes.data) studentMap.set(s.id, s.name)
@@ -76,7 +76,6 @@ function avatarColor(index: number): string {
 }
 
 onMounted(fetchGroup)
-watch(() => appStore.activeProject, fetchGroup)
 </script>
 
 <template>

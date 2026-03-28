@@ -25,10 +25,9 @@ onMounted(async () => {
 
 const recentDoc = computed(() => {
   if (!docsStore.documents.length) return null
-  const sorted = [...docsStore.documents].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  return docsStore.documents.reduce((latest, doc) =>
+    new Date(doc.created_at).getTime() > new Date(latest.created_at).getTime() ? doc : latest,
   )
-  return sorted[0]
 })
 
 const typeIcon = computed(() => {
