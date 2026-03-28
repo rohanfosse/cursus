@@ -91,7 +91,7 @@ app.use('/api', (req, res, next) => {
     if (getAppConfig('read_only') === '1' && req.user?.type !== 'teacher') {
       return res.status(503).json({ ok: false, error: 'La plateforme est en mode lecture seule.' })
     }
-  } catch {}
+  } catch (err) { log.warn('read_only_check_failed', { error: err.message }) }
   next()
 })
 
