@@ -1,4 +1,4 @@
-import { marked } from 'marked'
+import { marked, type RendererThis, type Token } from 'marked'
 import hljs from 'highlight.js/lib/core'
 import javascript from 'highlight.js/lib/languages/javascript'
 import typescript from 'highlight.js/lib/languages/typescript'
@@ -77,8 +77,8 @@ marked.use({
   gfm: true,
   renderer: {
     // Liens : data-url pour l'interception click existante dans MessageBubble
-    link({ href, tokens }: { href: string; title?: string | null; tokens: unknown[] }) {
-      const text = (this as any).parser.parseInline(tokens)
+    link({ href, tokens }: { href: string; title?: string | null; tokens: Token[] }) {
+      const text = (this as RendererThis).parser.parseInline(tokens)
       const safe = escapeHtml(href ?? '')
       // Pièce jointe 📎 → card visuel enrichie
       if (text.includes('📎')) {
