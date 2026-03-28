@@ -155,7 +155,7 @@ describe('DELETE /api/promotions/:id', () => {
       .post('/api/promotions')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ name: 'Promo Jetable', color: '#AAAAAA' })
-    emptyPromoId = res.body.data?.lastInsertRowid ?? res.body.data?.id ?? 99
+    emptyPromoId = typeof res.body.data === 'number' ? res.body.data : (res.body.data?.lastInsertRowid ?? res.body.data?.id ?? 99)
   })
 
   it('etudiant ne peut pas supprimer une promo (403)', async () => {
