@@ -172,11 +172,10 @@ function loginWithCredentials(email, password) {
 
 function registerStudent({ name, email, promoId, photoData, password }) {
   const db       = getDb();
-  // Validation du domaine email
-  if (!email || !email.trim().toLowerCase().endsWith('@viacesi.fr')) {
-    throw new Error("L'adresse email doit se terminer par @viacesi.fr.");
+  if (!email || !email.trim()) {
+    throw new Error("L'adresse email est requise.");
   }
-  const existing = db.prepare('SELECT id FROM students WHERE email = ?').get(email);
+  const existing = db.prepare('SELECT id FROM students WHERE LOWER(email) = LOWER(?)').get(email);
   if (existing) throw new Error('Cette adresse email est déjà utilisée.');
 
   const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -186,7 +185,7 @@ function registerStudent({ name, email, promoId, photoData, password }) {
 
   return db.prepare(`
     INSERT INTO students (promo_id, name, email, avatar_initials, photo_data, password, must_change_password)
-    VALUES (?, ?, ?, ?, ?, ?, 1)
+    VALUES (?, ?, ?, ?, ?, ?, 0)
   `).run(promoId, name.trim(), email.trim().toLowerCase(), initials, photoData ?? null, hashed);
 }
 

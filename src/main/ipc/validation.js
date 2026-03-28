@@ -79,10 +79,11 @@ const createPromotionPayload = z.object({
 })
 
 const registerStudentPayload = z.object({
-  name:     safeStr,
-  email:    z.string().email().max(255),
-  password: z.string().min(4).max(255),
-  promoId:  id,
+  name:      safeStr,
+  email:     z.string().email().max(255),
+  password:  z.string().min(8).max(255),
+  promoId:   id,
+  photoData: z.string().max(500_000).nullable().optional(),
 })
 
 // ── Documents ───────────────────────────────────────────────────────────────

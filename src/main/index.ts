@@ -189,8 +189,8 @@ app.whenReady().then(() => {
   createWindow(splash)
 
   // ── System tray ────────────────────────────────────────────────────────────
-  const trayIconPath = join(__dirname, '../../resources/icon.ico')
-  tray = new Tray(nativeImage.createFromPath(trayIconPath))
+  const trayIconPath = join(__dirname, '../../resources/icon-tray.png')
+  tray = new Tray(nativeImage.createFromPath(trayIconPath).resize({ width: 16, height: 16 }))
   tray.setToolTip('Cursus')
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Afficher Cursus', click: () => { mainWin?.show(); mainWin?.focus() } },

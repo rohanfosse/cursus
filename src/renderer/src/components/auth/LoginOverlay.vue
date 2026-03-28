@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { ref, computed, onMounted } from 'vue'
   import { useRouter } from 'vue-router'
+  import { Eye, EyeOff } from 'lucide-vue-next'
   import { useAppStore } from '@/stores/app'
   import { STORAGE_KEYS } from '@/constants'
   import { avatarColor }  from '@/utils/format'
@@ -10,8 +11,27 @@
   const appStore = useAppStore()
   const router   = useRouter()
 
-  type Screen = 'login' | 'register'
+  type Screen = 'login' | 'register' | 'forgot'
   const screen = ref<Screen>('login')
+
+  // ── Mot de passe oublié ──────────────────────────────────────────────────
+  const forgotEmail    = ref('')
+  const forgotSent     = ref(false)
+  const forgotErr      = ref('')
+
+  function goForgot() {
+    forgotEmail.value = email.value
+    forgotSent.value  = false
+    forgotErr.value   = ''
+    screen.value      = 'forgot'
+  }
+
+  function handleForgot() {
+    forgotErr.value = ''
+    const trimmed = forgotEmail.value.trim().toLowerCase()
+    if (!trimmed) { forgotErr.value = 'Veuillez saisir votre adresse email.'; return }
+    forgotSent.value = true
+  }
 
   // ── Connexion ─────────────────────────────────────────────────────────────
   const email      = ref('')
@@ -29,7 +49,6 @@
       if (!res?.ok || !res.data) {
         const serverErr = (res as { error?: string })?.error
         loginErr.value = serverErr ?? 'Email ou mot de passe incorrect.'
-        console.warn('[Login] Reponse serveur:', JSON.stringify(res))
         password.value = ''
         return
       }
@@ -42,8 +61,7 @@
       }
       router.replace('/dashboard')
     } catch (e: unknown) {
-      const msg = (e as Error)?.message ?? String(e)
-      console.error('[Login] Erreur:', msg)
+      const msg = e instanceof Error ? e.message : String(e)
       loginErr.value = msg || 'Erreur inattendue lors de la connexion.'
     } finally {
       submitting.value = false
@@ -104,12 +122,19 @@
   }))
   const regPwdValid = computed(() => Object.values(regPwdCriteria.value).every(Boolean))
 
+  // Indication CESI en temps réel
+  const isCesiEmail = computed(() => regEmail.value.trim().toLowerCase().endsWith('@viacesi.fr'))
+  const regEmailHint = computed(() => {
+    const v = regEmail.value.trim()
+    if (!v || v.length < 3) return ''
+    if (v.includes('@') && !isCesiEmail.value) {
+      return 'Compte externe (non-CESI)'
+    }
+    return ''
+  })
+
   async function handleRegister() {
     regEmailErr.value = ''
-    if (!regEmail.value.endsWith('@viacesi.fr')) {
-      regEmailErr.value = "L'adresse doit se terminer par @viacesi.fr"
-      return
-    }
     if (!regPromoId.value) return
     if (!regPwdValid.value) {
       regEmailErr.value = 'Le mot de passe doit contenir au moins 8 caractères, 1 majuscule, 1 chiffre et 1 caractère spécial.'
@@ -120,25 +145,22 @@
       const fullName = `${firstName.value.trim()} ${lastName.value.trim()}`
       const res = await window.api.registerStudent({
         name: fullName, email: regEmail.value.trim().toLowerCase(),
-        promoId: regPromoId.value, photoData: pendingPhoto.value,
+        promoId: regPromoId.value as number, photoData: pendingPhoto.value,
         password: regPassword.value,
       })
       if (!res?.ok) { regEmailErr.value = res?.error ?? 'Erreur lors de la création du compte.'; return }
-      const stuRes = await window.api.getStudentByEmail(regEmail.value.trim().toLowerCase())
-      if (!stuRes?.ok || !stuRes.data) return
-      const stu = stuRes.data
-      appStore.login({
-        id: stu.id,
-        name: stu.name,
-        type: 'student',
-        avatar_initials: stu.avatar_initials ?? stu.name.slice(0, 2).toUpperCase(),
-        photo_data: stu.photo_data ?? null,
-        promo_id: stu.promo_id,
-        promo_name: stu.promo_name,
-      })
+      // Login automatique après inscription pour obtenir le token JWT
+      const loginRes = await window.api.loginWithCredentials(regEmail.value.trim().toLowerCase(), regPassword.value)
+      if (!loginRes?.ok || !loginRes.data) {
+        regEmailErr.value = 'Compte créé mais connexion impossible. Essayez de vous connecter.'
+        screen.value = 'login'
+        return
+      }
+      const u = loginRes.data as LoginResponse
+      appStore.login({ ...u, avatar_initials: u.avatar_initials ?? u.name.slice(0, 2).toUpperCase() })
       router.replace('/dashboard')
     } catch (e: unknown) {
-      regEmailErr.value = (e as Error).message ?? 'Erreur.'
+      regEmailErr.value = e instanceof Error ? e.message : 'Erreur.'
     } finally {
       regSubmitting.value = false
     }
@@ -180,7 +202,7 @@
                 v-model="email"
                 type="email"
                 class="auth-input"
-                placeholder="prenom.nom@viacesi.fr"
+                placeholder="prenom.nom@ecole.fr"
                 autocomplete="email"
                 required
                 autofocus
@@ -202,10 +224,11 @@
                 <button
                   type="button"
                   class="auth-pwd-toggle"
-                  :aria-label="showPwd ? 'Masquer' : 'Afficher'"
+                  :aria-label="showPwd ? 'Masquer le mot de passe' : 'Afficher le mot de passe'"
                   @click="showPwd = !showPwd"
                 >
-                  {{ showPwd ? '🙈' : '👁' }}
+                  <EyeOff v-if="showPwd" :size="15" />
+                  <Eye v-else :size="15" />
                 </button>
               </div>
             </div>
@@ -216,10 +239,7 @@
             </label>
 
             <Transition name="err-pop">
-              <div v-if="loginErr" class="auth-error">
-                {{ loginErr }}
-                <button v-if="loginErr.includes('→')" type="button" class="auth-error-retry" @click="handleLogin">Reessayer</button>
-              </div>
+              <div v-if="loginErr" class="auth-error">{{ loginErr }}</div>
             </Transition>
 
             <button type="submit" class="auth-submit" :disabled="submitting">
@@ -228,7 +248,9 @@
             </button>
 
             <p class="auth-forgot">
-              Mot de passe oublié ? Contactez votre pilote.
+              <button type="button" class="auth-forgot-link" @click="goForgot">
+                Mot de passe oublié ?
+              </button>
             </p>
           </form>
 
@@ -240,9 +262,9 @@
         </div>
 
         <!-- ── Inscription ── -->
-        <div v-else key="register" class="auth-card auth-card-wide">
+        <div v-else-if="screen === 'register'" key="register" class="auth-card auth-card-wide">
           <h2 class="auth-card-title">Créer un compte</h2>
-          <p class="auth-card-sub">Utilisez votre adresse <strong>@viacesi.fr</strong></p>
+          <p class="auth-card-sub">Renseignez vos informations pour rejoindre votre promotion</p>
 
           <form class="auth-form" @submit.prevent="handleRegister">
             <!-- Avatar -->
@@ -278,9 +300,10 @@
 
             <div class="auth-field">
               <label class="auth-label">Adresse email</label>
-              <input v-model="regEmail" type="email" class="auth-input" placeholder="prenom.nom@viacesi.fr" required />
+              <input v-model="regEmail" type="email" class="auth-input" placeholder="prenom.nom@ecole.fr" required />
               <Transition name="err-pop">
                 <span v-if="regEmailErr" class="auth-field-error">{{ regEmailErr }}</span>
+                <span v-else-if="regEmailHint" class="auth-field-hint">{{ regEmailHint }}</span>
               </Transition>
             </div>
 
@@ -294,7 +317,13 @@
               </div>
               <div class="auth-field">
                 <label class="auth-label">Mot de passe</label>
-                <input v-model="regPassword" type="password" class="auth-input" placeholder="Min. 4 caractères" required minlength="4" />
+                <input v-model="regPassword" type="password" class="auth-input" placeholder="Min. 8 caractères" required minlength="8" />
+                <div v-if="regPassword.length > 0" class="auth-pwd-criteria">
+                  <span :class="{ valid: regPwdCriteria.length }">8+ caractères</span>
+                  <span :class="{ valid: regPwdCriteria.uppercase }">1 majuscule</span>
+                  <span :class="{ valid: regPwdCriteria.number }">1 chiffre</span>
+                  <span :class="{ valid: regPwdCriteria.special }">1 spécial</span>
+                </div>
               </div>
             </div>
 
@@ -308,6 +337,55 @@
               </button>
             </div>
           </form>
+        </div>
+
+        <!-- ── Mot de passe oublié ── -->
+        <div v-else-if="screen === 'forgot'" key="forgot" class="auth-card">
+          <h2 class="auth-card-title">Mot de passe oublié</h2>
+          <p class="auth-card-sub">Saisissez votre adresse email pour recevoir les instructions</p>
+
+          <template v-if="!forgotSent">
+            <form class="auth-form" @submit.prevent="handleForgot">
+              <div class="auth-field">
+                <label class="auth-label">Adresse email</label>
+                <input
+                  v-model="forgotEmail"
+                  type="email"
+                  class="auth-input"
+                  placeholder="votre.email@ecole.fr"
+                  required
+                  autofocus
+                />
+                <Transition name="err-pop">
+                  <span v-if="forgotErr" class="auth-field-error">{{ forgotErr }}</span>
+                </Transition>
+              </div>
+
+              <button type="submit" class="auth-submit">
+                Continuer
+              </button>
+            </form>
+          </template>
+
+          <template v-else>
+            <div class="auth-forgot-success">
+              <div class="auth-forgot-icon">&#9993;</div>
+              <p class="auth-forgot-msg">
+                Contactez votre <strong>pilote de promotion</strong> ou votre <strong>enseignant</strong>
+                pour qu'il réinitialise votre mot de passe depuis le panneau d'administration.
+              </p>
+              <p class="auth-forgot-detail">
+                Un mot de passe temporaire vous sera communiqué.
+                Vous devrez le changer lors de votre prochaine connexion.
+              </p>
+            </div>
+          </template>
+
+          <div class="auth-form-actions" style="margin-top: 16px">
+            <button type="button" class="auth-back-btn" @click="screen = 'login'">
+              ← Retour à la connexion
+            </button>
+          </div>
         </div>
 
       </Transition>
@@ -518,13 +596,13 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 15px;
-  padding: 2px;
-  line-height: 1;
+  padding: 4px;
+  display: flex;
+  color: var(--text-muted);
   opacity: .6;
-  transition: opacity .12s;
+  transition: opacity .12s, color .12s;
 }
-.auth-pwd-toggle:hover { opacity: 1; }
+.auth-pwd-toggle:hover { opacity: 1; color: var(--text-secondary); }
 
 /* ── Se souvenir de moi ── */
 .auth-remember {
@@ -560,6 +638,11 @@
 .auth-field-error {
   font-size: 12px;
   color: var(--color-danger, #e74c3c);
+  margin-top: 2px;
+}
+.auth-field-hint {
+  font-size: 12px;
+  color: var(--text-muted, #888);
   margin-top: 2px;
 }
 
@@ -696,6 +779,25 @@
 }
 .auth-link-btn:hover { opacity: 1; }
 
+.auth-pwd-criteria {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.auth-pwd-criteria span {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(231,76,60,.1);
+  color: var(--color-danger, #e74c3c);
+  transition: background .2s, color .2s;
+}
+.auth-pwd-criteria span.valid {
+  background: rgba(46,204,113,.12);
+  color: #2ecc71;
+}
+
 .auth-row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -732,4 +834,41 @@
 .err-pop-leave-active { transition: opacity .1s; }
 .err-pop-enter-from   { opacity: 0; transform: translateY(-4px); }
 .err-pop-leave-to     { opacity: 0; }
+
+/* ── Mot de passe oublié ── */
+.auth-forgot-link {
+  background: none;
+  border: none;
+  color: var(--accent, #4A90D9);
+  font-size: 12px;
+  font-family: var(--font);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  opacity: .8;
+  transition: opacity .12s;
+}
+.auth-forgot-link:hover { opacity: 1; }
+
+.auth-forgot-success {
+  text-align: center;
+  padding: 12px 0;
+}
+.auth-forgot-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+  opacity: .7;
+}
+.auth-forgot-msg {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin: 0 0 10px;
+}
+.auth-forgot-detail {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
 </style>

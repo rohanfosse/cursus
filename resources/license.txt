@@ -1,0 +1,49 @@
+LICENCE D'UTILISATION - CURSUS
+==============================
+
+Version 1.0 - Mars 2026
+
+1. OBJET
+
+Cursus est une plateforme de suivi de formation developpee pour un
+usage educatif. Ce logiciel est mis a disposition des etudiants et
+enseignants dans le cadre de leur parcours de formation.
+
+2. CONDITIONS D'UTILISATION
+
+En installant ce logiciel, vous acceptez les conditions suivantes :
+
+  - L'utilisation est reservee a un cadre educatif et de formation.
+  - Vous vous engagez a ne pas utiliser le logiciel a des fins
+    commerciales sans autorisation prealable.
+  - Les donnees personnelles sont traitees conformement au RGPD
+    (Reglement General sur la Protection des Donnees).
+
+3. DONNEES PERSONNELLES
+
+Cursus collecte et traite les donnees suivantes :
+  - Nom, prenom, adresse email
+  - Messages et fichiers partages dans les canaux
+  - Rendus de travaux et notes
+
+Vous pouvez exporter vos donnees personnelles a tout moment depuis
+les parametres de l'application (conformement a l'article 20 du RGPD).
+
+4. PROPRIETE INTELLECTUELLE
+
+Ce logiciel et son code source sont la propriete de l'auteur.
+Toute reproduction ou distribution non autorisee est interdite.
+
+5. LIMITATION DE RESPONSABILITE
+
+Le logiciel est fourni "en l'etat", sans garantie d'aucune sorte.
+L'auteur ne peut etre tenu responsable des dommages directs ou
+indirects resultant de l'utilisation du logiciel.
+
+6. CONTACT
+
+Pour toute question relative a cette licence ou au traitement de
+vos donnees personnelles, contactez votre pilote de promotion ou
+l'administrateur de la plateforme.
+
+(c) 2026 Rohan Fosse - Tous droits reserves

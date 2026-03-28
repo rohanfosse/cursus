@@ -15,8 +15,7 @@ const loginSchema = z.object({
 })
 
 const registerSchema = z.object({
-  firstName: z.string().min(1, 'Prénom requis').max(100),
-  lastName:  z.string().min(1, 'Nom requis').max(100),
+  name:      z.string().min(1, 'Nom requis').max(200),
   email:     z.string().email('Format d\'email invalide'),
   password:  z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères'),
   promoId:   z.number().int().positive('Promotion invalide'),
@@ -32,13 +31,34 @@ const changePasswordSchema = z.object({
 
 const wrap = require('../utils/wrap')
 
-// ── Rate-limiter pour le login (anti brute-force) ───────────────────────────
+// ── Rate-limiters (anti brute-force) ─────────────────────────────────────────
+const skipInTest = () => process.env.NODE_ENV === 'test'
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5,                   // 5 tentatives max par IP
+  skip: skipInTest,
   standardHeaders: true,
   legacyHeaders: false,
   message: { ok: false, error: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' },
+})
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 heure
+  max: 5,                   // 5 inscriptions max par IP par heure
+  skip: skipInTest,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Trop de tentatives d\'inscription. Réessayez plus tard.' },
+})
+
+const changePasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,                   // 5 tentatives max par IP
+  skip: skipInTest,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Trop de tentatives. Réessayez dans 15 minutes.' },
 })
 
 // ── Helper : enregistrer une tentative de connexion ──────────────────────────
@@ -105,10 +125,10 @@ router.get('/teachers', auth, wrap(() => {
 }))
 
 // POST /api/auth/register
-router.post('/register', validate(registerSchema), wrap((req) => queries.registerStudent(req.body)))
+router.post('/register', registerLimiter, validate(registerSchema), wrap((req) => queries.registerStudent(req.body)))
 
 // POST /api/auth/change-password  (requiert JWT)
-router.post('/change-password', auth, validate(changePasswordSchema), wrap((req) => {
+router.post('/change-password', auth, changePasswordLimiter, validate(changePasswordSchema), wrap((req) => {
   const { userId, isTeacher, currentPwd, newPwd } = req.body
   if (req.user.type === 'student' && req.user.id !== userId) {
     throw new Error('Vous ne pouvez modifier que votre propre mot de passe.')

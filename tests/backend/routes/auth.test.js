@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test'
 
 const express = require('express')
 const request = require('supertest')
