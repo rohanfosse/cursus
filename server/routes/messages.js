@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit')
 const queries   = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap         = require('../utils/wrap')
+const { ForbiddenError, NotFoundError } = require('../utils/errors')
 const { requireTeacher, requirePromo, promoFromChannel, requireMessageOwner, requireDmParticipant } = require('../middleware/authorize')
 
 // ── Rate limiter spécifique messages : 30 msg/min par utilisateur ───────────

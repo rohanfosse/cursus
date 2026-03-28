@@ -6,6 +6,7 @@ const { z }     = require('zod')
 const queries   = require('../db/index')
 const auth      = require('../middleware/auth')
 const { validate } = require('../middleware/validate')
+const { AppError, ForbiddenError } = require('../utils/errors')
 
 // ── Schémas de validation ─────────────────────────────────────────────────────
 const loginSchema = z.object({
@@ -56,7 +57,7 @@ router.post('/login', loginLimiter, validate(loginSchema), wrap(async (req) => {
   const user = queries.loginWithCredentials(email, password)
   if (!user) {
     logLoginAttempt(email, false, req)
-    throw new Error('Email ou mot de passe incorrect')
+    throw new AppError('Email ou mot de passe incorrect', 401)
   }
   logLoginAttempt(email, true, req)
   const secret = req.app.get('jwtSecret')
