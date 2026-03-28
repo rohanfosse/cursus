@@ -663,6 +663,11 @@ contextBridge.exposeInMainWorld('api', {
   updaterQuitAndInstall: () => ipcRenderer.send('updater:quitAndInstall'),
   checkForUpdates: () => ipcRenderer.invoke('updater:checkNow'),
 
+  // ── Cache offline ───────────────────────────────────────────────────────────
+  offlineWrite: (key: string, data: unknown) => ipcRenderer.invoke('offline:write', key, data),
+  offlineRead:  (key: string) => ipcRenderer.invoke('offline:read', key),
+  offlineClear: () => ipcRenderer.invoke('offline:clear'),
+
   // ── Temps réel (Socket.io) ───────────────────────────────────────────────────
   onNewMessage: (cb: (data: MsgNewPayload) => void) => {
     msgCallbacks.push(cb)

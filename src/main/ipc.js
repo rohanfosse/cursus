@@ -10,6 +10,7 @@ const messages  = require('./ipc/messages')
 const travaux   = require('./ipc/travaux')
 const documents = require('./ipc/documents')
 const files     = require('./ipc/files')
+const { registerOfflineHandlers } = require('./ipc/offline')
 
 function register() {
   // ── Contexte utilisateur (envoyé par le renderer après login) ──────────
@@ -22,6 +23,7 @@ function register() {
   travaux.register()
   documents.register()
   files.register()
+  registerOfflineHandlers()
 }
 
 module.exports = { register }
