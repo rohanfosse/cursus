@@ -5,32 +5,31 @@
     Download, Palette, Monitor, Moon, Sunset, Waves, Sparkles, Globe, Lock,
     FileText, ChevronRight, Github, Heart, Shield, Mail, BookOpen,
     ExternalLink, Type, BellRing, Maximize2, Sun, MessageSquare,
-    Volume2, Clock, MousePointer, Home, AlignJustify,
+    Volume2, Clock, MousePointer, Home, AlignJustify, Keyboard,
   } from 'lucide-vue-next'
   import ChangePasswordModal  from '@/components/modals/ChangePasswordModal.vue'
   import SettingsGeneral      from './settings/SettingsGeneral.vue'
   import SettingsAppearance   from './settings/SettingsAppearance.vue'
   import SettingsPreferences    from './settings/SettingsPreferences.vue'
   import SettingsNotifications  from './settings/SettingsNotifications.vue'
+  import SettingsShortcuts      from './settings/SettingsShortcuts.vue'
   import SettingsAccount        from './settings/SettingsAccount.vue'
   import SettingsAbout          from './settings/SettingsAbout.vue'
   import { useAppStore } from '@/stores/app'
-  import { STORAGE_KEYS } from '@/constants'
+  // import { STORAGE_KEYS } from '@/constants' // moved to SettingsPreferences
   import Modal from '@/components/ui/Modal.vue'
   import logoUrl from '@/assets/logo.png'
   import { useSettingsAppearance } from '@/composables/useSettingsAppearance'
   import { useSettingsAccount }    from '@/composables/useSettingsAccount'
   import { useSettingsPreferences } from '@/composables/useSettingsPreferences'
-  import { usePrefs } from '@/composables/usePrefs'
+  // import { usePrefs } from '@/composables/usePrefs' // moved to sub-components
 
   const props = defineProps<{ modelValue: boolean }>()
   const emit  = defineEmits<{ 'update:modelValue': [v: boolean] }>()
 
-  type Section = 'general' | 'apparence' | 'notifications' | 'preferences' | 'compte' | 'apropos'
+  type Section = 'general' | 'apparence' | 'notifications' | 'preferences' | 'raccourcis' | 'compte' | 'apropos'
 
   const appStore = useAppStore()
-  const { getPref, setPref } = usePrefs()
-
   // ── Composables ────────────────────────────────────────────────────────────
   const {
     currentTheme, fontSize, density, msgSpacing, showTimestamps, compactImages,
@@ -47,19 +46,6 @@
     docsDefault, notifSound, notifDesktop, enterToSend,
   } = useSettingsPreferences()
 
-  // ── General tab state ───────────────────────────────────────────────────────
-  const rememberMe = ref(getPref('rememberMe') ?? false)
-  watch(rememberMe, (v) => {
-    setPref('rememberMe', v)
-    if (!v) localStorage.removeItem(STORAGE_KEYS.REMEMBER_TOKEN)
-  })
-
-  const roleLabels: Record<string, string> = {
-    teacher: 'Enseignant',
-    ta: 'Intervenant',
-    student: 'Étudiant',
-  }
-
   // ── Tabs ───────────────────────────────────────────────────────────────────
   const activeSection = ref<Section>('general')
 
@@ -68,6 +54,7 @@
     { key: 'apparence',     label: 'Apparence',     icon: Palette },
     { key: 'notifications', label: 'Notifications', icon: BellRing },
     { key: 'preferences',   label: 'Preferences',   icon: Settings },
+    { key: 'raccourcis',    label: 'Raccourcis',    icon: Keyboard },
     { key: 'compte',        label: 'Mon compte',    icon: User },
     { key: 'apropos',       label: 'A propos',      icon: Info },
   ]
@@ -78,7 +65,6 @@
       activeSection.value = 'general'
       resetAppearance()
       resetPhoto()
-      rememberMe.value = getPref('rememberMe') ?? false
     }
   })
 </script>
@@ -134,6 +120,9 @@
 
         <!-- ════ Preferences ════ -->
         <SettingsPreferences v-else-if="activeSection === 'preferences'" />
+
+        <!-- ════ Raccourcis ════ -->
+        <SettingsShortcuts v-else-if="activeSection === 'raccourcis'" />
 
         <!-- ════ Mon compte ════ -->
         <SettingsAccount v-else-if="activeSection === 'compte'" />
@@ -241,6 +230,12 @@
   gap: 7px;
 }
 .stg-group-icon { color: var(--text-muted); }
+.stg-group-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin: -2px 0 6px;
+  line-height: 1.4;
+}
 .stg-group-title {
   font-size: 11.5px;
   font-weight: 700;

@@ -22,6 +22,9 @@ interface Prefs {
   dndEnabled: boolean
   dndStart: string  // "HH:MM" format
   dndEnd: string    // "HH:MM" format
+  // Apparence avancee
+  animationsEnabled: boolean
+  borderRadius: 'sharp' | 'default' | 'round'
 }
 
 const DEFAULTS: Prefs = {
@@ -45,6 +48,8 @@ const DEFAULTS: Prefs = {
   dndEnabled: false,
   dndStart: '22:00',
   dndEnd: '08:00',
+  animationsEnabled: true,
+  borderRadius: 'default',
 }
 
 function loadPrefs(): Prefs {

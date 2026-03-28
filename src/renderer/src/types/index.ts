@@ -3,6 +3,7 @@
 export interface User {
   id: number
   name: string
+  email?: string
   avatar_initials: string
   photo_data: string | null
   type: 'teacher' | 'ta' | 'student'

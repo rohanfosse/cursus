@@ -52,8 +52,10 @@ export function useSettingsAppearance() {
   const fontSize       = ref<string>(getPref('fontSize') ?? 'default')
   const density        = ref<string>(getPref('density') ?? 'default')
   const msgSpacing     = ref<string>(getPref('msgSpacing') ?? 'normal')
-  const showTimestamps = ref(getPref('showTimestamps') ?? true)
-  const compactImages  = ref(getPref('compactImages') ?? false)
+  const showTimestamps    = ref(getPref('showTimestamps') ?? true)
+  const compactImages     = ref(getPref('compactImages') ?? false)
+  const animationsEnabled = ref(getPref('animationsEnabled') ?? true)
+  const borderRadius      = ref<string>(getPref('borderRadius') ?? 'default')
 
   watch(fontSize, (v) => {
     setPref('fontSize', v as 'small' | 'default' | 'large')
@@ -76,19 +78,48 @@ export function useSettingsAppearance() {
   watch(showTimestamps, (v) => setPref('showTimestamps', v))
   watch(compactImages,  (v) => setPref('compactImages', v))
 
+  watch(animationsEnabled, (v) => {
+    setPref('animationsEnabled', v)
+    if (!v) document.documentElement.classList.add('no-animations')
+    else document.documentElement.classList.remove('no-animations')
+  })
+
+  watch(borderRadius, (v) => {
+    setPref('borderRadius', v as 'sharp' | 'default' | 'round')
+    const radii: Record<string, string> = { sharp: '4px', default: '12px', round: '20px' }
+    document.documentElement.style.setProperty('--radius', radii[v])
+    document.documentElement.style.setProperty('--radius-sm', v === 'sharp' ? '2px' : v === 'round' ? '14px' : '8px')
+  })
+
   function setTheme(theme: ThemeId) {
     currentTheme.value = theme
     setPref('theme', theme)
     applyTheme(theme)
   }
 
-  // Init: apply theme + listen for system changes
+  // Init: apply theme + listen for system changes + apply appearance prefs
   applyTheme(currentTheme.value as ThemeId)
   setupSystemThemeListener(currentTheme as { value: ThemeId })
+  // Apply initial border radius
+  const initRadii: Record<string, string> = { sharp: '4px', default: '12px', round: '20px' }
+  document.documentElement.style.setProperty('--radius', initRadii[borderRadius.value] ?? '12px')
+  // Apply initial animations pref
+  if (!animationsEnabled.value) document.documentElement.classList.add('no-animations')
 
   /** Re-sync refs from stored prefs (called when modal opens). */
   function resetAppearance() {
     currentTheme.value = getPref('theme') ?? 'dark'
+  }
+
+  function resetAllAppearance() {
+    setTheme('dark')
+    fontSize.value = 'default'
+    density.value = 'default'
+    msgSpacing.value = 'normal'
+    showTimestamps.value = true
+    compactImages.value = false
+    animationsEnabled.value = true
+    borderRadius.value = 'default'
   }
 
   return {
@@ -98,8 +129,11 @@ export function useSettingsAppearance() {
     msgSpacing,
     showTimestamps,
     compactImages,
+    animationsEnabled,
+    borderRadius,
     THEMES,
     setTheme,
     resetAppearance,
+    resetAllAppearance,
   }
 }
