@@ -306,6 +306,8 @@ declare global {
       onAssignmentNew(cb: (data: { title: string; category?: string; deadline?: string }) => void): () => void
       onUpdaterAvailable(cb: (version: string) => void): () => void
       onUpdaterDownloaded(cb: (version: string) => void): () => void
+      onUpdaterProgress(cb: (percent: number) => void): () => void
+      onUpdaterError(cb: (error: string) => void): () => void
       updaterQuitAndInstall(): void
       checkForUpdates(): Promise<{ ok: boolean; data?: { version: string; available: boolean }; error?: string }>
     }

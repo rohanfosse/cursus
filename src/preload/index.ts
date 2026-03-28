@@ -660,6 +660,16 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('updater:downloaded', listener)
     return () => ipcRenderer.removeListener('updater:downloaded', listener)
   },
+  onUpdaterProgress: (cb: (percent: number) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, percent: number) => cb(percent)
+    ipcRenderer.on('updater:progress', listener)
+    return () => ipcRenderer.removeListener('updater:progress', listener)
+  },
+  onUpdaterError: (cb: (error: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, error: string) => cb(error)
+    ipcRenderer.on('updater:error', listener)
+    return () => ipcRenderer.removeListener('updater:error', listener)
+  },
   updaterQuitAndInstall: () => ipcRenderer.send('updater:quitAndInstall'),
   checkForUpdates: () => ipcRenderer.invoke('updater:checkNow'),
 

@@ -204,23 +204,36 @@ app.whenReady().then(() => {
     autoUpdater.autoDownload = true
     autoUpdater.autoInstallOnAppQuit = true
 
+    function sendToRenderer(channel: string, ...args: unknown[]) {
+      if (mainWin && !mainWin.isDestroyed()) {
+        mainWin.webContents.send(channel, ...args)
+      }
+    }
+
     autoUpdater.on('update-available', (info) => {
-      console.log('[Updater] Mise à jour disponible:', info.version)
-      const win = BrowserWindow.getAllWindows()[0]
-      if (win) win.webContents.send('updater:available', info.version)
+      console.log('[Updater] Mise a jour disponible:', info.version)
+      sendToRenderer('updater:available', info.version)
     })
 
     autoUpdater.on('update-downloaded', (info) => {
-      console.log('[Updater] Mise à jour téléchargée:', info.version)
-      const win = BrowserWindow.getAllWindows()[0]
-      if (win) win.webContents.send('updater:downloaded', info.version)
+      console.log('[Updater] Mise a jour telechargee:', info.version)
+      sendToRenderer('updater:downloaded', info.version)
+    })
+
+    autoUpdater.on('download-progress', (progress) => {
+      sendToRenderer('updater:progress', Math.round(progress.percent))
+    })
+
+    autoUpdater.on('error', (err) => {
+      console.error('[Updater] Erreur:', err.message)
+      sendToRenderer('updater:error', err.message)
     })
 
     ipcMain.on('updater:quitAndInstall', () => {
       autoUpdater.quitAndInstall()
     })
 
-    // Vérification manuelle depuis les settings
+    // Verification manuelle depuis les settings
     ipcMain.handle('updater:checkNow', async () => {
       try {
         const result = await autoUpdater.checkForUpdates()
@@ -233,11 +246,11 @@ app.whenReady().then(() => {
       }
     })
 
-    autoUpdater.on('error', (err) => {
-      console.error('[Updater] Erreur:', err.message)
-    })
-
+    // Verification initiale + periodique (toutes les 4h)
     autoUpdater.checkForUpdatesAndNotify()
+    setInterval(() => {
+      autoUpdater.checkForUpdatesAndNotify().catch(() => {})
+    }, 4 * 60 * 60 * 1000)
   }
 
   app.on('activate', () => {

@@ -1,15 +1,50 @@
 /** SettingsAbout — section A propos du modal Settings. */
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { Info, Globe, Monitor, Heart, Github, ExternalLink, Download } from 'lucide-vue-next'
 import logoUrl from '@/assets/logo.png'
 import { version } from '../../../../../../package.json'
 
-// ── Mise à jour manuelle ────────────────────────────────────────────────────
-type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloaded' | 'up-to-date' | 'error'
+// ── Mise a jour ─────────────────────────────────────────────────────────────
+type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'up-to-date' | 'error'
 const updateStatus  = ref<UpdateStatus>('idle')
 const updateVersion = ref('')
 const updateError   = ref('')
+const downloadPercent = ref(0)
+
+// Listeners auto-update (enregistres au mount, nettoyes au unmount)
+let unsubAvailable: (() => void) | null = null
+let unsubDownloaded: (() => void) | null = null
+let unsubProgress: (() => void) | null = null
+let unsubError: (() => void) | null = null
+
+onMounted(() => {
+  unsubAvailable = window.api.onUpdaterAvailable?.((v: string) => {
+    updateVersion.value = v
+    updateStatus.value = 'downloading'
+    downloadPercent.value = 0
+  })
+  unsubDownloaded = window.api.onUpdaterDownloaded?.((v: string) => {
+    updateVersion.value = v
+    updateStatus.value = 'downloaded'
+    downloadPercent.value = 100
+  })
+  unsubProgress = window.api.onUpdaterProgress?.((percent: number) => {
+    downloadPercent.value = percent
+    if (updateStatus.value !== 'downloading') updateStatus.value = 'downloading'
+  })
+  unsubError = window.api.onUpdaterError?.((err: string) => {
+    updateError.value = err
+    updateStatus.value = 'error'
+  })
+})
+
+onUnmounted(() => {
+  unsubAvailable?.()
+  unsubDownloaded?.()
+  unsubProgress?.()
+  unsubError?.()
+})
 
 async function checkUpdate() {
   updateStatus.value = 'checking'
@@ -18,16 +53,12 @@ async function checkUpdate() {
     const res = await window.api.checkForUpdates?.()
     if (!res?.ok) {
       updateStatus.value = 'error'
-      updateError.value = res?.error ?? 'Impossible de vérifier les mises à jour.'
+      updateError.value = res?.error ?? 'Impossible de verifier les mises a jour.'
       return
     }
     if (res.data?.available) {
       updateStatus.value = 'available'
       updateVersion.value = res.data.version
-      window.api.onUpdaterDownloaded?.((v: string) => {
-        updateVersion.value = v
-        updateStatus.value = 'downloaded'
-      })
     } else {
       updateStatus.value = 'up-to-date'
     }
@@ -44,7 +75,7 @@ function installUpdate() { window.api.updaterQuitAndInstall() }
   <section class="stg-section">
     <div class="stg-section-header">
       <Info :size="18" />
-      <h3 class="stg-section-title">À propos</h3>
+      <h3 class="stg-section-title">A propos</h3>
     </div>
 
     <div class="stg-about-hero">
@@ -56,31 +87,37 @@ function installUpdate() { window.api.updaterQuitAndInstall() }
       <p class="stg-about-tagline">Suivez votre parcours de formation</p>
     </div>
 
-    <!-- Mise à jour -->
+    <!-- Mise a jour -->
     <div class="stg-group">
       <div class="stg-group-header">
         <Download :size="13" class="stg-group-icon" />
-        <h4 class="stg-group-title">Mise à jour</h4>
+        <h4 class="stg-group-title">Mise a jour</h4>
       </div>
       <div class="stg-update-section">
-        <p v-if="updateStatus === 'idle'" class="stg-update-text">Vérifiez si une nouvelle version est disponible.</p>
-        <p v-else-if="updateStatus === 'checking'" class="stg-update-text stg-update-checking">Recherche en cours…</p>
-        <p v-else-if="updateStatus === 'available'" class="stg-update-text stg-update-available">Mise à jour {{ updateVersion }} disponible — téléchargement en cours…</p>
-        <p v-else-if="updateStatus === 'downloaded'" class="stg-update-text stg-update-ready">Mise à jour {{ updateVersion }} prête. Redémarrez pour installer.</p>
-        <p v-else-if="updateStatus === 'up-to-date'" class="stg-update-text stg-update-ok">Vous êtes à jour.</p>
-        <p v-else-if="updateStatus === 'error'" class="stg-update-text stg-update-error">Erreur : {{ updateError }}</p>
+        <p v-if="updateStatus === 'idle'" class="stg-update-text">Verifiez si une nouvelle version est disponible.</p>
+        <p v-else-if="updateStatus === 'checking'" class="stg-update-text stg-update-checking">Recherche en cours...</p>
+        <p v-else-if="updateStatus === 'available'" class="stg-update-text stg-update-available">Mise a jour {{ updateVersion }} disponible, telechargement en cours...</p>
+        <template v-else-if="updateStatus === 'downloading'">
+          <p class="stg-update-text stg-update-available">Telechargement de {{ updateVersion }}... {{ downloadPercent }}%</p>
+          <div class="stg-progress-bar">
+            <div class="stg-progress-fill" :style="{ width: downloadPercent + '%' }" />
+          </div>
+        </template>
+        <p v-else-if="updateStatus === 'downloaded'" class="stg-update-text stg-update-ready">Mise a jour {{ updateVersion }} prete. Redemarrez pour installer.</p>
+        <p v-else-if="updateStatus === 'up-to-date'" class="stg-update-text stg-update-ok">Vous etes a jour (v{{ version }}).</p>
+        <p v-else-if="updateStatus === 'error'" class="stg-update-text stg-update-error">{{ updateError }}</p>
         <div class="stg-update-actions">
           <button
             v-if="updateStatus === 'downloaded'"
             class="stg-update-btn stg-update-btn--install"
             @click="installUpdate"
-          >Redémarrer et installer</button>
+          >Redemarrer et installer</button>
           <button
             v-else
             class="stg-update-btn"
-            :disabled="updateStatus === 'checking'"
+            :disabled="updateStatus === 'checking' || updateStatus === 'downloading'"
             @click="checkUpdate"
-          >Chercher une mise à jour</button>
+          >Chercher une mise a jour</button>
         </div>
       </div>
     </div>
@@ -115,11 +152,11 @@ function installUpdate() { window.api.updaterQuitAndInstall() }
           <span class="stg-info-value">Electron + Vue 3</span>
         </div>
         <div class="stg-info-cell">
-          <span class="stg-info-label">Base de données</span>
+          <span class="stg-info-label">Base de donnees</span>
           <span class="stg-info-value">SQLite (local)</span>
         </div>
         <div class="stg-info-cell">
-          <span class="stg-info-label">Temps réel</span>
+          <span class="stg-info-label">Temps reel</span>
           <span class="stg-info-value">Socket.io</span>
         </div>
         <div class="stg-info-cell">
@@ -133,12 +170,12 @@ function installUpdate() { window.api.updaterQuitAndInstall() }
     <div class="stg-group">
       <div class="stg-group-header">
         <Heart :size="13" class="stg-group-icon" />
-        <h4 class="stg-group-title">Créé par</h4>
+        <h4 class="stg-group-title">Cree par</h4>
       </div>
       <div class="stg-author-card">
         <div class="stg-author-avatar">RF</div>
         <div class="stg-author-info">
-          <span class="stg-author-name">Rohan Fossé</span>
+          <span class="stg-author-name">Rohan Fosse</span>
           <a href="https://github.com/rohanfosse/cursus" target="_blank" rel="noopener" class="stg-author-link">
             <Github :size="12" /> Voir sur GitHub <ExternalLink :size="10" />
           </a>
@@ -172,4 +209,15 @@ function installUpdate() { window.api.updaterQuitAndInstall() }
   background: var(--color-success, #059669); color: #fff; border-color: transparent;
 }
 .stg-update-btn--install:hover { opacity: .9; }
+
+/* Barre de progression download */
+.stg-progress-bar {
+  height: 4px; border-radius: 2px;
+  background: var(--bg-hover); overflow: hidden;
+}
+.stg-progress-fill {
+  height: 100%; border-radius: 2px;
+  background: var(--accent);
+  transition: width .3s ease;
+}
 </style>
