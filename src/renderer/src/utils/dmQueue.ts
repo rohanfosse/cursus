@@ -10,7 +10,7 @@ export interface QueuedMessage {
   dmPeerId?: number | null
   content: string
   authorName: string
-  authorType: string
+  authorType: 'admin' | 'teacher' | 'ta' | 'student'
   timestamp: number
   replyToId?: number | null
   replyToAuthor?: string | null
