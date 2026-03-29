@@ -42,6 +42,36 @@ router.get('/visits', (req, res) => {
   }
 })
 
+// ── Metriques d'adoption ────────────────────────────────────────────────────
+
+router.get('/adoption', (req, res) => {
+  try {
+    const data = queries.getAdoptionMetrics()
+    res.json({ ok: true, data })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
+router.get('/last-seen', (req, res) => {
+  try {
+    const data = queries.getLastSeenPerStudent()
+    res.json({ ok: true, data })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
+router.get('/inactive', (req, res) => {
+  try {
+    const days = Math.max(1, Math.min(90, Number(req.query.days) || 7))
+    const data = queries.getInactiveStudents(days)
+    res.json({ ok: true, data })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
 // ── Error reports (monitoring interne) ──────────────────────────────────────
 
 router.get('/error-reports', (req, res) => {

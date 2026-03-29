@@ -10,6 +10,7 @@ export interface User {
   promo_id: number | null
   promo_name: string | null
   must_change_password?: number  // 1 = doit changer, 0 = ok
+  onboarding_done?: number       // 1 = onboarding termine, 0 = a faire
 }
 
 export interface RubricCriterion {
@@ -204,6 +205,7 @@ export interface LoginResponse {
   promo_id: number | null
   promo_name: string | null
   must_change_password?: number
+  onboarding_done?: number
   token: string
 }
 

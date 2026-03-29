@@ -540,6 +540,72 @@ function getUserFeedback(userId) {
   return getDb().prepare(`SELECT * FROM feedback WHERE user_id = ? ORDER BY created_at DESC`).all(userId)
 }
 
+// ── Metriques d'adoption ────────────────────────────────────────────────────
+
+function getAdoptionMetrics() {
+  const db = getDb()
+
+  // DAU (unique users who visited in last 24h)
+  const dau = db.prepare(`
+    SELECT COUNT(DISTINCT user_id) AS count FROM page_visits
+    WHERE created_at >= datetime('now', '-1 day')
+  `).get().count
+
+  // WAU (unique users last 7 days)
+  const wau = db.prepare(`
+    SELECT COUNT(DISTINCT user_id) AS count FROM page_visits
+    WHERE created_at >= datetime('now', '-7 days')
+  `).get().count
+
+  // MAU (unique users last 30 days)
+  const mau = db.prepare(`
+    SELECT COUNT(DISTINCT user_id) AS count FROM page_visits
+    WHERE created_at >= datetime('now', '-30 days')
+  `).get().count
+
+  // Total students
+  const totalStudents = db.prepare('SELECT COUNT(*) AS count FROM students').get().count
+
+  // DAU trend (last 14 days)
+  const dauTrend = db.prepare(`
+    SELECT date(created_at) AS day, COUNT(DISTINCT user_id) AS count
+    FROM page_visits
+    WHERE created_at >= datetime('now', '-14 days')
+    GROUP BY date(created_at)
+    ORDER BY day ASC
+  `).all()
+
+  return { dau, wau, mau, totalStudents, dauTrend }
+}
+
+function getLastSeenPerStudent() {
+  const db = getDb()
+  return db.prepare(`
+    SELECT s.id, s.name, s.email, s.promo_id, p.name AS promo_name,
+           MAX(pv.created_at) AS last_seen,
+           CAST((julianday('now') - julianday(MAX(pv.created_at))) AS INTEGER) AS days_absent
+    FROM students s
+    LEFT JOIN promotions p ON p.id = s.promo_id
+    LEFT JOIN page_visits pv ON pv.user_id = s.id AND pv.user_type = 'student'
+    GROUP BY s.id
+    ORDER BY last_seen ASC NULLS FIRST
+  `).all()
+}
+
+function getInactiveStudents(daysThreshold = 7) {
+  const db = getDb()
+  return db.prepare(`
+    SELECT s.id, s.name, s.email, s.promo_id, p.name AS promo_name,
+           MAX(pv.created_at) AS last_seen
+    FROM students s
+    LEFT JOIN promotions p ON p.id = s.promo_id
+    LEFT JOIN page_visits pv ON pv.user_id = s.id AND pv.user_type = 'student'
+    GROUP BY s.id
+    HAVING MAX(pv.created_at) IS NULL OR MAX(pv.created_at) < datetime('now', '-' || ? || ' days')
+    ORDER BY last_seen ASC NULLS FIRST
+  `).all(daysThreshold)
+}
+
 // ── Métriques de visites ────────────────────────────────────────────────────
 
 function recordVisit({ userId, userName, userType, path }) {
@@ -720,6 +786,8 @@ module.exports = {
   createFeedback, getFeedbackList, updateFeedbackStatus, getFeedbackStats, getUserFeedback,
   // Visites
   recordVisit, getVisitStats,
+  // Adoption
+  getAdoptionMetrics, getLastSeenPerStudent, getInactiveStudents,
   // Rappels enseignant
   getReminders, createReminder, updateReminder, deleteReminder,
   // Error reports

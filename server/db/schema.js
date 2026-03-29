@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 44;
+const CURRENT_VERSION = 45;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -972,6 +972,11 @@ function runMigrations(db) {
         CREATE INDEX IF NOT EXISTS idx_error_reports_created ON error_reports(created_at);
         CREATE INDEX IF NOT EXISTS idx_error_reports_user ON error_reports(user_id);
       `);
+    },
+
+    // v45 : flag onboarding pour les etudiants
+    (db) => {
+      tryAlter(db, 'ALTER TABLE students ADD COLUMN onboarding_done INTEGER NOT NULL DEFAULT 0');
     },
   ];
 

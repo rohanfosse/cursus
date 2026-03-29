@@ -316,6 +316,7 @@ import { exportCsv, exportUsers, exportAudit, exportStats } from './modules/expo
 import { loadHeatmap } from './modules/heatmap.js'
 import { checkReadOnlyBanner, toggleReadOnly, toggleArchivePromo } from './modules/settings.js'
 import { loadErrors, clearErrors, showErrorStack, checkErrorsBadge } from './modules/errors.js'
+import { loadAdoption, changeInactiveDays } from './modules/adoption.js'
 
 // ── Tabs ────────────────────────────────────────────────────────────────────
 
@@ -340,6 +341,7 @@ export function refreshActiveTab() {
     scheduled: loadScheduled, sessions: loadSessions, deploy: loadDeploy,
     import: loadImport, maintenance: loadMaintenance, feedback: loadFeedback,
     errors: loadErrors,
+    adoption: loadAdoption,
   }
   if (loaders[activeTab]) loaders[activeTab]()
   checkReadOnlyBanner()
@@ -435,6 +437,10 @@ window.toggleArchivePromo = toggleArchivePromo
 window.loadErrors = loadErrors
 window.clearErrors = clearErrors
 window.showErrorStack = showErrorStack
+
+// Adoption
+window.loadAdoption = loadAdoption
+window.changeInactiveDays = changeInactiveDays
 
 // Modal
 window.closeModal = closeModal

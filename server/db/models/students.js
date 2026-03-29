@@ -165,6 +165,7 @@ function loginWithCredentials(email, password) {
     promo_name:          student.promo_name ?? null,
     promo_id:            student.promo_id,
     must_change_password: student.must_change_password ?? 1,
+    onboarding_done:     student.onboarding_done ?? 0,
   };
 }
 
@@ -369,10 +370,21 @@ function findUserByName(name) {
   return null;
 }
 
+// ── Onboarding ───────────────────────────────────────────────────────────────
+
+function getOnboardingStatus(studentId) {
+  const row = getDb().prepare('SELECT onboarding_done FROM students WHERE id = ?').get(studentId)
+  return row ? row.onboarding_done === 1 : false
+}
+
+function completeOnboarding(studentId) {
+  return getDb().prepare('UPDATE students SET onboarding_done = 1 WHERE id = ?').run(studentId)
+}
+
 module.exports = {
   getStudents, getAllStudents, getStudentProfile,
   getStudentByEmail, loginWithCredentials, registerStudent,
   changePassword, exportStudentData,
   getIdentities, bulkImportStudents, getClasseStats, updateStudentPhoto, updateTeacherPhoto,
-  findUserByName,
+  findUserByName, getOnboardingStatus, completeOnboarding,
 };

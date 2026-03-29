@@ -36,6 +36,18 @@ router.post('/photo', (req, res, next) => {
 }, wrap((req) => queries.updateStudentPhoto(req.body.studentId, req.body.photoData)))
 router.post('/bulk-import',        requireTeacher, wrap((req) => queries.bulkImportStudents(req.body.promoId, req.body.rows)))
 
+// ── Onboarding wizard ────────────────────────────────────────────────────────
+router.get('/onboarding-status', wrap((req) => {
+  if (req.user.type !== 'student') return { done: true } // non-students skip
+  return { done: queries.getOnboardingStatus(req.user.id) }
+}))
+
+router.post('/complete-onboarding', wrap((req) => {
+  if (req.user.type !== 'student') return { done: true }
+  queries.completeOnboarding(req.user.id)
+  return { done: true }
+}))
+
 // ── RGPD Art. 20 — Export des données personnelles ──────────────────────────
 router.get('/:id/export', (req, res, next) => {
   // Un étudiant ne peut exporter que ses propres données, un prof peut tout exporter

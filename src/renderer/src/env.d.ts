@@ -310,6 +310,10 @@ declare global {
       updateReminder(id: number, payload: unknown): Promise<IpcResponse<import('./types').Reminder>>
       deleteReminder(id: number): Promise<IpcResponse<null>>
 
+      // Onboarding wizard
+      getOnboardingStatus(studentId: number): Promise<boolean>
+      completeOnboarding(studentId: number): Promise<any>
+
       // Cache offline
       offlineWrite(key: string, data: unknown): Promise<IpcResponse<null>>
       offlineRead(key: string): Promise<IpcResponse<unknown>>

@@ -38,6 +38,7 @@
   import ClasseModal             from '@/components/modals/ClasseModal.vue'
   import CreatePromoModal        from '@/components/modals/CreatePromoModal.vue'
   import SignatureModal           from '@/components/modals/SignatureModal.vue'
+  import OnboardingWizard         from '@/components/onboarding/OnboardingWizard.vue'
 
   const appStore = useAppStore()
   const modals   = useModalsStore()
@@ -108,6 +109,33 @@
     !!appStore.currentUser && appStore.currentUser.must_change_password === 1,
   )
 
+  // ── Onboarding wizard (étudiants, première connexion) ──────────────────────
+  const showOnboarding = computed(() =>
+    !!appStore.currentUser
+    && appStore.currentUser.type === 'student'
+    && appStore.currentUser.onboarding_done !== 1
+    && appStore.currentUser.must_change_password !== 1,
+  )
+  const onboardingChannels = ref<Array<{ id: number; name: string; type: string; description?: string | null }>>([])
+
+  watch(showOnboarding, async (show) => {
+    if (show && appStore.currentUser?.promo_id) {
+      try {
+        const res = await window.api.getChannels(appStore.currentUser.promo_id)
+        if (res?.ok) onboardingChannels.value = res.data
+      } catch { /* ignore */ }
+    }
+  }, { immediate: true })
+
+  async function onOnboardingComplete() {
+    if (appStore.currentUser) {
+      try {
+        await window.api.completeOnboarding(appStore.currentUser.id)
+      } catch { /* ignore */ }
+      appStore.login({ ...appStore.currentUser, onboarding_done: 1 })
+    }
+  }
+
   // ── Bannière de confidentialité RGPD (première ouverture) ─────────────────
   const PRIVACY_KEY  = 'cc_privacy_seen'
   const showPrivacy  = ref(false)
@@ -159,10 +187,9 @@
   function onOnline()  { isOffline.value = false; showToast('Connexion rétablie', 'success') }
   function onOffline() { isOffline.value = true }
 
-  // ── Guard router : bloquer la navigation si must_change_password ──────────
+  // ── Guard router : bloquer la navigation si must_change_password ou onboarding ─
   router.beforeEach((_to, _from, next) => {
-    if (showForcedPasswordChange.value) {
-      // Empêcher la navigation tant que le mot de passe n'a pas été changé
+    if (showForcedPasswordChange.value || showOnboarding.value) {
       next(false)
       return
     }
@@ -517,6 +544,14 @@
       :forced="true"
       @update:model-value="() => {}"
       @changed="() => {}"
+    />
+
+    <!-- Wizard d'onboarding (étudiants, après changement de mot de passe) -->
+    <OnboardingWizard
+      v-if="showOnboarding"
+      :user="appStore.currentUser!"
+      :channels="onboardingChannels"
+      @complete="onOnboardingComplete"
     />
   </template>
 

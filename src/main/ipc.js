@@ -11,6 +11,7 @@ const travaux   = require('./ipc/travaux')
 const documents = require('./ipc/documents')
 const projects  = require('./ipc/projects')
 const files     = require('./ipc/files')
+const onboarding = require('./ipc/onboarding')
 const { registerOfflineHandlers } = require('./ipc/offline')
 
 function register() {
@@ -25,6 +26,7 @@ function register() {
   documents.register()
   projects.register()
   files.register()
+  onboarding.register()
   registerOfflineHandlers()
 }
 

@@ -688,6 +688,10 @@ contextBridge.exposeInMainWorld('api', {
   updaterQuitAndInstall: () => ipcRenderer.send('updater:quitAndInstall'),
   checkForUpdates: () => ipcRenderer.invoke('updater:checkNow'),
 
+  // ── Onboarding wizard ───────────────────────────────────────────────────────
+  getOnboardingStatus: (studentId: number) => ipcRenderer.invoke('get-onboarding-status', { studentId }),
+  completeOnboarding: (studentId: number) => ipcRenderer.invoke('complete-onboarding', { studentId }),
+
   // ── Cache offline ───────────────────────────────────────────────────────────
   offlineWrite: (key: string, data: unknown) => ipcRenderer.invoke('offline:write', key, data),
   offlineRead:  (key: string) => ipcRenderer.invoke('offline:read', key),
