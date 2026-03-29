@@ -1,5 +1,50 @@
 # Changelog
 
+## v2.2.3 (2026-03-29)
+
+### Nouvelles fonctionnalites
+
+- **DMs etudiant-etudiant** : les etudiants peuvent s'envoyer des messages directs au sein de leur promo
+- **Queue offline** : les messages non envoyes sont stockes localement et re-envoyes a la reconnexion
+- **Retry automatique** : 3 tentatives avec backoff exponentiel sur echec reseau
+- **Archivage de canaux** : un responsable peut archiver un canal (invisible, lecture seule, restaurable)
+- **Gestion des membres** : ajout/retrait d'etudiants dans les canaux prives depuis le panneau membres
+- **Header de canal enrichi** : description, compteur de membres et badge type (Chat/Annonces)
+- **Bouton admin SSO** : connexion automatique au panneau d'administration sans re-saisie de mot de passe
+- **Validation fichiers upload** : taille max 50 Mo, extensions dangereuses bloquees, path traversal
+
+### Corrections
+
+- Page admin reservee aux administrateurs uniquement (plus les teachers)
+- URL admin corrigee vers admin.cursus.school
+- admin.cursus.school retournait "Non authentifie" au lieu du formulaire de login
+- Lighthouse CI retire app.cursus.school (SPA avec login = NO_FCP)
+- Type `authorType` dans la queue DM corrige (string literal union)
+- Tests live routes alignes sur l'isolation promo (v2.1.6)
+
+### Securite
+
+- 17 routes securisees avec middleware isolation promo (live, rex, projects)
+- Export REX reserve aux responsables (etait ouvert a tous)
+
+### Robustesse
+
+- Recherche DM limitee a 200 resultats (plus d'explosion memoire)
+- Validation destinataire avant envoi de DM
+- `safeStorage` integre dans useStudentReminders, usePrefs, documents store
+- `depositValidation` integre dans useStudentDeposit avant chaque upload
+- `safeAuthorType`/`safeUserType` centralises dans toutes les insertions DB
+
+### Tests
+
+- 60 tests canaux (archivage, membres, header, isReadonly)
+- Tests DMs etudiant-etudiant (backend + frontend)
+- Tests retry/queue (messages-retry.test.ts)
+- Tests dmQueue, searchDmMessages limit, validation destinataire
+- Tests channelMemberCount helper + app store archived
+
+---
+
 ## v2.0.9 (2026-03-29)
 
 ### Nouvelles fonctionnalites
