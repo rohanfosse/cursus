@@ -21,6 +21,7 @@
   <meta name="twitter:title" content="Cursus · Plateforme pédagogique" />
   <meta name="twitter:description" content="Cursus - L'app tout-en-un pour ta promo. Chat, devoirs et documents en un seul endroit." />
   <meta name="twitter:image" content="https://cursus.school/assets/icon-512.png" />
+  <meta name="author" content="Rohan Fosse">
 
   <!-- SEO : Canonical -->
   <link rel="canonical" href="https://cursus.school/" />
@@ -56,10 +57,10 @@
 
   <link rel="icon" type="image/png" href="/assets/icon-192.png" />
   <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+  <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js" defer></script>
 
   <!-- Critical inline CSS (nav + hero) -->
   <style>
@@ -92,11 +93,11 @@
       </div>
       <div class="nav-right">
         <a href="https://github.com/rohanfosse/cursus" class="nav-github" target="_blank" rel="noopener" aria-label="GitHub">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
         </a>
         <button class="theme-btn" id="theme-toggle" onclick="toggleTheme()" aria-label="Changer de theme">
-          <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg aria-hidden="true" class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg aria-hidden="true" class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
         <a href="https://app.cursus.school" class="nav-cta">Ouvrir l'app</a>
       </div>
@@ -113,12 +114,12 @@
         <p class="hero-sub fade-up">Chat, devoirs et documents. Un seul endroit.</p>
         <div class="hero-actions fade-up">
           <a href="#download" class="btn-primary">
-            <i data-lucide="download-cloud" style="width:16px;height:16px"></i>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m8 17 4 4 4-4"/></svg>
             Télécharger
           </a>
           <a href="https://app.cursus.school" class="btn-secondary">
             Ouvrir l'app
-            <i data-lucide="arrow-right" style="width:16px;height:16px"></i>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
           </a>
         </div>
       </div>
@@ -132,7 +133,7 @@
     <section class="feature-section fade-up" data-color="chat">
       <div class="container feature-row">
         <div class="feature-text">
-          <div class="feature-icon" style="--fc: var(--color-chat)"><i data-lucide="message-circle"></i></div>
+          <div class="feature-icon" style="--fc: var(--color-chat)"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></div>
           <h2>Discute avec ta promo</h2>
           <p class="feature-desc">Canaux par promotion, messages directs, mentions, réactions. Tout en temps réel.</p>
           <ul class="feature-list">
@@ -176,7 +177,7 @@
     <section class="feature-section fade-up" data-color="devoirs">
       <div class="container feature-row reverse">
         <div class="feature-text">
-          <div class="feature-icon" style="--fc: var(--color-devoirs)"><i data-lucide="clipboard-check"></i></div>
+          <div class="feature-icon" style="--fc: var(--color-devoirs)"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg></div>
           <h2>Sais toujours quoi rendre</h2>
           <p class="feature-desc">Crée des devoirs, suis les dépôts, note par rubriques. Les étudiants savent où en sont.</p>
           <ul class="feature-list">
@@ -190,7 +191,7 @@
             <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="demo-title">Devoirs</span></div>
             <div class="demo-devoirs-body">
               <div class="devoir-item" style="--delay: 0ms">
-                <div class="devoir-icon" style="background: var(--color-devoirs)"><i data-lucide="check-circle" style="width:16px;height:16px;color:#fff"></i></div>
+                <div class="devoir-icon" style="background: var(--color-devoirs)"><svg aria-hidden="true" style="width:14px;height:14px;color:#059669" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></div>
                 <div class="devoir-info">
                   <span class="devoir-name">Projet Web E4</span>
                   <span class="devoir-meta">Équipe B · Rendu le 15 mars</span>
@@ -198,7 +199,7 @@
                 <span class="devoir-badge done">Rendu</span>
               </div>
               <div class="devoir-item" style="--delay: 200ms">
-                <div class="devoir-icon" style="background: var(--color-docs)"><i data-lucide="clock" style="width:16px;height:16px;color:#fff"></i></div>
+                <div class="devoir-icon" style="background: var(--color-docs)"><svg aria-hidden="true" style="width:14px;height:14px;color:#f59e0b" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                 <div class="devoir-info">
                   <span class="devoir-name">TP Algo</span>
                   <span class="devoir-meta">Individuel</span>
@@ -207,7 +208,7 @@
                 <span class="devoir-badge pending">Dans 2j</span>
               </div>
               <div class="devoir-item" style="--delay: 400ms">
-                <div class="devoir-icon" style="background: var(--text-3)"><i data-lucide="file-pen-line" style="width:16px;height:16px;color:#fff"></i></div>
+                <div class="devoir-icon" style="background: var(--text-3)"><svg aria-hidden="true" style="width:14px;height:14px;color:#94a3b8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 5-2.414-2.414A2 2 0 0 0 14.172 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2"/><path d="M21.378 12.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></svg></div>
                 <div class="devoir-info">
                   <span class="devoir-name">Rapport stage</span>
                   <span class="devoir-meta">Mémoire · Soutenance en juin</span>
@@ -224,7 +225,7 @@
     <section class="feature-section fade-up" data-color="docs">
       <div class="container feature-row">
         <div class="feature-text">
-          <div class="feature-icon" style="--fc: var(--color-docs)"><i data-lucide="folder-open"></i></div>
+          <div class="feature-icon" style="--fc: var(--color-docs)"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg></div>
           <h2>Toutes tes ressources, un seul endroit</h2>
           <p class="feature-desc">PDF, Word, Excel, liens. Tout est classé, cherchable, et lié aux devoirs.</p>
           <ul class="feature-list">
@@ -237,7 +238,7 @@
           <div class="demo-window">
             <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="demo-title">Documents</span></div>
             <div class="demo-docs-body">
-              <div class="docs-search"><i data-lucide="search" style="width:14px;height:14px;color:var(--text-3)"></i><span class="docs-search-text"></span></div>
+              <div class="docs-search"><svg aria-hidden="true" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="docs-search-text"></span></div>
               <div class="docs-grid">
                 <div class="doc-item" style="--delay: 0ms; --doc-color: #dc2626"><div class="doc-icon">PDF</div><span>Cours Réseaux.pdf</span></div>
                 <div class="doc-item" style="--delay: 120ms; --doc-color: #2563eb"><div class="doc-icon">DOC</div><span>Sujet TP.docx</span></div>
@@ -254,7 +255,7 @@
     <section class="feature-section fade-up" data-color="dashboard">
       <div class="container feature-row reverse">
         <div class="feature-text">
-          <div class="feature-icon" style="--fc: var(--color-dashboard)"><i data-lucide="layout-grid"></i></div>
+          <div class="feature-icon" style="--fc: var(--color-dashboard)"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></div>
           <h2>Tout ton semestre en un coup d'oeil</h2>
           <p class="feature-desc">Widgets personnalisables. Deadlines, notes, progression, tout ce qui compte pour toi.</p>
           <ul class="feature-list">
@@ -304,19 +305,19 @@
       <p class="section-sub">Disponible sur toutes les plateformes.</p>
       <div class="download-grid">
         <a class="dl-card" id="dl-win" href="https://app.cursus.school/download/windows">
-          <i data-lucide="monitor"></i>
+          <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
           <span class="dl-platform">Windows</span>
           <span class="dl-req">Windows 10+</span>
           <span class="dl-btn">Télécharger .exe</span>
         </a>
         <a class="dl-card" id="dl-mac" href="https://app.cursus.school/download/mac">
-          <i data-lucide="laptop"></i>
+          <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
           <span class="dl-platform">macOS</span>
           <span class="dl-req">macOS 11+</span>
           <span class="dl-btn">Télécharger .dmg</span>
         </a>
         <a class="dl-card" id="dl-web" href="https://app.cursus.school">
-          <i data-lucide="globe"></i>
+          <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
           <span class="dl-platform">Web</span>
           <span class="dl-req">Aucune installation</span>
           <span class="dl-btn">Ouvrir</span>
@@ -353,5 +354,6 @@
   </footer>
 
   <script src="app.js"></script>
+  <!-- Analytics: insert GA4 gtag.js snippet here when ready -->
 </body>
 </html>

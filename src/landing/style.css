@@ -998,6 +998,16 @@ img { max-width: 100%; display: block; }
 .sidebar-ch { transition: background var(--duration-fast); }
 .sidebar-ch:hover:not(.active) { background: rgba(99, 102, 241, 0.05); }
 
+/* ── Focus Visible (keyboard a11y) ────────────────────────────────── */
+.sidebar-ch:focus-visible,
+.devoir-item:focus-visible,
+.doc-item:focus-visible,
+.reaction:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 /* ── Responsive ────────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .feature-row { gap: 32px; }

@@ -27,8 +27,19 @@ function toggleTheme() {
 // ── DOMContentLoaded ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
 
-  // Lucide icons
-  if (window.lucide) lucide.createIcons()
+  // ── Keyboard accessibility for interactive demos ──────────────────
+  function handleKeyActivation(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      e.target.click()
+    }
+  }
+
+  document.querySelectorAll('.sidebar-ch, .devoir-item, .doc-item, .reaction').forEach(el => {
+    el.setAttribute('tabindex', '0')
+    el.setAttribute('role', 'button')
+    el.addEventListener('keydown', handleKeyActivation)
+  })
 
   // ── Version fetch ─────────────────────────────────────────────────────
   fetch('/download')
@@ -204,6 +215,13 @@ document.addEventListener('DOMContentLoaded', () => {
       t.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span> Jean écrit...'
       container.appendChild(t)
     }
+
+    // Keyboard a11y for dynamically rendered reactions
+    container.querySelectorAll('.reaction').forEach(el => {
+      el.setAttribute('tabindex', '0')
+      el.setAttribute('role', 'button')
+      el.addEventListener('keydown', handleKeyActivation)
+    })
   }
 
   document.querySelectorAll('.demo-sidebar-mini .sidebar-ch').forEach(ch => {
