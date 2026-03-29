@@ -39,7 +39,7 @@
   })
 
   function openAdmin() {
-    window.open('https://app.cursus.school/admin/', '_blank')
+    window.open('https://admin.cursus.school/', '_blank')
   }
 
   // ── Centre de notifications ─────────────────────────────────────────────────
