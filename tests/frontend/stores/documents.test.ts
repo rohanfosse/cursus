@@ -105,6 +105,63 @@ describe('documents store', () => {
     expect(s.documents).toEqual([])
   })
 
+  it('fetchDocuments falls back to all docs when project filter returns empty', async () => {
+    const allDocs = [makeDoc({ id: 1 }), makeDoc({ id: 2, title: 'Doc 2' })]
+    // First call (with project filter) returns empty, second call (without) returns docs
+    let callCount = 0
+    apiMock.mockImplementation(() => {
+      callCount++
+      return callCount === 1 ? [] : allDocs
+    })
+
+    const appStore = useAppStore()
+    appStore.activePromoId = 7
+    appStore.activeProject = 'Projet Fantome'
+    appStore.currentUser = { id: 1, name: 'J', avatar_initials: 'J', photo_data: null, type: 'teacher', promo_id: null, promo_name: null }
+
+    const s = useDocumentsStore()
+    await s.fetchDocuments(7, 'Projet Fantome')
+
+    // Documents should be loaded from fallback (all docs, no project filter)
+    expect(s.documents).toEqual(allDocs)
+    // activeProject should be reset since the filter was invalid
+    expect(appStore.activeProject).toBeNull()
+    // api was called twice: once with filter, once without
+    expect(callCount).toBe(2)
+  })
+
+  it('fetchDocuments does NOT fallback when project filter returns results', async () => {
+    const projectDocs = [makeDoc({ id: 3, title: 'Project Doc' })]
+    apiMock.mockResolvedValue(projectDocs)
+
+    const appStore = useAppStore()
+    appStore.activePromoId = 7
+    appStore.activeProject = 'Web Dev'
+
+    const s = useDocumentsStore()
+    await s.fetchDocuments(7, 'Web Dev')
+
+    expect(s.documents).toEqual(projectDocs)
+    expect(appStore.activeProject).toBe('Web Dev')
+    // api called only once (no fallback needed)
+    expect(apiMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('fetchDocuments does NOT fallback when no project filter and empty', async () => {
+    apiMock.mockResolvedValue([])
+
+    const appStore = useAppStore()
+    appStore.activePromoId = 7
+    appStore.activeProject = null
+
+    const s = useDocumentsStore()
+    await s.fetchDocuments(7, null)
+
+    // No fallback: project was already null, promo simply has no docs
+    expect(s.documents).toEqual([])
+    expect(apiMock).toHaveBeenCalledTimes(1)
+  })
+
   // ── Favorites ────────────────────────────────────────────────────────────
 
   it('toggleFavorite adds and removes favorites', () => {
