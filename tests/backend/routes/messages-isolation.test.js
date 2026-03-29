@@ -6,7 +6,7 @@ const { setupTestDb, teardownTestDb, getTestDb } = require('../helpers/setup')
 const { JWT_SECRET } = require('../helpers/fixtures')
 
 let app
-let studentToken, student2Token, teacherToken
+let studentToken, student2Token, teacherToken, adminToken, taToken
 let messageByStudent1, messageByStudent2
 
 beforeAll(() => {
@@ -38,6 +38,8 @@ beforeAll(() => {
   studentToken  = jwt.sign({ id: 1, name: 'Jean Dupont', type: 'student', promo_id: 1 }, JWT_SECRET)
   student2Token = jwt.sign({ id: 2, name: 'Alice Martin', type: 'student', promo_id: 2 }, JWT_SECRET)
   teacherToken  = jwt.sign({ id: -1, name: 'Prof Test', type: 'teacher', promo_id: null }, JWT_SECRET)
+  adminToken    = jwt.sign({ id: -2, name: 'Admin User', type: 'admin', promo_id: null }, JWT_SECRET)
+  taToken       = jwt.sign({ id: -3, name: 'TA User', type: 'ta', promo_id: null }, JWT_SECRET)
 
   // Express app
   app = express()
@@ -78,6 +80,29 @@ describe('POST /api/messages — promo isolation', () => {
     // does NOT use requirePromo — so the insertion may succeed. Let's assert the
     // actual status and flag this as a known gap if needed.
     expect([200, 403]).toContain(res.status)
+  })
+})
+
+// ═══════════════════════════════════════════
+//  POST — admin et ta peuvent envoyer des messages
+// ═══════════════════════════════════════════
+describe('POST /api/messages — admin/ta author types', () => {
+  it('admin peut envoyer un message (type mappe vers teacher)', async () => {
+    const res = await request(app)
+      .post('/api/messages')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ channelId: 1, content: 'Message admin', promoId: 1 })
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+  })
+
+  it('ta peut envoyer un message (type mappe vers teacher)', async () => {
+    const res = await request(app)
+      .post('/api/messages')
+      .set('Authorization', `Bearer ${taToken}`)
+      .send({ channelId: 1, content: 'Message TA', promoId: 1 })
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
   })
 })
 

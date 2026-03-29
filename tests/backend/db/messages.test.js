@@ -187,6 +187,38 @@ describe('sendMessage with ta author type', () => {
   })
 })
 
+describe('sendMessage with admin author type', () => {
+  it('stores admin as teacher', () => {
+    const result = queries.sendMessage({
+      channelId: 1, authorName: 'Admin User', authorId: -2, authorType: 'admin', content: 'Admin msg',
+    })
+    expect(result.changes).toBe(1)
+    const msg = queries.getMessageById(Number(result.lastInsertRowid))
+    expect(msg.author_type).toBe('teacher')
+  })
+})
+
+describe('sendMessage author_type mapping', () => {
+  it.each([
+    ['student', 'student'],
+    ['teacher', 'teacher'],
+    ['ta',      'teacher'],
+    ['admin',   'teacher'],
+  ])('maps %s to %s', (input, expected) => {
+    const result = queries.sendMessage({
+      channelId: 1, authorName: 'Type Test', authorType: input, content: `type ${input}`,
+    })
+    const msg = queries.getMessageById(Number(result.lastInsertRowid))
+    expect(msg.author_type).toBe(expected)
+  })
+
+  it('rejects unknown author_type', () => {
+    expect(() => queries.sendMessage({
+      channelId: 1, authorName: 'Bad', authorType: 'hacker', content: 'nope',
+    })).toThrow()
+  })
+})
+
 describe('DM messages', () => {
   beforeAll(() => {
     // Send some DM messages
