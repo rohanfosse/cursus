@@ -5,8 +5,8 @@ Merci de votre interet pour le projet. Ce guide explique comment configurer l'en
 ## Mise en place
 
 ```bash
-git clone https://github.com/rohanfosse/slack-like-electron.git
-cd slack-like-electron
+git clone https://github.com/rohanfosse/cursus.git
+cd cursus
 npm install
 ```
 
@@ -97,7 +97,7 @@ Les PRs sont relues avant merge. Attendez-vous a des retours constructifs.
 
 ## Signaler un bug
 
-Ouvrez une issue sur [GitHub Issues](https://github.com/rohanfosse/slack-like-electron/issues) en precisant :
+Ouvrez une issue sur [GitHub Issues](https://github.com/rohanfosse/cursus/issues) en precisant :
 
 - La version de l'application (visible dans Parametres, A propos).
 - Les etapes pour reproduire le probleme.

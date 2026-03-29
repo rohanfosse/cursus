@@ -9,10 +9,10 @@ function resolveDbPath() {
   // 2. Contexte Electron
   try {
     const { app } = require('electron')
-    return path.join(app.getPath('userData'), 'cesi-classroom.db')
+    return path.join(app.getPath('userData'), 'cursus.db')
   } catch {
     // 3. Fallback développement (racine du projet)
-    return path.join(__dirname, '../../cesi-classroom.db')
+    return path.join(__dirname, '../../cursus.db')
   }
 }
 
