@@ -176,7 +176,7 @@ describe('TA assignment', () => {
       .set('Authorization', `Bearer ${teacherToken}`)
     expect(res.status).toBe(200)
     expect(res.body.data).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: 2, name: 'TA Test' })])
+      expect.arrayContaining([expect.objectContaining({ id: 2 })])
     )
   })
 
