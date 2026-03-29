@@ -113,11 +113,11 @@ describe('GET /api/live/sessions/promo/:promoId/active', () => {
       .send({ status: 'ended' })
   })
 
-  it('any student can check active session (no promo guard)', async () => {
+  it('student from another promo is blocked (403)', async () => {
     const res = await request(app)
       .get('/api/live/sessions/promo/1/active')
       .set('Authorization', `Bearer ${student2Token}`)
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(403)
   })
 })
 
@@ -134,11 +134,11 @@ describe('GET /api/live/sessions/promo/:promoId/history', () => {
     expect(Array.isArray(res.body.data)).toBe(true)
   })
 
-  it('any student can access history (no promo guard)', async () => {
+  it('student from another promo is blocked (403)', async () => {
     const res = await request(app)
       .get('/api/live/sessions/promo/1/history')
       .set('Authorization', `Bearer ${student2Token}`)
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(403)
   })
 })
 
@@ -154,11 +154,11 @@ describe('GET /api/live/sessions/promo/:promoId/stats', () => {
     expect(res.body.ok).toBe(true)
   })
 
-  it('any student can access stats (no promo guard)', async () => {
+  it('student from another promo is blocked (403)', async () => {
     const res = await request(app)
       .get('/api/live/sessions/promo/1/stats')
       .set('Authorization', `Bearer ${student2Token}`)
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(403)
   })
 })
 
