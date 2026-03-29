@@ -33,6 +33,7 @@ async function handleCreate(): Promise<void> {
 }
 
 async function handleDelete(id: number): Promise<void> {
+  if (!confirm('Supprimer ce projet ? Cette action est irréversible.')) return
   await deleteProject(id)
 }
 

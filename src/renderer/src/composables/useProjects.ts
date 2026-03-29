@@ -64,7 +64,8 @@ export function useProjects() {
   }
 
   async function createProject(payload: CreateProjectPayload): Promise<Project | null> {
-    const createdBy = Math.abs(appStore.currentUser!.id)
+    if (!appStore.currentUser) return null
+    const createdBy = Math.abs(appStore.currentUser.id)
     const data = await api<Project>(
       (() => window.api.createProject({ ...payload, createdBy })) as AnyCall,
     )

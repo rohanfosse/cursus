@@ -315,6 +315,7 @@ import { loadFeedback, updateFeedback, checkFeedbackBadge, setFeedbackFilter } f
 import { exportCsv, exportUsers, exportAudit, exportStats } from './modules/exports.js'
 import { loadHeatmap } from './modules/heatmap.js'
 import { checkReadOnlyBanner, toggleReadOnly, toggleArchivePromo } from './modules/settings.js'
+import { loadErrors, clearErrors, showErrorStack, checkErrorsBadge } from './modules/errors.js'
 
 // ── Tabs ────────────────────────────────────────────────────────────────────
 
@@ -338,11 +339,13 @@ export function refreshActiveTab() {
     moderation: loadModeration, audit: loadAudit, security: loadSecurity,
     scheduled: loadScheduled, sessions: loadSessions, deploy: loadDeploy,
     import: loadImport, maintenance: loadMaintenance, feedback: loadFeedback,
+    errors: loadErrors,
   }
   if (loaders[activeTab]) loaders[activeTab]()
   checkReadOnlyBanner()
   checkReportsBadge()
   checkFeedbackBadge()
+  checkErrorsBadge()
 }
 
 // ── Expose functions to window for onclick handlers ─────────────────────────

@@ -15,15 +15,15 @@ beforeAll(() => {
   // Promo 2
   db.exec(`INSERT OR IGNORE INTO promotions (id, name, color) VALUES (2, 'Promo B', '#E74C3C')`)
 
-  // TA teacher (id=2, role='ta')
+  // TA teacher (id=2, role='ta') — REPLACE to override schema seed
   db.prepare(
-    `INSERT OR IGNORE INTO teachers (id, name, email, password, must_change_password, role)
+    `INSERT OR REPLACE INTO teachers (id, name, email, password, must_change_password, role)
      VALUES (2, 'TA Test', 'ta@test.fr', 'hash', 0, 'ta')`
   ).run()
 
   // Admin teacher (id=3, role='admin')
   db.prepare(
-    `INSERT OR IGNORE INTO teachers (id, name, email, password, must_change_password, role)
+    `INSERT OR REPLACE INTO teachers (id, name, email, password, must_change_password, role)
      VALUES (3, 'Admin Test', 'admin@test.fr', 'hash', 0, 'admin')`
   ).run()
 

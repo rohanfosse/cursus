@@ -42,4 +42,32 @@ router.get('/visits', (req, res) => {
   }
 })
 
+// ── Error reports (monitoring interne) ──────────────────────────────────────
+
+router.get('/error-reports', (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200)
+    const offset = parseInt(req.query.offset) || 0
+    const { getErrorReports, getErrorReportsCount } = require('../../db/models/admin')
+    const items = getErrorReports({ limit, offset })
+    const total = getErrorReportsCount()
+    res.json({ ok: true, data: { items, total } })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
+router.delete('/error-reports', (req, res) => {
+  try {
+    if (!isSystemAdmin(req.user?.type)) {
+      return res.status(403).json({ ok: false, error: 'Accès réservé aux administrateurs.' })
+    }
+    const { clearErrorReports } = require('../../db/models/admin')
+    clearErrorReports()
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
 module.exports = router

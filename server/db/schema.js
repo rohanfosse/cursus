@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 43;
+const CURRENT_VERSION = 44;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -822,7 +822,7 @@ function runMigrations(db) {
           must_change_password INTEGER NOT NULL DEFAULT 0,
           photo_data          TEXT
         );
-        INSERT OR IGNORE INTO teachers_v42 (id, name, email, password, role, must_change_password, photo_data)
+        INSERT INTO teachers_v42 (id, name, email, password, role, must_change_password, photo_data)
           SELECT id, name, email, password, role, COALESCE(must_change_password, 0), photo_data FROM teachers;
         DROP TABLE teachers;
         ALTER TABLE teachers_v42 RENAME TO teachers;
@@ -946,6 +946,32 @@ function runMigrations(db) {
         // 3. Supprimer teacher_channels apres migration
         db.exec('DROP TABLE IF EXISTS teacher_channels');
       }
+
+      // 4. Indexes de performance manquants
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_students_promo ON students(promo_id);
+        CREATE INDEX IF NOT EXISTS idx_depots_travail ON depots(travail_id);
+      `);
+    },
+
+    // v44 : table error_reports (monitoring interne — remplace Sentry)
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS error_reports (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id    INTEGER,
+          user_name  TEXT,
+          user_type  TEXT,
+          page       TEXT,
+          message    TEXT NOT NULL,
+          stack      TEXT,
+          user_agent TEXT,
+          app_version TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_error_reports_created ON error_reports(created_at);
+        CREATE INDEX IF NOT EXISTS idx_error_reports_user ON error_reports(user_id);
+      `);
     },
   ];
 

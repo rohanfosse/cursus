@@ -7,6 +7,7 @@ import {
   STORAGE_KEYS,
   NOTIFICATION_HISTORY_LIMIT,
 } from '@/constants'
+import { hasRole } from '@/utils/permissions'
 
 export const useAppStore = defineStore('app', () => {
   const { showToast } = useToast()
@@ -122,9 +123,9 @@ export const useAppStore = defineStore('app', () => {
 
   // ── Calculs ───────────────────────────────────────────────────────────────
   const isStudent    = computed(() => currentUser.value?.type === 'student')
-  const isTeacher    = computed(() => currentUser.value?.type === 'teacher' || currentUser.value?.type === 'admin')
   const isAdmin      = computed(() => currentUser.value?.type === 'admin')
-  const isStaff      = computed(() => currentUser.value?.type === 'admin' || currentUser.value?.type === 'teacher' || currentUser.value?.type === 'ta')
+  const isTeacher    = computed(() => hasRole(currentUser.value?.type, 'teacher'))
+  const isStaff      = computed(() => hasRole(currentUser.value?.type, 'ta'))
   const userRole     = computed(() => (currentUser.value?.type ?? 'student') as import('@/utils/permissions').Role)
   const isSimulating = computed(() => teacherUser.value !== null)
   const isReadonly   = computed(

@@ -674,6 +674,29 @@ function deleteReminder(id) {
   return getDb().prepare('DELETE FROM teacher_reminders WHERE id = ?').run(id);
 }
 
+// ── Error reports (monitoring interne) ──────────────────────────────────────
+
+function reportError({ userId, userName, userType, page, message, stack, userAgent, appVersion }) {
+  return getDb().prepare(`
+    INSERT INTO error_reports (user_id, user_name, user_type, page, message, stack, user_agent, app_version)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(userId ?? null, userName ?? null, userType ?? null, page ?? null, message, stack ?? null, userAgent ?? null, appVersion ?? null)
+}
+
+function getErrorReports({ limit = 50, offset = 0 } = {}) {
+  return getDb().prepare(`
+    SELECT * FROM error_reports ORDER BY created_at DESC LIMIT ? OFFSET ?
+  `).all(limit, offset)
+}
+
+function getErrorReportsCount() {
+  return getDb().prepare('SELECT COUNT(*) AS count FROM error_reports').get().count
+}
+
+function clearErrorReports() {
+  return getDb().prepare('DELETE FROM error_reports').run()
+}
+
 module.exports = {
   getAdminStats, logAudit,
   getAdminUsers, getAdminUserDetail,
@@ -699,4 +722,6 @@ module.exports = {
   recordVisit, getVisitStats,
   // Rappels enseignant
   getReminders, createReminder, updateReminder, deleteReminder,
+  // Error reports
+  reportError, getErrorReports, getErrorReportsCount, clearErrorReports,
 }

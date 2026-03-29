@@ -95,20 +95,19 @@ function requireDmParticipant(req, res, next) {
 
   // TAs : vérifier l'affectation promo via teacher_projects
   const studentId = Number(req.params.studentId)
-  if (studentId) {
-    const student = getDb().prepare('SELECT promo_id FROM students WHERE id = ?').get(studentId)
-    if (student) {
-      const teacherId = Math.abs(req.user.id)
-      const hasPromoAccess = getDb().prepare(`
-        SELECT 1 FROM teacher_projects tp
-        JOIN projects p ON tp.project_id = p.id
-        WHERE tp.teacher_id = ? AND p.promo_id = ?
-        LIMIT 1
-      `).get(teacherId, student.promo_id)
-      if (!hasPromoAccess) {
-        return res.status(403).json({ ok: false, error: 'Vous n\'êtes pas affecté à la promotion de cet étudiant.' })
-      }
-    }
+  if (!studentId) {
+    return res.status(400).json({ ok: false, error: 'Identifiant étudiant manquant.' })
+  }
+  const teacherId = Math.abs(req.user.id)
+  const hasAccess = getDb().prepare(`
+    SELECT 1 FROM students s
+    JOIN projects p ON p.promo_id = s.promo_id
+    JOIN teacher_projects tp ON tp.project_id = p.id
+    WHERE s.id = ? AND tp.teacher_id = ?
+    LIMIT 1
+  `).get(studentId, teacherId)
+  if (!hasAccess) {
+    return res.status(403).json({ ok: false, error: 'Vous n\'êtes pas affecté à la promotion de cet étudiant.' })
   }
   next()
 }
@@ -123,7 +122,7 @@ function requireProject(getProjectId) {
     if (req.user?.type !== 'ta') return res.status(403).json({ ok: false, error: 'Accès non autorisé.' })
 
     const projectId = getProjectId(req)
-    if (!projectId) return next()
+    if (!projectId) return res.status(400).json({ ok: false, error: 'Projet non spécifié.' })
 
     const teacherId = Math.abs(req.user.id)
     const assigned = getDb().prepare(

@@ -14,6 +14,19 @@ export default defineConfig({
         execArgv: ['--experimental-require-module'],
       },
     },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary', 'lcov'],
+      reportsDirectory: 'coverage',
+      include: ['server/**/*.js', 'src/renderer/src/**/*.{ts,vue}'],
+      exclude: ['**/node_modules/**', '**/dist/**', 'server/public/**'],
+      thresholds: {
+        statements: 60,
+        branches: 50,
+        functions: 50,
+        lines: 60,
+      },
+    },
     projects: [
       {
         test: {
