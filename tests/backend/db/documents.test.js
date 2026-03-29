@@ -312,3 +312,137 @@ describe('linkDocumentToTravail', () => {
     expect(doc.travail_id).toBeNull()
   })
 })
+
+// ═════════════════════════════════════════════════════
+//  Edge cases — duplicates, nulls, long values, overlap
+// ═════════════════════════════════════════════════════
+describe('addProjectDocument — edge cases', () => {
+  it('allows duplicate document names in same project', () => {
+    queries.addProjectDocument({ promoId: 1, name: 'readme.pdf', type: 'file', pathOrUrl: '/a.pdf' })
+    queries.addProjectDocument({ promoId: 1, name: 'readme.pdf', type: 'file', pathOrUrl: '/b.pdf' })
+    const docs = queries.getProjectDocuments(1)
+    const readmes = docs.filter(d => d.name === 'readme.pdf')
+    expect(readmes.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('handles null description gracefully', () => {
+    const result = queries.addProjectDocument({
+      promoId: 1, name: 'nodesc.pdf', type: 'file', pathOrUrl: '/x.pdf', description: null,
+    })
+    expect(result.changes).toBe(1)
+    const db = getTestDb()
+    const doc = db.prepare('SELECT description FROM channel_documents WHERE id = ?').get(Number(result.lastInsertRowid))
+    expect(doc.description).toBeNull()
+  })
+
+  it('handles undefined description (defaults to null)', () => {
+    const result = queries.addProjectDocument({
+      promoId: 1, name: 'undef-desc.pdf', type: 'file', pathOrUrl: '/y.pdf',
+    })
+    expect(result.changes).toBe(1)
+    const db = getTestDb()
+    const doc = db.prepare('SELECT description FROM channel_documents WHERE id = ?').get(Number(result.lastInsertRowid))
+    expect(doc.description).toBeNull()
+  })
+
+  it('stores long names correctly', () => {
+    const longName = 'a'.repeat(400) + '.pdf'
+    const result = queries.addProjectDocument({
+      promoId: 1, name: longName, type: 'file', pathOrUrl: '/long.pdf',
+    })
+    const id = Number(result.lastInsertRowid)
+    const docs = queries.getProjectDocuments(1)
+    const found = docs.find(d => d.id === id)
+    expect(found?.name).toBe(longName)
+  })
+
+  it('stores long pathOrUrl correctly', () => {
+    const longUrl = 'https://example.com/' + 'x'.repeat(1500)
+    const result = queries.addProjectDocument({
+      promoId: 1, name: 'long-url.pdf', type: 'link', pathOrUrl: longUrl,
+    })
+    const db = getTestDb()
+    const doc = db.prepare('SELECT path_or_url FROM channel_documents WHERE id = ?').get(Number(result.lastInsertRowid))
+    expect(doc.path_or_url).toBe(longUrl)
+  })
+
+  it('handles null project and category defaults to General', () => {
+    const result = queries.addProjectDocument({
+      promoId: 1, name: 'no-project.pdf', type: 'file', pathOrUrl: '/np.pdf',
+    })
+    const db = getTestDb()
+    const doc = db.prepare('SELECT project, category FROM channel_documents WHERE id = ?').get(Number(result.lastInsertRowid))
+    expect(doc.project).toBeNull()
+    expect(doc.category).toBe('Général')
+  })
+
+  it('handles fileSize of 0', () => {
+    const result = queries.addProjectDocument({
+      promoId: 1, name: 'empty-file.txt', type: 'file', pathOrUrl: '/empty.txt', fileSize: 0,
+    })
+    const db = getTestDb()
+    const doc = db.prepare('SELECT file_size FROM channel_documents WHERE id = ?').get(Number(result.lastInsertRowid))
+    // fileSize of 0 is falsy, so it becomes null via ?? null
+    expect(doc.file_size).toBeNull()
+  })
+})
+
+describe('getChannelDocuments — project overlap', () => {
+  it('includes project-linked docs when channel has matching category', () => {
+    // Channel 10 has category 'Web Dev'
+    queries.addProjectDocument({
+      promoId: 1, project: 'Web Dev', name: 'overlap-doc.pdf', type: 'file', pathOrUrl: '/overlap.pdf',
+    })
+    const docs = queries.getChannelDocuments(10)
+    const found = docs.find(d => d.name === 'overlap-doc.pdf')
+    expect(found).toBeDefined()
+  })
+
+  it('does not include project docs for channels without category', () => {
+    // Channel 1 has no category set
+    queries.addProjectDocument({
+      promoId: 1, project: 'Special Project', name: 'special-only.pdf', type: 'file', pathOrUrl: '/special.pdf',
+    })
+    const docs = queries.getChannelDocuments(1)
+    const found = docs.find(d => d.name === 'special-only.pdf')
+    expect(found).toBeUndefined()
+  })
+
+  it('returns empty array for non-existent channel', () => {
+    const docs = queries.getChannelDocuments(99999)
+    expect(docs).toEqual([])
+  })
+})
+
+describe('updateProjectDocument — edge cases', () => {
+  it('update with empty category defaults to General', () => {
+    const result = queries.addProjectDocument({
+      promoId: 1, name: 'cat-test.pdf', type: 'file', pathOrUrl: '/cat.pdf', category: 'TP',
+    })
+    const docId = Number(result.lastInsertRowid)
+    queries.updateProjectDocument({ id: docId, name: 'cat-test.pdf', category: '' })
+    const db = getTestDb()
+    const doc = db.prepare('SELECT category FROM channel_documents WHERE id = ?').get(docId)
+    expect(doc.category).toBe('Général')
+  })
+
+  it('update non-existent document returns changes=0', () => {
+    const result = queries.updateProjectDocument({ id: 999999, name: 'ghost', category: 'X' })
+    expect(result.changes).toBe(0)
+  })
+})
+
+describe('searchDocuments — edge cases', () => {
+  it('search is case-insensitive via LIKE', () => {
+    queries.addProjectDocument({
+      promoId: 1, name: 'CaseSensitiveDoc.PDF', type: 'file', pathOrUrl: '/cs.pdf',
+    })
+    const results = queries.searchDocuments(1, 'casesensitivedoc')
+    expect(results.length).toBeGreaterThan(0)
+  })
+
+  it('search with empty query returns results', () => {
+    const results = queries.searchDocuments(1, '')
+    expect(results.length).toBeGreaterThan(0)
+  })
+})

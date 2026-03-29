@@ -239,3 +239,158 @@ describe('DELETE /api/documents/channel/:id (additional)', () => {
     expect(res.status).toBe(404)
   })
 })
+
+// ═════════════════════════════════════════════
+//  POST /api/documents/project — security & validation
+// ═════════════════════════════════════════════
+describe('POST /api/documents/project — security & validation', () => {
+  it('rejects path traversal in file path', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: 'hack.txt', type: 'file', pathOrUrl: '../../etc/passwd' })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects blocked file extensions (.exe)', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: 'malware.exe', type: 'file', pathOrUrl: '/uploads/malware.exe' })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects blocked file extensions (.bat)', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: 'script.bat', type: 'file', pathOrUrl: '/uploads/script.bat' })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects files over 50MB', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: 'huge.zip', type: 'file', pathOrUrl: '/uploads/huge.zip', fileSize: 60 * 1024 * 1024 })
+    expect(res.status).toBe(400)
+  })
+
+  it('allows files exactly at 50MB limit', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: 'edge.zip', type: 'file', pathOrUrl: '/uploads/edge.zip', fileSize: 50 * 1024 * 1024 })
+    expect(res.status).toBe(200)
+  })
+
+  it('rejects empty name (Zod validation)', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: '', type: 'file', pathOrUrl: '/uploads/test.pdf' })
+    expect(res.status).toBe(400)
+    expect(res.body.ok).toBe(false)
+  })
+
+  it('rejects missing type (Zod validation)', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: 'test.pdf', pathOrUrl: '/uploads/test.pdf' })
+    expect(res.status).toBe(400)
+    expect(res.body.ok).toBe(false)
+  })
+
+  it('rejects invalid type value (Zod enum)', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: 'test.pdf', type: 'image', pathOrUrl: '/uploads/test.pdf' })
+    expect(res.status).toBe(400)
+    expect(res.body.ok).toBe(false)
+  })
+
+  it('rejects missing pathOrUrl (Zod validation)', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: 'test.pdf', type: 'file' })
+    expect(res.status).toBe(400)
+  })
+
+  it('TA can create a document (requireTeacher allows TA)', async () => {
+    const taToken = jwt.sign({ id: -2, name: 'TA Test', type: 'ta', promo_id: null }, JWT_SECRET)
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${taToken}`)
+      .send({ promoId: 1, name: 'ta-doc.pdf', type: 'file', pathOrUrl: '/uploads/ta-doc.pdf' })
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+  })
+
+  it('allows PDF files', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: 'cours.pdf', type: 'file', pathOrUrl: '/uploads/cours.pdf' })
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+  })
+
+  it('allows any URL for link type (no extension check)', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: 'Repo GitHub', type: 'link', pathOrUrl: 'https://github.com/test/repo' })
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+  })
+
+  it('link type bypasses path traversal check', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: 'External Link', type: 'link', pathOrUrl: 'https://example.com/../resource' })
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+  })
+
+  it('link type with .exe name is allowed (no extension block on links)', async () => {
+    const res = await request(app)
+      .post('/api/documents/project')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ promoId: 1, name: 'Download Setup.exe', type: 'link', pathOrUrl: 'https://example.com/setup.exe' })
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+  })
+})
+
+// ═════════════════════════════════════════════
+//  POST /api/documents/channel — security checks
+// ═════════════════════════════════════════════
+describe('POST /api/documents/channel — security checks', () => {
+  it('rejects path traversal in channel document upload', async () => {
+    const res = await request(app)
+      .post('/api/documents/channel')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ channelId: 1, promoId: 1, name: 'hack.txt', type: 'file', pathOrUrl: '../../../etc/shadow' })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects blocked extensions in channel document upload', async () => {
+    const res = await request(app)
+      .post('/api/documents/channel')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ channelId: 1, promoId: 1, name: 'virus.vbs', type: 'file', pathOrUrl: '/uploads/virus.vbs' })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects oversized files in channel document upload', async () => {
+    const res = await request(app)
+      .post('/api/documents/channel')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ channelId: 1, promoId: 1, name: 'big.zip', type: 'file', pathOrUrl: '/uploads/big.zip', fileSize: 100 * 1024 * 1024 })
+    expect(res.status).toBe(400)
+  })
+})

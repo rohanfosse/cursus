@@ -164,4 +164,155 @@ describe('documents store', () => {
     const s = useDocumentsStore()
     expect(s.previewIndex()).toEqual({ current: 0, total: 0 })
   })
+
+  // ── Fetch error handling ──────────────────────────────────────────────────
+
+  it('fetchDocuments handles api error gracefully', async () => {
+    apiMock.mockRejectedValue(new Error('Network error'))
+
+    const appStore = useAppStore()
+    appStore.activePromoId = 7
+    appStore.currentUser = { id: 1, name: 'J', avatar_initials: 'J', photo_data: null, type: 'student', promo_id: 7, promo_name: 'P' }
+
+    const s = useDocumentsStore()
+    await s.fetchDocuments(7)
+    // Should not throw, documents stays empty, loading is false
+    expect(s.documents).toEqual([])
+    expect(s.loading).toBe(false)
+  })
+
+  it('fetchDocuments resets activeCategory', async () => {
+    const s = useDocumentsStore()
+    s.activeCategory = 'TP'
+    apiMock.mockResolvedValue([])
+
+    const appStore = useAppStore()
+    appStore.activePromoId = 7
+    appStore.currentUser = { id: 1, name: 'J', avatar_initials: 'J', photo_data: null, type: 'student', promo_id: 7, promo_name: 'P' }
+
+    await s.fetchDocuments(7)
+    expect(s.activeCategory).toBe('')
+  })
+
+  // ── Favorites edge cases ──────────────────────────────────────────────────
+
+  it('toggleFavorite with non-existent doc ID works without error', () => {
+    const s = useDocumentsStore()
+    s.toggleFavorite(999999)
+    expect(s.isFavorite(999999)).toBe(true)
+    s.toggleFavorite(999999)
+    expect(s.isFavorite(999999)).toBe(false)
+  })
+
+  it('favorites persist to localStorage', () => {
+    const s = useDocumentsStore()
+    s.toggleFavorite(42)
+    expect(localStorageMock.setItem).toHaveBeenCalledWith(
+      'cc_doc_favorites',
+      expect.stringContaining('42'),
+    )
+  })
+
+  it('multiple favorites tracked independently', () => {
+    const s = useDocumentsStore()
+    s.toggleFavorite(1)
+    s.toggleFavorite(2)
+    s.toggleFavorite(3)
+    expect(s.isFavorite(1)).toBe(true)
+    expect(s.isFavorite(2)).toBe(true)
+    expect(s.isFavorite(3)).toBe(true)
+    s.toggleFavorite(2)
+    expect(s.isFavorite(1)).toBe(true)
+    expect(s.isFavorite(2)).toBe(false)
+    expect(s.isFavorite(3)).toBe(true)
+  })
+
+  // ── Preview with empty docs array ─────────────────────────────────────────
+
+  it('previewNext does nothing when previewList is empty', () => {
+    const s = useDocumentsStore()
+    const doc = makeDoc({ id: 1 })
+    s.openPreview(doc, [])
+    s.previewNext()
+    expect(s.previewDoc!.id).toBe(1)
+  })
+
+  it('previewPrev does nothing when previewList is empty', () => {
+    const s = useDocumentsStore()
+    const doc = makeDoc({ id: 1 })
+    s.openPreview(doc, [])
+    s.previewPrev()
+    expect(s.previewDoc!.id).toBe(1)
+  })
+
+  it('previewIndex returns zeros when previewList is empty', () => {
+    const s = useDocumentsStore()
+    const doc = makeDoc({ id: 1 })
+    s.openPreview(doc, [])
+    // Doc exists but list is empty, so findIndex returns -1
+    expect(s.previewIndex()).toEqual({ current: 0, total: 0 })
+  })
+
+  it('previewNext/previewPrev do nothing when previewDoc is null', () => {
+    const s = useDocumentsStore()
+    s.previewNext()
+    s.previewPrev()
+    expect(s.previewDoc).toBeNull()
+  })
+
+  // ── addDocument / updateDocument / deleteDocument ─────────────────────────
+
+  it('addDocument returns true on success and refetches', async () => {
+    apiMock.mockResolvedValue({ changes: 1 })
+
+    const appStore = useAppStore()
+    appStore.activePromoId = 7
+    appStore.currentUser = { id: 1, name: 'J', avatar_initials: 'J', photo_data: null, type: 'student', promo_id: 7, promo_name: 'P' }
+
+    const s = useDocumentsStore()
+    const result = await s.addDocument({ promoId: 7, name: 'new.pdf', type: 'file', pathOrUrl: '/new.pdf' })
+    expect(result).toBe(true)
+  })
+
+  it('addDocument returns false when api returns null', async () => {
+    apiMock.mockResolvedValue(null)
+
+    const s = useDocumentsStore()
+    const result = await s.addDocument({ promoId: 7, name: 'fail.pdf', type: 'file', pathOrUrl: '/fail.pdf' })
+    expect(result).toBe(false)
+  })
+
+  it('deleteDocument returns true on success', async () => {
+    apiMock.mockResolvedValue({ changes: 1 })
+
+    const appStore = useAppStore()
+    appStore.activePromoId = 7
+    appStore.currentUser = { id: 1, name: 'J', avatar_initials: 'J', photo_data: null, type: 'student', promo_id: 7, promo_name: 'P' }
+
+    const s = useDocumentsStore()
+    const result = await s.deleteDocument(1)
+    expect(result).toBe(true)
+  })
+
+  it('updateDocument returns true on success', async () => {
+    apiMock.mockResolvedValue({ changes: 1 })
+
+    const appStore = useAppStore()
+    appStore.activePromoId = 7
+    appStore.currentUser = { id: 1, name: 'J', avatar_initials: 'J', photo_data: null, type: 'student', promo_id: 7, promo_name: 'P' }
+
+    const s = useDocumentsStore()
+    const result = await s.updateDocument(1, { name: 'updated.pdf' })
+    expect(result).toBe(true)
+  })
+
+  // ── searchQuery state ─────────────────────────────────────────────────────
+
+  it('searchQuery can be set and cleared', () => {
+    const s = useDocumentsStore()
+    s.searchQuery = 'cours'
+    expect(s.searchQuery).toBe('cours')
+    s.searchQuery = ''
+    expect(s.searchQuery).toBe('')
+  })
 })

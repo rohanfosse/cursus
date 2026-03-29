@@ -188,10 +188,12 @@ describe('POST /api/assignments', () => {
       .send({
         title: 'Bad type',
         channelId: 1,
+        promoId: 1,
         type: 'nonexistent',
         deadline: '2026-12-31',
       })
     expect(res.status).toBe(400)
+    expect(res.body.ok).toBe(false)
   })
 
   it('rejects missing title', async () => {
@@ -201,10 +203,12 @@ describe('POST /api/assignments', () => {
       .send({
         title: '',
         channelId: 1,
+        promoId: 1,
         type: 'livrable',
         deadline: '2026-12-31',
       })
     expect(res.status).toBe(400)
+    expect(res.body.ok).toBe(false)
   })
 })
 

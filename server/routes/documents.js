@@ -6,6 +6,14 @@ const { validate } = require('../middleware/validate')
 const wrap    = require('../utils/wrap')
 const { requireTeacher, requirePromo, promoFromChannel, promoFromParam } = require('../middleware/authorize')
 
+// ── Constantes de sécurité ────────────────────────────────────────────────────
+const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
+
+const BLOCKED_EXTENSIONS = new Set([
+  '.exe', '.bat', '.cmd', '.com', '.msi', '.dll', '.scr', '.pif', '.vbs', '.wsf',
+  '.jar', '.apk', '.ps1', '.sh',
+])
+
 // ── Schémas de validation ─────────────────────────────────────────────────────
 const addChannelDocSchema = z.object({
   channelId:   z.number().int().positive().optional(),
@@ -13,19 +21,20 @@ const addChannelDocSchema = z.object({
   project:     z.string().max(200).nullable().optional(),
   category:    z.string().max(100).optional().default('Général'),
   type:        z.enum(['file', 'link']),
-  name:        z.string().min(1, 'Nom requis').max(255),
-  pathOrUrl:   z.string().min(1).max(2000),
+  name:        z.string().min(1, 'Nom requis').max(500, 'Nom trop long'),
+  pathOrUrl:   z.string().min(1, 'Chemin ou URL requis').max(2000),
   description: z.string().max(2000).nullable().optional(),
-  fileSize:    z.number().int().nullable().optional(),
-  authorName:  z.string().max(100).optional(),
+  fileSize:    z.number().int().min(0).nullable().optional(),
+  authorName:  z.string().max(200).nullable().optional(),
   authorType:  z.string().max(20).optional(),
   travailId:   z.number().int().nullable().optional(),
 }).passthrough()
 
 const updateDocSchema = z.object({
-  name:        z.string().min(1, 'Nom requis').max(255).optional(),
-  category:    z.string().max(100).optional(),
+  name:        z.string().min(1).max(500).optional(),
+  category:    z.string().max(100).nullable().optional(),
   description: z.string().max(2000).nullable().optional(),
+  project:     z.string().max(200).nullable().optional(),
   travailId:   z.number().int().nullable().optional(),
 }).passthrough()
 
@@ -55,10 +64,26 @@ router.get('/promo/:promoId',                 requirePromo(promoFromParam), wrap
 
 router.post('/channel', requireTeacher, validate(addChannelDocSchema), async (req, res) => {
   try {
-    const result = queries.addChannelDocument(req.body)
+    const payload = req.body
+    // Sécurité : traversée de chemin
+    if (payload.type === 'file' && payload.pathOrUrl.includes('..')) {
+      return res.status(400).json({ ok: false, error: 'Chemin de fichier invalide.' })
+    }
+    // Sécurité : extensions bloquées
+    if (payload.type === 'file') {
+      const ext = payload.name.toLowerCase().match(/\.[^.]+$/)?.[0]
+      if (ext && BLOCKED_EXTENSIONS.has(ext)) {
+        return res.status(400).json({ ok: false, error: 'Type de fichier non autorise.' })
+      }
+    }
+    // Sécurité : taille max
+    if (payload.fileSize && payload.fileSize > MAX_FILE_SIZE) {
+      return res.status(400).json({ ok: false, error: 'Fichier trop volumineux (max 50 Mo).' })
+    }
+    const result = queries.addChannelDocument(payload)
     const io = req.app.get('io')
-    if (io && req.body.promoId) {
-      io.to(`promo:${req.body.promoId}`).emit('document:new', { name: req.body.name, category: req.body.category || null, promoId: req.body.promoId })
+    if (io && payload.promoId) {
+      io.to(`promo:${payload.promoId}`).emit('document:new', { name: payload.name, category: payload.category || null, promoId: payload.promoId })
     }
     res.json({ ok: true, data: result })
   } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
@@ -89,6 +114,21 @@ router.get('/project/categories', requirePromo(promoFromParam), wrap((req) => qu
 router.post('/project', requireTeacher, validate(addChannelDocSchema), (req, res) => {
   try {
     const payload = req.body
+    // Sécurité : traversée de chemin
+    if (payload.type === 'file' && payload.pathOrUrl.includes('..')) {
+      return res.status(400).json({ ok: false, error: 'Chemin de fichier invalide.' })
+    }
+    // Sécurité : extensions bloquées
+    if (payload.type === 'file') {
+      const ext = payload.name.toLowerCase().match(/\.[^.]+$/)?.[0]
+      if (ext && BLOCKED_EXTENSIONS.has(ext)) {
+        return res.status(400).json({ ok: false, error: 'Type de fichier non autorise.' })
+      }
+    }
+    // Sécurité : taille max
+    if (payload.fileSize && payload.fileSize > MAX_FILE_SIZE) {
+      return res.status(400).json({ ok: false, error: 'Fichier trop volumineux (max 50 Mo).' })
+    }
     const result  = queries.addProjectDocument(payload)
 
     // Notification aux canaux du projet avec ref document cliquable

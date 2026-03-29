@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 45;
+const CURRENT_VERSION = 46;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -977,6 +977,14 @@ function runMigrations(db) {
     // v45 : flag onboarding pour les etudiants
     (db) => {
       tryAlter(db, 'ALTER TABLE students ADD COLUMN onboarding_done INTEGER NOT NULL DEFAULT 0');
+    },
+
+    // v46 : indexes performance documents + validation
+    (db) => {
+      db.exec('CREATE INDEX IF NOT EXISTS idx_docs_promo_project ON channel_documents(promo_id, project)');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_docs_created ON channel_documents(created_at)');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_docs_travail ON channel_documents(travail_id)');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_docs_type ON channel_documents(type)');
     },
   ];
 
