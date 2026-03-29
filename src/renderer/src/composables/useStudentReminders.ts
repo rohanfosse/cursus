@@ -4,6 +4,7 @@
  */
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useToast } from '@/composables/useToast'
+import { safeGetJSON, safeSetJSON } from '@/utils/safeStorage'
 
 interface Reminder {
   devoirId: number
@@ -16,11 +17,11 @@ interface Reminder {
 const STORAGE_KEY = 'cc_student_reminders'
 
 function loadReminders(): Reminder[] {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') } catch { return [] }
+  return safeGetJSON<Reminder[]>(STORAGE_KEY, [])
 }
 
 function saveReminders(reminders: Reminder[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders))
+  safeSetJSON(STORAGE_KEY, reminders)
 }
 
 export function useStudentReminders() {

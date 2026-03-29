@@ -4,6 +4,7 @@ import { useAppStore } from './app'
 import { useApi } from '@/composables/useApi'
 import type { AppDocument } from '@/types'
 import { cacheData, loadCached } from '@/composables/useOfflineCache'
+import { safeGetJSON, safeSetJSON } from '@/utils/safeStorage'
 
 export const useDocumentsStore = defineStore('documents', () => {
   const appStore = useAppStore()
@@ -19,14 +20,14 @@ export const useDocumentsStore = defineStore('documents', () => {
   // Favoris (localStorage)
   const FAVS_KEY = 'cc_doc_favorites'
   const favoriteIds = ref<Set<number>>(new Set(
-    (() => { try { return JSON.parse(localStorage.getItem(FAVS_KEY) ?? '[]') } catch { return [] } })(),
+    safeGetJSON<number[]>(FAVS_KEY, []),
   ))
 
   function toggleFavorite(docId: number) {
     if (favoriteIds.value.has(docId)) favoriteIds.value.delete(docId)
     else favoriteIds.value.add(docId)
     favoriteIds.value = new Set(favoriteIds.value) // trigger reactivity
-    localStorage.setItem(FAVS_KEY, JSON.stringify([...favoriteIds.value]))
+    safeSetJSON(FAVS_KEY, [...favoriteIds.value])
   }
 
   function isFavorite(docId: number): boolean {

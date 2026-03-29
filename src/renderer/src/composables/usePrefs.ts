@@ -1,5 +1,6 @@
 // ─── Préférences utilisateur (localStorage) ──────────────────────────────────
 import { STORAGE_KEYS } from '@/constants'
+import { safeGetJSON, safeSetJSON } from '@/utils/safeStorage'
 
 interface Prefs {
   docsOpenByDefault: boolean
@@ -53,16 +54,11 @@ const DEFAULTS: Prefs = {
 }
 
 function loadPrefs(): Prefs {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.PREFS)
-    return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS }
-  } catch {
-    return { ...DEFAULTS }
-  }
+  return { ...DEFAULTS, ...safeGetJSON<Partial<Prefs>>(STORAGE_KEYS.PREFS, {}) }
 }
 
 function savePrefs(prefs: Prefs): void {
-  try { localStorage.setItem(STORAGE_KEYS.PREFS, JSON.stringify(prefs)) } catch {}
+  safeSetJSON(STORAGE_KEYS.PREFS, prefs)
 }
 
 export function usePrefs() {

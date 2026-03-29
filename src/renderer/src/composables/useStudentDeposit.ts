@@ -8,6 +8,7 @@ import { useAppStore } from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { useToast } from '@/composables/useToast'
 import { isExpired } from '@/utils/devoir'
+import { validateDeposit } from '@/utils/depositValidation'
 
 export function useStudentDeposit(now: { value: number }) {
   const appStore = useAppStore()
@@ -60,6 +61,18 @@ export function useStudentDeposit(now: { value: number }) {
     if (depositMode.value === 'file' && !depositFile.value) return
     if (depositMode.value === 'link' && !depositLink.value.trim()) return
     if (isExpired(devoir.deadline, now.value)) return
+
+    // Validation fichier avant upload
+    if (depositMode.value === 'file') {
+      const validation = validateDeposit(
+        depositFileName.value ? { name: depositFileName.value, size: 0 } : null,
+        devoir.deadline,
+      )
+      if (!validation.valid) {
+        showToast(validation.error!, 'error')
+        return
+      }
+    }
 
     depositing.value = true
     try {
