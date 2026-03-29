@@ -30,7 +30,7 @@ export async function loadModulesConfig() {
       ${isAdmin
         ? 'Activez ou desactivez les modules enrichissement. Les modules desactives sont masques pour tous les utilisateurs (enseignants et etudiants).'
         : 'Etat des modules enrichissement. Seul l\'administrateur systeme peut les activer ou desactiver.'}
-      Les fonctions pilote (chat, devoirs, documents, tableau de bord) restent toujours actives.
+      Les fonctions responsable (chat, devoirs, documents, tableau de bord) restent toujours actives.
     </p>
     ${MODULES.map(m => `
       <div class="module-row">

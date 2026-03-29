@@ -231,7 +231,7 @@ async function doLogin() {
     clearTimeout(timer)
     const json = await r.json()
     if (!json.ok) throw new Error(json.error || 'Identifiants incorrects.')
-    if (json.data.type !== 'teacher') throw new Error('Acc\u00e8s r\u00e9serv\u00e9 aux pilotes.')
+    if (json.data.type !== 'teacher') throw new Error('Acc\u00e8s r\u00e9serv\u00e9 aux responsables.')
     token = json.data.token
     localStorage.setItem('admin_token', token)
     showDashboard()

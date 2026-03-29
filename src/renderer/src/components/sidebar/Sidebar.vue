@@ -212,7 +212,7 @@
         </div>
         <div class="sb-student-promo-text">
           <span class="sb-student-promo-name">{{ activePromoName }}</span>
-          <span class="sb-student-promo-badge">Étudiant</span>
+          <span class="sb-student-promo-badge">Etudiant</span>
         </div>
       </div>
 

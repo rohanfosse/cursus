@@ -470,7 +470,7 @@
           {{ docStore.searchQuery
             ? 'Aucun résultat pour cette recherche. Essayez d\'autres mots-clés.'
             : appStore.isStudent
-              ? 'Aucun document pour le moment. Les documents seront ajoutés par votre pilote.'
+              ? 'Aucun document pour le moment. Les documents seront ajoutés par votre responsable.'
               : 'Ce canal ne contient pas encore de document.'
           }}
         </p>

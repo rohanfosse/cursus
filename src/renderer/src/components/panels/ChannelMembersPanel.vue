@@ -131,7 +131,7 @@
           <div class="ch-member-info">
             <span class="ch-member-name">
               {{ s.name }}
-              <span v-if="s.id < 0" class="ch-member-role">Enseignant</span>
+              <span v-if="s.id < 0" class="ch-member-role">Responsable</span>
             </span>
             <span class="ch-member-email">{{ s.email }}</span>
           </div>

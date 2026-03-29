@@ -128,7 +128,7 @@ router.patch('/sessions/:id/status', requireTeacher, (req, res) => {
         sessionId: session.id,
         title: session.title,
         joinCode: session.join_code,
-        teacherName: req.user?.name ?? 'Pilote',
+        teacherName: req.user?.name ?? 'Responsable',
       })
     } else if (status === 'ended') {
       io.to(`live:${session.promo_id}`).emit('live:session-ended', { sessionId: session.id })

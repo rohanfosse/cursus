@@ -1,5 +1,5 @@
 /**
- * Route admin - Lecture config (accessible aux pilotes, pas seulement admin)
+ * Route admin - Lecture config (accessible aux responsables, pas seulement admin)
  * Separe de settings.js car GET /config doit etre accessible aux teachers
  * pour afficher le bandeau mode lecture seule.
  */

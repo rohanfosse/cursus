@@ -239,7 +239,7 @@ app.use('/admin-monitor', (req, res, next) => {
   try {
     const decoded = jwt.verify(token, SECRET)
     const { hasRole: hasRoleCheck } = require('./permissions')
-    if (!hasRoleCheck(decoded.type, 'teacher')) return res.status(403).json({ ok: false, error: 'Accès réservé aux pilotes.' })
+    if (!hasRoleCheck(decoded.type, 'teacher')) return res.status(403).json({ ok: false, error: 'Accès réservé aux responsables.' })
     next()
   } catch {
     return res.status(401).json({ ok: false, error: 'Token invalide' })

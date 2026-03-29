@@ -158,9 +158,9 @@ describe('useSettingsAccount', () => {
   it('roleLabel returns correct label for each user type', () => {
     const cases: Array<[Parameters<typeof setupUser>[0], string]> = [
       ['admin', 'Admin'],
-      ['teacher', 'Pilote'],
+      ['teacher', 'Responsable'],
       ['ta', 'Intervenant'],
-      ['student', 'Étudiant'],
+      ['student', 'Etudiant'],
     ]
     for (const [type, expected] of cases) {
       setupUser(type)

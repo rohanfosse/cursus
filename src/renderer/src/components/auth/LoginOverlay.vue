@@ -371,7 +371,7 @@
             <div class="auth-forgot-success">
               <div class="auth-forgot-icon">&#9993;</div>
               <p class="auth-forgot-msg">
-                Contactez votre <strong>pilote de promotion</strong> ou votre <strong>enseignant</strong>
+                Contactez votre <strong>responsable de promotion</strong>
                 pour qu'il réinitialise votre mot de passe depuis le panneau d'administration.
               </p>
               <p class="auth-forgot-detail">

@@ -95,7 +95,7 @@ router.get('/identities', (req, res, next) => {
   auth(req, res, (err) => {
     if (err) return
     if (req.user?.type !== 'teacher') {
-      return res.status(403).json({ ok: false, error: 'Accès réservé aux pilotes.' })
+      return res.status(403).json({ ok: false, error: 'Accès réservé aux responsables.' })
     }
     next()
   })

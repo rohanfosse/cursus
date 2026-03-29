@@ -322,7 +322,7 @@
             <span v-else-if="peerIsOnline" class="dm-online"><span class="dm-online-dot" /> En ligne</span>
             <span v-else class="dm-offline">Hors ligne</span>
           </span>
-          <span v-else-if="channelHeader?.type === 'annonce' && appStore.isStudent" class="channel-annonce-hint">Canal d'annonce - seuls les pilotes peuvent publier</span>
+          <span v-else-if="channelHeader?.type === 'annonce' && appStore.isStudent" class="channel-annonce-hint">Canal d'annonce - seuls les responsables peuvent publier</span>
           <span v-else-if="appStore.activeChannelDescription" class="channel-description" :title="appStore.activeChannelDescription">{{ appStore.activeChannelDescription }}</span>
         </div>
       </div>

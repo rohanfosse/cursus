@@ -19,6 +19,7 @@ import { useMsgAttachment }   from '@/composables/useMsgAttachment'
 import { useMsgSend }         from '@/composables/useMsgSend'
 import { useMsgFormatting }   from '@/composables/useMsgFormatting'
 import { useModules }         from '@/composables/useModules'
+import { ROLE_LABELS }        from '@/constants'
 import type { RefChannel, RefDevoir, RefDoc } from '@/composables/useMsgAutocomplete'
 
 const appStore      = useAppStore()
@@ -243,9 +244,9 @@ function onKeydown(e: KeyboardEvent) {
               </div>
               <span class="mi-mention-name">{{ user.name }}</span>
               <span v-if="user.name === 'everyone'" class="mi-mention-hint">Notifie tout le monde</span>
-              <span v-else-if="user.type === 'admin'" class="mi-mention-badge mi-badge-teacher">Admin</span>
-              <span v-else-if="user.type === 'teacher'" class="mi-mention-badge mi-badge-teacher">Pilote</span>
-              <span v-else-if="user.type === 'ta'" class="mi-mention-badge mi-badge-ta">Intervenant</span>
+              <span v-else-if="user.type === 'admin'" class="mi-mention-badge mi-badge-teacher">{{ ROLE_LABELS.admin }}</span>
+              <span v-else-if="user.type === 'teacher'" class="mi-mention-badge mi-badge-teacher">{{ ROLE_LABELS.teacher }}</span>
+              <span v-else-if="user.type === 'ta'" class="mi-mention-badge mi-badge-ta">{{ ROLE_LABELS.ta }}</span>
             </button>
           </div>
         </Transition>
@@ -496,7 +497,7 @@ function onKeydown(e: KeyboardEvent) {
 
     </template>
 
-    <p v-else class="readonly-notice">Canal d'annonces - seuls les pilotes peuvent publier ici.</p>
+    <p v-else class="readonly-notice">Canal d'annonces - seuls les responsables peuvent publier ici.</p>
   </div>
 </template>
 

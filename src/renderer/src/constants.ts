@@ -51,6 +51,19 @@ export const DM_RECENT_LIMIT = 10
 /** Limite de l'historique de notifications */
 export const NOTIFICATION_HISTORY_LIMIT = 100
 
+// ─── Labels de rôles utilisateur ─────────────────────────────────────────────
+
+export const ROLE_LABELS: Record<string, string> = {
+  admin:   'Admin',
+  teacher: 'Responsable',
+  ta:      'Intervenant',
+  student: 'Etudiant',
+}
+
+export function roleLabel(type: string | undefined | null): string {
+  return ROLE_LABELS[type ?? ''] ?? type ?? ''
+}
+
 // ─── Constantes du dashboard enseignant ───────────────────────────────────────
 
 /** Nombre max d'éléments affichés dans les widgets */

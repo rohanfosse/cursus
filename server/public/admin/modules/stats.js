@@ -115,7 +115,7 @@ export async function loadStats() {
     <div class="section-title">Vue d'ensemble</div>
     <div class="counter-grid">
       <div class="counter"><div class="counter-value">${d.counts.students}</div><div class="counter-label">\u00c9tudiants</div></div>
-      <div class="counter"><div class="counter-value">${d.counts.teachers}</div><div class="counter-label">Pilotes</div></div>
+      <div class="counter"><div class="counter-value">${d.counts.teachers}</div><div class="counter-label">Responsables</div></div>
       <div class="counter"><div class="counter-value">${d.counts.promotions}</div><div class="counter-label">Promotions</div></div>
       <div class="counter"><div class="counter-value">${d.counts.channels}</div><div class="counter-label">Canaux</div></div>
       <div class="counter"><div class="counter-value">${d.counts.messages}</div><div class="counter-label">Messages</div></div>

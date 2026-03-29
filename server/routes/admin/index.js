@@ -9,10 +9,10 @@ const router = require('express').Router()
 
 const { hasRole, isSystemAdmin } = require('../../permissions')
 
-// ── Middleware : acces reserve aux pilotes (teacher + admin) ──────────────────
+// ── Middleware : acces reserve aux responsables (teacher + admin) ──────────────────
 function requireAdmin(req, res, next) {
   if (!hasRole(req.user?.type, 'teacher')) {
-    return res.status(403).json({ ok: false, error: 'Acces reserve aux pilotes.' })
+    return res.status(403).json({ ok: false, error: 'Acces reserve aux responsables.' })
   }
   next()
 }
@@ -42,7 +42,7 @@ router.use(requireAdmin, require('./scheduled'))
 router.use(requireAdmin, require('./import'))
 router.use(requireAdmin, require('./feedback'))
 
-// ── Config lecture : accessible aux pilotes (lecture seule banner) ────────────
+// ── Config lecture : accessible aux responsables (lecture seule banner) ────────────
 const { settingsRead, modulesRead } = require('./settings-read')
 router.get('/config', requireAdmin, settingsRead)
 router.get('/modules', requireAdmin, modulesRead)
