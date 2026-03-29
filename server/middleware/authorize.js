@@ -81,13 +81,17 @@ function requireMessageOwner(req, res, next) {
  * - Un TA doit être assigné à un projet de la promo de l'étudiant
  */
 function requireDmParticipant(req, res, next) {
-  // Étudiants : uniquement leur propre boîte
+  // Étudiants : propre boîte OU boîte partagée (DM étudiant-étudiant, même promo)
   if (req.user?.type === 'student') {
     const boxId = Number(req.params.studentId)
-    if (boxId && boxId !== req.user.id) {
-      return res.status(403).json({ ok: false, error: 'Vous ne pouvez accéder qu\'à vos propres conversations.' })
+    if (boxId === req.user.id) return next() // propre boîte
+    // Boîte partagée : boxId = min(myId, peerId) → boxId < myId, même promo
+    if (boxId && boxId < req.user.id) {
+      const boxOwner = getDb().prepare('SELECT promo_id FROM students WHERE id = ?').get(boxId)
+      const me = getDb().prepare('SELECT promo_id FROM students WHERE id = ?').get(req.user.id)
+      if (boxOwner && me && boxOwner.promo_id === me.promo_id) return next()
     }
-    return next()
+    return res.status(403).json({ ok: false, error: 'Vous ne pouvez accéder qu\'à vos propres conversations.' })
   }
 
   // Teachers et admins passent toujours

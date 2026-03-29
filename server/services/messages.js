@@ -12,16 +12,29 @@ const { safeAuthorType } = require('../utils/roles')
 function validateDm(payload, user) {
   if (!payload.dmStudentId) return
 
-  // Un etudiant ne peut envoyer un DM que dans sa propre boite
-  if (user.type === 'student' && payload.dmStudentId !== user.id) {
-    throw new ForbiddenError('Vous ne pouvez envoyer des messages que dans vos propres conversations.')
-  }
-  // Un etudiant ne peut avoir qu'un prof (ID negatif) comme peer
-  if (user.type === 'student' && payload.dmPeerId != null && payload.dmPeerId >= 0) {
-    throw new ForbiddenError('Destinataire DM invalide.')
-  }
-  // Verifier que le destinataire existe
   const { getDb } = require('../db/connection')
+
+  if (user.type === 'student') {
+    const peerId = payload.dmPeerId
+    if (peerId != null && peerId > 0) {
+      // DM etudiant-etudiant : verifier meme promo
+      const sender = getDb().prepare('SELECT promo_id FROM students WHERE id = ?').get(user.id)
+      const recipient = getDb().prepare('SELECT promo_id FROM students WHERE id = ?').get(peerId)
+      if (!sender || !recipient || sender.promo_id !== recipient.promo_id) {
+        throw new ForbiddenError('Vous ne pouvez contacter que les etudiants de votre promo.')
+      }
+      // Normaliser la boite : dm_student_id = min, dmPeerId = max
+      payload.dmStudentId = Math.min(user.id, peerId)
+      payload.dmPeerId = Math.max(user.id, peerId)
+    } else {
+      // DM etudiant-prof : logique existante
+      if (payload.dmStudentId !== user.id) {
+        throw new ForbiddenError('Vous ne pouvez envoyer des messages que dans vos propres conversations.')
+      }
+    }
+  }
+
+  // Verifier que le destinataire (boite) existe
   const exists = getDb().prepare('SELECT id FROM students WHERE id = ?').get(payload.dmStudentId)
   if (!exists) {
     throw new NotFoundError('Destinataire introuvable.')

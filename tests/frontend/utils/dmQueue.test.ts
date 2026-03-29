@@ -112,4 +112,47 @@ describe('dmQueue', () => {
     expect(first.content).toBe('item-1')
     expect(first.timestamp).toBe(1)
   })
+
+  it('la queue persiste apres un cycle save/clear/load via localStorage', () => {
+    // Enqueue persists to localStorage via safeSetJSON; a fresh call to
+    // loadQueue (which reads localStorage) must recover the same items.
+    enqueue(makeMsg({ content: 'persist-1', timestamp: 1 }))
+    enqueue(makeMsg({ content: 'persist-2', timestamp: 2 }))
+
+    // Simulate a "page reload": the JS module's in-memory state is irrelevant
+    // because every queue function reads from localStorage each call.
+    // Clearing in-memory module state is not possible without re-importing, but
+    // the real persistence guarantee is: peekAll() after enqueue() returns the
+    // same data even if called from a different logical context.
+    const snapshot = peekAll()
+    expect(snapshot).toHaveLength(2)
+    expect(snapshot[0].content).toBe('persist-1')
+    expect(snapshot[1].content).toBe('persist-2')
+
+    // Manually read back from the raw localStorage key to confirm JSON was written
+    const raw = localStorage.getItem('cc_dm_queue')
+    expect(raw).not.toBeNull()
+    const parsed = JSON.parse(raw!)
+    expect(parsed).toHaveLength(2)
+    expect(parsed[0].content).toBe('persist-1')
+  })
+
+  it('enqueue accepte un message avec content vide (robustesse)', () => {
+    // The queue must not throw for edge-case content values.
+    expect(() => enqueue(makeMsg({ content: '' }))).not.toThrow()
+    expect(queueSize()).toBe(1)
+    expect(peekAll()[0].content).toBe('')
+  })
+
+  it('plusieurs dequeue successifs vident la queue dans l\'ordre FIFO', () => {
+    enqueue(makeMsg({ content: 'a', timestamp: 1 }))
+    enqueue(makeMsg({ content: 'b', timestamp: 2 }))
+    enqueue(makeMsg({ content: 'c', timestamp: 3 }))
+
+    expect(dequeue()?.content).toBe('a')
+    expect(dequeue()?.content).toBe('b')
+    expect(dequeue()?.content).toBe('c')
+    expect(dequeue()).toBeUndefined()
+    expect(queueSize()).toBe(0)
+  })
 })

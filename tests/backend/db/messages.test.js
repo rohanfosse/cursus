@@ -304,6 +304,22 @@ describe('searchDmMessages limit', () => {
     expect(results.length).toBeLessThanOrEqual(200)
   })
 
+  it('searchDmMessages returns results in DESC order (most recent first)', () => {
+    // Insert two distinct DMs so we can assert ordering
+    queries.sendMessage({
+      dmStudentId: 1, authorName: 'Jean Dupont', authorId: 1,
+      authorType: 'student', content: 'order_check_older',
+    })
+    queries.sendMessage({
+      dmStudentId: 1, authorName: 'Jean Dupont', authorId: 1,
+      authorType: 'student', content: 'order_check_newer',
+    })
+    const { results } = queries.searchDmMessages(1, 'order_check')
+    expect(results.length).toBeGreaterThanOrEqual(2)
+    // The first result must have an id >= the second (DESC ordering)
+    expect(results[0].id).toBeGreaterThanOrEqual(results[1].id)
+  })
+
   it('limits results to 200 messages and sets truncated: true', () => {
     // Insert 201 DM messages that match a search term
     for (let i = 0; i < 201; i++) {

@@ -302,8 +302,9 @@ function getRecentDmContacts(studentId, limit = 15) {
     }))
   }
 
-  // Pour les étudiants : chercher les contacts (envoyés ET reçus)
-  const rows = getDb().prepare(`
+  // Pour les étudiants : contacts profs (boîte propre) + contacts étudiants (boîtes partagées)
+  // 1) Contacts dans la boîte propre (profs et étudiants pairs)
+  const ownBoxRows = getDb().prepare(`
     SELECT
       m.author_id,
       m.author_name AS name,
@@ -318,7 +319,44 @@ function getRecentDmContacts(studentId, limit = 15) {
     ORDER BY last_message_at DESC
     LIMIT ?
   `).all(studentId, studentId, studentId, studentId, limit);
-  return rows.map(r => ({
+
+  // 2) Contacts dans les boîtes partagées où l'étudiant est le peer (boxId < studentId)
+  const peerBoxRows = getDb().prepare(`
+    SELECT
+      m.dm_student_id AS box_id,
+      MAX(m.created_at) AS last_message_at,
+      (SELECT content FROM messages m2
+       WHERE m2.dm_student_id = m.dm_student_id AND m2.deleted_at IS NULL
+       ORDER BY m2.created_at DESC LIMIT 1
+      ) AS last_message_preview
+    FROM messages m
+    WHERE m.dm_student_id < ?
+      AND m.dm_student_id IN (SELECT id FROM students WHERE promo_id = (SELECT promo_id FROM students WHERE id = ?))
+      AND (m.author_id = ? OR m.author_id = m.dm_student_id)
+      AND m.deleted_at IS NULL
+    GROUP BY m.dm_student_id
+    HAVING MAX(CASE WHEN m.author_id = ? THEN 1 ELSE 0 END) = 1
+       OR MAX(CASE WHEN m.author_id = m.dm_student_id THEN 1 ELSE 0 END) = 1
+    ORDER BY last_message_at DESC
+    LIMIT ?
+  `).all(studentId, studentId, studentId, studentId, limit);
+
+  // Fusionner : boîtes partagées → récupérer le nom du contact (le box owner)
+  const peerContacts = peerBoxRows.map(r => {
+    const peer = getDb().prepare('SELECT id, name, avatar_initials, photo_data FROM students WHERE id = ?').get(r.box_id)
+    return {
+      author_id: peer?.id ?? r.box_id,
+      name: peer?.name ?? 'Inconnu',
+      last_message_at: r.last_message_at,
+      last_message_preview: r.last_message_preview,
+    }
+  })
+
+  const allContacts = [...ownBoxRows, ...peerContacts]
+    .sort((a, b) => (b.last_message_at ?? '').localeCompare(a.last_message_at ?? ''))
+    .slice(0, limit)
+
+  return allContacts.map(r => ({
     ...r,
     last_message_preview: r.last_message_preview ? decrypt(r.last_message_preview) : null,
   }))
