@@ -9,10 +9,10 @@ const router = require('express').Router()
 
 const { hasRole, isSystemAdmin } = require('../../permissions')
 
-// ── Middleware : acces reserve aux responsables (teacher + admin) ──────────────────
+// ── Middleware : acces reserve aux administrateurs ───────────────────────────
 function requireAdmin(req, res, next) {
-  if (!hasRole(req.user?.type, 'teacher')) {
-    return res.status(403).json({ ok: false, error: 'Acces reserve aux responsables.' })
+  if (!isSystemAdmin(req.user?.type)) {
+    return res.status(403).json({ ok: false, error: 'Acces reserve aux administrateurs.' })
   }
   next()
 }
