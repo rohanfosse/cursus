@@ -141,7 +141,9 @@ export const useAppStore = defineStore('app', () => {
         channelName: activeChannelName.value,
         dmStudentId: activeDmStudentId.value,
       }))
-    } catch {}
+    } catch (e) {
+      console.warn('[app] _saveNavState: impossible d\'écrire dans localStorage', e)
+    }
   }
 
   function restoreSession(): boolean {
@@ -159,7 +161,9 @@ export const useAppStore = defineStore('app', () => {
           if (nav.channelId) { activeChannelId.value = nav.channelId; activeChannelName.value = nav.channelName ?? '' }
           if (nav.promoId) activePromoId.value = nav.promoId
           if (nav.dmStudentId) activeDmStudentId.value = nav.dmStudentId
-        } catch {}
+        } catch (e) {
+          console.warn('[app] restoreSession: état de navigation corrompu, réinitialisation', e)
+        }
         return true
       }
     } catch {
@@ -191,7 +195,7 @@ export const useAppStore = defineStore('app', () => {
     currentUser.value = null
     activeChannelId.value   = null
     activeDmStudentId.value = null
-    try { localStorage.removeItem(STORAGE_KEYS.SESSION) } catch {}
+    try { localStorage.removeItem(STORAGE_KEYS.SESSION) } catch (e) { console.warn('[app] logout: impossible de supprimer la session localStorage', e) }
   }
 
   // ── Écouter l'expiration de session (émis par apiFetch sur 401) ──────────
@@ -208,7 +212,7 @@ export const useAppStore = defineStore('app', () => {
   function clearMustChangePassword(): void {
     if (!currentUser.value) return
     currentUser.value = { ...currentUser.value, must_change_password: 0 }
-    try { localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(currentUser.value)) } catch {}
+    try { localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(currentUser.value)) } catch (e) { console.warn('[app] clearMustChangePassword: impossible de persister la session localStorage', e) }
   }
 
   // Impersonnification (prof → étudiant) : pas de sauvegarde en session
