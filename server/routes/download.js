@@ -2,7 +2,7 @@
 const { Router } = require('express')
 const router = Router()
 
-const REPO     = 'rohanfosse/slack-like-electron'
+const REPO     = 'rohanfosse/cursus'
 const CACHE_TTL = 60 * 60 * 1000 // 1h
 
 let releaseCache = null
