@@ -1,7 +1,7 @@
 /** SettingsAbout — section A propos du modal Settings. */
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Info, Globe, Monitor, Heart, Github, ExternalLink, Download } from 'lucide-vue-next'
+import { Info, Globe, Monitor, Heart, Github, ExternalLink, Download, RefreshCw, CheckCircle, AlertCircle, RotateCw } from 'lucide-vue-next'
 import logoUrl from '@/assets/logo.png'
 import { version } from '../../../../../../package.json'
 
@@ -94,30 +94,69 @@ function installUpdate() { window.api.updaterQuitAndInstall() }
         <h4 class="stg-group-title">Mise a jour</h4>
       </div>
       <div class="stg-update-section">
-        <p v-if="updateStatus === 'idle'" class="stg-update-text">Verifiez si une nouvelle version est disponible.</p>
-        <p v-else-if="updateStatus === 'checking'" class="stg-update-text stg-update-checking">Recherche en cours...</p>
-        <p v-else-if="updateStatus === 'available'" class="stg-update-text stg-update-available">Mise a jour {{ updateVersion }} disponible, telechargement en cours...</p>
-        <template v-else-if="updateStatus === 'downloading'">
-          <p class="stg-update-text stg-update-available">Telechargement de {{ updateVersion }}... {{ downloadPercent }}%</p>
+        <!-- Idle -->
+        <div v-if="updateStatus === 'idle'" class="stg-update-state">
+          <p class="stg-update-text">Version actuelle : <strong>v{{ version }}</strong></p>
+          <button class="stg-update-btn" @click="checkUpdate">
+            <RefreshCw :size="14" /> Chercher une mise a jour
+          </button>
+        </div>
+
+        <!-- Checking -->
+        <div v-else-if="updateStatus === 'checking'" class="stg-update-state">
+          <div class="stg-update-spinner-row">
+            <RefreshCw :size="16" class="stg-spin" />
+            <span class="stg-update-text stg-update-checking">Recherche en cours...</span>
+          </div>
+        </div>
+
+        <!-- Downloading -->
+        <div v-else-if="updateStatus === 'available' || updateStatus === 'downloading'" class="stg-update-state">
+          <div class="stg-update-download-header">
+            <Download :size="14" class="stg-update-dl-icon" />
+            <span class="stg-update-text stg-update-available">Telechargement de v{{ updateVersion }}</span>
+            <span class="stg-update-percent">{{ Math.round(downloadPercent) }}%</span>
+          </div>
           <div class="stg-progress-bar">
             <div class="stg-progress-fill" :style="{ width: downloadPercent + '%' }" />
           </div>
-        </template>
-        <p v-else-if="updateStatus === 'downloaded'" class="stg-update-text stg-update-ready">Mise a jour {{ updateVersion }} prete. Redemarrez pour installer.</p>
-        <p v-else-if="updateStatus === 'up-to-date'" class="stg-update-text stg-update-ok">Vous etes a jour (v{{ version }}).</p>
-        <p v-else-if="updateStatus === 'error'" class="stg-update-text stg-update-error">{{ updateError }}</p>
-        <div class="stg-update-actions">
-          <button
-            v-if="updateStatus === 'downloaded'"
-            class="stg-update-btn stg-update-btn--install"
-            @click="installUpdate"
-          >Redemarrer et installer</button>
-          <button
-            v-else
-            class="stg-update-btn"
-            :disabled="updateStatus === 'checking' || updateStatus === 'downloading'"
-            @click="checkUpdate"
-          >Chercher une mise a jour</button>
+          <p class="stg-update-hint">Ne fermez pas l'application pendant le telechargement.</p>
+        </div>
+
+        <!-- Downloaded / Ready -->
+        <div v-else-if="updateStatus === 'downloaded'" class="stg-update-state stg-update-state--ready">
+          <div class="stg-update-ready-header">
+            <CheckCircle :size="18" class="stg-update-ready-icon" />
+            <div>
+              <p class="stg-update-text stg-update-ready">Mise a jour v{{ updateVersion }} prete</p>
+              <p class="stg-update-hint">Redemarrez pour appliquer la mise a jour.</p>
+            </div>
+          </div>
+          <button class="stg-update-btn stg-update-btn--install" @click="installUpdate">
+            <RotateCw :size="14" /> Redemarrer maintenant
+          </button>
+        </div>
+
+        <!-- Up to date -->
+        <div v-else-if="updateStatus === 'up-to-date'" class="stg-update-state">
+          <div class="stg-update-spinner-row">
+            <CheckCircle :size="16" class="stg-update-ok-icon" />
+            <span class="stg-update-text stg-update-ok">Vous etes a jour (v{{ version }})</span>
+          </div>
+          <button class="stg-update-btn stg-update-btn--small" @click="checkUpdate">
+            Reverifier
+          </button>
+        </div>
+
+        <!-- Error -->
+        <div v-else-if="updateStatus === 'error'" class="stg-update-state">
+          <div class="stg-update-spinner-row">
+            <AlertCircle :size="16" class="stg-update-error-icon" />
+            <span class="stg-update-text stg-update-error">{{ updateError }}</span>
+          </div>
+          <button class="stg-update-btn stg-update-btn--small" @click="checkUpdate">
+            Reessayer
+          </button>
         </div>
       </div>
     </div>
@@ -187,37 +226,110 @@ function installUpdate() { window.api.updaterQuitAndInstall() }
 
 <style scoped>
 .stg-update-section {
-  display: flex; flex-direction: column; gap: 10px;
-  padding: 12px 14px; background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: 10px;
+  display: flex; flex-direction: column; gap: 0;
+  padding: 0; background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
 }
-.stg-update-text { font-size: 12.5px; color: var(--text-secondary); margin: 0; line-height: 1.4; }
+
+.stg-update-state {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px 16px;
+}
+
+.stg-update-state--ready {
+  background: color-mix(in srgb, var(--color-success, #059669) 8%, transparent);
+}
+
+.stg-update-text {
+  font-size: 12.5px; color: var(--text-secondary); margin: 0; line-height: 1.4;
+}
+.stg-update-text strong { color: var(--text-primary); }
 .stg-update-checking { color: var(--accent); }
-.stg-update-available { color: #f59e0b; }
-.stg-update-ready { color: var(--color-success, #059669); font-weight: 600; }
+.stg-update-available { color: var(--text-primary); font-weight: 500; }
+.stg-update-ready { color: var(--color-success, #059669); font-weight: 600; font-size: 13px; }
 .stg-update-ok { color: var(--color-success, #059669); }
 .stg-update-error { color: var(--color-danger, #dc2626); }
-.stg-update-actions { display: flex; gap: 8px; }
+
+.stg-update-hint {
+  font-size: 11px; color: var(--text-muted); margin: 0; line-height: 1.4;
+}
+
+/* Spinner row */
+.stg-update-spinner-row {
+  display: flex; align-items: center; gap: 10px;
+}
+
+/* Download header */
+.stg-update-download-header {
+  display: flex; align-items: center; gap: 8px;
+}
+.stg-update-dl-icon { color: var(--accent); flex-shrink: 0; }
+.stg-update-percent {
+  margin-left: auto; font-size: 13px; font-weight: 700;
+  color: var(--accent); font-variant-numeric: tabular-nums;
+}
+
+/* Ready header */
+.stg-update-ready-header {
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.stg-update-ready-icon {
+  color: var(--color-success, #059669); flex-shrink: 0; margin-top: 1px;
+}
+.stg-update-ok-icon { color: var(--color-success, #059669); flex-shrink: 0; }
+.stg-update-error-icon { color: var(--color-danger, #dc2626); flex-shrink: 0; }
+
+/* Buttons */
 .stg-update-btn {
-  padding: 7px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 18px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
   font-family: var(--font); cursor: pointer; border: 1px solid var(--border);
   background: var(--bg-hover); color: var(--text-primary); transition: all .15s;
+  width: fit-content;
 }
 .stg-update-btn:hover:not(:disabled) { background: var(--bg-active); border-color: var(--accent); }
 .stg-update-btn:disabled { opacity: .5; cursor: not-allowed; }
+
 .stg-update-btn--install {
   background: var(--color-success, #059669); color: #fff; border-color: transparent;
+  padding: 10px 22px; font-size: 13px; width: 100%; justify-content: center;
 }
 .stg-update-btn--install:hover { opacity: .9; }
 
-/* Barre de progression download */
+.stg-update-btn--small {
+  padding: 5px 12px; font-size: 11.5px; font-weight: 500;
+}
+
+/* Progress bar */
 .stg-progress-bar {
-  height: 4px; border-radius: 2px;
+  height: 8px; border-radius: 4px;
   background: var(--bg-hover); overflow: hidden;
+  position: relative;
 }
 .stg-progress-fill {
-  height: 100%; border-radius: 2px;
-  background: var(--accent);
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #fff));
   transition: width .3s ease;
+  position: relative;
+}
+.stg-progress-fill::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.15) 50%, transparent 100%);
+  animation: stg-shimmer 1.5s ease infinite;
+}
+
+@keyframes stg-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Spinner */
+.stg-spin {
+  color: var(--accent);
+  animation: stg-spin .8s linear infinite;
+}
+@keyframes stg-spin {
+  to { transform: rotate(360deg); }
 }
 </style>
