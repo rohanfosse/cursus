@@ -289,4 +289,63 @@ describe('app store', () => {
     expect(s.isUserOnline('Jean Dupont')).toBe(true)
     expect(s.isUserOnline('Alice')).toBe(false)
   })
+
+  // ── activeChannelArchived — epic canaux-ameliorations #84 ──────────────────
+
+  it('openChannel positionne activeChannelArchived a true quand archived=true', () => {
+    const s = useAppStore()
+    s.openChannel(5, 7, 'canal-gele', 'chat', 'Description', true)
+    expect(s.activeChannelArchived).toBe(true)
+  })
+
+  it('openChannel positionne activeChannelArchived a false pour un canal actif', () => {
+    const s = useAppStore()
+    s.openChannel(5, 7, 'canal-actif', 'chat', 'Description', false)
+    expect(s.activeChannelArchived).toBe(false)
+  })
+
+  it('isReadonly est true quand le canal est archive', () => {
+    const s = useAppStore()
+    s.currentUser = makeUser({ type: 'student' })
+    s.openChannel(5, 7, 'canal-gele', 'chat', '', true)
+    expect(s.isReadonly).toBe(true)
+  })
+
+  it('isReadonly est true pour un canal archive meme pour le prof', () => {
+    const s = useAppStore()
+    s.currentUser = makeUser({ type: 'teacher' })
+    s.openChannel(5, 7, 'canal-gele', 'chat', '', true)
+    expect(s.isReadonly).toBe(true)
+  })
+
+  it('isReadonly reste false pour un canal chat actif (etudiant)', () => {
+    const s = useAppStore()
+    s.currentUser = makeUser({ type: 'student' })
+    s.openChannel(5, 7, 'general', 'chat', '', false)
+    expect(s.isReadonly).toBe(false)
+  })
+
+  it('startSimulation reinitialise activeChannelArchived a false', () => {
+    const s = useAppStore()
+    const teacher = makeUser({ id: -1, type: 'teacher' })
+    const student = makeUser({ id: 10, type: 'student', promo_id: 5 })
+    s.currentUser = teacher
+    // Simuler un canal archive ouvert avant la simulation
+    s.openChannel(5, 7, 'canal-gele', 'chat', '', true)
+    expect(s.activeChannelArchived).toBe(true)
+    s.startSimulation(student)
+    expect(s.activeChannelArchived).toBe(false)
+  })
+
+  it('stopSimulation reinitialise activeChannelArchived a false', () => {
+    const s = useAppStore()
+    const teacher = makeUser({ id: -1, type: 'teacher' })
+    s.currentUser = teacher
+    s.startSimulation(makeUser({ id: 10, type: 'student', promo_id: 5 }))
+    // Forcer archived a true via openChannel
+    s.openChannel(3, 5, 'canal-gele', 'chat', '', true)
+    expect(s.activeChannelArchived).toBe(true)
+    s.stopSimulation()
+    expect(s.activeChannelArchived).toBe(false)
+  })
 })
