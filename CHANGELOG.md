@@ -1,5 +1,50 @@
 # Changelog
 
+## v2.0.9 (2026-03-29)
+
+### Nouvelles fonctionnalites
+
+- Modules activables/desactivables depuis le panneau d'administration (audit securite inclus)
+- Wizard d'onboarding pour les nouveaux utilisateurs
+- Metriques d'adoption : DAU/WAU et alertes d'inactivite
+- Les noms des executables incluent desormais le numero de version (Cursus-2.0.9-win.exe, etc.)
+- La version de l'executable est synchronisee automatiquement depuis le tag git au moment du build CI
+
+### Corrections
+
+- Les documents de la promo CPIA2 etaient invisibles a cause d'une collision de noms de fonction entre deux modeles (`getProjectDocuments` duplique)
+- Les administrateurs ne pouvaient pas envoyer de messages (contrainte CHECK `author_type` ne reconnaissait que `teacher` et `student`)
+- Le mapping des types utilisateur est desormais centralise (`safeAuthorType`/`safeUserType`) pour eviter les crashs sur les roles `admin` et `ta`
+- Bug critique corrige : le computed `roleLabel` dans les parametres du compte ecrasait l'import du meme nom, causant un TypeError au runtime
+- L'ancien fichier de base de donnees `cesi-classroom.db` est automatiquement renomme en `cursus.db` au premier demarrage
+- Onglet promotions vide et role/email manquants dans les parametres corriges
+- Modale RGPD rendue conforme
+- UX mise a jour des parametres amelioree (barre de progression, spinner, etats clairs)
+- Securite DM renforcee, migration robuste, indexes ajoutes
+
+### Ameliorations
+
+- Renommage des labels de roles : Pilote devient **Responsable**, les labels sont centralises dans `ROLE_LABELS`
+- Toutes les references a l'ancien nom `cesi-classroom` et `slack-like-electron` mises a jour vers `cursus`
+- Landing page amelioree (SVGs inline, manifeste PWA, accessibilite clavier)
+- Catch vides remplaces par `console.warn` dans le store principal
+
+### Tests
+
+- Tests de regression pour le mapping `author_type` (admin, ta, teacher, student)
+- Tests unitaires pour `safeAuthorType` et `safeUserType`
+- Tests d'integration : admin et TA peuvent envoyer des messages via l'API
+- Suite de stabilite complete : 78 fichiers, 1017+ tests
+- Couverture regression documents vides et fallback projet invalide
+
+### Infrastructure
+
+- `package-lock.json` synchronise avec `package.json` (version 2.0.4)
+- CI : `npm version` injecte automatiquement la version du tag avant le build
+- Noms d'artefacts dynamiques pour Windows, Mac et Linux
+
+---
+
 ## v1.0.16 (2026-03-28)
 
 ### Corrections
