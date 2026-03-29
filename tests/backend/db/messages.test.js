@@ -267,19 +267,20 @@ describe('DM messages', () => {
   })
 
   it('searchDmMessages finds decrypted content', () => {
-    const results = queries.searchDmMessages(1, 'DM Hello')
+    const { results } = queries.searchDmMessages(1, 'DM Hello')
     expect(results.length).toBeGreaterThan(0)
     expect(results[0].content).toContain('DM Hello')
   })
 
   it('searchDmMessages with peerId filters by peer', () => {
-    const results = queries.searchDmMessages(1, 'DM', -1)
+    const { results } = queries.searchDmMessages(1, 'DM', -1)
     expect(Array.isArray(results)).toBe(true)
   })
 
   it('searchDmMessages returns empty for no match', () => {
-    const results = queries.searchDmMessages(1, 'zzz_nonexistent_zzz')
+    const { results, truncated } = queries.searchDmMessages(1, 'zzz_nonexistent_zzz')
     expect(results).toEqual([])
+    expect(truncated).toBe(false)
   })
 
   it('editMessage encrypts DM content', () => {
@@ -293,6 +294,27 @@ describe('DM messages', () => {
     // But getMessageById decrypts it
     const decrypted = queries.getMessageById(dmId)
     expect(decrypted.content).toBe('DM Edited')
+  })
+})
+
+describe('searchDmMessages limit', () => {
+  it('returns truncated: false when <= 200 results', () => {
+    const { results, truncated } = queries.searchDmMessages(1, 'DM')
+    expect(truncated).toBe(false)
+    expect(results.length).toBeLessThanOrEqual(200)
+  })
+
+  it('limits results to 200 messages and sets truncated: true', () => {
+    // Insert 201 DM messages that match a search term
+    for (let i = 0; i < 201; i++) {
+      queries.sendMessage({
+        dmStudentId: 1, authorName: 'Jean Dupont', authorId: 1,
+        authorType: 'student', content: `bulk_search_target ${i}`,
+      })
+    }
+    const { results, truncated } = queries.searchDmMessages(1, 'bulk_search_target')
+    expect(results.length).toBe(200)
+    expect(truncated).toBe(true)
   })
 })
 

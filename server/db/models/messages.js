@@ -130,8 +130,11 @@ function searchMessages(channelId, query) {
   `).all(channelId, q);
 }
 
+const SEARCH_DM_LIMIT = 200;
+
 /**
  * Recherche DM — déchiffrement en mémoire puis filtrage (le contenu est chiffré en DB).
+ * Retourne { results: Message[], truncated: boolean }.
  */
 function searchDmMessages(studentId, query, peerId) {
   let sql = `${MESSAGE_SELECT} AND m.dm_student_id = ?`
@@ -142,12 +145,15 @@ function searchDmMessages(studentId, query, peerId) {
     params.push(studentId, peerId)
   }
 
-  sql += ` ORDER BY m.created_at ASC LIMIT 5000`
+  sql += ` ORDER BY m.created_at DESC LIMIT 5000`
   const rows = decryptRows(getDb().prepare(sql).all(...params))
 
   // Filtrage en mémoire après déchiffrement
   const q = query.toLowerCase()
-  return rows.filter(r => r.content && r.content.toLowerCase().includes(q)).slice(0, 200)
+  const allMatches = rows.filter(r => r.content && r.content.toLowerCase().includes(q))
+  const truncated = allMatches.length > SEARCH_DM_LIMIT
+
+  return { results: allMatches.slice(0, SEARCH_DM_LIMIT), truncated }
 }
 
 function sendMessage({ channelId, dmStudentId, authorName, authorId, authorType, content, replyToId, replyToAuthor, replyToPreview }) {

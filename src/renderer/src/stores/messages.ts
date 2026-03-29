@@ -2,12 +2,15 @@ import { ref, reactive, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useAppStore } from './app'
 import { useApi } from '@/composables/useApi'
+import { useToast } from '@/composables/useToast'
 import type { Message } from '@/types'
 import {
   STORAGE_KEYS, GROUP_THRESHOLD_MS, MESSAGE_PAGE_SIZE,
   MAX_MESSAGE_LENGTH, TYPING_TIMEOUT_MS,
 } from '@/constants'
 import { cacheData, loadCached } from '@/composables/useOfflineCache'
+import { enqueue, dequeue, peekAll, queueSize } from '@/utils/dmQueue'
+import type { QueuedMessage } from '@/utils/dmQueue'
 
 export const useMessagesStore = defineStore('messages', () => {
   const appStore = useAppStore()
@@ -170,7 +173,8 @@ export const useMessagesStore = defineStore('messages', () => {
         hasMore.value = false
       } else if (searchTerm.value && activeDmStudentId) {
         const peer = appStore.activeDmPeerId ?? undefined
-        fetched       = await api<Message[]>(() => window.api.searchDmMessages(activeDmStudentId, searchTerm.value, peer), 'search') ?? []
+        const dmSearch = await api<{ results: Message[]; truncated: boolean }>(() => window.api.searchDmMessages(activeDmStudentId, searchTerm.value, peer), 'search')
+        fetched       = dmSearch?.results ?? []
         hasMore.value = false
       } else if (activeChannelId) {
         const page    = await api<Message[]>(() => window.api.getChannelMessagesPage(activeChannelId)) ?? []
@@ -248,8 +252,14 @@ export const useMessagesStore = defineStore('messages', () => {
     pinned.value = await api<Message[]>(() => window.api.getPinnedMessages(channelId)) ?? []
   }
 
-  // ── Envoi ──────────────────────────────────────────────────────────────────
+  // ── Envoi (avec retry + queue offline) ──────────────────────────────────────
   const sendError = ref(false)
+  const RETRY_ATTEMPTS = 3
+  const RETRY_BACKOFF = [1000, 3000, 9000]
+
+  function _wait(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
 
   async function sendMessage(content: string): Promise<boolean> {
     if (!appStore.currentUser || !content.trim()) return false
@@ -257,35 +267,90 @@ export const useMessagesStore = defineStore('messages', () => {
       sendError.value = true
       return false
     }
+    const { showToast } = useToast()
     const quote = quotedMessage.value
-    const result = await api<Message>(
-      () => window.api.sendMessage({
-        channelId:   appStore.activeChannelId   ?? undefined,
-        dmStudentId: appStore.activeDmStudentId ?? undefined,
-        dmPeerId:    appStore.activeDmPeerId    ?? undefined,
-        authorName:  appStore.currentUser!.name,
-        authorType:  appStore.currentUser!.type,
-        channelName: appStore.activeChannelName || undefined,
-        promoId:     appStore.activePromoId     ?? undefined,
-        content:     content.trim(),
-        replyToId:      quote?.id       ?? undefined,
-        replyToAuthor:  quote?.author_name ?? undefined,
-        replyToPreview: quote ? quote.content.slice(0, 120) : undefined,
-      }),
-      'send',
-    )
-    if (result === null) {
-      sendError.value = true
-      return false
+    const payload = {
+      channelId:   appStore.activeChannelId   ?? undefined,
+      dmStudentId: appStore.activeDmStudentId ?? undefined,
+      dmPeerId:    appStore.activeDmPeerId    ?? undefined,
+      authorName:  appStore.currentUser!.name,
+      authorType:  appStore.currentUser!.type,
+      channelName: appStore.activeChannelName || undefined,
+      promoId:     appStore.activePromoId     ?? undefined,
+      content:     content.trim(),
+      replyToId:      quote?.id       ?? undefined,
+      replyToAuthor:  quote?.author_name ?? undefined,
+      replyToPreview: quote ? quote.content.slice(0, 120) : undefined,
     }
-    sendError.value = false
+
+    // Retry loop (3 tentatives avec backoff)
+    for (let attempt = 0; attempt < RETRY_ATTEMPTS; attempt++) {
+      const result = await api<Message>(() => window.api.sendMessage(payload), 'send')
+      if (result !== null) {
+        sendError.value = false
+        clearQuote()
+        if (searchTerm.value) {
+          await fetchMessages()
+        } else {
+          upsertMessage(result)
+        }
+        return true
+      }
+      // Echec — retry si pas la derniere tentative
+      if (attempt < RETRY_ATTEMPTS - 1) {
+        showToast('Nouvel essai d\'envoi...', 'info')
+        await _wait(RETRY_BACKOFF[attempt])
+      }
+    }
+
+    // Toutes les tentatives ont echoue — mise en queue
+    sendError.value = true
+    const queued: QueuedMessage = {
+      channelId:      appStore.activeChannelId   ?? null,
+      dmStudentId:    appStore.activeDmStudentId ?? null,
+      dmPeerId:       appStore.activeDmPeerId    ?? null,
+      content:        content.trim(),
+      authorName:     appStore.currentUser!.name,
+      authorType:     appStore.currentUser!.type,
+      timestamp:      Date.now(),
+      replyToId:      quote?.id       ?? null,
+      replyToAuthor:  quote?.author_name ?? null,
+      replyToPreview: quote ? quote.content.slice(0, 120) : null,
+    }
+    enqueue(queued)
     clearQuote()
-    if (searchTerm.value) {
-      await fetchMessages()
-    } else {
-      upsertMessage(result)
+    showToast('Message mis en attente.', 'info')
+    return false
+  }
+
+  // ── Flush de la queue offline ──────────────────────────────────────────────
+  async function flushDmQueue(): Promise<void> {
+    if (queueSize() === 0) return
+    const { showToast } = useToast()
+    const pending = peekAll()
+
+    for (const msg of pending) {
+      const result = await api<Message>(
+        () => window.api.sendMessage({
+          channelId:      msg.channelId   ?? undefined,
+          dmStudentId:    msg.dmStudentId ?? undefined,
+          dmPeerId:       msg.dmPeerId   ?? undefined,
+          authorName:     msg.authorName,
+          authorType:     msg.authorType,
+          content:        msg.content,
+          replyToId:      msg.replyToId      ?? undefined,
+          replyToAuthor:  msg.replyToAuthor  ?? undefined,
+          replyToPreview: msg.replyToPreview ?? undefined,
+        }),
+        'send',
+      )
+      if (result === null) {
+        // Echec — on arrete pour ne pas perdre les messages restants
+        return
+      }
+      dequeue()
+      showToast('Message envoye depuis la file d\'attente.', 'success')
     }
-    return true
   }
 
   // ── Épinglage ──────────────────────────────────────────────────────────────
@@ -397,7 +462,7 @@ export const useMessagesStore = defineStore('messages', () => {
     quotedMessage, setQuote, clearQuote,
     typingText, setTyping, stopTyping, clearAllTyping, initTypingListener,
     isGrouped, fetchMessages, loadOlderMessages, fetchPinned, upsertMessage,
-    sendMessage, togglePin,
+    sendMessage, flushDmQueue, togglePin,
     initReactions, toggleReaction, getReactionUsers, clearSearch,
     deleteMessage, editMessage,
   }

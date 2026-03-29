@@ -51,6 +51,7 @@ export function useAppListeners() {
       if (online && !wasOnline) {
         console.log('[Sync] Retour en ligne, re-fetch des donnees...')
         messagesStore.fetchMessages()
+        messagesStore.flushDmQueue()
         const travauxStore = useTravauxStore()
         travauxStore.fetchStudentDevoirs()
         const docsStore = useDocumentsStore()

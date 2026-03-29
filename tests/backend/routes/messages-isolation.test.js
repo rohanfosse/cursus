@@ -107,6 +107,21 @@ describe('POST /api/messages — admin/ta author types', () => {
 })
 
 // ═══════════════════════════════════════════
+//  POST — validation destinataire DM
+// ═══════════════════════════════════════════
+describe('POST /api/messages — validation destinataire', () => {
+  it('rejects DM to non-existent student (404)', async () => {
+    const res = await request(app)
+      .post('/api/messages')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ dmStudentId: 99999, content: 'Message a un etudiant inexistant' })
+    expect(res.status).toBe(404)
+    expect(res.body.ok).toBe(false)
+    expect(res.body.error).toContain('introuvable')
+  })
+})
+
+// ═══════════════════════════════════════════
 //  GET /channel/:channelId — lecture isolation promo
 // ═══════════════════════════════════════════
 describe('GET /api/messages/channel/:channelId — promo isolation', () => {
