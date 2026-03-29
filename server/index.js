@@ -113,7 +113,7 @@ app.use('/api', (req, _res, next) => {
         userId: req.user.id, userName: req.user.name, userType: req.user.type,
         tokenHash, ip: req.ip, userAgent: req.get('user-agent') || '',
       })
-    } catch {}
+    } catch (err) { log.warn('session_upsert_failed', { error: err.message }) }
   }
   next()
 })
@@ -129,7 +129,7 @@ app.use('/api', (req, _res, next) => {
         userType: req.user.type,
         path: req.path,
       })
-    } catch {}
+    } catch (err) { log.warn('visit_record_failed', { error: err.message }) }
   }
   next()
 })
