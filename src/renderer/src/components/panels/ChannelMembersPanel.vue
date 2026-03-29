@@ -133,11 +133,12 @@
             <span class="ch-member-name">
               {{ s.name }}
               <span v-if="s.id < 0" class="ch-member-role">{{ ROLE_LABELS.teacher }}</span>
+              <span v-else class="ch-member-role ch-member-role--student">{{ ROLE_LABELS.student }}</span>
             </span>
             <span class="ch-member-email">{{ s.email }}</span>
           </div>
           <button
-            v-if="appStore.isTeacher && channel?.is_private"
+            v-if="appStore.isStaff && channel?.is_private && s.id > 0"
             class="btn-icon ch-remove-btn"
             :disabled="saving"
             title="Retirer du canal"
@@ -149,7 +150,7 @@
       </ul>
 
       <!-- Ajouter un membre (prof + canal privé) -->
-      <template v-if="appStore.isTeacher && channel?.is_private">
+      <template v-if="appStore.isStaff && channel?.is_private">
         <div class="ch-section-label ch-add-label">
           <UserPlus :size="12" /> Ajouter un membre
         </div>
@@ -350,6 +351,9 @@
   padding: 1px 5px; border-radius: 8px;
   background: rgba(74,144,217,.12); color: var(--accent);
   margin-left: 4px;
+}
+.ch-member-role--student {
+  background: rgba(46,204,113,.1); color: var(--color-success, #2ecc71);
 }
 
 .ch-remove-btn { color: var(--text-muted); padding: 3px; opacity: 0; transition: opacity .1s, color .1s; }

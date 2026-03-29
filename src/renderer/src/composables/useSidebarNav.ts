@@ -8,6 +8,11 @@ import { MessageSquare, BookOpen, FolderOpen } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import type { Channel } from '@/types'
 
+/** Nombre de membres pour un canal prive, null si public ou vide */
+export function channelMemberCount(ch: Channel): number | null {
+  return ch.is_private && ch.members?.length ? ch.members.length : null
+}
+
 export function useSidebarNav(emit: (event: 'navigate') => void) {
   const appStore = useAppStore()
   const route    = useRoute()
@@ -95,7 +100,7 @@ export function useSidebarNav(emit: (event: 'navigate') => void) {
 
   // ── Sélection de canal ──────────────────────────────────────────────────
   function selectChannel(ch: Channel) {
-    appStore.openChannel(ch.id, ch.promo_id, ch.name, ch.type, ch.description ?? '')
+    appStore.openChannel(ch.id, ch.promo_id, ch.name, ch.type, ch.description ?? '', false, !!ch.is_private, channelMemberCount(ch))
     if (route.name !== 'messages') {
       router.push(`/${route.name as string}`)
     }

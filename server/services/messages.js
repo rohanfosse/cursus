@@ -45,11 +45,16 @@ function validateDm(payload, user) {
  * Verifie qu'un etudiant n'ecrit pas dans un canal d'annonce.
  */
 function validateChannel(payload, user) {
-  if (!payload.channelId || user.type !== 'student') return
+  if (!payload.channelId) return
 
   const { getDb } = require('../db/connection')
-  const ch = getDb().prepare('SELECT type FROM channels WHERE id = ?').get(payload.channelId)
-  if (ch?.type === 'annonce') {
+  const ch = getDb().prepare('SELECT type, archived FROM channels WHERE id = ?').get(payload.channelId)
+
+  if (ch?.archived) {
+    throw new ForbiddenError('Ce canal est archive. Vous ne pouvez plus y poster.')
+  }
+
+  if (user.type === 'student' && ch?.type === 'annonce') {
     throw new ForbiddenError('Les etudiants ne peuvent pas poster dans les canaux d\'annonce.')
   }
 }

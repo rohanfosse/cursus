@@ -3,7 +3,7 @@
  * Used by AppSidebar.vue
  */
 import { ref, computed, watch, nextTick, type Ref } from 'vue'
-import { PlusCircle, Pencil, Trash2, VolumeX, Volume2, Lock, Unlock, CheckCheck } from 'lucide-vue-next'
+import { PlusCircle, Pencil, Trash2, VolumeX, Volume2, Lock, Unlock, CheckCheck, Archive } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
 import { useToast } from '@/composables/useToast'
@@ -172,6 +172,14 @@ export function useSidebarActions(
           },
         },
         {
+          label: 'Archiver',
+          icon:  Archive,
+          action: async () => {
+            if (!await confirm(`Archiver le canal « #${ch.name} » ? Il sera masque et en lecture seule.`, 'warning', 'Archiver')) return
+            archiveChannel(ch.id)
+          },
+        },
+        {
           label: 'Supprimer le canal',
           icon:  Trash2,
           danger: true,
@@ -189,6 +197,22 @@ export function useSidebarActions(
     }
 
     ctx.value = { x: e.clientX, y: e.clientY, items }
+  }
+
+  // ── Archivage / restauration ─────────────────────────────────────────────
+  async function archiveChannel(channelId: number) {
+    const res = await api(() => window.api.archiveChannel(channelId), 'channel')
+    if (res === null) return
+    if (appStore.activeChannelId === channelId) appStore.activeChannelId = null
+    await loadTeacherChannels()
+    showToast('Canal archive.', 'success')
+  }
+
+  async function restoreChannel(channelId: number) {
+    const res = await api(() => window.api.restoreChannel(channelId), 'channel')
+    if (res === null) return
+    await loadTeacherChannels()
+    showToast('Canal restaure.', 'success')
   }
 
   // ── Drag & drop ─────────────────────────────────────────────────────────
@@ -253,6 +277,9 @@ export function useSidebarActions(
     ctx,
     openCtxCategory,
     openCtxChannel,
+    // Archive
+    archiveChannel,
+    restoreChannel,
     // Drag & drop
     draggingChannel,
     dragOverCategory,

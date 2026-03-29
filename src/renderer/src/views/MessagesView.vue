@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { computed, watch, ref, nextTick, onMounted, onUnmounted } from 'vue'
-  import { Search, X as XIcon, ClipboardList, BookCheck, FileText, FolderPlus, X as Close, CalendarRange, Users, FolderOpen, Menu, MessageSquare, Paperclip, Image as ImageIcon, ExternalLink } from 'lucide-vue-next'
+  import { Search, X as XIcon, ClipboardList, BookCheck, FileText, FolderPlus, X as Close, CalendarRange, Users, FolderOpen, Menu, MessageSquare, Megaphone, Paperclip, Image as ImageIcon, ExternalLink } from 'lucide-vue-next'
   import { useAppStore }      from '@/stores/app'
   import { useMessagesStore } from '@/stores/messages'
   import { useTravauxStore }  from '@/stores/travaux'
@@ -308,13 +308,13 @@
               id="channel-type-badge"
               class="channel-type-badge channel-type-badge--annonce"
             >
-              Annonce
+              <Megaphone :size="10" /> Annonce
             </span>
             <span
               v-else-if="channelHeader?.type === 'chat'"
               class="channel-type-badge channel-type-badge--chat"
             >
-              Chat
+              <MessageSquare :size="10" /> Chat
             </span>
           </div>
           <span v-if="appStore.activeDmStudentId" class="dm-status">
@@ -366,13 +366,14 @@
         <button
           v-if="!appStore.activeDmStudentId"
           id="btn-members"
-          class="btn-icon header-panel-btn"
+          class="btn-icon header-panel-btn header-member-btn"
           :class="{ active: rightPanel === 'members' }"
           title="Membres du canal"
           aria-label="Afficher les membres"
           @click="togglePanel('members')"
         >
           <Users :size="16" />
+          <span v-if="appStore.activeChannelIsPrivate && appStore.activeChannelMemberCount != null" class="header-member-count">{{ appStore.activeChannelMemberCount }}</span>
         </button>
 
         <!-- Documents du canal (canal uniquement) -->
@@ -619,8 +620,8 @@
 .dm-offline { color: var(--text-muted); }
 
 /* ── Channel type badges ── */
-.channel-type-badge--annonce { background: rgba(231,76,60,.15); color: #e74c3c; }
-.channel-type-badge--chat    { background: rgba(74,144,217,.15); color: var(--accent); }
+.channel-type-badge--annonce { background: rgba(231,76,60,.15); color: #e74c3c; display: inline-flex; align-items: center; gap: 3px; }
+.channel-type-badge--chat    { background: rgba(74,144,217,.15); color: var(--accent); display: inline-flex; align-items: center; gap: 3px; }
 .channel-type-badge--dm      { background: rgba(155,135,245,.12); color: var(--color-cctl); font-size: 10px; }
 .channel-annonce-hint {
   font-size: 11px;
@@ -633,6 +634,23 @@
   color: var(--accent) !important;
   background: var(--accent-subtle);
   border-radius: 6px;
+}
+
+/* ── Badge compteur membres ── */
+.header-member-btn { position: relative; }
+.header-member-count {
+  position: absolute;
+  top: -4px; right: -6px;
+  min-width: 16px; height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
 }
 
 /* ── Transition panel latéral ── */

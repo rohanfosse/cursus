@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { ref, watch, onMounted, computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import { Plus, ChevronDown, FolderOpen, Layers, BookOpen, BarChart2, CalendarDays, Calendar, Pencil, Trash2, UserPlus } from 'lucide-vue-next'
+  import { Plus, ChevronDown, FolderOpen, Layers, BookOpen, BarChart2, CalendarDays, Calendar, Pencil, Trash2, UserPlus, Archive, ArchiveRestore } from 'lucide-vue-next'
   import { useTravauxStore } from '@/stores/travaux'
   import NewProjectModal from '@/components/modals/NewProjectModal.vue'
   import type { ProjectMeta } from '@/components/modals/NewProjectModal.vue'
@@ -21,7 +21,7 @@
   import { useSidebarDm }       from '@/composables/useSidebarDm'
   import { useSidebarProjects } from '@/composables/useSidebarProjects'
   import { useSidebarActions }  from '@/composables/useSidebarActions'
-  import { useSidebarNav }      from '@/composables/useSidebarNav'
+  import { useSidebarNav, channelMemberCount } from '@/composables/useSidebarNav'
 
   const emit = defineEmits<{ navigate: [] }>()
 
@@ -50,6 +50,7 @@
     mutedIds, isMuted, toggleMute,
     renamingChannelId, renamingCategory, renameValue, renameInputEl,
     cancelRename, commitRenameChannel, commitRenameCategory,
+    archiveChannel, restoreChannel,
     draggingChannel, dragOverCategory,
     onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
   } = useSidebarActions(loadTeacherChannels)
@@ -66,6 +67,32 @@
     onProjectCreated, selectProject, dashboardProjectGroups,
     editingProject, getProjectMeta, saveProjectMeta, deleteProject, getProjectColor,
   } = useSidebarProjects(visibleChannels)
+
+  // ── Canaux archives (staff only) ──────────────────────────────────────────
+  const archivedChannels  = ref<import('@/types').Channel[]>([])
+  const archivedCollapsed = ref(true)
+
+  async function loadArchivedChannels() {
+    if (!appStore.isStaff || !appStore.activePromoId) { archivedChannels.value = []; return }
+    try {
+      const res = await window.api.getArchivedChannels(appStore.activePromoId)
+      archivedChannels.value = res?.ok ? res.data : []
+    } catch { archivedChannels.value = [] }
+  }
+
+  function selectArchivedChannel(ch: import('@/types').Channel) {
+    appStore.openChannel(ch.id, ch.promo_id, ch.name, ch.type, ch.description ?? '', true, !!ch.is_private, channelMemberCount(ch))
+    emit('navigate')
+  }
+
+  async function handleRestore(channelId: number) {
+    await restoreChannel(channelId)
+    await loadArchivedChannels()
+  }
+
+  watch(() => appStore.activePromoId, () => loadArchivedChannels())
+  watch(() => route.name, (n) => { if (n === 'messages') loadArchivedChannels() })
+  watch(channels, () => loadArchivedChannels())
 
   // ── Documents sidebar helpers ────────────────────────────────────────────
   const docCategories = computed(() => {
@@ -179,7 +206,7 @@
 
   // ── Réactivité ────────────────────────────────────────────────────────────
   onMounted(() => {
-    load(); loadCustomProjects()
+    load(); loadCustomProjects(); loadArchivedChannels()
     if (route.name === 'devoirs' || route.name === 'dashboard' || route.name === 'documents') loadDbProjects()
   })
 
@@ -187,7 +214,7 @@
     if (n === 'messages' || n === 'dashboard') load()
     if (n === 'devoirs' || n === 'dashboard' || n === 'documents') loadDbProjects()
   })
-  watch(() => modals.createChannel, (open) => { if (!open) load() })
+  watch(() => modals.createChannel, (open) => { if (!open) { load(); loadArchivedChannels() } })
   watch(() => appStore.currentUser?.id, () => load())
   watch(() => appStore.activePromoId, () => { if (route.name === 'devoirs') loadDbProjects() })
 </script>
@@ -494,6 +521,50 @@
           </nav>
         </div>
         </div><!-- /sidebar-scroll-list canaux -->
+
+        <!-- Canaux archives (staff only) -->
+        <template v-if="appStore.isStaff && archivedChannels.length">
+          <div class="sidebar-separator" />
+          <div
+            class="sidebar-section-header sidebar-collapsible-header"
+            role="button"
+            tabindex="0"
+            :aria-expanded="!archivedCollapsed"
+            @click="archivedCollapsed = !archivedCollapsed"
+            @keydown.enter="archivedCollapsed = !archivedCollapsed"
+            @keydown.space.prevent="archivedCollapsed = !archivedCollapsed"
+          >
+            <ChevronDown
+              :size="12"
+              class="sidebar-category-chevron"
+              :class="{ rotated: archivedCollapsed }"
+            />
+            <Archive :size="12" style="opacity:.5" />
+            <span>Canaux archives</span>
+            <span class="sidebar-section-count">{{ archivedChannels.length }}</span>
+          </div>
+
+          <nav v-show="!archivedCollapsed" aria-label="Canaux archives" class="sidebar-scroll-list">
+            <div
+              v-for="ch in archivedChannels"
+              :key="'arch-' + ch.id"
+              class="sidebar-item archived-channel-item"
+              :class="{ active: appStore.activeChannelId === ch.id }"
+              @click="selectArchivedChannel(ch)"
+            >
+              <span class="channel-prefix archived-prefix">#</span>
+              <span class="channel-name archived-name">{{ ch.name }}</span>
+              <button
+                class="archived-restore-btn"
+                title="Restaurer"
+                aria-label="Restaurer le canal"
+                @click.stop="handleRestore(ch.id)"
+              >
+                <ArchiveRestore :size="13" />
+              </button>
+            </div>
+          </nav>
+        </template>
 
         <!-- Messages directs -->
         <template v-if="dmStudents.length">
@@ -1068,6 +1139,40 @@
   gap: 8px;
   padding: 4px 8px !important;
 }
+
+/* ── Canaux archives ── */
+.archived-channel-item {
+  opacity: .55;
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+}
+.archived-channel-item:hover { opacity: .85; }
+.archived-channel-item.active { opacity: 1; }
+.archived-prefix { color: var(--text-muted); }
+.archived-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
+}
+.archived-restore-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+}
+.archived-channel-item:hover .archived-restore-btn { display: flex; }
+.archived-restore-btn:hover { color: var(--accent); background: var(--bg-hover); }
+.archived-restore-btn:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
 
 /* ── Badge rendus par projet ── */
 .project-rendus-badge {

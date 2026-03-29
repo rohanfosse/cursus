@@ -10,7 +10,7 @@ function getPromotions() {
 function getChannels(promoId) {
   return cache.wrap(`channels:${promoId}`, () =>
     getDb().prepare(
-      "SELECT * FROM channels WHERE promo_id = ? ORDER BY COALESCE(category, 'zzz') ASC, type DESC, name ASC"
+      "SELECT * FROM channels WHERE promo_id = ? AND archived = 0 ORDER BY COALESCE(category, 'zzz') ASC, type DESC, name ASC"
     ).all(promoId)
   , 30_000)
 }
@@ -90,8 +90,25 @@ function updateChannelPrivacy(channelId, isPrivate, members) {
   return db.prepare('SELECT * FROM channels WHERE id = ?').get(channelId);
 }
 
+function archiveChannel(id) {
+  getDb().prepare('UPDATE channels SET archived = 1 WHERE id = ?').run(id)
+  cache.invalidate('channels:')
+}
+
+function restoreChannel(id) {
+  getDb().prepare('UPDATE channels SET archived = 0 WHERE id = ?').run(id)
+  cache.invalidate('channels:')
+}
+
+function getArchivedChannels(promoId) {
+  return getDb().prepare(
+    'SELECT * FROM channels WHERE promo_id = ? AND archived = 1 ORDER BY name ASC'
+  ).all(promoId)
+}
+
 module.exports = {
   getPromotions, getChannels, createPromotion, deletePromotion, createChannel,
   renameChannel, deleteChannel, renameCategory, deleteCategory,
   updateChannelMembers, updateChannelCategory, updateChannelPrivacy,
+  archiveChannel, restoreChannel, getArchivedChannels,
 };

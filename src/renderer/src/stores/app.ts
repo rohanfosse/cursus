@@ -24,6 +24,7 @@ export const useAppStore = defineStore('app', () => {
   const activePromoId     = ref<number | null>(null)
   const activeChannelType = ref<'chat' | 'annonce'>('chat')
   const activeChannelName = ref<string>('')
+  const activeChannelArchived    = ref<boolean>(false)
   const activeProject            = ref<string | null>(null)   // filtre projet Devoirs
   const pendingChannelCategory   = ref<string | null>(null)   // pré-remplissage CreateChannelModal
   const rightPanel        = ref<'travaux' | 'profil' | null>(null)
@@ -129,7 +130,7 @@ export const useAppStore = defineStore('app', () => {
   const userRole     = computed(() => (currentUser.value?.type ?? 'student') as import('@/utils/permissions').Role)
   const isSimulating = computed(() => teacherUser.value !== null)
   const isReadonly   = computed(
-    () => activeChannelType.value === 'annonce' && isStudent.value,
+    () => activeChannelArchived.value || (activeChannelType.value === 'annonce' && isStudent.value),
   )
 
   // ── Session ───────────────────────────────────────────────────────────────
@@ -227,6 +228,9 @@ export const useAppStore = defineStore('app', () => {
     activeChannelId.value   = null
     activeDmStudentId.value = null
     activeChannelName.value = ''
+    activeChannelIsPrivate.value = false
+    activeChannelMemberCount.value = null
+    activeChannelArchived.value = false
     activePromoId.value = student.promo_id
   }
 
@@ -237,12 +241,17 @@ export const useAppStore = defineStore('app', () => {
     activeChannelId.value   = null
     activeDmStudentId.value = null
     activeChannelName.value = ''
+    activeChannelIsPrivate.value = false
+    activeChannelMemberCount.value = null
+    activeChannelArchived.value = false
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
   const activeChannelDescription = ref<string>('')
+  const activeChannelIsPrivate   = ref<boolean>(false)
+  const activeChannelMemberCount = ref<number | null>(null)
 
-  function openChannel(id: number, promoId: number, name: string, type: 'chat' | 'annonce' = 'chat', description?: string) {
+  function openChannel(id: number, promoId: number, name: string, type: 'chat' | 'annonce' = 'chat', description?: string, archived = false, isPrivate = false, memberCount: number | null = null) {
     activeChannelId.value   = id
     activeDmStudentId.value = null
     activeDmPeerId.value    = null
@@ -250,6 +259,9 @@ export const useAppStore = defineStore('app', () => {
     activeChannelType.value = type
     activeChannelName.value = name
     activeChannelDescription.value = description || ''
+    activeChannelArchived.value = archived
+    activeChannelIsPrivate.value = isPrivate
+    activeChannelMemberCount.value = memberCount
     markRead(id)
     _saveNavState()
   }
@@ -503,7 +515,7 @@ export const useAppStore = defineStore('app', () => {
   return {
     // état
     isOnline, socketConnected, currentUser, activeChannelId, activeDmStudentId, activeDmPeerId, activePromoId,
-    activeChannelType, activeChannelName, activeChannelDescription, activeProject, pendingChannelCategory, rightPanel, currentTravailId, duplicateDevoirData, pendingDevoirType,
+    activeChannelType, activeChannelName, activeChannelDescription, activeChannelArchived, activeChannelIsPrivate, activeChannelMemberCount, activeProject, pendingChannelCategory, rightPanel, currentTravailId, duplicateDevoirData, pendingDevoirType,
     pendingNoteDepotId, rubricDepotId, unread, mentionChannels, unreadDms, notificationHistory, taChannelIds,
     // calculs
     isStudent, isTeacher, isAdmin, isStaff, userRole, isSimulating, isReadonly,

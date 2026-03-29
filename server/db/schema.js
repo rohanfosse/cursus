@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 46;
+const CURRENT_VERSION = 47;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -24,7 +24,8 @@ function initSchema() {
       type        TEXT NOT NULL DEFAULT 'chat' CHECK(type IN ('chat', 'annonce')),
       is_private  INTEGER NOT NULL DEFAULT 0,
       members     TEXT DEFAULT NULL,
-      category    TEXT DEFAULT NULL
+      category    TEXT DEFAULT NULL,
+      archived    INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS students (
@@ -985,6 +986,11 @@ function runMigrations(db) {
       db.exec('CREATE INDEX IF NOT EXISTS idx_docs_created ON channel_documents(created_at)');
       db.exec('CREATE INDEX IF NOT EXISTS idx_docs_travail ON channel_documents(travail_id)');
       db.exec('CREATE INDEX IF NOT EXISTS idx_docs_type ON channel_documents(type)');
+    },
+
+    // v47 : archivage des canaux (#80)
+    (db) => {
+      tryAlter(db, 'ALTER TABLE channels ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
     },
   ];
 

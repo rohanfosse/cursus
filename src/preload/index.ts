@@ -265,6 +265,9 @@ contextBridge.exposeInMainWorld('api', {
   createChannel:  (payload: unknown) => post('/api/promotions/channels', payload),
   renameChannel:  (id: number, name: string) => patch(`/api/promotions/channels/${id}/name`, { name }),
   deleteChannel:  (id: number)       => del(`/api/promotions/channels/${id}`),
+  archiveChannel: (id: number)       => post(`/api/promotions/channels/${id}/archive`, {}),
+  restoreChannel: (id: number)       => post(`/api/promotions/channels/${id}/restore`, {}),
+  getArchivedChannels: (promoId: number) => get(`/api/promotions/${promoId}/channels/archived`),
   renameCategory: (promoId: number, old: string, next: string) =>
     post('/api/promotions/categories/rename', { promoId, old, next }),
   deleteCategory: (promoId: number, category: string) =>

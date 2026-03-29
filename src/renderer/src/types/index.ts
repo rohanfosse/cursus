@@ -55,6 +55,7 @@ export interface Channel {
   is_private: boolean | 0 | 1
   members?: number[]
   category?: string | null
+  archived?: 0 | 1 | boolean
 }
 
 export interface Message {

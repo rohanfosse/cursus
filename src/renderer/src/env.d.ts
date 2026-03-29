@@ -84,6 +84,9 @@ declare global {
       createChannel(payload: object): Promise<IpcResponse<{ id: number }>>
       renameChannel(id: number, name: string): Promise<IpcResponse<null>>
       deleteChannel(id: number): Promise<IpcResponse<null>>
+      archiveChannel(id: number): Promise<IpcResponse<null>>
+      restoreChannel(id: number): Promise<IpcResponse<null>>
+      getArchivedChannels(promoId: number): Promise<IpcResponse<Channel[]>>
       renameCategory(promoId: number, oldCategory: string, newCategory: string): Promise<IpcResponse<null>>
       deleteCategory(promoId: number, category: string): Promise<IpcResponse<null>>
       updateChannelMembers(payload: object): Promise<IpcResponse<null>>

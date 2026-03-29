@@ -48,6 +48,7 @@ function autoResize() {
 
 // ── Placeholder ───────────────────────────────────────────────────────────
 const placeholder = computed(() => {
+  if (appStore.activeChannelArchived) return 'Canal archive - lecture seule'
   if (appStore.isReadonly) return 'Canal d\'annonces - lecture seule'
   if (appStore.activeDmStudentId) return `Message à ${appStore.activeChannelName}`
   if (appStore.activeChannelName) return `Message dans #${appStore.activeChannelName}`

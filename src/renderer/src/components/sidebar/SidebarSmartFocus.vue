@@ -7,6 +7,7 @@ import { Flame } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useRouter, useRoute } from 'vue-router'
 import type { Channel } from '@/types'
+import { channelMemberCount } from '@/composables/useSidebarNav'
 
 interface FocusItem {
   channel: Channel
@@ -21,7 +22,7 @@ const router   = useRouter()
 const route    = useRoute()
 
 function select(ch: Channel) {
-  appStore.openChannel(ch.id, ch.promo_id, ch.name, ch.type, ch.description ?? '')
+  appStore.openChannel(ch.id, ch.promo_id, ch.name, ch.type, ch.description ?? '', false, !!ch.is_private, channelMemberCount(ch))
   if (route.name !== 'messages') router.push('/messages')
 }
 </script>

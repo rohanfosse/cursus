@@ -66,6 +66,11 @@ router.post('/categories/delete', requireTeacher, validate(categoryDeleteSchema)
   return queries.deleteCategory(req.body.promoId, req.body.category)
 }))
 
+// ── Archivage canaux ──────────────────────────────────────────────────────────
+router.post('/channels/:id/archive',  requireTeacher, wrap((req) => queries.archiveChannel(Number(req.params.id))))
+router.post('/channels/:id/restore',  requireTeacher, wrap((req) => queries.restoreChannel(Number(req.params.id))))
+router.get('/:promoId/channels/archived', requirePromo(promoFromParam), wrap((req) => queries.getArchivedChannels(Number(req.params.promoId))))
+
 // ── Canaux (CRUD) ─────────────────────────────────────────────────────────────
 router.post('/channels',             requireTeacher, validate(createChannelSchema), wrap((req) => queries.createChannel(req.body)))
 router.patch('/channels/:id/name',   requireTeacher, wrap((req) => queries.renameChannel(Number(req.params.id), req.body.name)))
