@@ -58,7 +58,7 @@ describe('GET /api/admin/users', () => {
       .set('Authorization', `Bearer ${teacherToken}`)
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
-    expect(res.body.data).toHaveProperty('items')
+    expect(res.body.data).toHaveProperty('users')
     expect(res.body.data).toHaveProperty('total')
     expect(res.body.data.total).toBeGreaterThanOrEqual(2)
   })
@@ -77,7 +77,7 @@ describe('GET /api/admin/users', () => {
       .set('Authorization', `Bearer ${teacherToken}`)
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
-    const names = res.body.data.items.map(u => u.name)
+    const names = res.body.data.users.map(u => u.name)
     expect(names.some(n => n.includes('Marie'))).toBe(true)
   })
 
@@ -94,7 +94,7 @@ describe('GET /api/admin/users', () => {
       .get('/api/admin/users?page=1&limit=1')
       .set('Authorization', `Bearer ${teacherToken}`)
     expect(res.status).toBe(200)
-    expect(res.body.data.items.length).toBeLessThanOrEqual(1)
+    expect(res.body.data.users.length).toBeLessThanOrEqual(1)
   })
 })
 

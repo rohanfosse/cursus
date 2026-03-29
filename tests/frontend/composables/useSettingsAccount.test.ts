@@ -68,6 +68,7 @@ const updateTeacherPhotoMock = vi.fn()
 
 import { useSettingsAccount } from '@/composables/useSettingsAccount'
 import { useAppStore } from '@/stores/app'
+import { Shield, BookOpen, GraduationCap, User } from 'lucide-vue-next'
 
 describe('useSettingsAccount', () => {
   const emitMock = vi.fn()
@@ -197,26 +198,25 @@ describe('useSettingsAccount', () => {
     setupUser('admin')
     const { roleIcon } = useSettingsAccount(emitMock)
     expect(roleIcon.value).toBeDefined()
-    // Shield is the lucide component for admin
-    expect(roleIcon.value.name).toBe('Shield')
+    expect(roleIcon.value).toBe(Shield)
   })
 
   it('roleIcon returns BookOpen for teacher', () => {
     setupUser('teacher')
     const { roleIcon } = useSettingsAccount(emitMock)
-    expect(roleIcon.value.name).toBe('BookOpen')
+    expect(roleIcon.value).toBe(BookOpen)
   })
 
   it('roleIcon returns GraduationCap for ta', () => {
     setupUser('ta')
     const { roleIcon } = useSettingsAccount(emitMock)
-    expect(roleIcon.value.name).toBe('GraduationCap')
+    expect(roleIcon.value).toBe(GraduationCap)
   })
 
   it('roleIcon returns User for student', () => {
     setupUser('student')
     const { roleIcon } = useSettingsAccount(emitMock)
-    expect(roleIcon.value.name).toBe('User')
+    expect(roleIcon.value).toBe(User)
   })
 
   // ── Role label edge cases ──────────────────────────────────────────────────

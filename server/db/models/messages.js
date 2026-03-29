@@ -384,5 +384,5 @@ module.exports = {
   searchMessages, searchDmMessages, searchAllMessages, sendMessage,
   getPinnedMessages, togglePinMessage, updateReactions,
   deleteMessage, editMessage, getRecentDmContacts,
-  getDmFiles,
+  getDmFiles, resolveUserName,
 };

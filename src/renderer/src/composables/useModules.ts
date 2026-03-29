@@ -51,6 +51,7 @@ export function useModules() {
   /** Force un rechargement (utile apres modification admin) */
   function resetLoaded() {
     loaded = false
+    state.value = { kanban: true, frise: true, rex: true, live: true, signatures: true }
   }
 
   return { modules: readonly(state), MODULES, MODULE_LABELS, isEnabled, setEnabled, loadModules, resetLoaded }

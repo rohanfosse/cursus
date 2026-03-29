@@ -106,7 +106,9 @@ describe('GET /api/assignments/teacher-schedule', () => {
       .set('Authorization', `Bearer ${teacherToken}`)
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
-    expect(Array.isArray(res.body.data)).toBe(true)
+    expect(res.body.data).toHaveProperty('aNoter')
+    expect(res.body.data).toHaveProperty('brouillons')
+    expect(res.body.data).toHaveProperty('jalons')
   })
 
   it('student gets 403', async () => {
@@ -157,6 +159,7 @@ describe('POST /api/assignments', () => {
       .send({
         title: 'Nouveau devoir',
         channelId: 1,
+        promoId: 1,
         type: 'livrable',
         deadline: '2026-12-31',
       })
@@ -171,6 +174,7 @@ describe('POST /api/assignments', () => {
       .send({
         title: 'Devoir etudiant',
         channelId: 1,
+        promoId: 1,
         type: 'livrable',
         deadline: '2026-12-31',
       })
@@ -217,6 +221,7 @@ describe('POST /api/assignments/publish', () => {
       .send({
         title: 'Devoir a publier',
         channelId: 1,
+        promoId: 1,
         type: 'livrable',
         deadline: '2026-12-31',
         published: 0,
