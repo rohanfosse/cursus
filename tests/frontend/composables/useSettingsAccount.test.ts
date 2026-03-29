@@ -226,9 +226,9 @@ describe('useSettingsAccount', () => {
 
   // ── Role label edge cases ──────────────────────────────────────────────────
 
-  it('roleLabel defaults to Etudiant when no user is set', () => {
-    // No user set — currentUser is null
+  it('roleLabel returns empty string when no user is set', () => {
+    // No user set — currentUser is null, type is undefined
     const { roleLabel } = useSettingsAccount(emitMock)
-    expect(roleLabel.value).toBe('Étudiant')
+    expect(roleLabel.value).toBe('')
   })
 })
