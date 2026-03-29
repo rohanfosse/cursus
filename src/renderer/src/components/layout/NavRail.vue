@@ -39,7 +39,7 @@
   })
 
   function openAdmin() {
-    window.open('https://admin.cursus.school', '_blank')
+    window.open('https://app.cursus.school/admin/', '_blank')
   }
 
   // ── Centre de notifications ─────────────────────────────────────────────────
@@ -280,9 +280,9 @@
     <!-- Espaceur -->
     <div style="flex:1" />
 
-    <!-- ── Admin (prof uniquement) ── -->
+    <!-- ── Admin (admin uniquement) ── -->
     <button
-      v-if="appStore.isTeacher"
+      v-if="appStore.isAdmin"
       class="nav-btn nav-admin-btn"
       title="Console d'administration"
       aria-label="Console d'administration"
