@@ -1,7 +1,21 @@
 const Database = require('better-sqlite3');
 const path     = require('path');
+const fs       = require('fs');
 
 let db;
+
+/** Renomme l'ancien fichier cesi-classroom.db en cursus.db si besoin */
+function migrateOldDbFile(newPath) {
+  const dir = path.dirname(newPath)
+  const oldPath = path.join(dir, 'cesi-classroom.db')
+  if (!fs.existsSync(newPath) && fs.existsSync(oldPath)) {
+    fs.renameSync(oldPath, newPath)
+    // Migrer aussi les fichiers WAL/SHM associés
+    for (const ext of ['-wal', '-shm']) {
+      if (fs.existsSync(oldPath + ext)) fs.renameSync(oldPath + ext, newPath + ext)
+    }
+  }
+}
 
 function resolveDbPath() {
   // 1. Variable d'environnement (mode serveur Hostinger)
@@ -19,6 +33,7 @@ function resolveDbPath() {
 function getDb() {
   if (!db) {
     const DB_PATH = resolveDbPath();
+    migrateOldDbFile(DB_PATH);
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
