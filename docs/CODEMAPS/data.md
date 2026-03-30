@@ -1,4 +1,4 @@
-<!-- Generated: 2026-03-29 | Cursus v2.0.4 | Token estimate: ~450 -->
+<!-- Generated: 2026-03-30 | Cursus v2.4.0 | Token estimate: ~450 -->
 
 # Database Schema (SQLite v47)
 

@@ -1,4 +1,4 @@
-<!-- Generated: 2026-03-29 | Cursus v2.0.4 | Token estimate: ~400 -->
+<!-- Generated: 2026-03-30 | Cursus v2.4.0 | Token estimate: ~450 -->
 
 # Frontend Views, Stores & Composables
 
@@ -56,8 +56,13 @@
 
 ### Assignments
 - `useDevoirsStudent.ts` — Student view: filter, sort, submit
-- `useDevoirsTeacher.ts` — Teacher view: grading, feedback, rubrics
+- `useDevoirsTeacher.ts` — Teacher view: grading, feedback, rubrics, gantt, rendus
 - `useDevoirContextMenu.ts` — Travail context menu (edit, delete, publish)
+
+### Devoir Modal Sub-Components (v2.4.0 — vue unique scrollable)
+- `modals/devoir/DevoirMetaSection.vue` — Status, badges, deadline, progress, toggle requires_submission
+- `modals/devoir/DevoirRendusList.vue` — Unified submissions list (submitted + pending), grade distribution
+- `modals/devoir/DevoirReminderBuilder.vue` — Modular reminder message composer
 
 ### Documents
 - `useDocumentsData.ts` — Fetch + cache documents
