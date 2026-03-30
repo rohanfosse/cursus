@@ -21,7 +21,7 @@ export default defineConfig({
           'socket':    ['socket.io-client'],
           'icons':     ['lucide-vue-next'],
           'highlight': ['highlight.js'],
-          'office':    ['mammoth', 'xlsx'],
+          'office':    ['mammoth'],
           'markdown':  ['marked'],
         },
       },
