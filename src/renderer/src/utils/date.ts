@@ -31,8 +31,7 @@ export function formatDateSeparator(isoStr: string): string {
   })
 }
 
-export function isoForDatetimeLocal(): string {
-  const d = new Date()
+export function isoForDatetimeLocal(d: Date = new Date()): string {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 }
 

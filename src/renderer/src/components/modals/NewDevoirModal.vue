@@ -13,6 +13,7 @@
   import { useToast }        from '@/composables/useToast'
   import { parseCategoryIcon } from '@/utils/categoryIcon'
   import Modal from '@/components/ui/Modal.vue'
+  import DateTimePicker from '@/components/ui/DateTimePicker.vue'
   import { isoForDatetimeLocal } from '@/utils/date'
   import type { Component } from 'vue'
   import { COLORS } from '@/constants'
@@ -57,6 +58,12 @@
   const channelId   = ref<number | null>(null)
   const channels    = ref<{ id: number; name: string }[]>([])
   const creating    = ref(false)
+
+  const durationDays = computed(() => {
+    if (!startDate.value || !deadline.value) return null
+    const diff = new Date(deadline.value).getTime() - new Date(startDate.value).getTime()
+    return diff > 0 ? Math.ceil(diff / 86_400_000) : null
+  })
   const showAdvanced = ref(false)
 
   // Champs structurés (événements)
@@ -216,8 +223,7 @@
       <template v-if="isEventType">
         <div class="nd-row">
           <div class="nd-field nd-flex1">
-            <label class="nd-label"><Clock :size="12" /> Date de l'épreuve</label>
-            <input v-model="deadline" type="datetime-local" class="nd-input" required />
+            <DateTimePicker v-model="deadline" label="Date de l'epreuve" required :presets="false" />
           </div>
           <div class="nd-field nd-flex1">
             <label class="nd-label">Session</label>
@@ -279,13 +285,15 @@
 
         <div class="nd-row">
           <div class="nd-field nd-flex1">
-            <label class="nd-label"><Clock :size="12" /> Ouverture</label>
-            <input v-model="startDate" type="datetime-local" class="nd-input" />
+            <DateTimePicker v-model="startDate" label="Ouverture" :presets="false" />
           </div>
           <div class="nd-field nd-flex1">
-            <label class="nd-label"><Clock :size="12" /> Date limite</label>
-            <input v-model="deadline" type="datetime-local" class="nd-input" required />
+            <DateTimePicker v-model="deadline" label="Date limite" required />
           </div>
+        </div>
+        <div v-if="durationDays" class="nd-duration-bar">
+          <div class="nd-duration-fill" />
+          <span class="nd-duration-label">{{ durationDays }} jours</span>
         </div>
       </template>
 
@@ -383,6 +391,19 @@
 .nd-textarea { resize: vertical; min-height: 60px; }
 .nd-row { display: flex; gap: 10px; }
 .nd-flex1 { flex: 1; }
+.nd-duration-bar {
+  position: relative; height: 6px; border-radius: 3px;
+  background: var(--bg-active); margin: -4px 0 4px; overflow: hidden;
+}
+.nd-duration-fill {
+  position: absolute; inset: 0; border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), rgba(74,144,217,.3));
+}
+.nd-duration-label {
+  position: absolute; top: -16px; right: 0;
+  font-size: 10px; font-weight: 600; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── Options (checkboxes) ──────────────────────────────────────────────── */
 .nd-options { display: flex; gap: 16px; flex-wrap: wrap; }
