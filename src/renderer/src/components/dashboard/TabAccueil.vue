@@ -17,6 +17,7 @@ import WidgetQuickLinks from './student-widgets/WidgetQuickLinks.vue'
 import WidgetDmFiles from './teacher-widgets/WidgetDmFiles.vue'
 import WidgetWeekCal from './teacher-widgets/WidgetWeekCal.vue'
 import WidgetSignatures from './teacher-widgets/WidgetSignatures.vue'
+import MultiPromoCard from './MultiPromoCard.vue'
 import { useTeacherBento } from '@/composables/useTeacherBento'
 
 const bento = useTeacherBento()
@@ -59,6 +60,9 @@ const props = defineProps<{
   // Projects & rendus
   projectCards: ProjectCard[]
   recentRendus: Depot[]
+
+  // Multi-promo
+  promos: import('@/types').Promotion[]
 }>()
 
 const emit = defineEmits<{
@@ -68,6 +72,7 @@ const emit = defineEmits<{
   publishDraft: [id: number]
   switchToFrise: []
   openActiveDevoir: []
+  openDevoirCrossPromo: [travailId: number, promoId: number, channelId: number, channelName: string]
 }>()
 
 // ── Focus tile logic ──────────────────────────────────────────────────────────
@@ -234,6 +239,14 @@ function onOptDragEnd() { bento.reorderOptional(draggableOpt.value) }
 
 <template>
   <div class="bento-grid" :class="{ 'bento-grid--editing': editMode }">
+
+    <!-- ═══ MULTI-PROMO (full width, above bento) ═══ -->
+    <MultiPromoCard
+      v-if="promos.length >= 2"
+      :promos="promos"
+      style="grid-column: 1 / -1"
+      @open-devoir="(tid, pid, cid, cname) => emit('openDevoirCrossPromo', tid, pid, cid, cname)"
+    />
 
     <!-- ═══ FOCUS TILE (2x2) ═══ -->
     <div v-if="bento.isVisible('focus')" class="dashboard-card bento-tile bento-focus" :class="focusBgClass">

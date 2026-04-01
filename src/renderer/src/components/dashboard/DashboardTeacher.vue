@@ -163,6 +163,7 @@ const emit = defineEmits<{
   navigateMessages: []
   setFriseZoom: [days: number]
   'update:analyticsRange': [range: '7d' | '30d' | 'all']
+  openDevoirCrossPromo: [travailId: number, promoId: number, channelId: number, channelName: string]
 }>()
 
 type DashTabType = 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live' | 'rex' | 'suivi' | 'engagement'
@@ -291,6 +292,8 @@ function setTab(tab: DashTabType) {
       :forgotten-drafts="forgottenDrafts"
       :project-cards="projectCards"
       :recent-rendus="recentRendus"
+      :promos="promos"
+      @open-devoir-cross-promo="(tid, pid, cid, cname) => emit('openDevoirCrossPromo', tid, pid, cid, cname)"
       @go-to-project="key => emit('goToProject', key)"
       @open-new-devoir="emit('openNewDevoir')"
       @open-dm-from-dashboard="name => emit('openDmFromDashboard', name)"

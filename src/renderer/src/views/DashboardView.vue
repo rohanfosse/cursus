@@ -238,6 +238,7 @@ onUnmounted(() => {
       @open-intervenants="modals.intervenants = true"
       @open-import-students="(pid) => { appStore.activePromoId = pid; modals.importStudents = true }"
       @open-gestion-devoir="(id) => { appStore.currentTravailId = id; modals.gestionDevoir = true }"
+      @open-devoir-cross-promo="(tid, pid, cid, cname) => { appStore.activePromoId = pid; appStore.currentTravailId = tid; modals.gestionDevoir = true }"
       @navigate-devoirs="router.push('/devoirs')"
       @navigate-messages="router.push('/messages')"
       @set-frise-zoom="setFriseZoom"
