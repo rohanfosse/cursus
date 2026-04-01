@@ -16,7 +16,7 @@ function setDensity(d: string) {
   msgSpacing.value = map[d] ?? 'normal'
 }
 
-const fontSizePreview: Record<string, string> = { small: '13px', default: '14.5px', large: '16px' }
+const fontSizePreview: Record<string, string> = { small: '13px', default: '14px', large: '16px' }
 </script>
 
 <template>

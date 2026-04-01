@@ -59,7 +59,7 @@ export function useSettingsAppearance() {
 
   watch(fontSize, (v) => {
     setPref('fontSize', v as 'small' | 'default' | 'large')
-    const sizes: Record<string, string> = { small: '13px', default: '14.5px', large: '16px' }
+    const sizes: Record<string, string> = { small: '13px', default: '14px', large: '16px' }
     document.documentElement.style.setProperty('--font-size-base', sizes[v])
   })
 

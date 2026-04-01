@@ -245,7 +245,7 @@ button { font-family: var(--font); }
 }
 
 .msg-text {
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.6;
   color: var(--text-primary);
   word-break: break-word;
