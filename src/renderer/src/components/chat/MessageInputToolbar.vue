@@ -1,7 +1,5 @@
-/**
- * Barre de formatage + actions du MessageInput.
- */
 <script setup lang="ts">
+  // Barre de formatage + actions du MessageInput
   import { ref } from 'vue'
   import {
     Send, Paperclip, Loader2,

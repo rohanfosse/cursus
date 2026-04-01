@@ -1,8 +1,5 @@
-/**
- * Widget multi-promo : affiche les metriques cles de chaque promo cote a cote.
- * Visible uniquement si le prof a 2+ promos.
- */
 <script setup lang="ts">
+  // Widget multi-promo : metriques par promo cote a cote (visible si 2+ promos)
   import { onMounted, toRef } from 'vue'
   import { Clock, AlertTriangle, BarChart3, ChevronRight } from 'lucide-vue-next'
   import { useMultiPromo, type PromoMetrics, type GanttRow, type RenduRow } from '@/composables/useMultiPromo'

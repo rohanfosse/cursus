@@ -1,8 +1,5 @@
-/**
- * Section projets/categories de la sidebar (vue Documents).
- * Affiche les projets comme filtres + sous-categories.
- */
 <script setup lang="ts">
+  // Section projets/categories sidebar (vue Documents)
   import { FolderOpen } from 'lucide-vue-next'
   import { useAppStore } from '@/stores/app'
   import { useDocumentsStore } from '@/stores/documents'

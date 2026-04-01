@@ -1,8 +1,5 @@
-/**
- * ErrorBoundary — capture les erreurs Vue dans ses enfants et affiche un fallback.
- * Usage : <ErrorBoundary label="Dashboard"><DashboardContent /></ErrorBoundary>
- */
 <script setup lang="ts">
+  // ErrorBoundary -- capture les erreurs Vue dans ses enfants et affiche un fallback.
   import { ref, onErrorCaptured } from 'vue'
   import { AlertTriangle, RotateCcw } from 'lucide-vue-next'
 

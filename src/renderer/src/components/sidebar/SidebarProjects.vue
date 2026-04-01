@@ -1,8 +1,5 @@
-/**
- * Section projets de la sidebar (vue Devoirs).
- * Affiche la liste des projets avec barre de progression + context menu.
- */
 <script setup lang="ts">
+  // Section projets sidebar (vue Devoirs) : liste projets + barre progression
   import { Layers, Plus } from 'lucide-vue-next'
   import { useAppStore } from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'

@@ -1,7 +1,5 @@
-/**
- * Section Messages Directs de la sidebar.
- */
 <script setup lang="ts">
+  // Section Messages Directs de la sidebar
   import { ChevronDown, Plus, UserPlus } from 'lucide-vue-next'
   import { useAppStore } from '@/stores/app'
   import { avatarColor } from '@/utils/format'
