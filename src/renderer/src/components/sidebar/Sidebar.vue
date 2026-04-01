@@ -17,6 +17,7 @@
   import SidebarDashboard   from './SidebarDashboard.vue'
   import SidebarProjects    from './SidebarProjects.vue'
   import SidebarDocProjects from './SidebarDocProjects.vue'
+  import SidebarDmList      from './SidebarDmList.vue'
   import { avatarColor }  from '@/utils/format'
 
   import { useSidebarData }     from '@/composables/useSidebarData'
@@ -468,126 +469,25 @@
           </nav>
         </template>
 
-        <!-- Messages directs -->
-        <template v-if="dmStudents.length">
-          <div class="sidebar-separator" />
-          <div
-            class="sidebar-section-header sidebar-collapsible-header"
-            role="button"
-            tabindex="0"
-            :aria-expanded="!dmCollapsed"
-            aria-controls="sidebar-dm-list"
-            @click="dmCollapsed = !dmCollapsed"
-            @keydown.enter="dmCollapsed = !dmCollapsed"
-            @keydown.space.prevent="dmCollapsed = !dmCollapsed"
-          >
-            <ChevronDown
-              :size="12"
-              class="sidebar-category-chevron"
-              :class="{ rotated: dmCollapsed }"
-            />
-            <span>Messages directs</span>
-            <!-- Bouton "+" pour les profs : affiche tous les etudiants -->
-            <button
-              v-if="appStore.isStaff"
-              class="dm-toggle-btn"
-              style="margin-left:auto"
-              :title="showAllDmStudents ? 'Masquer' : 'Nouvelle conversation'"
-              aria-label="Nouvelle conversation"
-              @click.stop="showAllDmStudents = !showAllDmStudents"
-            >
-              <Plus :size="14" />
-            </button>
-            <!-- Bouton "+" pour les etudiants : recherche de camarade -->
-            <button
-              v-if="appStore.isStudent"
-              class="dm-toggle-btn"
-              style="margin-left:auto"
-              :title="showNewDmSearch ? 'Fermer' : 'Nouveau message'"
-              aria-label="Nouveau message"
-              @click.stop="toggleNewDmSearch"
-            >
-              <UserPlus :size="14" />
-            </button>
-          </div>
-
-          <!-- Recherche nouveau DM (etudiant-etudiant) -->
-          <div v-if="showNewDmSearch && appStore.isStudent" class="dm-search">
-            <input
-              v-model="newDmQuery"
-              class="dm-search-input"
-              placeholder="Rechercher un camarade..."
-              aria-label="Rechercher un camarade"
-            />
-            <button
-              v-for="s in newDmFilteredStudents"
-              :key="'search-' + s.id"
-              class="sidebar-item dm-search-result"
-              @click="startNewDm(s)"
-            >
-              <span class="dm-avatar" :style="{ background: avatarColor(s.name) }">{{ s.avatar_initials }}</span>
-              <span class="channel-name">{{ s.name }}</span>
-            </button>
-            <div v-if="newDmQuery.trim() && !newDmFilteredStudents.length" class="dm-empty">
-              Aucun resultat
-            </div>
-          </div>
-
-          <!-- Conversations récentes + liste complète -->
-          <div id="sidebar-dm-list" v-show="!dmCollapsed" class="sidebar-scroll-list">
-            <nav aria-label="Messages directs">
-              <button
-                v-for="s in dmContactsToShow"
-                :key="s.id"
-                class="sidebar-item dm-item"
-                :class="{
-                  active:    appStore.activeDmStudentId === s.id || appStore.activeDmPeerId === s.id,
-                  'dm-has-unread': !!appStore.unreadDms[s.name],
-                }"
-                @click="selectDm(s)"
-                @contextmenu.prevent="openDmContextMenu($event, s)"
-              >
-                <span class="dm-avatar-wrap">
-                  <span class="dm-avatar" :class="{ 'dm-avatar-teacher': s.id < 0 }" :style="{ background: s.id < 0 ? 'var(--accent)' : avatarColor(s.name) }">{{ s.avatar_initials }}</span>
-                  <span v-if="appStore.isUserOnline(s.name)" class="presence-dot presence-online" title="En ligne"></span>
-                  <span v-else class="presence-dot presence-offline" title="Hors ligne"></span>
-                </span>
-                <span class="dm-info">
-                  <span class="channel-name">{{ s.name }} <span v-if="appStore.isDmMuted(s.name)" class="dm-muted-icon" title="Notifications d\u00e9sactiv\u00e9es">\uD83D\uDD07</span></span>
-                  <span v-if="getDmPreview(s.name)" class="dm-preview">{{ getDmPreview(s.name) }}</span>
-                </span>
-                <span
-                  v-if="appStore.unreadDms[s.name]"
-                  class="dm-unread-badge"
-                >
-                  {{ (appStore.unreadDms[s.name] as number) > 9 ? '9+' : appStore.unreadDms[s.name] }}
-                </span>
-              </button>
-
-              <!-- Aucune conversation récente -->
-              <div v-if="!dmContactsToShow.length && !showAllDmStudents" class="dm-empty">
-                Aucune conversation
-              </div>
-            </nav>
-
-            <!-- Liste complète (toggle) -->
-            <template v-if="showAllDmStudents">
-              <div class="dm-all-header">Tous les étudiants</div>
-              <nav aria-label="Tous les étudiants">
-                <button
-                  v-for="s in dmStudents"
-                  :key="'all-' + s.id"
-                  class="sidebar-item"
-                  :class="{ active: appStore.activeDmStudentId === s.id }"
-                  @click="selectDm(s); showAllDmStudents = false"
-                >
-                  <span class="channel-prefix">@</span>
-                  <span class="channel-name">{{ s.name }}</span>
-                </button>
-              </nav>
-            </template>
-          </div>
-        </template>
+        <!-- Messages directs (composant extrait) -->
+        <SidebarDmList
+          v-if="dmStudents.length"
+          :dm-collapsed="dmCollapsed"
+          :dm-contacts-to-show="dmContactsToShow"
+          :dm-students="dmStudents"
+          :show-all-dm-students="showAllDmStudents"
+          :show-new-dm-search="showNewDmSearch"
+          :new-dm-query="newDmQuery"
+          :new-dm-filtered-students="newDmFilteredStudents"
+          :get-dm-preview="getDmPreview"
+          @update:dm-collapsed="dmCollapsed = $event"
+          @update:show-all-dm-students="showAllDmStudents = $event"
+          @update:new-dm-query="newDmQuery = $event"
+          @toggle-new-dm-search="toggleNewDmSearch"
+          @select-dm="selectDm"
+          @open-dm-context-menu="openDmContextMenu"
+          @start-new-dm="startNewDm"
+        />
       </template>
     </div>
   </div>

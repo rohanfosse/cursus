@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Send, Paperclip, Loader2, X as XIcon, Reply, Bold, Italic, Code, SquareCode, Strikethrough, Quote, List, ListOrdered, Smile, Eye, EyeOff, Pen } from 'lucide-vue-next'
+import { Loader2, X as XIcon, Reply, Pen } from 'lucide-vue-next'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
 import { usePrefs }         from '@/composables/usePrefs'
@@ -18,6 +18,7 @@ const CMD_ICONS: Record<string, object> = {
 import { useMsgAttachment }   from '@/composables/useMsgAttachment'
 import { useMsgSend }         from '@/composables/useMsgSend'
 import { useMsgFormatting }   from '@/composables/useMsgFormatting'
+import MessageInputToolbar   from './MessageInputToolbar.vue'
 import { useModules }         from '@/composables/useModules'
 import { ROLE_LABELS }        from '@/constants'
 import type { RefChannel, RefDevoir, RefDoc } from '@/composables/useMsgAutocomplete'
@@ -360,124 +361,31 @@ function onKeydown(e: KeyboardEvent) {
           <div class="msg-upload-fill" :style="{ width: uploadProgress + '%' }" />
         </div>
 
-        <!-- Barre d'actions bas -->
-        <div class="mi-actions-row">
-          <!-- Boutons de formatage -->
-          <div class="mi-fmt-group" role="toolbar" aria-label="Mise en forme">
-            <button class="mi-fmt-btn" title="Gras (Ctrl+B)" aria-label="Gras" @mousedown.prevent="fmtWrap('**', '**')">
-              <Bold :size="13" />
-            </button>
-            <button class="mi-fmt-btn" title="Italique (Ctrl+I)" aria-label="Italique" @mousedown.prevent="fmtWrap('*', '*')">
-              <Italic :size="13" />
-            </button>
-            <button class="mi-fmt-btn" title="Code inline" aria-label="Code inline" @mousedown.prevent="fmtWrap('`', '`')">
-              <Code :size="13" />
-            </button>
-            <button class="mi-fmt-btn" title="Bloc de code (Ctrl+Shift+C)" aria-label="Bloc de code" @mousedown.prevent="fmtInsertBlock">
-              <SquareCode :size="13" />
-            </button>
-            <button class="mi-fmt-btn" title="Barré (Ctrl+Shift+X)" aria-label="Barré" @mousedown.prevent="fmtWrap('~~', '~~')">
-              <Strikethrough :size="13" />
-            </button>
-
-            <div class="mi-fmt-divider" />
-
-            <button class="mi-fmt-btn" title="Citation (Ctrl+Shift+.)" aria-label="Citation" @mousedown.prevent="fmtLinePrefix('> ')">
-              <Quote :size="13" />
-            </button>
-            <button class="mi-fmt-btn" title="Liste à puces" aria-label="Liste à puces" @mousedown.prevent="fmtLinePrefix('- ')">
-              <List :size="13" />
-            </button>
-            <button class="mi-fmt-btn" title="Liste numérotée" aria-label="Liste numérotée" @mousedown.prevent="fmtLinePrefix('1. ')">
-              <ListOrdered :size="13" />
-            </button>
-
-            <div class="mi-fmt-divider" />
-
-            <!-- Mention rapide -->
-            <button
-              class="mi-fmt-btn mi-fmt-mention"
-              title="Mentionner quelqu'un"
-              aria-label="Mentionner"
-              @mousedown.prevent="triggerMention"
-            >@</button>
-            <button
-              class="mi-fmt-btn mi-fmt-mention"
-              title="Référencer un canal"
-              aria-label="Canal"
-              @mousedown.prevent="triggerChannel"
-            >#</button>
-            <button
-              class="mi-fmt-btn mi-fmt-mention"
-              title="Référencer un devoir"
-              aria-label="Devoir"
-              @mousedown.prevent="triggerDevoir"
-            >\</button>
-          </div>
-
-          <!-- Actions droite -->
-          <div class="mi-actions-right">
-            <!-- Emoji picker inline -->
-            <div class="mi-emoji-wrapper">
-              <button
-                class="mi-icon-btn"
-                title="Insérer un emoji"
-                aria-label="Emoji"
-                @click="showEmojiPicker = !showEmojiPicker"
-              >
-                <Smile :size="14" />
-              </button>
-              <div v-if="showEmojiPicker" class="mi-emoji-panel">
-                <button
-                  v-for="e in ['😊','😂','🤣','😍','🤔','😮','😢','👍','👏','🔥','❤️','✅','🎉','💯','🙏','👋','⭐','💡','🎯','⚡']"
-                  :key="e"
-                  class="mi-emoji-btn"
-                  @mousedown.prevent="content += e; showEmojiPicker = false; inputEl?.focus()"
-                >{{ e }}</button>
-              </div>
-            </div>
-
-            <!-- Aperçu markdown -->
-            <button
-              class="mi-icon-btn"
-              :class="{ active: showPreview }"
-              :title="showPreview ? 'Modifier' : 'Aperçu du message'"
-              aria-label="Aperçu"
-              @click="showPreview = !showPreview"
-            >
-              <EyeOff v-if="showPreview" :size="14" />
-              <Eye v-else :size="14" />
-            </button>
-
-            <button
-              class="mi-icon-btn"
-              :class="{ attaching }"
-              title="Joindre un fichier"
-              aria-label="Joindre un fichier"
-              :disabled="attaching"
-              @click="attachFile"
-            >
-              <Loader2 v-if="attaching" :size="14" class="mi-spinner" />
-              <Paperclip v-else :size="14" />
-            </button>
-
-            <span v-if="showCharCount" class="mi-char-count" :class="{ over: charCountOver }">
-              {{ charCount }}/{{ messagesStore.MAX_MESSAGE_LENGTH }}
-            </span>
-            <button
-              id="btn-send"
-              class="mi-send-btn"
-              :disabled="!content.trim() || sending || isOfflineOrDisconnected || charCountOver"
-              :title="isOfflineOrDisconnected ? 'Vous êtes hors ligne' : charCountOver ? 'Message trop long' : 'Envoyer (Entrée)'"
-              aria-label="Envoyer le message (Entrée)"
-              @click="send"
-            >
-              <Loader2 v-if="sending" :size="14" class="mi-spinner" />
-              <Send v-else :size="14" />
-              <span class="mi-send-label">Envoyer</span>
-            </button>
-          </div>
-        </div>
+        <!-- Barre d'actions (composant extrait) -->
+        <MessageInputToolbar
+          :content="content"
+          :sending="sending"
+          :attaching="attaching"
+          :show-preview="showPreview"
+          :show-char-count="showCharCount"
+          :char-count="charCount"
+          :char-count-over="charCountOver"
+          :is-offline-or-disconnected="isOfflineOrDisconnected"
+          :max-message-length="messagesStore.MAX_MESSAGE_LENGTH"
+          :show-signature-toggle="showSignatureToggle"
+          :request-signature="requestSignature"
+          @fmt-wrap="fmtWrap"
+          @fmt-line-prefix="fmtLinePrefix"
+          @fmt-insert-block="fmtInsertBlock"
+          @trigger-mention="triggerMention"
+          @trigger-channel="triggerChannel"
+          @trigger-devoir="triggerDevoir"
+          @attach-file="attachFile"
+          @send="send"
+          @update:show-preview="showPreview = $event"
+          @update:request-signature="requestSignature = $event"
+          @insert-emoji="(e) => { content += e; inputEl?.focus() }"
+        />
 
       </div>
 
