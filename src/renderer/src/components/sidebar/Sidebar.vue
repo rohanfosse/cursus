@@ -15,6 +15,8 @@
   import PromoRail          from './PromoRail.vue'
   import ChannelItem        from './ChannelItem.vue'
   import SidebarDashboard   from './SidebarDashboard.vue'
+  import SidebarProjects    from './SidebarProjects.vue'
+  import SidebarDocProjects from './SidebarDocProjects.vue'
   import { avatarColor }  from '@/utils/format'
 
   import { useSidebarData }     from '@/composables/useSidebarData'
@@ -267,128 +269,28 @@
 
       <!-- Liste des projets (section Devoirs) -->
       <template v-else-if="route.name === 'devoirs'">
-        <div class="sidebar-section-header">
-          <span>{{ appStore.isStaff ? 'Projets' : 'Mes projets' }}</span>
-        </div>
-
-        <nav aria-label="Projets" class="sidebar-projects-nav">
-          <!-- Accueil (tous les projets) -->
-          <button
-            class="sidebar-item"
-            :class="{ active: appStore.activeProject === null }"
-            @click="selectProject(null)"
-          >
-            <Layers :size="13" class="project-icon" />
-            <span class="channel-name">Accueil</span>
-          </button>
-
-          <!-- Projets avec barre de progression -->
-          <div v-for="proj in allProjects" :key="proj" class="sidebar-project-group">
-            <button
-              class="sidebar-item sb-project-rich"
-              :class="{ active: appStore.activeProject === proj }"
-              @click="selectProject(proj)"
-              @contextmenu.prevent="openProjectCtx($event, proj)"
-            >
-              <div class="sb-project-rich-top">
-                <span class="project-color-dot" :style="{ background: getProjectColor(proj) }" />
-                <component
-                  v-if="parseCategoryIcon(proj).icon"
-                  :is="parseCategoryIcon(proj).icon!"
-                  :size="13"
-                  class="project-icon"
-                />
-                <span v-else class="project-bullet" />
-                <span class="channel-name">{{ parseCategoryIcon(proj).label }}</span>
-              </div>
-              <div v-if="projectStats[proj]" class="sb-project-rich-bar-wrap">
-                <div class="sb-project-rich-bar">
-                  <div
-                    class="sb-project-rich-bar-fill"
-                    :style="{ width: (projectStats[proj].expected > 0 ? Math.round(projectStats[proj].depots / projectStats[proj].expected * 100) : 0) + '%', background: getProjectColor(proj) }"
-                  />
-                </div>
-                <span class="sb-project-rich-sub">{{ projectStats[proj].depots }}/{{ projectStats[proj].expected }} soumis</span>
-              </div>
-            </button>
-
-            <!-- Inline edit panel -->
-            <ProjectEditPanel
-              v-if="editingProject === proj"
-              :project-key="proj"
-              :meta="getProjectMeta(proj)"
-              :color="getProjectColor(proj)"
-              @save="onProjectEditSave(proj, $event)"
-              @cancel="editingProject = null"
-            />
-          </div>
-
-          <!-- + Nouveau projet (prof uniquement) -->
-          <button
-            v-if="appStore.isTeacher"
-            class="sidebar-item sidebar-add-project"
-            @click="modals.newProject = true"
-          >
-            <Plus :size="13" class="project-icon" />
-            <span class="channel-name">Nouveau projet</span>
-          </button>
-        </nav>
-
-        <NewProjectModal v-if="appStore.isTeacher" v-model="modals.newProject" @created="onProjectCreated" />
+        <SidebarProjects
+          :all-projects="allProjects"
+          :project-stats="projectStats"
+          :get-project-color="getProjectColor"
+          :editing-project="editingProject"
+          :get-project-meta="getProjectMeta"
+          @select-project="selectProject"
+          @open-project-ctx="(e, proj) => openProjectCtx(e, proj)"
+          @project-edit-save="(proj, data) => onProjectEditSave(proj, data)"
+          @cancel-edit="editingProject = null"
+          @project-created="onProjectCreated"
+        />
       </template>
 
       <!-- Liste des projets (section Documents) -->
       <template v-else-if="route.name === 'documents'">
-        <div class="sidebar-section-header">
-          <span>{{ appStore.isStaff ? 'Projets' : 'Mes projets' }}</span>
-        </div>
-
-        <nav aria-label="Filtrer les documents par projet">
-          <!-- Tous les documents -->
-          <button
-            class="sidebar-item"
-            :class="{ active: appStore.activeProject === null }"
-            @click="appStore.activeProject = null; docStore.activeCategory = ''"
-          >
-            <FolderOpen :size="13" class="project-icon" />
-            <span class="channel-name">Tous les documents</span>
-            <span v-if="docStore.documents.length" class="sidebar-doc-count">{{ docStore.documents.length }}</span>
-          </button>
-
-          <!-- Projets -->
-          <template v-for="proj in allProjects" :key="proj">
-            <button
-              class="sidebar-item"
-              :class="{ active: appStore.activeProject === proj }"
-              @click="appStore.activeProject = proj; docStore.activeCategory = ''"
-            >
-              <component
-                v-if="parseCategoryIcon(proj).icon"
-                :is="parseCategoryIcon(proj).icon!"
-                :size="13"
-                class="project-icon"
-              />
-              <span v-else class="project-bullet" />
-              <span class="channel-name">{{ parseCategoryIcon(proj).label }}</span>
-              <span class="sidebar-doc-count">{{ projectDocCounts[proj] ?? 0 }}</span>
-            </button>
-
-            <!-- Categories sous le projet actif -->
-            <template v-if="appStore.activeProject === proj && docCategories.length > 1">
-              <button
-                v-for="cat in docCategories"
-                :key="cat"
-                class="sidebar-item sidebar-item--sub"
-                :class="{ active: docStore.activeCategory === cat }"
-                @click="docStore.activeCategory = docStore.activeCategory === cat ? '' : cat"
-              >
-                <span class="sidebar-sub-dot" />
-                <span class="channel-name">{{ cat }}</span>
-                <span class="sidebar-doc-count">{{ docCatCounts[cat] ?? 0 }}</span>
-              </button>
-            </template>
-          </template>
-        </nav>
+        <SidebarDocProjects
+          :all-projects="allProjects"
+          :project-doc-counts="projectDocCounts"
+          :doc-categories="docCategories"
+          :doc-cat-counts="docCatCounts"
+        />
       </template>
 
       <!-- Salons groupes par categorie (autres sections) -->
