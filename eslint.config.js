@@ -65,7 +65,7 @@ module.exports = [
     },
     rules: {
       ...tsPlugin.configs.recommended.rules,
-      ...vuePlugin.configs['vue3-recommended'].rules,
+      ...vuePlugin.configs['recommended'].rules,
 
       'vue/multi-word-component-names': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',

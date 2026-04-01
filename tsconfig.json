@@ -12,6 +12,7 @@
     "noEmit": true,
     "jsx": "preserve",
     "strict": true,
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/renderer/src/*"],
       "@css/*": ["./src/renderer/src/assets/css/*"]
