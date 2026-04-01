@@ -1,11 +1,12 @@
 <script setup lang="ts">
-  import { ref, computed, watch } from 'vue'
-  import { AlertTriangle, Download, FileText, Link2, MessageSquare, X, LayoutList, Star, Search, ArrowUpDown } from 'lucide-vue-next'
+  import { ref, computed, watch, onUnmounted } from 'vue'
+  import { AlertTriangle, Download, FileText, Link2, MessageSquare, X, LayoutList, Star, Search, ArrowUpDown, Zap } from 'lucide-vue-next'
   import { useTravauxStore } from '@/stores/travaux'
   import { useAppStore }     from '@/stores/app'
   import { useModalsStore }  from '@/stores/modals'
   import { useToast }        from '@/composables/useToast'
   import { useOpenExternal } from '@/composables/useOpenExternal'
+  import { useBatchGrading } from '@/composables/useBatchGrading'
   import { avatarColor, initials, formatGrade, gradeClass } from '@/utils/format'
   import { formatDate } from '@/utils/date'
   import Modal from '@/components/ui/Modal.vue'
@@ -19,6 +20,17 @@
   const modals       = useModalsStore()
   const { showToast }    = useToast()
   const { openExternal } = useOpenExternal()
+
+  // ── Mode notation rapide (batch) ────────────────────────────────────────
+  const batch = useBatchGrading({
+    depots: computed(() => travauxStore.depots),
+    onSave: async (depotId, note, feedback) => {
+      await travauxStore.setNote({ depotId, note: note || null })
+      await travauxStore.setFeedback({ depotId, feedback: feedback || null })
+    },
+  })
+
+  onUnmounted(() => batch.cleanup())
 
   // ── Notation inline ───────────────────────────────────────────────────────
   const editingNoteId     = ref<number | null>(null)
@@ -323,14 +335,159 @@
         </button>
       </div>
 
-      <!-- Bulk grade hint -->
-      <div v-if="ungradedCount > 1" class="depots-bulk-hint">
-        {{ ungradedCount }} rendus en attente de notation
+      <!-- Batch mode toggle -->
+      <div class="depots-batch-row">
+        <button
+          class="btn-batch-toggle"
+          :class="{ active: batch.active.value }"
+          @click="batch.toggle()"
+        >
+          <Zap :size="13" />
+          {{ batch.active.value ? 'Mode normal' : 'Notation rapide' }}
+        </button>
+        <div v-if="!batch.active.value && ungradedCount > 1" class="depots-bulk-hint">
+          {{ ungradedCount }} rendus en attente
+        </div>
       </div>
     </div>
 
-    <!-- Liste des dépôts -->
-    <div class="depots-body">
+    <!-- ═══ MODE NOTATION RAPIDE (split view) ═══ -->
+    <div v-if="batch.active.value" class="batch-split" @keydown="batch.handleKeydown">
+      <!-- LEFT: Student list -->
+      <div class="batch-list">
+        <div class="batch-filter-row">
+          <button
+            v-for="f in (['all', 'ungraded', 'graded'] as const)"
+            :key="f"
+            class="batch-filter-btn"
+            :class="{ active: batch.filter.value === f }"
+            @click="batch.filter.value = f"
+          >
+            {{ f === 'all' ? 'Tous' : f === 'ungraded' ? 'Non notés' : 'Notés' }}
+          </button>
+        </div>
+        <div class="batch-student-scroll">
+          <button
+            v-for="(d, i) in batch.filteredList.value"
+            :key="d.id"
+            class="batch-student-row"
+            :class="{
+              active: batch.activeIndex.value === i,
+              'has-note': d.note != null,
+            }"
+            @click="batch.selectIndex(i)"
+          >
+            <div
+              class="avatar"
+              :style="{ background: avatarColor(d.student_name), width:'28px', height:'28px', fontSize:'10px', borderRadius:'6px' }"
+            >{{ initials(d.student_name) }}</div>
+            <span class="batch-student-name">{{ d.student_name }}</span>
+            <span v-if="d.note" class="batch-student-grade" :class="gradeClass(d.note)">{{ d.note }}</span>
+            <span v-else class="batch-student-grade grade-empty">-</span>
+          </button>
+        </div>
+        <div class="batch-progress-bar">
+          <div class="linear-progress"><div class="linear-progress-fill" :style="{ width: batch.progressPct.value + '%' }" /></div>
+          <span class="batch-progress-label">{{ batch.gradedCount.value }}/{{ batch.totalCount.value }}</span>
+        </div>
+      </div>
+
+      <!-- RIGHT: Active depot + grading -->
+      <div class="batch-detail">
+        <template v-if="batch.activeDepot.value">
+          <div class="batch-detail-header">
+            <div
+              class="avatar"
+              :style="{ background: avatarColor(batch.activeDepot.value.student_name), width:'40px', height:'40px', fontSize:'14px', borderRadius:'8px' }"
+            >{{ initials(batch.activeDepot.value.student_name) }}</div>
+            <div>
+              <div class="batch-detail-name">{{ batch.activeDepot.value.student_name }}</div>
+              <div class="batch-detail-meta">
+                {{ batch.activeDepot.value.submitted_at ? formatDate(batch.activeDepot.value.submitted_at) : 'Pas de rendu' }}
+                <span v-if="batch.activeDepot.value.late_seconds && batch.activeDepot.value.late_seconds > 0" class="depot-late-badge" style="margin-left:6px">
+                  <AlertTriangle :size="9" /> {{ formatLate(batch.activeDepot.value.late_seconds) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Depot content -->
+          <div v-if="batch.activeDepot.value.content || batch.activeDepot.value.file_name" class="batch-depot-content">
+            <button class="depot-file-btn" @click="openDepot(batch.activeDepot.value!)">
+              <component :is="batch.activeDepot.value.type === 'link' ? Link2 : FileText" :size="13" />
+              {{ batch.activeDepot.value.type === 'file' ? (batch.activeDepot.value.file_name ?? batch.activeDepot.value.content) : batch.activeDepot.value.content }}
+            </button>
+          </div>
+          <div v-else class="batch-no-depot">Aucun rendu déposé</div>
+
+          <!-- Grade buttons -->
+          <div class="batch-grade-row" :class="{ 'grade-saved': batch.savedFlash.value }">
+            <button
+              v-for="g in ['A', 'B', 'C', 'D']"
+              :key="g"
+              class="batch-grade-btn"
+              :class="{ active: batch.pendingNote.value === g, [gradeClass(g)]: true }"
+              @click="batch.setGrade(g as 'A' | 'B' | 'C' | 'D')"
+            >{{ g }}</button>
+          </div>
+
+          <!-- Feedback -->
+          <div class="batch-feedback-section">
+            <div class="feedback-bank" style="margin-bottom:8px">
+              <button
+                v-for="fb in feedbackBank"
+                :key="fb"
+                class="feedback-bank-pill"
+                type="button"
+                @click="batch.pendingFeedback.value = batch.pendingFeedback.value ? batch.pendingFeedback.value.trimEnd() + ' ' + fb : fb"
+              >{{ fb }}</button>
+            </div>
+            <textarea
+              v-model="batch.pendingFeedback.value"
+              class="form-textarea"
+              rows="2"
+              placeholder="Commentaire (optionnel)..."
+              style="font-size:13px"
+            />
+          </div>
+
+          <!-- Actions -->
+          <div class="batch-actions">
+            <button class="btn-primary" :disabled="batch.saving.value || !batch.pendingNote.value" @click="batch.saveAndNext()">
+              Enregistrer et suivant
+            </button>
+            <button class="btn-ghost" :disabled="batch.saving.value || !batch.pendingNote.value" @click="batch.save()">
+              Enregistrer
+            </button>
+          </div>
+
+          <!-- Distribution -->
+          <div v-if="batch.distribution.value.length" class="batch-dist">
+            <span
+              v-for="g in batch.distribution.value"
+              :key="g.grade"
+              class="grade-dist-pill"
+              :class="gradeClass(g.grade)"
+            >{{ g.grade }} <strong>{{ g.count }}</strong></span>
+          </div>
+
+          <!-- Keyboard hints -->
+          <div class="batch-hints">
+            <kbd>&uarr;</kbd><kbd>&darr;</kbd> naviguer
+            <span class="batch-hint-sep">&middot;</span>
+            <kbd>A</kbd><kbd>B</kbd><kbd>C</kbd><kbd>D</kbd> noter
+            <span class="batch-hint-sep">&middot;</span>
+            <kbd>Enter</kbd> sauver + suivant
+            <span class="batch-hint-sep">&middot;</span>
+            <kbd>Esc</kbd> quitter
+          </div>
+        </template>
+        <div v-else class="batch-empty">Aucun étudiant dans ce filtre</div>
+      </div>
+    </div>
+
+    <!-- ═══ MODE NORMAL (liste classique) ═══ -->
+    <div v-if="!batch.active.value" class="depots-body">
       <div v-if="travauxStore.depots.length === 0" class="empty-hint" style="padding:32px 0">
         <p>Aucun rendu déposé pour l'instant.</p>
       </div>
@@ -863,5 +1020,233 @@
   padding: 12px 20px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+}
+
+/* ═══ Batch mode toggle ═══ */
+.depots-batch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.btn-batch-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.btn-batch-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.btn-batch-toggle.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ═══ Batch split view ═══ */
+.batch-split {
+  display: flex;
+  flex-direction: row;
+  height: 480px;
+  overflow: hidden;
+}
+
+.batch-list {
+  width: 35%;
+  min-width: 200px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.batch-filter-row {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.batch-filter-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.batch-filter-btn:hover { border-color: var(--accent); }
+.batch-filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.batch-student-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.batch-student-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background var(--t-fast);
+}
+
+.batch-student-row:hover { background: var(--bg-hover); }
+.batch-student-row.active { background: rgba(var(--accent-rgb, 99,102,241), 0.08); }
+.batch-student-row.has-note .batch-student-name { opacity: 0.6; }
+
+.batch-student-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.batch-student-grade {
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.batch-progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.batch-progress-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+/* ═══ Batch detail (right panel) ═══ */
+.batch-detail {
+  flex: 1;
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.batch-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.batch-detail-name { font-size: 16px; font-weight: 700; }
+.batch-detail-meta { font-size: 12px; color: var(--text-muted); }
+
+.batch-depot-content { padding: 8px 0; }
+
+.batch-no-depot {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+}
+
+.batch-grade-row {
+  display: flex;
+  gap: 8px;
+  transition: background 300ms;
+}
+
+.batch-grade-row.grade-saved {
+  animation: flashGreen 600ms ease;
+}
+
+@keyframes flashGreen {
+  0% { background: rgba(46,204,113,0.15); }
+  100% { background: transparent; }
+}
+
+.batch-grade-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 800;
+  border: 2px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.batch-grade-btn:hover { border-color: currentColor; transform: translateY(-2px); }
+.batch-grade-btn.active.grade-a { background: var(--color-grade-a, #2ECC71); color: #fff; border-color: transparent; }
+.batch-grade-btn.active.grade-b { background: var(--color-grade-b, #4A90D9); color: #fff; border-color: transparent; }
+.batch-grade-btn.active.grade-c { background: var(--color-grade-c, #F39C12); color: #fff; border-color: transparent; }
+.batch-grade-btn.active.grade-d { background: var(--color-grade-d, #E74C3C); color: #fff; border-color: transparent; }
+
+.batch-feedback-section { display: flex; flex-direction: column; }
+
+.batch-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.batch-actions .btn-primary { font-size: 13px; padding: 8px 16px; }
+.batch-actions .btn-ghost { font-size: 13px; padding: 8px 16px; }
+
+.batch-dist {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.batch-hints {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.batch-hints kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.batch-hint-sep { color: var(--border); margin: 0 2px; }
+
+.batch-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Responsive: stack vertically */
+@media (max-width: 768px) {
+  .batch-split { flex-direction: column; height: auto; }
+  .batch-list { width: 100%; max-height: 200px; border-right: none; border-bottom: 1px solid var(--border); }
 }
 </style>
