@@ -142,14 +142,60 @@
           </span>
         </div>
         <div class="hero-actions fade-up">
-          <a href="#download" class="btn-primary">
-            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m8 17 4 4 4-4"/></svg>
-            Télécharger
-          </a>
-          <a href="https://app.cursus.school" class="btn-secondary">
+          <a href="https://app.cursus.school" class="btn-primary">
             Ouvrir l'app
             <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
           </a>
+          <a href="#download" class="btn-secondary">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m8 17 4 4 4-4"/></svg>
+            Telecharger
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARISON -->
+  <section class="compare-section fade-up" aria-label="Comparaison">
+    <div class="container">
+      <h2 class="compare-title">Pourquoi pas Discord ou Moodle ?</h2>
+      <p class="compare-sub">Les outils generiques ne sont pas faits pour gerer une promo.</p>
+      <div class="compare-grid">
+        <div class="compare-card compare-card--problem">
+          <div class="compare-card-header">
+            <span class="compare-icon compare-icon--discord">D</span>
+            <span class="compare-name">Discord</span>
+          </div>
+          <ul class="compare-list">
+            <li class="compare-con">Pas de gestion de devoirs</li>
+            <li class="compare-con">Pas de notation ni de suivi</li>
+            <li class="compare-con">Canaux vite desorganises</li>
+            <li class="compare-con">Pas de partage de documents</li>
+          </ul>
+        </div>
+        <div class="compare-card compare-card--problem">
+          <div class="compare-card-header">
+            <span class="compare-icon compare-icon--moodle">M</span>
+            <span class="compare-name">Moodle</span>
+          </div>
+          <ul class="compare-list">
+            <li class="compare-con">Pas de chat en temps reel</li>
+            <li class="compare-con">Interface des annees 2000</li>
+            <li class="compare-con">Lent et complique a naviguer</li>
+            <li class="compare-con">Installation serveur complexe</li>
+          </ul>
+        </div>
+        <div class="compare-card compare-card--solution">
+          <div class="compare-card-header">
+            <img src="/assets/icon-192.png" alt="" width="24" height="24" class="compare-icon compare-icon--cursus" />
+            <span class="compare-name">Cursus</span>
+          </div>
+          <ul class="compare-list">
+            <li class="compare-pro">Chat + devoirs + documents</li>
+            <li class="compare-pro">Notation rapide A-D + grilles</li>
+            <li class="compare-pro">Interface moderne, temps reel</li>
+            <li class="compare-pro">Zero install, ouvrir dans le navigateur</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -363,20 +409,28 @@
       <div class="footer-top">
         <div class="footer-brand">
           <img src="/assets/icon-192.png" alt="Cursus" width="32" height="32" />
-          <span>Cursus</span>
+          <div>
+            <span class="footer-brand-name">Cursus</span>
+            <span class="footer-brand-desc">L'app pedagogique pour les promos post-bac</span>
+          </div>
         </div>
-        <div class="footer-links">
-          <a href="#features">Fonctionnalités</a>
-          <a href="#download">Télécharger</a>
-          <a href="https://app.cursus.school">Se connecter</a>
-          <a href="https://app.cursus.school#privacy">Confidentialité</a>
+        <div class="footer-columns">
+          <div class="footer-col">
+            <span class="footer-col-title">Produit</span>
+            <a href="#features">Fonctionnalites</a>
+            <a href="#download">Telecharger</a>
+            <a href="https://app.cursus.school">Se connecter</a>
+          </div>
+          <div class="footer-col">
+            <span class="footer-col-title">Ressources</span>
+            <a href="https://github.com/rohanfosse/cursus" target="_blank" rel="noopener">GitHub</a>
+            <a href="https://github.com/rohanfosse/cursus/releases" target="_blank" rel="noopener">Changelog</a>
+            <a href="https://app.cursus.school#privacy">Confidentialite</a>
+          </div>
         </div>
-      </div>
-      <div class="footer-tech">
-        Open source sous licence MIT · Hébergement souverain possible
       </div>
       <div class="footer-bottom">
-        <span>Conçu par <a href="https://github.com/rohanfosse" target="_blank" rel="noopener">Rohan Fossé</a></span>
+        <span>Open source MIT · Concu par <a href="https://github.com/rohanfosse" target="_blank" rel="noopener">Rohan Fosse</a></span>
         <span id="footer-version">v1.x</span>
       </div>
     </div>
