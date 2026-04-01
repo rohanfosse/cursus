@@ -361,7 +361,7 @@ contextBridge.exposeInMainWorld('api', {
   getGroups:       (promoId: number)  => get(`/api/groups?promoId=${promoId}`),
   createGroup:     (payload: unknown) => post('/api/groups', payload),
   getGroupMembers: (groupId: number)  => get(`/api/groups/${groupId}/members`),
-  setGroupMembers: (payload: { groupId: number; members?: number[] }) => post(`/api/groups/${payload.groupId}/members`, payload),
+  setGroupMembers: (payload: { groupId: number; studentIds: number[] }) => post(`/api/groups/${payload.groupId}/members`, payload),
 
   // ── Ressources ──────────────────────────────────────────────────────────────
   getRessources:  (travailId: number) => get(`/api/resources?travailId=${travailId}`),

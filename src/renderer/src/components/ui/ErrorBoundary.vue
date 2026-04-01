@@ -14,7 +14,7 @@
 
   onErrorCaptured((err) => {
     error.value = err instanceof Error ? err : new Error(String(err))
-    console.error(`[ErrorBoundary:${props.label ?? 'unknown'}]`, err)
+    if (import.meta.env.DEV) console.error(`[ErrorBoundary:${props.label ?? 'unknown'}]`, err)
     return false
   })
 

@@ -2,11 +2,16 @@
  * Barre de formatage + actions du MessageInput.
  */
 <script setup lang="ts">
+  import { ref } from 'vue'
   import {
     Send, Paperclip, Loader2,
     Bold, Italic, Code, SquareCode, Strikethrough, Quote, List, ListOrdered,
     Smile, Eye, EyeOff,
   } from 'lucide-vue-next'
+
+  const showEmojiPicker = ref(false)
+
+  const EMOJIS = ['😊','😂','🤣','😍','🤔','😮','😢','👍','👏','🔥','❤️','✅','🎉','💯','🙏','👋','⭐','💡','🎯','⚡']
 
   defineProps<{
     content: string
@@ -75,9 +80,15 @@
     <!-- Actions droite -->
     <div class="mi-actions-right">
       <div class="mi-emoji-wrapper">
-        <button class="mi-icon-btn" title="Emoji" aria-label="Emoji" @click="$emit('insertEmoji', '')">
+        <button class="mi-icon-btn" title="Emoji" aria-label="Emoji" @click="showEmojiPicker = !showEmojiPicker">
           <Smile :size="14" />
         </button>
+        <div v-if="showEmojiPicker" class="mi-emoji-panel">
+          <button
+            v-for="e in EMOJIS" :key="e" class="mi-emoji-btn"
+            @mousedown.prevent="emit('insertEmoji', e); showEmojiPicker = false"
+          >{{ e }}</button>
+        </div>
       </div>
       <button
         class="mi-icon-btn"
