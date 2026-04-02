@@ -2,11 +2,11 @@
 const router  = require('express').Router()
 const queries = require('../db/index')
 const wrap    = require('../utils/wrap')
+const { getDb } = require('../db/connection')
 const { requireRole, requirePromo, promoFromParam, requireProjectOwner } = require('../middleware/authorize')
 
 /** Lookup : project id → promo_id */
 function promoFromProject(req) {
-  const { getDb } = require('../db/connection')
   const projectId = Number(req.params.id)
   if (!projectId) return null
   const p = getDb().prepare('SELECT promo_id FROM projects WHERE id = ?').get(projectId)

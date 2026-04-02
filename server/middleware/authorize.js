@@ -2,6 +2,23 @@
 const { getDb } = require('../db/connection')
 const { hasRole } = require('../permissions')
 
+// ─── Helpers prives ──────────────────────────────────────────────────────────
+
+/** Admin bypass check */
+function isAdmin(req) { return req.user?.type === 'admin' }
+
+/** Normalise teacher ID (JWT stocke les IDs enseignants en negatif) */
+function getTeacherId(req) { return Math.abs(req.user.id) }
+
+/** Verifie que l'enseignant est affecte a la promo via teacher_promos */
+function teacherOwnsPromo(teacherId, promoId) {
+  return !!getDb().prepare(
+    'SELECT 1 FROM teacher_promos WHERE teacher_id = ? AND promo_id = ? LIMIT 1'
+  ).get(teacherId, promoId)
+}
+
+// ─── Middlewares publics ─────────────────────────────────────────────────────
+
 /**
  * Verifie que l'utilisateur a au moins le role requis.
  * admin > teacher > ta > student
@@ -117,17 +134,13 @@ function requireDmParticipant(req, res, next) {
  */
 function requirePromoAdmin(getPromoId) {
   return (req, res, next) => {
-    if (req.user?.type === 'admin') return next()
+    if (isAdmin(req)) return next()
     if (!hasRole(req.user?.type, 'teacher')) {
       return res.status(403).json({ ok: false, error: 'Accès réservé aux enseignants.' })
     }
     const promoId = getPromoId(req)
     if (promoId == null) return next()
-    const teacherId = Math.abs(req.user.id)
-    const assigned = getDb().prepare(
-      'SELECT 1 FROM teacher_promos WHERE teacher_id = ? AND promo_id = ? LIMIT 1'
-    ).get(teacherId, promoId)
-    if (!assigned) {
+    if (!teacherOwnsPromo(getTeacherId(req), promoId)) {
       return res.status(403).json({ ok: false, error: 'Vous n\'êtes pas responsable de cette promotion.' })
     }
     next()
@@ -146,10 +159,9 @@ function requireProject(getProjectId) {
     const projectId = getProjectId(req)
     if (!projectId) return res.status(400).json({ ok: false, error: 'Projet non spécifié.' })
 
-    const teacherId = Math.abs(req.user.id)
     const assigned = getDb().prepare(
       'SELECT 1 FROM teacher_projects WHERE teacher_id = ? AND project_id = ? LIMIT 1'
-    ).get(teacherId, projectId)
+    ).get(getTeacherId(req), projectId)
 
     if (!assigned) {
       return res.status(403).json({ ok: false, error: 'Vous n\'êtes pas assigné à ce projet.' })
@@ -165,13 +177,12 @@ function requireProject(getProjectId) {
  */
 function requireSessionOwner(table) {
   return (req, res, next) => {
-    if (req.user?.type === 'admin') return next()
+    if (isAdmin(req)) return next()
     const sessionId = Number(req.params.id)
     if (!sessionId) return res.status(400).json({ ok: false, error: 'ID session manquant.' })
     const session = getDb().prepare(`SELECT teacher_id FROM ${table} WHERE id = ?`).get(sessionId)
     if (!session) return res.status(404).json({ ok: false, error: 'Session introuvable.' })
-    const teacherId = Math.abs(req.user.id)
-    if (Math.abs(session.teacher_id) !== teacherId) {
+    if (Math.abs(session.teacher_id) !== getTeacherId(req)) {
       return res.status(403).json({ ok: false, error: 'Vous ne pouvez modifier que vos propres sessions.' })
     }
     next()
@@ -184,16 +195,12 @@ function requireSessionOwner(table) {
  * Supporte :id et :travailId comme paramètre.
  */
 function requireTravailOwner(req, res, next) {
-  if (req.user?.type === 'admin') return next()
+  if (isAdmin(req)) return next()
   const travailId = Number(req.params.id ?? req.params.travailId ?? req.body?.travailId)
   if (!travailId) return res.status(400).json({ ok: false, error: 'ID devoir manquant.' })
   const travail = getDb().prepare('SELECT promo_id FROM travaux WHERE id = ?').get(travailId)
   if (!travail) return res.status(404).json({ ok: false, error: 'Devoir introuvable.' })
-  const teacherId = Math.abs(req.user.id)
-  const assigned = getDb().prepare(
-    'SELECT 1 FROM teacher_promos WHERE teacher_id = ? AND promo_id = ? LIMIT 1'
-  ).get(teacherId, travail.promo_id)
-  if (!assigned) {
+  if (!teacherOwnsPromo(getTeacherId(req), travail.promo_id)) {
     return res.status(403).json({ ok: false, error: 'Ce devoir n\'appartient pas à vos promotions.' })
   }
   next()
@@ -207,15 +214,14 @@ function requireTravailOwner(req, res, next) {
  */
 function requireActivityOwner(activityTable, sessionTable) {
   return (req, res, next) => {
-    if (req.user?.type === 'admin') return next()
+    if (isAdmin(req)) return next()
     const activityId = Number(req.params.id)
     if (!activityId) return res.status(400).json({ ok: false, error: 'ID activité manquant.' })
-    const activity = getDb().prepare(`SELECT session_id FROM ${activityTable} WHERE id = ?`).get(activityId)
-    if (!activity) return res.status(404).json({ ok: false, error: 'Activité introuvable.' })
-    const session = getDb().prepare(`SELECT teacher_id FROM ${sessionTable} WHERE id = ?`).get(activity.session_id)
-    if (!session) return res.status(404).json({ ok: false, error: 'Session introuvable.' })
-    const teacherId = Math.abs(req.user.id)
-    if (Math.abs(session.teacher_id) !== teacherId) {
+    const row = getDb().prepare(
+      `SELECT s.teacher_id FROM ${activityTable} a JOIN ${sessionTable} s ON s.id = a.session_id WHERE a.id = ?`
+    ).get(activityId)
+    if (!row) return res.status(404).json({ ok: false, error: 'Activité introuvable.' })
+    if (Math.abs(row.teacher_id) !== getTeacherId(req)) {
       return res.status(403).json({ ok: false, error: 'Vous ne pouvez modifier que vos propres activités.' })
     }
     next()
@@ -227,13 +233,12 @@ function requireActivityOwner(activityTable, sessionTable) {
  * Les admins passent toujours.
  */
 function requireProjectOwner(req, res, next) {
-  if (req.user?.type === 'admin') return next()
+  if (isAdmin(req)) return next()
   const projectId = Number(req.params.id)
   if (!projectId) return res.status(400).json({ ok: false, error: 'ID projet manquant.' })
   const project = getDb().prepare('SELECT created_by FROM projects WHERE id = ?').get(projectId)
   if (!project) return res.status(404).json({ ok: false, error: 'Projet introuvable.' })
-  const teacherId = Math.abs(req.user.id)
-  if (project.created_by !== teacherId) {
+  if (Math.abs(project.created_by) !== getTeacherId(req)) {
     return res.status(403).json({ ok: false, error: 'Vous ne pouvez modifier que vos propres projets.' })
   }
   next()
@@ -244,16 +249,12 @@ function requireProjectOwner(req, res, next) {
  * Les admins passent toujours.
  */
 function requireGroupOwner(req, res, next) {
-  if (req.user?.type === 'admin') return next()
+  if (isAdmin(req)) return next()
   const groupId = Number(req.params.id)
   if (!groupId) return res.status(400).json({ ok: false, error: 'ID groupe manquant.' })
   const group = getDb().prepare('SELECT promo_id FROM groups WHERE id = ?').get(groupId)
   if (!group) return res.status(404).json({ ok: false, error: 'Groupe introuvable.' })
-  const teacherId = Math.abs(req.user.id)
-  const assigned = getDb().prepare(
-    'SELECT 1 FROM teacher_promos WHERE teacher_id = ? AND promo_id = ? LIMIT 1'
-  ).get(teacherId, group.promo_id)
-  if (!assigned) {
+  if (!teacherOwnsPromo(getTeacherId(req), group.promo_id)) {
     return res.status(403).json({ ok: false, error: 'Ce groupe n\'appartient pas à vos promotions.' })
   }
   next()
@@ -264,25 +265,17 @@ function requireGroupOwner(req, res, next) {
  * Les admins passent toujours.
  */
 function requireResourceOwner(req, res, next) {
-  if (req.user?.type === 'admin') return next()
+  if (isAdmin(req)) return next()
   const resourceId = Number(req.params.id)
   if (!resourceId) return res.status(400).json({ ok: false, error: 'ID ressource manquant.' })
-  // Chercher dans ressources puis channel_documents (addRessource insère dans channel_documents)
-  let promoId = null
-  const fromRessources = getDb().prepare('SELECT travail_id FROM ressources WHERE id = ?').get(resourceId)
-  if (fromRessources) {
-    const travail = getDb().prepare('SELECT promo_id FROM travaux WHERE id = ?').get(fromRessources.travail_id)
-    promoId = travail?.promo_id
-  } else {
-    const fromDocs = getDb().prepare('SELECT promo_id FROM channel_documents WHERE id = ?').get(resourceId)
-    promoId = fromDocs?.promo_id
-  }
+  // Chercher dans ressources (JOIN travaux) puis channel_documents (addRessource insere dans channel_documents)
+  const fromRes = getDb().prepare(
+    'SELECT t.promo_id FROM ressources r JOIN travaux t ON t.id = r.travail_id WHERE r.id = ?'
+  ).get(resourceId)
+  const promoId = fromRes?.promo_id
+    ?? getDb().prepare('SELECT promo_id FROM channel_documents WHERE id = ?').get(resourceId)?.promo_id
   if (promoId == null) return res.status(404).json({ ok: false, error: 'Ressource introuvable.' })
-  const teacherId = Math.abs(req.user.id)
-  const assigned = getDb().prepare(
-    'SELECT 1 FROM teacher_promos WHERE teacher_id = ? AND promo_id = ? LIMIT 1'
-  ).get(teacherId, promoId)
-  if (!assigned) {
+  if (!teacherOwnsPromo(getTeacherId(req), promoId)) {
     return res.status(403).json({ ok: false, error: 'Cette ressource n\'appartient pas à vos promotions.' })
   }
   next()
@@ -293,16 +286,15 @@ function requireResourceOwner(req, res, next) {
  * Les admins passent toujours.
  */
 function requireReminderOwner(req, res, next) {
-  if (req.user?.type === 'admin') return next()
+  if (isAdmin(req)) return next()
   const reminderId = Number(req.params.id)
   if (!reminderId) return res.status(400).json({ ok: false, error: 'ID rappel manquant.' })
   const reminder = getDb().prepare('SELECT promo_tag FROM teacher_reminders WHERE id = ?').get(reminderId)
   if (!reminder) return res.status(404).json({ ok: false, error: 'Rappel introuvable.' })
-  // promo_tag = nom de la promo ; vérifier que l'enseignant gère au moins une promo avec ce tag
-  const teacherId = Math.abs(req.user.id)
+  // promo_tag = nom de la promo (pas de FK promo_id sur cette table)
   const assigned = getDb().prepare(
     'SELECT 1 FROM teacher_promos tp JOIN promotions p ON p.id = tp.promo_id WHERE tp.teacher_id = ? AND p.name = ? LIMIT 1'
-  ).get(teacherId, reminder.promo_tag)
+  ).get(getTeacherId(req), reminder.promo_tag)
   if (!assigned) {
     return res.status(403).json({ ok: false, error: 'Ce rappel n\'appartient pas à vos promotions.' })
   }

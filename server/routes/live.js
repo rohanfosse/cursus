@@ -2,11 +2,11 @@
 const router  = require('express').Router()
 const queries = require('../db/index')
 const wrap    = require('../utils/wrap')
+const { getDb } = require('../db/connection')
 const { requireRole, requirePromo, promoFromParam, requireSessionOwner, requireActivityOwner } = require('../middleware/authorize')
 
 /** Lookup : live session id → promo_id */
 function promoFromSession(req) {
-  const { getDb } = require('../db/connection')
   const sessionId = Number(req.params.id ?? req.params.sessionId)
   if (!sessionId) return null
   const s = getDb().prepare('SELECT promo_id FROM live_sessions WHERE id = ?').get(sessionId)
@@ -15,7 +15,6 @@ function promoFromSession(req) {
 
 /** Lookup : live activity id → promo_id (via session) */
 function promoFromActivity(req) {
-  const { getDb } = require('../db/connection')
   const activityId = Number(req.params.id)
   if (!activityId) return null
   const a = getDb().prepare('SELECT ls.promo_id FROM live_activities la JOIN live_sessions ls ON ls.id = la.session_id WHERE la.id = ?').get(activityId)
