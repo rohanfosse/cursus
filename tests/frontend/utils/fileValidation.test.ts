@@ -133,6 +133,16 @@ describe('validateFile — traversée de chemin (..)', () => {
     const result = validateFile({ name: 'rapport.final.pdf', size: 100 })
     expect(result.valid).toBe(true)
   })
+
+  it('refuse un nom contenant un slash (/)', () => {
+    const result = validateFile({ name: 'path/to/file.pdf', size: 100 })
+    expect(result.valid).toBe(false)
+  })
+
+  it('refuse un nom contenant un backslash (\\)', () => {
+    const result = validateFile({ name: 'path\\to\\file.pdf', size: 100 })
+    expect(result.valid).toBe(false)
+  })
 })
 
 // ─── Combinaisons de règles ────────────────────────────────────────────────────

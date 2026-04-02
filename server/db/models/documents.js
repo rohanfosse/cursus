@@ -104,13 +104,15 @@ function getChannelDocumentCategories(channelId) {
 }
 
 function searchDocuments(promoId, query) {
+  const q = (query ?? '').trim().slice(0, 200);
+  if (!q) return [];
   return getDb().prepare(`
     SELECT id, name, type, category, path_or_url AS content, travail_id, created_at
     FROM channel_documents
-    WHERE promo_id = ? AND name LIKE ?
+    WHERE promo_id = ? AND name LIKE '%' || ? || '%'
     ORDER BY created_at DESC
     LIMIT 20
-  `).all(promoId, `%${query}%`);
+  `).all(promoId, q);
 }
 
 function linkDocumentToTravail(docId, travailId) {

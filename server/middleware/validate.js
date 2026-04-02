@@ -5,6 +5,12 @@ const { ZodError } = require('zod')
  * Middleware Express qui valide req.body contre un schéma Zod.
  * En cas d'erreur, renvoie un 400 avec les détails de validation.
  */
+/** Extrait les détails d'erreur d'un ZodError (compatible Zod v3 et v4). */
+function formatZodDetails(err) {
+  const issues = err.issues ?? err.errors ?? []
+  return issues.map(e => `${(e.path ?? []).join('.')}: ${e.message}`).join('; ')
+}
+
 function validate(schema) {
   return (req, res, next) => {
     try {
@@ -12,10 +18,9 @@ function validate(schema) {
       next()
     } catch (err) {
       if (err instanceof ZodError) {
-        const details = err.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ')
         return res.status(400).json({
           ok: false,
-          error: `Données invalides - ${details}`,
+          error: `Données invalides - ${formatZodDetails(err)}`,
         })
       }
       return res.status(400).json({ ok: false, error: err.message })
@@ -33,10 +38,9 @@ function validateQuery(schema) {
       next()
     } catch (err) {
       if (err instanceof ZodError) {
-        const details = err.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ')
         return res.status(400).json({
           ok: false,
-          error: `Paramètres invalides - ${details}`,
+          error: `Paramètres invalides - ${formatZodDetails(err)}`,
         })
       }
       return res.status(400).json({ ok: false, error: err.message })

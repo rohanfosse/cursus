@@ -441,8 +441,8 @@ describe('searchDocuments — edge cases', () => {
     expect(results.length).toBeGreaterThan(0)
   })
 
-  it('search with empty query returns results', () => {
+  it('search with empty query returns empty array', () => {
     const results = queries.searchDocuments(1, '')
-    expect(results.length).toBeGreaterThan(0)
+    expect(results).toEqual([])
   })
 })

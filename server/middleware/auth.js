@@ -11,8 +11,11 @@ function authMiddleware(req, res, next) {
     const secret = req.app.get('jwtSecret')
     req.user = jwt.verify(token, secret)
     next()
-  } catch {
-    return res.status(401).json({ ok: false, error: 'Token invalide ou expiré' })
+  } catch (err) {
+    const message = err.name === 'TokenExpiredError'
+      ? 'Token expiré'
+      : 'Token invalide ou expiré'
+    return res.status(401).json({ ok: false, error: message })
   }
 }
 

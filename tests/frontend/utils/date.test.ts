@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { deadlineClass, deadlineLabel, formatDateSeparator } from '@/utils/date'
+import { deadlineClass, deadlineLabel, formatDateSeparator, relativeTime, isoForDatetimeLocal } from '@/utils/date'
 
 describe('deadlineClass', () => {
   beforeEach(() => {
@@ -103,5 +103,74 @@ describe('formatDateSeparator', () => {
     const result = formatDateSeparator('2026-03-10T12:00:00Z')
     // Should contain day name, day number, month, year in French
     expect(result).toMatch(/\d+/)
+  })
+
+  it('returns weekday name for < 7 days ago', () => {
+    // 3 days ago = 2026-03-16
+    const result = formatDateSeparator('2026-03-16T12:00:00Z')
+    // Should be a capitalized French weekday
+    expect(result).toMatch(/^[A-ZÀ-Ü]/)
+  })
+})
+
+describe('relativeTime', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-19T12:00:00Z'))
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('returns "à l\'instant" for just now', () => {
+    expect(relativeTime(Date.now())).toBe("à l'instant")
+  })
+
+  it('returns minutes for < 1h', () => {
+    const tenMinAgo = Date.now() - 10 * 60_000
+    expect(relativeTime(tenMinAgo)).toBe('il y a 10 min')
+  })
+
+  it('returns hours for < 24h', () => {
+    const threeHoursAgo = Date.now() - 3 * 3600_000
+    expect(relativeTime(threeHoursAgo)).toBe('il y a 3h')
+  })
+
+  it('returns "Hier" for 1 day ago', () => {
+    const oneDayAgo = Date.now() - 24 * 3600_000
+    expect(relativeTime(oneDayAgo)).toBe('Hier')
+  })
+
+  it('returns days for < 7 days', () => {
+    const threeDaysAgo = Date.now() - 3 * 24 * 3600_000
+    expect(relativeTime(threeDaysAgo)).toBe('il y a 3j')
+  })
+
+  it('returns weeks for >= 7 days', () => {
+    const twoWeeksAgo = Date.now() - 14 * 24 * 3600_000
+    expect(relativeTime(twoWeeksAgo)).toBe('il y a 2 sem.')
+  })
+
+  it('handles string input', () => {
+    expect(relativeTime('2026-03-19T11:55:00Z')).toBe('il y a 5 min')
+  })
+
+  it('handles Date input', () => {
+    expect(relativeTime(new Date('2026-03-19T11:55:00Z'))).toBe('il y a 5 min')
+  })
+
+  it('handles future timestamps (clamps to 0)', () => {
+    const future = Date.now() + 60_000
+    expect(relativeTime(future)).toBe("à l'instant")
+  })
+})
+
+describe('isoForDatetimeLocal', () => {
+  it('returns a string in YYYY-MM-DDTHH:mm format', () => {
+    const result = isoForDatetimeLocal(new Date('2026-03-19T12:00:00Z'))
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+  })
+
+  it('returns a 16-char string', () => {
+    const result = isoForDatetimeLocal(new Date())
+    expect(result.length).toBe(16)
   })
 })

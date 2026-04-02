@@ -1,4 +1,5 @@
 const { getDb } = require('../connection');
+const { ConflictError } = require('../../utils/errors');
 
 function createSignatureRequest(messageId, dmStudentId, fileUrl, fileName, fileHash, createdBy, createdIp) {
   return getDb().prepare(`
@@ -39,20 +40,24 @@ function getPendingCount() {
 }
 
 function signDocument(id, signerName, signedFileUrl, signerId, signerIp) {
-  return getDb().prepare(`
+  const result = getDb().prepare(`
     UPDATE signature_requests
     SET status = 'signed', signer_name = ?, signed_file_url = ?, signed_at = datetime('now'),
         signer_id = ?, signer_ip = ?
     WHERE id = ? AND status = 'pending'
   `).run(signerName, signedFileUrl, signerId || null, signerIp || null, id);
+  if (result.changes === 0) throw new ConflictError('Document introuvable ou déjà traité.');
+  return result;
 }
 
 function rejectDocument(id, reason, signerId, signerIp) {
-  return getDb().prepare(`
+  const result = getDb().prepare(`
     UPDATE signature_requests
     SET status = 'rejected', rejection_reason = ?, signer_id = ?, signer_ip = ?
     WHERE id = ? AND status = 'pending'
   `).run(reason, signerId || null, signerIp || null, id);
+  if (result.changes === 0) throw new ConflictError('Document introuvable ou déjà traité.');
+  return result;
 }
 
 module.exports = {

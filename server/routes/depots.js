@@ -4,7 +4,31 @@ const { z }   = require('zod')
 const queries = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap         = require('../utils/wrap')
+const log          = require('../utils/logger')
 const { requirePromo, promoFromTravail } = require('../middleware/authorize')
+
+/** Émet une notification grade:new à l'étudiant concerné. */
+function emitGradeNotification(req, { note, feedback }) {
+  try {
+    const io = req.app.get('io')
+    if (!io) return
+    const { getDb } = require('../db/connection')
+    const depot = getDb().prepare(`
+      SELECT d.student_id, d.travail_id, t.title AS devoir_title, t.category, t.type AS devoir_type
+      FROM depots d JOIN travaux t ON d.travail_id = t.id
+      WHERE d.id = ?
+    `).get(req.body.depot_id)
+    if (depot) {
+      io.to(`user:${depot.student_id}`).emit('grade:new', {
+        devoirTitle: depot.devoir_title,
+        note: note ?? null,
+        feedback: feedback ?? null,
+        devoirId: depot.travail_id,
+        category: depot.category || depot.devoir_type,
+      })
+    }
+  } catch (emitErr) { log.warn('grade_notification_failed', { error: emitErr.message }) }
+}
 
 const submitDepotSchema = z.object({
   travail_id: z.number().int().positive('Devoir invalide'),
@@ -65,27 +89,7 @@ router.post('/note', validate(noteSchema), (req, res) => {
   }
   try {
     const result = queries.setNote(req.body)
-    // Émettre une notification grade:new à l'étudiant concerné
-    try {
-      const io = req.app.get('io')
-      if (io) {
-        const { getDb } = require('../db/connection')
-        const depot = getDb().prepare(`
-          SELECT d.student_id, d.travail_id, t.title AS devoir_title, t.category, t.type AS devoir_type
-          FROM depots d JOIN travaux t ON d.travail_id = t.id
-          WHERE d.id = ?
-        `).get(req.body.depot_id)
-        if (depot) {
-          io.to(`user:${depot.student_id}`).emit('grade:new', {
-            devoirTitle: depot.devoir_title,
-            note: req.body.note,
-            feedback: null,
-            devoirId: depot.travail_id,
-            category: depot.category || depot.devoir_type,
-          })
-        }
-      }
-    } catch (emitErr) { console.warn('[grade:new] Erreur émission socket:', emitErr.message) }
+    emitGradeNotification(req, { note: req.body.note })
     res.json({ ok: true, data: result })
   }
   catch (err) { res.status(400).json({ ok: false, error: err.message }) }
@@ -96,27 +100,7 @@ router.post('/feedback', validate(feedbackSchema), (req, res) => {
   }
   try {
     const result = queries.setFeedback(req.body)
-    // Émettre une notification grade:new à l'étudiant concerné
-    try {
-      const io = req.app.get('io')
-      if (io) {
-        const { getDb } = require('../db/connection')
-        const depot = getDb().prepare(`
-          SELECT d.student_id, d.travail_id, t.title AS devoir_title, t.category, t.type AS devoir_type
-          FROM depots d JOIN travaux t ON d.travail_id = t.id
-          WHERE d.id = ?
-        `).get(req.body.depot_id)
-        if (depot) {
-          io.to(`user:${depot.student_id}`).emit('grade:new', {
-            devoirTitle: depot.devoir_title,
-            note: null,
-            feedback: req.body.feedback,
-            devoirId: depot.travail_id,
-            category: depot.category || depot.devoir_type,
-          })
-        }
-      }
-    } catch (emitErr) { console.warn('[grade:new] Erreur émission socket:', emitErr.message) }
+    emitGradeNotification(req, { feedback: req.body.feedback })
     res.json({ ok: true, data: result })
   }
   catch (err) { res.status(400).json({ ok: false, error: err.message }) }

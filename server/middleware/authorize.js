@@ -30,7 +30,7 @@ function requirePromo(getPromoId) {
   return (req, res, next) => {
     if (req.user?.type !== 'student') return next()
     const targetPromo = getPromoId(req)
-    if (targetPromo != null && req.user.promo_id !== targetPromo) {
+    if (targetPromo != null && Number.isFinite(targetPromo) && req.user.promo_id !== targetPromo) {
       return res.status(403).json({ ok: false, error: 'Accès non autorisé à cette promotion.' })
     }
     next()

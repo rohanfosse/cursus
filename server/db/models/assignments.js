@@ -30,34 +30,40 @@ function deleteTravail(id) {
 
 function updateTravail(id, fields) {
   const db = getDb()
-  if (fields.title) db.prepare('UPDATE travaux SET title = ? WHERE id = ?').run(fields.title, id)
-  if (fields.deadline) db.prepare('UPDATE travaux SET deadline = ? WHERE id = ?').run(fields.deadline, id)
-  if (fields.description !== undefined) db.prepare('UPDATE travaux SET description = ? WHERE id = ?').run(fields.description, id)
-  if (fields.room !== undefined) db.prepare('UPDATE travaux SET room = ? WHERE id = ?').run(fields.room, id)
-  if (fields.scheduledPublishAt !== undefined) db.prepare('UPDATE travaux SET scheduled_publish_at = ? WHERE id = ?').run(fields.scheduledPublishAt, id)
-  return { changes: 1 }
+  const sets = []
+  const vals = []
+  if (fields.title !== undefined)              { sets.push('title = ?');                vals.push(fields.title) }
+  if (fields.deadline !== undefined)           { sets.push('deadline = ?');             vals.push(fields.deadline) }
+  if (fields.description !== undefined)        { sets.push('description = ?');          vals.push(fields.description) }
+  if (fields.room !== undefined)               { sets.push('room = ?');                 vals.push(fields.room) }
+  if (fields.scheduledPublishAt !== undefined) { sets.push('scheduled_publish_at = ?'); vals.push(fields.scheduledPublishAt) }
+  if (sets.length === 0) return { changes: 0 }
+  vals.push(id)
+  return db.prepare(`UPDATE travaux SET ${sets.join(', ')} WHERE id = ?`).run(...vals)
 }
 
 function createTravail({ promoId, channelId, groupId, title, description, startDate, deadline, category, type, published, room, aavs, requiresSubmission, scheduledPublishAt }) {
   const db = getDb();
   const reqSub = requiresSubmission != null ? (requiresSubmission ? 1 : 0) : 1;
-  const result = db.prepare(`
-    INSERT INTO travaux (promo_id, channel_id, group_id, title, description, start_date, deadline, category, type, published, room, aavs, requires_submission, scheduled_publish_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    promoId, channelId ?? null, groupId ?? null, title, description, startDate ?? null,
-    deadline, category ?? null, type ?? 'livrable',
-    published != null ? (published ? 1 : 0) : 1,
-    room ?? null, aavs ?? null, reqSub,
-    scheduledPublishAt ?? null
-  );
-  if (groupId) {
-    const travailId = result.lastInsertRowid;
-    const members   = db.prepare('SELECT student_id FROM group_members WHERE group_id = ?').all(groupId);
-    const ins       = db.prepare('INSERT OR IGNORE INTO travail_group_members (travail_id, student_id, group_id) VALUES (?, ?, ?)');
-    for (const m of members) ins.run(travailId, m.student_id, groupId);
-  }
-  return result;
+  return db.transaction(() => {
+    const result = db.prepare(`
+      INSERT INTO travaux (promo_id, channel_id, group_id, title, description, start_date, deadline, category, type, published, room, aavs, requires_submission, scheduled_publish_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      promoId, channelId ?? null, groupId ?? null, title, description, startDate ?? null,
+      deadline, category ?? null, type ?? 'livrable',
+      published != null ? (published ? 1 : 0) : 1,
+      room ?? null, aavs ?? null, reqSub,
+      scheduledPublishAt ?? null
+    );
+    if (groupId) {
+      const travailId = result.lastInsertRowid;
+      const members   = db.prepare('SELECT student_id FROM group_members WHERE group_id = ?').all(groupId);
+      const ins       = db.prepare('INSERT OR IGNORE INTO travail_group_members (travail_id, student_id, group_id) VALUES (?, ?, ?)');
+      for (const m of members) ins.run(travailId, m.student_id, groupId);
+    }
+    return result;
+  })();
 }
 
 function updateTravailPublished({ travailId, published }) {

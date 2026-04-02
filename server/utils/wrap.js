@@ -2,6 +2,25 @@
  *  Utilise err.statusCode si present (classes AppError), sinon fallback string matching. */
 const log = require('./logger')
 
+const CLIENT_ERROR_KEYWORDS = [
+  'requis', 'invalide', 'introuvable', 'autoris', 'Accès',
+  'pas pu', 'incorrect', 'expiré', 'existe', 'Données invalides',
+  'trop long', 'trop court', 'refusé', 'manquant', 'déjà traité',
+]
+
+function resolveStatus(err) {
+  // 1. Status explicite via AppError (prioritaire)
+  if (err.statusCode) return err.statusCode
+
+  const msg = err.message || ''
+
+  // 2. Contrainte d'unicité → 409
+  if (msg.includes('UNIQUE constraint')) return 409
+
+  // 3. Mot-clé client → 400, sinon 500
+  return CLIENT_ERROR_KEYWORDS.some(kw => msg.includes(kw)) ? 400 : 500
+}
+
 module.exports = function wrap(fn) {
   return async (req, res) => {
     try {
@@ -9,23 +28,7 @@ module.exports = function wrap(fn) {
       res.json({ ok: true, data })
     } catch (err) {
       const msg = err.message || 'Erreur interne'
-
-      // 1. Status explicite via AppError (prioritaire)
-      let status = err.statusCode
-
-      // 2. Fallback : string matching pour retrocompatibilite
-      if (!status) {
-        if (msg.includes('UNIQUE constraint')) {
-          status = 409
-        } else {
-          const isClientError = msg.includes('requis') || msg.includes('invalide') ||
-            msg.includes('introuvable') || msg.includes('autoris') || msg.includes('Accès') ||
-            msg.includes('pas pu') || msg.includes('incorrect') || msg.includes('expiré') ||
-            msg.includes('existe') || msg.includes('Données invalides') ||
-            msg.includes('trop long') || msg.includes('trop court')
-          status = isClientError ? 400 : 500
-        }
-      }
+      const status = resolveStatus(err)
 
       if (status >= 500) {
         log.error('route_error', { method: req.method, path: req.path, error: msg })
@@ -34,3 +37,5 @@ module.exports = function wrap(fn) {
     }
   }
 }
+
+module.exports.resolveStatus = resolveStatus

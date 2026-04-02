@@ -9,13 +9,15 @@ function getKanbanCards(travailId, groupId) {
 
 function createKanbanCard({ travailId, groupId, title, description = '', createdBy = '' }) {
   const db = getDb();
-  const maxPos = db.prepare(
-    'SELECT COALESCE(MAX(position), -1) as m FROM kanban_cards WHERE travail_id = ? AND group_id = ? AND status = \'todo\''
-  ).get(travailId, groupId)?.m ?? -1;
-  const res = db.prepare(
-    'INSERT INTO kanban_cards (travail_id, group_id, title, description, created_by, position) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(travailId, groupId, title, description, createdBy, maxPos + 1);
-  return db.prepare('SELECT * FROM kanban_cards WHERE id = ?').get(res.lastInsertRowid);
+  return db.transaction(() => {
+    const maxPos = db.prepare(
+      'SELECT COALESCE(MAX(position), -1) as m FROM kanban_cards WHERE travail_id = ? AND group_id = ? AND status = \'todo\''
+    ).get(travailId, groupId)?.m ?? -1;
+    const res = db.prepare(
+      'INSERT INTO kanban_cards (travail_id, group_id, title, description, created_by, position) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(travailId, groupId, title, description, createdBy, maxPos + 1);
+    return db.prepare('SELECT * FROM kanban_cards WHERE id = ?').get(res.lastInsertRowid);
+  })();
 }
 
 function updateKanbanCard(id, { title, description, position }) {

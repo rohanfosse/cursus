@@ -3,6 +3,7 @@
  * Extrait de server/index.js pour separation des responsabilites.
  */
 const jwt = require('jsonwebtoken')
+const log = require('../utils/logger')
 
 module.exports = function setupSocket(io, queries, SECRET) {
   // ── Authentification ────────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ module.exports = function setupSocket(io, queries, SECRET) {
     const name = socket.user?.name ?? socket.id
     const userId = socket.user?.id
     const role = socket.user?.role ?? 'student'
-    console.log(`[WS] + ${name}`)
+    log.info('ws_connect', { name, userId })
 
     // Rejoindre les salles promo
     if (socket.user?.promo_id) {
@@ -45,7 +46,7 @@ module.exports = function setupSocket(io, queries, SECRET) {
       try {
         const promos = queries.getPromotions?.() ?? []
         for (const p of promos) socket.join(`promo:${p.id}`)
-      } catch (err) { console.warn('[WS] Impossible de rejoindre les salles promo:', err.message) }
+      } catch (err) { log.warn('ws_promo_join_error', { error: err.message }) }
     }
     socket.join('all')
 
@@ -109,7 +110,7 @@ module.exports = function setupSocket(io, queries, SECRET) {
     })
 
     socket.on('disconnect', () => {
-      console.log(`[WS] - ${name}`)
+      log.info('ws_disconnect', { name, userId })
       if (userId != null && userSockets.has(userId)) {
         userSockets.get(userId).delete(socket.id)
         if (userSockets.get(userId).size === 0) {

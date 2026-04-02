@@ -19,14 +19,16 @@ function createProject({ promoId, name, description, channelId, deadline, create
 }
 
 function updateProject(id, { name, description, deadline }) {
+  const db = getDb()
   const fields = []
   const values = []
   if (name !== undefined)        { fields.push('name = ?');        values.push(name) }
   if (description !== undefined) { fields.push('description = ?'); values.push(description) }
   if (deadline !== undefined)    { fields.push('deadline = ?');    values.push(deadline) }
-  if (fields.length === 0) return null
+  if (fields.length === 0) return db.prepare('SELECT * FROM projects WHERE id = ?').get(id) ?? null
   values.push(id)
-  return getDb().prepare(`UPDATE projects SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+  db.prepare(`UPDATE projects SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+  return db.prepare('SELECT * FROM projects WHERE id = ?').get(id) ?? null
 }
 
 function deleteProject(id) {

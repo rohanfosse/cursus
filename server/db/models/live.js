@@ -229,8 +229,9 @@ function calculateScore(activityId, studentId, studentName, answerTimeMs, isCorr
   const activity = db.prepare('SELECT * FROM live_activities WHERE id = ?').get(activityId);
   if (!activity) return 0;
 
-  const timerMs = (activity.timer_seconds || 30) * 1000;
-  const points = isCorrect ? Math.round(1000 * (1 - (answerTimeMs / timerMs) * 0.5)) : 0;
+  const timerMs = Math.max(1000, (activity.timer_seconds || 30) * 1000);
+  const clampedTime = Math.max(0, Math.min(answerTimeMs, timerMs));
+  const points = isCorrect ? Math.round(1000 * (1 - (clampedTime / timerMs) * 0.5)) : 0;
 
   db.prepare(`
     INSERT INTO live_scores (session_id, student_id, student_name, activity_id, points, answer_time_ms, is_correct)

@@ -16,10 +16,13 @@ function getChannels(promoId) {
 }
 
 function createPromotion({ name, color }) {
-  const db      = getDb();
-  const promoId = db.prepare('INSERT INTO promotions (name, color) VALUES (?, ?)').run(name, color).lastInsertRowid;
-  db.prepare("INSERT INTO channels (promo_id, name, description, type) VALUES (?, 'annonces', 'Informations importantes', 'annonce')").run(promoId);
-  db.prepare("INSERT INTO channels (promo_id, name, description, type) VALUES (?, 'general', 'Canal principal', 'chat')").run(promoId);
+  const db = getDb();
+  const promoId = db.transaction(() => {
+    const id = db.prepare('INSERT INTO promotions (name, color) VALUES (?, ?)').run(name, color).lastInsertRowid;
+    db.prepare("INSERT INTO channels (promo_id, name, description, type) VALUES (?, 'annonces', 'Informations importantes', 'annonce')").run(id);
+    db.prepare("INSERT INTO channels (promo_id, name, description, type) VALUES (?, 'general', 'Canal principal', 'chat')").run(id);
+    return id;
+  })();
   cache.invalidate('promotions:'); cache.invalidate('channels:');
   return promoId;
 }

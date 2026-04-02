@@ -181,9 +181,9 @@ describe('updateTravail', () => {
     expect(t.room).toBe('B305')
   })
 
-  it('returns changes 1 even with no actual field set', () => {
+  it('returns changes 0 when no field provided', () => {
     const result = queries.updateTravail(travailId, {})
-    expect(result).toEqual({ changes: 1 })
+    expect(result).toEqual({ changes: 0 })
   })
 })
 

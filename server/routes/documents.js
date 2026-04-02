@@ -4,15 +4,35 @@ const { z }   = require('zod')
 const queries = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap    = require('../utils/wrap')
+const log     = require('../utils/logger')
+const { AppError } = require('../utils/errors')
 const { requireTeacher, requirePromo, promoFromChannel, promoFromParam } = require('../middleware/authorize')
 
 // ── Constantes de sécurité ────────────────────────────────────────────────────
+const path = require('path')
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
 
 const BLOCKED_EXTENSIONS = new Set([
   '.exe', '.bat', '.cmd', '.com', '.msi', '.dll', '.scr', '.pif', '.vbs', '.wsf',
   '.jar', '.apk', '.ps1', '.sh',
 ])
+
+/** Vérifie la sécurité d'un payload de document (traversée, extension, taille). */
+function validateDocSecurity(payload) {
+  if (payload.type === 'file') {
+    const normalized = path.normalize(payload.pathOrUrl)
+    if (normalized.includes('..')) {
+      throw new AppError('Chemin de fichier invalide.')
+    }
+    const ext = payload.name.toLowerCase().match(/\.[^.]+$/)?.[0]
+    if (ext && BLOCKED_EXTENSIONS.has(ext)) {
+      throw new AppError('Type de fichier non autorise.')
+    }
+  }
+  if (payload.fileSize && payload.fileSize > MAX_FILE_SIZE) {
+    throw new AppError('Fichier trop volumineux (max 50 Mo).')
+  }
+}
 
 // ── Schémas de validation ─────────────────────────────────────────────────────
 const addChannelDocSchema = z.object({
@@ -62,32 +82,16 @@ router.get('/channel/:channelId',             requirePromo(promoFromChannel), wr
 router.get('/channel/:channelId/categories',  requirePromo(promoFromChannel), wrap((req) => queries.getChannelDocumentCategories(Number(req.params.channelId))))
 router.get('/promo/:promoId',                 requirePromo(promoFromParam), wrap((req) => queries.getPromoDocuments(Number(req.params.promoId))))
 
-router.post('/channel', requireTeacher, validate(addChannelDocSchema), async (req, res) => {
-  try {
-    const payload = req.body
-    // Sécurité : traversée de chemin
-    if (payload.type === 'file' && payload.pathOrUrl.includes('..')) {
-      return res.status(400).json({ ok: false, error: 'Chemin de fichier invalide.' })
-    }
-    // Sécurité : extensions bloquées
-    if (payload.type === 'file') {
-      const ext = payload.name.toLowerCase().match(/\.[^.]+$/)?.[0]
-      if (ext && BLOCKED_EXTENSIONS.has(ext)) {
-        return res.status(400).json({ ok: false, error: 'Type de fichier non autorise.' })
-      }
-    }
-    // Sécurité : taille max
-    if (payload.fileSize && payload.fileSize > MAX_FILE_SIZE) {
-      return res.status(400).json({ ok: false, error: 'Fichier trop volumineux (max 50 Mo).' })
-    }
-    const result = queries.addChannelDocument(payload)
-    const io = req.app.get('io')
-    if (io && payload.promoId) {
-      io.to(`promo:${payload.promoId}`).emit('document:new', { name: payload.name, category: payload.category || null, promoId: payload.promoId })
-    }
-    res.json({ ok: true, data: result })
-  } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
-})
+router.post('/channel', requireTeacher, validate(addChannelDocSchema), wrap((req) => {
+  const payload = req.body
+  validateDocSecurity(payload)
+  const result = queries.addChannelDocument(payload)
+  const io = req.app.get('io')
+  if (io && payload.promoId) {
+    io.to(`promo:${payload.promoId}`).emit('document:new', { name: payload.name, category: payload.category || null, promoId: payload.promoId })
+  }
+  return result
+}))
 
 router.patch('/project/:id', requireTeacher, requireDocOwnership, validate(updateDocSchema), wrap((req) => {
   return queries.updateProjectDocument({ id: Number(req.params.id), ...req.body })
@@ -111,59 +115,40 @@ router.get('/project/categories', requirePromo(promoFromParam), wrap((req) => qu
   req.query.project ?? null,
 )))
 
-router.post('/project', requireTeacher, validate(addChannelDocSchema), (req, res) => {
-  try {
-    const payload = req.body
-    // Sécurité : traversée de chemin
-    if (payload.type === 'file' && payload.pathOrUrl.includes('..')) {
-      return res.status(400).json({ ok: false, error: 'Chemin de fichier invalide.' })
-    }
-    // Sécurité : extensions bloquées
-    if (payload.type === 'file') {
-      const ext = payload.name.toLowerCase().match(/\.[^.]+$/)?.[0]
-      if (ext && BLOCKED_EXTENSIONS.has(ext)) {
-        return res.status(400).json({ ok: false, error: 'Type de fichier non autorise.' })
+router.post('/project', requireTeacher, validate(addChannelDocSchema), wrap((req) => {
+  const payload = req.body
+  validateDocSecurity(payload)
+  const result  = queries.addProjectDocument(payload)
+
+  // Notification aux canaux du projet avec ref document cliquable
+  const docId = result?.lastInsertRowid ?? null
+  if (result?.changes && payload.project && payload.promoId && payload.authorName) {
+    try {
+      const channels = queries.getChannels(payload.promoId)
+      const projectChannels = channels.filter((c) => c.category?.trim() === payload.project?.trim())
+      const catPart = payload.category && payload.category !== 'Général' ? ` · ${payload.category}` : ''
+      const docRef = docId ? `📄 [${payload.name}](doc:${docId})` : `📄 **${payload.name}**`
+      const text   = `${docRef} a été ajouté aux documents${catPart}`
+      for (const ch of projectChannels) {
+        queries.sendMessage({
+          channelId:  ch.id,
+          authorName: payload.authorName,
+          authorId:   payload.authorId ?? null,
+          authorType: payload.authorType ?? 'teacher',
+          content:    text,
+        })
       }
+    } catch (e) {
+      log.warn('project_doc_notification_failed', { error: e.message })
     }
-    // Sécurité : taille max
-    if (payload.fileSize && payload.fileSize > MAX_FILE_SIZE) {
-      return res.status(400).json({ ok: false, error: 'Fichier trop volumineux (max 50 Mo).' })
-    }
-    const result  = queries.addProjectDocument(payload)
-
-    // Notification aux canaux du projet avec ref document cliquable
-    const docId = result?.lastInsertRowid ?? null
-    if (result?.changes && payload.project && payload.promoId && payload.authorName) {
-      try {
-        const channels = queries.getChannels(payload.promoId)
-        const projectChannels = channels.filter((c) => c.category?.trim() === payload.project?.trim())
-        const catPart = payload.category && payload.category !== 'Général' ? ` · ${payload.category}` : ''
-        // Format: ref document cliquable si on a l'ID, sinon texte brut
-        const docRef = docId ? `📄 [${payload.name}](doc:${docId})` : `📄 **${payload.name}**`
-        const text   = `${docRef} a été ajouté aux documents${catPart}`
-        for (const ch of projectChannels) {
-          queries.sendMessage({
-            channelId:  ch.id,
-            authorName: payload.authorName,
-            authorId:   payload.authorId ?? null,
-            authorType: payload.authorType ?? 'teacher',
-            content:    text,
-          })
-        }
-      } catch (e) {
-        console.warn('[addProjectDocument] Notification canal échouée :', e.message)
-      }
-    }
-
-    const io = req.app.get('io')
-    if (io && payload.promoId) {
-      io.to(`promo:${payload.promoId}`).emit('document:new', { name: payload.name, category: payload.category || null, promoId: payload.promoId })
-    }
-
-    res.json({ ok: true, data: result })
-  } catch (err) {
-    res.status(400).json({ ok: false, error: err.message })
   }
-})
+
+  const io = req.app.get('io')
+  if (io && payload.promoId) {
+    io.to(`promo:${payload.promoId}`).emit('document:new', { name: payload.name, category: payload.category || null, promoId: payload.promoId })
+  }
+
+  return result
+}))
 
 module.exports = router

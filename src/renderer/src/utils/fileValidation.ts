@@ -33,10 +33,10 @@ const BLOCKED_EXTENSIONS: ReadonlySet<string> = new Set([
  */
 export function validateFile(file: { name: string; size: number }): FileValidationResult {
   // Règle 1 — traversée de chemin
-  if (file.name.includes('..')) {
+  if (file.name.includes('..') || file.name.includes('/') || file.name.includes('\\')) {
     return {
       valid: false,
-      error: 'Nom de fichier invalide. Les chemins relatifs ("..") ne sont pas autorisés.',
+      error: 'Nom de fichier invalide. Les chemins relatifs ("..") et séparateurs ne sont pas autorisés.',
     }
   }
 

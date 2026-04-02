@@ -1,6 +1,7 @@
 /** REX (Retour d'Experience) — CRUD sessions, activites, reponses anonymes. */
 const { getDb }          = require('../connection');
 const generateJoinCode   = require('../../utils/joinCode');
+const log                = require('../../utils/logger');
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
@@ -76,7 +77,7 @@ function autoCloseExpiredAsyncSessions() {
   if (expired.length === 0) return;
   const close = db.prepare("UPDATE rex_sessions SET status = 'ended', ended_at = datetime('now') WHERE id = ?");
   db.transaction(() => { expired.forEach(s => close.run(s.id)); })();
-  console.log(`[REX] ${expired.length} session(s) async expirée(s) fermée(s) automatiquement.`);
+  log.info('rex_auto_close', { count: expired.length });
 }
 
 function deleteRexSession(id) {
