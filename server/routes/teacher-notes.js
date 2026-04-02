@@ -4,7 +4,7 @@ const { z }   = require('zod')
 const queries = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap    = require('../utils/wrap')
-const { requireTeacher } = require('../middleware/authorize')
+const { requireRole } = require('../middleware/authorize')
 
 // ── Schémas ─────────────────────────────────────────────────────────────────
 const createNoteSchema = z.object({
@@ -33,32 +33,32 @@ function requireNoteOwner(req, res, next) {
 }
 
 // GET /student/:studentId
-router.get('/student/:studentId', requireTeacher, wrap((req) => {
+router.get('/student/:studentId', requireRole('teacher'), wrap((req) => {
   return queries.getNotesByStudent(Number(req.params.studentId), req.user.id)
 }))
 
 // GET /promo/:promoId
-router.get('/promo/:promoId', requireTeacher, wrap((req) => {
+router.get('/promo/:promoId', requireRole('teacher'), wrap((req) => {
   return queries.getNotesByPromo(Number(req.params.promoId), req.user.id)
 }))
 
 // GET /promo/:promoId/summary
-router.get('/promo/:promoId/summary', requireTeacher, wrap((req) => {
+router.get('/promo/:promoId/summary', requireRole('teacher'), wrap((req) => {
   return queries.getNotesCountByStudent(Number(req.params.promoId), req.user.id)
 }))
 
 // POST /
-router.post('/', requireTeacher, validate(createNoteSchema), wrap((req) => {
+router.post('/', requireRole('teacher'), validate(createNoteSchema), wrap((req) => {
   return queries.createNote({ teacherId: req.user.id, ...req.body, content: req.body.content.trim() })
 }))
 
 // PATCH /:id
-router.patch('/:id', requireTeacher, requireNoteOwner, validate(updateNoteSchema), wrap((req) => {
+router.patch('/:id', requireRole('teacher'), requireNoteOwner, validate(updateNoteSchema), wrap((req) => {
   return queries.updateNote(Number(req.params.id), { ...req.body, content: req.body.content.trim() })
 }))
 
 // DELETE /:id
-router.delete('/:id', requireTeacher, requireNoteOwner, wrap((req) => {
+router.delete('/:id', requireRole('teacher'), requireNoteOwner, wrap((req) => {
   queries.deleteNote(Number(req.params.id))
   return null
 }))

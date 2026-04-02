@@ -6,7 +6,7 @@ const crypto    = require('crypto')
 const { z }     = require('zod')
 const rateLimit = require('express-rate-limit')
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib')
-const { requireTeacher } = require('../middleware/authorize')
+const { requireRole } = require('../middleware/authorize')
 const { validate }       = require('../middleware/validate')
 const { getDb }          = require('../db/connection')
 const wrap    = require('../utils/wrap')
@@ -125,19 +125,19 @@ router.post('/', createLimiter, validate(createSchema), (req, res) => {
 })
 
 // ── Lister les demandes ─────────────────────────────────────────────────────
-router.get('/', requireTeacher, wrap((req) => {
+router.get('/', requireRole('teacher'), wrap((req) => {
   const status = req.query.status || undefined
   const studentId = req.query.student_id ? Number(req.query.student_id) : undefined
   return queries.getSignatureRequests({ status, studentId })
 }))
 
 // ── Nombre de demandes en attente (prof) ────────────────────────────────────
-router.get('/pending-count', requireTeacher, wrap(() => {
+router.get('/pending-count', requireRole('teacher'), wrap(() => {
   return { count: queries.getPendingCount() }
 }))
 
 // ── Signer un document (prof uniquement) ────────────────────────────────────
-router.post('/:id/sign', requireTeacher, signLimiter, validate(signSchema), async (req, res) => {
+router.post('/:id/sign', requireRole('teacher'), signLimiter, validate(signSchema), async (req, res) => {
   try {
     const sigReq = queries.getSignatureById(Number(req.params.id))
     if (!sigReq) return res.status(404).json({ ok: false, error: 'Demande introuvable' })
@@ -221,7 +221,7 @@ router.post('/:id/sign', requireTeacher, signLimiter, validate(signSchema), asyn
 })
 
 // ── Refuser une demande (prof uniquement) ───────────────────────────────────
-router.post('/:id/reject', requireTeacher, validate(rejectSchema), wrap((req) => {
+router.post('/:id/reject', requireRole('teacher'), validate(rejectSchema), wrap((req) => {
   const sigReq = queries.getSignatureById(Number(req.params.id))
   if (!sigReq) throw new Error('Demande introuvable')
   if (sigReq.status !== 'pending') throw new Error('Demande déjà traitée')

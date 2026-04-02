@@ -47,11 +47,11 @@ describe('GET /api/admin/stats', () => {
     expect(res.body.ok).toBe(false)
   })
 
-  it('teacher bloque sur stats (403)', async () => {
+  it('teacher CAN access stats (200)', async () => {
     const res = await request(app)
       .get('/api/admin/stats')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
   it('admin recoit les stats globales', async () => {
@@ -79,11 +79,11 @@ describe('GET /api/admin/heatmap', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher bloque sur heatmap (403)', async () => {
+  it('teacher CAN access heatmap (200)', async () => {
     const res = await request(app)
       .get('/api/admin/heatmap')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
   it('admin recoit la heatmap', async () => {
@@ -106,11 +106,11 @@ describe('GET /api/admin/visits', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher bloque sur stats de visites (403)', async () => {
+  it('teacher CAN access visit stats (200)', async () => {
     const res = await request(app)
       .get('/api/admin/visits')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 })
 
@@ -125,25 +125,25 @@ describe('GET /api/admin/error-reports', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher bloque sur rapports d\'erreur (403)', async () => {
+  it('teacher CAN access error reports (200)', async () => {
     const res = await request(app)
       .get('/api/admin/error-reports')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
-  it('teacher bloque sur parametre limit (403)', async () => {
+  it('teacher CAN access error reports with limit (200)', async () => {
     const res = await request(app)
       .get('/api/admin/error-reports?limit=1')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
-  it('teacher bloque sur parametre offset (403)', async () => {
+  it('teacher CAN access error reports with offset (200)', async () => {
     const res = await request(app)
       .get('/api/admin/error-reports?offset=1000')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 })
 
@@ -158,7 +158,7 @@ describe('DELETE /api/admin/error-reports', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher non-admin bloque (403)', async () => {
+  it('teacher CANNOT delete error reports (admin only)', async () => {
     const res = await request(app)
       .delete('/api/admin/error-reports')
       .set('Authorization', `Bearer ${teacherToken}`)

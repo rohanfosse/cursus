@@ -5,7 +5,6 @@ const { hasRole } = require('../permissions')
 /**
  * Verifie que l'utilisateur a au moins le role requis.
  * admin > teacher > ta > student
- * Remplace requireTeacher.
  */
 function requireRole(minRole) {
   return (req, res, next) => {
@@ -16,10 +15,6 @@ function requireRole(minRole) {
   }
 }
 
-/** Raccourci retrocompat — sera supprime quand toutes les routes seront migrees */
-function requireTeacher(req, res, next) {
-  return requireRole('ta')(req, res, next)
-}
 
 /**
  * Vérifie que l'étudiant appartient à la promo ciblée.
@@ -117,6 +112,29 @@ function requireDmParticipant(req, res, next) {
 }
 
 /**
+ * Vérifie que l'enseignant est responsable de la promo ciblée (via teacher_promos).
+ * Les admins passent toujours.
+ */
+function requirePromoAdmin(getPromoId) {
+  return (req, res, next) => {
+    if (req.user?.type === 'admin') return next()
+    if (!hasRole(req.user?.type, 'teacher')) {
+      return res.status(403).json({ ok: false, error: 'Accès réservé aux enseignants.' })
+    }
+    const promoId = getPromoId(req)
+    if (promoId == null) return next()
+    const teacherId = Math.abs(req.user.id)
+    const assigned = getDb().prepare(
+      'SELECT 1 FROM teacher_promos WHERE teacher_id = ? AND promo_id = ? LIMIT 1'
+    ).get(teacherId, promoId)
+    if (!assigned) {
+      return res.status(403).json({ ok: false, error: 'Vous n\'êtes pas responsable de cette promotion.' })
+    }
+    next()
+  }
+}
+
+/**
  * Verifie que le TA est assigne au projet demande.
  * Les teachers et admins passent toujours.
  */
@@ -142,8 +160,8 @@ function requireProject(getProjectId) {
 
 module.exports = {
   requireRole,
-  requireTeacher, // retrocompat
   requirePromo,
+  requirePromoAdmin,
   promoFromChannel,
   promoFromParam,
   promoFromTravail,

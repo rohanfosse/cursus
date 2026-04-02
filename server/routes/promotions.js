@@ -4,7 +4,7 @@ const { z }   = require('zod')
 const queries = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap    = require('../utils/wrap')
-const { requireTeacher, requirePromo, promoFromParam } = require('../middleware/authorize')
+const { requireRole, requirePromo, promoFromParam } = require('../middleware/authorize')
 
 // ── Schémas ─────────────────────────────────────────────────────────────────
 const patchPromoSchema = z.object({
@@ -39,9 +39,9 @@ const createChannelSchema = z.object({
 
 // ── Promotions ────────────────────────────────────────────────────────────────
 router.get('/',    wrap(() => queries.getPromotions()))
-router.post('/',   requireTeacher, wrap((req) => queries.createPromotion(req.body)))
-router.delete('/:id', requireTeacher, wrap((req) => queries.deletePromotion(Number(req.params.id))))
-router.patch('/:id', requireTeacher, validate(patchPromoSchema), (req, res) => {
+router.post('/',   requireRole('teacher'), wrap((req) => queries.createPromotion(req.body)))
+router.delete('/:id', requireRole('teacher'), wrap((req) => queries.deletePromotion(Number(req.params.id))))
+router.patch('/:id', requireRole('teacher'), validate(patchPromoSchema), (req, res) => {
   try {
     const { name, color } = req.body
     const { getDb } = require('../db/connection')
@@ -58,25 +58,25 @@ router.get('/:promoId/students', requirePromo(promoFromParam), wrap((req) => que
 // ── Canaux d'une promo ────────────────────────────────────────────────────────
 router.get('/:promoId/channels', requirePromo(promoFromParam), wrap((req) => queries.getChannels(Number(req.params.promoId))))
 
-router.post('/categories/rename', requireTeacher, validate(categoryRenameSchema), wrap((req) => {
+router.post('/categories/rename', requireRole('teacher'), validate(categoryRenameSchema), wrap((req) => {
   return queries.renameCategory(req.body.promoId, req.body.old, req.body.next)
 }))
 
-router.post('/categories/delete', requireTeacher, validate(categoryDeleteSchema), wrap((req) => {
+router.post('/categories/delete', requireRole('teacher'), validate(categoryDeleteSchema), wrap((req) => {
   return queries.deleteCategory(req.body.promoId, req.body.category)
 }))
 
 // ── Archivage canaux ──────────────────────────────────────────────────────────
-router.post('/channels/:id/archive',  requireTeacher, wrap((req) => queries.archiveChannel(Number(req.params.id))))
-router.post('/channels/:id/restore',  requireTeacher, wrap((req) => queries.restoreChannel(Number(req.params.id))))
+router.post('/channels/:id/archive',  requireRole('teacher'), wrap((req) => queries.archiveChannel(Number(req.params.id))))
+router.post('/channels/:id/restore',  requireRole('teacher'), wrap((req) => queries.restoreChannel(Number(req.params.id))))
 router.get('/:promoId/channels/archived', requirePromo(promoFromParam), wrap((req) => queries.getArchivedChannels(Number(req.params.promoId))))
 
 // ── Canaux (CRUD) ─────────────────────────────────────────────────────────────
-router.post('/channels',             requireTeacher, validate(createChannelSchema), wrap((req) => queries.createChannel(req.body)))
-router.patch('/channels/:id/name',   requireTeacher, wrap((req) => queries.renameChannel(Number(req.params.id), req.body.name)))
-router.delete('/channels/:id',       requireTeacher, wrap((req) => queries.deleteChannel(Number(req.params.id))))
-router.post('/channels/members',     requireTeacher, wrap((req) => queries.updateChannelMembers(req.body)))
-router.patch('/channels/:id/category', requireTeacher, wrap((req) => queries.updateChannelCategory(Number(req.params.id), req.body.category)))
-router.patch('/channels/:id/privacy',  requireTeacher, wrap((req) => queries.updateChannelPrivacy(Number(req.params.id), req.body.isPrivate, req.body.members)))
+router.post('/channels',             requireRole('teacher'), validate(createChannelSchema), wrap((req) => queries.createChannel(req.body)))
+router.patch('/channels/:id/name',   requireRole('teacher'), wrap((req) => queries.renameChannel(Number(req.params.id), req.body.name)))
+router.delete('/channels/:id',       requireRole('teacher'), wrap((req) => queries.deleteChannel(Number(req.params.id))))
+router.post('/channels/members',     requireRole('teacher'), wrap((req) => queries.updateChannelMembers(req.body)))
+router.patch('/channels/:id/category', requireRole('teacher'), wrap((req) => queries.updateChannelCategory(Number(req.params.id), req.body.category)))
+router.patch('/channels/:id/privacy',  requireRole('teacher'), wrap((req) => queries.updateChannelPrivacy(Number(req.params.id), req.body.isPrivate, req.body.members)))
 
 module.exports = router

@@ -2,25 +2,25 @@
  * Routes admin - Point d'entree, monte tous les sous-routeurs sous /api/admin
  *
  * Deux niveaux d'acces :
- *   - requireAdmin     : teacher + admin  (modules promo)
- *   - requireSystemAdmin : admin uniquement (modules systeme)
+ *   - requireAdmin       : teacher + admin  (modules promo)
+ *   - requireSystemAdmin : admin uniquement  (modules systeme)
  */
 const router = require('express').Router()
 
 const { hasRole, isSystemAdmin } = require('../../permissions')
 
-// ── Middleware : acces reserve aux administrateurs ───────────────────────────
+// ── Middleware : acces reserve aux enseignants et admins (modules promo) ─────
 function requireAdmin(req, res, next) {
-  if (!isSystemAdmin(req.user?.type)) {
-    return res.status(403).json({ ok: false, error: 'Acces reserve aux administrateurs.' })
+  if (!hasRole(req.user?.type, 'teacher')) {
+    return res.status(403).json({ ok: false, error: 'Acces reserve aux enseignants.' })
   }
   next()
 }
 
-// ── Middleware : acces reserve a l'administrateur systeme ─────────────────────
+// ── Middleware : acces reserve a l'administrateur systeme ────────────────────
 function requireSystemAdmin(req, res, next) {
   if (!isSystemAdmin(req.user?.type)) {
-    return res.status(403).json({ ok: false, error: 'Acces reserve a l\'administrateur.' })
+    return res.status(403).json({ ok: false, error: 'Acces reserve a l\'administrateur systeme.' })
   }
   next()
 }

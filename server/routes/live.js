@@ -2,7 +2,7 @@
 const router  = require('express').Router()
 const queries = require('../db/index')
 const wrap    = require('../utils/wrap')
-const { requireTeacher, requirePromo, promoFromParam } = require('../middleware/authorize')
+const { requireRole, requirePromo, promoFromParam } = require('../middleware/authorize')
 
 /** Lookup : live session id → promo_id */
 function promoFromSession(req) {
@@ -54,7 +54,7 @@ setInterval(() => {
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
 // POST /sessions - créer une session (prof uniquement)
-router.post('/sessions', requireTeacher, wrap((req) => {
+router.post('/sessions', requireRole('teacher'), wrap((req) => {
   const { promoId, title } = req.body
   const teacherId = req.user?.id
   if (!teacherId || !promoId || !title) throw new Error('promoId et title requis (teacherId extrait du token)')
@@ -97,7 +97,7 @@ router.get('/sessions/promo/:promoId', requirePromo(promoFromParam), wrap((req) 
 }))
 
 // POST /sessions/:id/clone - dupliquer une session (prof uniquement)
-router.post('/sessions/:id/clone', requireTeacher, wrap((req) => {
+router.post('/sessions/:id/clone', requireRole('teacher'), wrap((req) => {
   const teacherId = req.user?.id
   const { promoId, title } = req.body
   if (!teacherId || !promoId) throw new Error('promoId requis')
@@ -105,7 +105,7 @@ router.post('/sessions/:id/clone', requireTeacher, wrap((req) => {
 }))
 
 // PATCH /sessions/:id/activities/reorder (prof uniquement)
-router.patch('/sessions/:id/activities/reorder', requireTeacher, wrap((req) => {
+router.patch('/sessions/:id/activities/reorder', requireRole('teacher'), wrap((req) => {
   const { order } = req.body
   if (!Array.isArray(order)) throw new Error('order (tableau d\'IDs) requis')
   queries.reorderActivities(Number(req.params.id), order)
@@ -113,7 +113,7 @@ router.patch('/sessions/:id/activities/reorder', requireTeacher, wrap((req) => {
 }))
 
 // PATCH /sessions/:id/status (prof uniquement)
-router.patch('/sessions/:id/status', requireTeacher, (req, res) => {
+router.patch('/sessions/:id/status', requireRole('teacher'), (req, res) => {
   try {
     const { status } = req.body
     if (!['waiting', 'active', 'ended'].includes(status)) {
@@ -139,7 +139,7 @@ router.patch('/sessions/:id/status', requireTeacher, (req, res) => {
 })
 
 // DELETE /sessions/:id (prof uniquement)
-router.delete('/sessions/:id', requireTeacher, wrap((req) => {
+router.delete('/sessions/:id', requireRole('teacher'), wrap((req) => {
   const id = Number(req.params.id)
   _lastScoresEmit.delete(id)
   queries.deleteSession(id)
@@ -149,7 +149,7 @@ router.delete('/sessions/:id', requireTeacher, wrap((req) => {
 // ─── Activities ──────────────────────────────────────────────────────────────
 
 // POST /sessions/:id/activities (prof uniquement)
-router.post('/sessions/:id/activities', requireTeacher, wrap((req) => {
+router.post('/sessions/:id/activities', requireRole('teacher'), wrap((req) => {
   const { type, title, options, multi, maxWords, position, timer_seconds, correct_answers } = req.body
   if (!type || !title) throw new Error('type et title requis')
   return queries.addActivity({
@@ -160,12 +160,12 @@ router.post('/sessions/:id/activities', requireTeacher, wrap((req) => {
 }))
 
 // PATCH /activities/:id (prof uniquement)
-router.patch('/activities/:id', requireTeacher, wrap((req) => {
+router.patch('/activities/:id', requireRole('teacher'), wrap((req) => {
   return queries.updateActivity(Number(req.params.id), req.body)
 }))
 
 // DELETE /activities/:id (prof uniquement)
-router.delete('/activities/:id', requireTeacher, wrap((req) => {
+router.delete('/activities/:id', requireRole('teacher'), wrap((req) => {
   const id = Number(req.params.id)
   _lastEmit.delete(id)
   queries.deleteActivity(id)
@@ -173,7 +173,7 @@ router.delete('/activities/:id', requireTeacher, wrap((req) => {
 }))
 
 // PATCH /activities/:id/status (prof uniquement)
-router.patch('/activities/:id/status', requireTeacher, (req, res) => {
+router.patch('/activities/:id/status', requireRole('teacher'), (req, res) => {
   try {
     const { status } = req.body
     if (!['pending', 'live', 'closed'].includes(status)) {

@@ -57,9 +57,35 @@ function handleRole(minRole, channel, fn) {
   })
 }
 
-/** Raccourci retrocompat — sera supprime quand tous les IPC seront migres. */
-function handleTeacher(channel, fn) {
-  return handleRole('ta', channel, fn)
+/**
+ * Wrapper projet-scopé — vérifie que le TA est assigné au projet.
+ * Teachers et admins passent toujours.
+ */
+function handleProject(channel, getProjectId, fn) {
+  ipcMain.handle(channel, async (_event, ...args) => {
+    try {
+      if (!hasRole(_currentUser?.type, 'ta')) {
+        return { ok: false, error: 'Accès réservé.' }
+      }
+      if (_currentUser?.type === 'ta') {
+        const projectId = getProjectId(...args)
+        if (projectId) {
+          const { getDb } = require('../../../server/db/connection')
+          const teacherId = Math.abs(_currentUser.id)
+          const assigned = getDb().prepare(
+            'SELECT 1 FROM teacher_projects WHERE teacher_id = ? AND project_id = ? LIMIT 1'
+          ).get(teacherId, projectId)
+          if (!assigned) {
+            return { ok: false, error: 'Vous n\'êtes pas assigné à ce projet.' }
+          }
+        }
+      }
+      return { ok: true, data: fn(...args) }
+    } catch (err) {
+      console.error(`[IPC ${channel}]`, err.stack || err.message)
+      return { ok: false, error: err.message }
+    }
+  })
 }
 
 /**
@@ -85,4 +111,4 @@ function handlePromo(channel, getPromoId, fn) {
   })
 }
 
-module.exports = { handle, handleRole, handleTeacher, handlePromo, assertSafePath, MAX_READ_BYTES, setCurrentUser, getCurrentUser }
+module.exports = { handle, handleRole, handleProject, handlePromo, assertSafePath, MAX_READ_BYTES, setCurrentUser, getCurrentUser }

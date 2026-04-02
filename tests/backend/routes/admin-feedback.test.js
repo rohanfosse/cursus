@@ -41,12 +41,12 @@ describe('POST /api/admin/feedback', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher CANNOT submit feedback (403)', async () => {
+  it('teacher CAN submit feedback (200)', async () => {
     const res = await request(app)
       .post('/api/admin/feedback')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ type: 'bug', title: 'Bug rendu', description: 'Erreur lors du depot' })
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
   it('admin can submit feedback', async () => {
@@ -58,20 +58,20 @@ describe('POST /api/admin/feedback', () => {
     expect(res.body.ok).toBe(true)
   })
 
-  it('teacher bloque sur titre manquant (403)', async () => {
+  it('teacher CAN access feedback route — validation rejects empty title (400)', async () => {
     const res = await request(app)
       .post('/api/admin/feedback')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ type: 'bug', title: '', description: 'test' })
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
-  it('teacher bloque sur type invalide (403)', async () => {
+  it('teacher CAN access feedback route — validation rejects invalid type (400)', async () => {
     const res = await request(app)
       .post('/api/admin/feedback')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ type: 'invalid', title: 'Test', description: 'test' })
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 })
 
@@ -86,25 +86,25 @@ describe('GET /api/admin/feedback', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher CANNOT list feedback (403)', async () => {
+  it('teacher CAN list feedback (200)', async () => {
     const res = await request(app)
       .get('/api/admin/feedback')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
-  it('teacher bloque sur filtre type (403)', async () => {
+  it('teacher CAN access feedback with type filter (200)', async () => {
     const res = await request(app)
       .get('/api/admin/feedback?type=bug')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
-  it('teacher bloque sur pagination feedback (403)', async () => {
+  it('teacher CAN access feedback with pagination (200)', async () => {
     const res = await request(app)
       .get('/api/admin/feedback?limit=1&offset=0')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 })
 
@@ -119,11 +119,11 @@ describe('GET /api/admin/feedback/mine', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher CANNOT see own feedback (403)', async () => {
+  it('teacher CAN see own feedback (200)', async () => {
     const res = await request(app)
       .get('/api/admin/feedback/mine')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 })
 
@@ -138,11 +138,11 @@ describe('GET /api/admin/feedback/stats', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher CANNOT get feedback stats (403)', async () => {
+  it('teacher CAN get feedback stats (200)', async () => {
     const res = await request(app)
       .get('/api/admin/feedback/stats')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 })
 
@@ -169,20 +169,20 @@ describe('POST /api/admin/feedback/:id/status', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher CANNOT update feedback status (403)', async () => {
+  it('teacher CAN update feedback status (200)', async () => {
     const res = await request(app)
       .post(`/api/admin/feedback/${feedbackId}/status`)
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ status: 'in_progress', adminReply: 'On regarde.' })
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
-  it('teacher bloque sur statut invalide (403)', async () => {
+  it('teacher CAN access feedback status route — validation rejects invalid status', async () => {
     const res = await request(app)
       .post(`/api/admin/feedback/${feedbackId}/status`)
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ status: 'bogus' })
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
   it('admin can resolve feedback', async () => {

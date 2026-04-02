@@ -2,7 +2,7 @@
 const router  = require('express').Router()
 const queries = require('../db/index')
 const wrap    = require('../utils/wrap')
-const { requireTeacher, requirePromo, promoFromParam } = require('../middleware/authorize')
+const { requireRole, requirePromo, promoFromParam } = require('../middleware/authorize')
 const { getDb } = require('../db/connection')
 
 /** Lookup : rex session id → promo_id */
@@ -41,7 +41,7 @@ setInterval(() => {
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
 // POST /sessions - creer une session REX
-router.post('/sessions', requireTeacher, wrap((req) => {
+router.post('/sessions', requireRole('teacher'), wrap((req) => {
   const { promoId, title, is_async, open_until } = req.body
   const teacherId = req.user?.id
   if (!teacherId || !promoId || !title) throw new Error('promoId et title requis (teacherId extrait du token)')
@@ -84,7 +84,7 @@ router.get('/sessions/promo/:promoId', requirePromo(promoFromParam), wrap((req) 
 }))
 
 // POST /sessions/:id/clone - dupliquer une session REX
-router.post('/sessions/:id/clone', requireTeacher, wrap((req) => {
+router.post('/sessions/:id/clone', requireRole('teacher'), wrap((req) => {
   const teacherId = req.user?.id
   const { promoId, title } = req.body
   if (!teacherId || !promoId) throw new Error('promoId requis')
@@ -92,7 +92,7 @@ router.post('/sessions/:id/clone', requireTeacher, wrap((req) => {
 }))
 
 // PATCH /sessions/:id/activities/reorder - réordonner les activités
-router.patch('/sessions/:id/activities/reorder', requireTeacher, wrap((req) => {
+router.patch('/sessions/:id/activities/reorder', requireRole('teacher'), wrap((req) => {
   const { order } = req.body
   if (!Array.isArray(order)) throw new Error('order (tableau d\'IDs) requis')
   queries.reorderRexActivities(Number(req.params.id), order)
@@ -100,7 +100,7 @@ router.patch('/sessions/:id/activities/reorder', requireTeacher, wrap((req) => {
 }))
 
 // PATCH /sessions/:id/status - demarrer/terminer
-router.patch('/sessions/:id/status', requireTeacher, (req, res) => {
+router.patch('/sessions/:id/status', requireRole('teacher'), (req, res) => {
   try {
     const { status } = req.body
     if (!['waiting', 'active', 'ended'].includes(status)) {
@@ -118,7 +118,7 @@ router.patch('/sessions/:id/status', requireTeacher, (req, res) => {
 })
 
 // DELETE /sessions/:id
-router.delete('/sessions/:id', requireTeacher, wrap((req) => {
+router.delete('/sessions/:id', requireRole('teacher'), wrap((req) => {
   queries.deleteRexSession(Number(req.params.id))
   return null
 }))
@@ -127,7 +127,7 @@ router.delete('/sessions/:id', requireTeacher, wrap((req) => {
 // ─── Activities ──────────────────────────────────────────────────────────────
 
 // POST /sessions/:id/activities - ajouter une activite
-router.post('/sessions/:id/activities', requireTeacher, wrap((req) => {
+router.post('/sessions/:id/activities', requireRole('teacher'), wrap((req) => {
   const { type, title, maxWords, maxRating, position } = req.body
   if (!type || !title) throw new Error('type et title requis')
   return queries.addRexActivity({
@@ -136,12 +136,12 @@ router.post('/sessions/:id/activities', requireTeacher, wrap((req) => {
 }))
 
 // PATCH /activities/:id - modifier une activité REX
-router.patch('/activities/:id', requireTeacher, wrap((req) => {
+router.patch('/activities/:id', requireRole('teacher'), wrap((req) => {
   return queries.updateRexActivity(Number(req.params.id), req.body)
 }))
 
 // DELETE /activities/:id
-router.delete('/activities/:id', requireTeacher, wrap((req) => {
+router.delete('/activities/:id', requireRole('teacher'), wrap((req) => {
   const id = Number(req.params.id)
   _lastEmit.delete(id)
   queries.deleteRexActivity(id)
@@ -149,7 +149,7 @@ router.delete('/activities/:id', requireTeacher, wrap((req) => {
 }))
 
 // PATCH /activities/:id/status - lancer/fermer une activite
-router.patch('/activities/:id/status', requireTeacher, (req, res) => {
+router.patch('/activities/:id/status', requireRole('teacher'), (req, res) => {
   try {
     const { status } = req.body
     if (!['pending', 'live', 'closed'].includes(status)) {
@@ -208,7 +208,7 @@ router.get('/activities/:id/results', requirePromo(promoFromRexActivity), wrap((
 // ─── Pin ─────────────────────────────────────────────────────────────────────
 
 // POST /responses/:id/pin - toggle pin (teacher)
-router.post('/responses/:id/pin', requireTeacher, wrap((req) => {
+router.post('/responses/:id/pin', requireRole('teacher'), wrap((req) => {
   const { pinned } = req.body
   return queries.toggleRexPin(Number(req.params.id), pinned)
 }))
@@ -216,7 +216,7 @@ router.post('/responses/:id/pin', requireTeacher, wrap((req) => {
 // ─── Export ──────────────────────────────────────────────────────────────────
 
 // GET /sessions/:id/export - export JSON ou CSV
-router.get('/sessions/:id/export', requireTeacher, requirePromo(promoFromRexSession), (req, res) => {
+router.get('/sessions/:id/export', requireRole('teacher'), requirePromo(promoFromRexSession), (req, res) => {
   try {
     const data = queries.exportRexSession(Number(req.params.id))
     if (!data) return res.status(404).json({ ok: false, error: 'Session introuvable' })

@@ -6,7 +6,7 @@ const { validate } = require('../middleware/validate')
 const wrap    = require('../utils/wrap')
 const log     = require('../utils/logger')
 const { AppError } = require('../utils/errors')
-const { requireTeacher, requirePromo, promoFromChannel, promoFromParam } = require('../middleware/authorize')
+const { requireRole, requirePromo, promoFromChannel, promoFromParam } = require('../middleware/authorize')
 
 // ── Constantes de sécurité ────────────────────────────────────────────────────
 const path = require('path')
@@ -82,7 +82,7 @@ router.get('/channel/:channelId',             requirePromo(promoFromChannel), wr
 router.get('/channel/:channelId/categories',  requirePromo(promoFromChannel), wrap((req) => queries.getChannelDocumentCategories(Number(req.params.channelId))))
 router.get('/promo/:promoId',                 requirePromo(promoFromParam), wrap((req) => queries.getPromoDocuments(Number(req.params.promoId))))
 
-router.post('/channel', requireTeacher, validate(addChannelDocSchema), wrap((req) => {
+router.post('/channel', requireRole('teacher'), validate(addChannelDocSchema), wrap((req) => {
   const payload = req.body
   validateDocSecurity(payload)
   const result = queries.addChannelDocument(payload)
@@ -93,17 +93,17 @@ router.post('/channel', requireTeacher, validate(addChannelDocSchema), wrap((req
   return result
 }))
 
-router.patch('/project/:id', requireTeacher, requireDocOwnership, validate(updateDocSchema), wrap((req) => {
+router.patch('/project/:id', requireRole('teacher'), requireDocOwnership, validate(updateDocSchema), wrap((req) => {
   return queries.updateProjectDocument({ id: Number(req.params.id), ...req.body })
 }))
 
-router.delete('/channel/:id', requireTeacher, requireDocOwnership, wrap((req) => {
+router.delete('/channel/:id', requireRole('teacher'), requireDocOwnership, wrap((req) => {
   return queries.deleteChannelDocument(Number(req.params.id))
 }))
 
 // ── Recherche & liaison ───────────────────────────────────────────────────────
 router.get('/search', requirePromo(promoFromParam), wrap((req) => queries.searchDocuments(Number(req.query.promoId), req.query.q ?? '')))
-router.patch('/link/:id', requireTeacher, requireDocOwnership, wrap((req) => queries.linkDocumentToTravail(Number(req.params.id), req.body.travailId ?? null)))
+router.patch('/link/:id', requireRole('teacher'), requireDocOwnership, wrap((req) => queries.linkDocumentToTravail(Number(req.params.id), req.body.travailId ?? null)))
 
 // ── Documents de projet ───────────────────────────────────────────────────────
 router.get('/project', requirePromo(promoFromParam), wrap((req) => queries.getProjectDocuments(
@@ -115,7 +115,7 @@ router.get('/project/categories', requirePromo(promoFromParam), wrap((req) => qu
   req.query.project ?? null,
 )))
 
-router.post('/project', requireTeacher, validate(addChannelDocSchema), wrap((req) => {
+router.post('/project', requireRole('ta'), validate(addChannelDocSchema), wrap((req) => {
   const payload = req.body
   validateDocSecurity(payload)
   const result  = queries.addProjectDocument(payload)

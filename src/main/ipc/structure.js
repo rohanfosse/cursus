@@ -1,5 +1,5 @@
 // ─── IPC : Structure (promotions, canaux, étudiants) ─────────────────────────
-const { handle, handleTeacher, handlePromo } = require('./helpers')
+const { handle, handleRole, handlePromo } = require('./helpers')
 const queries = require('../../../server/db/index')
 const { validated, createChannelPayload, createPromotionPayload, registerStudentPayload } = require('./validation')
 
@@ -7,18 +7,18 @@ function register() {
   handle('db:getPromotions',    ()           => queries.getPromotions())
   handlePromo('db:getChannels', (promoId) => promoId, (promoId) => queries.getChannels(promoId))
   handlePromo('db:getStudents', (promoId) => promoId, (promoId) => queries.getStudents(promoId))
-  handleTeacher('db:getAllStudents',    ()           => queries.getAllStudents())
+  handleRole('teacher','db:getAllStudents',    ()           => queries.getAllStudents())
 
   // ── Promotions & canaux (teacher-only) ────────────────────────────────
-  handleTeacher('db:createPromotion',          validated(createPromotionPayload, (payload) => queries.createPromotion(payload)))
-  handleTeacher('db:deletePromotion',          (promoId)            => queries.deletePromotion(promoId))
-  handleTeacher('db:createChannel',            validated(createChannelPayload, (payload) => queries.createChannel(payload)))
-  handleTeacher('db:renameChannel',            (id, name)           => queries.renameChannel(id, name))
-  handleTeacher('db:deleteChannel',            (id)                 => queries.deleteChannel(id))
-  handleTeacher('db:renameCategory',           (promoId, old, next) => queries.renameCategory(promoId, old, next))
-  handleTeacher('db:deleteCategory',           (promoId, category)  => queries.deleteCategory(promoId, category))
-  handleTeacher('db:updateChannelMembers',     (payload)            => queries.updateChannelMembers(payload))
-  handleTeacher('db:updateChannelCategory',    (channelId, category) => queries.updateChannelCategory(channelId, category))
+  handleRole('teacher','db:createPromotion',          validated(createPromotionPayload, (payload) => queries.createPromotion(payload)))
+  handleRole('teacher','db:deletePromotion',          (promoId)            => queries.deletePromotion(promoId))
+  handleRole('teacher','db:createChannel',            validated(createChannelPayload, (payload) => queries.createChannel(payload)))
+  handleRole('teacher','db:renameChannel',            (id, name)           => queries.renameChannel(id, name))
+  handleRole('teacher','db:deleteChannel',            (id)                 => queries.deleteChannel(id))
+  handleRole('teacher','db:renameCategory',           (promoId, old, next) => queries.renameCategory(promoId, old, next))
+  handleRole('teacher','db:deleteCategory',           (promoId, category)  => queries.deleteCategory(promoId, category))
+  handleRole('teacher','db:updateChannelMembers',     (payload)            => queries.updateChannelMembers(payload))
+  handleRole('teacher','db:updateChannelCategory',    (channelId, category) => queries.updateChannelCategory(channelId, category))
 
   // ── Identité / login ───────────────────────────────────────────────────
   handle('db:getIdentities',        ()                 => queries.getIdentities())
@@ -31,22 +31,22 @@ function register() {
   handle('db:registerStudent',   validated(registerStudentPayload, (payload) => queries.registerStudent(payload)))
 
   // ── Réinitialisation des données (teacher-only) ───────────────────────
-  handleTeacher('db:resetAndSeed', () => { queries.resetAndSeed(); return null })
+  handleRole('teacher','db:resetAndSeed', () => { queries.resetAndSeed(); return null })
 
   // ── Profil étudiant ───────────────────────────────────────────────────
   handle('db:getStudentProfile', (studentId) => queries.getStudentProfile(studentId))
   handle('db:getStudentTravaux', (studentId) => queries.getStudentTravaux(studentId))
 
   // ── Vue Classe (teacher-only) ─────────────────────────────────────────
-  handleTeacher('db:getClasseStats',     (promoId) => queries.getClasseStats(promoId))
-  handleTeacher('db:updateStudentPhoto', (payload) => queries.updateStudentPhoto(payload.studentId, payload.photoData))
+  handleRole('teacher','db:getClasseStats',     (promoId) => queries.getClasseStats(promoId))
+  handleRole('teacher','db:updateStudentPhoto', (payload) => queries.updateStudentPhoto(payload.studentId, payload.photoData))
 
   // ── Intervenants (teacher-only) ───────────────────────────────────────
   handle('db:getIntervenants',    ()        => queries.getIntervenants())
-  handleTeacher('db:createIntervenant',  (payload) => queries.createIntervenant(payload))
-  handleTeacher('db:deleteIntervenant',  (id)      => queries.deleteIntervenant(id))
+  handleRole('teacher','db:createIntervenant',  (payload) => queries.createIntervenant(payload))
+  handleRole('teacher','db:deleteIntervenant',  (id)      => queries.deleteIntervenant(id))
   handle('db:getTeacherChannels', (id)      => queries.getTeacherChannels(id))
-  handleTeacher('db:setTeacherChannels', (payload) => queries.setTeacherChannels(payload))
+  handleRole('teacher','db:setTeacherChannels', (payload) => queries.setTeacherChannels(payload))
 }
 
 module.exports = { register }

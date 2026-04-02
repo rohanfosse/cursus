@@ -6,7 +6,7 @@ const queries   = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap         = require('../utils/wrap')
 const { ForbiddenError, NotFoundError } = require('../utils/errors')
-const { requireTeacher, requirePromo, promoFromChannel, requireMessageOwner, requireDmParticipant } = require('../middleware/authorize')
+const { requireRole, requirePromo, promoFromChannel, requireMessageOwner, requireDmParticipant } = require('../middleware/authorize')
 
 // ── Rate limiter spécifique messages : 30 msg/min par utilisateur ───────────
 const messageLimiter = rateLimit({
@@ -81,7 +81,7 @@ router.get('/dm/:studentId/search', requireDmParticipant, wrap((req) => {
   return queries.searchDmMessages(Number(req.params.studentId), req.query.q, peer)
 }))
 
-router.get('/dm-files', requireTeacher, wrap(() => queries.getDmFiles()))
+router.get('/dm-files', requireRole('teacher'), wrap(() => queries.getDmFiles()))
 
 // ── Ecriture ──────────────────────────────────────────────────────────────────
 const MessageService = require('../services/messages')
@@ -126,7 +126,7 @@ router.post('/', messageLimiter, validate(sendMessageSchema), (req, res) => {
   }
 })
 
-router.post('/pin',       requireTeacher, wrap((req) => queries.togglePinMessage(req.body.messageId, req.body.pinned)))
+router.post('/pin',       requireRole('teacher'), wrap((req) => queries.togglePinMessage(req.body.messageId, req.body.pinned)))
 router.post('/reactions', (req, res, next) => {
   // Étudiants : vérifier que le message est dans leur promo
   if (req.user?.type !== 'student') return next()

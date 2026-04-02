@@ -2,14 +2,14 @@
 const router  = require('express').Router()
 const queries = require('../db/index')
 const wrap    = require('../utils/wrap')
-const { requireTeacher } = require('../middleware/authorize')
+const { requireRole } = require('../middleware/authorize')
 
 // Liste étudiants : profs voient tout, étudiants uniquement leur promo
 router.get('/', wrap((req) => {
   if (req.user?.type === 'student') return queries.getStudents(req.user.promo_id)
   return queries.getAllStudents()
 }))
-router.get('/stats',               requireTeacher, wrap((req) => queries.getClasseStats(Number(req.query.promoId))))
+router.get('/stats',               requireRole('teacher'), wrap((req) => queries.getClasseStats(Number(req.query.promoId))))
 // Profil : un étudiant ne peut voir que les profils de sa promo
 router.get('/:id/profile', (req, res, next) => {
   if (req.user?.type === 'student') {
@@ -34,7 +34,7 @@ router.post('/photo', (req, res, next) => {
   }
   next()
 }, wrap((req) => queries.updateStudentPhoto(req.body.studentId, req.body.photoData)))
-router.post('/bulk-import',        requireTeacher, wrap((req) => queries.bulkImportStudents(req.body.promoId, req.body.rows)))
+router.post('/bulk-import',        requireRole('teacher'), wrap((req) => queries.bulkImportStudents(req.body.promoId, req.body.rows)))
 
 // ── Onboarding wizard ────────────────────────────────────────────────────────
 router.get('/onboarding-status', wrap((req) => {

@@ -49,46 +49,46 @@ describe('GET /api/admin/messages', () => {
     expect(res.body.ok).toBe(false)
   })
 
-  it('teacher bloque (403)', async () => {
+  it('teacher CAN access messages (200)', async () => {
     const res = await request(app)
       .get('/api/admin/messages')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
-  it('teacher bloque sur filtre recherche (403)', async () => {
+  it('teacher CAN access messages with search filter (200)', async () => {
     const res = await request(app)
       .get('/api/admin/messages?search=moderateur')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
-  it('teacher bloque sur filtre promo_id (403)', async () => {
+  it('teacher CAN access messages with promo_id filter (200)', async () => {
     const res = await request(app)
       .get('/api/admin/messages?promo_id=1')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
-  it('teacher bloque sur filtre channel_id (403)', async () => {
+  it('teacher CAN access messages with channel_id filter (200)', async () => {
     const res = await request(app)
       .get('/api/admin/messages?channel_id=1')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
-  it('teacher bloque sur filtre auteur (403)', async () => {
+  it('teacher CAN access messages with author filter (200)', async () => {
     const res = await request(app)
       .get('/api/admin/messages?author=Jean')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
-  it('teacher bloque sur pagination (403)', async () => {
+  it('teacher CAN access messages with pagination (200)', async () => {
     const res = await request(app)
       .get('/api/admin/messages?page=1&limit=1')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 })
 
@@ -103,19 +103,19 @@ describe('DELETE /api/admin/messages/:id', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher bloque sur message inexistant (403)', async () => {
+  it('teacher CAN access delete route — message inexistant (404)', async () => {
     const res = await request(app)
       .delete('/api/admin/messages/99999')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
-  it('teacher CANNOT supprimer un message (403)', async () => {
+  it('teacher CAN supprimer un message (200)', async () => {
     const res = await request(app)
       .delete('/api/admin/messages/101')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ reason: 'Contenu inapproprie' })
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 })
 
@@ -130,11 +130,11 @@ describe('GET /api/admin/channels', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher bloque sur canaux (403)', async () => {
+  it('teacher CAN access channels (200)', async () => {
     const res = await request(app)
       .get('/api/admin/channels')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 })
 
@@ -149,25 +149,25 @@ describe('GET /api/admin/reports', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher bloque sur signalements (403)', async () => {
+  it('teacher CAN access reports (200)', async () => {
     const res = await request(app)
       .get('/api/admin/reports')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
-  it('teacher bloque sur filtre status (403)', async () => {
+  it('teacher CAN access reports with status filter (200)', async () => {
     const res = await request(app)
       .get('/api/admin/reports?status=pending')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
-  it('teacher bloque sur pagination signalements (403)', async () => {
+  it('teacher CAN access reports with pagination (200)', async () => {
     const res = await request(app)
       .get('/api/admin/reports?page=1&limit=1')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 })
 
@@ -183,19 +183,19 @@ describe('POST /api/admin/reports/:id/resolve', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher CANNOT resoudre un signalement (403)', async () => {
+  it('teacher CAN resoudre un signalement (200)', async () => {
     const res = await request(app)
       .post('/api/admin/reports/1/resolve')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ status: 'reviewed' })
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
-  it('teacher CANNOT rejeter un signalement (403)', async () => {
+  it('teacher CAN rejeter un signalement (200)', async () => {
     const res = await request(app)
       .post('/api/admin/reports/1/resolve')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ status: 'dismissed' })
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 })

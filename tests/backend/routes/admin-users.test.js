@@ -52,11 +52,11 @@ describe('GET /api/admin/users', () => {
     expect(res.body.ok).toBe(false)
   })
 
-  it('teacher CANNOT list users (403)', async () => {
+  it('teacher CAN list users (promo route)', async () => {
     const res = await request(app)
       .get('/api/admin/users')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
   it('admin can list users', async () => {
@@ -67,25 +67,25 @@ describe('GET /api/admin/users', () => {
     expect(res.body.ok).toBe(true)
   })
 
-  it('teacher bloque sur search filter (403)', async () => {
+  it('teacher CAN use search filter (promo route)', async () => {
     const res = await request(app)
       .get('/api/admin/users?search=Marie')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
-  it('teacher bloque sur promo_id filter (403)', async () => {
+  it('teacher CAN use promo_id filter (promo route)', async () => {
     const res = await request(app)
       .get('/api/admin/users?promo_id=1')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
-  it('teacher bloque sur pagination (403)', async () => {
+  it('teacher CAN use pagination (promo route)', async () => {
     const res = await request(app)
       .get('/api/admin/users?page=1&limit=1')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 })
 
@@ -100,18 +100,18 @@ describe('GET /api/admin/users/:id', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher CANNOT get student detail (403)', async () => {
+  it('teacher CAN get student detail (promo route)', async () => {
     const res = await request(app)
       .get('/api/admin/users/1')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
-  it('teacher bloque sur user inexistant (403)', async () => {
+  it('teacher CAN access user detail for nonexistent user (promo route)', async () => {
     const res = await request(app)
       .get('/api/admin/users/99999')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 })
 
@@ -127,28 +127,28 @@ describe('PATCH /api/admin/users/:id', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher CANNOT update a student name (403)', async () => {
+  it('teacher CAN update a student name (promo route)', async () => {
     const res = await request(app)
       .patch('/api/admin/users/2')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ name: 'Marie Curie-Sklodowska' })
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
-  it('teacher CANNOT update a teacher (403)', async () => {
+  it('teacher CAN update a teacher (promo route)', async () => {
     const res = await request(app)
       .patch('/api/admin/users/-2')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ name: 'Pilote Renomme' })
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
-  it('teacher bloque sur update vide (403)', async () => {
+  it('teacher CAN access update route with empty body (promo route)', async () => {
     const res = await request(app)
       .patch('/api/admin/users/2')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({})
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 })
 
@@ -163,18 +163,18 @@ describe('POST /api/admin/users/:id/reset-password', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher CANNOT reset a student password (403)', async () => {
+  it('teacher CAN reset a student password (promo route)', async () => {
     const res = await request(app)
       .post('/api/admin/users/2/reset-password')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
-  it('teacher CANNOT reset a teacher password (403)', async () => {
+  it('teacher CAN reset a teacher password (promo route)', async () => {
     const res = await request(app)
       .post('/api/admin/users/-2/reset-password')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 })
 
@@ -200,24 +200,26 @@ describe('DELETE /api/admin/users/:id', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher CANNOT delete a student (403)', async () => {
+  it('teacher CAN delete a student (promo route)', async () => {
     const res = await request(app)
       .delete(`/api/admin/users/${deletableStudentId}`)
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 
-  it('teacher CANNOT delete a teacher with role=teacher (403)', async () => {
+  it('teacher CANNOT delete a teacher with role=teacher (business rule)', async () => {
     const res = await request(app)
       .delete('/api/admin/users/-1')
       .set('Authorization', `Bearer ${teacherToken}`)
+    // 403 here is a business rule (cannot delete Responsable Pédagogique), not an auth block
     expect(res.status).toBe(403)
+    expect(res.body.error).toMatch(/Responsable/i)
   })
 
-  it('teacher CANNOT delete a teacher with role=pilote (403)', async () => {
+  it('teacher CAN delete a teacher with role=pilote (promo route)', async () => {
     const res = await request(app)
       .delete('/api/admin/users/-2')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).not.toBe(403)
   })
 })

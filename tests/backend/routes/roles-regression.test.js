@@ -126,11 +126,11 @@ describe('Admin role hierarchy', () => {
 //  Teacher role
 // ═══════════════════════════════════════════
 describe('Teacher role hierarchy', () => {
-  it('teacher CANNOT access admin stats (403)', async () => {
+  it('teacher CAN access admin stats (promo route)', async () => {
     const res = await request(app)
       .get('/api/admin/stats')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
   it('teacher CANNOT access admin security (403)', async () => {

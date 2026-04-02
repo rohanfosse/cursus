@@ -1,5 +1,5 @@
 // ─── IPC : Documents (canal + projet) ─────────────────────────────────────────
-const { handle, handleTeacher, handlePromo } = require('./helpers')
+const { handle, handleRole, handlePromo } = require('./helpers')
 const queries = require('../../../server/db/index')
 const { validated, addDocumentPayload } = require('./validation')
 
@@ -7,7 +7,7 @@ function register() {
   handle('db:getChannelDocuments',          (channelId) => queries.getChannelDocuments(channelId))
   handlePromo('db:getPromoDocuments', (promoId) => promoId, (promoId) => queries.getPromoDocuments(promoId))
   handle('db:addChannelDocument',           validated(addDocumentPayload, (payload) => queries.addChannelDocument(payload)))
-  handleTeacher('db:deleteChannelDocument',        (id)        => queries.deleteChannelDocument(id))
+  handleRole('teacher','db:deleteChannelDocument',        (id)        => queries.deleteChannelDocument(id))
   handle('db:getChannelDocumentCategories', (channelId) => queries.getChannelDocumentCategories(channelId))
 
   // ── Documents de projet ─────────────────────────────────────────────────
@@ -38,7 +38,7 @@ function register() {
   handle('db:getProjectDocumentCategories', (promoId, project) => queries.getProjectDocumentCategories(promoId, project ?? null))
   handlePromo('db:searchDocuments', (promoId) => promoId, (promoId, q) => queries.searchDocuments(promoId, q ?? ''))
   handle('db:linkDocumentToTravail',        (docId, travailId) => queries.linkDocumentToTravail(docId, travailId ?? null))
-  handleTeacher('db:updateProjectDocument', (id, payload) => queries.updateProjectDocument({ id, ...payload }))
+  handleRole('teacher','db:updateProjectDocument', (id, payload) => queries.updateProjectDocument({ id, ...payload }))
 }
 
 module.exports = { register }

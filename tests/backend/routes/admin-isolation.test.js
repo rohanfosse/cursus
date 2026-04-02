@@ -53,11 +53,11 @@ describe('Routes admin (admin uniquement)', () => {
   )
 
   it.each(adminRoutes)(
-    'teacher bloque sur $method $path (403)',
+    'teacher CAN access $method $path (promo route)',
     async ({ method, path }) => {
       const res = await request(app)[method](path)
         .set('Authorization', `Bearer ${teacherToken}`)
-      expect(res.status).toBe(403)
+      expect(res.status).not.toBe(403)
     }
   )
 
@@ -114,13 +114,12 @@ describe('Routes systeme (admin uniquement)', () => {
 //  POST /config (settings write) — admin uniquement
 // ═══════════════════════════════════════════
 describe('POST /api/admin/config (settings write)', () => {
-  it('teacher bloque (403)', async () => {
+  it('teacher CANNOT access config write (system route)', async () => {
     const res = await request(app)
       .post('/api/admin/config')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ key: 'read_only', value: '1' })
     expect(res.status).toBe(403)
-    expect(res.body.error).toMatch(/administrateur/i)
   })
 
   it('admin autorise', async () => {
@@ -144,11 +143,11 @@ describe('GET /api/admin/me', () => {
     expect(res.status).toBe(403)
   })
 
-  it('teacher bloque sur /me (403)', async () => {
+  it('teacher CAN access /me (promo route)', async () => {
     const res = await request(app)
       .get('/api/admin/me')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
   it('admin voit son role', async () => {
@@ -164,11 +163,11 @@ describe('GET /api/admin/me', () => {
 //  GET /api/admin/stats — acces admin uniquement
 // ═══════════════════════════════════════════
 describe('GET /api/admin/stats (acces admin uniquement)', () => {
-  it('teacher bloque sur stats (403)', async () => {
+  it('teacher CAN access stats (promo route)', async () => {
     const res = await request(app)
       .get('/api/admin/stats')
       .set('Authorization', `Bearer ${teacherToken}`)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
   it('admin recoit des stats globales', async () => {
