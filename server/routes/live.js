@@ -2,7 +2,7 @@
 const router  = require('express').Router()
 const queries = require('../db/index')
 const wrap    = require('../utils/wrap')
-const { requireRole, requirePromo, promoFromParam } = require('../middleware/authorize')
+const { requireRole, requirePromo, promoFromParam, requireSessionOwner } = require('../middleware/authorize')
 
 /** Lookup : live session id → promo_id */
 function promoFromSession(req) {
@@ -138,8 +138,8 @@ router.patch('/sessions/:id/status', requireRole('teacher'), (req, res) => {
   } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
 })
 
-// DELETE /sessions/:id (prof uniquement)
-router.delete('/sessions/:id', requireRole('teacher'), wrap((req) => {
+// DELETE /sessions/:id (prof uniquement — propre session ou admin)
+router.delete('/sessions/:id', requireRole('teacher'), requireSessionOwner('live_sessions'), wrap((req) => {
   const id = Number(req.params.id)
   _lastScoresEmit.delete(id)
   queries.deleteSession(id)

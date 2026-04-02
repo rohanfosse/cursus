@@ -4,7 +4,7 @@ const { z }   = require('zod')
 const queries = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap         = require('../utils/wrap')
-const { requireRole, requirePromo, promoFromParam, promoFromChannel, promoFromTravail } = require('../middleware/authorize')
+const { requireRole, requirePromo, promoFromParam, promoFromChannel, promoFromTravail, requireTravailOwner } = require('../middleware/authorize')
 
 const createAssignmentSchema = z.object({
   title:       z.string().min(1, 'Titre requis').max(200, 'Titre trop long (max 200 caractères)'),
@@ -64,7 +64,7 @@ router.post('/schedule', requireRole('teacher'), wrap((req) => {
   return queries.updateTravail(travailId, { scheduledPublishAt: scheduledAt ?? null })
 }))
 router.post('/group-member',            requireRole('teacher'), wrap((req) => queries.setTravailGroupMember(req.body)))
-router.post('/:id/mark-missing',        requireRole('teacher'), wrap((req) => queries.markNonSubmittedAsD(Number(req.params.id))))
+router.post('/:id/mark-missing',        requireRole('teacher'), requireTravailOwner, wrap((req) => queries.markNonSubmittedAsD(Number(req.params.id))))
 router.delete('/:id',                   requireRole('teacher'), wrap((req) => queries.deleteTravail(Number(req.params.id))))
 router.patch('/:id',                    requireRole('teacher'), wrap((req) => queries.updateTravail(Number(req.params.id), req.body)))
 

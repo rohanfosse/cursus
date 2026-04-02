@@ -100,10 +100,11 @@ describe('POST /api/teachers', () => {
 })
 
 // ═══════════════════════════════════════════
-//  DELETE /api/teachers/:id — delete intervenant
+//  DELETE /api/teachers/:id — delete intervenant (requireRole('admin'))
 // ═══════════════════════════════════════════
 describe('DELETE /api/teachers/:id', () => {
   let taId
+  const adminToken = jwt.sign({ id: -99, name: 'Admin Test', type: 'admin', promo_id: null }, JWT_SECRET)
 
   beforeAll(async () => {
     const res = await request(app)
@@ -118,20 +119,28 @@ describe('DELETE /api/teachers/:id', () => {
     taId = ta?.id
   })
 
-  it('teacher CAN delete a TA (200)', async () => {
+  it('teacher CANNOT delete a TA (403)', async () => {
     if (!taId) return
     const res = await request(app)
       .delete(`/api/teachers/${taId}`)
       .set('Authorization', `Bearer ${teacherToken}`)
+    expect(res.status).toBe(403)
+  })
+
+  it('admin CAN delete a TA (200)', async () => {
+    if (!taId) return
+    const res = await request(app)
+      .delete(`/api/teachers/${taId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
   })
 
   it('CANNOT delete the main teacher (role=teacher)', async () => {
-    // Teacher ID 1 has role 'teacher' (from seed)
+    // Teacher ID 1 has role 'teacher' (from seed) — admin gets the business-rule error
     const res = await request(app)
       .delete('/api/teachers/1')
-      .set('Authorization', `Bearer ${teacherToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(res.body.ok).toBe(false)
     expect(res.body.error).toMatch(/responsable/i)

@@ -1,6 +1,6 @@
 # RACI — Matrice des permissions par role
 
-> Mise a jour : 2026-04-02 (post-migration `requireRole`)
+> Mise a jour : 2026-04-02 (post-migration `requireRole` + separation admin/teacher)
 
 ## Hierarchie des roles
 
@@ -14,6 +14,21 @@ admin (3) > teacher (2) > ta (1) > student (0)
 - **Admin** — Administrateur systeme, acces illimite
 
 Chaque role herite des permissions des roles inferieurs.
+
+### Differences admin vs teacher
+
+| Capacite | Teacher | Admin |
+|----------|---------|-------|
+| Gerer promos, canaux, devoirs, projets | ✓ creer/modifier | ✓ tout |
+| **Supprimer une promo** | ✗ | ✓ |
+| **Supprimer un intervenant** | ✗ (peut ajouter/desassigner) | ✓ |
+| **Supprimer une categorie** | ✗ | ✓ |
+| Supprimer session live/REX | ✓ ses propres sessions | ✓ toutes |
+| Marquer absents (note D) | ✓ ses propres promos | ✓ toutes |
+| Panel admin (stats, users, moderation) | ✓ | ✓ |
+| Modules systeme (security, deploy, maintenance) | ✗ | ✓ |
+
+**Principe** : un teacher ne peut pas effectuer d'actions destructives irreversibles sur des donnees partagees. L'admin est le seul a pouvoir supprimer des entites structurelles (promos, intervenants, categories).
 
 ---
 
@@ -58,7 +73,7 @@ Chaque role herite des permissions des roles inferieurs.
 | POST | `/publish` | ✗ | ✗ | ✓ | ✓ | Publier |
 | POST | `/schedule` | ✗ | ✗ | ✓ | ✓ | Programmer la publication |
 | POST | `/group-member` | ✗ | ✗ | ✓ | ✓ | Affecter a un groupe |
-| POST | `/:id/mark-missing` | ✗ | ✗ | ✓ | ✓ | Marquer absents |
+| POST | `/:id/mark-missing` | ✗ | ✗ | ✓* | ✓ | Propres promos uniquement (`requireTravailOwner`) |
 | PATCH | `/:id` | ✗ | ✗ | ✓ | ✓ | Modifier |
 | DELETE | `/:id` | ✗ | ✗ | ✓ | ✓ | Supprimer |
 | GET | `/reminders` | ✗ | ✗ | ✓ | ✓ | — |
@@ -128,9 +143,9 @@ Chaque role herite des permissions des roles inferieurs.
 | GET | `/:promoId/channels/archived` | ✓* | ✓ | ✓ | ✓ | Meme promo |
 | POST | `/` | ✗ | ✗ | ✓ | ✓ | Creer promo |
 | PATCH | `/:id` | ✗ | ✗ | ✓ | ✓ | Modifier promo |
-| DELETE | `/:id` | ✗ | ✗ | ✓ | ✓ | Supprimer promo |
+| DELETE | `/:id` | ✗ | ✗ | **✗** | ✓ | **Admin only** — Supprimer promo |
 | POST | `/categories/rename` | ✗ | ✗ | ✓ | ✓ | — |
-| POST | `/categories/delete` | ✗ | ✗ | ✓ | ✓ | — |
+| POST | `/categories/delete` | ✗ | ✗ | **✗** | ✓ | **Admin only** — Supprimer categorie |
 | POST | `/channels` | ✗ | ✗ | ✓ | ✓ | Creer canal |
 | PATCH | `/channels/:id/name` | ✗ | ✗ | ✓ | ✓ | — |
 | PATCH | `/channels/:id/category` | ✗ | ✗ | ✓ | ✓ | — |
@@ -197,7 +212,7 @@ Chaque role herite des permissions des roles inferieurs.
 | PATCH | `/sessions/:id/activities/reorder` | ✗ | ✗ | ✓ | ✓ | — |
 | PATCH | `/activities/:id` | ✗ | ✗ | ✓ | ✓ | — |
 | PATCH | `/activities/:id/status` | ✗ | ✗ | ✓ | ✓ | — |
-| DELETE | `/sessions/:id` | ✗ | ✗ | ✓ | ✓ | — |
+| DELETE | `/sessions/:id` | ✗ | ✗ | ✓* | ✓ | Propre session uniquement (`requireSessionOwner`) |
 | DELETE | `/activities/:id` | ✗ | ✗ | ✓ | ✓ | — |
 
 ---
@@ -221,7 +236,7 @@ Chaque role herite des permissions des roles inferieurs.
 | PATCH | `/activities/:id/status` | ✗ | ✗ | ✓ | ✓ | — |
 | POST | `/responses/:id/pin` | ✗ | ✗ | ✓ | ✓ | — |
 | GET | `/sessions/:id/export` | ✗ | ✗ | ✓ | ✓ | — |
-| DELETE | `/sessions/:id` | ✗ | ✗ | ✓ | ✓ | — |
+| DELETE | `/sessions/:id` | ✗ | ✗ | ✓* | ✓ | Propre session uniquement (`requireSessionOwner`) |
 | DELETE | `/activities/:id` | ✗ | ✗ | ✓ | ✓ | — |
 
 ---
@@ -274,8 +289,8 @@ Chaque role herite des permissions des roles inferieurs.
 | GET | `/:id/channels` | ✓ | ✓ | ✓ | ✓ | Public |
 | GET | `/` | ✗ | ✗ | ✓ | ✓ | — |
 | POST | `/` | ✗ | ✗ | ✓ | ✓ | — |
-| DELETE | `/:id` | ✗ | ✗ | ✓ | ✓ | — |
-| POST | `/:id/channels` | ✗ | ✗ | ✓ | ✓ | — |
+| DELETE | `/:id` | ✗ | ✗ | **✗** | ✓ | **Admin only** — Supprimer intervenant |
+| POST | `/:id/channels` | ✗ | ✗ | ✓ | ✓ | Affecter canaux |
 | POST | `/photo` | ✗ | ✗ | ✓ | ✓ | — |
 
 ---

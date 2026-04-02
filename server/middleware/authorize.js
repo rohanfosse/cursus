@@ -158,6 +158,46 @@ function requireProject(getProjectId) {
   }
 }
 
+/**
+ * Vérifie que l'enseignant est le créateur de la session (live ou rex).
+ * Les admins passent toujours.
+ * @param {string} table — 'live_sessions' ou 'rex_sessions'
+ */
+function requireSessionOwner(table) {
+  return (req, res, next) => {
+    if (req.user?.type === 'admin') return next()
+    const sessionId = Number(req.params.id)
+    if (!sessionId) return res.status(400).json({ ok: false, error: 'ID session manquant.' })
+    const session = getDb().prepare(`SELECT teacher_id FROM ${table} WHERE id = ?`).get(sessionId)
+    if (!session) return res.status(404).json({ ok: false, error: 'Session introuvable.' })
+    const teacherId = Math.abs(req.user.id)
+    if (session.teacher_id !== teacherId) {
+      return res.status(403).json({ ok: false, error: 'Vous ne pouvez supprimer que vos propres sessions.' })
+    }
+    next()
+  }
+}
+
+/**
+ * Vérifie que le devoir appartient à une promo gérée par l'enseignant.
+ * Les admins passent toujours.
+ */
+function requireTravailOwner(req, res, next) {
+  if (req.user?.type === 'admin') return next()
+  const travailId = Number(req.params.id)
+  if (!travailId) return res.status(400).json({ ok: false, error: 'ID devoir manquant.' })
+  const travail = getDb().prepare('SELECT promo_id FROM travaux WHERE id = ?').get(travailId)
+  if (!travail) return res.status(404).json({ ok: false, error: 'Devoir introuvable.' })
+  const teacherId = Math.abs(req.user.id)
+  const assigned = getDb().prepare(
+    'SELECT 1 FROM teacher_promos WHERE teacher_id = ? AND promo_id = ? LIMIT 1'
+  ).get(teacherId, travail.promo_id)
+  if (!assigned) {
+    return res.status(403).json({ ok: false, error: 'Ce devoir n\'appartient pas à vos promotions.' })
+  }
+  next()
+}
+
 module.exports = {
   requireRole,
   requirePromo,
@@ -168,4 +208,6 @@ module.exports = {
   requireMessageOwner,
   requireDmParticipant,
   requireProject,
+  requireSessionOwner,
+  requireTravailOwner,
 }

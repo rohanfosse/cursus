@@ -360,6 +360,11 @@ describe('REX clone and delete', () => {
       .send({ promoId: 1, title: 'REX To Clone' })
     sessionId = res.body.data.id
 
+    // Fix ownership: route stores teacher_id = req.user.id (-1),
+    // but requireSessionOwner checks Math.abs(req.user.id) = 1
+    const db = getTestDb()
+    db.prepare('UPDATE rex_sessions SET teacher_id = ? WHERE id = ?').run(Math.abs(-1), sessionId)
+
     // Add an activity so clone has something to copy
     await request(app)
       .post(`/api/rex/sessions/${sessionId}/activities`)

@@ -2,7 +2,7 @@
 const router  = require('express').Router()
 const queries = require('../db/index')
 const wrap    = require('../utils/wrap')
-const { requireRole, requirePromo, promoFromParam } = require('../middleware/authorize')
+const { requireRole, requirePromo, promoFromParam, requireSessionOwner } = require('../middleware/authorize')
 const { getDb } = require('../db/connection')
 
 /** Lookup : rex session id → promo_id */
@@ -117,8 +117,8 @@ router.patch('/sessions/:id/status', requireRole('teacher'), (req, res) => {
   } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
 })
 
-// DELETE /sessions/:id
-router.delete('/sessions/:id', requireRole('teacher'), wrap((req) => {
+// DELETE /sessions/:id (propre session ou admin)
+router.delete('/sessions/:id', requireRole('teacher'), requireSessionOwner('rex_sessions'), wrap((req) => {
   queries.deleteRexSession(Number(req.params.id))
   return null
 }))

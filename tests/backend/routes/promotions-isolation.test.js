@@ -144,10 +144,11 @@ describe('PATCH /api/promotions/:id', () => {
 })
 
 // ═══════════════════════════════════════════
-//  DELETE /api/promotions/:id — requireTeacher
+//  DELETE /api/promotions/:id — requireRole('admin')
 // ═══════════════════════════════════════════
 describe('DELETE /api/promotions/:id', () => {
   let emptyPromoId
+  const adminToken = jwt.sign({ id: -99, name: 'Admin Test', type: 'admin', promo_id: null }, JWT_SECRET)
 
   beforeAll(async () => {
     // Creer une promo vide (sans etudiants) pour pouvoir la supprimer
@@ -165,10 +166,17 @@ describe('DELETE /api/promotions/:id', () => {
     expect(res.status).toBe(403)
   })
 
-  it('prof peut supprimer une promo vide', async () => {
+  it('prof ne peut plus supprimer une promo (403)', async () => {
     const res = await request(app)
       .delete(`/api/promotions/${emptyPromoId}`)
       .set('Authorization', `Bearer ${teacherToken}`)
+    expect(res.status).toBe(403)
+  })
+
+  it('admin peut supprimer une promo vide', async () => {
+    const res = await request(app)
+      .delete(`/api/promotions/${emptyPromoId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
     expect(res.status).toBe(200)
   })
 })

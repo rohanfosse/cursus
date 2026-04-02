@@ -110,6 +110,10 @@ describe('DELETE /api/live/sessions/:id', () => {
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ promoId: 1, title: 'Session a supprimer' })
     sessionId = res.body.data.id
+    // Fix ownership: route stores teacher_id = req.user.id (-1),
+    // but requireSessionOwner checks Math.abs(req.user.id) = 1
+    const db = getTestDb()
+    db.prepare('UPDATE live_sessions SET teacher_id = ? WHERE id = ?').run(Math.abs(-1), sessionId)
   })
 
   it('etudiant ne peut pas supprimer une session (403)', async () => {

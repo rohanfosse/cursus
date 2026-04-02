@@ -40,7 +40,7 @@ const createChannelSchema = z.object({
 // ── Promotions ────────────────────────────────────────────────────────────────
 router.get('/',    wrap(() => queries.getPromotions()))
 router.post('/',   requireRole('teacher'), wrap((req) => queries.createPromotion(req.body)))
-router.delete('/:id', requireRole('teacher'), wrap((req) => queries.deletePromotion(Number(req.params.id))))
+router.delete('/:id', requireRole('admin'), wrap((req) => queries.deletePromotion(Number(req.params.id))))
 router.patch('/:id', requireRole('teacher'), validate(patchPromoSchema), (req, res) => {
   try {
     const { name, color } = req.body
@@ -62,7 +62,7 @@ router.post('/categories/rename', requireRole('teacher'), validate(categoryRenam
   return queries.renameCategory(req.body.promoId, req.body.old, req.body.next)
 }))
 
-router.post('/categories/delete', requireRole('teacher'), validate(categoryDeleteSchema), wrap((req) => {
+router.post('/categories/delete', requireRole('admin'), validate(categoryDeleteSchema), wrap((req) => {
   return queries.deleteCategory(req.body.promoId, req.body.category)
 }))
 
