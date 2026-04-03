@@ -251,6 +251,7 @@
             v-model="searchQuery"
             class="form-input depots-search-input"
             placeholder="Rechercher un étudiant…"
+            aria-label="Rechercher un étudiant"
           />
         </div>
         <button
@@ -556,6 +557,7 @@
           <button
             class="btn-icon"
             title="Ajouter un commentaire"
+            aria-label="Ajouter un commentaire"
             style="margin-top:4px"
             @click="startFeedback(d)"
           >
@@ -566,6 +568,7 @@
           <button
             class="btn-icon"
             title="Évaluer avec la grille de critères"
+            aria-label="Évaluer avec la grille de critères"
             style="margin-top:4px"
             @click="openRubricScoring(d)"
           >
@@ -577,6 +580,7 @@
             v-if="d.type === 'file'"
             class="btn-icon"
             title="Télécharger"
+            aria-label="Télécharger"
             @click="downloadDepot(d)"
           >
             <Download :size="13" />

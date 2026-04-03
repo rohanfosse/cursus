@@ -257,7 +257,7 @@
                 :style="{ width: totalWeight ? ((c.weight / totalWeight) * 100) + '%' : '0%' }"
               />
             </div>
-            <button class="btn-icon rubric-delete-btn" @click="removeCriterion(c._key)">
+            <button class="btn-icon rubric-delete-btn" title="Supprimer le critère" aria-label="Supprimer le critère" @click="removeCriterion(c._key)">
               <Trash2 :size="13" />
             </button>
           </div>
@@ -329,6 +329,7 @@
                 :key="pt - 1"
                 class="rubric-pt-btn"
                 :class="{ active: (scores[c.id] ?? 0) === pt - 1 }"
+                :aria-label="`${c.label} : ${pt - 1} point${pt - 1 > 1 ? 's' : ''} sur ${c.max_pts}`"
                 @click="scores[c.id] = pt - 1"
               >
                 {{ pt - 1 }}

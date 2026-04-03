@@ -324,6 +324,9 @@
 
   <!-- Shell principal (après connexion) -->
   <div v-else id="app-shell" class="app-shell">
+    <!-- Lien d'accessibilite : aller au contenu principal -->
+    <a href="#main-content" class="sr-only sr-only-focusable">Aller au contenu principal</a>
+
     <!-- Barre de titre custom (fenêtre sans chrome natif) -->
     <TitleBar />
 
@@ -391,7 +394,7 @@
       <SidebarWrapper @navigate="closeSidebar" />
     </aside>
 
-    <main class="main-wrapper" :class="{ 'main-with-banner': appStore.isSimulating || !appStore.isOnline }">
+    <main id="main-content" class="main-wrapper" :class="{ 'main-with-banner': appStore.isSimulating || !appStore.isOnline }">
       <!-- Vue active (messages / travaux / documents) -->
       <RouterView v-slot="{ Component }">
         <component :is="Component" :key="$route.path" :toggle-sidebar="toggleSidebar" />

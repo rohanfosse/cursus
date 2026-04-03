@@ -495,9 +495,9 @@
             <button class="btn-icon" aria-label="Fermer" @click="rightPanel = null"><XIcon :size="14" /></button>
           </div>
           <div class="dm-files-filters">
-            <button :class="{ active: dmFileFilter === 'all' }" @click="dmFileFilter = 'all'">Tout</button>
-            <button :class="{ active: dmFileFilter === 'images' }" @click="dmFileFilter = 'images'">Images</button>
-            <button :class="{ active: dmFileFilter === 'docs' }" @click="dmFileFilter = 'docs'">Documents</button>
+            <button :class="{ active: dmFileFilter === 'all' }" aria-label="Afficher tous les fichiers" @click="dmFileFilter = 'all'">Tout</button>
+            <button :class="{ active: dmFileFilter === 'images' }" aria-label="Afficher uniquement les images" @click="dmFileFilter = 'images'">Images</button>
+            <button :class="{ active: dmFileFilter === 'docs' }" aria-label="Afficher uniquement les documents" @click="dmFileFilter = 'docs'">Documents</button>
           </div>
           <div v-if="dmFilesLoading" class="dm-files-empty">Chargement…</div>
           <div v-else-if="!filteredDmFiles.length" class="dm-files-empty">Aucun fichier {{ dmFileFilter === 'all' ? 'partagé dans cette conversation' : dmFileFilter === 'images' ? 'image' : 'document' }}.</div>

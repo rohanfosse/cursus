@@ -49,6 +49,7 @@
       class="dm-toggle-btn"
       style="margin-left:auto"
       :title="showAllDmStudents ? 'Masquer' : 'Nouvelle conversation'"
+      :aria-label="showAllDmStudents ? 'Masquer' : 'Nouvelle conversation'"
       @click.stop="emit('update:showAllDmStudents', !showAllDmStudents)"
     ><Plus :size="14" /></button>
     <button
@@ -56,6 +57,7 @@
       class="dm-toggle-btn"
       style="margin-left:auto"
       :title="showNewDmSearch ? 'Fermer' : 'Nouveau message'"
+      :aria-label="showNewDmSearch ? 'Fermer' : 'Nouveau message'"
       @click.stop="emit('toggleNewDmSearch')"
     ><UserPlus :size="14" /></button>
   </div>
@@ -66,6 +68,7 @@
       :value="newDmQuery"
       class="dm-search-input"
       placeholder="Rechercher un camarade..."
+      aria-label="Rechercher un camarade"
       @input="emit('update:newDmQuery', ($event.target as HTMLInputElement).value)"
     />
     <button
@@ -96,11 +99,11 @@
       >
         <span class="dm-avatar-wrap">
           <span class="dm-avatar" :class="{ 'dm-avatar-teacher': s.id < 0 }" :style="{ background: s.id < 0 ? 'var(--accent)' : avatarColor(s.name) }">{{ s.avatar_initials }}</span>
-          <span v-if="appStore.isUserOnline(s.name)" class="presence-dot presence-online" title="En ligne" />
-          <span v-else class="presence-dot presence-offline" title="Hors ligne" />
+          <span v-if="appStore.isUserOnline(s.name)" class="presence-dot presence-online" title="En ligne" role="img" aria-label="En ligne" />
+          <span v-else class="presence-dot presence-offline" title="Hors ligne" role="img" aria-label="Hors ligne" />
         </span>
         <span class="dm-info">
-          <span class="channel-name">{{ s.name }} <span v-if="appStore.isDmMuted(s.name)" class="dm-muted-icon" title="Notifications desactivees">&#x1F507;</span></span>
+          <span class="channel-name">{{ s.name }} <span v-if="appStore.isDmMuted(s.name)" class="dm-muted-icon" title="Notifications desactivees" role="img" aria-label="Notifications desactivees">&#x1F507;</span></span>
           <span v-if="getDmPreview(s.name)" class="dm-preview">{{ getDmPreview(s.name) }}</span>
         </span>
         <span v-if="appStore.unreadDms[s.name]" class="dm-unread-badge">

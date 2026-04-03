@@ -100,7 +100,7 @@
         <label class="da-label">Lien vers un devoir <span class="da-hint">(optionnel)</span></label>
         <div class="da-travail-select-wrap">
           <BookMarked :size="14" class="da-travail-icon" />
-          <select v-model="addTravailId" class="da-input da-travail-select">
+          <select v-model="addTravailId" class="da-input da-travail-select" aria-label="Lien vers un devoir">
             <option :value="null">-- Aucun --</option>
             <option v-for="t in travailList" :key="t.id" :value="t.id">{{ t.title }}{{ t.category ? ` · ${t.category}` : '' }}</option>
           </select>

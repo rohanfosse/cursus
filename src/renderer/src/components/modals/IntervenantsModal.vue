@@ -204,7 +204,7 @@ function assignedSummary(taId: number): string {
     <!-- ── Recherche ── -->
     <div v-if="intervenants.length" class="iv-search-bar">
       <Search :size="13" class="iv-search-icon" />
-      <input v-model="searchQuery" class="iv-search-input" placeholder="Rechercher un intervenant…" />
+      <input v-model="searchQuery" class="iv-search-input" placeholder="Rechercher un intervenant…" aria-label="Rechercher un intervenant" />
     </div>
 
     <!-- ── Liste des intervenants ── -->
@@ -235,6 +235,7 @@ function assignedSummary(taId: number): string {
               class="btn-icon iv-btn-channels"
               :class="{ active: expandedTaId === ta.id }"
               title="Gérer les canaux"
+              aria-label="Gérer les canaux"
               @click="toggleExpand(ta.id)"
             >
               <ChevronRight
@@ -247,6 +248,7 @@ function assignedSummary(taId: number): string {
             <button
               class="btn-icon iv-btn-delete"
               title="Supprimer l'intervenant"
+              aria-label="Supprimer l'intervenant"
               @click="remove(ta)"
             >
               <Trash2 :size="14" />

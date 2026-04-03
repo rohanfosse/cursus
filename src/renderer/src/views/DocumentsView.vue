@@ -135,7 +135,7 @@
             class="docs-search-input"
             placeholder="Rechercher…"
           />
-          <button v-if="docStore.searchQuery" class="docs-search-clear" @click="docStore.searchQuery = ''">
+          <button v-if="docStore.searchQuery" class="docs-search-clear" aria-label="Effacer la recherche" @click="docStore.searchQuery = ''">
             <X :size="12" />
           </button>
         </div>
@@ -147,6 +147,7 @@
             class="docs-view-btn"
             :class="{ active: viewMode === 'grid' }"
             title="Grille"
+            aria-label="Vue grille"
             @click="viewMode = 'grid'"
           >
             <LayoutGrid :size="15" />
@@ -155,6 +156,7 @@
             class="docs-view-btn"
             :class="{ active: viewMode === 'dense' }"
             title="Dense"
+            aria-label="Vue dense"
             @click="viewMode = 'dense'"
           >
             <Grid3x3 :size="15" />
@@ -163,6 +165,7 @@
             class="docs-view-btn"
             :class="{ active: viewMode === 'list' }"
             title="Liste"
+            aria-label="Vue liste"
             @click="viewMode = 'list'"
           >
             <List :size="15" />
@@ -170,7 +173,7 @@
         </div>
 
         <!-- Tri -->
-        <select v-model="sortBy" class="docs-sort-select">
+        <select v-model="sortBy" class="docs-sort-select" aria-label="Trier les documents">
           <option value="date">Plus récents</option>
           <option value="name">Nom A-Z</option>
           <option value="type">Par type</option>
@@ -272,6 +275,7 @@
             <button
               class="doc-card-fav doc-card-fav--dense"
               :class="{ 'doc-card-fav--active': docStore.isFavorite(doc.id) }"
+              :aria-label="docStore.isFavorite(doc.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'"
               @click.stop="docStore.toggleFavorite(doc.id)"
             >
               <Star :size="10" />
@@ -283,13 +287,13 @@
             <span class="doc-dense-meta">{{ formatDate(doc.created_at) }}</span>
 
             <div class="doc-card-actions" @click.stop>
-              <button class="doc-card-action-btn" title="Copier le lien" @click="copyDocLink(doc)"><Copy :size="12" /></button>
-              <button class="doc-card-action-btn" :title="doc.type === 'link' ? 'Ouvrir' : 'Aperçu'" @click="openDoc(doc)">
+              <button class="doc-card-action-btn" title="Copier le lien" aria-label="Copier le lien" @click="copyDocLink(doc)"><Copy :size="12" /></button>
+              <button class="doc-card-action-btn" :title="doc.type === 'link' ? 'Ouvrir' : 'Aperçu'" :aria-label="doc.type === 'link' ? 'Ouvrir' : 'Aperçu'" @click="openDoc(doc)">
                 <Eye v-if="doc.type === 'file'" :size="12" />
                 <ExternalLink v-else :size="12" />
               </button>
-              <button v-if="doc.type === 'file'" class="doc-card-action-btn" title="Télécharger" @click="api.downloadFile(doc.content)"><Download :size="12" /></button>
-              <button v-if="appStore.isTeacher" class="doc-card-action-btn doc-card-action-btn--danger" title="Supprimer" @click="deleteDoc(doc.id)"><Trash2 :size="12" /></button>
+              <button v-if="doc.type === 'file'" class="doc-card-action-btn" title="Télécharger" aria-label="Télécharger" @click="api.downloadFile(doc.content)"><Download :size="12" /></button>
+              <button v-if="appStore.isTeacher" class="doc-card-action-btn doc-card-action-btn--danger" title="Supprimer" aria-label="Supprimer" @click="deleteDoc(doc.id)"><Trash2 :size="12" /></button>
             </div>
           </div>
         </div>
@@ -326,6 +330,7 @@
                 class="doc-card-fav"
                 :class="{ 'doc-card-fav--active': docStore.isFavorite(doc.id) }"
                 :title="docStore.isFavorite(doc.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'"
+                :aria-label="docStore.isFavorite(doc.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'"
                 @click.stop="docStore.toggleFavorite(doc.id)"
               >
                 <Star :size="13" />
@@ -362,6 +367,7 @@
                   class="doc-card-action-btn"
                   :class="{ 'doc-fav--active': docStore.isFavorite(doc.id) }"
                   :title="docStore.isFavorite(doc.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'"
+                  :aria-label="docStore.isFavorite(doc.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'"
                   @click="docStore.toggleFavorite(doc.id)"
                 >
                   <Star :size="14" />
@@ -369,6 +375,7 @@
                 <button
                   class="doc-card-action-btn"
                   title="Copier le lien"
+                  aria-label="Copier le lien"
                   @click="copyDocLink(doc)"
                 >
                   <Copy :size="14" />
@@ -376,6 +383,7 @@
                 <button
                   class="doc-card-action-btn"
                   :title="doc.type === 'link' ? 'Ouvrir le lien' : 'Prévisualiser'"
+                  :aria-label="doc.type === 'link' ? 'Ouvrir le lien' : 'Prévisualiser'"
                   @click="openDoc(doc)"
                 >
                   <Eye v-if="doc.type === 'file'" :size="14" />
@@ -385,6 +393,7 @@
                   v-if="doc.type === 'file'"
                   class="doc-card-action-btn"
                   title="Télécharger"
+                  aria-label="Télécharger"
                   @click="api.downloadFile(doc.content)"
                 >
                   <Download :size="14" />
@@ -393,6 +402,7 @@
                   v-if="appStore.isTeacher"
                   class="doc-card-action-btn"
                   title="Modifier"
+                  aria-label="Modifier"
                   @click="openEditModal(doc)"
                 >
                   <Pencil :size="14" />
@@ -401,6 +411,7 @@
                   v-if="appStore.isTeacher"
                   class="doc-card-action-btn doc-card-action-btn--danger"
                   title="Supprimer"
+                  aria-label="Supprimer"
                   @click="deleteDoc(doc.id)"
                 >
                   <Trash2 :size="14" />

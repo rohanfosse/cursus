@@ -124,7 +124,12 @@
                 v-for="t in monthItems"
                 :key="t.id"
                 class="tl-item"
+                role="button"
+                tabindex="0"
+                :aria-label="`Ouvrir le devoir ${t.title}`"
                 @click="openTravail(t.id)"
+                @keydown.enter="openTravail(t.id)"
+                @keydown.space.prevent="openTravail(t.id)"
               >
                 <!-- Date à gauche -->
                 <div class="tl-item-date">

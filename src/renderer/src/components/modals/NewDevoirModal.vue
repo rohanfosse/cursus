@@ -234,7 +234,7 @@
           </div>
           <div class="nd-field nd-flex1">
             <label class="nd-label">Session</label>
-            <select v-model="session" class="nd-input">
+            <select v-model="session" class="nd-input" aria-label="Session">
               <option value="Initiale">Initiale</option>
               <option value="Rattrapage">Rattrapage</option>
             </select>
@@ -244,7 +244,7 @@
         <div class="nd-row">
           <div class="nd-field nd-flex1">
             <label class="nd-label"><Clock :size="12" /> Durée</label>
-            <select v-model.number="duration" class="nd-input">
+            <select v-model.number="duration" class="nd-input" aria-label="Durée">
               <option :value="15">15 min</option>
               <option :value="20">20 min</option>
               <option :value="30">30 min</option>
@@ -275,7 +275,7 @@
 
         <div v-if="type !== 'soutenance'" class="nd-field">
           <label class="nd-label">Ressources autorisées</label>
-          <select v-model="ressources" class="nd-input">
+          <select v-model="ressources" class="nd-input" aria-label="Ressources autorisées">
             <option value="Aucune">Aucune ressource</option>
             <option value="Documents personnels">Documents personnels</option>
             <option value="Tous documents">Tous documents</option>
@@ -314,7 +314,7 @@
         <div class="nd-row">
           <div class="nd-field nd-flex1">
             <label class="nd-label"><FolderOpen :size="12" /> Projet</label>
-            <select v-if="projects.length" v-model="category" class="nd-input">
+            <select v-if="projects.length" v-model="category" class="nd-input" aria-label="Projet">
               <option value="">Aucun projet</option>
               <option v-for="p in projects" :key="p.name" :value="p.name">
                 {{ parseCategoryIcon(p.name).label || p.name }}
@@ -324,7 +324,7 @@
           </div>
           <div class="nd-field nd-flex1">
             <label class="nd-label">Canal d'annonce</label>
-            <select v-model="channelId" class="nd-input" required>
+            <select v-model="channelId" class="nd-input" required aria-label="Canal d'annonce">
               <option :value="null" disabled>Choisir…</option>
               <option v-for="c in channels" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>

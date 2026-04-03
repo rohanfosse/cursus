@@ -449,7 +449,12 @@
               :key="'arch-' + ch.id"
               class="sidebar-item archived-channel-item"
               :class="{ active: appStore.activeChannelId === ch.id }"
+              role="button"
+              tabindex="0"
+              :aria-label="'Canal archivé ' + ch.name"
               @click="selectArchivedChannel(ch)"
+              @keydown.enter="selectArchivedChannel(ch)"
+              @keydown.space.prevent="selectArchivedChannel(ch)"
             >
               <span class="channel-prefix archived-prefix">#</span>
               <span class="channel-name archived-name">{{ ch.name }}</span>

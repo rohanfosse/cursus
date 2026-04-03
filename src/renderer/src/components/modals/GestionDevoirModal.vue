@@ -351,7 +351,7 @@
 
           <!-- Raw text -->
           <template v-else-if="!editingDesc">
-            <div class="gd-description" @click="startEditDesc" title="Cliquer pour modifier">
+            <div class="gd-description" role="button" tabindex="0" @click="startEditDesc" @keydown.enter="startEditDesc" @keydown.space.prevent="startEditDesc" title="Cliquer pour modifier" aria-label="Modifier la description">
               <pre class="gd-desc-pre">{{ travail.description || 'Aucune description - cliquez pour en ajouter.' }}</pre>
             </div>
           </template>

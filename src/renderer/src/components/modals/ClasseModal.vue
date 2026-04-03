@@ -206,11 +206,12 @@
                 class="btn-icon"
                 :class="{ 'chart-btn-active': showChart }"
                 title="Distribution des notes"
+                aria-label="Distribution des notes"
                 @click="showChart = !showChart"
               >
                 <BarChart2 :size="15" />
               </button>
-              <button class="btn-icon classe-close" @click="emit('update:modelValue', false)">
+              <button class="btn-icon classe-close" title="Fermer" aria-label="Fermer" @click="emit('update:modelValue', false)">
                 <X :size="16" />
               </button>
             </div>
@@ -271,7 +272,12 @@
                   :key="s.id"
                   class="classe-row"
                   :class="{ selected: selectedId === s.id }"
+                  role="button"
+                  tabindex="0"
+                  :aria-label="`Voir le profil de ${s.name}`"
                   @click="selectStudent(s.id)"
+                  @keydown.enter="selectStudent(s.id)"
+                  @keydown.space.prevent="selectStudent(s.id)"
                 >
                   <!-- Avatar -->
                   <div
@@ -322,7 +328,7 @@
 
                 <!-- En-tête du panneau -->
                 <div class="profile-header">
-                  <button class="btn-icon" title="Fermer le profil" @click="closeProfile">
+                  <button class="btn-icon" title="Fermer le profil" aria-label="Fermer le profil" @click="closeProfile">
                     <ChevronLeft :size="16" />
                   </button>
                   <template v-if="profile">

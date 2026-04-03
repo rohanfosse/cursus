@@ -174,8 +174,8 @@ function toggleCollapse(studentId: number) {
 
           <!-- Toggle vue -->
           <div class="fv-view-toggle">
-            <button :class="['fv-view-btn', { active: viewMode === 'grid' }]" title="Vue grille" @click="viewMode = 'grid'"><LayoutGrid :size="14" /></button>
-            <button :class="['fv-view-btn', { active: viewMode === 'list' }]" title="Vue liste" @click="viewMode = 'list'"><List :size="14" /></button>
+            <button :class="['fv-view-btn', { active: viewMode === 'grid' }]" title="Vue grille" aria-label="Vue grille" @click="viewMode = 'grid'"><LayoutGrid :size="14" /></button>
+            <button :class="['fv-view-btn', { active: viewMode === 'list' }]" title="Vue liste" aria-label="Vue liste" @click="viewMode = 'list'"><List :size="14" /></button>
           </div>
         </div>
       </div>
@@ -185,7 +185,7 @@ function toggleCollapse(studentId: number) {
         <div class="fv-search-wrap">
           <Search :size="14" class="fv-search-icon" />
           <input v-model="search" class="fv-search" placeholder="Rechercher un fichier ou un étudiant…" />
-          <button v-if="search" class="fv-search-clear" @click="search = ''"><X :size="12" /></button>
+          <button v-if="search" class="fv-search-clear" aria-label="Effacer la recherche" @click="search = ''"><X :size="12" /></button>
         </div>
 
         <div class="fv-type-pills">
@@ -194,7 +194,7 @@ function toggleCollapse(studentId: number) {
           <button :class="['fv-pill', { active: filterType === 'docs' }]"   @click="filterType = 'docs'"><FileText :size="11" /> Documents</button>
         </div>
 
-        <select v-if="students.length > 1" v-model="filterStudent" class="fv-select">
+        <select v-if="students.length > 1" v-model="filterStudent" class="fv-select" aria-label="Filtrer par étudiant">
           <option :value="null">Tous les étudiants</option>
           <option v-for="s in students" :key="s.id" :value="s.id">{{ s.name }}</option>
         </select>
@@ -228,7 +228,7 @@ function toggleCollapse(studentId: number) {
       >
         <!-- Thumbnail -->
         <div class="fv-card-thumb" :style="{ '--fc': fileColor(f) }">
-          <img v-if="f.is_image" :src="authUrl(f.file_url)" class="fv-card-img" />
+          <img v-if="f.is_image" :src="authUrl(f.file_url)" :alt="cleanFileName(f.file_name)" class="fv-card-img" />
           <template v-else>
             <div class="fv-card-icon-ring">
               <component :is="fileIcon(f)" :size="20" />
@@ -252,9 +252,9 @@ function toggleCollapse(studentId: number) {
 
         <!-- Actions au survol -->
         <div class="fv-card-actions" @click.stop>
-          <button class="fv-card-btn" title="Aperçu" @click="openFile(f)"><Eye :size="13" /></button>
-          <button class="fv-card-btn" title="Copier le lien" @click="copyFileLink(f)"><Copy :size="13" /></button>
-          <button class="fv-card-btn" title="Télécharger" @click="downloadFile(f)"><Download :size="13" /></button>
+          <button class="fv-card-btn" title="Aperçu" aria-label="Aperçu" @click="openFile(f)"><Eye :size="13" /></button>
+          <button class="fv-card-btn" title="Copier le lien" aria-label="Copier le lien" @click="copyFileLink(f)"><Copy :size="13" /></button>
+          <button class="fv-card-btn" title="Télécharger" aria-label="Télécharger" @click="downloadFile(f)"><Download :size="13" /></button>
         </div>
       </div>
     </div>
@@ -277,7 +277,7 @@ function toggleCollapse(studentId: number) {
             @click="openFile(f)"
           >
             <div class="fv-list-item-icon" :style="{ '--fc': fileColor(f) }">
-              <img v-if="f.is_image" :src="authUrl(f.file_url)" class="fv-list-thumb" />
+              <img v-if="f.is_image" :src="authUrl(f.file_url)" :alt="cleanFileName(f.file_name)" class="fv-list-thumb" />
               <component v-else :is="fileIcon(f)" :size="15" />
             </div>
             <span class="fv-list-item-name">{{ cleanFileName(f.file_name) }}</span>
@@ -285,8 +285,8 @@ function toggleCollapse(studentId: number) {
             <span v-if="f.file_size" class="fv-list-item-size">{{ formatFileSize(f.file_size) }}</span>
             <span class="fv-list-item-date">{{ relativeTime(f.sent_at) }}</span>
             <div class="fv-list-item-actions" @click.stop>
-              <button class="fv-card-btn" title="Aperçu" @click="openFile(f)"><Eye :size="13" /></button>
-              <button class="fv-card-btn" title="Télécharger" @click="downloadFile(f)"><Download :size="13" /></button>
+              <button class="fv-card-btn" title="Aperçu" aria-label="Aperçu" @click="openFile(f)"><Eye :size="13" /></button>
+              <button class="fv-card-btn" title="Télécharger" aria-label="Télécharger" @click="downloadFile(f)"><Download :size="13" /></button>
             </div>
           </div>
         </div>
@@ -296,8 +296,8 @@ function toggleCollapse(studentId: number) {
     <!-- ── Lightbox image ── -->
     <Transition name="lb">
       <div v-if="lightboxUrl" class="fv-lightbox" @click="lightboxUrl = null">
-        <img :src="authUrl(lightboxUrl!)" class="fv-lightbox-img" @click.stop />
-        <button class="fv-lightbox-close" @click="lightboxUrl = null"><X :size="16" /></button>
+        <img :src="authUrl(lightboxUrl!)" alt="Image agrandie" class="fv-lightbox-img" @click.stop />
+        <button class="fv-lightbox-close" aria-label="Fermer la visionneuse" @click="lightboxUrl = null"><X :size="16" /></button>
         <button class="fv-lightbox-dl" @click.stop="downloadLightbox"><Download :size="14" /> Télécharger</button>
       </div>
     </Transition>

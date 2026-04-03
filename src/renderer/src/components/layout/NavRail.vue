@@ -342,7 +342,7 @@
           <div class="feedback-header">
             <Bug :size="16" />
             <h3>Feedback</h3>
-            <button class="feedback-close" @click="showFeedback = false">&times;</button>
+            <button class="feedback-close" aria-label="Fermer le formulaire de feedback" @click="showFeedback = false">&times;</button>
           </div>
 
           <!-- Formulaire de soumission -->

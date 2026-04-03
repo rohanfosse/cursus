@@ -122,7 +122,7 @@ const promoSummary = computed(() => {
   <template v-if="allProjects.length">
     <div class="sidebar-section-header" style="margin-top:8px">
       <span>{{ appStore.isStaff ? 'Projets' : 'Mes projets' }}</span>
-      <button v-if="appStore.isTeacher" class="btn-icon" title="Nouveau projet" style="padding:2px" @click="modals.newProject = true">
+      <button v-if="appStore.isTeacher" class="btn-icon" title="Nouveau projet" aria-label="Nouveau projet" style="padding:2px" @click="modals.newProject = true">
         <Plus :size="14" />
       </button>
     </div>

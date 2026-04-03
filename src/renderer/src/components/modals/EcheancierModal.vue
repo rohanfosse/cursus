@@ -124,7 +124,12 @@
               v-for="r in aNoter"
               :key="r.depot_id"
               class="ech-row"
+              role="button"
+              tabindex="0"
+              :aria-label="`Noter le rendu de ${r.student_name} - ${r.travail_title}`"
               @click="openTravail(r.travail_id)"
+              @keydown.enter="openTravail(r.travail_id)"
+              @keydown.space.prevent="openTravail(r.travail_id)"
             >
               <div class="ech-avatar" :style="{ background: avatarColor(r.student_name) }">
                 {{ r.avatar_initials }}
@@ -155,7 +160,12 @@
               v-for="r in urgents"
               :key="r.id"
               class="ech-row"
+              role="button"
+              tabindex="0"
+              :aria-label="`Ouvrir le devoir urgent ${r.title}`"
               @click="openTravail(r.id)"
+              @keydown.enter="openTravail(r.id)"
+              @keydown.space.prevent="openTravail(r.id)"
             >
               <div class="ech-urgency-dot" :class="deadlineClass(r.deadline)" />
               <div class="ech-row-info">
@@ -188,7 +198,12 @@
               v-for="r in jalons"
               :key="r.id"
               class="ech-row"
+              role="button"
+              tabindex="0"
+              :aria-label="`Ouvrir le jalon ${r.title}`"
               @click="openTravail(r.id)"
+              @keydown.enter="openTravail(r.id)"
+              @keydown.space.prevent="openTravail(r.id)"
             >
               <div class="ech-jalon-dot" :class="deadlineClass(r.deadline)" />
               <div class="ech-row-info">
@@ -219,7 +234,12 @@
               v-for="r in brouillons"
               :key="r.id"
               class="ech-row"
+              role="button"
+              tabindex="0"
+              :aria-label="`Ouvrir le brouillon ${r.title}`"
               @click="openTravail(r.id)"
+              @keydown.enter="openTravail(r.id)"
+              @keydown.space.prevent="openTravail(r.id)"
             >
               <span class="ech-type-badge" :class="`type-${r.type}`">{{ r.type }}</span>
               <div class="ech-row-info">

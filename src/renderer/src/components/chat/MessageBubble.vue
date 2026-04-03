@@ -298,13 +298,13 @@ function onTextClick(e: MouseEvent) {
     <Transition name="lightbox-fade">
       <div v-if="lightboxUrl" class="lightbox-overlay" @click.self="lightboxUrl = null">
         <div class="lightbox-toolbar">
-          <a :href="authUrl(lightboxUrl!)" download class="lightbox-btn" title="Télécharger" @click.stop>
+          <a :href="authUrl(lightboxUrl!)" download class="lightbox-btn" title="Télécharger" aria-label="Télécharger l'image" @click.stop>
             <Download :size="18" />
           </a>
-          <button class="lightbox-btn" title="Ouvrir dans le navigateur" @click.stop="openExternal(lightboxUrl!)">
+          <button class="lightbox-btn" title="Ouvrir dans le navigateur" aria-label="Ouvrir dans le navigateur" @click.stop="openExternal(lightboxUrl!)">
             <Flame :size="18" />
           </button>
-          <button class="lightbox-btn" title="Fermer" @click="lightboxUrl = null">
+          <button class="lightbox-btn" title="Fermer" aria-label="Fermer la visionneuse" @click="lightboxUrl = null">
             <X :size="18" />
           </button>
         </div>
