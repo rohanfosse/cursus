@@ -1,9 +1,55 @@
 /** Routes API REX — sessions, activites, reponses anonymes, export. */
 const router  = require('express').Router()
+const { z }   = require('zod')
 const queries = require('../db/index')
+const { validate } = require('../middleware/validate')
 const wrap    = require('../utils/wrap')
 const { requireRole, requirePromo, promoFromParam, requireSessionOwner, requireActivityOwner } = require('../middleware/authorize')
 const { getDb } = require('../db/connection')
+
+// ── Schémas Zod ────────────────────────────────────────────────────────────────
+const createRexSessionSchema = z.object({
+  promoId:    z.number().int().positive('promoId requis'),
+  title:      z.string().min(1, 'Titre requis').max(200),
+  is_async:   z.union([z.boolean(), z.number()]).optional(),
+  open_until: z.string().nullable().optional(),
+}).passthrough()
+
+const cloneRexSessionSchema = z.object({
+  promoId: z.number().int().positive('promoId requis'),
+  title:   z.string().max(200).optional(),
+}).passthrough()
+
+const addRexActivitySchema = z.object({
+  type:      z.string().min(1, 'Type requis'),
+  title:     z.string().min(1, 'Titre requis').max(500),
+  maxWords:  z.number().int().optional(),
+  maxRating: z.number().int().optional(),
+  position:  z.number().int().optional(),
+}).passthrough()
+
+const updateRexActivitySchema = z.object({}).passthrough()
+
+const rexSessionStatusSchema = z.object({
+  status: z.enum(['waiting', 'active', 'ended'], { message: 'Statut invalide' }),
+}).passthrough()
+
+const rexActivityStatusSchema = z.object({
+  status: z.enum(['pending', 'live', 'closed'], { message: 'Statut invalide' }),
+}).passthrough()
+
+const rexRespondSchema = z.object({
+  answer: z.any().optional(),
+  words:  z.array(z.string()).optional(),
+}).passthrough()
+
+const rexReorderSchema = z.object({
+  order: z.array(z.number().int()),
+}).passthrough()
+
+const rexPinSchema = z.object({
+  pinned: z.union([z.boolean(), z.number()]),
+}).passthrough()
 
 /** Lookup : rex session id → promo_id */
 function promoFromRexSession(req) {
@@ -41,10 +87,10 @@ setInterval(() => {
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
 // POST /sessions - creer une session REX
-router.post('/sessions', requireRole('teacher'), wrap((req) => {
+router.post('/sessions', requireRole('teacher'), validate(createRexSessionSchema), wrap((req) => {
   const { promoId, title, is_async, open_until } = req.body
   const teacherId = req.user?.id
-  if (!teacherId || !promoId || !title) throw new Error('promoId et title requis (teacherId extrait du token)')
+  if (!teacherId) throw new Error('teacherId extrait du token requis')
   return queries.createRexSession({ teacherId, promoId, title, isAsync: is_async, openUntil: open_until })
 }))
 
@@ -84,28 +130,23 @@ router.get('/sessions/promo/:promoId', requirePromo(promoFromParam), wrap((req) 
 }))
 
 // POST /sessions/:id/clone - dupliquer une session REX
-router.post('/sessions/:id/clone', requireRole('teacher'), wrap((req) => {
+router.post('/sessions/:id/clone', requireRole('teacher'), validate(cloneRexSessionSchema), wrap((req) => {
   const teacherId = req.user?.id
   const { promoId, title } = req.body
-  if (!teacherId || !promoId) throw new Error('promoId requis')
+  if (!teacherId) throw new Error('teacherId requis')
   return queries.cloneRexSession(Number(req.params.id), { teacherId, promoId, title })
 }))
 
 // PATCH /sessions/:id/activities/reorder (propre session ou admin)
-router.patch('/sessions/:id/activities/reorder', requireRole('teacher'), requireSessionOwner('rex_sessions'), wrap((req) => {
-  const { order } = req.body
-  if (!Array.isArray(order)) throw new Error('order (tableau d\'IDs) requis')
-  queries.reorderRexActivities(Number(req.params.id), order)
+router.patch('/sessions/:id/activities/reorder', requireRole('teacher'), requireSessionOwner('rex_sessions'), validate(rexReorderSchema), wrap((req) => {
+  queries.reorderRexActivities(Number(req.params.id), req.body.order)
   return queries.getRexSession(Number(req.params.id))
 }))
 
 // PATCH /sessions/:id/status (propre session ou admin)
-router.patch('/sessions/:id/status', requireRole('teacher'), requireSessionOwner('rex_sessions'), (req, res) => {
+router.patch('/sessions/:id/status', requireRole('teacher'), requireSessionOwner('rex_sessions'), validate(rexSessionStatusSchema), (req, res) => {
   try {
     const { status } = req.body
-    if (!['waiting', 'active', 'ended'].includes(status)) {
-      return res.status(400).json({ ok: false, error: 'Statut invalide' })
-    }
     const session = queries.updateRexSessionStatus(Number(req.params.id), status)
     const io = req.app.get('io')
     if (status === 'active') {
@@ -127,16 +168,15 @@ router.delete('/sessions/:id', requireRole('teacher'), requireSessionOwner('rex_
 // ─── Activities ──────────────────────────────────────────────────────────────
 
 // POST /sessions/:id/activities (propre session ou admin)
-router.post('/sessions/:id/activities', requireRole('teacher'), requireSessionOwner('rex_sessions'), wrap((req) => {
+router.post('/sessions/:id/activities', requireRole('teacher'), requireSessionOwner('rex_sessions'), validate(addRexActivitySchema), wrap((req) => {
   const { type, title, maxWords, maxRating, position } = req.body
-  if (!type || !title) throw new Error('type et title requis')
   return queries.addRexActivity({
     sessionId: Number(req.params.id), type, title, maxWords, maxRating, position,
   })
 }))
 
 // PATCH /activities/:id (propre activité ou admin)
-router.patch('/activities/:id', requireRole('teacher'), requireActivityOwner('rex_activities', 'rex_sessions'), wrap((req) => {
+router.patch('/activities/:id', requireRole('teacher'), requireActivityOwner('rex_activities', 'rex_sessions'), validate(updateRexActivitySchema), wrap((req) => {
   return queries.updateRexActivity(Number(req.params.id), req.body)
 }))
 
@@ -149,12 +189,9 @@ router.delete('/activities/:id', requireRole('teacher'), requireActivityOwner('r
 }))
 
 // PATCH /activities/:id/status (propre activité ou admin)
-router.patch('/activities/:id/status', requireRole('teacher'), requireActivityOwner('rex_activities', 'rex_sessions'), (req, res) => {
+router.patch('/activities/:id/status', requireRole('teacher'), requireActivityOwner('rex_activities', 'rex_sessions'), validate(rexActivityStatusSchema), (req, res) => {
   try {
     const { status } = req.body
-    if (!['pending', 'live', 'closed'].includes(status)) {
-      return res.status(400).json({ ok: false, error: 'Statut invalide' })
-    }
     const activity = queries.setRexActivityStatus(Number(req.params.id), status)
     const io = req.app.get('io')
 
@@ -174,7 +211,7 @@ router.patch('/activities/:id/status', requireRole('teacher'), requireActivityOw
 // ─── Responses ───────────────────────────────────────────────────────────────
 
 // POST /activities/:id/respond - soumettre une reponse anonyme
-router.post('/activities/:id/respond', requirePromo(promoFromRexActivity), (req, res) => {
+router.post('/activities/:id/respond', requirePromo(promoFromRexActivity), validate(rexRespondSchema), (req, res) => {
   try {
     // Sécurité : forcer l'identité depuis le JWT (anti-usurpation)
     const studentId = req.user?.id
@@ -208,7 +245,7 @@ router.get('/activities/:id/results', requirePromo(promoFromRexActivity), wrap((
 // ─── Pin ─────────────────────────────────────────────────────────────────────
 
 // POST /responses/:id/pin - toggle pin (teacher)
-router.post('/responses/:id/pin', requireRole('teacher'), wrap((req) => {
+router.post('/responses/:id/pin', requireRole('teacher'), validate(rexPinSchema), wrap((req) => {
   const { pinned } = req.body
   return queries.toggleRexPin(Number(req.params.id), pinned)
 }))

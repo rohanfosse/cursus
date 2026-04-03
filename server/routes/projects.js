@@ -1,9 +1,30 @@
 // ─── Routes projets : CRUD + travaux/documents + assignation TA ──────────────
 const router  = require('express').Router()
+const { z }   = require('zod')
 const queries = require('../db/index')
+const { validate } = require('../middleware/validate')
 const wrap    = require('../utils/wrap')
 const { getDb } = require('../db/connection')
 const { requireRole, requirePromo, promoFromParam, requireProjectOwner } = require('../middleware/authorize')
+
+// ── Schémas Zod ────────────────────────────────────────────────────────────────
+const createProjectSchema = z.object({
+  promoId:     z.number().int().positive('promoId requis'),
+  name:        z.string().min(1, 'Nom requis').max(200),
+  description: z.string().max(5000).nullable().optional(),
+  channelId:   z.number().int().nullable().optional(),
+  deadline:    z.string().nullable().optional(),
+}).passthrough()
+
+const updateProjectSchema = z.object({
+  name:        z.string().min(1).max(200).optional(),
+  description: z.string().max(5000).nullable().optional(),
+  deadline:    z.string().nullable().optional(),
+}).passthrough()
+
+const assignTaSchema = z.object({
+  teacherId: z.number().int().positive('teacherId requis'),
+}).passthrough()
 
 /** Lookup : project id → promo_id */
 function promoFromProject(req) {
@@ -25,14 +46,13 @@ router.get('/promo/:promoId', requirePromo(promoFromParam), wrap((req) => querie
 
 router.get('/:id', requirePromo(promoFromProject), wrap((req) => queries.getProjectById(Number(req.params.id))))
 
-router.post('/', requireRole('teacher'), wrap((req) => {
+router.post('/', requireRole('teacher'), validate(createProjectSchema), wrap((req) => {
   const { promoId, name, description, channelId, deadline } = req.body
-  if (!promoId || !name) throw Object.assign(new Error('promoId et name requis'), { statusCode: 400 })
   const createdBy = Math.abs(req.user.id)
   return queries.createProject({ promoId, name, description, channelId, deadline, createdBy })
 }))
 
-router.put('/:id', requireRole('teacher'), requireProjectOwner, wrap((req) => {
+router.put('/:id', requireRole('teacher'), requireProjectOwner, validate(updateProjectSchema), wrap((req) => {
   const { name, description, deadline } = req.body
   return queries.updateProject(Number(req.params.id), { name, description, deadline })
 }))
@@ -63,10 +83,8 @@ router.post('/:id/documents/:documentId', requireRole('teacher'), requireProject
 
 router.get('/:id/tas', requirePromo(promoFromProject), wrap((req) => queries.getProjectTas(Number(req.params.id))))
 
-router.post('/:id/assign-ta', requireRole('teacher'), requireProjectOwner, wrap((req) => {
-  const { teacherId } = req.body
-  if (!teacherId) throw Object.assign(new Error('teacherId requis'), { statusCode: 400 })
-  return queries.assignTaToProject(teacherId, Number(req.params.id))
+router.post('/:id/assign-ta', requireRole('teacher'), requireProjectOwner, validate(assignTaSchema), wrap((req) => {
+  return queries.assignTaToProject(req.body.teacherId, Number(req.params.id))
 }))
 
 router.delete('/:id/unassign-ta/:teacherId', requireRole('teacher'), requireProjectOwner, wrap((req) =>

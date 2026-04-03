@@ -1,9 +1,54 @@
 /** Routes Live Quiz - sessions interactives en direct */
 const router  = require('express').Router()
+const { z }   = require('zod')
 const queries = require('../db/index')
+const { validate } = require('../middleware/validate')
 const wrap    = require('../utils/wrap')
 const { getDb } = require('../db/connection')
 const { requireRole, requirePromo, promoFromParam, requireSessionOwner, requireActivityOwner } = require('../middleware/authorize')
+
+// ── Schémas Zod ────────────────────────────────────────────────────────────────
+const createSessionSchema = z.object({
+  promoId: z.number().int().positive('promoId requis'),
+  title:   z.string().min(1, 'Titre requis').max(200),
+}).passthrough()
+
+const cloneSessionSchema = z.object({
+  promoId: z.number().int().positive('promoId requis'),
+  title:   z.string().max(200).optional(),
+}).passthrough()
+
+const addActivitySchema = z.object({
+  type:            z.string().min(1, 'Type requis'),
+  title:           z.string().min(1, 'Titre requis').max(500),
+  options:         z.any().optional(),
+  multi:           z.union([z.boolean(), z.number()]).optional(),
+  maxWords:        z.number().int().optional(),
+  position:        z.number().int().optional(),
+  timer_seconds:   z.number().int().min(1).optional(),
+  correct_answers: z.any().optional(),
+}).passthrough()
+
+const updateActivitySchema = z.object({}).passthrough()
+
+const sessionStatusSchema = z.object({
+  status: z.enum(['waiting', 'active', 'ended'], { message: 'Statut invalide' }),
+}).passthrough()
+
+const activityStatusSchema = z.object({
+  status: z.enum(['pending', 'live', 'closed'], { message: 'Statut invalide' }),
+}).passthrough()
+
+const respondSchema = z.object({
+  answer:  z.any().optional(),
+  answers: z.array(z.any()).optional(),
+  text:    z.string().optional(),
+  words:   z.array(z.string()).optional(),
+}).passthrough()
+
+const reorderSchema = z.object({
+  order: z.array(z.number().int()),
+}).passthrough()
 
 /** Lookup : live session id → promo_id */
 function promoFromSession(req) {
@@ -53,10 +98,10 @@ setInterval(() => {
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
 // POST /sessions - créer une session (prof uniquement)
-router.post('/sessions', requireRole('teacher'), wrap((req) => {
+router.post('/sessions', requireRole('teacher'), validate(createSessionSchema), wrap((req) => {
   const { promoId, title } = req.body
   const teacherId = req.user?.id
-  if (!teacherId || !promoId || !title) throw new Error('promoId et title requis (teacherId extrait du token)')
+  if (!teacherId) throw new Error('teacherId extrait du token requis')
   return queries.createSession({ teacherId, promoId, title })
 }))
 
@@ -96,28 +141,23 @@ router.get('/sessions/promo/:promoId', requirePromo(promoFromParam), wrap((req) 
 }))
 
 // POST /sessions/:id/clone - dupliquer une session (prof uniquement)
-router.post('/sessions/:id/clone', requireRole('teacher'), wrap((req) => {
+router.post('/sessions/:id/clone', requireRole('teacher'), validate(cloneSessionSchema), wrap((req) => {
   const teacherId = req.user?.id
   const { promoId, title } = req.body
-  if (!teacherId || !promoId) throw new Error('promoId requis')
+  if (!teacherId) throw new Error('teacherId requis')
   return queries.cloneSession(Number(req.params.id), { teacherId, promoId, title })
 }))
 
 // PATCH /sessions/:id/activities/reorder (prof uniquement — propre session ou admin)
-router.patch('/sessions/:id/activities/reorder', requireRole('teacher'), requireSessionOwner('live_sessions'), wrap((req) => {
-  const { order } = req.body
-  if (!Array.isArray(order)) throw new Error('order (tableau d\'IDs) requis')
-  queries.reorderActivities(Number(req.params.id), order)
+router.patch('/sessions/:id/activities/reorder', requireRole('teacher'), requireSessionOwner('live_sessions'), validate(reorderSchema), wrap((req) => {
+  queries.reorderActivities(Number(req.params.id), req.body.order)
   return queries.getSession(Number(req.params.id))
 }))
 
 // PATCH /sessions/:id/status (prof uniquement — propre session ou admin)
-router.patch('/sessions/:id/status', requireRole('teacher'), requireSessionOwner('live_sessions'), (req, res) => {
+router.patch('/sessions/:id/status', requireRole('teacher'), requireSessionOwner('live_sessions'), validate(sessionStatusSchema), (req, res) => {
   try {
     const { status } = req.body
-    if (!['waiting', 'active', 'ended'].includes(status)) {
-      return res.status(400).json({ ok: false, error: 'Statut invalide' })
-    }
     const session = queries.updateSessionStatus(Number(req.params.id), status)
     const io = req.app.get('io')
     if (status === 'active') {
@@ -148,9 +188,8 @@ router.delete('/sessions/:id', requireRole('teacher'), requireSessionOwner('live
 // ─── Activities ──────────────────────────────────────────────────────────────
 
 // POST /sessions/:id/activities (prof uniquement — propre session ou admin)
-router.post('/sessions/:id/activities', requireRole('teacher'), requireSessionOwner('live_sessions'), wrap((req) => {
+router.post('/sessions/:id/activities', requireRole('teacher'), requireSessionOwner('live_sessions'), validate(addActivitySchema), wrap((req) => {
   const { type, title, options, multi, maxWords, position, timer_seconds, correct_answers } = req.body
-  if (!type || !title) throw new Error('type et title requis')
   return queries.addActivity({
     sessionId: Number(req.params.id), type, title, options, multi, maxWords, position,
     timerSeconds: timer_seconds ?? 30,
@@ -159,7 +198,7 @@ router.post('/sessions/:id/activities', requireRole('teacher'), requireSessionOw
 }))
 
 // PATCH /activities/:id (prof uniquement — propre activité ou admin)
-router.patch('/activities/:id', requireRole('teacher'), requireActivityOwner('live_activities', 'live_sessions'), wrap((req) => {
+router.patch('/activities/:id', requireRole('teacher'), requireActivityOwner('live_activities', 'live_sessions'), validate(updateActivitySchema), wrap((req) => {
   return queries.updateActivity(Number(req.params.id), req.body)
 }))
 
@@ -172,12 +211,9 @@ router.delete('/activities/:id', requireRole('teacher'), requireActivityOwner('l
 }))
 
 // PATCH /activities/:id/status (prof uniquement — propre activité ou admin)
-router.patch('/activities/:id/status', requireRole('teacher'), requireActivityOwner('live_activities', 'live_sessions'), (req, res) => {
+router.patch('/activities/:id/status', requireRole('teacher'), requireActivityOwner('live_activities', 'live_sessions'), validate(activityStatusSchema), (req, res) => {
   try {
     const { status } = req.body
-    if (!['pending', 'live', 'closed'].includes(status)) {
-      return res.status(400).json({ ok: false, error: 'Statut invalide' })
-    }
     const activity = queries.setActivityStatus(Number(req.params.id), status)
     const io = req.app.get('io')
 
@@ -208,7 +244,7 @@ router.patch('/activities/:id/status', requireRole('teacher'), requireActivityOw
 // ─── Responses ───────────────────────────────────────────────────────────────
 
 // POST /activities/:id/respond - soumettre une réponse
-router.post('/activities/:id/respond', requirePromo(promoFromActivity), (req, res) => {
+router.post('/activities/:id/respond', requirePromo(promoFromActivity), validate(respondSchema), (req, res) => {
   try {
     // Sécurité : forcer l'identité depuis le JWT (anti-usurpation)
     const studentId = req.user?.id

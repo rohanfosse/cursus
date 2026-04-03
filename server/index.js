@@ -88,6 +88,18 @@ app.use('/api/report-error', require('./routes/error-report'))
 const authMiddleware = require('./middleware/auth')
 app.use('/api', authMiddleware)
 
+// ── Rate limit par utilisateur sur les mutations (POST/PUT/PATCH/DELETE) ──────
+const writeLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.id ? String(req.user.id) : req.ip,
+  skip: (req) => req.method === 'GET',
+  message: { ok: false, error: 'Trop de requêtes. Réessayez dans une minute.' },
+})
+app.use('/api', writeLimiter)
+
 // ── Middleware mode lecture seule (bloque POST/PUT/PATCH/DELETE pour non-teachers) ──
 app.use('/api', (req, res, next) => {
   if (req.method === 'GET') return next()
@@ -295,6 +307,12 @@ log.info('db_initialized')
 // ── Timer : envoi des annonces planifiees (toutes les 30s) ─────────────────
 const _scheduledTimer = require('./services/scheduler')(io, queries)
 
+// ── Backup quotidien SQLite ──────────────────────────────────────────────────
+const { startDailyBackup } = require('./services/backup')
+const { getDb } = require('./db/connection')
+const _backupDir = process.env.BACKUP_DIR || path.join(__dirname, '..', 'backups')
+const _backup = startDailyBackup(getDb(), _backupDir)
+
 // ── Middleware d'erreur global (masque les détails internes en production) ────
 app.use((err, _req, res, _next) => {
   log.error('unhandled_error', { error: err.message, stack: err.stack })
@@ -313,6 +331,7 @@ server.listen(PORT, '0.0.0.0', () => {
 function shutdown() {
   log.info('shutdown_initiated')
   clearInterval(_scheduledTimer)
+  _backup.stop()
   server.close(() => {
     try { queries.close() } catch {}
     process.exit(0)
