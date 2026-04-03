@@ -68,6 +68,47 @@ jobs:
           publish_dir: ./gh-pages
           keep_files: true
 
+  e2e:
+    name: E2E Tests (Playwright)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Rebuild better-sqlite3 for Node.js
+        run: npm rebuild better-sqlite3
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Build web frontend
+        run: npm run build:web
+        env:
+          VITE_SERVER_URL: http://localhost:3001
+
+      - name: Run E2E tests
+        run: npx playwright test --reporter=list
+        env:
+          NODE_ENV: test
+          JWT_SECRET: e2e-test-secret-for-ci-only-32chars!!
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
   code-quality:
     name: Code Quality
     runs-on: ubuntu-latest

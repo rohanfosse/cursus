@@ -12,7 +12,7 @@ export const STUDENT = {
   promoId: 1,
 }
 
-export const API_BASE = 'http://localhost:3001'
+export const API_BASE = process.env.API_BASE || 'http://localhost:3001'
 
 // ── Selectors ────────────────────────────────────────────────────────────────
 export const SEL = {
