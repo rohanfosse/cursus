@@ -1561,6 +1561,58 @@ img { max-width: 100%; display: block; }
   to   { opacity: var(--o, 0.8); transform: scale(1) translateY(0); }
 }
 
+/* REX panels (tab content) */
+.rex-panel { display: none; flex-direction: column; gap: 10px; }
+.rex-panel--active { display: flex; }
+
+/* REX: Échelle */
+.rex-scale { display: flex; flex-direction: column; gap: 6px; }
+.rex-scale-row { display: flex; align-items: center; gap: 8px; }
+.rex-scale-label {
+  width: 16px; text-align: center;
+  font-size: 13px; font-weight: 700; color: var(--color-rex);
+  font-family: var(--font-mono);
+}
+.rex-scale-bar {
+  flex: 1; height: 18px; border-radius: 6px;
+  background: rgba(14, 165, 233, 0.08); overflow: hidden;
+}
+.rex-scale-fill {
+  height: 100%; border-radius: 6px;
+  background: linear-gradient(90deg, var(--color-rex), rgba(14, 165, 233, 0.5));
+  width: 0; transition: width 0.8s var(--ease-smooth);
+}
+.rex-panel--active .rex-scale-fill { width: var(--w); }
+.rex-scale-pct {
+  width: 32px; text-align: right;
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+  font-family: var(--font-mono);
+}
+.rex-scale-avg {
+  text-align: center; font-size: 13px; color: var(--text-2); margin-top: 4px;
+}
+.rex-scale-avg strong { color: var(--color-rex); font-family: var(--font-mono); }
+
+/* REX: Question ouverte */
+.rex-responses { display: flex; flex-direction: column; gap: 6px; }
+.rex-response {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 10px; border-radius: 8px;
+  background: rgba(14, 165, 233, 0.04);
+  font-size: 13px; color: var(--text-2); line-height: 1.4;
+}
+[data-theme="dark"] .rex-response { background: rgba(56, 189, 248, 0.06); }
+.rex-resp-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--color-rex); margin-top: 6px; flex-shrink: 0;
+}
+.rex-response--pinned {
+  background: rgba(14, 165, 233, 0.1);
+  border-left: 3px solid var(--color-rex);
+  font-weight: 500; color: var(--text);
+}
+.rex-resp-pin { margin-right: 2px; }
+
 .rex-footer { gap: 8px; }
 .rex-count { font-weight: 500; }
 .rex-count-num {

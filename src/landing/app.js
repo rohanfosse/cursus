@@ -368,6 +368,22 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   }
 
+  // ── REX demo: clickable tabs ────────────────────────────────────────────
+  const rexDemo = document.getElementById('rex-demo')
+  if (rexDemo) {
+    rexDemo.querySelectorAll('.rex-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.rexTab
+        if (!target) return
+        rexDemo.querySelectorAll('.rex-tab').forEach(t => t.classList.remove('rex-tab--active'))
+        tab.classList.add('rex-tab--active')
+        rexDemo.querySelectorAll('.rex-panel').forEach(p => p.classList.remove('rex-panel--active'))
+        const panel = rexDemo.querySelector(`[data-rex-panel="${target}"]`)
+        if (panel) panel.classList.add('rex-panel--active')
+      })
+    })
+  }
+
   // ── Docs demo: clickable files with preview ─────────────────────────────
   document.querySelectorAll('.doc-item').forEach(item => {
     item.style.cursor = 'pointer'
