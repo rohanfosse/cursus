@@ -68,29 +68,24 @@ export async function login(page: Page, email: string, password: string): Promis
 }
 
 export async function loginAndWaitDashboard(page: Page, email: string, password: string): Promise<void> {
-  await login(page, email, password)
-  // May need to change password first (must_change_password)
-  const changePwdModal = page.locator('text=/changer.*mot de passe|nouveau mot de passe/i').first()
-  if (await changePwdModal.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    // Fill new password fields and submit
-    const inputs = page.locator('input[type="password"]')
-    const count = await inputs.count()
-    for (let i = 0; i < count; i++) {
-      await inputs.nth(i).fill(password)
-    }
-    await page.click('button[type="submit"], button:has-text("Valider"), button:has-text("Enregistrer")')
-  }
-  // May need to complete onboarding
-  const onboarding = page.locator('text=/bienvenue.*cursus/i').first()
-  if (await onboarding.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    // Click through all steps
-    for (let i = 0; i < 5; i++) {
-      const nextBtn = page.locator('button:has-text("Commencer"), button:has-text("Suivant"), button:has-text("Entrer")')
-      if (await nextBtn.first().isVisible({ timeout: 1_000 }).catch(() => false)) {
-        await nextBtn.first().click()
-      }
-    }
-  }
-  // Attendre que le shell principal s'affiche (login termine)
-  await page.waitForSelector('#app-shell, .app-shell, .dashboard-shell', { timeout: 20_000 })
+  // Login via API et injection du token dans localStorage (plus fiable en CI)
+  const res = await fetch(`${API_BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  const data = await res.json()
+  if (!data.ok) throw new Error(`Login failed for ${email}: ${data.error}`)
+
+  const session = JSON.stringify(data.data)
+
+  // Injecter la session dans localStorage avant de charger la page
+  await page.goto('/')
+  await page.evaluate((s) => {
+    localStorage.setItem('cc_session', s)
+  }, session)
+
+  // Recharger pour que l'app lise la session
+  await page.goto('/#/dashboard')
+  await page.waitForSelector('#app-shell, .app-shell, .dashboard-shell, .app-columns', { timeout: 20_000 })
 }
