@@ -357,6 +357,16 @@ img { max-width: 100%; display: block; }
   margin-bottom: 36px;
 }
 
+/* ── Bento Intro ──────────────────────────────────────────────────── */
+.bento-intro {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-2);
+  margin-bottom: 20px;
+  letter-spacing: -0.1px;
+}
+
 /* ── Bento Grid ───────────────────────────────────────────────────── */
 .bento {
   display: grid;
@@ -1451,9 +1461,15 @@ img { max-width: 100%; display: block; }
   border: 1px solid var(--border);
   font-size: 14px; color: var(--text-2);
   cursor: pointer;
-  transition: background var(--duration-fast), border-color var(--duration-fast), transform var(--duration-fast);
+  transition: all 0.3s var(--ease-spring);
+  opacity: 0; transform: translateY(8px);
+  animation: msgAppear 0.35s var(--ease-smooth) forwards;
 }
-.live-opt:hover { background: rgba(99, 102, 241, 0.08); transform: translateX(2px); }
+.live-opt:nth-child(1) { animation-delay: 0.05s; }
+.live-opt:nth-child(2) { animation-delay: 0.1s; }
+.live-opt:nth-child(3) { animation-delay: 0.15s; }
+.live-opt:nth-child(4) { animation-delay: 0.2s; }
+.live-opt:hover { background: rgba(99, 102, 241, 0.08); transform: translateX(3px); }
 
 .live-opt.selected {
   background: rgba(99, 102, 241, 0.12);
@@ -1612,6 +1628,22 @@ img { max-width: 100%; display: block; }
   font-weight: 500; color: var(--text);
 }
 .rex-resp-pin { margin-right: 2px; }
+
+/* REX navigation */
+.rex-nav {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  margin-top: 4px;
+}
+.rex-nav-btn {
+  width: 28px; height: 28px; border-radius: 8px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-2); font-size: 14px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all var(--duration-fast);
+}
+.rex-nav-btn:hover { background: rgba(14, 165, 233, 0.08); color: var(--color-rex); border-color: var(--color-rex); }
+.rex-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.rex-nav-count { font-size: 12px; color: var(--text-3); font-family: var(--font-mono); font-weight: 500; }
 
 .rex-footer { gap: 8px; }
 .rex-count { font-weight: 500; }

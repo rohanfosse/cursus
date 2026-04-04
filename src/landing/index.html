@@ -137,6 +137,9 @@
         </div>
       </div>
 
+      <!-- Bento intro -->
+      <p class="bento-intro fade-up">Tout ce dont ta promo a besoin, dans une seule app.</p>
+
       <!-- Bento Grid: 6 cartes interactives -->
       <div class="bento fade-up">
         <!-- Card 1: Chat -->
@@ -431,26 +434,16 @@
         <div class="mini-demo mini-demo-right" id="demo-live">
           <div class="demo-window">
             <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="demo-title">Live Quiz</span></div>
-            <div class="demo-live-body">
-              <div class="live-question" style="--delay: 0ms">
-                <span class="live-q-badge">Question 3/5</span>
-                <span class="live-q-text">Quelle est la complexité d'un tri fusion ?</span>
+            <div class="demo-live-body" id="live-quiz-demo">
+              <div class="live-question">
+                <span class="live-q-badge" id="live-q-badge">Question 1/3</span>
+                <span class="live-q-text" id="live-q-text"></span>
               </div>
-              <div class="live-options" id="live-quiz-opts">
-                <div class="live-opt" style="--delay: 150ms" data-correct="0"><span class="live-opt-letter">A</span><span class="live-opt-text">O(n)</span></div>
-                <div class="live-opt" style="--delay: 300ms" data-correct="1"><span class="live-opt-letter">B</span><span class="live-opt-text">O(n log n)</span></div>
-                <div class="live-opt" style="--delay: 450ms" data-correct="0"><span class="live-opt-letter">C</span><span class="live-opt-text">O(n²)</span></div>
-                <div class="live-opt" style="--delay: 600ms" data-correct="0"><span class="live-opt-letter">D</span><span class="live-opt-text">O(log n)</span></div>
-              </div>
-              <div class="live-stats" style="--delay: 750ms">
-                <div class="live-stat-bar"><div class="live-stat-fill" style="--w:12%"></div><span class="live-stat-label">A</span><span class="live-stat-pct">12%</span></div>
-                <div class="live-stat-bar"><div class="live-stat-fill live-stat-fill--correct" style="--w:68%"></div><span class="live-stat-label">B</span><span class="live-stat-pct">68%</span></div>
-                <div class="live-stat-bar"><div class="live-stat-fill" style="--w:15%"></div><span class="live-stat-label">C</span><span class="live-stat-pct">15%</span></div>
-                <div class="live-stat-bar"><div class="live-stat-fill" style="--w:5%"></div><span class="live-stat-label">D</span><span class="live-stat-pct">5%</span></div>
-              </div>
-              <div class="live-footer" style="--delay: 900ms">
-                <span class="live-participants">👥 28 réponses</span>
-                <span class="live-timer">⏱ 0:24</span>
+              <div class="live-options" id="live-quiz-opts"></div>
+              <div class="live-stats" id="live-quiz-stats"></div>
+              <div class="live-footer">
+                <span class="live-participants" id="live-q-count"></span>
+                <span class="live-timer" id="live-q-timer"></span>
               </div>
             </div>
           </div>
@@ -481,43 +474,16 @@
                 <span class="rex-tab" data-rex-tab="ouverte" role="tab" tabindex="0">Question ouverte</span>
               </div>
 
-              <!-- Panel: Nuage de mots -->
-              <div class="rex-panel rex-panel--active" data-rex-panel="nuage">
-                <div class="rex-question">Qu'avez-vous le plus apprécié cette semaine ?</div>
-                <div class="rex-cloud" id="rex-cloud-demo">
-                  <span class="rex-word" style="--size:1.5;--o:1;--d:0">travail d'équipe</span>
-                  <span class="rex-word" style="--size:1.15;--o:.85;--d:1">TP pratique</span>
-                  <span class="rex-word" style="--size:.85;--o:.6;--d:2">autonomie</span>
-                  <span class="rex-word" style="--size:1.05;--o:.75;--d:3">entraide</span>
-                  <span class="rex-word" style="--size:.8;--o:.5;--d:4">gestion du temps</span>
-                  <span class="rex-word" style="--size:1.3;--o:.9;--d:5">projet concret</span>
-                  <span class="rex-word" style="--size:.75;--o:.45;--d:6">créativité</span>
-                  <span class="rex-word" style="--size:1.1;--o:.8;--d:7">communication</span>
-                </div>
-              </div>
+              <!-- Contenu dynamique par onglet -->
+              <div class="rex-panel rex-panel--active" data-rex-panel="nuage" id="rex-panel-nuage"></div>
+              <div class="rex-panel" data-rex-panel="echelle" id="rex-panel-echelle"></div>
+              <div class="rex-panel" data-rex-panel="ouverte" id="rex-panel-ouverte"></div>
 
-              <!-- Panel: Échelle -->
-              <div class="rex-panel" data-rex-panel="echelle">
-                <div class="rex-question">Comment évaluez-vous la semaine ? (1-5)</div>
-                <div class="rex-scale">
-                  <div class="rex-scale-row"><span class="rex-scale-label">5</span><div class="rex-scale-bar"><div class="rex-scale-fill" style="--w:42%"></div></div><span class="rex-scale-pct">42%</span></div>
-                  <div class="rex-scale-row"><span class="rex-scale-label">4</span><div class="rex-scale-bar"><div class="rex-scale-fill" style="--w:33%"></div></div><span class="rex-scale-pct">33%</span></div>
-                  <div class="rex-scale-row"><span class="rex-scale-label">3</span><div class="rex-scale-bar"><div class="rex-scale-fill" style="--w:17%"></div></div><span class="rex-scale-pct">17%</span></div>
-                  <div class="rex-scale-row"><span class="rex-scale-label">2</span><div class="rex-scale-bar"><div class="rex-scale-fill" style="--w:4%"></div></div><span class="rex-scale-pct">4%</span></div>
-                  <div class="rex-scale-row"><span class="rex-scale-label">1</span><div class="rex-scale-bar"><div class="rex-scale-fill" style="--w:4%"></div></div><span class="rex-scale-pct">4%</span></div>
-                </div>
-                <div class="rex-scale-avg">Moyenne : <strong>4.1</strong> / 5</div>
-              </div>
-
-              <!-- Panel: Question ouverte -->
-              <div class="rex-panel" data-rex-panel="ouverte">
-                <div class="rex-question">Un point à améliorer pour la prochaine fois ?</div>
-                <div class="rex-responses">
-                  <div class="rex-response"><span class="rex-resp-dot"></span>Plus de temps pour les TP pratiques</div>
-                  <div class="rex-response"><span class="rex-resp-dot"></span>Les consignes du projet étaient floues</div>
-                  <div class="rex-response"><span class="rex-resp-dot"></span>Ajouter un créneau de questions/réponses</div>
-                  <div class="rex-response rex-response--pinned"><span class="rex-resp-pin">📌</span>Très bonne dynamique de groupe !</div>
-                </div>
+              <!-- Navigation question -->
+              <div class="rex-nav" id="rex-nav">
+                <button class="rex-nav-btn" id="rex-prev" aria-label="Question précédente">&larr;</button>
+                <span class="rex-nav-count" id="rex-nav-count">1 / 2</span>
+                <button class="rex-nav-btn" id="rex-next" aria-label="Question suivante">&rarr;</button>
               </div>
 
               <div class="rex-footer" style="--delay: 400ms">

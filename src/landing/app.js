@@ -333,55 +333,123 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   })
 
-  // ── Live Quiz demo: clickable options with reveal ───────────────────────
-  const liveQuizOpts = document.getElementById('live-quiz-opts')
-  if (liveQuizOpts) {
-    const opts = [...liveQuizOpts.querySelectorAll('.live-opt')]
-    const stats = liveQuizOpts.closest('.demo-live-body')?.querySelector('.live-stats')
-    let quizRevealed = false
-    let revealTimer = null
-    let resetTimer = null
+  // ══════════════════════════════════════════════════════════════════════
+  //  LIVE QUIZ - multi-questions interactif
+  // ══════════════════════════════════════════════════════════════════════
+  const quizQuestions = [
+    { q: 'Quelle est la complexité d\'un tri fusion ?', opts: ['O(n)', 'O(n log n)', 'O(n²)', 'O(log n)'], correct: 1, stats: [12, 68, 15, 5], count: 28 },
+    { q: 'Quel protocole utilise le port 443 ?', opts: ['HTTP', 'FTP', 'HTTPS', 'SSH'], correct: 2, stats: [8, 4, 79, 9], count: 31 },
+    { q: 'Que signifie le S dans SOLID ?', opts: ['Scalable', 'Single Responsibility', 'Secure', 'Stateless'], correct: 1, stats: [15, 62, 12, 11], count: 26 },
+  ]
 
-    opts.forEach(opt => {
-      opt.addEventListener('click', () => {
-        if (quizRevealed) return
-        clearTimeout(revealTimer)
-        clearTimeout(resetTimer)
+  const quizContainer = document.getElementById('live-quiz-demo')
+  if (quizContainer) {
+    const optsEl = document.getElementById('live-quiz-opts')
+    const statsEl = document.getElementById('live-quiz-stats')
+    const badgeEl = document.getElementById('live-q-badge')
+    const textEl = document.getElementById('live-q-text')
+    const countEl = document.getElementById('live-q-count')
+    const timerEl = document.getElementById('live-q-timer')
+    let qIdx = 0, revealed = false, revealT = null, nextT = null
 
-        opts.forEach(o => o.classList.remove('selected'))
-        opt.classList.add('selected')
-
-        revealTimer = setTimeout(() => {
-          quizRevealed = true
-          opts.forEach(o => {
-            o.classList.add(o.dataset.correct === '1' ? 'revealed-correct' : 'revealed-wrong')
-          })
-          if (stats) stats.classList.add('revealed')
-
-          resetTimer = setTimeout(() => {
-            quizRevealed = false
-            opts.forEach(o => o.classList.remove('selected', 'revealed-correct', 'revealed-wrong'))
-            if (stats) stats.classList.remove('revealed')
-          }, 4000)
-        }, 600)
+    function renderQuiz(idx) {
+      const q = quizQuestions[idx]
+      revealed = false
+      clearTimeout(revealT); clearTimeout(nextT)
+      badgeEl.textContent = `Question ${idx + 1}/${quizQuestions.length}`
+      textEl.textContent = q.q
+      countEl.textContent = `${q.count} réponses`
+      timerEl.textContent = '0:30'
+      optsEl.innerHTML = q.opts.map((o, i) =>
+        `<div class="live-opt" data-idx="${i}" data-correct="${i === q.correct ? 1 : 0}" tabindex="0" role="button"><span class="live-opt-letter">${'ABCD'[i]}</span><span class="live-opt-text">${o}</span><span class="live-check">&#10003;</span></div>`
+      ).join('')
+      statsEl.innerHTML = q.opts.map((_, i) =>
+        `<div class="live-stat-bar"><div class="live-stat-fill${i === q.correct ? ' live-stat-fill--correct' : ''}" style="--w:${q.stats[i]}%"></div><span class="live-stat-label">${'ABCD'[i]}</span><span class="live-stat-pct">${q.stats[i]}%</span></div>`
+      ).join('')
+      statsEl.classList.remove('revealed')
+      optsEl.querySelectorAll('.live-opt').forEach(opt => {
+        opt.addEventListener('click', () => onQuizClick(opt, q))
+        opt.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); opt.click() } })
       })
-    })
+    }
+
+    function onQuizClick(opt, q) {
+      if (revealed) return
+      optsEl.querySelectorAll('.live-opt').forEach(o => o.classList.remove('selected'))
+      opt.classList.add('selected')
+      revealT = setTimeout(() => {
+        revealed = true
+        optsEl.querySelectorAll('.live-opt').forEach((o, i) => {
+          o.style.transitionDelay = `${i * 80}ms`
+          o.classList.add(parseInt(o.dataset.idx) === q.correct ? 'revealed-correct' : 'revealed-wrong')
+        })
+        statsEl.classList.add('revealed')
+        nextT = setTimeout(() => { qIdx = (qIdx + 1) % quizQuestions.length; renderQuiz(qIdx) }, 3000)
+      }, 800)
+    }
+
+    renderQuiz(0)
   }
 
-  // ── REX demo: clickable tabs ────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  //  REX - multi-questions par onglet avec navigation
+  // ══════════════════════════════════════════════════════════════════════
+  const rexData = {
+    nuage: [
+      { q: 'Qu\'avez-vous le plus apprécié cette semaine ?', words: [{t:'travail d\'équipe',s:1.5,o:1},{t:'TP pratique',s:1.15,o:.85},{t:'autonomie',s:.85,o:.6},{t:'entraide',s:1.05,o:.75},{t:'gestion du temps',s:.8,o:.5},{t:'projet concret',s:1.3,o:.9},{t:'créativité',s:.75,o:.45},{t:'communication',s:1.1,o:.8}] },
+      { q: 'Un mot pour décrire le cours d\'aujourd\'hui ?', words: [{t:'dense',s:1.4,o:1},{t:'intéressant',s:1.3,o:.9},{t:'rapide',s:1.0,o:.7},{t:'pratique',s:1.2,o:.85},{t:'complexe',s:.9,o:.6},{t:'motivant',s:1.1,o:.8},{t:'clair',s:.85,o:.55}] },
+    ],
+    echelle: [
+      { q: 'Comment évaluez-vous la semaine ? (1-5)', scores: [4,4,8,33,42], avg: '4.1' },
+      { q: 'Le rythme du cours était adapté ? (1-5)', scores: [2,8,21,38,31], avg: '3.9' },
+    ],
+    ouverte: [
+      { q: 'Un point à améliorer pour la prochaine fois ?', resp: ['Plus de temps pour les TP pratiques','Les consignes du projet étaient floues','Ajouter un créneau de questions/réponses'], pin: 'Très bonne dynamique de groupe !' },
+      { q: 'Qu\'aimeriez-vous voir dans le prochain module ?', resp: ['Plus de cas pratiques en entreprise','Des projets en groupe plus longs','Un intervenant externe du secteur'], pin: 'Le format actuel est super !' },
+    ],
+  }
+
   const rexDemo = document.getElementById('rex-demo')
   if (rexDemo) {
-    rexDemo.querySelectorAll('.rex-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        const target = tab.dataset.rexTab
-        if (!target) return
-        rexDemo.querySelectorAll('.rex-tab').forEach(t => t.classList.remove('rex-tab--active'))
-        tab.classList.add('rex-tab--active')
-        rexDemo.querySelectorAll('.rex-panel').forEach(p => p.classList.remove('rex-panel--active'))
-        const panel = rexDemo.querySelector(`[data-rex-panel="${target}"]`)
-        if (panel) panel.classList.add('rex-panel--active')
-      })
-    })
+    const st = { tab: 'nuage', idx: { nuage: 0, echelle: 0, ouverte: 0 } }
+    const prevBtn = document.getElementById('rex-prev')
+    const nextBtn = document.getElementById('rex-next')
+    const navCount = document.getElementById('rex-nav-count')
+
+    function renderRex(tab, idx) {
+      const panel = rexDemo.querySelector(`[data-rex-panel="${tab}"]`)
+      if (!panel) return
+      const items = rexData[tab]; const item = items[idx]
+      let h = `<div class="rex-question">${item.q}</div>`
+      if (tab === 'nuage') {
+        h += '<div class="rex-cloud">' + item.words.map((w, i) => `<span class="rex-word" style="--size:${w.s};--o:${w.o};--d:${i}">${w.t}</span>`).join('') + '</div>'
+      } else if (tab === 'echelle') {
+        h += '<div class="rex-scale">' + [5,4,3,2,1].map((n,i) => `<div class="rex-scale-row"><span class="rex-scale-label">${n}</span><div class="rex-scale-bar"><div class="rex-scale-fill" style="--w:${item.scores[4-i]}%"></div></div><span class="rex-scale-pct">${item.scores[4-i]}%</span></div>`).join('') + '</div>'
+        h += `<div class="rex-scale-avg">Moyenne : <strong>${item.avg}</strong> / 5</div>`
+      } else {
+        h += '<div class="rex-responses">' + item.resp.map(r => `<div class="rex-response"><span class="rex-resp-dot"></span>${r}</div>`).join('')
+        if (item.pin) h += `<div class="rex-response rex-response--pinned"><span class="rex-resp-pin">📌</span>${item.pin}</div>`
+        h += '</div>'
+      }
+      panel.innerHTML = h
+      navCount.textContent = `${idx + 1} / ${items.length}`
+      prevBtn.disabled = idx === 0
+      nextBtn.disabled = idx === items.length - 1
+      // Animer les barres d'échelle
+      if (tab === 'echelle') requestAnimationFrame(() => panel.querySelectorAll('.rex-scale-fill').forEach(f => { f.style.width = f.style.getPropertyValue('--w') }))
+    }
+
+    function switchTab(tab) {
+      st.tab = tab
+      rexDemo.querySelectorAll('.rex-tab').forEach(t => t.classList.toggle('rex-tab--active', t.dataset.rexTab === tab))
+      rexDemo.querySelectorAll('.rex-panel').forEach(p => p.classList.toggle('rex-panel--active', p.dataset.rexPanel === tab))
+      renderRex(tab, st.idx[tab])
+    }
+
+    rexDemo.querySelectorAll('.rex-tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.rexTab)))
+    prevBtn.addEventListener('click', () => { st.idx[st.tab] = Math.max(0, st.idx[st.tab] - 1); renderRex(st.tab, st.idx[st.tab]) })
+    nextBtn.addEventListener('click', () => { st.idx[st.tab] = Math.min(rexData[st.tab].length - 1, st.idx[st.tab] + 1); renderRex(st.tab, st.idx[st.tab]) })
+    switchTab('nuage')
   }
 
   // ── Docs demo: clickable files with preview ─────────────────────────────
