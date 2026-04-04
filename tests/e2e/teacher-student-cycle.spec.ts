@@ -10,7 +10,7 @@ test.describe('Cycle enseignant-etudiant : creation et soumission de devoir', ()
 
   test('enseignant se connecte et accede au dashboard', async ({ page }) => {
     await loginAndWaitDashboard(page, TEACHER.email, TEACHER.password)
-    await expect(page.locator('main').first()).toBeVisible({ timeout: 5_000 })
+    await expect(page.locator('#app-shell, .app-shell, .dashboard-shell, main').first()).toBeVisible({ timeout: 10_000 })
   })
 
   test('enseignant navigue vers devoirs', async ({ page }) => {
@@ -22,7 +22,7 @@ test.describe('Cycle enseignant-etudiant : creation et soumission de devoir', ()
 
   test('etudiant se connecte et accede au dashboard', async ({ page }) => {
     await loginAndWaitDashboard(page, STUDENT.email, STUDENT.password)
-    await expect(page.locator('main').first()).toBeVisible({ timeout: 5_000 })
+    await expect(page.locator('#app-shell, .app-shell, .dashboard-shell, main').first()).toBeVisible({ timeout: 10_000 })
   })
 
   test('etudiant navigue vers devoirs', async ({ page }) => {

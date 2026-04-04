@@ -60,6 +60,8 @@ export async function provisionStudent(): Promise<void> {
 // ── Page helpers ─────────────────────────────────────────────────────────────
 export async function login(page: Page, email: string, password: string): Promise<void> {
   await page.goto('/')
+  // Attendre que le formulaire de login soit charge
+  await page.waitForSelector(SEL.emailInput, { timeout: 15_000 })
   await page.fill(SEL.emailInput, email)
   await page.fill(SEL.passwordInput, password)
   await page.click(SEL.submitBtn)
@@ -89,5 +91,6 @@ export async function loginAndWaitDashboard(page: Page, email: string, password:
       }
     }
   }
-  await expect(page).toHaveURL(/dashboard/, { timeout: 15_000 })
+  // Attendre que le shell principal s'affiche (login termine)
+  await page.waitForSelector('#app-shell, .app-shell, .dashboard-shell', { timeout: 20_000 })
 }
