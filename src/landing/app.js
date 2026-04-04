@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  document.querySelectorAll('.sidebar-ch, .devoir-item, .doc-item, .reaction').forEach(el => {
+  document.querySelectorAll('.sidebar-ch, .devoir-item, .doc-item, .reaction, .live-opt').forEach(el => {
     el.setAttribute('tabindex', '0')
     el.setAttribute('role', 'button')
     el.addEventListener('keydown', handleKeyActivation)
@@ -336,34 +336,31 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Live Quiz demo: clickable options with reveal ───────────────────────
   const liveQuizOpts = document.getElementById('live-quiz-opts')
   if (liveQuizOpts) {
+    const opts = [...liveQuizOpts.querySelectorAll('.live-opt')]
+    const stats = liveQuizOpts.closest('.demo-live-body')?.querySelector('.live-stats')
     let quizRevealed = false
-    liveQuizOpts.querySelectorAll('.live-opt').forEach(opt => {
+    let revealTimer = null
+    let resetTimer = null
+
+    opts.forEach(opt => {
       opt.addEventListener('click', () => {
         if (quizRevealed) return
-        // Mark selection
-        liveQuizOpts.querySelectorAll('.live-opt').forEach(o => o.classList.remove('selected'))
+        clearTimeout(revealTimer)
+        clearTimeout(resetTimer)
+
+        opts.forEach(o => o.classList.remove('selected'))
         opt.classList.add('selected')
 
-        // Reveal after 600ms
-        setTimeout(() => {
+        revealTimer = setTimeout(() => {
           quizRevealed = true
-          liveQuizOpts.querySelectorAll('.live-opt').forEach(o => {
-            if (o.dataset.correct === '1') {
-              o.classList.add('revealed-correct')
-            } else {
-              o.classList.add('revealed-wrong')
-            }
+          opts.forEach(o => {
+            o.classList.add(o.dataset.correct === '1' ? 'revealed-correct' : 'revealed-wrong')
           })
-          // Show stat bars
-          const stats = liveQuizOpts.closest('.demo-live-body')?.querySelector('.live-stats')
           if (stats) stats.classList.add('revealed')
 
-          // Reset after 4s
-          setTimeout(() => {
+          resetTimer = setTimeout(() => {
             quizRevealed = false
-            liveQuizOpts.querySelectorAll('.live-opt').forEach(o => {
-              o.classList.remove('selected', 'revealed-correct', 'revealed-wrong')
-            })
+            opts.forEach(o => o.classList.remove('selected', 'revealed-correct', 'revealed-wrong'))
             if (stats) stats.classList.remove('revealed')
           }, 4000)
         }, 600)
