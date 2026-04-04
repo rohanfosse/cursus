@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.devoir-detail').forEach(d => d.remove())
 
       const name = item.querySelector('.devoir-name')?.textContent || ''
-      const d = devoirDetails[name] || { type: 'Devoir', date: '—', note: '—', desc: '' }
+      const d = devoirDetails[name] || { type: 'Devoir', date: '-', note: '-', desc: '' }
 
       const el = document.createElement('div')
       el.className = 'devoir-detail'
@@ -332,6 +332,44 @@ document.addEventListener('DOMContentLoaded', () => {
       item.after(el)
     })
   })
+
+  // ── Live Quiz demo: clickable options with reveal ───────────────────────
+  const liveQuizOpts = document.getElementById('live-quiz-opts')
+  if (liveQuizOpts) {
+    let quizRevealed = false
+    liveQuizOpts.querySelectorAll('.live-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        if (quizRevealed) return
+        // Mark selection
+        liveQuizOpts.querySelectorAll('.live-opt').forEach(o => o.classList.remove('selected'))
+        opt.classList.add('selected')
+
+        // Reveal after 600ms
+        setTimeout(() => {
+          quizRevealed = true
+          liveQuizOpts.querySelectorAll('.live-opt').forEach(o => {
+            if (o.dataset.correct === '1') {
+              o.classList.add('revealed-correct')
+            } else {
+              o.classList.add('revealed-wrong')
+            }
+          })
+          // Show stat bars
+          const stats = liveQuizOpts.closest('.demo-live-body')?.querySelector('.live-stats')
+          if (stats) stats.classList.add('revealed')
+
+          // Reset after 4s
+          setTimeout(() => {
+            quizRevealed = false
+            liveQuizOpts.querySelectorAll('.live-opt').forEach(o => {
+              o.classList.remove('selected', 'revealed-correct', 'revealed-wrong')
+            })
+            if (stats) stats.classList.remove('revealed')
+          }, 4000)
+        }, 600)
+      })
+    })
+  }
 
   // ── Docs demo: clickable files with preview ─────────────────────────────
   document.querySelectorAll('.doc-item').forEach(item => {
@@ -344,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = item.querySelector('span')?.textContent || 'Document'
       const icon = item.querySelector('.doc-icon')?.textContent || ''
       const color = getComputedStyle(item).getPropertyValue('--doc-color').trim() || '#6366F1'
-      const previews = { PDF: '📄 Aperçu PDF — 12 pages', DOC: '📝 Document Word — 3 pages', XLS: '📊 Tableur — 45 lignes', URL: '🔗 Lien externe' }
+      const previews = { PDF: '📄 Apercu PDF - 12 pages', DOC: '📝 Document Word - 3 pages', XLS: '📊 Tableur - 45 lignes', URL: '🔗 Lien externe' }
 
       const el = document.createElement('div')
       el.className = 'doc-preview'

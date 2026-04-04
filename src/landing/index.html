@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Cursus, l'alternative gratuite à Discord et Moodle pour les écoles d'ingénieurs. Chat en temps réel, gestion de devoirs, documents partagés. Open source, sans installation." />
   <meta name="theme-color" content="#f9fafb" />
-  <title>Cursus — Alternative gratuite à Discord et Moodle pour étudiants</title>
+  <title>Cursus - Alternative gratuite a Discord et Moodle pour etudiants</title>
 
   <!-- SEO : Open Graph -->
-  <meta property="og:title" content="Cursus — Alternative gratuite à Discord et Moodle pour étudiants" />
+  <meta property="og:title" content="Cursus - Alternative gratuite a Discord et Moodle pour etudiants" />
   <meta property="og:description" content="Chat en temps réel, gestion de devoirs, documents partagés. L'app tout-en-un pour les promos d'écoles d'ingénieurs. Open source et gratuit." />
   <meta property="og:image" content="https://cursus.school/assets/icon-512.png" />
   <meta property="og:url" content="https://cursus.school/" />
@@ -18,7 +18,7 @@
 
   <!-- SEO : Twitter Card -->
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Cursus — Alternative gratuite à Discord et Moodle pour étudiants" />
+  <meta name="twitter:title" content="Cursus - Alternative gratuite a Discord et Moodle pour etudiants" />
   <meta name="twitter:description" content="Chat en temps réel, gestion de devoirs, documents partagés. Open source et gratuit, sans installation." />
   <meta name="twitter:image" content="https://cursus.school/assets/icon-512.png" />
   <meta name="author" content="Rohan Fosse">
@@ -213,7 +213,7 @@
           <span id="gh-stars">Open source</span> sur GitHub
         </a>
         <span class="proof-sep">&middot;</span>
-        <span class="proof-item"><span class="proof-mono" id="test-count">1800+</span> tests</span>
+        <span class="proof-item"><span class="proof-mono" id="test-count">2500+</span> tests</span>
         <span class="proof-sep">&middot;</span>
         <span class="proof-item">Zero install</span>
       </div>
@@ -259,7 +259,14 @@
                   <div class="msg-avatar" style="background: #6366F1">MR</div>
                   <div class="msg-body"><span class="msg-author" style="color: #6366F1">Prof. Martin</span><span class="msg-time">10:45</span><div class="msg-text">Oui, groupes de 2-3. Utilisez le canal <b>#projet-web</b> pour coordonner.</div><div class="msg-reactions"><span class="reaction">👍 4</span><span class="reaction">🎉 2</span></div></div>
                 </div>
-                <div class="demo-typing" style="--delay: 1050ms"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span> Jean écrit...</div>
+                <div class="demo-typing" style="--delay: 1050ms"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span> Jean ecrit...</div>
+              </div>
+            </div>
+            <div class="demo-input-bar">
+              <span class="demo-input-placeholder">Ecrire dans #general...</span>
+              <div class="demo-input-actions">
+                <span class="demo-input-icon" title="Joindre un fichier">+</span>
+                <span class="demo-input-icon" title="Emoji">:)</span>
               </div>
             </div>
           </div>
@@ -411,14 +418,21 @@
                 <span class="live-q-badge">Question 3/5</span>
                 <span class="live-q-text">Quelle est la complexite d'un tri fusion ?</span>
               </div>
-              <div class="live-options">
-                <div class="live-opt" style="--delay: 150ms"><span class="live-opt-letter">A</span> O(n)</div>
-                <div class="live-opt live-opt--correct" style="--delay: 300ms"><span class="live-opt-letter">B</span> O(n log n) <span class="live-check">&#10003;</span></div>
-                <div class="live-opt" style="--delay: 450ms"><span class="live-opt-letter">C</span> O(n²)</div>
-                <div class="live-opt" style="--delay: 600ms"><span class="live-opt-letter">D</span> O(log n)</div>
+              <div class="live-options" id="live-quiz-opts">
+                <div class="live-opt" style="--delay: 150ms" data-correct="0"><span class="live-opt-letter">A</span><span class="live-opt-text">O(n)</span></div>
+                <div class="live-opt" style="--delay: 300ms" data-correct="1"><span class="live-opt-letter">B</span><span class="live-opt-text">O(n log n)</span></div>
+                <div class="live-opt" style="--delay: 450ms" data-correct="0"><span class="live-opt-letter">C</span><span class="live-opt-text">O(n²)</span></div>
+                <div class="live-opt" style="--delay: 600ms" data-correct="0"><span class="live-opt-letter">D</span><span class="live-opt-text">O(log n)</span></div>
               </div>
-              <div class="live-bar" style="--delay: 750ms">
-                <div class="live-bar-fill" style="--w:68%">68% correct</div>
+              <div class="live-stats" style="--delay: 750ms">
+                <div class="live-stat-bar"><div class="live-stat-fill" style="--w:12%"></div><span class="live-stat-label">A</span><span class="live-stat-pct">12%</span></div>
+                <div class="live-stat-bar"><div class="live-stat-fill live-stat-fill--correct" style="--w:68%"></div><span class="live-stat-label">B</span><span class="live-stat-pct">68%</span></div>
+                <div class="live-stat-bar"><div class="live-stat-fill" style="--w:15%"></div><span class="live-stat-label">C</span><span class="live-stat-pct">15%</span></div>
+                <div class="live-stat-bar"><div class="live-stat-fill" style="--w:5%"></div><span class="live-stat-label">D</span><span class="live-stat-pct">5%</span></div>
+              </div>
+              <div class="live-footer" style="--delay: 900ms">
+                <span class="live-participants">👥 28 reponses</span>
+                <span class="live-timer">⏱ 0:24</span>
               </div>
             </div>
           </div>
@@ -443,16 +457,27 @@
           <div class="demo-window">
             <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="demo-title">REX Session</span></div>
             <div class="demo-rex-body">
-              <div class="rex-question" style="--delay: 0ms">Qu'avez-vous le plus apprecie cette semaine ?</div>
-              <div class="rex-cloud" style="--delay: 200ms">
-                <span class="rex-word" style="--size:1.3;--o:.95">travail d'equipe</span>
-                <span class="rex-word" style="--size:1.1;--o:.8">TP pratique</span>
-                <span class="rex-word" style="--size:.9;--o:.65">autonomie</span>
-                <span class="rex-word" style="--size:1.0;--o:.75">entraide</span>
-                <span class="rex-word" style="--size:.85;--o:.55">gestion du temps</span>
-                <span class="rex-word" style="--size:1.2;--o:.9">projet concret</span>
+              <div class="rex-activity-tabs" style="--delay: 0ms">
+                <span class="rex-tab rex-tab--active">Nuage de mots</span>
+                <span class="rex-tab">Echelle</span>
+                <span class="rex-tab">Question ouverte</span>
               </div>
-              <div class="rex-count" style="--delay: 400ms"><span class="rex-count-num">24</span> reponses</div>
+              <div class="rex-question" style="--delay: 100ms">Qu'avez-vous le plus apprecie cette semaine ?</div>
+              <div class="rex-cloud" id="rex-cloud-demo" style="--delay: 200ms">
+                <span class="rex-word" style="--size:1.5;--o:1;--d:0">travail d'equipe</span>
+                <span class="rex-word" style="--size:1.15;--o:.85;--d:1">TP pratique</span>
+                <span class="rex-word" style="--size:.85;--o:.6;--d:2">autonomie</span>
+                <span class="rex-word" style="--size:1.05;--o:.75;--d:3">entraide</span>
+                <span class="rex-word" style="--size:.8;--o:.5;--d:4">gestion du temps</span>
+                <span class="rex-word" style="--size:1.3;--o:.9;--d:5">projet concret</span>
+                <span class="rex-word" style="--size:.75;--o:.45;--d:6">creativite</span>
+                <span class="rex-word" style="--size:1.1;--o:.8;--d:7">communication</span>
+              </div>
+              <div class="rex-footer" style="--delay: 400ms">
+                <span class="rex-count"><span class="rex-count-num">24</span> reponses</span>
+                <span class="rex-live-dot"></span>
+                <span class="rex-live-label">En direct</span>
+              </div>
             </div>
           </div>
         </div>
