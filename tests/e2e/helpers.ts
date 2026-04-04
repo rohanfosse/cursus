@@ -47,7 +47,7 @@ export async function provisionStudent(): Promise<void> {
       name: STUDENT.name,
       email: STUDENT.email,
       password: STUDENT.password,
-      promo_id: STUDENT.promoId,
+      promoId: STUDENT.promoId,
     }),
   })
   const data = await res.json()

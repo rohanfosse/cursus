@@ -94,9 +94,10 @@ const writeLimiter = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.user?.id ? String(req.user.id) : req.ip,
+  keyGenerator: (req) => req.user?.id ? String(req.user.id) : 'anon',
   skip: (req) => req.method === 'GET',
   message: { ok: false, error: 'Trop de requêtes. Réessayez dans une minute.' },
+  validate: { xForwardedForHeader: false },
 })
 app.use('/api', writeLimiter)
 
