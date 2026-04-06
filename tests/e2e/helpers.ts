@@ -69,6 +69,13 @@ export async function login(page: Page, email: string, password: string): Promis
 
 export async function loginAndWaitDashboard(page: Page, email: string, password: string): Promise<void> {
   await login(page, email, password)
-  // Attendre la redirection vers le dashboard (hash router: /#/dashboard)
   await expect(page).toHaveURL(/dashboard/, { timeout: 15_000 })
+}
+
+/** Navigue vers une section via le bouton NavRail (aria-label) */
+export async function navigateTo(page: Page, section: 'messages' | 'devoirs' | 'documents' | 'dashboard'): Promise<void> {
+  // La NavRail utilise des <button> avec aria-label="Section X"
+  const btn = page.locator(`button[aria-label*="${section}" i], .nav-btn:has-text("${section}")`)
+  await btn.first().click({ timeout: 10_000 })
+  await expect(page).toHaveURL(new RegExp(section), { timeout: 10_000 })
 }

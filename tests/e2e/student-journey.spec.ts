@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { STUDENT, provisionStudent, loginAndWaitDashboard } from './helpers'
+import { STUDENT, provisionStudent, loginAndWaitDashboard, navigateTo } from './helpers'
 
 test.describe('Parcours etudiant complet', () => {
   test.describe.configure({ mode: 'serial' })
@@ -14,9 +14,7 @@ test.describe('Parcours etudiant complet', () => {
 
   test('naviguer vers messages et voir le canal general', async ({ page }) => {
     await loginAndWaitDashboard(page, STUDENT.email, STUDENT.password)
-
-    await page.click('a[href*="messages"], [data-testid="nav-messages"], nav >> text=/messages/i')
-    await expect(page).toHaveURL(/messages/, { timeout: 10_000 })
+    await navigateTo(page, 'messages')
 
     await page.click('text=/general/i', { timeout: 5_000 })
     await expect(
@@ -26,9 +24,7 @@ test.describe('Parcours etudiant complet', () => {
 
   test('envoyer un message dans general', async ({ page }) => {
     await loginAndWaitDashboard(page, STUDENT.email, STUDENT.password)
-
-    await page.click('a[href*="messages"], nav >> text=/messages/i')
-    await expect(page).toHaveURL(/messages/, { timeout: 10_000 })
+    await navigateTo(page, 'messages')
     await page.click('text=/general/i', { timeout: 5_000 })
 
     const messageContent = `E2E test ${Date.now()}`
@@ -42,18 +38,12 @@ test.describe('Parcours etudiant complet', () => {
 
   test('naviguer vers devoirs', async ({ page }) => {
     await loginAndWaitDashboard(page, STUDENT.email, STUDENT.password)
-
-    await page.click('a[href*="devoirs"], nav >> text=/devoirs/i')
-    await expect(page).toHaveURL(/devoirs/, { timeout: 10_000 })
-    await expect(page.locator('main').first()).toBeVisible({ timeout: 5_000 })
+    await navigateTo(page, 'devoirs')
   })
 
   test('naviguer vers documents', async ({ page }) => {
     await loginAndWaitDashboard(page, STUDENT.email, STUDENT.password)
-
-    await page.click('a[href*="documents"], nav >> text=/documents/i')
-    await expect(page).toHaveURL(/documents/, { timeout: 10_000 })
-    await expect(page.locator('main').first()).toBeVisible({ timeout: 5_000 })
+    await navigateTo(page, 'documents')
   })
 
   test('le dashboard affiche le nom de la promo', async ({ page }) => {
