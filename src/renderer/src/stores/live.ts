@@ -126,8 +126,8 @@ export const useLiveStore = defineStore('live', () => {
   }
 
   async function pushActivity(sessionId: number, payload: {
-    type: 'qcm' | 'sondage' | 'nuage' | 'vrai_faux' | 'reponse_courte'; title: string
-    options?: string[] | null; multi?: number; max_words?: number
+    type: 'qcm' | 'vrai_faux' | 'reponse_courte'; title: string
+    options?: string[] | null; multi?: number
     timer_seconds?: number; correct_answers?: number[] | string[]
   }): Promise<boolean> {
     const data = await api<LiveActivity>(

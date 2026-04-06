@@ -1,12 +1,12 @@
 <!-- ActivityForm.vue - Formulaire de création/édition d'activité Live (QCM / Sondage / Nuage) -->
 <script setup lang="ts">
   import { ref } from 'vue'
-  import { ListChecks, MessageCircle, Cloud, ToggleLeft, Type, Plus, X } from 'lucide-vue-next'
+  import { ListChecks, ToggleLeft, Type, Plus, X } from 'lucide-vue-next'
   import type { LiveActivity } from '@/types'
 
   const props = defineProps<{ initialData?: LiveActivity | null }>()
 
-  type ActivityType = 'qcm' | 'sondage' | 'nuage' | 'vrai_faux' | 'reponse_courte'
+  type ActivityType = 'qcm' | 'vrai_faux' | 'reponse_courte'
 
   const emit = defineEmits<{
     save: [payload: {
@@ -41,7 +41,6 @@
   const vraiFauxCorrect = ref<0 | 1>(parseVraiFauxCorrect(props.initialData))
   const title        = ref(props.initialData?.title ?? '')
   const options      = ref<string[]>(parseOptions(props.initialData))
-  const maxWords     = ref(props.initialData?.max_words ?? 2)
   const timerSeconds = ref(props.initialData?.timer_seconds ?? 30)
   const correctAnswers = ref<number[]>(parseCorrectAnswers(props.initialData))
   const timerOptions = [10, 20, 30, 60]
@@ -50,8 +49,6 @@
     { id: 'qcm' as const,             label: 'QCM',             icon: ListChecks,   desc: 'Choix multiple' },
     { id: 'vrai_faux' as const,        label: 'Vrai / Faux',     icon: ToggleLeft,   desc: 'Question binaire' },
     { id: 'reponse_courte' as const,   label: 'Réponse courte',  icon: Type,         desc: 'Texte libre noté' },
-    { id: 'sondage' as const,          label: 'Sondage',         icon: MessageCircle, desc: 'Réponse libre' },
-    { id: 'nuage' as const,            label: 'Nuage',           icon: Cloud,         desc: 'Nuage de mots' },
   ]
 
   function addOption() {
@@ -104,9 +101,6 @@
       const filtered = acceptedAnswers.value.map(a => a.trim()).filter(Boolean)
       if (filtered.length === 0) return
       payload.correct_answers = filtered
-    }
-    if (activityType.value === 'nuage') {
-      payload.max_words = maxWords.value
     }
     emit('save', payload)
   }
@@ -206,22 +200,6 @@
       <button v-if="acceptedAnswers.length < 10" class="add-option-btn" @click="addAccepted">
         <Plus :size="14" /> Ajouter une reponse
       </button>
-    </div>
-
-    <!-- Nuage max words -->
-    <div v-if="activityType === 'nuage'" class="max-words-section">
-      <label class="max-words-label">Nombre de mots par réponse</label>
-      <div class="max-words-btns">
-        <button
-          v-for="n in [1, 2, 3]"
-          :key="n"
-          class="max-words-btn"
-          :class="{ active: maxWords === n }"
-          @click="maxWords = n"
-        >
-          {{ n }}
-        </button>
-      </div>
     </div>
 
     <!-- Actions -->

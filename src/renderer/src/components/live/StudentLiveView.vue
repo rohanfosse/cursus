@@ -8,7 +8,6 @@
   import CountdownTimer from './CountdownTimer.vue'
   import QcmResults  from './QcmResults.vue'
   import PollResults from './PollResults.vue'
-  import WordCloud   from './WordCloud.vue'
 
   const appStore  = useAppStore()
   const liveStore = useLiveStore()
@@ -16,7 +15,6 @@
   const joinCode  = ref('')
   const joining   = ref(false)
   const textInput = ref('')
-  const wordInputs = ref<string[]>([])
 
   // Selected QCM answers (indices)
   const selectedAnswers = ref<number[]>([])
@@ -32,10 +30,7 @@
   const KAHOOT_SHAPES = ['\u25B2', '\u25C6', '\u25CF', '\u25A0', '\u2605', '\u2B22'] // triangle, diamond, circle, square, star, hex
 
   // Initialize word inputs when activity changes
-  watch(activity, (act) => {
-    if (act?.type === 'nuage') {
-      wordInputs.value = Array.from({ length: act.max_words || 2 }, () => '')
-    }
+  watch(activity, () => {
     selectedAnswers.value = []
     textInput.value = ''
     liveStore.hasResponded = false
@@ -88,13 +83,6 @@
   async function submitText() {
     if (!activity.value || !textInput.value.trim()) return
     await liveStore.submitResponse(activity.value.id, { text: textInput.value.trim() })
-  }
-
-  async function submitWords() {
-    if (!activity.value) return
-    const filtered = wordInputs.value.map(w => w.trim()).filter(Boolean)
-    if (filtered.length === 0) return
-    await liveStore.submitResponse(activity.value.id, { words: filtered })
   }
 
   function leave() {
@@ -188,25 +176,6 @@
           Envoyer
         </button>
 
-        <!-- Sondage response -->
-        <div v-else-if="activity.type === 'sondage'" class="text-response">
-          <textarea
-            v-model="textInput"
-            class="text-input"
-            placeholder="Votre reponse..."
-            rows="3"
-            maxlength="500"
-          />
-          <button
-            class="submit-btn"
-            :disabled="!textInput.trim()"
-            @click="submitText"
-          >
-            <Send :size="16" />
-            Envoyer
-          </button>
-        </div>
-
         <!-- Vrai/Faux response -->
         <div v-else-if="activity.type === 'vrai_faux'" class="vf-response">
           <div class="vf-grid">
@@ -226,27 +195,6 @@
           </button>
         </div>
 
-        <!-- Nuage response -->
-        <div v-else-if="activity.type === 'nuage'" class="word-response">
-          <div class="word-inputs">
-            <input
-              v-for="(_, i) in wordInputs"
-              :key="i"
-              v-model="wordInputs[i]"
-              class="word-input"
-              :placeholder="`Mot ${i + 1}`"
-              maxlength="30"
-            />
-          </div>
-          <button
-            class="submit-btn"
-            :disabled="wordInputs.every(w => !w.trim())"
-            @click="submitWords"
-          >
-            <Send :size="16" />
-            Envoyer
-          </button>
-        </div>
       </div>
 
       <!-- Responded - waiting for results -->
@@ -283,8 +231,7 @@
         </div>
         <h3 class="results-label">Resultats</h3>
         <QcmResults v-if="(activity.type === 'qcm' || activity.type === 'vrai_faux') && liveStore.results" :results="liveStore.results" />
-        <PollResults v-else-if="(activity.type === 'sondage' || activity.type === 'reponse_courte') && liveStore.results" :results="liveStore.results" />
-        <WordCloud v-else-if="activity.type === 'nuage' && liveStore.results" :results="liveStore.results" />
+        <PollResults v-else-if="activity.type === 'reponse_courte' && liveStore.results" :results="liveStore.results" />
       </div>
     </div>
   </div>
