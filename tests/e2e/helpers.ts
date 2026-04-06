@@ -69,8 +69,7 @@ export async function login(page: Page, email: string, password: string): Promis
 
 export async function loginAndWaitDashboard(page: Page, email: string, password: string): Promise<void> {
   await login(page, email, password)
-  await expect(page).toHaveURL(/dashboard/, { timeout: 20_000 })
-  // Attendre que l'app shell soit monte (le conteneur principal apres login)
+  // L'URL contient deja /dashboard/ (redirect /), donc le vrai signal de login est l'app-shell.
   await page.waitForSelector('#app-shell, .app-shell, .app-columns', { state: 'attached', timeout: 20_000 })
   // Petit delai pour laisser Vue monter les composants enfants
   await page.waitForTimeout(1_000)

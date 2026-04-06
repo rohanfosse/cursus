@@ -8,15 +8,10 @@ const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)
 
 // ── Dark mode (pill toggle, both icons always visible) ────────────────────
 const saved = localStorage.getItem('cursus-landing-theme')
-const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-const initial = saved || (prefersDark ? 'dark' : 'light')
+const initial = saved || 'light'
 document.documentElement.dataset.theme = initial
 
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-  if (!localStorage.getItem('cursus-landing-theme')) {
-    document.documentElement.dataset.theme = e.matches ? 'dark' : 'light'
-  }
-})
+// OS dark-mode preference intentionally ignored; user toggles manually
 
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'

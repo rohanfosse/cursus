@@ -5,9 +5,8 @@
 import { io, Socket } from 'socket.io-client'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
-const SERVER_URL: string = import.meta.env.DEV
-  ? 'http://localhost:3001'
-  : 'https://app.cursus.school'
+const SERVER_URL: string = import.meta.env.VITE_SERVER_URL
+  || (import.meta.env.DEV ? 'http://localhost:3001' : 'https://app.cursus.school')
 
 // ─── État ────────────────────────────────────────────────────────────────────
 let jwtToken: string | null = null
