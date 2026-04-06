@@ -142,11 +142,11 @@ function cloneRexSession(sourceId, { teacherId, promoId, title }) {
 
   const sessionId = newSession.lastInsertRowid;
   const insertActivity = db.prepare(
-    'INSERT INTO rex_activities (session_id, type, title, max_words, max_rating, position) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT INTO rex_activities (session_id, type, title, max_words, max_rating, position, options) VALUES (?, ?, ?, ?, ?, ?, ?)'
   );
   const transaction = db.transaction((activities) => {
     for (const a of activities) {
-      insertActivity.run(sessionId, a.type, a.title, a.max_words, a.max_rating, a.position);
+      insertActivity.run(sessionId, a.type, a.title, a.max_words, a.max_rating, a.position, a.options ?? null);
     }
   });
   transaction(source.activities);

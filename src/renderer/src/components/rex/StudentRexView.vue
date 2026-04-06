@@ -38,6 +38,10 @@
   const asyncPrioriteInputs = ref<Record<number, number[]>>({})
   const asyncMatriceInputs  = ref<Record<number, Record<string, number>>>({})
 
+  const parsedOptions = computed<string[]>(() => {
+    try { return JSON.parse(activity.value?.options as string ?? '[]') } catch { return [] }
+  })
+
   const promoId  = computed(() => appStore.currentUser?.promo_id ?? 0)
   const session  = computed(() => rex.currentSession)
   const activity = computed(() => rex.currentActivity)
@@ -171,6 +175,20 @@
     const rating = asyncRatingInputs.value[actId]
     if (!rating || rating <= 0) return
     const ok = await rex.submitResponse(actId, { rating })
+    if (ok) respondedIds.value = new Set([...respondedIds.value, actId])
+  }
+
+  async function asyncSubmitSondage(actId: number) {
+    const sel = asyncSondageInputs.value[actId]
+    if (sel === null || sel === undefined) return
+    const ok = await rex.submitResponse(actId, { answer: String(sel) })
+    if (ok) respondedIds.value = new Set([...respondedIds.value, actId])
+  }
+
+  async function asyncSubmitHumeur(actId: number) {
+    const emoji = asyncHumeurInputs.value[actId]
+    if (!emoji) return
+    const ok = await rex.submitResponse(actId, { answer: emoji })
     if (ok) respondedIds.value = new Set([...respondedIds.value, actId])
   }
 
@@ -309,6 +327,28 @@
                   <Send :size="14" /> Envoyer
                 </button>
               </template>
+
+              <!-- Sondage (options) -->
+              <template v-else-if="act.type === 'sondage' && act.options">
+                <div class="rex-sondage-opts">
+                  <button v-for="(opt, i) in ((() => { try { return JSON.parse(act.options as string) } catch { return [] } })())" :key="i" class="rex-sondage-opt" :class="{ selected: asyncSondageInputs[act.id] === i }" @click="asyncSondageInputs[act.id] = i">{{ opt }}</button>
+                </div>
+                <button class="rex-btn-primary" :disabled="asyncSondageInputs[act.id] === null" @click="asyncSubmitSondage(act.id)">
+                  <Send :size="14" /> Envoyer
+                </button>
+              </template>
+
+              <!-- Humeur -->
+              <template v-else-if="act.type === 'humeur'">
+                <div class="rex-humeur-grid">
+                  <button v-for="emoji in HUMEUR_EMOJIS" :key="emoji" class="rex-humeur-btn" :class="{ selected: asyncHumeurInputs[act.id] === emoji }" @click="asyncHumeurInputs[act.id] = emoji">{{ emoji }}</button>
+                </div>
+                <button class="rex-btn-primary" :disabled="!asyncHumeurInputs[act.id]" @click="asyncSubmitHumeur(act.id)">
+                  <Send :size="14" /> Envoyer
+                </button>
+              </template>
+
+              <!-- Priorite + Matrice : not supported in async mode yet -->
             </div>
           </div>
         </div>
@@ -404,7 +444,7 @@
         <div v-else-if="activity.type === 'sondage' && activity.options" class="rex-respond-body">
           <div class="rex-sondage-opts">
             <button
-              v-for="(opt, i) in JSON.parse(activity.options as unknown as string)"
+              v-for="(opt, i) in parsedOptions"
               :key="i"
               class="rex-sondage-opt"
               :class="{ selected: sondageSelected === i }"
@@ -437,7 +477,7 @@
           <div class="rex-priorite-list">
             <div v-for="(idx, rank) in prioriteOrder" :key="idx" class="rex-priorite-item">
               <span class="rex-priorite-rank">{{ rank + 1 }}</span>
-              <span class="rex-priorite-label">{{ JSON.parse(activity.options as unknown as string)[idx] }}</span>
+              <span class="rex-priorite-label">{{ parsedOptions[idx] }}</span>
               <div class="rex-priorite-btns">
                 <button v-if="rank > 0" class="rex-priorite-move" @click="movePriorite(rank, rank - 1)">&uarr;</button>
                 <button v-if="rank < prioriteOrder.length - 1" class="rex-priorite-move" @click="movePriorite(rank, rank + 1)">&darr;</button>

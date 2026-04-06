@@ -23,6 +23,10 @@
   // Shuffled right-column indices for association
   const shuffledRight = ref<number[]>([])
 
+  const parsedPairs = computed(() => {
+    try { return JSON.parse(activity.value?.correct_answers as string ?? '[]') } catch { return [] }
+  })
+
   const promoId = computed(() => appStore.currentUser?.promo_id ?? 0)
   const session = computed(() => liveStore.currentSession)
   const activity = computed(() => liveStore.currentActivity)
@@ -228,12 +232,12 @@
         <!-- Association -->
         <div v-else-if="activity.type === 'association' && activity.correct_answers" class="association-response">
           <div v-for="(leftIdx, i) in associationMapping.length" :key="i" class="assoc-row">
-            <span class="assoc-left">{{ JSON.parse(activity.correct_answers as unknown as string)[i]?.left }}</span>
+            <span class="assoc-left">{{ parsedPairs[i]?.left }}</span>
             <span class="assoc-arrow">&rarr;</span>
             <select v-model.number="associationMapping[i]" class="assoc-select">
               <option :value="-1" disabled>Choisir...</option>
               <option v-for="si in shuffledRight" :key="si" :value="si">
-                {{ JSON.parse(activity.correct_answers as unknown as string)[si]?.right }}
+                {{ parsedPairs[si]?.right }}
               </option>
             </select>
           </div>

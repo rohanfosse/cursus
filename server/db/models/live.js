@@ -222,18 +222,22 @@ function getActivityResultsAggregated(activityId) {
   }
 
   if (activity.type === 'association') {
+    let parsed; try { parsed = JSON.parse(activity.correct_answers || '[]'); } catch { parsed = []; }
     let correctCount = 0;
     for (const r of responses) {
-      if (checkCorrectness(activityId, r.answer)) correctCount++;
+      const mapping = String(r.answer).split(',').map(Number);
+      if (mapping.length === parsed.length && mapping.every((v, i) => v === i)) correctCount++;
     }
     return { type: 'association', total, correctCount };
   }
 
   if (activity.type === 'estimation') {
+    let parsed; try { parsed = JSON.parse(activity.correct_answers || '{}'); } catch { parsed = {}; }
+    const { target, margin } = parsed;
     const values = responses.map(r => Number(r.answer)).filter(n => !isNaN(n));
     let correctCount = 0;
-    for (const r of responses) {
-      if (checkCorrectness(activityId, r.answer)) correctCount++;
+    if (target !== undefined) {
+      for (const v of values) { if (Math.abs(v - target) <= (margin ?? 0)) correctCount++; }
     }
     const avg = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
     return { type: 'estimation', total, correctCount, average: Math.round(avg * 100) / 100, values };
