@@ -112,7 +112,7 @@ async function apiFetch(path: string, options: RequestInit = {}, retries = MAX_R
       const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT)
       const res = await fetch(`${SERVER_URL}${path}`, { ...options, headers, signal: ctrl.signal })
       clearTimeout(timer)
-      if (res.status === 401) {
+      if (res.status === 401 && !path.startsWith('/api/auth/login')) {
         jwtToken = null
         socket?.disconnect()
         window.dispatchEvent(new CustomEvent('cursus:auth-expired'))

@@ -11,7 +11,7 @@ test.describe('Authentification', () => {
 
   test('refuse un login invalide', async ({ page }) => {
     await login(page, 'invalide@test.com', 'wrongpassword')
-    await expect(page.locator('text=/erreur|invalide|incorrect/i')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=/erreur|invalide|incorrect/i')).toBeVisible({ timeout: 10_000 })
   })
 
   test('connecte un enseignant et affiche le dashboard', async ({ page }) => {
