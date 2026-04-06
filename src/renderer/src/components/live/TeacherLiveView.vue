@@ -3,7 +3,8 @@
   import { ref, computed, onMounted, onUnmounted } from 'vue'
   import {
     Plus, Play, Square, ChevronRight, Trash2, Users, Zap,
-    ListChecks, MessageCircle, Cloud, LogOut, Pencil, GripVertical, Copy,
+    ListChecks, MessageCircle, Cloud, ToggleLeft, Type,
+    LogOut, Pencil, GripVertical, Copy,
     History, BarChart3,
   } from 'lucide-vue-next'
   import { useAppStore }  from '@/stores/app'
@@ -65,8 +66,8 @@
 
   // ── Activity management ──────────────────────────────────────────────────
   async function onAddActivity(payload: {
-    type: 'qcm' | 'sondage' | 'nuage'; title: string; options?: string[]
-    max_words?: number; timer_seconds?: number; correct_answers?: number[]
+    type: 'qcm' | 'sondage' | 'nuage' | 'vrai_faux' | 'reponse_courte'; title: string; options?: string[]
+    max_words?: number; timer_seconds?: number; correct_answers?: number[] | string[]
   }) {
     if (!liveStore.currentSession) return
     if (editingActivity.value) {
@@ -156,12 +157,16 @@
 
   function activityIcon(type: string) {
     if (type === 'qcm') return ListChecks
+    if (type === 'vrai_faux') return ToggleLeft
+    if (type === 'reponse_courte') return Type
     if (type === 'sondage') return MessageCircle
     return Cloud
   }
 
   function activityTypeLabel(type: string) {
     if (type === 'qcm') return 'QCM'
+    if (type === 'vrai_faux') return 'Vrai / Faux'
+    if (type === 'reponse_courte') return 'Reponse courte'
     if (type === 'sondage') return 'Sondage'
     return 'Nuage de mots'
   }
@@ -414,8 +419,8 @@
       </div>
 
       <div class="results-area">
-        <QcmResults v-if="liveStore.currentActivity.type === 'qcm' && liveStore.results" :results="liveStore.results" />
-        <PollResults v-else-if="liveStore.currentActivity.type === 'sondage' && liveStore.results" :results="liveStore.results" />
+        <QcmResults v-if="(liveStore.currentActivity.type === 'qcm' || liveStore.currentActivity.type === 'vrai_faux') && liveStore.results" :results="liveStore.results" />
+        <PollResults v-else-if="(liveStore.currentActivity.type === 'sondage' || liveStore.currentActivity.type === 'reponse_courte') && liveStore.results" :results="liveStore.results" />
         <WordCloud v-else-if="liveStore.currentActivity.type === 'nuage' && liveStore.results" :results="liveStore.results" />
         <div v-else class="results-waiting">
           <Zap :size="32" class="results-waiting-icon" />

@@ -207,6 +207,25 @@
           </button>
         </div>
 
+        <!-- Vrai/Faux response -->
+        <div v-else-if="activity.type === 'vrai_faux'" class="vf-response">
+          <div class="vf-grid">
+            <button class="vf-btn vf-vrai" :class="{ selected: selectedAnswers.includes(0) }" @click="selectedAnswers = [0]">Vrai</button>
+            <button class="vf-btn vf-faux" :class="{ selected: selectedAnswers.includes(1) }" @click="selectedAnswers = [1]">Faux</button>
+          </div>
+          <button class="submit-btn" :disabled="selectedAnswers.length === 0" @click="submitQcm">
+            <Send :size="16" /> Envoyer
+          </button>
+        </div>
+
+        <!-- Reponse courte -->
+        <div v-else-if="activity.type === 'reponse_courte'" class="text-response">
+          <input v-model="textInput" class="text-input short-input" placeholder="Votre reponse..." maxlength="100" @keydown.enter="submitText" />
+          <button class="submit-btn" :disabled="!textInput.trim()" @click="submitText">
+            <Send :size="16" /> Envoyer
+          </button>
+        </div>
+
         <!-- Nuage response -->
         <div v-else-if="activity.type === 'nuage'" class="word-response">
           <div class="word-inputs">
@@ -263,8 +282,8 @@
           </div>
         </div>
         <h3 class="results-label">Resultats</h3>
-        <QcmResults v-if="activity.type === 'qcm' && liveStore.results" :results="liveStore.results" />
-        <PollResults v-else-if="activity.type === 'sondage' && liveStore.results" :results="liveStore.results" />
+        <QcmResults v-if="(activity.type === 'qcm' || activity.type === 'vrai_faux') && liveStore.results" :results="liveStore.results" />
+        <PollResults v-else-if="(activity.type === 'sondage' || activity.type === 'reponse_courte') && liveStore.results" :results="liveStore.results" />
         <WordCloud v-else-if="activity.type === 'nuage' && liveStore.results" :results="liveStore.results" />
       </div>
     </div>
@@ -652,4 +671,14 @@
   text-transform: uppercase;
   letter-spacing: .5px;
 }
+/* Vrai/Faux */
+.vf-response { display: flex; flex-direction: column; gap: 12px; }
+.vf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vf-btn { padding: 28px 16px; border-radius: 14px; font-size: 20px; font-weight: 800; border: 3px solid var(--border); background: var(--bg-elevated); color: var(--text-primary); cursor: pointer; transition: all .15s; }
+.vf-vrai { border-color: #22c55e44; }
+.vf-faux { border-color: #ef444444; }
+.vf-vrai.selected { background: #22c55e22; border-color: #22c55e; color: #22c55e; }
+.vf-faux.selected { background: #ef444422; border-color: #ef4444; color: #ef4444; }
+/* Reponse courte */
+.short-input { width: 100%; padding: 14px 16px; border-radius: 10px; font-size: 16px; border: 2px solid var(--border); background: var(--bg-elevated); color: var(--text-primary); }
 </style>

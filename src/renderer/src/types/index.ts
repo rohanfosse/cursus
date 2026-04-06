@@ -221,7 +221,7 @@ export interface LiveSession {
   created_at: string; ended_at: string | null; activities?: LiveActivity[]
 }
 export interface LiveActivity {
-  id: number; session_id: number; type: 'qcm' | 'sondage' | 'nuage'
+  id: number; session_id: number; type: 'qcm' | 'sondage' | 'nuage' | 'vrai_faux' | 'reponse_courte'
   title: string; options: string[] | null; multi: number
   max_words: number; position: number; status: 'pending' | 'live' | 'closed'
   started_at: string | null; closed_at: string | null

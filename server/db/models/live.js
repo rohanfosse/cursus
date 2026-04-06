@@ -180,14 +180,14 @@ function getActivityResultsAggregated(activityId) {
 
   const total = responses.length;
 
-  if (activity.type === 'qcm') {
+  if (activity.type === 'qcm' || activity.type === 'vrai_faux') {
     // Compter par option (index ou texte)
     const counts = {};
     for (const r of responses) {
       const key = r.answer;
       counts[key] = (counts[key] || 0) + 1;
     }
-    return { type: 'qcm', total, counts };
+    return { type: activity.type, total, counts };
   }
 
   if (activity.type === 'sondage') {
@@ -212,6 +212,15 @@ function getActivityResultsAggregated(activityId) {
     return { type: 'nuage', total, freq };
   }
 
+  if (activity.type === 'reponse_courte') {
+    const counts = {};
+    for (const r of responses) {
+      const key = normalizeAnswer(r.answer);
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return { type: 'reponse_courte', total, counts };
+  }
+
   return { type: activity.type, total, raw: responses };
 }
 
@@ -220,6 +229,28 @@ function hasStudentResponded(activityId, studentId) {
     'SELECT 1 FROM live_responses WHERE activity_id = ? AND student_id = ?'
   ).get(activityId, studentId);
   return !!row;
+}
+
+// ─── Levenshtein distance (fuzzy matching) ──────────────────────────────────
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) => i);
+  for (let j = 1; j <= n; j++) {
+    let prev = dp[0];
+    dp[0] = j;
+    for (let i = 1; i <= m; i++) {
+      const tmp = dp[i];
+      dp[i] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[i], dp[i - 1]);
+      prev = tmp;
+    }
+  }
+  return dp[m];
+}
+
+function normalizeAnswer(s) {
+  return String(s).trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 // ─── Scoring (Kahoot-style) ─────────────────────────────────────────────────
@@ -249,15 +280,27 @@ function checkCorrectness(activityId, answer) {
   const activity = db.prepare('SELECT * FROM live_activities WHERE id = ?').get(activityId);
   if (!activity || !activity.correct_answers) return null; // no correct answers defined
 
-  let correctIndices;
-  try { correctIndices = JSON.parse(activity.correct_answers); } catch { return null; }
-  if (!Array.isArray(correctIndices) || correctIndices.length === 0) return null;
+  let parsed;
+  try { parsed = JSON.parse(activity.correct_answers); } catch { return null; }
+  if (!Array.isArray(parsed) || parsed.length === 0) return null;
 
-  // answer is a comma-separated list of indices (e.g. "0,2")
+  // Reponse courte : fuzzy string matching against accepted answers
+  if (activity.type === 'reponse_courte') {
+    const student = normalizeAnswer(answer);
+    if (!student) return false;
+    return parsed.some(accepted => {
+      const target = normalizeAnswer(accepted);
+      if (student === target) return true;
+      const maxDist = Math.max(1, Math.floor(target.length / 4));
+      return levenshtein(student, target) <= maxDist;
+    });
+  }
+
+  // QCM / vrai_faux : index-based matching
+  const correctIndices = parsed;
   const studentIndices = String(answer).split(',').map(s => Number(s.trim())).filter(n => !isNaN(n));
   if (studentIndices.length === 0) return false;
 
-  // Must match exactly
   const sortedCorrect = [...correctIndices].sort((a, b) => a - b);
   const sortedStudent = [...studentIndices].sort((a, b) => a - b);
   if (sortedCorrect.length !== sortedStudent.length) return false;

@@ -121,7 +121,7 @@ describe('rex store', () => {
       const s = useRexStore()
       const ok = await s.createSession('REX Test', 7)
       expect(ok).toBe(false)
-      expect(s.error).toBe('Impossible de créer la session REX')
+      expect(s.error).toBe('Impossible de créer la session Pulse')
       expect(s.loading).toBe(false)
     })
   })

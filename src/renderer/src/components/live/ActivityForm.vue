@@ -1,16 +1,18 @@
 <!-- ActivityForm.vue - Formulaire de création/édition d'activité Live (QCM / Sondage / Nuage) -->
 <script setup lang="ts">
   import { ref } from 'vue'
-  import { ListChecks, MessageCircle, Cloud, Plus, X } from 'lucide-vue-next'
+  import { ListChecks, MessageCircle, Cloud, ToggleLeft, Type, Plus, X } from 'lucide-vue-next'
   import type { LiveActivity } from '@/types'
 
   const props = defineProps<{ initialData?: LiveActivity | null }>()
 
+  type ActivityType = 'qcm' | 'sondage' | 'nuage' | 'vrai_faux' | 'reponse_courte'
+
   const emit = defineEmits<{
     save: [payload: {
-      type: 'qcm' | 'sondage' | 'nuage'; title: string
+      type: ActivityType; title: string
       options?: string[]; max_words?: number
-      timer_seconds?: number; correct_answers?: number[]
+      timer_seconds?: number; correct_answers?: number[] | string[]
     }]
     cancel: []
   }>()
@@ -25,8 +27,18 @@
     if (!data?.correct_answers) return []
     try { return JSON.parse(data.correct_answers as unknown as string) } catch { return [] }
   }
+  function parseAcceptedAnswers(data?: LiveActivity | null): string[] {
+    if (!data || data.type !== 'reponse_courte' || !data.correct_answers) return ['']
+    try { const arr = JSON.parse(data.correct_answers as unknown as string); return Array.isArray(arr) ? arr : [''] } catch { return [''] }
+  }
+  function parseVraiFauxCorrect(data?: LiveActivity | null): 0 | 1 {
+    if (!data || data.type !== 'vrai_faux' || !data.correct_answers) return 0
+    try { const arr = JSON.parse(data.correct_answers as unknown as string); return arr[0] === 1 ? 1 : 0 } catch { return 0 }
+  }
 
-  const activityType = ref<'qcm' | 'sondage' | 'nuage'>(props.initialData?.type ?? 'qcm')
+  const activityType = ref<ActivityType>(props.initialData?.type ?? 'qcm')
+  const acceptedAnswers = ref<string[]>(parseAcceptedAnswers(props.initialData))
+  const vraiFauxCorrect = ref<0 | 1>(parseVraiFauxCorrect(props.initialData))
   const title        = ref(props.initialData?.title ?? '')
   const options      = ref<string[]>(parseOptions(props.initialData))
   const maxWords     = ref(props.initialData?.max_words ?? 2)
@@ -35,9 +47,11 @@
   const timerOptions = [10, 20, 30, 60]
 
   const typeCards = [
-    { id: 'qcm' as const,     label: 'QCM',     icon: ListChecks,   desc: 'Choix multiple' },
-    { id: 'sondage' as const,  label: 'Sondage',  icon: MessageCircle, desc: 'Réponse libre' },
-    { id: 'nuage' as const,    label: 'Nuage',    icon: Cloud,         desc: 'Nuage de mots' },
+    { id: 'qcm' as const,             label: 'QCM',             icon: ListChecks,   desc: 'Choix multiple' },
+    { id: 'vrai_faux' as const,        label: 'Vrai / Faux',     icon: ToggleLeft,   desc: 'Question binaire' },
+    { id: 'reponse_courte' as const,   label: 'Réponse courte',  icon: Type,         desc: 'Texte libre noté' },
+    { id: 'sondage' as const,          label: 'Sondage',         icon: MessageCircle, desc: 'Réponse libre' },
+    { id: 'nuage' as const,            label: 'Nuage',           icon: Cloud,         desc: 'Nuage de mots' },
   ]
 
   function addOption() {
@@ -60,12 +74,15 @@
     else correctAnswers.value.push(i)
   }
 
+  function addAccepted() { if (acceptedAnswers.value.length < 10) acceptedAnswers.value.push('') }
+  function removeAccepted(i: number) { if (acceptedAnswers.value.length > 1) acceptedAnswers.value = acceptedAnswers.value.filter((_, idx) => idx !== i) }
+
   function save() {
     if (!title.value.trim()) return
     const payload: {
-      type: 'qcm' | 'sondage' | 'nuage'; title: string
+      type: ActivityType; title: string
       options?: string[]; max_words?: number
-      timer_seconds?: number; correct_answers?: number[]
+      timer_seconds?: number; correct_answers?: number[] | string[]
     } = {
       type: activityType.value,
       title: title.value.trim(),
@@ -76,9 +93,17 @@
       if (filtered.length < 2) return
       payload.options = filtered
       if (correctAnswers.value.length > 0) {
-        // Only include indices that still exist after filtering
         payload.correct_answers = correctAnswers.value.filter(i => i < filtered.length)
       }
+    }
+    if (activityType.value === 'vrai_faux') {
+      payload.options = ['Vrai', 'Faux']
+      payload.correct_answers = [vraiFauxCorrect.value]
+    }
+    if (activityType.value === 'reponse_courte') {
+      const filtered = acceptedAnswers.value.map(a => a.trim()).filter(Boolean)
+      if (filtered.length === 0) return
+      payload.correct_answers = filtered
     }
     if (activityType.value === 'nuage') {
       payload.max_words = maxWords.value
@@ -162,6 +187,27 @@
       </button>
     </div>
 
+    <!-- Vrai/Faux correct answer -->
+    <div v-if="activityType === 'vrai_faux'" class="vf-section">
+      <label class="correct-label">La bonne reponse est :</label>
+      <div class="vf-toggle">
+        <button class="vf-btn vf-vrai" :class="{ active: vraiFauxCorrect === 0 }" @click="vraiFauxCorrect = 0">Vrai</button>
+        <button class="vf-btn vf-faux" :class="{ active: vraiFauxCorrect === 1 }" @click="vraiFauxCorrect = 1">Faux</button>
+      </div>
+    </div>
+
+    <!-- Reponse courte accepted answers -->
+    <div v-if="activityType === 'reponse_courte'" class="accepted-section">
+      <label class="correct-label">Reponses acceptees (tolerant aux fautes)</label>
+      <div v-for="(_, i) in acceptedAnswers" :key="i" class="option-row">
+        <input v-model="acceptedAnswers[i]" class="form-input option-input" :placeholder="`Reponse ${i + 1}`" maxlength="100" />
+        <button v-if="acceptedAnswers.length > 1" class="option-remove" @click="removeAccepted(i)"><X :size="14" /></button>
+      </div>
+      <button v-if="acceptedAnswers.length < 10" class="add-option-btn" @click="addAccepted">
+        <Plus :size="14" /> Ajouter une reponse
+      </button>
+    </div>
+
     <!-- Nuage max words -->
     <div v-if="activityType === 'nuage'" class="max-words-section">
       <label class="max-words-label">Nombre de mots par réponse</label>
@@ -199,6 +245,7 @@
 }
 .type-cards {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 .type-card {
@@ -430,4 +477,12 @@
   opacity: .4;
   cursor: not-allowed;
 }
+/* Vrai/Faux toggle */
+.vf-section { display: flex; flex-direction: column; gap: 8px; }
+.vf-toggle { display: flex; gap: 10px; }
+.vf-btn { flex: 1; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; border: 2px solid var(--border); background: var(--bg-elevated); color: var(--text-secondary); cursor: pointer; transition: all .15s; }
+.vf-vrai.active { background: #22c55e22; border-color: #22c55e; color: #22c55e; }
+.vf-faux.active { background: #ef444422; border-color: #ef4444; color: #ef4444; }
+/* Accepted answers (reponse courte) */
+.accepted-section { display: flex; flex-direction: column; gap: 8px; }
 </style>
