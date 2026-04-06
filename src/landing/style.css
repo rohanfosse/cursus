@@ -300,7 +300,28 @@ img { max-width: 100%; display: block; }
 }
 
 /* ── Hero (bento-first layout) ─────────────────────────────────────── */
-.hero-badge-row { text-align: center; margin-bottom: 28px; }
+.hero-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 32px;
+}
+
+.hero-logo {
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+}
+
+.hero-brand-name {
+  font-size: clamp(2.2rem, 5vw, 3.2rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--text);
+  line-height: 1.1;
+}
+
 .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 8px; margin-bottom: 8px; }
 
 .hero {
@@ -336,7 +357,6 @@ img { max-width: 100%; display: block; }
   border: 1px solid var(--border);
   padding: 6px 16px;
   border-radius: 20px;
-  margin-bottom: 24px;
 }
 
 /* sr-only : visuellement cache, accessible aux lecteurs d'ecran */
