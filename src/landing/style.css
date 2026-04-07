@@ -590,43 +590,38 @@ img { max-width: 100%; display: block; }
 }
 
 
-/* Bento: Compare card */
-.bento-compare {
-  --card-accent: var(--primary);
-  background: linear-gradient(135deg, rgba(5, 150, 105, 0.04), rgba(99, 102, 241, 0.04));
-  border: 1px solid rgba(99, 102, 241, 0.12);
-}
-[data-theme="dark"] .bento-compare {
-  background: linear-gradient(135deg, rgba(52, 211, 153, 0.06), rgba(129, 140, 248, 0.06));
-  border-color: rgba(129, 140, 248, 0.15);
+/* Bento: Open source card */
+.bento-oss {
+  --card-accent: var(--text);
 }
 
-.bento-vs-row {
+.bento-oss-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bento-oss-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 0;
   font-size: 12px;
+  color: var(--text-2);
 }
 
-.bento-vs-icon {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  display: flex;
+.bento-oss-check {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(5, 150, 105, 0.12);
+  color: var(--accent);
   font-size: 10px;
   font-weight: 700;
   flex-shrink: 0;
 }
-
-.bento-vs-icon--discord { background: #5865F2; }
-.bento-vs-icon--moodle { background: #F98012; }
-
-.bento-vs-con { color: var(--text-3); text-decoration: line-through; }
-.bento-vs-pro { color: var(--accent); font-weight: 600; }
 
 /* Bento responsive */
 @media (max-width: 640px) {
