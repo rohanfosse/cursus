@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   Lightbulb, Plus, Eye, Edit3, Trash2, ArrowLeft, CheckCircle2, Clock,
   Save, Columns, BookOpen, ListTree, Maximize2, Minimize2, Download, Clipboard,
@@ -7,6 +8,7 @@ import {
 } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useLumenStore } from '@/stores/lumen'
+import { useProjects, type Project } from '@/composables/useProjects'
 import { useToast } from '@/composables/useToast'
 import { renderMarkdown } from '@/utils/markdown'
 import { getAuthToken } from '@/utils/auth'
@@ -23,19 +25,24 @@ import type { LumenCourse } from '@/types'
 const appStore = useAppStore()
 const lumenStore = useLumenStore()
 const { showToast } = useToast()
+const route = useRoute()
 
 type Mode = 'list' | 'editor' | 'reader'
 const mode = ref<Mode>('list')
 
 // ── Editor state ────────────────────────────────────────────────────────────
-const editorTitle    = ref('')
-const editorSummary  = ref('')
-const editorContent  = ref('')
-const editorCourseId = ref<number | null>(null)
-const saving         = ref(false)
-const savedAt        = ref<string | null>(null)
-const dirty          = ref(false)
-const cursor         = ref<CursorInfo | null>(null)
+const editorTitle     = ref('')
+const editorSummary   = ref('')
+const editorContent   = ref('')
+const editorCourseId  = ref<number | null>(null)
+const editorProjectId = ref<number | null>(null)
+const saving          = ref(false)
+const savedAt         = ref<string | null>(null)
+const dirty           = ref(false)
+const cursor          = ref<CursorInfo | null>(null)
+
+// Liste des projets de la promo active (pour le selecteur projet associe)
+const { projects: promoProjects, loadProjects } = useProjects()
 
 // ── UI preferences ─────────────────────────────────────────────────────────
 const splitRatio     = ref(0.5)     // 0..1, ratio de l'editeur dans le split
@@ -87,11 +94,34 @@ const readerHtml = computed(() => {
 // ── Data loading ────────────────────────────────────────────────────────────
 async function loadCourses() {
   if (!promoId.value) return
-  await lumenStore.fetchCoursesForPromo(promoId.value)
+  // Charge cours + projets en parallele : le selecteur projet a besoin
+  // de la liste des projets de la promo, et c'est independant des cours.
+  await Promise.all([
+    lumenStore.fetchCoursesForPromo(promoId.value),
+    isTeacher.value ? loadProjects(promoId.value) : Promise.resolve(),
+  ])
 }
 
 watch(promoId, () => { loadCourses() })
-onMounted(() => { loadCourses() })
+onMounted(async () => {
+  await loadCourses()
+  // Deep link : si l'URL contient ?course=ID, on ouvre directement le reader
+  // (utilise par les refs lumen:ID dans le chat et le widget dashboard).
+  const courseQuery = route.query.course
+  if (courseQuery) {
+    const id = Number(courseQuery)
+    const course = lumenStore.courses.find(c => c.id === id)
+    if (course) openReader(course)
+  }
+})
+
+// Reagit aux changements de query (navigation interne via clic sur ref)
+watch(() => route.query.course, (newId) => {
+  if (!newId) return
+  const id = Number(newId)
+  const course = lumenStore.courses.find(c => c.id === id)
+  if (course) openReader(course)
+})
 
 // ── Navigation ──────────────────────────────────────────────────────────────
 function goToList() {
@@ -106,6 +136,11 @@ function goToList() {
 async function openReader(course: LumenCourse) {
   mode.value = 'reader'
   await lumenStore.fetchCourse(course.id)
+  // Marque le cours comme lu apres une courte temporisation : evite de
+  // marquer lu un clic accidentel (l'etudiant change d'avis et revient).
+  if (!isTeacher.value) {
+    setTimeout(() => { lumenStore.markAsRead(course.id) }, 1000)
+  }
 }
 
 function openEditorNew() {
@@ -118,34 +153,36 @@ async function openEditorEdit(course: LumenCourse) {
   if (dirty.value && editorCourseId.value !== course.id && !confirm('Modifications non sauvegardées. Changer de cours ?')) return
   const full = await lumenStore.fetchCourse(course.id)
   if (!full) return
-  editorCourseId.value = full.id
-  editorTitle.value    = full.title
-  editorSummary.value  = full.summary
-  editorContent.value  = full.content
-  dirty.value          = false
-  savedAt.value        = full.updated_at
+  editorCourseId.value  = full.id
+  editorTitle.value     = full.title
+  editorSummary.value   = full.summary
+  editorContent.value   = full.content
+  editorProjectId.value = full.project_id
+  dirty.value           = false
+  savedAt.value         = full.updated_at
   mode.value = 'editor'
   nextTick(() => editorRef.value?.focus())
 }
 
 function resetEditor() {
-  editorCourseId.value = null
-  editorTitle.value    = ''
-  editorSummary.value  = ''
-  editorContent.value  = ''
-  dirty.value          = false
-  savedAt.value        = null
-  cursor.value         = null
+  editorCourseId.value  = null
+  editorTitle.value     = ''
+  editorSummary.value   = ''
+  editorContent.value   = ''
+  editorProjectId.value = null
+  dirty.value           = false
+  savedAt.value         = null
+  cursor.value          = null
 }
 
 // ── Dirty tracking ──────────────────────────────────────────────────────────
-watch([editorTitle, editorSummary, editorContent], () => {
+watch([editorTitle, editorSummary, editorContent, editorProjectId], () => {
   if (mode.value === 'editor') dirty.value = true
 })
 
 // ── Auto-save (3s apres derniere edition) ──────────────────────────────────
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
-watch([editorTitle, editorSummary, editorContent], () => {
+watch([editorTitle, editorSummary, editorContent, editorProjectId], () => {
   if (mode.value !== 'editor' || !editorCourseId.value) return
   if (autoSaveTimer) clearTimeout(autoSaveTimer)
   autoSaveTimer = setTimeout(() => { saveCourse(true) }, 3000)
@@ -160,10 +197,11 @@ async function saveCourse(silent = false): Promise<boolean> {
   if (savePromise) return savePromise
   savePromise = (async () => {
     // Snapshot des valeurs au moment de l'appel (pas de closure reactive)
-    const title   = editorTitle.value.trim()
-    const summary = editorSummary.value
-    const content = editorContent.value
-    const courseId = editorCourseId.value
+    const title     = editorTitle.value.trim()
+    const summary   = editorSummary.value
+    const content   = editorContent.value
+    const projectId = editorProjectId.value
+    const courseId  = editorCourseId.value
     const currentPromoId = promoId.value
 
     if (!title) {
@@ -177,11 +215,11 @@ async function saveCourse(silent = false): Promise<boolean> {
     saving.value = true
     try {
       if (courseId) {
-        const updated = await lumenStore.updateCourse(courseId, { title, summary, content })
+        const updated = await lumenStore.updateCourse(courseId, { title, summary, content, projectId })
         if (updated) {
           savedAt.value = formatTime(updated.updated_at)
           // Ne reset dirty que si l'utilisateur n'a rien tape entre-temps
-          if (editorTitle.value.trim() === title && editorSummary.value === summary && editorContent.value === content) {
+          if (editorTitle.value.trim() === title && editorSummary.value === summary && editorContent.value === content && editorProjectId.value === projectId) {
             dirty.value = false
           }
           if (!silent) showToast('Cours enregistré', 'success')
@@ -189,12 +227,12 @@ async function saveCourse(silent = false): Promise<boolean> {
         }
       } else {
         const created = await lumenStore.createCourse({
-          promoId: currentPromoId, title, summary, content,
+          promoId: currentPromoId, projectId, title, summary, content,
         })
         if (created) {
           editorCourseId.value = created.id
           savedAt.value = formatTime(created.updated_at)
-          if (editorTitle.value.trim() === title && editorSummary.value === summary && editorContent.value === content) {
+          if (editorTitle.value.trim() === title && editorSummary.value === summary && editorContent.value === content && editorProjectId.value === projectId) {
             dirty.value = false
           }
           if (!silent) showToast('Cours créé', 'success')
@@ -754,7 +792,7 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
           @drop="handleDrop"
           @paste="handlePaste"
         >
-          <!-- Meta (title + summary) -->
+          <!-- Meta (title + summary + projet associe) -->
           <div v-if="!chromeHidden" class="lumen-meta-row">
             <input
               v-model="editorTitle"
@@ -768,6 +806,25 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
               placeholder="Résumé court (optionnel)"
               maxlength="500"
             />
+            <div class="lumen-meta-project-row">
+              <label class="lumen-meta-project-label" for="lumen-project-select">Projet associé</label>
+              <select
+                id="lumen-project-select"
+                v-model="editorProjectId"
+                class="lumen-meta-project"
+                :title="editorProjectId ? 'Modifier le projet associé' : 'Aucun projet sélectionné — la publication ne notifiera pas le chat'"
+              >
+                <option :value="null">Aucun (publication silencieuse)</option>
+                <option
+                  v-for="p in promoProjects"
+                  :key="p.id"
+                  :value="p.id"
+                  :disabled="!p.channel_id"
+                >
+                  {{ p.name }}{{ p.channel_id ? '' : ' (sans canal — pas de notif)' }}
+                </option>
+              </select>
+            </div>
           </div>
 
           <!-- Toolbar markdown -->
@@ -1337,6 +1394,36 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
 
 .lumen-meta-summary { font-size: var(--text-base); color: var(--text-secondary); }
 .lumen-meta-summary::placeholder { color: var(--text-muted); }
+
+.lumen-meta-project-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.lumen-meta-project-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lumen-meta-project {
+  font-family: inherit;
+  font-size: var(--text-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  outline: none;
+  cursor: pointer;
+  max-width: 320px;
+}
+.lumen-meta-project:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
 
 /* ── Split pane ──────────────────────────────────────────────────────── */
 .lumen-split {

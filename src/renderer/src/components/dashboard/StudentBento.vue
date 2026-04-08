@@ -25,6 +25,7 @@ import WidgetLivrables from './student-widgets/WidgetLivrables.vue'
 import WidgetSoutenances from './student-widgets/WidgetSoutenances.vue'
 import WidgetLastFeedback from './student-widgets/WidgetLastFeedback.vue'
 import WidgetRecentDoc from './student-widgets/WidgetRecentDoc.vue'
+import WidgetLumenCourses from './student-widgets/WidgetLumenCourses.vue'
 import WidgetPromoActivity from './student-widgets/WidgetPromoActivity.vue'
 import WidgetClock from './student-widgets/WidgetClock.vue'
 import WidgetQuote from './student-widgets/WidgetQuote.vue'
@@ -90,7 +91,7 @@ const nextSoutenances = computed(() => nextUpcoming(props.urgentActions, ['soute
 const widgetComponents: Record<string, Component> = {
   live: WidgetLive, project: WidgetProject, exams: WidgetExams,
   livrables: WidgetLivrables, soutenances: WidgetSoutenances,
-  feedback: WidgetLastFeedback, recentDoc: WidgetRecentDoc, promoActivity: WidgetPromoActivity,
+  feedback: WidgetLastFeedback, recentDoc: WidgetRecentDoc, lumenCourses: WidgetLumenCourses, promoActivity: WidgetPromoActivity,
   clock: WidgetClock, quote: WidgetQuote, calendar: WidgetCalendar,
   progress: WidgetProgress, quicklinks: WidgetQuickLinks, pomodoro: WidgetPomodoro,
   grades: WidgetGrades, bookmarks: WidgetBookmarks, countdown: WidgetCountdown, group: WidgetGroupMembers,
@@ -107,7 +108,7 @@ const widgetProps = computed<Record<string, Record<string, unknown>>>(() => ({
   live: {}, project: { project: activeProject.value },
   exams: { exams: nextExams.value }, livrables: { livrables: nextLivrables.value },
   soutenances: { soutenances: nextSoutenances.value },
-  feedback: { feedback: latestFeedback.value }, recentDoc: {}, promoActivity: {},
+  feedback: { feedback: latestFeedback.value }, recentDoc: {}, lumenCourses: {}, promoActivity: {},
   clock: {}, quote: {},
   calendar: { deadlines: calendarDeadlines.value },
   progress: { submitted: props.studentStats.submitted, total: totalDevoirs.value, graded: props.studentStats.graded },

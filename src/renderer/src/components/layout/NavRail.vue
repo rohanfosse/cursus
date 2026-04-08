@@ -8,6 +8,7 @@
   import { useTravauxStore } from '@/stores/travaux'
   import { useLiveStore }   from '@/stores/live'
   import { useRexStore }    from '@/stores/rex'
+  import { useLumenStore }  from '@/stores/lumen'
   import { useToast }       from '@/composables/useToast'
   import { useModules }     from '@/composables/useModules'
   import { avatarColor }    from '@/utils/format'
@@ -19,6 +20,7 @@
   const travauxStore = useTravauxStore()
   const liveStore    = useLiveStore()
   const rexStore     = useRexStore()
+  const lumenStore   = useLumenStore()
   const { showToast } = useToast()
   const { isEnabled } = useModules()
   const router      = useRouter()
@@ -218,6 +220,13 @@
     >
       <Lightbulb :size="20" />
       <span class="nav-label">Lumen</span>
+      <span
+        v-if="appStore.isStudent && lumenStore.unreadCount > 0"
+        class="nav-badge"
+        :aria-label="`${lumenStore.unreadCount} cours non lus`"
+      >
+        {{ lumenStore.unreadCount > 9 ? '9+' : lumenStore.unreadCount }}
+      </span>
     </button>
 
     <!-- Fichiers partagés (prof uniquement) -->

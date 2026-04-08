@@ -11,6 +11,7 @@ export interface Project {
   promo_id: number
   name: string
   description: string | null
+  channel_id: number | null
   deadline: string | null
   created_by: number
   created_at: string
