@@ -130,13 +130,84 @@ router.patch('/courses/:id', requireCourseOwner, validate(updateCourseSchema), w
 }))
 
 // POST /api/lumen/courses/:id/publish — publier un cours
-// publishLumenCourse renvoie { course, isFirstPublish } ; la notification
-// chat sur isFirstPublish est branchee dans un commit suivant (chantier C).
-router.post('/courses/:id/publish', requireCourseOwner, wrap((req) => {
-  const id = Number(req.params.id)
-  const { course } = queries.publishLumenCourse(id)
-  return course
-}))
+// A la PREMIERE publication (published_at etait NULL), poste un message
+// systeme dans le canal du projet associe (si projet et channel definis)
+// et emet un evenement socket pour rafraichir les compteurs cote clients.
+// En cas d'echec du side-effect, la publication reste valide (best-effort).
+router.post('/courses/:id/publish', requireCourseOwner, (req, res, next) => {
+  try {
+    const id = Number(req.params.id)
+    const { course, isFirstPublish } = queries.publishLumenCourse(id)
+    if (isFirstPublish) {
+      try {
+        notifyCoursePublished(req, course)
+      } catch (err) {
+        // Notification non bloquante : on log et on retourne le cours.
+        // eslint-disable-next-line no-console
+        console.warn('[lumen] notification publish failed:', err.message)
+      }
+    }
+    res.json({ ok: true, data: course })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * Side-effect de premiere publication : poste un message systeme dans le
+ * canal du projet associe (s'il en existe un avec un channel_id) et emet
+ * lumen:course-published sur la room promo pour que les clients connectes
+ * rafraichissent leur badge / widget de cours non-lus.
+ */
+function notifyCoursePublished(req, course) {
+  if (!course) return
+
+  // Pas de projet → publication silencieuse cote chat (decision produit).
+  // Le badge rail et le widget dashboard fonctionneront quand meme via
+  // l'evenement socket ci-dessous.
+  const project = course.project_id ? queries.getProjectById(course.project_id) : null
+  const channelId = project?.channel_id ?? null
+
+  if (channelId) {
+    // Convention : auteur 'Cursus' avec type 'teacher' (pas de valeur 'system'
+    // dans la CHECK constraint actuelle de messages.author_type). Le frontend
+    // identifiera le bot par author_name === 'Cursus'.
+    const content = `Nouveau cours publie : \\[${course.title}](lumen:${course.id})`
+    const result = queries.sendMessage({
+      channelId,
+      authorName: 'Cursus',
+      authorType: 'teacher',
+      content,
+    })
+    const messageId = Number(result.lastInsertRowid)
+    const message = queries.getMessageById(messageId)
+
+    const io = req.app.get('io')
+    if (io && message) {
+      const pushPayload = {
+        channelId,
+        dmStudentId: null,
+        authorName: 'Cursus',
+        channelName: null,
+        promoId: course.promo_id,
+        preview: content.replace(/[*_`>#[\]!\\]/g, '').slice(0, 80),
+        mentionEveryone: false,
+        mentionNames: [],
+      }
+      io.to(`promo:${course.promo_id}`).emit('msg:new', pushPayload)
+    }
+  }
+
+  // Toujours emettre l'evenement Lumen pour les surfaces hors chat
+  // (badge rail + widget dashboard), meme sans projet/canal.
+  const io = req.app.get('io')
+  if (io) {
+    io.to(`promo:${course.promo_id}`).emit('lumen:course-published', {
+      promoId: course.promo_id,
+      courseId: course.id,
+    })
+  }
+}
 
 // POST /api/lumen/courses/:id/unpublish — repasser en draft
 router.post('/courses/:id/unpublish', requireCourseOwner, wrap((req) => {
