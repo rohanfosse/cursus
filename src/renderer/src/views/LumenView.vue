@@ -2,14 +2,22 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import {
   Lightbulb, Plus, Eye, Edit3, Trash2, ArrowLeft, CheckCircle2, Clock,
-  Bold, Italic, Heading1, Heading2, List, ListOrdered, Code, Link2, Quote, Image, Save,
-  Columns, BookOpen,
+  Save, Columns, BookOpen, ListTree, Maximize2, Minimize2, Download, Clipboard,
+  Command as CommandIcon,
 } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useLumenStore } from '@/stores/lumen'
 import { useToast } from '@/composables/useToast'
 import { renderMarkdown } from '@/utils/markdown'
+import { getAuthToken } from '@/utils/auth'
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
+import LumenEditor from '@/components/lumen/LumenEditor.vue'
+import LumenToolbar from '@/components/lumen/LumenToolbar.vue'
+import LumenOutline from '@/components/lumen/LumenOutline.vue'
+import LumenStatusBar from '@/components/lumen/LumenStatusBar.vue'
+import LumenPreview from '@/components/lumen/LumenPreview.vue'
+import LumenCommandPalette from '@/components/lumen/LumenCommandPalette.vue'
+import type { CursorInfo } from '@/composables/useLumenEditor'
 import type { LumenCourse } from '@/types'
 
 const appStore = useAppStore()
@@ -24,30 +32,57 @@ const editorTitle    = ref('')
 const editorSummary  = ref('')
 const editorContent  = ref('')
 const editorCourseId = ref<number | null>(null)
-const splitView      = ref(true)   // true = split, false = focus
-const previewOnly    = ref(false)  // mobile-friendly toggle
 const saving         = ref(false)
 const savedAt        = ref<string | null>(null)
 const dirty          = ref(false)
-const textareaRef    = ref<HTMLTextAreaElement | null>(null)
-const previewRef     = ref<HTMLDivElement | null>(null)
-const editorPaneRef  = ref<HTMLDivElement | null>(null)
+const cursor         = ref<CursorInfo | null>(null)
+
+// ── UI preferences ─────────────────────────────────────────────────────────
+const splitRatio     = ref(0.5)     // 0..1, ratio de l'editeur dans le split
+const showOutline    = ref(true)
+const showPreview    = ref(true)
+const showSidebar    = ref(true)
+const focusMode      = ref(false)    // masque chrome (toolbar, outline, sidebar)
+const zenMode        = ref(false)    // plein ecran
+const showLineNumbers = ref(false)
+const showCmdPalette = ref(false)
+const syncScroll     = ref(true)
+
+// ── Refs ───────────────────────────────────────────────────────────────────
+const editorRef  = ref<InstanceType<typeof LumenEditor> | null>(null)
+const previewRef = ref<InstanceType<typeof LumenPreview> | null>(null)
+const splitRootRef = ref<HTMLDivElement | null>(null)
+const dropOverlay = ref(false)
 
 const isTeacher = computed(() => appStore.isTeacher)
 const promoId   = computed(() => appStore.activePromoId)
 
-// ── Markdown rendering reactif ──────────────────────────────────────────────
-const previewHtml = computed(() => renderMarkdown(editorContent.value))
-const readerHtml  = computed(() => renderMarkdown(lumenStore.currentCourse?.content ?? ''))
-
-// ── Stats : mots + temps de lecture ─────────────────────────────────────────
-const wordCount = computed(() => {
-  const text = editorContent.value.trim()
-  if (!text) return 0
-  return text.split(/\s+/).length
+const saveState = computed<'saved' | 'saving' | 'dirty' | 'idle'>(() => {
+  if (saving.value) return 'saving'
+  if (dirty.value) return 'dirty'
+  if (savedAt.value) return 'saved'
+  return 'idle'
 })
-const readingMinutes = computed(() => Math.max(1, Math.ceil(wordCount.value / 200)))
-const charCount = computed(() => editorContent.value.length)
+
+const editorIsPublished = computed(() => {
+  if (!editorCourseId.value) return false
+  return lumenStore.courses.find(c => c.id === editorCourseId.value)?.status === 'published'
+})
+
+const sortedCoursesForSidebar = computed(() => {
+  return [...lumenStore.courses].sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'draft' ? -1 : 1
+    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+  })
+})
+
+// Reader : si le contenu commence par un h1, on le strip (le titre du cours
+// est deja rendu en h1 dans le header de lecture — evite un double h1).
+const readerHtml = computed(() => {
+  const raw = lumenStore.currentCourse?.content ?? ''
+  const stripped = raw.replace(/^\s*#\s+.+$/m, '').replace(/^\s*\n/, '')
+  return renderMarkdown(stripped)
+})
 
 // ── Data loading ────────────────────────────────────────────────────────────
 async function loadCourses() {
@@ -64,6 +99,8 @@ function goToList() {
   mode.value = 'list'
   lumenStore.clearCurrentCourse()
   resetEditor()
+  focusMode.value = false
+  zenMode.value = false
 }
 
 async function openReader(course: LumenCourse) {
@@ -74,7 +111,7 @@ async function openReader(course: LumenCourse) {
 function openEditorNew() {
   resetEditor()
   mode.value = 'editor'
-  nextTick(() => textareaRef.value?.focus())
+  nextTick(() => editorRef.value?.focus())
 }
 
 async function openEditorEdit(course: LumenCourse) {
@@ -88,7 +125,7 @@ async function openEditorEdit(course: LumenCourse) {
   dirty.value          = false
   savedAt.value        = full.updated_at
   mode.value = 'editor'
-  nextTick(() => textareaRef.value?.focus())
+  nextTick(() => editorRef.value?.focus())
 }
 
 function resetEditor() {
@@ -98,6 +135,7 @@ function resetEditor() {
   editorContent.value  = ''
   dirty.value          = false
   savedAt.value        = null
+  cursor.value         = null
 }
 
 // ── Dirty tracking ──────────────────────────────────────────────────────────
@@ -105,55 +143,71 @@ watch([editorTitle, editorSummary, editorContent], () => {
   if (mode.value === 'editor') dirty.value = true
 })
 
-// ── Auto-save (5s apres derniere edition) ───────────────────────────────────
+// ── Auto-save (3s apres derniere edition) ──────────────────────────────────
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
 watch([editorTitle, editorSummary, editorContent], () => {
   if (mode.value !== 'editor' || !editorCourseId.value) return
   if (autoSaveTimer) clearTimeout(autoSaveTimer)
-  autoSaveTimer = setTimeout(() => { saveCourse(true) }, 5000)
+  autoSaveTimer = setTimeout(() => { saveCourse(true) }, 3000)
 })
 
 // ── Save / publish ──────────────────────────────────────────────────────────
+let savePromise: Promise<boolean> | null = null
+
 async function saveCourse(silent = false): Promise<boolean> {
-  if (!editorTitle.value.trim()) {
-    if (!silent) showToast('Le titre est requis', 'error')
-    return false
-  }
-  if (!promoId.value) {
-    if (!silent) showToast('Aucune promotion active', 'error')
-    return false
-  }
-  saving.value = true
-  try {
-    if (editorCourseId.value) {
-      const updated = await lumenStore.updateCourse(editorCourseId.value, {
-        title: editorTitle.value, summary: editorSummary.value, content: editorContent.value,
-      })
-      if (updated) {
-        savedAt.value = updated.updated_at
-        dirty.value = false
-        if (!silent) showToast('Cours enregistré', 'success')
-        return true
-      }
-    } else {
-      const created = await lumenStore.createCourse({
-        promoId: promoId.value,
-        title: editorTitle.value,
-        summary: editorSummary.value,
-        content: editorContent.value,
-      })
-      if (created) {
-        editorCourseId.value = created.id
-        savedAt.value = created.updated_at
-        dirty.value = false
-        if (!silent) showToast('Cours créé', 'success')
-        return true
-      }
+  // Empeche les saves concurrents : si une sauvegarde est deja en cours,
+  // on attend qu'elle finisse (et on ne lance pas de deuxieme appel API en parallele).
+  if (savePromise) return savePromise
+  savePromise = (async () => {
+    // Snapshot des valeurs au moment de l'appel (pas de closure reactive)
+    const title   = editorTitle.value.trim()
+    const summary = editorSummary.value
+    const content = editorContent.value
+    const courseId = editorCourseId.value
+    const currentPromoId = promoId.value
+
+    if (!title) {
+      if (!silent) showToast('Le titre est requis', 'error')
+      return false
     }
-    return false
-  } finally {
-    saving.value = false
-  }
+    if (!currentPromoId) {
+      if (!silent) showToast('Aucune promotion active', 'error')
+      return false
+    }
+    saving.value = true
+    try {
+      if (courseId) {
+        const updated = await lumenStore.updateCourse(courseId, { title, summary, content })
+        if (updated) {
+          savedAt.value = formatTime(updated.updated_at)
+          // Ne reset dirty que si l'utilisateur n'a rien tape entre-temps
+          if (editorTitle.value.trim() === title && editorSummary.value === summary && editorContent.value === content) {
+            dirty.value = false
+          }
+          if (!silent) showToast('Cours enregistré', 'success')
+          return true
+        }
+      } else {
+        const created = await lumenStore.createCourse({
+          promoId: currentPromoId, title, summary, content,
+        })
+        if (created) {
+          editorCourseId.value = created.id
+          savedAt.value = formatTime(created.updated_at)
+          if (editorTitle.value.trim() === title && editorSummary.value === summary && editorContent.value === content) {
+            dirty.value = false
+          }
+          if (!silent) showToast('Cours créé', 'success')
+          return true
+        }
+      }
+      return false
+    } finally {
+      saving.value = false
+      savePromise = null
+    }
+  })()
+  return savePromise
 }
 
 async function saveAndPublish() {
@@ -180,65 +234,241 @@ async function deleteFromEditor() {
   }
 }
 
-// ── Markdown insertion helpers (toolbar) ────────────────────────────────────
-function wrapSelection(prefix: string, suffix: string = prefix, placeholder = '') {
-  const ta = textareaRef.value
-  if (!ta) return
-  const start = ta.selectionStart
-  const end = ta.selectionEnd
-  const before = editorContent.value.slice(0, start)
-  const selected = editorContent.value.slice(start, end) || placeholder
-  const after = editorContent.value.slice(end)
-  editorContent.value = before + prefix + selected + suffix + after
+// ── Toolbar actions ─────────────────────────────────────────────────────────
+function handleToolbarAction(type: string) {
+  const ed = editorRef.value
+  if (!ed) return
+  switch (type) {
+    case 'h1':        ed.prefixLine('# '); break
+    case 'h2':        ed.prefixLine('## '); break
+    case 'h3':        ed.prefixLine('### '); break
+    case 'bold':      ed.wrap('**', '**', 'texte en gras'); break
+    case 'italic':    ed.wrap('*', '*', 'texte en italique'); break
+    case 'strike':    ed.wrap('~~', '~~', 'texte barré'); break
+    case 'code':      ed.wrap('`', '`', 'code'); break
+    case 'codeblock': ed.insertBlock('```\n// code\n```'); break
+    case 'ul':        ed.prefixLine('- '); break
+    case 'ol':        ed.prefixLine('1. '); break
+    case 'task':      ed.prefixLine('- [ ] '); break
+    case 'quote':     ed.prefixLine('> '); break
+    case 'link':      ed.wrap('[', '](https://)', 'texte du lien'); break
+    case 'image':     triggerImagePick(); break
+    case 'table':     ed.insertBlock('| Colonne 1 | Colonne 2 | Colonne 3 |\n| --- | --- | --- |\n| A | B | C |\n| D | E | F |'); break
+    case 'hr':        ed.insertBlock('---'); break
+  }
+}
+
+// ── Image upload (file picker + drag drop) ────────────────────────────────
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+function triggerImagePick() {
+  fileInputRef.value?.click()
+}
+
+async function handleFilePicked(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) await uploadAndInsertImage(file)
+  input.value = ''
+}
+
+// Taille max par image : 10 Mo (plus strict que le 50 Mo global)
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024
+
+/** Echappe les caracteres markdown (]()) dans les noms de fichiers pour l'alt text. */
+function sanitizeMarkdownAlt(filename: string): string {
+  return filename
+    .replace(/[\[\]()]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 100)
+}
+
+async function uploadAndInsertImage(file: File) {
+  if (!file.type.startsWith('image/')) {
+    showToast('Seules les images sont acceptées', 'error')
+    return
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    showToast(`Image trop volumineuse (max ${Math.round(MAX_IMAGE_SIZE / 1024 / 1024)} Mo)`, 'error')
+    return
+  }
+  const ed = editorRef.value
+  if (!ed) return
+
+  const apiBase = (import.meta.env.VITE_SERVER_URL || (import.meta.env.DEV ? 'http://localhost:3001' : 'https://app.cursus.school')) as string
+  const token = getAuthToken()
+  if (!token) {
+    showToast('Session expirée, reconnecte-toi', 'error')
+    return
+  }
+
+  showToast(`Upload de ${file.name}…`, 'info')
+  try {
+    const formData = new FormData()
+    formData.append('file', file, file.name)
+    const res = await fetch(`${apiBase}/api/files/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    })
+    const json = await res.json() as { ok: boolean; data?: string; error?: string }
+    if (!json.ok || !json.data) {
+      showToast(`Upload échoué : ${json.error ?? 'inconnu'}`, 'error')
+      return
+    }
+    const url = `${apiBase}${json.data}`
+    const safeAlt = sanitizeMarkdownAlt(file.name)
+    ed.insertAtCursor(`![${safeAlt}](${url})`)
+    showToast('Image insérée', 'success')
+  } catch (err: unknown) {
+    showToast(`Upload échoué : ${(err as Error).message}`, 'error')
+  }
+}
+
+// ── Drag & drop images ────────────────────────────────────────────────────
+function handleDragOver(e: DragEvent) {
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+  dropOverlay.value = true
+}
+function handleDragLeave(e: DragEvent) {
+  // Evite le flicker : ne cache que si on quitte vraiment la zone editeur
+  const currentTarget = e.currentTarget as HTMLElement | null
+  const relatedTarget = e.relatedTarget as Node | null
+  if (!currentTarget || !relatedTarget || !currentTarget.contains(relatedTarget)) {
+    dropOverlay.value = false
+  }
+}
+async function handleDrop(e: DragEvent) {
+  e.preventDefault()
+  dropOverlay.value = false
+  const files = e.dataTransfer?.files
+  if (!files) return
+  for (const file of Array.from(files)) {
+    if (file.type.startsWith('image/')) {
+      await uploadAndInsertImage(file)
+    }
+  }
+}
+
+// ── Paste : si HTML riche, basculer vers markdown simple ──────────────────
+async function handlePaste(e: ClipboardEvent) {
+  const items = e.clipboardData?.items
+  if (!items) return
+  for (const item of Array.from(items)) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) {
+        e.preventDefault()
+        await uploadAndInsertImage(file)
+        return
+      }
+    }
+  }
+}
+
+// ── Export helpers ─────────────────────────────────────────────────────────
+async function copyMarkdown() {
+  try {
+    await navigator.clipboard.writeText(editorContent.value)
+    showToast('Markdown copié', 'success')
+  } catch { showToast('Copie échouée', 'error') }
+}
+
+async function copyHtml() {
+  try {
+    const html = renderMarkdown(editorContent.value)
+    await navigator.clipboard.writeText(html)
+    showToast('HTML copié', 'success')
+  } catch { showToast('Copie échouée', 'error') }
+}
+
+function downloadMarkdown() {
+  const content = `# ${editorTitle.value || 'Cours'}\n\n${editorContent.value}`
+  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${(editorTitle.value || 'cours').replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').toLowerCase()}.md`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  showToast('Fichier téléchargé', 'success')
+}
+
+// ── Outline navigation : scroll editor to line (precis via CodeMirror) ────
+function navigateToLine(line: number) {
+  editorRef.value?.scrollToLine(line)
+}
+
+// ── Sync scroll editeur → preview ─────────────────────────────────────────
+let scrollSyncLock = false
+function handleEditorCursor(info: CursorInfo) {
+  cursor.value = info
+  if (!syncScroll.value || !showPreview.value) return
+  if (scrollSyncLock) return
+  scrollSyncLock = true
   nextTick(() => {
-    ta.focus()
-    const newStart = start + prefix.length
-    const newEnd = newStart + selected.length
-    ta.setSelectionRange(newStart, newEnd)
+    const ratio = editorRef.value?.getScrollRatio() ?? 0
+    previewRef.value?.setScrollRatio(ratio)
+    setTimeout(() => { scrollSyncLock = false }, 50)
   })
 }
 
-function insertLinePrefix(prefix: string) {
-  const ta = textareaRef.value
-  if (!ta) return
-  const start = ta.selectionStart
-  const before = editorContent.value.slice(0, start)
-  const lineStart = before.lastIndexOf('\n') + 1
-  editorContent.value =
-    editorContent.value.slice(0, lineStart) + prefix + editorContent.value.slice(lineStart)
-  nextTick(() => {
-    ta.focus()
-    ta.setSelectionRange(start + prefix.length, start + prefix.length)
-  })
+// ── Split pane drag handle ────────────────────────────────────────────────
+let draggingSplit = false
+function startSplitDrag(e: PointerEvent) {
+  draggingSplit = true
+  const root = splitRootRef.value
+  if (!root) return
+  const handleMove = (ev: PointerEvent) => {
+    if (!draggingSplit) return
+    const rect = root.getBoundingClientRect()
+    const ratio = (ev.clientX - rect.left) / rect.width
+    splitRatio.value = Math.max(0.25, Math.min(0.75, ratio))
+  }
+  const handleUp = () => {
+    draggingSplit = false
+    window.removeEventListener('pointermove', handleMove)
+    window.removeEventListener('pointerup', handleUp)
+    document.body.style.userSelect = ''
+    document.body.style.cursor = ''
+  }
+  window.addEventListener('pointermove', handleMove)
+  window.addEventListener('pointerup', handleUp)
+  document.body.style.userSelect = 'none'
+  document.body.style.cursor = 'col-resize'
+  e.preventDefault()
 }
 
-function insertBold()       { wrapSelection('**', '**', 'texte en gras') }
-function insertItalic()     { wrapSelection('*',  '*',  'texte en italique') }
-function insertCode()       { wrapSelection('`',  '`',  'code') }
-function insertCodeBlock()  { wrapSelection('\n```\n', '\n```\n', 'code') }
-function insertH1()         { insertLinePrefix('# ') }
-function insertH2()         { insertLinePrefix('## ') }
-function insertUl()         { insertLinePrefix('- ') }
-function insertOl()         { insertLinePrefix('1. ') }
-function insertQuote()      { insertLinePrefix('> ') }
-function insertLink() {
-  const ta = textareaRef.value
-  if (!ta) return
-  const sel = editorContent.value.slice(ta.selectionStart, ta.selectionEnd) || 'texte du lien'
-  wrapSelection(`[${sel}](`, ')', 'https://')
-}
-function insertImage() {
-  wrapSelection('![', '](https://)', 'description')
-}
-
-// ── Keyboard shortcuts ──────────────────────────────────────────────────────
+// ── Keyboard shortcuts ────────────────────────────────────────────────────
 function handleKeydown(e: KeyboardEvent) {
-  if (mode.value !== 'editor') return
   const isMod = e.ctrlKey || e.metaKey
+
+  // Palette de commandes : toujours disponible
+  if (isMod && (e.key === 'p' || e.key === 'P') && e.shiftKey === false) {
+    if (mode.value === 'editor') {
+      e.preventDefault()
+      showCmdPalette.value = !showCmdPalette.value
+      return
+    }
+  }
+
+  if (mode.value !== 'editor') return
+
   if (isMod && e.key === 's') { e.preventDefault(); saveCourse(false); return }
-  if (isMod && e.key === 'b') { e.preventDefault(); insertBold(); return }
-  if (isMod && e.key === 'i') { e.preventDefault(); insertItalic(); return }
-  if (isMod && e.key === 'k') { e.preventDefault(); insertLink(); return }
+  if (isMod && e.shiftKey && e.key === 'P') { e.preventDefault(); saveAndPublish(); return }
+  if (isMod && e.key === 'b') { e.preventDefault(); handleToolbarAction('bold'); return }
+  if (isMod && e.key === 'i') { e.preventDefault(); handleToolbarAction('italic'); return }
+  if (isMod && e.key === 'k') { e.preventDefault(); handleToolbarAction('link'); return }
+  if (isMod && e.key === 'e') { e.preventDefault(); handleToolbarAction('code'); return }
+  if (isMod && e.key === '1') { e.preventDefault(); handleToolbarAction('h1'); return }
+  if (isMod && e.key === '2') { e.preventDefault(); handleToolbarAction('h2'); return }
+  if (isMod && e.key === '3') { e.preventDefault(); handleToolbarAction('h3'); return }
+  if (e.key === 'F11')        { e.preventDefault(); zenMode.value = !zenMode.value; return }
+  if (e.key === 'Escape' && zenMode.value) { e.preventDefault(); zenMode.value = false; return }
 }
 onMounted(() => { window.addEventListener('keydown', handleKeydown) })
 onBeforeUnmount(() => {
@@ -246,7 +476,7 @@ onBeforeUnmount(() => {
   if (autoSaveTimer) clearTimeout(autoSaveTimer)
 })
 
-// ── Editor helpers ──────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 function formatDate(iso: string | null): string {
   if (!iso) return ''
   try {
@@ -255,44 +485,76 @@ function formatDate(iso: string | null): string {
   } catch { return iso }
 }
 
-const editorIsPublished = computed(() => {
-  if (!editorCourseId.value) return false
-  return lumenStore.courses.find(c => c.id === editorCourseId.value)?.status === 'published'
-})
-
-const sortedCoursesForSidebar = computed(() => {
-  return [...lumenStore.courses].sort((a, b) => {
-    if (a.status !== b.status) return a.status === 'draft' ? -1 : 1
-    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-  })
-})
-
-// ── Sync scroll editor <-> preview (simple proportional) ────────────────────
-function onEditorScroll() {
-  if (!splitView.value || !textareaRef.value || !previewRef.value) return
-  const ta = textareaRef.value
-  const pv = previewRef.value
-  const ratio = ta.scrollTop / Math.max(1, ta.scrollHeight - ta.clientHeight)
-  pv.scrollTop = ratio * Math.max(0, pv.scrollHeight - pv.clientHeight)
+function formatTime(iso: string): string {
+  try {
+    const d = new Date(iso.replace(' ', 'T') + (iso.endsWith('Z') ? '' : 'Z'))
+    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  } catch { return iso }
 }
+
+// ── Palette commands definition ──────────────────────────────────────────
+const paletteCommands = computed(() => {
+  const cmds: Array<{id: string; label: string; hint?: string; icon: 'file'|'plus'|'save'|'trash'|'eye'|'columns'|'edit'|'publish'|'unpublish'|'download'|'clipboard'|'outline'|'focus'; action: () => void}> = [
+    { id: 'new',        label: 'Nouveau cours',              hint: 'Ctrl+N',       icon: 'plus',      action: () => openEditorNew() },
+    { id: 'save',       label: 'Enregistrer',                hint: 'Ctrl+S',       icon: 'save',      action: () => saveCourse(false) },
+    { id: 'publish',    label: editorIsPublished.value ? 'Mettre à jour la publication' : 'Publier le cours', hint: 'Ctrl+Shift+P', icon: 'publish',   action: () => saveAndPublish() },
+    { id: 'focus',      label: focusMode.value ? 'Quitter le mode focus' : 'Activer le mode focus',      icon: 'focus',     action: () => focusMode.value = !focusMode.value },
+    { id: 'zen',        label: zenMode.value ? 'Quitter le mode plein écran' : 'Plein écran (F11)',      icon: 'focus',     action: () => zenMode.value = !zenMode.value },
+    { id: 'preview',    label: showPreview.value ? 'Masquer l\'aperçu' : 'Afficher l\'aperçu',           icon: 'columns',   action: () => showPreview.value = !showPreview.value },
+    { id: 'outline',    label: showOutline.value ? 'Masquer le plan' : 'Afficher le plan',              icon: 'outline',   action: () => showOutline.value = !showOutline.value },
+    { id: 'sidebar',    label: showSidebar.value ? 'Masquer la liste' : 'Afficher la liste',            icon: 'file',      action: () => showSidebar.value = !showSidebar.value },
+    { id: 'copy-md',    label: 'Copier le markdown',         icon: 'clipboard', action: () => copyMarkdown() },
+    { id: 'copy-html',  label: 'Copier le HTML',             icon: 'clipboard', action: () => copyHtml() },
+    { id: 'download',   label: 'Télécharger en .md',         icon: 'download',  action: () => downloadMarkdown() },
+  ]
+  if (editorIsPublished.value) {
+    cmds.push({ id: 'unpublish', label: 'Dépublier', icon: 'unpublish', action: () => unpublishFromEditor() })
+  }
+  if (editorCourseId.value) {
+    cmds.push({ id: 'delete', label: 'Supprimer le cours', icon: 'trash', action: () => deleteFromEditor() })
+  }
+  return cmds
+})
+
+function onCmdCourseSelect(courseId: number) {
+  const course = lumenStore.courses.find(c => c.id === courseId)
+  if (course) openEditorEdit(course)
+}
+
+// ── Split pane grid template computed ────────────────────────────────────
+const splitStyle = computed(() => {
+  if (!showPreview.value) return { gridTemplateColumns: '1fr' }
+  const leftPct = (splitRatio.value * 100).toFixed(2)
+  const rightPct = (100 - splitRatio.value * 100).toFixed(2)
+  return { gridTemplateColumns: `${leftPct}% 6px ${rightPct}%` }
+})
+
+const chromeHidden = computed(() => focusMode.value || zenMode.value)
 </script>
 
 <template>
   <ErrorBoundary label="Lumen">
-    <div class="lumen-app" :class="{ 'lumen-app--editor': mode === 'editor' }">
-      <!-- ────────────────────── HEADER ────────────────────── -->
-      <header class="lumen-topbar">
+    <div
+      class="lumen-app"
+      :class="{
+        'lumen-app--editor': mode === 'editor',
+        'lumen-app--zen': zenMode,
+        'lumen-app--focus': focusMode,
+      }"
+    >
+      <!-- ─────────────────────── TOPBAR ─────────────────────── -->
+      <header v-if="!zenMode" class="lumen-topbar">
         <div class="lumen-brand">
           <div class="lumen-brand-icon">
             <Lightbulb :size="20" />
           </div>
           <div class="lumen-brand-text">
             <span class="lumen-brand-name">Lumen</span>
-            <span class="lumen-brand-tag">{{ isTeacher ? 'Editeur de cours' : 'Cours de ta promo' }}</span>
+            <span class="lumen-brand-tag">{{ isTeacher ? 'Éditeur de cours' : 'Cours de ta promo' }}</span>
           </div>
         </div>
 
-        <!-- Status pill (mode editor uniquement) -->
+        <!-- Status pill (mode editor) -->
         <div v-if="mode === 'editor'" class="lumen-status-pill">
           <span v-if="saving" class="lumen-status lumen-status--saving">
             <span class="lumen-spinner" />
@@ -304,7 +566,7 @@ function onEditorScroll() {
           </span>
           <span v-else-if="savedAt" class="lumen-status lumen-status--saved">
             <CheckCircle2 :size="13" />
-            Enregistré · {{ formatDate(savedAt) }}
+            Enregistré · {{ savedAt }}
           </span>
           <span v-if="editorIsPublished" class="lumen-status lumen-status--published">
             <CheckCircle2 :size="13" />
@@ -313,25 +575,47 @@ function onEditorScroll() {
         </div>
 
         <div class="lumen-topbar-actions">
-          <!-- Mode list : new button -->
           <button v-if="mode === 'list' && isTeacher" class="lumen-btn lumen-btn--primary" @click="openEditorNew">
-            <Plus :size="15" />
-            Nouveau cours
+            <Plus :size="15" /> Nouveau cours
           </button>
 
-          <!-- Mode editor : split toggle + save + publish -->
           <template v-if="mode === 'editor'">
+            <button class="lumen-icon-btn" aria-label="Ouvrir la palette de commandes" title="Palette de commandes (Ctrl+P)" @click="showCmdPalette = true">
+              <CommandIcon :size="16" />
+            </button>
             <button
               class="lumen-icon-btn"
-              :class="{ 'lumen-icon-btn--active': splitView }"
-              :title="splitView ? 'Vue concentree (editeur seul)' : 'Vue cote a cote'"
-              @click="splitView = !splitView"
+              :class="{ 'lumen-icon-btn--active': showOutline }"
+              :aria-label="showOutline ? 'Masquer le plan du cours' : 'Afficher le plan du cours'"
+              :aria-pressed="showOutline"
+              title="Plan du cours"
+              @click="showOutline = !showOutline"
+            >
+              <ListTree :size="16" />
+            </button>
+            <button
+              class="lumen-icon-btn"
+              :class="{ 'lumen-icon-btn--active': showPreview }"
+              :aria-label="showPreview ? 'Masquer l\'aperçu' : 'Afficher l\'aperçu côte à côte'"
+              :aria-pressed="showPreview"
+              title="Aperçu côte à côte"
+              @click="showPreview = !showPreview"
             >
               <Columns :size="16" />
             </button>
+            <button
+              class="lumen-icon-btn"
+              :class="{ 'lumen-icon-btn--active': zenMode }"
+              :aria-label="zenMode ? 'Quitter le plein écran' : 'Passer en plein écran'"
+              :aria-pressed="zenMode"
+              title="Plein écran (F11)"
+              @click="zenMode = !zenMode"
+            >
+              <Maximize2 :size="16" />
+            </button>
+            <span class="lumen-topbar-sep" />
             <button class="lumen-btn lumen-btn--ghost" :disabled="saving" @click="saveCourse(false)">
-              <Save :size="14" />
-              Enregistrer
+              <Save :size="14" /> Enregistrer
             </button>
             <button v-if="editorIsPublished" class="lumen-btn lumen-btn--ghost" @click="unpublishFromEditor">
               Dépublier
@@ -339,26 +623,27 @@ function onEditorScroll() {
             <button class="lumen-btn lumen-btn--primary" :disabled="saving" @click="saveAndPublish">
               {{ editorIsPublished ? 'Mettre à jour' : 'Publier' }}
             </button>
-            <button class="lumen-icon-btn lumen-icon-btn--danger" title="Supprimer" @click="deleteFromEditor" v-if="editorCourseId">
-              <Trash2 :size="15" />
+            <button class="lumen-btn lumen-btn--ghost" @click="goToList">
+              <ArrowLeft :size="14" /> Liste
             </button>
           </template>
 
-          <!-- Mode reader : back -->
           <button v-if="mode === 'reader'" class="lumen-btn lumen-btn--ghost" @click="goToList">
-            <ArrowLeft :size="14" />
-            Retour
-          </button>
-          <button v-if="mode === 'editor'" class="lumen-btn lumen-btn--ghost" @click="goToList">
-            <ArrowLeft :size="14" />
-            Liste
+            <ArrowLeft :size="14" /> Retour
           </button>
         </div>
       </header>
 
-      <!-- ────────────────────── BODY ────────────────────── -->
+      <!-- Mini topbar en mode Zen -->
+      <header v-else class="lumen-zen-topbar">
+        <button class="lumen-zen-exit" aria-label="Quitter le plein écran" title="Quitter le plein écran (Esc)" @click="zenMode = false">
+          <Minimize2 :size="15" />
+        </button>
+      </header>
 
-      <!-- LIST MODE ─────────────────────────────────────── -->
+      <!-- ─────────────────────── BODY ─────────────────────── -->
+
+      <!-- LIST MODE -->
       <main v-if="mode === 'list'" class="lumen-list-main">
         <div v-if="lumenStore.loading && lumenStore.courses.length === 0" class="lumen-empty">
           Chargement…
@@ -371,8 +656,7 @@ function onEditorScroll() {
           <p v-if="isTeacher">Lance ton premier cours en markdown.</p>
           <p v-else>Tes enseignants n'ont pas encore publié de cours ici.</p>
           <button v-if="isTeacher" class="lumen-btn lumen-btn--primary" @click="openEditorNew">
-            <Plus :size="15" />
-            Créer mon premier cours
+            <Plus :size="15" /> Créer mon premier cours
           </button>
         </div>
 
@@ -408,7 +692,7 @@ function onEditorScroll() {
         </div>
       </main>
 
-      <!-- READER MODE ───────────────────────────────────── -->
+      <!-- READER MODE -->
       <main v-else-if="mode === 'reader'" class="lumen-reader-main">
         <article v-if="lumenStore.currentCourse" class="lumen-reader">
           <header class="lumen-reader-head">
@@ -427,38 +711,51 @@ function onEditorScroll() {
         </article>
       </main>
 
-      <!-- EDITOR MODE (Overleaf-style) ──────────────────── -->
+      <!-- EDITOR MODE (Overleaf-style) -->
       <main v-else-if="mode === 'editor' && isTeacher" class="lumen-editor-main">
-        <!-- Sidebar : course list -->
-        <aside class="lumen-sidebar">
+        <!-- Sidebar : liste des cours -->
+        <aside v-if="showSidebar && !chromeHidden" class="lumen-sidebar">
           <header class="lumen-sidebar-head">
-            <BookOpen :size="14" />
+            <BookOpen :size="13" />
             <span>Mes cours</span>
-            <button class="lumen-sidebar-add" title="Nouveau cours" @click="resetEditor">
-              <Plus :size="13" />
+            <button class="lumen-sidebar-add" aria-label="Créer un nouveau cours" title="Nouveau cours" @click="resetEditor">
+              <Plus :size="14" />
             </button>
           </header>
-          <ul class="lumen-sidebar-list">
-            <li
+          <div class="lumen-sidebar-list" role="list">
+            <button
               v-for="course in sortedCoursesForSidebar"
               :key="course.id"
+              type="button"
               class="lumen-sidebar-item"
               :class="{ 'lumen-sidebar-item--active': course.id === editorCourseId }"
+              :aria-current="course.id === editorCourseId ? 'page' : undefined"
+              role="listitem"
               @click="openEditorEdit(course)"
             >
-              <span class="lumen-sidebar-dot" :class="course.status === 'published' ? 'lumen-sidebar-dot--ok' : 'lumen-sidebar-dot--draft'" />
+              <span
+                class="lumen-sidebar-dot"
+                :class="course.status === 'published' ? 'lumen-sidebar-dot--ok' : 'lumen-sidebar-dot--draft'"
+                :aria-label="course.status === 'published' ? 'Publié' : 'Brouillon'"
+              />
               <span class="lumen-sidebar-title">{{ course.title || 'Sans titre' }}</span>
-            </li>
-            <li v-if="sortedCoursesForSidebar.length === 0" class="lumen-sidebar-empty">
+            </button>
+            <p v-if="sortedCoursesForSidebar.length === 0" class="lumen-sidebar-empty">
               Aucun cours
-            </li>
-          </ul>
+            </p>
+          </div>
         </aside>
 
-        <!-- Editor + Preview pane -->
-        <section class="lumen-editor-zone">
-          <!-- Title + summary inputs -->
-          <div class="lumen-meta-row">
+        <!-- Editor zone -->
+        <section
+          class="lumen-editor-zone"
+          @dragover="handleDragOver"
+          @dragleave="handleDragLeave"
+          @drop="handleDrop"
+          @paste="handlePaste"
+        >
+          <!-- Meta (title + summary) -->
+          <div v-if="!chromeHidden" class="lumen-meta-row">
             <input
               v-model="editorTitle"
               class="lumen-meta-title"
@@ -473,65 +770,100 @@ function onEditorScroll() {
             />
           </div>
 
-          <!-- Markdown toolbar -->
-          <div class="lumen-md-toolbar">
-            <button class="lumen-md-btn" title="Titre 1" @click="insertH1"><Heading1 :size="14" /></button>
-            <button class="lumen-md-btn" title="Titre 2" @click="insertH2"><Heading2 :size="14" /></button>
-            <span class="lumen-md-sep" />
-            <button class="lumen-md-btn" title="Gras (Ctrl+B)" @click="insertBold"><Bold :size="14" /></button>
-            <button class="lumen-md-btn" title="Italique (Ctrl+I)" @click="insertItalic"><Italic :size="14" /></button>
-            <span class="lumen-md-sep" />
-            <button class="lumen-md-btn" title="Liste à puces" @click="insertUl"><List :size="14" /></button>
-            <button class="lumen-md-btn" title="Liste numérotée" @click="insertOl"><ListOrdered :size="14" /></button>
-            <button class="lumen-md-btn" title="Citation" @click="insertQuote"><Quote :size="14" /></button>
-            <span class="lumen-md-sep" />
-            <button class="lumen-md-btn" title="Code en ligne" @click="insertCode"><Code :size="14" /></button>
-            <button class="lumen-md-btn" title="Bloc de code" @click="insertCodeBlock">
-              <code class="lumen-md-codeblock">{ }</code>
-            </button>
-            <span class="lumen-md-sep" />
-            <button class="lumen-md-btn" title="Lien (Ctrl+K)" @click="insertLink"><Link2 :size="14" /></button>
-            <button class="lumen-md-btn" title="Image" @click="insertImage"><Image :size="14" /></button>
-            <span class="lumen-md-toolbar-spacer" />
-            <span class="lumen-md-stats">
-              {{ wordCount }} mots · {{ readingMinutes }} min · {{ charCount }} car.
-            </span>
-          </div>
+          <!-- Toolbar markdown -->
+          <LumenToolbar v-if="!chromeHidden" @action="handleToolbarAction" />
 
-          <!-- Split editor / preview -->
+          <!-- Split : editor + preview -->
           <div
-            ref="editorPaneRef"
+            ref="splitRootRef"
             class="lumen-split"
-            :class="{ 'lumen-split--solo': !splitView }"
+            :style="splitStyle"
           >
-            <textarea
-              ref="textareaRef"
+            <LumenEditor
+              ref="editorRef"
               v-model="editorContent"
-              class="lumen-textarea"
-              spellcheck="true"
-              placeholder="# Titre du cours&#10;&#10;Écris ton cours en Markdown ici…&#10;&#10;## Section&#10;Texte avec **gras** et *italique*.&#10;&#10;- Item 1&#10;- Item 2&#10;&#10;```js&#10;console.log('hello')&#10;```"
-              @scroll="onEditorScroll"
+              :show-line-numbers="showLineNumbers"
+              placeholder="# Titre du cours&#10;&#10;Écris ton cours en Markdown…&#10;&#10;## Section&#10;Texte avec **gras** et *italique*.&#10;&#10;- Item 1&#10;- Item 2&#10;&#10;```js&#10;console.log('hello')&#10;```"
+              @cursor="handleEditorCursor"
             />
             <div
-              v-if="splitView"
+              v-if="showPreview"
+              class="lumen-split-handle"
+              role="separator"
+              aria-label="Glisser pour redimensionner l'éditeur et l'aperçu"
+              :aria-valuenow="Math.round(splitRatio * 100)"
+              aria-valuemin="25"
+              aria-valuemax="75"
+              tabindex="0"
+              title="Glisser pour redimensionner"
+              @pointerdown="startSplitDrag"
+              @keydown.left.prevent="splitRatio = Math.max(0.25, splitRatio - 0.05)"
+              @keydown.right.prevent="splitRatio = Math.min(0.75, splitRatio + 0.05)"
+            />
+            <LumenPreview
+              v-if="showPreview"
               ref="previewRef"
-              class="lumen-preview"
-            >
-              <div class="lumen-prose" v-html="previewHtml" />
-              <div v-if="!editorContent" class="lumen-preview-empty">
-                <Eye :size="32" />
-                <p>L'aperçu apparaîtra ici à mesure que tu écris.</p>
+              :content="editorContent"
+              :title="editorTitle"
+            />
+          </div>
+
+          <!-- Drop overlay -->
+          <Transition name="lumen-drop">
+            <div v-if="dropOverlay" class="lumen-drop-overlay">
+              <div class="lumen-drop-msg">
+                <Download :size="32" />
+                <p>Lâcher pour insérer l'image</p>
               </div>
             </div>
-          </div>
+          </Transition>
         </section>
+
+        <!-- Outline -->
+        <LumenOutline
+          v-if="showOutline && !chromeHidden"
+          :content="editorContent"
+          @navigate="navigateToLine"
+        />
       </main>
+
+      <!-- Status bar (editor mode only) -->
+      <LumenStatusBar
+        v-if="mode === 'editor' && !zenMode"
+        :cursor="cursor"
+        :content="editorContent"
+        :save-state="saveState"
+        :saved-at="savedAt"
+        :show-line-numbers="showLineNumbers"
+        @toggle-line-numbers="showLineNumbers = !showLineNumbers"
+      />
+
+      <!-- Hidden file input pour image pick -->
+      <input
+        ref="fileInputRef"
+        type="file"
+        accept="image/*"
+        class="lumen-hidden-input"
+        @change="handleFilePicked"
+      />
+
+      <!-- Command palette -->
+      <LumenCommandPalette
+        :open="showCmdPalette"
+        :courses="lumenStore.courses"
+        :current-course-id="editorCourseId"
+        :commands="paletteCommands"
+        :on-course-select="onCmdCourseSelect"
+        @close="showCmdPalette = false"
+      />
     </div>
   </ErrorBoundary>
 </template>
 
 <style scoped>
-/* ── Layout principal ─────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   LUMEN — Layout principal
+   ═══════════════════════════════════════════════════════════════════════════ */
 .lumen-app {
   display: flex;
   flex-direction: column;
@@ -541,27 +873,30 @@ function onEditorScroll() {
   font-family: var(--font, 'Plus Jakarta Sans', sans-serif);
 }
 
-.lumen-app--editor {
+.lumen-app--editor { background: var(--bg-card, #fff); }
+
+.lumen-app--zen {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
   background: var(--bg-card, #fff);
 }
 
-/* ── Topbar ───────────────────────────────────────────────────────────── */
+.lumen-hidden-input { display: none; }
+
+/* ── Topbar ─────────────────────────────────────────────────────────────── */
 .lumen-topbar {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 24px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--border, rgba(0, 0, 0, .08));
   background: var(--bg-card, #fff);
   flex-shrink: 0;
-  min-height: 60px;
+  min-height: 56px;
 }
 
-.lumen-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+.lumen-brand { display: flex; align-items: center; gap: 12px; }
 
 .lumen-brand-icon {
   width: 36px; height: 36px;
@@ -571,31 +906,11 @@ function onEditorScroll() {
   color: #d97706;
 }
 
-.lumen-brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-}
+.lumen-brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+.lumen-brand-name { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+.lumen-brand-tag  { font-size: 11px; color: var(--text-3, #94a3b8); font-weight: 500; margin-top: 2px; }
 
-.lumen-brand-name {
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.lumen-brand-tag {
-  font-size: 11px;
-  color: var(--text-3, #94a3b8);
-  font-weight: 500;
-  margin-top: 2px;
-}
-
-.lumen-status-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: 12px;
-}
+.lumen-status-pill { display: flex; align-items: center; gap: 8px; margin-left: 8px; }
 
 .lumen-status {
   display: inline-flex;
@@ -607,32 +922,12 @@ function onEditorScroll() {
   font-weight: 600;
   white-space: nowrap;
 }
+.lumen-status--saving    { background: rgba(99, 102, 241, 0.1); color: #4338ca; }
+.lumen-status--dirty     { background: rgba(245, 158, 11, 0.12); color: #b45309; }
+.lumen-status--saved     { background: rgba(100, 116, 139, 0.1); color: #475569; }
+.lumen-status--published { background: rgba(5, 150, 105, 0.12); color: #047857; }
 
-.lumen-status--saving {
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
-}
-
-.lumen-status--dirty {
-  background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
-}
-
-.lumen-status--saved {
-  background: rgba(100, 116, 139, 0.08);
-  color: var(--text-3, #94a3b8);
-}
-
-.lumen-status--published {
-  background: rgba(5, 150, 105, 0.1);
-  color: #059669;
-}
-
-.lumen-status-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
+.lumen-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
 .lumen-spinner {
   width: 11px; height: 11px;
@@ -641,19 +936,32 @@ function onEditorScroll() {
   border-radius: 50%;
   animation: lumen-spin 0.7s linear infinite;
 }
+@keyframes lumen-spin { to { transform: rotate(360deg); } }
 
-@keyframes lumen-spin {
-  to { transform: rotate(360deg); }
+.lumen-topbar-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.lumen-topbar-sep { width: 1px; height: 22px; background: var(--border, rgba(0, 0, 0, .1)); margin: 0 4px; }
+
+/* ── Zen topbar ──────────────────────────────────────────────────────── */
+.lumen-zen-topbar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
 }
-
-.lumen-topbar-actions {
+.lumen-zen-exit {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(0, 0, 0, .1));
+  background: var(--bg-card, #fff);
+  color: var(--text-2, #64748b);
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-left: auto;
+  justify-content: center;
 }
+.lumen-zen-exit:hover { color: #d97706; }
 
-/* ── Buttons ──────────────────────────────────────────────────────────── */
+/* ── Buttons ─────────────────────────────────────────────────────────── */
 .lumen-btn {
   display: inline-flex;
   align-items: center;
@@ -670,17 +978,20 @@ function onEditorScroll() {
   color: var(--text, #1e293b);
   white-space: nowrap;
 }
-
 .lumen-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .lumen-btn--primary {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+  background: linear-gradient(135deg, #d97706, #b45309);
   color: #fff;
-  box-shadow: 0 1px 3px rgba(217, 119, 6, 0.3);
+  box-shadow: 0 1px 3px rgba(180, 83, 9, 0.3);
 }
 .lumen-btn--primary:hover:not(:disabled) {
-  box-shadow: 0 3px 10px rgba(217, 119, 6, 0.35);
+  box-shadow: 0 3px 10px rgba(180, 83, 9, 0.35);
   transform: translateY(-1px);
+}
+.lumen-btn:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 2px;
 }
 
 .lumen-btn--ghost {
@@ -697,7 +1008,7 @@ function onEditorScroll() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px; height: 32px;
+  width: 36px; height: 36px;
   border-radius: 8px;
   border: 1px solid var(--border, rgba(0, 0, 0, .1));
   background: var(--bg-card, #fff);
@@ -706,10 +1017,13 @@ function onEditorScroll() {
   transition: all 200ms ease;
 }
 .lumen-icon-btn:hover { color: var(--text, #1e293b); background: var(--bg-glass, rgba(0, 0, 0, .03)); }
-.lumen-icon-btn--active { background: rgba(245, 158, 11, 0.1); color: #d97706; border-color: rgba(245, 158, 11, 0.25); }
-.lumen-icon-btn--danger:hover { color: #dc2626; background: rgba(220, 38, 38, 0.06); border-color: rgba(220, 38, 38, 0.2); }
+.lumen-icon-btn--active { background: rgba(245, 158, 11, 0.12); color: #b45309; border-color: rgba(180, 83, 9, 0.3); }
+.lumen-icon-btn:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 2px;
+}
 
-/* ── List view ────────────────────────────────────────────────────────── */
+/* ── List view ───────────────────────────────────────────────────────── */
 .lumen-list-main {
   flex: 1;
   overflow-y: auto;
@@ -730,12 +1044,7 @@ function onEditorScroll() {
   color: var(--text-2, #64748b);
 }
 
-.lumen-empty-icon {
-  color: #d97706;
-  opacity: 0.4;
-  margin-bottom: 8px;
-}
-
+.lumen-empty-icon { color: #d97706; opacity: 0.4; margin-bottom: 8px; }
 .lumen-empty h2 { margin: 0; font-size: 19px; font-weight: 700; color: var(--text, #1e293b); }
 .lumen-empty p { margin: 0 0 16px; font-size: 14px; }
 
@@ -757,29 +1066,18 @@ function onEditorScroll() {
   transition: all 200ms ease;
   text-align: left;
 }
-
 .lumen-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(217, 119, 6, 0.3);
-  box-shadow: 0 6px 20px rgba(217, 119, 6, 0.08);
+  border-color: rgba(180, 83, 9, 0.35);
+  box-shadow: 0 6px 20px rgba(180, 83, 9, 0.1);
 }
-
-.lumen-card:focus-visible {
-  outline: 2px solid #d97706;
-  outline-offset: 2px;
-}
-
+.lumen-card:focus-visible { outline: 2px solid #b45309; outline-offset: 2px; }
 .lumen-card--draft {
   background:
     repeating-linear-gradient(135deg, var(--bg-card, #fff), var(--bg-card, #fff) 14px, rgba(245, 158, 11, 0.025) 14px, rgba(245, 158, 11, 0.025) 16px);
 }
 
-.lumen-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
+.lumen-card-head { display: flex; align-items: center; justify-content: space-between; }
 .lumen-pill {
   display: inline-flex;
   align-items: center;
@@ -789,19 +1087,11 @@ function onEditorScroll() {
   font-size: 11px;
   font-weight: 700;
 }
-.lumen-pill--ok { background: rgba(5, 150, 105, 0.1); color: #059669; }
-.lumen-pill--draft { background: rgba(100, 116, 139, 0.1); color: #64748b; }
+.lumen-pill--ok    { background: rgba(5, 150, 105, 0.12); color: #047857; }
+.lumen-pill--draft { background: rgba(100, 116, 139, 0.12); color: #475569; }
 
 .lumen-card-date { font-size: 11px; color: var(--text-3, #94a3b8); }
-
-.lumen-card-title {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
-}
-
+.lumen-card-title { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.3; }
 .lumen-card-summary {
   margin: 0;
   font-size: 13px;
@@ -813,7 +1103,6 @@ function onEditorScroll() {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .lumen-card-actions {
   display: flex;
   gap: 14px;
@@ -821,7 +1110,6 @@ function onEditorScroll() {
   padding-top: 8px;
   border-top: 1px solid var(--border, rgba(0, 0, 0, .06));
 }
-
 .lumen-card-link {
   display: inline-flex;
   align-items: center;
@@ -835,27 +1123,17 @@ function onEditorScroll() {
   padding: 0;
   font-family: inherit;
 }
-
-.lumen-card-link:hover { color: #d97706; }
-
-/* ── Reader view ──────────────────────────────────────────────────────── */
-.lumen-reader-main {
-  flex: 1;
-  overflow-y: auto;
-  padding: 48px 32px 80px;
+.lumen-card-link:hover { color: #b45309; }
+.lumen-card-link:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 
-.lumen-reader {
-  max-width: 720px;
-  margin: 0 auto;
-}
-
-.lumen-reader-head {
-  margin-bottom: 36px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--border, rgba(0, 0, 0, .08));
-}
-
+/* ── Reader view ─────────────────────────────────────────────────────── */
+.lumen-reader-main { flex: 1; overflow-y: auto; padding: 48px 32px 80px; }
+.lumen-reader { max-width: 720px; margin: 0 auto; }
+.lumen-reader-head { margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--border, rgba(0, 0, 0, .08)); }
 .lumen-reader-title {
   font-size: 36px;
   font-weight: 800;
@@ -863,20 +1141,35 @@ function onEditorScroll() {
   margin: 0 0 14px;
   line-height: 1.15;
 }
+.lumen-reader-summary { font-size: 18px; color: var(--text-2, #64748b); line-height: 1.5; margin: 0 0 14px; }
+.lumen-reader-meta { font-size: 13px; color: var(--text-3, #94a3b8); }
 
-.lumen-reader-summary {
-  font-size: 18px;
-  color: var(--text-2, #64748b);
-  line-height: 1.5;
-  margin: 0 0 14px;
+.lumen-prose {
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--text, #1e293b);
 }
-
-.lumen-reader-meta {
-  font-size: 13px;
-  color: var(--text-3, #94a3b8);
+.lumen-prose :deep(h1) { font-size: 28px; font-weight: 800; margin: 32px 0 14px; }
+.lumen-prose :deep(h1):first-child { margin-top: 0; }
+.lumen-prose :deep(h2) { font-size: 22px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border, rgba(0, 0, 0, .08)); }
+.lumen-prose :deep(h3) { font-size: 18px; font-weight: 700; margin: 22px 0 10px; }
+.lumen-prose :deep(p) { margin: 0 0 16px; }
+.lumen-prose :deep(ul), .lumen-prose :deep(ol) { margin: 0 0 16px; padding-left: 26px; }
+.lumen-prose :deep(li) { margin: 5px 0; }
+.lumen-prose :deep(a) { color: #b45309; text-decoration: underline; }
+.lumen-prose :deep(a:hover) { color: #92400e; }
+.lumen-prose :deep(blockquote) {
+  margin: 16px 0;
+  padding: 10px 18px;
+  border-left: 3px solid #b45309;
+  background: rgba(245, 158, 11, 0.06);
+  color: #475569;
 }
+.lumen-prose :deep(code) { font-family: 'JetBrains Mono', monospace; font-size: 0.88em; padding: 2px 6px; border-radius: 4px; background: rgba(217, 119, 6, 0.1); color: #92400e; }
+.lumen-prose :deep(pre.lumen-code) { margin: 16px 0; padding: 16px 20px; border-radius: 10px; background: #0f172a; color: #e2e8f0; overflow-x: auto; font-size: 13px; }
+.lumen-prose :deep(pre.lumen-code code) { background: transparent; padding: 0; color: inherit; }
 
-/* ── Editor view (Overleaf-style) ─────────────────────────────────────── */
+/* ── Editor main layout ──────────────────────────────────────────────── */
 .lumen-editor-main {
   flex: 1;
   display: flex;
@@ -908,7 +1201,7 @@ function onEditorScroll() {
 
 .lumen-sidebar-add {
   margin-left: auto;
-  width: 22px; height: 22px;
+  width: 28px; height: 28px;
   border-radius: 6px;
   border: none;
   background: var(--bg-card, #fff);
@@ -917,12 +1210,21 @@ function onEditorScroll() {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 200ms ease;
+  position: relative;
 }
-.lumen-sidebar-add:hover { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+/* Extend hit area pour touch accessibility sans changer la taille visuelle */
+.lumen-sidebar-add::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+.lumen-sidebar-add:hover { background: rgba(245, 158, 11, 0.12); color: #b45309; }
+.lumen-sidebar-add:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 2px;
+}
 
 .lumen-sidebar-list {
-  list-style: none;
   margin: 0;
   padding: 8px 0;
   overflow-y: auto;
@@ -933,22 +1235,32 @@ function onEditorScroll() {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 16px;
+  padding: 10px 16px;
   font-size: 13px;
   cursor: pointer;
   color: var(--text-2, #64748b);
-  border-left: 2px solid transparent;
+  border-left: 3px solid transparent;
   transition: all 200ms ease;
+  background: transparent;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+  min-height: 40px;
 }
-
 .lumen-sidebar-item:hover {
   background: var(--bg-card, #fff);
   color: var(--text, #1e293b);
 }
-
+.lumen-sidebar-item:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: -2px;
+}
 .lumen-sidebar-item--active {
   background: var(--bg-card, #fff);
-  border-left-color: #d97706;
+  border-left-color: #b45309;
   color: var(--text, #1e293b);
   font-weight: 600;
 }
@@ -958,7 +1270,7 @@ function onEditorScroll() {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.lumen-sidebar-dot--ok { background: #059669; }
+.lumen-sidebar-dot--ok    { background: #059669; }
 .lumen-sidebar-dot--draft { background: #94a3b8; }
 
 .lumen-sidebar-title {
@@ -974,271 +1286,139 @@ function onEditorScroll() {
   color: var(--text-3, #94a3b8);
 }
 
-/* ── Editor zone ──────────────────────────────────────────────────────── */
+/* ── Editor zone ─────────────────────────────────────────────────────── */
 .lumen-editor-zone {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  position: relative;
 }
 
 .lumen-meta-row {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 16px 24px 12px;
+  padding: 14px 24px 10px;
   border-bottom: 1px solid var(--border, rgba(0, 0, 0, .06));
   background: var(--bg-card, #fff);
 }
 
-.lumen-meta-title,
-.lumen-meta-summary {
+.lumen-meta-title, .lumen-meta-summary {
   width: 100%;
   border: none;
   background: transparent;
   font-family: inherit;
   color: var(--text, #1e293b);
   outline: none;
-  padding: 4px 0;
+  padding: 3px 0;
 }
 
 .lumen-meta-title {
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
+.lumen-meta-title::placeholder { color: var(--text-3, #cbd5e1); }
 
-.lumen-meta-title::placeholder { color: var(--text-3, #94a3b8); }
+.lumen-meta-summary { font-size: 14px; color: var(--text-2, #64748b); }
+.lumen-meta-summary::placeholder { color: var(--text-3, #cbd5e1); }
 
-.lumen-meta-summary {
-  font-size: 14px;
-  color: var(--text-2, #64748b);
-}
-
-.lumen-meta-summary::placeholder { color: var(--text-3, #94a3b8); }
-
-/* ── Markdown toolbar ─────────────────────────────────────────────────── */
-.lumen-md-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 24px;
-  background: var(--bg, #f8fafc);
-  border-bottom: 1px solid var(--border, rgba(0, 0, 0, .08));
-  flex-shrink: 0;
-}
-
-.lumen-md-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px; height: 30px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--text-2, #64748b);
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.lumen-md-btn:hover {
-  background: var(--bg-card, #fff);
-  color: #d97706;
-}
-
-.lumen-md-codeblock {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.lumen-md-sep {
-  width: 1px;
-  height: 18px;
-  background: var(--border, rgba(0, 0, 0, .1));
-  margin: 0 4px;
-}
-
-.lumen-md-toolbar-spacer { flex: 1; }
-
-.lumen-md-stats {
-  font-size: 11px;
-  color: var(--text-3, #94a3b8);
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-weight: 500;
-}
-
-/* ── Split editor ─────────────────────────────────────────────────────── */
+/* ── Split pane ──────────────────────────────────────────────────────── */
 .lumen-split {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
   min-height: 0;
+  overflow: hidden;
 }
 
-.lumen-split--solo {
-  grid-template-columns: 1fr;
-}
-
-.lumen-textarea {
-  border: none;
-  background: var(--bg-card, #fff);
-  padding: 24px 36px;
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--text, #1e293b);
-  resize: none;
-  outline: none;
-  overflow-y: auto;
-}
-
-.lumen-textarea::placeholder { color: var(--text-3, #cbd5e1); }
-
-.lumen-preview {
-  background: var(--bg, #f8fafc);
-  padding: 24px 36px;
-  overflow-y: auto;
-  border-left: 1px solid var(--border, rgba(0, 0, 0, .08));
+.lumen-split-handle {
+  width: 6px;
+  cursor: col-resize;
+  background: var(--border, rgba(0, 0, 0, .08));
   position: relative;
+  transition: background 200ms ease;
+  z-index: 2;
+}
+/* Extend hit area pour faciliter le drag (±10px) tout en gardant le visuel fin */
+.lumen-split-handle::before {
+  content: '';
+  position: absolute;
+  inset: 0 -10px;
+}
+.lumen-split-handle:hover {
+  background: rgba(180, 83, 9, 0.4);
 }
 
-.lumen-preview-empty {
+/* ── Drop overlay ────────────────────────────────────────────────────── */
+.lumen-drop-overlay {
   position: absolute;
   inset: 0;
+  background: rgba(245, 158, 11, 0.12);
+  backdrop-filter: blur(3px);
+  border: 3px dashed #b45309;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  pointer-events: none;
+  overflow: hidden;
+}
+.lumen-drop-msg {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 12px;
-  color: var(--text-3, #cbd5e1);
-}
-
-.lumen-preview-empty p {
-  margin: 0;
-  font-size: 13px;
-  text-align: center;
-  max-width: 240px;
-}
-
-/* ── Prose (markdown rendu) ───────────────────────────────────────────── */
-.lumen-prose {
-  font-size: 16px;
-  line-height: 1.75;
-  color: var(--text, #1e293b);
-}
-
-.lumen-prose :deep(h1) {
-  font-size: 30px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin: 32px 0 14px;
-  line-height: 1.2;
-}
-.lumen-prose :deep(h1):first-child { margin-top: 0; }
-
-.lumen-prose :deep(h2) {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  margin: 28px 0 12px;
-  line-height: 1.25;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border, rgba(0, 0, 0, .08));
-}
-
-.lumen-prose :deep(h3) {
-  font-size: 18px;
-  font-weight: 700;
-  margin: 22px 0 10px;
-}
-
-.lumen-prose :deep(p) { margin: 0 0 16px; }
-.lumen-prose :deep(ul),
-.lumen-prose :deep(ol) { margin: 0 0 16px; padding-left: 26px; }
-.lumen-prose :deep(li) { margin: 5px 0; }
-
-.lumen-prose :deep(a) {
-  color: #d97706;
-  text-decoration: underline;
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 2px;
-}
-.lumen-prose :deep(a:hover) { color: #b45309; }
-
-.lumen-prose :deep(blockquote) {
-  margin: 16px 0;
-  padding: 10px 18px;
-  border-left: 3px solid #f59e0b;
-  background: rgba(245, 158, 11, 0.06);
-  border-radius: 0 6px 6px 0;
-  color: var(--text-2, #64748b);
-}
-.lumen-prose :deep(blockquote p:last-child) { margin-bottom: 0; }
-
-.lumen-prose :deep(code) {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.88em;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(217, 119, 6, 0.08);
   color: #b45309;
+  font-weight: 600;
+}
+.lumen-drop-msg p { margin: 0; }
+
+.lumen-drop-enter-active, .lumen-drop-leave-active { transition: opacity 150ms ease; }
+.lumen-drop-enter-from, .lumen-drop-leave-to { opacity: 0; }
+
+/* ── Focus / Zen modes ───────────────────────────────────────────────── */
+.lumen-app--focus .lumen-sidebar,
+.lumen-app--focus .lumen-outline,
+.lumen-app--focus .lumen-meta-row,
+.lumen-app--focus .lumen-toolbar {
+  display: none;
 }
 
-.lumen-prose :deep(pre.lumen-code) {
-  margin: 16px 0;
-  padding: 16px 20px;
-  border-radius: 10px;
-  background: #0f172a;
-  color: #e2e8f0;
-  overflow-x: auto;
-  font-size: 13px;
-  line-height: 1.6;
-}
-.lumen-prose :deep(pre.lumen-code code) {
-  background: transparent;
-  padding: 0;
-  color: inherit;
-  font-size: inherit;
+.lumen-app--zen .lumen-sidebar,
+.lumen-app--zen .lumen-outline {
+  display: none;
 }
 
-.lumen-prose :deep(table) {
-  border-collapse: collapse;
-  margin: 16px 0;
-  width: 100%;
-  font-size: 14px;
-}
-.lumen-prose :deep(th),
-.lumen-prose :deep(td) {
-  padding: 8px 14px;
-  border: 1px solid var(--border, rgba(0, 0, 0, .1));
-  text-align: left;
-}
-.lumen-prose :deep(th) {
-  background: rgba(245, 158, 11, 0.06);
-  font-weight: 700;
+/* ── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 1000px) {
+  .lumen-sidebar, .lumen-outline { display: none; }
 }
 
-.lumen-prose :deep(hr) {
-  border: none;
-  border-top: 1px solid var(--border, rgba(0, 0, 0, .12));
-  margin: 28px 0;
-}
-
-.lumen-prose :deep(img) {
-  max-width: 100%;
-  border-radius: 8px;
-  margin: 16px 0;
-}
-
-/* ── Responsive ───────────────────────────────────────────────────────── */
-@media (max-width: 900px) {
-  .lumen-sidebar { display: none; }
-  .lumen-split { grid-template-columns: 1fr; }
-  .lumen-meta-row { padding: 12px 16px 8px; }
-  .lumen-md-toolbar { padding: 6px 12px; flex-wrap: wrap; }
-  .lumen-textarea, .lumen-preview { padding: 16px 20px; }
+@media (max-width: 700px) {
+  .lumen-split { grid-template-columns: 1fr !important; }
+  .lumen-split-handle { display: none; }
   .lumen-list-main { padding: 16px; }
-  .lumen-reader-main { padding: 24px 16px; }
+}
+
+/* ── Reduced motion : desactive transforms et animations pour a11y ────── */
+@media (prefers-reduced-motion: reduce) {
+  .lumen-btn,
+  .lumen-icon-btn,
+  .lumen-card,
+  .lumen-sidebar-item,
+  .lumen-split-handle {
+    transition: none !important;
+  }
+  .lumen-btn--primary:hover:not(:disabled),
+  .lumen-card:hover {
+    transform: none !important;
+  }
+  .lumen-spinner,
+  .lumen-drop-enter-active,
+  .lumen-drop-leave-active {
+    animation: none !important;
+  }
 }
 </style>
