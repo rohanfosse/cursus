@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 50;
+const CURRENT_VERSION = 51;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -1046,6 +1046,33 @@ function runMigrations(db) {
         );
         CREATE INDEX IF NOT EXISTS idx_lumen_courses_promo  ON lumen_courses(promo_id);
         CREATE INDEX IF NOT EXISTS idx_lumen_courses_status ON lumen_courses(status);
+      `);
+    },
+
+    // v51 : Lumen — lien projet optionnel + tracking lecture etudiant
+    (db) => {
+      tryAlter(db, `ALTER TABLE lumen_courses ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_lumen_courses_project ON lumen_courses(project_id);`);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS lumen_course_reads (
+          student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+          course_id  INTEGER NOT NULL REFERENCES lumen_courses(id) ON DELETE CASCADE,
+          read_at    TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (student_id, course_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_lumen_reads_student ON lumen_course_reads(student_id);
+      `);
+
+      // Pre-remplit lumen_course_reads : tous les cours deja publies sont
+      // consideres "deja lus" pour tous les etudiants existants. Seules les
+      // futures publications declencheront des notifications non-lues.
+      db.exec(`
+        INSERT OR IGNORE INTO lumen_course_reads (student_id, course_id, read_at)
+        SELECT s.id, c.id, datetime('now')
+        FROM students s
+        JOIN lumen_courses c ON c.promo_id = s.promo_id
+        WHERE c.status = 'published';
       `);
     },
   ];

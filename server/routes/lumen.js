@@ -10,16 +10,18 @@ const { getDb } = require('../db/connection')
 // ─── Schemas Zod (strict : refuse les champs inconnus) ──────────────────────
 
 const createCourseSchema = z.object({
-  promoId: z.number().int().positive('promoId requis'),
-  title:   z.string().min(1, 'Titre requis').max(200),
-  summary: z.string().max(500).optional(),
-  content: z.string().max(200_000).optional(),
+  promoId:   z.number().int().positive('promoId requis'),
+  projectId: z.number().int().positive().nullable().optional(),
+  title:     z.string().min(1, 'Titre requis').max(200),
+  summary:   z.string().max(500).optional(),
+  content:   z.string().max(200_000).optional(),
 }).strict()
 
 const updateCourseSchema = z.object({
-  title:   z.string().min(1).max(200).optional(),
-  summary: z.string().max(500).optional(),
-  content: z.string().max(200_000).optional(),
+  title:     z.string().min(1).max(200).optional(),
+  summary:   z.string().max(500).optional(),
+  content:   z.string().max(200_000).optional(),
+  projectId: z.number().int().positive().nullable().optional(),
 }).strict()
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -113,10 +115,10 @@ router.post('/courses',
   validate(createCourseSchema),
   teacherPromoGuard(promoFromBody),
   wrap((req) => {
-    const { promoId, title, summary = '', content = '' } = req.body
+    const { promoId, projectId = null, title, summary = '', content = '' } = req.body
     return queries.createLumenCourse({
       teacherId: getTeacherIdFromReq(req),
-      promoId, title, summary, content,
+      promoId, projectId, title, summary, content,
     })
   })
 )
@@ -128,9 +130,12 @@ router.patch('/courses/:id', requireCourseOwner, validate(updateCourseSchema), w
 }))
 
 // POST /api/lumen/courses/:id/publish — publier un cours
+// publishLumenCourse renvoie { course, isFirstPublish } ; la notification
+// chat sur isFirstPublish est branchee dans un commit suivant (chantier C).
 router.post('/courses/:id/publish', requireCourseOwner, wrap((req) => {
   const id = Number(req.params.id)
-  return queries.publishLumenCourse(id)
+  const { course } = queries.publishLumenCourse(id)
+  return course
 }))
 
 // POST /api/lumen/courses/:id/unpublish — repasser en draft
@@ -153,6 +158,35 @@ router.get('/stats/promo/:promoId',
   wrap((req) => {
     const promoId = Number(req.params.promoId)
     return queries.getLumenStatsForPromo(promoId)
+  })
+)
+
+// ─── Tracking lecture etudiant ──────────────────────────────────────────────
+
+// POST /api/lumen/courses/:id/read — marque un cours comme lu par l'etudiant
+// courant. Idempotent : rappeler ne fait que mettre a jour read_at.
+router.post('/courses/:id/read',
+  requireRole('student'),
+  requirePromo(promoFromCourse),
+  wrap((req) => {
+    const courseId = Number(req.params.id)
+    const studentId = req.user.id
+    queries.markLumenCourseRead(studentId, courseId)
+    return { ok: true, courseId }
+  })
+)
+
+// GET /api/lumen/unread/promo/:promoId — renvoie le compteur + la liste des
+// cours publies non-lus par l'etudiant courant pour la promo donnee. Sert
+// a alimenter le badge de la rail et le widget dashboard "Nouveaux cours".
+router.get('/unread/promo/:promoId',
+  requireRole('student'),
+  requirePromo(promoFromParam),
+  wrap((req) => {
+    const promoId = Number(req.params.promoId)
+    const studentId = req.user.id
+    const courses = queries.getUnreadLumenCoursesForStudent(studentId, promoId)
+    return { count: courses.length, courses }
   })
 )
 
