@@ -311,13 +311,27 @@ declare global {
       getLumenCoursesForPromo(promoId: number): Promise<IpcResponse<import('./types').LumenCourse[]>>
       getLumenCourse(id: number): Promise<IpcResponse<import('./types').LumenCourse>>
       createLumenCourse(payload: { promoId: number; projectId?: number | null; title: string; summary?: string; content?: string }): Promise<IpcResponse<import('./types').LumenCourse>>
-      updateLumenCourse(id: number, payload: { title?: string; summary?: string; content?: string; projectId?: number | null }): Promise<IpcResponse<import('./types').LumenCourse>>
+      updateLumenCourse(id: number, payload: { title?: string; summary?: string; content?: string; projectId?: number | null; repoUrl?: string | null }): Promise<IpcResponse<import('./types').LumenCourse>>
       publishLumenCourse(id: number): Promise<IpcResponse<import('./types').LumenCourse>>
       unpublishLumenCourse(id: number): Promise<IpcResponse<import('./types').LumenCourse>>
       deleteLumenCourse(id: number): Promise<IpcResponse<{ id: number; deleted: boolean }>>
       getLumenStatsForPromo(promoId: number): Promise<IpcResponse<{ total: number; published: number; drafts: number }>>
       markLumenCourseRead(id: number): Promise<IpcResponse<{ ok: true; courseId: number }>>
       getLumenUnreadForPromo(promoId: number): Promise<IpcResponse<{ count: number; courses: import('./types').LumenCourse[] }>>
+
+      // Lumen snapshot (repo git d'exemple)
+      refreshLumenSnapshot(id: number): Promise<IpcResponse<{
+        commit_sha: string | null
+        default_branch: string
+        file_count: number
+        total_size: number
+        fetched_at: string
+        changed: boolean
+      }>>
+      getLumenSnapshotTree(id: number): Promise<IpcResponse<import('./types').LumenSnapshotTree>>
+      getLumenSnapshotFile(id: number, path: string): Promise<IpcResponse<{ path: string; size: number; content_base64: string }>>
+      downloadLumenSnapshot(id: number, suggestedName: string): Promise<{ ok: boolean; data?: { filename: string; path: string } | null; error?: string }>
+      revealLumenSnapshotFile(filePath: string): Promise<{ ok: boolean; error?: string }>
 
       // Kanban
       getKanbanCards(travailId: number, groupId: number): Promise<IpcResponse<import('./types').KanbanCard[]>>

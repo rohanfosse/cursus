@@ -310,6 +310,26 @@ export interface LumenCourse {
   created_at: string
   updated_at: string
   published_at: string | null
+  // Metadonnees du snapshot (pas le JSON complet — voir LumenSnapshotTree pour l'arbo)
+  repo_url: string | null
+  repo_commit_sha: string | null
+  repo_default_branch: string | null
+  repo_snapshot_at: string | null
+}
+
+export interface LumenSnapshotTreeFile {
+  path: string
+  size: number
+}
+
+export interface LumenSnapshotTree {
+  repo_url: string
+  default_branch: string
+  commit_sha: string | null
+  fetched_at: string
+  file_count: number
+  total_size: number
+  files: LumenSnapshotTreeFile[]
 }
 
 // ─── Kanban ──────────────────────────────────────────────────────────────────

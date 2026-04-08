@@ -536,6 +536,39 @@ contextBridge.exposeInMainWorld('api', {
   markLumenCourseRead:     (id: number)       => post(`/api/lumen/courses/${id}/read`, {}),
   getLumenUnreadForPromo:  (promoId: number)  => get(`/api/lumen/unread/promo/${promoId}`),
 
+  // ── Lumen snapshot (repo git d'exemple) ──────────────────────────────────
+  refreshLumenSnapshot: (id: number) => post(`/api/lumen/courses/${id}/snapshot`, {}),
+  getLumenSnapshotTree: (id: number) => get(`/api/lumen/courses/${id}/snapshot/tree`),
+  getLumenSnapshotFile: (id: number, path: string) =>
+    get(`/api/lumen/courses/${id}/snapshot/file?path=${encodeURIComponent(path)}`),
+
+  /**
+   * Telecharge le zip du snapshot d'un cours et ouvre un save dialog natif
+   * pour que l'etudiant choisisse ou le sauvegarder. Resout avec le chemin
+   * du fichier ecrit, ou null si l'utilisateur annule.
+   */
+  downloadLumenSnapshot: async (id: number, suggestedName: string) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/lumen/courses/${id}/snapshot/download`, {
+        headers: { Authorization: `Bearer ${jwtToken ?? ''}` },
+      })
+      if (!res.ok) {
+        let errText = `HTTP ${res.status}`
+        try { const j = await res.json(); errText = j?.error ?? errText } catch { /* pas de JSON */ }
+        return { ok: false, error: errText }
+      }
+      const arrayBuffer = await res.arrayBuffer()
+      return await ipcRenderer.invoke('lumen:saveSnapshotZip', {
+        buffer: new Uint8Array(arrayBuffer),
+        suggestedName,
+      }) as { ok: boolean; data?: { filename: string; path: string } | null; error?: string }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : 'Erreur telechargement zip' }
+    }
+  },
+
+  revealLumenSnapshotFile: (filePath: string) => invoke('lumen:revealSnapshot', filePath),
+
   // ── Kanban ─────────────────────────────────────────────────────────────────
   getKanbanCards:   (travailId: number, groupId: number)                       => get(`/api/kanban/travaux/${travailId}/groups/${groupId}`),
   createKanbanCard: (travailId: number, groupId: number, payload: unknown)     => post(`/api/kanban/travaux/${travailId}/groups/${groupId}`, payload),

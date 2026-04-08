@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useApi } from '@/composables/useApi'
-import type { LumenCourse } from '@/types'
+import type { LumenCourse, LumenSnapshotTree } from '@/types'
 
 export const useLumenStore = defineStore('lumen', () => {
   const { api } = useApi()
@@ -61,7 +61,7 @@ export const useLumenStore = defineStore('lumen', () => {
     }
   }
 
-  async function updateCourse(id: number, payload: { title?: string; summary?: string; content?: string; projectId?: number | null }): Promise<LumenCourse | null> {
+  async function updateCourse(id: number, payload: { title?: string; summary?: string; content?: string; projectId?: number | null; repoUrl?: string | null }): Promise<LumenCourse | null> {
     const data = await api<LumenCourse>(() => window.api.updateLumenCourse(id, payload))
     if (data) {
       const idx = courses.value.findIndex(c => c.id === id)
@@ -160,14 +160,161 @@ export const useLumenStore = defineStore('lumen', () => {
     ])
   }
 
+  // ── Snapshot repo git d'exemple ──────────────────────────────────────────
+
+  // Arborescence courante du projet d'exemple affiche dans le reader.
+  // Indexe par id de cours pour supporter un switch rapide entre cours.
+  const snapshotTrees = ref<Map<number, LumenSnapshotTree>>(new Map())
+
+  // Cache du contenu decode (utf-8) des fichiers deja ouverts.
+  // Cle : `${courseId}:${path}`. Evite de refetch + redecoder a chaque clic.
+  const fileContentCache = ref<Map<string, { text: string; size: number; binary: boolean }>>(new Map())
+
+  async function fetchSnapshotTree(courseId: number): Promise<LumenSnapshotTree | null> {
+    const existing = snapshotTrees.value.get(courseId)
+    if (existing) return existing
+    const data = await api<LumenSnapshotTree>(
+      () => window.api.getLumenSnapshotTree(courseId),
+      { silent: true },
+    )
+    if (data) {
+      const next = new Map(snapshotTrees.value)
+      next.set(courseId, data)
+      snapshotTrees.value = next
+    }
+    return data
+  }
+
+  // Extensions traitees comme binaires (affichage direct impossible — on
+  // invite l'etudiant a telecharger le zip pour les recuperer).
+  const BINARY_EXTS = new Set([
+    'png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'webp', 'tiff',
+    'pdf', 'zip', 'tar', 'gz', '7z', 'rar',
+    'ttf', 'otf', 'woff', 'woff2',
+    'mp3', 'mp4', 'wav', 'ogg', 'mov', 'avi',
+    'exe', 'dll', 'so', 'dylib', 'bin',
+  ])
+
+  function isBinaryByExtension(path: string): boolean {
+    const ext = path.split('.').pop()?.toLowerCase() ?? ''
+    return BINARY_EXTS.has(ext)
+  }
+
+  async function fetchFileContent(courseId: number, path: string): Promise<{ text: string; size: number; binary: boolean } | null> {
+    const key = `${courseId}:${path}`
+    const cached = fileContentCache.value.get(key)
+    if (cached) return cached
+
+    if (isBinaryByExtension(path)) {
+      const entry = { text: '', size: 0, binary: true }
+      const next = new Map(fileContentCache.value)
+      next.set(key, entry)
+      fileContentCache.value = next
+      return entry
+    }
+
+    const data = await api<{ path: string; size: number; content_base64: string }>(
+      () => window.api.getLumenSnapshotFile(courseId, path),
+      { silent: true },
+    )
+    if (!data) return null
+
+    // Decode base64 → texte UTF-8. Si le decode produit un caractere
+    // remplacement (\uFFFD) dans les premiers Ko, c'est probablement un
+    // binaire que l'extension n'a pas detecte : on le marque binaire.
+    let text = ''
+    let binary = false
+    try {
+      const bin = atob(data.content_base64)
+      const bytes = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      text = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+      if (text.slice(0, 2048).includes('\uFFFD')) {
+        binary = true
+        text = ''
+      }
+    } catch {
+      binary = true
+    }
+
+    const entry = { text, size: data.size, binary }
+    const next = new Map(fileContentCache.value)
+    next.set(key, entry)
+    fileContentCache.value = next
+    return entry
+  }
+
+  /**
+   * Vide le cache d'un cours donne (ou tout le cache si aucun id).
+   * A appeler apres un refresh de snapshot pour que les etudiants voient
+   * la nouvelle version.
+   */
+  function invalidateSnapshotCache(courseId?: number) {
+    if (courseId == null) {
+      snapshotTrees.value = new Map()
+      fileContentCache.value = new Map()
+      return
+    }
+    const trees = new Map(snapshotTrees.value)
+    trees.delete(courseId)
+    snapshotTrees.value = trees
+
+    const files = new Map(fileContentCache.value)
+    const prefix = `${courseId}:`
+    for (const key of files.keys()) {
+      if (key.startsWith(prefix)) files.delete(key)
+    }
+    fileContentCache.value = files
+  }
+
+  /**
+   * Demande au backend de refetcher le repo git et de remplacer le snapshot.
+   * Met a jour les metadonnees du cours courant et invalide le cache local.
+   */
+  async function refreshSnapshot(courseId: number): Promise<{ changed: boolean; commit_sha: string | null } | null> {
+    const data = await api<{
+      commit_sha: string | null
+      default_branch: string
+      file_count: number
+      total_size: number
+      fetched_at: string
+      changed: boolean
+    }>(() => window.api.refreshLumenSnapshot(courseId))
+    if (!data) return null
+
+    invalidateSnapshotCache(courseId)
+
+    // Patch local des metadonnees sur le cours pour que l'UI re-render
+    // sans avoir a refetch le cours entier.
+    const patch = {
+      repo_commit_sha: data.commit_sha,
+      repo_default_branch: data.default_branch,
+      repo_snapshot_at: data.fetched_at,
+    }
+    const idx = courses.value.findIndex(c => c.id === courseId)
+    if (idx !== -1) {
+      courses.value = [
+        ...courses.value.slice(0, idx),
+        { ...courses.value[idx], ...patch },
+        ...courses.value.slice(idx + 1),
+      ]
+    }
+    if (currentCourse.value?.id === courseId) {
+      currentCourse.value = { ...currentCourse.value, ...patch }
+    }
+    return { changed: data.changed, commit_sha: data.commit_sha }
+  }
+
   return {
     courses, currentCourse, loading,
     unreadCourses, unreadCount,
+    snapshotTrees, fileContentCache,
     publishedCourses, draftCourses,
     fetchCoursesForPromo, fetchCourse,
     createCourse, updateCourse,
     publishCourse, unpublishCourse, deleteCourse,
     clearCurrentCourse,
     fetchUnread, markAsRead, resetUnread, onCoursePublished,
+    fetchSnapshotTree, fetchFileContent, refreshSnapshot, invalidateSnapshotCache,
   }
 })
