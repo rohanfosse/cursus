@@ -144,14 +144,45 @@ describe('GET /api/admin/backups', () => {
 })
 
 // ═══════════════════════════════════════════
+//  GET /api/admin/backup-health
+// ═══════════════════════════════════════════
+describe('GET /api/admin/backup-health', () => {
+  it('admin recoit le statut de sante des backups', async () => {
+    const res = await request(app)
+      .get('/api/admin/backup-health')
+      .set('Authorization', `Bearer ${adminToken}`)
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    expect(res.body.data).toHaveProperty('health')
+    expect(['ok', 'stale', 'missing']).toContain(res.body.data.health)
+    expect(res.body.data).toHaveProperty('count')
+    expect(res.body.data).toHaveProperty('latest')
+    expect(res.body.data).toHaveProperty('staleThresholdMs')
+  })
+
+  it('refuse l\'acces sans token admin', async () => {
+    const res = await request(app).get('/api/admin/backup-health')
+    expect(res.status).toBe(401)
+  })
+})
+
+// ═══════════════════════════════════════════
 //  DELETE /api/admin/backups/:filename
 // ═══════════════════════════════════════════
 describe('DELETE /api/admin/backups/:filename', () => {
-  it('retourne 404 pour un fichier inexistant', async () => {
+  it('retourne 404 pour un fichier valide mais inexistant', async () => {
+    const res = await request(app)
+      .delete('/api/admin/backups/cursus-9999-01-01T00-00-00.db')
+      .set('Authorization', `Bearer ${adminToken}`)
+    expect(res.status).toBe(404)
+    expect(res.body.ok).toBe(false)
+  })
+
+  it('retourne 400 pour un nom qui ne matche pas le pattern cursus-*.db', async () => {
     const res = await request(app)
       .delete('/api/admin/backups/nonexistent.db')
       .set('Authorization', `Bearer ${adminToken}`)
-    expect(res.status).toBe(404)
+    expect(res.status).toBe(400)
     expect(res.body.ok).toBe(false)
   })
 })

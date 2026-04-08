@@ -60,42 +60,63 @@ function tryRestoreFromBackup(dbPath) {
   }
 }
 
-function getDb() {
-  if (!db) {
-    const DB_PATH = resolveDbPath();
-    migrateOldDbFile(DB_PATH);
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
-    db.pragma('busy_timeout = 5000');
+/** Applique les pragmas standards sur une instance fraichement ouverte. */
+function applyPragmas(instance) {
+  instance.pragma('journal_mode = WAL')
+  instance.pragma('foreign_keys = ON')
+  instance.pragma('busy_timeout = 5000')
+}
 
-    // Verification d'integrite au premier acces
-    try {
-      const result = db.pragma('integrity_check', { simple: true })
-      if (result !== 'ok') {
-        const log = require('../utils/logger')
-        log.error('db_integrity_failed', { result, path: DB_PATH })
-
-        // Tenter la restauration depuis un backup
-        db.close()
-        db = null
-        if (tryRestoreFromBackup(DB_PATH)) {
-          db = new Database(DB_PATH)
-          db.pragma('journal_mode = WAL')
-          db.pragma('foreign_keys = ON')
-          db.pragma('busy_timeout = 5000')
-        } else {
-          // Mode degrade : reouvrir la DB corrompue
-          log.error('db_no_backup_available', { path: DB_PATH })
-          db = new Database(DB_PATH)
-          db.pragma('journal_mode = WAL')
-          db.pragma('foreign_keys = ON')
-          db.pragma('busy_timeout = 5000')
-        }
-      }
-    } catch { /* mode degrade — ne pas crasher */ }
+/**
+ * Met de cote un fichier DB corrompu en ajoutant le suffixe .corrupted.
+ * Idempotent : ne fait rien si le fichier n'existe pas.
+ */
+function quarantineCorruptedDb(dbPath) {
+  for (const ext of ['', '-wal', '-shm']) {
+    const src = dbPath + ext
+    if (fs.existsSync(src)) {
+      try { fs.renameSync(src, dbPath + '.corrupted' + ext) } catch { /* best effort */ }
+    }
   }
-  return db;
+}
+
+function getDb() {
+  if (db) return db
+  const DB_PATH = resolveDbPath()
+  migrateOldDbFile(DB_PATH)
+
+  // Tentative d'ouverture + integrity_check. Echec possible a plusieurs niveaux :
+  //   1. new Database() throw (fichier totalement corrompu, pas un header SQLite)
+  //   2. pragma integrity_check retourne une valeur != 'ok' (corruption logique)
+  // Dans les deux cas, on tente un restore depuis backup avant de se resigner
+  // au mode degrade.
+  try {
+    db = new Database(DB_PATH)
+    applyPragmas(db)
+    const result = db.pragma('integrity_check', { simple: true })
+    if (result !== 'ok') throw new Error(`integrity_check failed: ${result}`)
+    return db
+  } catch (err) {
+    const log = require('../utils/logger')
+    log.error('db_open_failed', { error: err.message, path: DB_PATH })
+    if (db) { try { db.close() } catch {} db = null }
+  }
+
+  // Tentative de restauration depuis le backup le plus recent
+  if (tryRestoreFromBackup(DB_PATH)) {
+    db = new Database(DB_PATH)
+    applyPragmas(db)
+    return db
+  }
+
+  // Mode degrade : mettre le fichier corrompu en quarantaine et repartir
+  // avec une DB vide. Le code applicatif reappliquera le schema au besoin.
+  const log = require('../utils/logger')
+  log.error('db_no_backup_available', { path: DB_PATH })
+  quarantineCorruptedDb(DB_PATH)
+  db = new Database(DB_PATH)
+  applyPragmas(db)
+  return db
 }
 
 function closeDb() {
