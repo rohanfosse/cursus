@@ -107,9 +107,18 @@ describe('publishLumenCourse / unpublishLumenCourse', () => {
   it('publie un cours et set published_at', () => {
     const c = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'To publish' })
     expect(c.status).toBe('draft')
-    const pub = queries.publishLumenCourse(c.id)
-    expect(pub.status).toBe('published')
-    expect(pub.published_at).not.toBeNull()
+    const { course, isFirstPublish } = queries.publishLumenCourse(c.id)
+    expect(course.status).toBe('published')
+    expect(course.published_at).not.toBeNull()
+    expect(isFirstPublish).toBe(true)
+  })
+
+  it('isFirstPublish=false lors d\'une republication', () => {
+    const c = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Republish' })
+    queries.publishLumenCourse(c.id)
+    queries.unpublishLumenCourse(c.id)
+    const { isFirstPublish } = queries.publishLumenCourse(c.id)
+    expect(isFirstPublish).toBe(false)
   })
 
   it('depublie et repasse en draft', () => {
