@@ -310,12 +310,14 @@ declare global {
       // Lumen (cours markdown)
       getLumenCoursesForPromo(promoId: number): Promise<IpcResponse<import('./types').LumenCourse[]>>
       getLumenCourse(id: number): Promise<IpcResponse<import('./types').LumenCourse>>
-      createLumenCourse(payload: { promoId: number; title: string; summary?: string; content?: string }): Promise<IpcResponse<import('./types').LumenCourse>>
-      updateLumenCourse(id: number, payload: { title?: string; summary?: string; content?: string }): Promise<IpcResponse<import('./types').LumenCourse>>
+      createLumenCourse(payload: { promoId: number; projectId?: number | null; title: string; summary?: string; content?: string }): Promise<IpcResponse<import('./types').LumenCourse>>
+      updateLumenCourse(id: number, payload: { title?: string; summary?: string; content?: string; projectId?: number | null }): Promise<IpcResponse<import('./types').LumenCourse>>
       publishLumenCourse(id: number): Promise<IpcResponse<import('./types').LumenCourse>>
       unpublishLumenCourse(id: number): Promise<IpcResponse<import('./types').LumenCourse>>
       deleteLumenCourse(id: number): Promise<IpcResponse<{ id: number; deleted: boolean }>>
       getLumenStatsForPromo(promoId: number): Promise<IpcResponse<{ total: number; published: number; drafts: number }>>
+      markLumenCourseRead(id: number): Promise<IpcResponse<{ ok: true; courseId: number }>>
+      getLumenUnreadForPromo(promoId: number): Promise<IpcResponse<{ count: number; courses: import('./types').LumenCourse[] }>>
 
       // Kanban
       getKanbanCards(travailId: number, groupId: number): Promise<IpcResponse<import('./types').KanbanCard[]>>
@@ -342,6 +344,7 @@ declare global {
       onSignatureUpdate(cb: (data: { id: number; status: string; signed_file_url?: string; signer_name?: string; rejection_reason?: string }) => void): () => void
       onDocumentNew(cb: (data: { name: string; category?: string }) => void): () => void
       onAssignmentNew(cb: (data: { title: string; category?: string; deadline?: string }) => void): () => void
+      onLumenCoursePublished(cb: (data: { promoId: number; courseId: number }) => void): () => void
       onUpdaterAvailable(cb: (version: string) => void): () => void
       onUpdaterDownloaded(cb: (version: string) => void): () => void
       onUpdaterProgress(cb: (percent: number) => void): () => void

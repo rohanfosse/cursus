@@ -302,6 +302,7 @@ export interface LumenCourse {
   id: number
   teacher_id: number
   promo_id: number
+  project_id: number | null
   title: string
   summary: string
   content: string

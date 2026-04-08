@@ -82,6 +82,10 @@ type AssignmentNewPayload = { title: string; category?: string; deadline?: strin
 const documentNewCallbacks: Array<(data: DocumentNewPayload) => void> = []
 const assignmentNewCallbacks: Array<(data: AssignmentNewPayload) => void> = []
 
+// Lumen course publication callbacks
+type LumenCoursePublishedPayload = { promoId: number; courseId: number }
+const lumenCoursePublishedCallbacks: Array<(data: LumenCoursePublishedPayload) => void> = []
+
 // ─── Socket.io ────────────────────────────────────────────────────────────────
 function connectSocket(token: string): void {
   // Nettoyer l'ancien socket (anti-stacking de listeners)
@@ -122,6 +126,7 @@ function connectSocket(token: string): void {
   socket.on('signature:update',    (data: SignatureUpdatePayload) => signatureUpdateCallbacks.forEach(cb => cb(data)))
   socket.on('document:new',       (data: DocumentNewPayload) => documentNewCallbacks.forEach(cb => cb(data)))
   socket.on('assignment:new',     (data: AssignmentNewPayload) => assignmentNewCallbacks.forEach(cb => cb(data)))
+  socket.on('lumen:course-published', (data: LumenCoursePublishedPayload) => lumenCoursePublishedCallbacks.forEach(cb => cb(data)))
   socket.on('connect', () => {
     if (process.env.NODE_ENV === 'development') console.log('[Socket.io] Connecte')
     socketStateCallbacks.forEach((cb) => cb(true))
@@ -528,6 +533,8 @@ contextBridge.exposeInMainWorld('api', {
   unpublishLumenCourse:    (id: number)       => post(`/api/lumen/courses/${id}/unpublish`, {}),
   deleteLumenCourse:       (id: number)       => del(`/api/lumen/courses/${id}`),
   getLumenStatsForPromo:   (promoId: number)  => get(`/api/lumen/stats/promo/${promoId}`),
+  markLumenCourseRead:     (id: number)       => post(`/api/lumen/courses/${id}/read`, {}),
+  getLumenUnreadForPromo:  (promoId: number)  => get(`/api/lumen/unread/promo/${promoId}`),
 
   // ── Kanban ─────────────────────────────────────────────────────────────────
   getKanbanCards:   (travailId: number, groupId: number)                       => get(`/api/kanban/travaux/${travailId}/groups/${groupId}`),
@@ -612,6 +619,12 @@ contextBridge.exposeInMainWorld('api', {
   onAssignmentNew: (cb: (data: AssignmentNewPayload) => void) => {
     assignmentNewCallbacks.push(cb)
     return () => { const i = assignmentNewCallbacks.indexOf(cb); if (i !== -1) assignmentNewCallbacks.splice(i, 1) }
+  },
+
+  // ── Lumen course publication ───────────────────────────────────────────────
+  onLumenCoursePublished: (cb: (data: LumenCoursePublishedPayload) => void) => {
+    lumenCoursePublishedCallbacks.push(cb)
+    return () => { const i = lumenCoursePublishedCallbacks.indexOf(cb); if (i !== -1) lumenCoursePublishedCallbacks.splice(i, 1) }
   },
 
   // ── Admin ────────────────────────────────────────────────────────────────────

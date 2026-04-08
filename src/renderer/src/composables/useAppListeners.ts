@@ -9,6 +9,7 @@ import { useMessagesStore } from '@/stores/messages'
 import { useTravauxStore }  from '@/stores/travaux'
 import { useDocumentsStore } from '@/stores/documents'
 import { useModalsStore }   from '@/stores/modals'
+import { useLumenStore }    from '@/stores/lumen'
 
 export function useAppListeners() {
   const router   = useRouter()
@@ -44,6 +45,7 @@ export function useAppListeners() {
   let unsubUpdaterAvailable: (() => void) | null = null
   let unsubUpdaterDownloaded: (() => void) | null = null
   let unsubGradeNew: (() => void) | null = null
+  let unsubLumenPublished: (() => void) | null = null
   let liveInviteTimer: ReturnType<typeof setTimeout> | null = null
   let tokenRefreshTimer: ReturnType<typeof setInterval> | null = null
 
@@ -76,8 +78,18 @@ export function useAppListeners() {
         const docsStore = useDocumentsStore()
         const pid = appStore.activePromoId ?? appStore.currentUser?.promo_id
         if (pid) docsStore.fetchDocuments(pid)
+        if (pid && !appStore.isStaff) useLumenStore().fetchUnread(pid)
       }
     })
+
+    // Charge les cours Lumen non-lus a chaque changement de promo active.
+    // Reset prealable pour ne pas afficher les compteurs de l'ancienne promo
+    // pendant le fetch en vol.
+    watch(() => appStore.activePromoId, (promoId) => {
+      const lumenStore = useLumenStore()
+      lumenStore.resetUnread()
+      if (promoId && !appStore.isStaff) lumenStore.fetchUnread(promoId)
+    }, { immediate: true })
 
     // Live invite (etudiants)
     unsubLiveInvite = window.api.onLiveInvite((data) => {
@@ -145,6 +157,14 @@ export function useAppListeners() {
         channelName: data.category || 'Devoir',
       })
     })
+
+    // Nouveau cours Lumen publie (etudiants) : refresh badge rail + widget.
+    // Le message systeme dans le chat est gere via le canal classique msg:new.
+    const lumenStore = useLumenStore()
+    unsubLumenPublished = window.api.onLumenCoursePublished?.(({ promoId }) => {
+      if (appStore.isStaff) return
+      lumenStore.onCoursePublished(promoId, appStore.activePromoId ?? null)
+    }) ?? null
   }
 
   function cleanupListeners() {
@@ -159,6 +179,7 @@ export function useAppListeners() {
     unsubUpdaterAvailable?.()
     unsubUpdaterDownloaded?.()
     unsubGradeNew?.()
+    unsubLumenPublished?.()
     if (liveInviteTimer) clearTimeout(liveInviteTimer)
     if (tokenRefreshTimer) clearInterval(tokenRefreshTimer)
   }

@@ -9,6 +9,7 @@ import { useMessagesStore } from '@/stores/messages'
 import { useModalsStore }   from '@/stores/modals'
 import { useDocumentsStore } from '@/stores/documents'
 import { useTravauxStore }  from '@/stores/travaux'
+import { useLumenStore }    from '@/stores/lumen'
 import { useToast }         from '@/composables/useToast'
 import { authUrl }          from '@/utils/auth'
 import { useOpenExternal }  from '@/composables/useOpenExternal'
@@ -24,6 +25,7 @@ export function useBubbleActions(msg: () => Message) {
   const modals        = useModalsStore()
   const documentsStore = useDocumentsStore()
   const travauxStore  = useTravauxStore()
+  const lumenStore    = useLumenStore()
   const { openExternal } = useOpenExternal()
   const { showToast }    = useToast()
 
@@ -154,6 +156,22 @@ export function useBubbleActions(msg: () => Message) {
       const devoirId = Number(devoirRef.dataset.devoirId)
       if (devoirId) {
         travauxStore.openTravail(devoirId).then(() => { modals.gestionDevoir = true })
+      }
+      return
+    }
+    // Lumen ref → ouvrir le cours dans le reader Lumen
+    const lumenRef = (e.target as HTMLElement).closest('.lumen-ref[data-lumen-id]') as HTMLElement | null
+    if (lumenRef) {
+      e.preventDefault()
+      const courseId = Number(lumenRef.dataset.lumenId)
+      if (courseId) {
+        lumenStore.fetchCourse(courseId).then((course) => {
+          if (course) {
+            router.push({ name: 'lumen', query: { course: String(courseId) } })
+          } else {
+            showToast('Cours introuvable.', 'error')
+          }
+        }).catch(() => { showToast('Impossible de charger le cours.', 'error') })
       }
       return
     }

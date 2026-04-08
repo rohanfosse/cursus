@@ -458,6 +458,24 @@ button { font-family: var(--font); }
   font-weight: 600;
 }
 
+/* Référence cours Lumen (posée par le bot Cursus à la première publication) */
+.lumen-ref {
+  background: var(--accent-subtle);
+  color: var(--accent-light);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--t-base), opacity var(--t-base);
+}
+.lumen-ref:hover {
+  background: var(--bg-active);
+}
+.lumen-ref:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* Mention de l'utilisateur courant ou @everyone */
 .mention-me {
   background: rgba(243,156,18,.06);

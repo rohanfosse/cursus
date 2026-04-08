@@ -203,11 +203,16 @@ export function renderMessageContent(raw: string, searchTerm = '', currentUserNa
   const cacheKey = `${raw.length}:${raw.slice(0, 50)}:${searchTerm}:${currentUserName}`
   const cached = _renderCache.get(cacheKey)
   if (cached) return cached
-  // Traiter les refs devoir AVANT le markdown (sinon \ et ~ sont consommés par marked)
+  // Traiter les refs devoir/lumen AVANT le markdown (sinon \ et ~ sont consommés par marked)
   let preprocessed = raw
   // \[Title](devoir:ID) et ~[Title](devoir:ID) → placeholder HTML
   preprocessed = preprocessed.replace(/[\\~]\[([^\]]+)\]\(devoir:(\d+)\)/g, (_m, title, id) => {
     return `<span class="devoir-ref" data-devoir-id="${escapeHtml(id)}" role="link" tabindex="0">${escapeHtml(title)}</span>`
+  })
+  // \[Title](lumen:ID) → ref Lumen cliquable. Posee par le bot Cursus a la
+  // premiere publication d'un cours, ouvre le reader Lumen au clic.
+  preprocessed = preprocessed.replace(/[\\~]\[([^\]]+)\]\(lumen:(\d+)\)/g, (_m, title, id) => {
+    return `<span class="lumen-ref" data-lumen-id="${escapeHtml(id)}" role="link" tabindex="0">${escapeHtml(title)}</span>`
   })
   let html = marked.parse(preprocessed) as string
   // marked encode les apostrophes en &#39; ce qui casse l'affichage du texte francais
@@ -219,7 +224,7 @@ export function renderMessageContent(raw: string, searchTerm = '', currentUserNa
   if (searchTerm) html = highlightInHtml(html, searchTerm)
   const result = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'a', 'span', 'div', 'mark', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'img', 'del', 's'],
-    ALLOWED_ATTR: ['class', 'data-url', 'data-channel', 'data-devoir-id', 'data-doc-id', 'data-file-name', 'role', 'href', 'tabindex', 'style', 'src', 'alt', 'loading'],
+    ALLOWED_ATTR: ['class', 'data-url', 'data-channel', 'data-devoir-id', 'data-doc-id', 'data-lumen-id', 'data-file-name', 'role', 'href', 'tabindex', 'style', 'src', 'alt', 'loading'],
   })
   // Evicter le cache si trop gros
   if (_renderCache.size >= RENDER_CACHE_MAX) {

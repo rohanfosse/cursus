@@ -12,6 +12,11 @@ export const useLumenStore = defineStore('lumen', () => {
   const currentCourse = ref<LumenCourse | null>(null)
   const loading       = ref(false)
 
+  // Cours publies non lus par l'etudiant courant pour la promo active.
+  // Alimente le badge rail Lumen et le widget dashboard "Nouveaux cours".
+  const unreadCourses = ref<LumenCourse[]>([])
+  const unreadCount   = ref(0)
+
   // ── Computed ─────────────────────────────────────────────────────────────
   const publishedCourses = computed(() => courses.value.filter(c => c.status === 'published'))
   const draftCourses     = computed(() => courses.value.filter(c => c.status === 'draft'))
@@ -42,7 +47,7 @@ export const useLumenStore = defineStore('lumen', () => {
     }
   }
 
-  async function createCourse(payload: { promoId: number; title: string; summary?: string; content?: string }): Promise<LumenCourse | null> {
+  async function createCourse(payload: { promoId: number; projectId?: number | null; title: string; summary?: string; content?: string }): Promise<LumenCourse | null> {
     loading.value = true
     try {
       const data = await api<LumenCourse>(() => window.api.createLumenCourse(payload))
@@ -56,7 +61,7 @@ export const useLumenStore = defineStore('lumen', () => {
     }
   }
 
-  async function updateCourse(id: number, payload: { title?: string; summary?: string; content?: string }): Promise<LumenCourse | null> {
+  async function updateCourse(id: number, payload: { title?: string; summary?: string; content?: string; projectId?: number | null }): Promise<LumenCourse | null> {
     const data = await api<LumenCourse>(() => window.api.updateLumenCourse(id, payload))
     if (data) {
       const idx = courses.value.findIndex(c => c.id === id)
@@ -102,12 +107,67 @@ export const useLumenStore = defineStore('lumen', () => {
     currentCourse.value = null
   }
 
+  // ── Tracking lecture etudiant ────────────────────────────────────────────
+
+  /** Charge les cours publies non lus de l'etudiant pour une promo. */
+  async function fetchUnread(promoId: number): Promise<void> {
+    const data = await api<{ count: number; courses: LumenCourse[] }>(
+      () => window.api.getLumenUnreadForPromo(promoId),
+      { silent: true },
+    )
+    if (data) {
+      unreadCourses.value = data.courses
+      unreadCount.value   = data.count
+    }
+  }
+
+  /**
+   * Marque un cours comme lu (best-effort, fire-and-forget cote UX).
+   * Mise a jour optimiste : retire le cours de la liste non-lus immediatement.
+   * Idempotent : appeler plusieurs fois ne casse rien.
+   */
+  async function markAsRead(courseId: number): Promise<void> {
+    const wasUnread = unreadCourses.value.some(c => c.id === courseId)
+    if (wasUnread) {
+      unreadCourses.value = unreadCourses.value.filter(c => c.id !== courseId)
+      unreadCount.value = Math.max(0, unreadCount.value - 1)
+    }
+    try {
+      await api(() => window.api.markLumenCourseRead(courseId), { silent: true })
+    } catch {
+      // Echec silencieux : le prochain fetchUnread resynchronisera l'etat.
+    }
+  }
+
+  /**
+   * Reset complet : utilise au logout ou changement de promo pour eviter
+   * de mixer les compteurs entre promos.
+   */
+  function resetUnread() {
+    unreadCourses.value = []
+    unreadCount.value = 0
+  }
+
+  /**
+   * Handler socket : un cours vient d'etre publie sur la promo active.
+   * Recharge la liste des cours et le compteur de non-lus.
+   */
+  async function onCoursePublished(promoId: number, activePromoId: number | null) {
+    if (activePromoId !== promoId) return
+    await Promise.all([
+      fetchCoursesForPromo(promoId),
+      fetchUnread(promoId),
+    ])
+  }
+
   return {
     courses, currentCourse, loading,
+    unreadCourses, unreadCount,
     publishedCourses, draftCourses,
     fetchCoursesForPromo, fetchCourse,
     createCourse, updateCourse,
     publishCourse, unpublishCourse, deleteCourse,
     clearCurrentCourse,
+    fetchUnread, markAsRead, resetUnread, onCoursePublished,
   }
 })
