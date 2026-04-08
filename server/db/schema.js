@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 51;
+const CURRENT_VERSION = 52;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -1074,6 +1074,15 @@ function runMigrations(db) {
         JOIN lumen_courses c ON c.promo_id = s.promo_id
         WHERE c.status = 'published';
       `);
+    },
+
+    // v52 : Lumen — snapshot d'un repo git d'exemple attache au cours
+    (db) => {
+      tryAlter(db, `ALTER TABLE lumen_courses ADD COLUMN repo_url TEXT`);
+      tryAlter(db, `ALTER TABLE lumen_courses ADD COLUMN repo_snapshot TEXT`);
+      tryAlter(db, `ALTER TABLE lumen_courses ADD COLUMN repo_commit_sha TEXT`);
+      tryAlter(db, `ALTER TABLE lumen_courses ADD COLUMN repo_default_branch TEXT`);
+      tryAlter(db, `ALTER TABLE lumen_courses ADD COLUMN repo_snapshot_at TEXT`);
     },
   ];
 

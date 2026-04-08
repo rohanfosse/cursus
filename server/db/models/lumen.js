@@ -1,8 +1,16 @@
 /** Lumen — Cours en markdown publies par les enseignants pour leurs etudiants. */
 const { getDb } = require('../connection');
 
-// Colonnes exposees pour les listes (pas de content : trop lourd).
-const LIST_COLS = 'id, teacher_id, promo_id, project_id, title, summary, status, created_at, updated_at, published_at';
+// Colonnes exposees pour les listes (pas de content ni repo_snapshot : trop lourds).
+// On inclut les metadonnees du snapshot (url, sha, branch, timestamp) mais jamais
+// le JSON complet du snapshot — ca peut monter a 5 Mo et on n'en a besoin que pour
+// la lecture d'un cours precis.
+const LIST_COLS = [
+  'id', 'teacher_id', 'promo_id', 'project_id',
+  'title', 'summary', 'status',
+  'created_at', 'updated_at', 'published_at',
+  'repo_url', 'repo_commit_sha', 'repo_default_branch', 'repo_snapshot_at',
+].join(', ');
 
 // ─── Cours ───────────────────────────────────────────────────────────────────
 
@@ -45,7 +53,7 @@ function getLumenCoursesForTeacher(teacherId) {
   ).all(teacherId);
 }
 
-function updateLumenCourse(id, { title, summary, content, projectId }) {
+function updateLumenCourse(id, { title, summary, content, projectId, repoUrl }) {
   const db = getDb();
   const fields = [];
   const params = [];
@@ -53,10 +61,55 @@ function updateLumenCourse(id, { title, summary, content, projectId }) {
   if (summary !== undefined)   { fields.push('summary = ?');    params.push(summary); }
   if (content !== undefined)   { fields.push('content = ?');    params.push(content); }
   if (projectId !== undefined) { fields.push('project_id = ?'); params.push(projectId); }
+  if (repoUrl !== undefined)   { fields.push('repo_url = ?');   params.push(repoUrl); }
   if (fields.length === 0) return getLumenCourse(id);
   fields.push("updated_at = datetime('now')");
   params.push(id);
   db.prepare(`UPDATE lumen_courses SET ${fields.join(', ')} WHERE id = ?`).run(...params);
+  return getLumenCourse(id);
+}
+
+// ─── Snapshot d'un repo git d'exemple ────────────────────────────────────────
+
+/**
+ * Ecrit le snapshot JSON complet d'un cours (fichiers + contenu base64).
+ * Atomic : remplace entierement le snapshot existant.
+ */
+function setLumenCourseSnapshot(id, { url, snapshot, commitSha, defaultBranch }) {
+  const db = getDb();
+  const json = typeof snapshot === 'string' ? snapshot : JSON.stringify(snapshot);
+  db.prepare(
+    `UPDATE lumen_courses
+       SET repo_url = ?,
+           repo_snapshot = ?,
+           repo_commit_sha = ?,
+           repo_default_branch = ?,
+           repo_snapshot_at = datetime('now'),
+           updated_at = datetime('now')
+     WHERE id = ?`
+  ).run(url, json, commitSha, defaultBranch, id);
+  return getLumenCourse(id);
+}
+
+/** Retourne le snapshot JSON parse, ou null si aucun snapshot. */
+function getLumenCourseSnapshot(id) {
+  const row = getDb().prepare('SELECT repo_snapshot FROM lumen_courses WHERE id = ?').get(id);
+  if (!row?.repo_snapshot) return null;
+  try { return JSON.parse(row.repo_snapshot); }
+  catch { return null; }
+}
+
+/** Efface le snapshot d'un cours (ex : URL remise a null). */
+function clearLumenCourseSnapshot(id) {
+  getDb().prepare(
+    `UPDATE lumen_courses
+       SET repo_snapshot = NULL,
+           repo_commit_sha = NULL,
+           repo_default_branch = NULL,
+           repo_snapshot_at = NULL,
+           updated_at = datetime('now')
+     WHERE id = ?`
+  ).run(id);
   return getLumenCourse(id);
 }
 
@@ -157,6 +210,9 @@ module.exports = {
   unpublishLumenCourse,
   deleteLumenCourse,
   getLumenStatsForPromo,
+  setLumenCourseSnapshot,
+  getLumenCourseSnapshot,
+  clearLumenCourseSnapshot,
   markLumenCourseRead,
   getUnreadLumenCoursesForStudent,
   countUnreadLumenCoursesForStudent,

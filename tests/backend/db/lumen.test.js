@@ -161,3 +161,88 @@ describe('getLumenCoursesForTeacher', () => {
     expect(list.every(c => c.teacher_id === 42)).toBe(true)
   })
 })
+
+describe('Snapshot repo git', () => {
+  const sampleSnapshot = {
+    repo_url: 'https://github.com/owner/repo',
+    default_branch: 'main',
+    commit_sha: 'abc123def456',
+    fetched_at: '2026-04-08T12:00:00Z',
+    files: [
+      { path: 'main.py', size: 42, content_base64: 'cHJpbnQoImhpIik=' },
+      { path: 'utils/helpers.py', size: 10, content_base64: 'eCA9IDE=' },
+    ],
+    total_size: 52,
+    file_count: 2,
+  }
+
+  it('updateLumenCourse accepte repoUrl', () => {
+    const course = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'With repo' })
+    const updated = queries.updateLumenCourse(course.id, { repoUrl: 'https://github.com/owner/repo' })
+    expect(updated.repo_url).toBe('https://github.com/owner/repo')
+  })
+
+  it('setLumenCourseSnapshot stocke le JSON et les metadonnees', () => {
+    const course = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Snapshot A' })
+    const result = queries.setLumenCourseSnapshot(course.id, {
+      url: sampleSnapshot.repo_url,
+      snapshot: sampleSnapshot,
+      commitSha: sampleSnapshot.commit_sha,
+      defaultBranch: sampleSnapshot.default_branch,
+    })
+    expect(result.repo_url).toBe(sampleSnapshot.repo_url)
+    expect(result.repo_commit_sha).toBe(sampleSnapshot.commit_sha)
+    expect(result.repo_default_branch).toBe('main')
+    expect(result.repo_snapshot_at).toBeTruthy()
+    expect(typeof result.repo_snapshot).toBe('string')
+  })
+
+  it('getLumenCourseSnapshot parse le JSON stocke', () => {
+    const course = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Snapshot B' })
+    queries.setLumenCourseSnapshot(course.id, {
+      url: sampleSnapshot.repo_url,
+      snapshot: sampleSnapshot,
+      commitSha: sampleSnapshot.commit_sha,
+      defaultBranch: sampleSnapshot.default_branch,
+    })
+    const parsed = queries.getLumenCourseSnapshot(course.id)
+    expect(parsed).toBeDefined()
+    expect(parsed.files).toHaveLength(2)
+    expect(parsed.files[0].path).toBe('main.py')
+    expect(parsed.file_count).toBe(2)
+  })
+
+  it('getLumenCourseSnapshot retourne null si aucun snapshot', () => {
+    const course = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'No snapshot' })
+    expect(queries.getLumenCourseSnapshot(course.id)).toBeNull()
+  })
+
+  it('clearLumenCourseSnapshot efface le snapshot en gardant l URL', () => {
+    const course = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Clear test' })
+    queries.setLumenCourseSnapshot(course.id, {
+      url: sampleSnapshot.repo_url,
+      snapshot: sampleSnapshot,
+      commitSha: sampleSnapshot.commit_sha,
+      defaultBranch: sampleSnapshot.default_branch,
+    })
+    queries.clearLumenCourseSnapshot(course.id)
+    const after = queries.getLumenCourse(course.id)
+    expect(after.repo_url).toBe(sampleSnapshot.repo_url)
+    expect(after.repo_snapshot).toBeNull()
+    expect(after.repo_commit_sha).toBeNull()
+    expect(queries.getLumenCourseSnapshot(course.id)).toBeNull()
+  })
+
+  it('accepte un snapshot passe en string deja serialise', () => {
+    const course = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Pre-serialized' })
+    const serialized = JSON.stringify(sampleSnapshot)
+    queries.setLumenCourseSnapshot(course.id, {
+      url: sampleSnapshot.repo_url,
+      snapshot: serialized,
+      commitSha: sampleSnapshot.commit_sha,
+      defaultBranch: sampleSnapshot.default_branch,
+    })
+    const parsed = queries.getLumenCourseSnapshot(course.id)
+    expect(parsed.file_count).toBe(2)
+  })
+})
