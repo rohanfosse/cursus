@@ -19,6 +19,7 @@ import LumenOutline from '@/components/lumen/LumenOutline.vue'
 import LumenStatusBar from '@/components/lumen/LumenStatusBar.vue'
 import LumenPreview from '@/components/lumen/LumenPreview.vue'
 import LumenCommandPalette from '@/components/lumen/LumenCommandPalette.vue'
+import LumenReader from '@/components/lumen/LumenReader.vue'
 import type { CursorInfo } from '@/composables/useLumenEditor'
 import type { LumenCourse, Promotion } from '@/types'
 
@@ -87,14 +88,6 @@ const sortedCoursesForSidebar = computed(() => {
     if (a.status !== b.status) return a.status === 'draft' ? -1 : 1
     return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   })
-})
-
-// Reader : si le contenu commence par un h1, on le strip (le titre du cours
-// est deja rendu en h1 dans le header de lecture — evite un double h1).
-const readerHtml = computed(() => {
-  const raw = lumenStore.currentCourse?.content ?? ''
-  const stripped = raw.replace(/^\s*#\s+.+$/m, '').replace(/^\s*\n/, '')
-  return renderMarkdown(stripped)
 })
 
 // ── Data loading ────────────────────────────────────────────────────────────
@@ -798,21 +791,13 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
 
       <!-- READER MODE -->
       <main v-else-if="mode === 'reader'" class="lumen-reader-main">
-        <article v-if="lumenStore.currentCourse" class="lumen-reader">
-          <header class="lumen-reader-head">
-            <h1 class="lumen-reader-title">{{ lumenStore.currentCourse.title }}</h1>
-            <p v-if="lumenStore.currentCourse.summary" class="lumen-reader-summary">
-              {{ lumenStore.currentCourse.summary }}
-            </p>
-            <div class="lumen-reader-meta">
-              <span v-if="lumenStore.currentCourse.published_at">
-                Publié le {{ formatDate(lumenStore.currentCourse.published_at) }}
-              </span>
-              <span v-else>Brouillon</span>
-            </div>
-          </header>
-          <div class="lumen-prose" v-html="readerHtml" />
-        </article>
+        <LumenReader
+          v-if="lumenStore.currentCourse"
+          :course="lumenStore.currentCourse"
+          :siblings="lumenStore.courses"
+          @navigate="openReader"
+          @back="goToList"
+        />
       </main>
 
       <!-- EDITOR MODE (Overleaf-style) -->
@@ -1276,53 +1261,12 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
 }
 
 /* ── Reader view ─────────────────────────────────────────────────────── */
-.lumen-reader-main { flex: 1; overflow-y: auto; padding: 48px 32px 80px; }
-.lumen-reader { max-width: 720px; margin: 0 auto; }
-.lumen-reader-head { margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
-.lumen-reader-title {
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  margin: 0 0 14px;
-  line-height: 1.15;
-  color: var(--text-primary);
+.lumen-reader-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
-.lumen-reader-summary { font-size: var(--text-md); color: var(--text-secondary); line-height: 1.55; margin: 0 0 14px; }
-.lumen-reader-meta { font-size: var(--text-sm); color: var(--text-muted); }
-
-.lumen-prose {
-  font-size: var(--text-md);
-  line-height: 1.7;
-  color: var(--text-primary);
-}
-.lumen-prose :deep(h1) { font-size: 26px; font-weight: 800; margin: 32px 0 14px; color: var(--text-primary); letter-spacing: -0.02em; }
-.lumen-prose :deep(h1):first-child { margin-top: 0; }
-.lumen-prose :deep(h2) { font-size: 21px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); color: var(--text-primary); letter-spacing: -0.01em; }
-.lumen-prose :deep(h3) { font-size: 17px; font-weight: 700; margin: 22px 0 10px; color: var(--text-primary); }
-.lumen-prose :deep(p) { margin: 0 0 14px; }
-.lumen-prose :deep(ul), .lumen-prose :deep(ol) { margin: 0 0 14px; padding-left: 24px; }
-.lumen-prose :deep(li) { margin: 4px 0; }
-.lumen-prose :deep(a) { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-.lumen-prose :deep(a:hover) { color: var(--accent-hover); }
-.lumen-prose :deep(blockquote) {
-  margin: 14px 0;
-  padding: 8px 16px;
-  border-left: 3px solid var(--accent);
-  background: var(--accent-subtle);
-  color: var(--text-secondary);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-}
-.lumen-prose :deep(code) {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.88em;
-  padding: 1px 6px;
-  border-radius: var(--radius-xs);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-input);
-  color: var(--text-primary);
-}
-.lumen-prose :deep(pre.lumen-code) { margin: 14px 0; padding: 14px 18px; border-radius: var(--radius); background: var(--bg-input); border: 1px solid var(--border); color: var(--text-primary); overflow-x: auto; font-size: var(--text-sm); }
-.lumen-prose :deep(pre.lumen-code code) { background: transparent; border: none; padding: 0; color: inherit; }
 
 /* ── Editor main layout ──────────────────────────────────────────────── */
 .lumen-editor-main {
