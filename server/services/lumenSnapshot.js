@@ -233,7 +233,9 @@ async function buildSnapshot(url) {
   const { owner, repo } = parseGitHubUrl(url)
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+  const startedAt = Date.now()
   try {
+    log.info('lumen_snapshot_started', { owner, repo })
     const { default_branch } = await fetchRepoMetadata(owner, repo, controller.signal)
     if (!default_branch) {
       throw new SnapshotError(ErrorCodes.FETCH_ERROR, 'default_branch manquant dans la reponse GitHub.')
@@ -270,7 +272,26 @@ async function buildSnapshot(url) {
       total_size,
       file_count: files.length,
     }
+    log.info('lumen_snapshot_built', {
+      owner,
+      repo,
+      branch: default_branch,
+      sha: snapshot.commit_sha,
+      files: files.length,
+      size: total_size,
+      duration_ms: Date.now() - startedAt,
+    })
     return snapshot
+  } catch (err) {
+    const code = err instanceof SnapshotError ? err.code : 'UNEXPECTED'
+    log.warn('lumen_snapshot_failed', {
+      owner,
+      repo,
+      code,
+      message: err?.message,
+      duration_ms: Date.now() - startedAt,
+    })
+    throw err
   } finally {
     clearTimeout(timer)
   }

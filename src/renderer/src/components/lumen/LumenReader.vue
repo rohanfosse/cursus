@@ -10,13 +10,15 @@ interface Props {
   course: LumenCourse
   // Liste complete des cours publies de la promo pour la navigation prev/next.
   siblings?: LumenCourse[]
+  // Deep link optionnel : propage au panneau projet pour auto-selection
+  initialProjectFile?: string | null
 }
 interface Emits {
   (e: 'navigate', course: LumenCourse): void
   (e: 'back'): void
 }
 
-const props = withDefaults(defineProps<Props>(), { siblings: () => [] })
+const props = withDefaults(defineProps<Props>(), { siblings: () => [], initialProjectFile: null })
 const emit = defineEmits<Emits>()
 
 // ── Rendu HTML : on strip le h1 en tete (le titre du cours est deja
@@ -213,6 +215,7 @@ const nextCourse = computed(() =>
           <LumenProjectPanel
             v-if="course.repo_snapshot_at"
             :course="course"
+            :initial-file="initialProjectFile"
             class="reader-project"
           />
 

@@ -159,15 +159,19 @@ export function useBubbleActions(msg: () => Message) {
       }
       return
     }
-    // Lumen ref → ouvrir le cours dans le reader Lumen
+    // Lumen ref → ouvrir le cours dans le reader Lumen. Si data-lumen-file
+    // est present, le panneau projet auto-selectionnera ce fichier.
     const lumenRef = (e.target as HTMLElement).closest('.lumen-ref[data-lumen-id]') as HTMLElement | null
     if (lumenRef) {
       e.preventDefault()
       const courseId = Number(lumenRef.dataset.lumenId)
+      const filePath = lumenRef.dataset.lumenFile ?? undefined
       if (courseId) {
         lumenStore.fetchCourse(courseId).then((course) => {
           if (course) {
-            router.push({ name: 'lumen', query: { course: String(courseId) } })
+            const query: Record<string, string> = { course: String(courseId) }
+            if (filePath) query.file = filePath
+            router.push({ name: 'lumen', query })
           } else {
             showToast('Cours introuvable.', 'error')
           }

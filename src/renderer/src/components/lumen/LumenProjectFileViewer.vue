@@ -10,6 +10,7 @@ import { FileText, Copy, Check, AlertCircle, Loader2, Download } from 'lucide-vu
 import hljs from 'highlight.js'
 import { useLumenStore } from '@/stores/lumen'
 import { useToast } from '@/composables/useToast'
+import { formatBytes } from '@/utils/format'
 
 interface Props {
   courseId: number
@@ -141,11 +142,7 @@ async function copyContent() {
   }
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} o`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`
-}
+const formatSize = formatBytes
 </script>
 
 <template>

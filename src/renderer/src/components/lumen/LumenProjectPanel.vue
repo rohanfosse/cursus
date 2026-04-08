@@ -4,24 +4,30 @@
  * Assemble LumenProjectTree + LumenProjectFileViewer + header avec
  * bouton telecharger et lien vers le repo d'origine.
  */
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Github, Download, ExternalLink, Package } from 'lucide-vue-next'
 import { useLumenStore } from '@/stores/lumen'
 import { useToast } from '@/composables/useToast'
+import { formatBytes } from '@/utils/format'
 import type { LumenCourse } from '@/types'
 import LumenProjectTree from '@/components/lumen/LumenProjectTree.vue'
 import LumenProjectFileViewer from '@/components/lumen/LumenProjectFileViewer.vue'
 
 interface Props {
   course: LumenCourse
+  // Deep link optionnel : auto-selectionne ce fichier au chargement de
+  // l'arborescence (prioritaire sur le README par defaut).
+  initialFile?: string | null
 }
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), { initialFile: null })
 
 const lumenStore = useLumenStore()
 const { showToast } = useToast()
 
 const activePath = ref<string | null>(null)
 const downloading = ref(false)
+const treeRef = ref<InstanceType<typeof LumenProjectTree> | null>(null)
+const panelRef = ref<HTMLElement | null>(null)
 
 // L'arborescence est chargee lazy au montage ; le fichier n'est chargee
 // qu'au clic dans le tree.
@@ -30,10 +36,62 @@ const tree = computed(() => lumenStore.snapshotTrees.get(props.course.id) ?? nul
 async function loadTree() {
   activePath.value = null
   await lumenStore.fetchSnapshotTree(props.course.id)
+  const t = tree.value
+  if (!t || t.files.length === 0) return
+  // Priorite 1 : deep link via prop initialFile (si le fichier existe
+  // reellement dans le snapshot)
+  if (props.initialFile && t.files.some(f => f.path === props.initialFile)) {
+    activePath.value = props.initialFile
+    return
+  }
+  // Priorite 2 : README racine pour donner du contexte immediat
+  const readme = findRootReadme(t.files)
+  if (readme) activePath.value = readme
 }
 
-onMounted(loadTree)
+// Si le deep link change apres le chargement (navigation depuis un autre
+// ref chat sans changer de cours), on met a jour la selection.
+watch(() => props.initialFile, (newPath) => {
+  if (!newPath) return
+  const t = tree.value
+  if (t && t.files.some(f => f.path === newPath)) {
+    activePath.value = newPath
+  }
+})
+
+// Preference d'ordre : .md > .rst > .txt > sans extension.
+// Limite au niveau racine du repo (pas de slash dans le path).
+function findRootReadme(files: { path: string }[]): string | null {
+  const priorities = ['readme.md', 'readme.rst', 'readme.txt', 'readme']
+  const rootFiles = files.filter(f => !f.path.includes('/'))
+  for (const target of priorities) {
+    const found = rootFiles.find(f => f.path.toLowerCase() === target)
+    if (found) return found.path
+  }
+  return null
+}
+
+onMounted(() => {
+  loadTree()
+  window.addEventListener('keydown', onGlobalKey)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onGlobalKey)
+})
 watch(() => props.course.id, loadTree)
+
+// Ctrl+P / Cmd+P : ouvre la recherche de fichier dans l'arborescence.
+// N'intercepte que si le focus est dans le panneau (evite de casser le
+// raccourci global quand l'utilisateur est dans un autre composant).
+function onGlobalKey(e: KeyboardEvent) {
+  const isFinder = (e.key === 'p' || e.key === 'P') && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
+  if (!isFinder) return
+  if (!panelRef.value) return
+  const active = document.activeElement
+  if (active instanceof Node && !panelRef.value.contains(active)) return
+  e.preventDefault()
+  treeRef.value?.openSearch()
+}
 
 function slugForDownload(): string {
   const base = (props.course.title || 'cours')
@@ -66,15 +124,11 @@ function openRepo() {
   if (url) window.open(url, '_blank', 'noopener,noreferrer')
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} o`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`
-}
+const formatSize = formatBytes
 </script>
 
 <template>
-  <section class="project-panel" aria-label="Projet d'exemple du cours">
+  <section ref="panelRef" class="project-panel" aria-label="Projet d'exemple du cours" tabindex="-1">
     <header class="project-panel-head">
       <div class="project-panel-title">
         <Package :size="15" />
@@ -111,6 +165,7 @@ function formatSize(bytes: number): string {
     <div v-else class="project-panel-body">
       <aside class="project-panel-tree">
         <LumenProjectTree
+          ref="treeRef"
           :files="tree.files"
           :active-path="activePath"
           @select="(path) => activePath = path"

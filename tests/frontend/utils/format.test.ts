@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { avatarColor, formatGrade, gradeClass, initials } from '@/utils/format'
+import { avatarColor, formatBytes, formatGrade, gradeClass, initials } from '@/utils/format'
 
 describe('initials', () => {
   it('extracts first letters of each word', () => {
@@ -88,5 +88,36 @@ describe('gradeClass', () => {
   it('handles string numbers', () => {
     expect(gradeClass('15')).toBe('grade-a')
     expect(gradeClass('7')).toBe('grade-d')
+  })
+})
+
+describe('formatBytes', () => {
+  it('octets bruts sous 1 Ko', () => {
+    expect(formatBytes(0)).toBe('0 o')
+    expect(formatBytes(1)).toBe('1 o')
+    expect(formatBytes(512)).toBe('512 o')
+    expect(formatBytes(1023)).toBe('1023 o')
+  })
+
+  it('Ko arrondi entre 1 Ko et 1 Mo', () => {
+    expect(formatBytes(1024)).toBe('1 Ko')
+    expect(formatBytes(1500)).toBe('1 Ko')
+    expect(formatBytes(1536)).toBe('2 Ko')
+    expect(formatBytes(50 * 1024)).toBe('50 Ko')
+  })
+
+  it('Mo avec une decimale au-dela de 1 Mo', () => {
+    expect(formatBytes(1024 * 1024)).toBe('1.0 Mo')
+    expect(formatBytes(1.5 * 1024 * 1024)).toBe('1.5 Mo')
+    expect(formatBytes(5 * 1024 * 1024)).toBe('5.0 Mo')
+  })
+
+  it('option showZero: false cache les valeurs nulles', () => {
+    expect(formatBytes(0, { showZero: false })).toBe('')
+    expect(formatBytes(0, { showZero: true })).toBe('0 o')
+  })
+
+  it('gere les valeurs negatives en retournant vide', () => {
+    expect(formatBytes(-1)).toBe('')
   })
 })

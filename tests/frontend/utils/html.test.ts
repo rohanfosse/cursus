@@ -102,4 +102,23 @@ describe('renderMessageContent', () => {
     const result = renderMessageContent('Hello @everyone', '', 'Jean')
     expect(result).toContain('mention-me')
   })
+
+  it('transforme \\[title](lumen:42) en span lumen-ref clickable', () => {
+    const result = renderMessageContent('Voir \\[TP Python](lumen:42)')
+    expect(result).toContain('class="lumen-ref"')
+    expect(result).toContain('data-lumen-id="42"')
+    expect(result).toContain('>TP Python<')
+    expect(result).not.toContain('data-lumen-file')
+  })
+
+  it('transforme \\[title](lumen:42:src/main.py) en span avec data-lumen-file', () => {
+    const result = renderMessageContent('Voir \\[main.py](lumen:42:src/main.py)')
+    expect(result).toContain('data-lumen-id="42"')
+    expect(result).toContain('data-lumen-file="src/main.py"')
+  })
+
+  it('gere les paths avec extensions diverses', () => {
+    const result = renderMessageContent('\\[cfg](lumen:1:config/app.json)')
+    expect(result).toContain('data-lumen-file="config/app.json"')
+  })
 })

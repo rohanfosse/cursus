@@ -211,8 +211,11 @@ export function renderMessageContent(raw: string, searchTerm = '', currentUserNa
   })
   // \[Title](lumen:ID) → ref Lumen cliquable. Posee par le bot Cursus a la
   // premiere publication d'un cours, ouvre le reader Lumen au clic.
-  preprocessed = preprocessed.replace(/[\\~]\[([^\]]+)\]\(lumen:(\d+)\)/g, (_m, title, id) => {
-    return `<span class="lumen-ref" data-lumen-id="${escapeHtml(id)}" role="link" tabindex="0">${escapeHtml(title)}</span>`
+  // Variante \[Title](lumen:ID:path/to/file.py) → ouvre ET auto-selectionne
+  // un fichier precis du projet d'exemple attache au cours.
+  preprocessed = preprocessed.replace(/[\\~]\[([^\]]+)\]\(lumen:(\d+)(?::([^\)]+))?\)/g, (_m, title, id, filePath) => {
+    const fileAttr = filePath ? ` data-lumen-file="${escapeHtml(filePath)}"` : ''
+    return `<span class="lumen-ref" data-lumen-id="${escapeHtml(id)}"${fileAttr} role="link" tabindex="0">${escapeHtml(title)}</span>`
   })
   let html = marked.parse(preprocessed) as string
   // marked encode les apostrophes en &#39; ce qui casse l'affichage du texte francais
@@ -224,7 +227,7 @@ export function renderMessageContent(raw: string, searchTerm = '', currentUserNa
   if (searchTerm) html = highlightInHtml(html, searchTerm)
   const result = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'a', 'span', 'div', 'mark', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'img', 'del', 's'],
-    ALLOWED_ATTR: ['class', 'data-url', 'data-channel', 'data-devoir-id', 'data-doc-id', 'data-lumen-id', 'data-file-name', 'role', 'href', 'tabindex', 'style', 'src', 'alt', 'loading'],
+    ALLOWED_ATTR: ['class', 'data-url', 'data-channel', 'data-devoir-id', 'data-doc-id', 'data-lumen-id', 'data-lumen-file', 'data-file-name', 'role', 'href', 'tabindex', 'style', 'src', 'alt', 'loading'],
   })
   // Evicter le cache si trop gros
   if (_renderCache.size >= RENDER_CACHE_MAX) {

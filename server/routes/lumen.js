@@ -29,6 +29,27 @@ const updateCourseSchema = z.object({
 const lumenSnapshot = require('../services/lumenSnapshot')
 const lumenZip      = require('../services/lumenZip')
 
+// Debounce anti-abuse : pas plus d'un refresh par cours par minute pour
+// eviter qu'un prof qui clique frenetiquement sur "Resynchroniser" ne
+// tape contre le rate limit GitHub (60 req/h par IP non-authentifiee).
+// Stockage in-memory — acceptable car le cas d'usage est "un prof qui
+// teste pendant la preparation" ; les redemarrages serveur sont rares.
+const REFRESH_COOLDOWN_MS = 60_000
+const lastRefreshByCourse = new Map()
+
+function checkRefreshCooldown(courseId) {
+  // Desactive en environnement de test : les tests font plusieurs refresh
+  // du meme cours en < 1s (normal pour valider les differents edge cases).
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST) return null
+  const last = lastRefreshByCourse.get(courseId)
+  if (!last) return null
+  const elapsed = Date.now() - last
+  if (elapsed < REFRESH_COOLDOWN_MS) {
+    return Math.ceil((REFRESH_COOLDOWN_MS - elapsed) / 1000)
+  }
+  return null
+}
+
 /**
  * Mappe une SnapshotError vers une reponse HTTP structuree.
  * Les codes sont stables, utilisables cote frontend pour afficher des
@@ -378,10 +399,22 @@ router.post('/courses/:id/snapshot', requireCourseOwner, async (req, res, next) 
       })
     }
 
+    // Anti-abuse : au moins 60s entre deux refresh du meme cours
+    const waitSec = checkRefreshCooldown(id)
+    if (waitSec) {
+      return res.status(429).json({
+        ok: false,
+        error: `Patience : reessaie dans ${waitSec}s (cooldown anti-abus).`,
+        code: 'REFRESH_COOLDOWN',
+        details: { retry_after_seconds: waitSec },
+      })
+    }
+
     const previousSha = course.repo_commit_sha
     let snapshot
     try {
       snapshot = await buildAndStoreSnapshot(id, course.repo_url)
+      lastRefreshByCourse.set(id, Date.now())
     } catch (err) {
       if (err instanceof lumenSnapshot.SnapshotError) {
         const { status, body } = snapshotErrorToResponse(err)

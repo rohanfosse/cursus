@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import {
   Lightbulb, Plus, Eye, Edit3, Trash2, ArrowLeft, CheckCircle2, Clock,
   Save, Columns, BookOpen, ListTree, Maximize2, Minimize2, Download, Clipboard,
-  Command as CommandIcon, Github, RefreshCw, ExternalLink,
+  Command as CommandIcon, Github, RefreshCw, ExternalLink, Package,
 } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useLumenStore } from '@/stores/lumen'
@@ -23,6 +23,7 @@ import LumenReader from '@/components/lumen/LumenReader.vue'
 import type { CursorInfo } from '@/composables/useLumenEditor'
 import type { LumenCourse, Promotion } from '@/types'
 import { relativeTime } from '@/utils/date'
+import { isValidGitHubUrl } from '@/utils/github'
 
 const appStore = useAppStore()
 const lumenStore = useLumenStore()
@@ -31,6 +32,10 @@ const route = useRoute()
 
 type Mode = 'list' | 'editor' | 'reader'
 const mode = ref<Mode>('list')
+
+// Deep link vers un fichier precis du projet d'exemple (via query ?file=)
+// passe au LumenReader qui le transmet au LumenProjectPanel.
+const readerInitialFile = ref<string | null>(null)
 
 // ── Editor state ────────────────────────────────────────────────────────────
 const editorTitle     = ref('')
@@ -125,15 +130,6 @@ async function loadAllPromos() {
 
 // ── Snapshot repo git (UI enseignant) ────────────────────────────────────
 
-function isValidGitHubUrl(url: string): boolean {
-  try {
-    const u = new URL(url)
-    if (u.protocol !== 'https:' || u.host !== 'github.com') return false
-    const segments = u.pathname.replace(/^\/+|\/+$/g, '').split('/')
-    return segments.length >= 2 && !!segments[0] && !!segments[1]
-  } catch { return false }
-}
-
 function validateRepoUrlOnBlur() {
   const v = editorRepoUrl.value.trim()
   if (!v) { editorRepoUrlError.value = null; return }
@@ -197,20 +193,27 @@ onMounted(async () => {
   await Promise.all([loadCourses(), loadAllPromos()])
   // Deep link : si l'URL contient ?course=ID, on ouvre directement le reader
   // (utilise par les refs lumen:ID dans le chat et le widget dashboard).
+  // Si ?file=path est present, on le transmet au panneau projet.
   const courseQuery = route.query.course
   if (courseQuery) {
     const id = Number(courseQuery)
     const course = lumenStore.courses.find(c => c.id === id)
-    if (course) openReader(course)
+    if (course) {
+      readerInitialFile.value = typeof route.query.file === 'string' ? route.query.file : null
+      openReader(course)
+    }
   }
 })
 
 // Reagit aux changements de query (navigation interne via clic sur ref)
-watch(() => route.query.course, (newId) => {
+watch(() => [route.query.course, route.query.file], ([newId, newFile]) => {
   if (!newId) return
   const id = Number(newId)
   const course = lumenStore.courses.find(c => c.id === id)
-  if (course) openReader(course)
+  if (course) {
+    readerInitialFile.value = typeof newFile === 'string' ? newFile : null
+    openReader(course)
+  }
 })
 
 // ── Navigation ──────────────────────────────────────────────────────────────
@@ -865,6 +868,10 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
             </header>
             <h3 class="lumen-card-title">{{ course.title }}</h3>
             <p v-if="course.summary" class="lumen-card-summary">{{ course.summary }}</p>
+            <div v-if="course.repo_snapshot_at" class="lumen-card-repo" title="Ce cours contient un projet de code d'exemple">
+              <Package :size="11" />
+              <span>Projet d'exemple</span>
+            </div>
             <footer class="lumen-card-actions">
               <button class="lumen-card-link" @click.stop="openReader(course)">
                 <Eye :size="13" /> Lire
@@ -883,6 +890,7 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
           v-if="lumenStore.currentCourse"
           :course="lumenStore.currentCourse"
           :siblings="lumenStore.courses"
+          :initial-project-file="readerInitialFile"
           @navigate="openReader"
           @back="goToList"
         />
@@ -1395,6 +1403,21 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
   font-family: inherit;
 }
 .lumen-card-link:hover { color: var(--accent); }
+.lumen-card-repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border-radius: var(--radius-sm);
+  width: fit-content;
+}
 .lumen-card-link:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);

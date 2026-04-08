@@ -47,3 +47,21 @@ export function initials(name: string): string {
     .toUpperCase()
     .slice(0, 2)
 }
+
+// ─── Tailles fichiers ─────────────────────────────────────────────────────────
+
+/**
+ * Formate une taille en octets avec l'unite la plus lisible (o/Ko/Mo).
+ * - < 1 Ko : affichage en octets brut ("512 o")
+ * - < 1 Mo : Ko arrondi ("50 Ko")
+ * - >= 1 Mo : Mo avec une decimale ("2.5 Mo")
+ * Retourne une chaine vide si `showZero` est false et `bytes < 1` (utilise
+ * dans les listes ou on ne veut pas afficher la taille pour les dossiers).
+ */
+export function formatBytes(bytes: number, { showZero = true } = {}): string {
+  if (bytes < 0) return ''
+  if (bytes < 1 && !showZero) return ''
+  if (bytes < 1024) return `${bytes} o`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`
+}

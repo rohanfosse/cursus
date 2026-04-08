@@ -371,4 +371,38 @@ describe('Lumen snapshot routes', () => {
     expect(after.repo_snapshot).toBeNull()
     expect(after.repo_commit_sha).toBeNull()
   })
+
+  it('POST /snapshot : cooldown anti-abuse en prod (429 REFRESH_COOLDOWN)', async () => {
+    // Fake "prod" pour activer le check de cooldown
+    const prev = { node: process.env.NODE_ENV, vitest: process.env.VITEST }
+    process.env.NODE_ENV = 'production'
+    delete process.env.VITEST
+    try {
+      const course = queries.createLumenCourse({
+        teacherId: 1, promoId: 1, title: 'Cooldown test',
+      })
+      queries.updateLumenCourse(course.id, { repoUrl: 'https://github.com/owner/repo' })
+      const spy = vi.spyOn(lumenSnapshot, 'buildSnapshot').mockResolvedValue(sampleSnapshot)
+
+      // Premier refresh : OK
+      const first = await request(app)
+        .post(`/api/lumen/courses/${course.id}/snapshot`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+      expect(first.status).toBe(200)
+
+      // Deuxieme immediat : bloque par le cooldown
+      const second = await request(app)
+        .post(`/api/lumen/courses/${course.id}/snapshot`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+      expect(second.status).toBe(429)
+      expect(second.body.code).toBe('REFRESH_COOLDOWN')
+      expect(second.body.details.retry_after_seconds).toBeGreaterThan(0)
+
+      spy.mockRestore()
+    } finally {
+      if (prev.node === undefined) delete process.env.NODE_ENV
+      else process.env.NODE_ENV = prev.node
+      if (prev.vitest !== undefined) process.env.VITEST = prev.vitest
+    }
+  })
 })
