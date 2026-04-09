@@ -68,6 +68,81 @@ const KEYWORD_PATTERNS: Array<{ word: string; cls: string }> = [
 ]
 
 /**
+ * Admonitions style Obsidian : transforme un blockquote contenant
+ * "[!TYPE] Titre optionnel" sur la premiere ligne en un bloc stylise.
+ * Types supportes : NOTE, TIP, WARNING, DANGER, INFO, IMPORTANT.
+ *
+ * Format d'entree markdown :
+ *   > [!NOTE] Mon titre
+ *   > Contenu de la note
+ *   > sur plusieurs lignes
+ *
+ * Le preprocessing remplace les blockquotes qui matchent par des div
+ * structurees AVANT le parsing marked, pour ne pas avoir a remplacer
+ * les <blockquote> apres coup.
+ */
+const ADMONITION_PATTERN = /^\s*\[!(NOTE|TIP|WARNING|DANGER|INFO|IMPORTANT)\](?:\s+(.*))?$/
+const ADMONITION_CONFIG: Record<string, { cls: string; icon: string; defaultTitle: string }> = {
+  NOTE:      { cls: 'lumen-adm-note',    icon: 'i', defaultTitle: 'Note' },
+  INFO:      { cls: 'lumen-adm-note',    icon: 'i', defaultTitle: 'Info' },
+  TIP:       { cls: 'lumen-adm-tip',     icon: '*', defaultTitle: 'Astuce' },
+  WARNING:   { cls: 'lumen-adm-warning', icon: '!', defaultTitle: 'Attention' },
+  IMPORTANT: { cls: 'lumen-adm-warning', icon: '!', defaultTitle: 'Important' },
+  DANGER:    { cls: 'lumen-adm-danger',  icon: 'x', defaultTitle: 'Danger' },
+}
+
+function preprocessAdmonitions(md: string): string {
+  const lines = md.split('\n')
+  const out: string[] = []
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    // Cherche un debut de blockquote admonition : "> [!TYPE] Titre?"
+    const m = line.match(/^>\s*(\[![A-Z]+\][^\n]*)/)
+    if (m) {
+      const firstInner = m[1]
+      const adm = firstInner.match(ADMONITION_PATTERN)
+      if (adm) {
+        const type = adm[1]
+        const config = ADMONITION_CONFIG[type]
+        const title = (adm[2] ?? '').trim() || config.defaultTitle
+        // Collecte les lignes suivantes du blockquote
+        const body: string[] = []
+        i++
+        while (i < lines.length && lines[i].startsWith('>')) {
+          body.push(lines[i].replace(/^>\s?/, ''))
+          i++
+        }
+        const bodyMd = body.join('\n').trim()
+        const bodyHtml = bodyMd
+          ? (marked.parse(bodyMd, { async: false }) as string)
+          : ''
+        const icon = config.icon
+        out.push(
+          `<div class="lumen-admonition ${config.cls}">` +
+            `<div class="lumen-admonition-head">` +
+              `<span class="lumen-admonition-icon" aria-hidden="true">${icon}</span>` +
+              `<span class="lumen-admonition-title">${escapeHtml(title)}</span>` +
+            `</div>` +
+            `<div class="lumen-admonition-body">${bodyHtml}</div>` +
+          `</div>`
+        )
+        continue
+      }
+    }
+    out.push(line)
+    i++
+  }
+  return out.join('\n')
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]!))
+}
+
+/**
  * Decore les mots-cles pedagogiques (TODO, NOTE, etc.) avec un span.
  * Parcourt uniquement les noeuds texte hors <pre><code> pour ne pas
  * toucher au code source colorise par highlight.js.
@@ -128,7 +203,8 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
  */
 export function renderMarkdown(md: string): string {
   if (!md) return ''
-  const rawHtml = marked.parse(md, { async: false }) as string
+  const withAdmonitions = preprocessAdmonitions(md)
+  const rawHtml = marked.parse(withAdmonitions, { async: false }) as string
   const withIds = injectHeadingIds(rawHtml)
   const withKeywords = highlightKeywords(withIds)
   return DOMPurify.sanitize(withKeywords, {

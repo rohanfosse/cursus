@@ -570,6 +570,72 @@ const nextCourse = computed(() =>
   border: none;
   border-top: 1px solid var(--border);
 }
+/* Admonitions Obsidian-style (> [!WARNING] etc.) */
+.reader-prose :deep(.lumen-admonition) {
+  margin: 20px 0;
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid;
+  background: var(--bg-elevated);
+}
+.reader-prose :deep(.lumen-admonition-head) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+.reader-prose :deep(.lumen-admonition-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 900;
+  color: white;
+}
+.reader-prose :deep(.lumen-admonition-body) {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.reader-prose :deep(.lumen-admonition-body > *:first-child) { margin-top: 0; }
+.reader-prose :deep(.lumen-admonition-body > *:last-child)  { margin-bottom: 0; }
+
+.reader-prose :deep(.lumen-adm-note) {
+  border-left-color: #4a90d9;
+  background: rgba(74, 144, 217, 0.05);
+}
+.reader-prose :deep(.lumen-adm-note .lumen-admonition-head) { color: #4a90d9; }
+.reader-prose :deep(.lumen-adm-note .lumen-admonition-icon) { background: #4a90d9; }
+
+.reader-prose :deep(.lumen-adm-tip) {
+  border-left-color: #3fb76f;
+  background: rgba(63, 183, 111, 0.05);
+}
+.reader-prose :deep(.lumen-adm-tip .lumen-admonition-head) { color: #3fb76f; }
+.reader-prose :deep(.lumen-adm-tip .lumen-admonition-icon) { background: #3fb76f; }
+
+.reader-prose :deep(.lumen-adm-warning) {
+  border-left-color: #e6a700;
+  background: rgba(230, 167, 0, 0.05);
+}
+.reader-prose :deep(.lumen-adm-warning .lumen-admonition-head) { color: #e6a700; }
+.reader-prose :deep(.lumen-adm-warning .lumen-admonition-icon) { background: #e6a700; }
+
+.reader-prose :deep(.lumen-adm-danger) {
+  border-left-color: #d9534f;
+  background: rgba(217, 83, 79, 0.05);
+}
+.reader-prose :deep(.lumen-adm-danger .lumen-admonition-head) { color: #d9534f; }
+.reader-prose :deep(.lumen-adm-danger .lumen-admonition-icon) { background: #d9534f; }
+
 /* Mots-cles pedagogiques (TODO/NOTE/WARNING) decorees par highlightKeywords */
 .reader-prose :deep(.lumen-kw) {
   display: inline-block;

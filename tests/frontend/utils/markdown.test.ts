@@ -162,3 +162,63 @@ describe('renderMarkdown - keyword highlighting', () => {
     expect(html).not.toContain('lumen-kw')
   })
 })
+
+describe('renderMarkdown - admonitions Obsidian-style', () => {
+  it('transforme > [!NOTE] Titre en bloc note', () => {
+    const md = '> [!NOTE] Ma note\n> Contenu de la note'
+    const html = renderMarkdown(md)
+    expect(html).toContain('lumen-admonition')
+    expect(html).toContain('lumen-adm-note')
+    expect(html).toContain('Ma note')
+    expect(html).toContain('Contenu de la note')
+  })
+
+  it('transforme > [!WARNING] en bloc warning', () => {
+    const md = '> [!WARNING]\n> Attention danger'
+    const html = renderMarkdown(md)
+    expect(html).toContain('lumen-adm-warning')
+    expect(html).toContain('Attention danger')
+  })
+
+  it('utilise le titre par defaut si pas fourni', () => {
+    const md = '> [!TIP]\n> Astuce rapide'
+    const html = renderMarkdown(md)
+    expect(html).toContain('lumen-adm-tip')
+    expect(html).toContain('Astuce') // titre par defaut TIP
+  })
+
+  it('gere DANGER et IMPORTANT', () => {
+    const d = renderMarkdown('> [!DANGER] Piege\n> Eviter')
+    const imp = renderMarkdown('> [!IMPORTANT]\n> Point cle')
+    expect(d).toContain('lumen-adm-danger')
+    expect(imp).toContain('lumen-adm-warning') // IMPORTANT est mappe sur warning
+  })
+
+  it('rend le contenu markdown du body', () => {
+    const md = '> [!NOTE] Test\n> **gras** et *italique*'
+    const html = renderMarkdown(md)
+    expect(html).toContain('<strong>gras</strong>')
+    expect(html).toContain('<em>italique</em>')
+  })
+
+  it('ne transforme pas un blockquote normal', () => {
+    const md = '> citation simple\n> sans admonition'
+    const html = renderMarkdown(md)
+    expect(html).toContain('<blockquote>')
+    expect(html).not.toContain('lumen-admonition')
+  })
+
+  it('gere plusieurs admonitions consecutives', () => {
+    const md = '> [!NOTE] A\n> Contenu A\n\n> [!TIP] B\n> Contenu B'
+    const html = renderMarkdown(md)
+    expect(html).toContain('lumen-adm-note')
+    expect(html).toContain('lumen-adm-tip')
+  })
+
+  it('echappe le HTML dans le titre pour eviter XSS', () => {
+    const md = '> [!NOTE] <script>alert(1)</script>\n> contenu'
+    const html = renderMarkdown(md)
+    expect(html).not.toContain('<script>alert')
+    expect(html).toContain('&lt;script&gt;')
+  })
+})
