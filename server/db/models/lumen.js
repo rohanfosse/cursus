@@ -23,6 +23,9 @@ function createLumenCourse({ teacherId, promoId, projectId = null, title, summar
 }
 
 function getLumenCourse(id) {
+  // Recupere un cours meme s'il est soft-deleted (pour la restauration).
+  // Les lectures etudiantes passent par getLumenCoursesForPromo qui exclut
+  // automatiquement les cours deleted_at != NULL.
   return getDb().prepare('SELECT * FROM lumen_courses WHERE id = ?').get(id) || null;
 }
 
@@ -32,14 +35,14 @@ function getLumenCoursesForPromo(promoId, { onlyPublished = false } = {}) {
     return db.prepare(
       `SELECT ${LIST_COLS}
        FROM lumen_courses
-       WHERE promo_id = ? AND status = 'published'
+       WHERE promo_id = ? AND status = 'published' AND deleted_at IS NULL
        ORDER BY published_at DESC, updated_at DESC`
     ).all(promoId);
   }
   return db.prepare(
     `SELECT ${LIST_COLS}
      FROM lumen_courses
-     WHERE promo_id = ?
+     WHERE promo_id = ? AND deleted_at IS NULL
      ORDER BY status ASC, updated_at DESC`
   ).all(promoId);
 }
@@ -48,8 +51,22 @@ function getLumenCoursesForTeacher(teacherId) {
   return getDb().prepare(
     `SELECT ${LIST_COLS}
      FROM lumen_courses
-     WHERE teacher_id = ?
+     WHERE teacher_id = ? AND deleted_at IS NULL
      ORDER BY updated_at DESC`
+  ).all(teacherId);
+}
+
+/**
+ * Liste les cours soft-deleted d'un teacher (pour la corbeille).
+ * Les cours restent restorables pendant 30 jours (purge manuelle ou
+ * automatique a implementer cote scheduler).
+ */
+function getTrashedLumenCoursesForTeacher(teacherId) {
+  return getDb().prepare(
+    `SELECT ${LIST_COLS}, deleted_at
+     FROM lumen_courses
+     WHERE teacher_id = ? AND deleted_at IS NOT NULL
+     ORDER BY deleted_at DESC`
   ).all(teacherId);
 }
 
@@ -137,7 +154,40 @@ function unpublishLumenCourse(id) {
   return getLumenCourse(id);
 }
 
+/**
+ * Soft delete : le cours passe en corbeille (deleted_at = now). Les etudiants
+ * ne le voient plus, mais le teacher peut le restaurer via restoreLumenCourse.
+ * Apres 30 jours, un job scheduler peut appeler purgeLumenCourse pour le
+ * supprimer definitivement. Retourne le cours a jour.
+ */
 function deleteLumenCourse(id) {
+  const db = getDb();
+  db.prepare(
+    `UPDATE lumen_courses
+       SET deleted_at = datetime('now'),
+           updated_at = datetime('now')
+     WHERE id = ? AND deleted_at IS NULL`
+  ).run(id);
+  return getLumenCourse(id);
+}
+
+/** Restaure un cours soft-deleted en remettant deleted_at a NULL. */
+function restoreLumenCourse(id) {
+  const db = getDb();
+  db.prepare(
+    `UPDATE lumen_courses
+       SET deleted_at = NULL,
+           updated_at = datetime('now')
+     WHERE id = ?`
+  ).run(id);
+  return getLumenCourse(id);
+}
+
+/**
+ * Suppression definitive (hard delete). Utilise par le teacher pour vider
+ * manuellement la corbeille, ou par un job scheduler apres 30 jours.
+ */
+function purgeLumenCourse(id) {
   getDb().prepare('DELETE FROM lumen_courses WHERE id = ?').run(id);
 }
 
@@ -147,7 +197,7 @@ function getLumenStatsForPromo(promoId) {
        COUNT(*) AS total,
        SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) AS published,
        SUM(CASE WHEN status = 'draft'     THEN 1 ELSE 0 END) AS drafts
-     FROM lumen_courses WHERE promo_id = ?`
+     FROM lumen_courses WHERE promo_id = ? AND deleted_at IS NULL`
   ).get(promoId);
   return {
     total:     row?.total ?? 0,
@@ -332,6 +382,9 @@ module.exports = {
   publishLumenCourse,
   unpublishLumenCourse,
   deleteLumenCourse,
+  restoreLumenCourse,
+  purgeLumenCourse,
+  getTrashedLumenCoursesForTeacher,
   getLumenStatsForPromo,
   setLumenCourseSnapshot,
   getLumenCourseSnapshot,

@@ -129,11 +129,43 @@ describe('publishLumenCourse / unpublishLumenCourse', () => {
   })
 })
 
-describe('deleteLumenCourse', () => {
-  it('supprime un cours definitivement', () => {
+describe('deleteLumenCourse (soft delete)', () => {
+  it('met deleted_at au lieu de supprimer (soft delete)', () => {
     const c = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Bye' })
     queries.deleteLumenCourse(c.id)
+    const after = queries.getLumenCourse(c.id)
+    expect(after).not.toBeNull()
+    expect(after.deleted_at).not.toBeNull()
+  })
+
+  it('exclut le cours soft-deleted de getLumenCoursesForPromo', () => {
+    const c = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Hidden' })
+    queries.deleteLumenCourse(c.id)
+    const list = queries.getLumenCoursesForPromo(1)
+    expect(list.find(x => x.id === c.id)).toBeUndefined()
+  })
+
+  it('restoreLumenCourse remet le cours dans la liste', () => {
+    const c = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Restored' })
+    queries.deleteLumenCourse(c.id)
+    queries.restoreLumenCourse(c.id)
+    const list = queries.getLumenCoursesForPromo(1)
+    expect(list.find(x => x.id === c.id)).toBeDefined()
+    const after = queries.getLumenCourse(c.id)
+    expect(after.deleted_at).toBeNull()
+  })
+
+  it('purgeLumenCourse supprime definitivement', () => {
+    const c = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Gone' })
+    queries.purgeLumenCourse(c.id)
     expect(queries.getLumenCourse(c.id)).toBeNull()
+  })
+
+  it('getTrashedLumenCoursesForTeacher retourne les soft-deleted', () => {
+    const c = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Trashed' })
+    queries.deleteLumenCourse(c.id)
+    const trash = queries.getTrashedLumenCoursesForTeacher(1)
+    expect(trash.find(x => x.id === c.id)).toBeDefined()
   })
 })
 
@@ -207,10 +239,18 @@ describe('Notes privees etudiant', () => {
     expect(queries.getLumenCourseNote(1, course.id)).toBeNull()
   })
 
-  it('supprime automatiquement les notes a la suppression du cours (ON DELETE CASCADE)', () => {
-    const course = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Cascade' })
-    queries.upsertLumenCourseNote(1, course.id, 'cascade test')
+  it('soft-delete preserve les notes (cascade uniquement sur purge)', () => {
+    const course = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Soft cascade' })
+    queries.upsertLumenCourseNote(1, course.id, 'preservee en soft')
     queries.deleteLumenCourse(course.id)
+    // Soft delete ne touche pas aux notes
+    expect(queries.getLumenCourseNote(1, course.id)).not.toBeNull()
+  })
+
+  it('purge supprime les notes via ON DELETE CASCADE', () => {
+    const course = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Hard cascade' })
+    queries.upsertLumenCourseNote(1, course.id, 'a supprimer cascade')
+    queries.purgeLumenCourse(course.id)
     expect(queries.getLumenCourseNote(1, course.id)).toBeNull()
   })
 

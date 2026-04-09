@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 53;
+const CURRENT_VERSION = 54;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -1098,6 +1098,12 @@ function runMigrations(db) {
         );
         CREATE INDEX IF NOT EXISTS idx_lumen_notes_student ON lumen_course_notes(student_id);
       `);
+    },
+
+    // v54 : Lumen — soft-delete des cours (corbeille)
+    (db) => {
+      tryAlter(db, `ALTER TABLE lumen_courses ADD COLUMN deleted_at TEXT`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_lumen_courses_deleted ON lumen_courses(deleted_at);`);
     },
   ];
 

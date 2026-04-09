@@ -305,11 +305,35 @@ router.post('/courses/:id/unpublish', requireCourseOwner, wrap((req) => {
   return queries.unpublishLumenCourse(id)
 }))
 
-// DELETE /api/lumen/courses/:id — supprimer un cours
+// DELETE /api/lumen/courses/:id — soft delete (corbeille 30 jours)
 router.delete('/courses/:id', requireCourseOwner, wrap((req) => {
   const id = Number(req.params.id)
   queries.deleteLumenCourse(id)
-  return { id, deleted: true }
+  return { id, deleted: true, soft: true }
+}))
+
+// POST /api/lumen/courses/:id/restore — restore d'un cours soft-deleted
+router.post('/courses/:id/restore', requireCourseOwner, wrap((req) => {
+  const id = Number(req.params.id)
+  const course = queries.restoreLumenCourse(id)
+  return { id, restored: true, course }
+}))
+
+// DELETE /api/lumen/courses/:id/purge — suppression definitive (hard delete)
+// Ne passe pas par la corbeille. Utilise pour vider manuellement ou apres
+// cooldown de 30 jours.
+router.delete('/courses/:id/purge', requireCourseOwner, wrap((req) => {
+  const id = Number(req.params.id)
+  queries.purgeLumenCourse(id)
+  return { id, purged: true }
+}))
+
+// GET /api/lumen/trash — liste les cours en corbeille du teacher courant
+// Chemin separe de /courses/:id pour eviter le conflit de routing Express
+// (/:id interprete "trash" comme un id NaN).
+router.get('/trash', requireRole('teacher'), wrap((req) => {
+  const teacherId = getTeacherIdFromReq(req)
+  return queries.getTrashedLumenCoursesForTeacher(teacherId)
 }))
 
 // GET /api/lumen/stats/promo/:promoId — stats pour le dashboard enseignant

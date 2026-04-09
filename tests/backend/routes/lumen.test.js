@@ -153,12 +153,50 @@ describe('Lumen courses CRUD', () => {
     expect(res.status).toBe(403)
   })
 
-  it('proprietaire peut supprimer son cours', async () => {
+  it('proprietaire peut supprimer son cours (soft delete)', async () => {
     const res = await request(app)
       .delete(`/api/lumen/courses/${courseId}`)
       .set('Authorization', `Bearer ${teacherToken}`)
     expect(res.status).toBe(200)
     expect(res.body.data.deleted).toBe(true)
+    expect(res.body.data.soft).toBe(true)
+  })
+
+  it('GET /trash : liste les cours soft-deleted du teacher', async () => {
+    const queries = require('../../../server/db/index')
+    const c = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Trash list test' })
+    queries.deleteLumenCourse(c.id)
+    const res = await request(app)
+      .get('/api/lumen/trash')
+      .set('Authorization', `Bearer ${teacherToken}`)
+    expect(res.status).toBe(200)
+    const ids = res.body.data.map((x) => x.id)
+    expect(ids).toContain(c.id)
+  })
+
+  it('POST /courses/:id/restore : restaure un cours soft-deleted', async () => {
+    const queries = require('../../../server/db/index')
+    const c = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Restore test' })
+    queries.deleteLumenCourse(c.id)
+    const res = await request(app)
+      .post(`/api/lumen/courses/${c.id}/restore`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+    expect(res.status).toBe(200)
+    expect(res.body.data.restored).toBe(true)
+    // Le cours reapparait dans la liste normale
+    const list = queries.getLumenCoursesForPromo(1)
+    expect(list.find((x) => x.id === c.id)).toBeDefined()
+  })
+
+  it('DELETE /courses/:id/purge : supprime definitivement', async () => {
+    const queries = require('../../../server/db/index')
+    const c = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Purge test' })
+    const res = await request(app)
+      .delete(`/api/lumen/courses/${c.id}/purge`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+    expect(res.status).toBe(200)
+    expect(res.body.data.purged).toBe(true)
+    expect(queries.getLumenCourse(c.id)).toBeNull()
   })
 })
 
