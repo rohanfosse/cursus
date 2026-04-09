@@ -221,4 +221,25 @@ describe('renderMarkdown - admonitions Obsidian-style', () => {
     expect(html).not.toContain('<script>alert')
     expect(html).toContain('&lt;script&gt;')
   })
+
+  it('injecte un SVG icone inline pour chaque type d admonition', () => {
+    const note = renderMarkdown('> [!NOTE]\n> test')
+    const warn = renderMarkdown('> [!WARNING]\n> test')
+    const danger = renderMarkdown('> [!DANGER]\n> test')
+    const tip = renderMarkdown('> [!TIP]\n> test')
+    expect(note).toContain('<svg')
+    expect(warn).toContain('<svg')
+    expect(danger).toContain('<svg')
+    expect(tip).toContain('<svg')
+    // Verifier que les SVG sont marques aria-hidden (purement decoratifs)
+    expect(note).toContain('aria-hidden="true"')
+  })
+
+  it('DOMPurify conserve les SVG des admonitions apres sanitisation', () => {
+    const html = renderMarkdown('> [!WARNING] Important\n> contenu')
+    // Apres sanitisation DOMPurify, le SVG doit toujours etre present
+    expect(html).toContain('<svg')
+    expect(html).toContain('viewBox')
+    expect(html).toContain('lumen-admonition-icon')
+  })
 })

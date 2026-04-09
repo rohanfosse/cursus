@@ -415,7 +415,11 @@ const formatSize = formatBytes
 }
 .viewer-head-icon { color: var(--text-muted); flex-shrink: 0; }
 
-/* Breadcrumb : segments du chemin affiches avec separateur / */
+/* Breadcrumb : segments du chemin avec separateur /.
+ * Regles de troncature : les dossiers intermediaires peuvent etre
+ * tronques (flex-shrink: 1 + min-width: 0) mais le nom de fichier
+ * (viewer-head-seg--last) reste toujours entier (flex-shrink: 0).
+ * Lecture naturelle gauche→droite, pas de RTL. */
 .viewer-head-breadcrumb {
   flex: 1;
   display: flex;
@@ -437,15 +441,18 @@ const formatSize = formatBytes
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.viewer-head-seg--last {
+  flex-shrink: 0;  /* Nom de fichier : jamais tronque */
+}
 .viewer-head-seg--last .viewer-head-seg-label {
   color: var(--text-primary);
   font-weight: 600;
-  flex-shrink: 0;
 }
 .viewer-head-sep {
   margin: 0 5px;
   color: var(--text-muted);
   opacity: 0.5;
+  flex-shrink: 0;
 }
 
 .viewer-head-size {

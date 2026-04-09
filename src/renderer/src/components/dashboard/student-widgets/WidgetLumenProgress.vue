@@ -64,7 +64,12 @@ const dashOffset = computed(() => {
     </div>
 
     <div v-if="stats" class="sa-lumen-progress-body">
-      <svg class="sa-lumen-progress-ring" viewBox="0 0 64 64" aria-hidden="true">
+      <svg
+        class="sa-lumen-progress-ring"
+        viewBox="0 0 64 64"
+        role="img"
+        :aria-label="`Progression : ${stats.readCount} cours lus sur ${stats.publishedCount}, soit ${stats.percent} pourcent`"
+      >
         <circle
           class="sa-lumen-progress-track"
           cx="32" cy="32" :r="RADIUS"
@@ -79,7 +84,7 @@ const dashOffset = computed(() => {
           :stroke-dashoffset="dashOffset"
           transform="rotate(-90 32 32)"
         />
-        <text x="32" y="36" text-anchor="middle" class="sa-lumen-progress-text">{{ stats.percent }}%</text>
+        <text x="32" y="36" text-anchor="middle" class="sa-lumen-progress-text" aria-hidden="true">{{ stats.percent }}%</text>
       </svg>
       <div class="sa-lumen-progress-info">
         <div class="sa-lumen-progress-count">

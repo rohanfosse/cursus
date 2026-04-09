@@ -4,7 +4,7 @@
  * restore et purge definitive. Accessible depuis la toolbar de la liste
  * teacher uniquement. Se charge lazy a l'ouverture.
  */
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount, nextTick } from 'vue'
 import { Trash2, RotateCcw, X } from 'lucide-vue-next'
 import { useLumenStore } from '@/stores/lumen'
 import { useToast } from '@/composables/useToast'
@@ -22,18 +22,37 @@ const { showToast } = useToast()
 const { confirm: confirmDialog } = useConfirm()
 
 const loading = ref(false)
+const closeBtnRef = ref<HTMLButtonElement | null>(null)
 
 // Charge la corbeille a chaque ouverture du modal (pas de cache : le
-// contenu change rarement et l'etudiant peut vouloir un etat a jour).
+// contenu change rarement et le prof peut vouloir un etat a jour).
+// Au passage : focus le bouton Fermer pour amorcer le focus trap.
 watch(() => props.open, async (isOpen) => {
   if (isOpen) {
     loading.value = true
+    document.addEventListener('keydown', onKeydown)
     try {
       await lumenStore.fetchTrash()
     } finally {
       loading.value = false
     }
+    await nextTick()
+    closeBtnRef.value?.focus()
+  } else {
+    document.removeEventListener('keydown', onKeydown)
   }
+})
+
+// Escape ferme le modal
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && props.open) {
+    e.preventDefault()
+    emit('close')
+  }
+}
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKeydown)
 })
 
 async function handleRestore(courseId: number, title: string) {
@@ -91,9 +110,10 @@ const sortedTrash = computed<TrashedCourse[]>(() => {
             <h2 id="trash-title" class="trash-title">Corbeille Lumen</h2>
             <span class="trash-count">{{ sortedTrash.length }}</span>
             <button
+              ref="closeBtnRef"
               type="button"
               class="trash-close"
-              aria-label="Fermer"
+              aria-label="Fermer la corbeille"
               title="Fermer (Esc)"
               @click="emit('close')"
             >

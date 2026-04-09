@@ -53,10 +53,14 @@ const keyboardHelpOpen = ref(false)
 // Modal corbeille (teacher uniquement)
 const trashModalOpen = ref(false)
 function onGlobalKey(e: KeyboardEvent) {
-  // ? = Shift+/ sur clavier FR et US. Ignore dans les inputs/textarea.
+  // ? = Shift+/ sur clavier FR et US. Ignore dans les inputs/textarea,
+  // et n'ouvre pas le help si un modal est deja ouvert (evite de stacker
+  // plusieurs overlays sur les profs qui ont la corbeille ou le planning
+  // ouvert).
   if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const target = e.target as HTMLElement | null
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
+    if (trashModalOpen.value || scheduleModalOpen.value || showCmdPalette.value) return
     e.preventDefault()
     keyboardHelpOpen.value = true
   } else if (e.key === 'Escape' && keyboardHelpOpen.value) {
