@@ -7,6 +7,7 @@ import { FileText, Link2, Image, ChevronRight } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useDocumentsStore } from '@/stores/documents'
+import { relativeTime } from '@/utils/date'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -41,15 +42,7 @@ const typeIcon = computed(() => {
 })
 
 const relativeDate = computed(() => {
-  if (!recentDoc.value) return ''
-  const diff = Date.now() - new Date(recentDoc.value.created_at).getTime()
-  const hours = diff / (3600 * 1000)
-  if (hours < 1) return "Il y a moins d'1h"
-  if (hours < 24) return `Il y a ${Math.floor(hours)}h`
-  const days = Math.floor(hours / 24)
-  if (days === 1) return 'Hier'
-  if (days < 7) return `Il y a ${days}j`
-  return `Il y a ${Math.floor(days / 7)} sem.`
+  return recentDoc.value ? relativeTime(recentDoc.value.created_at) : ''
 })
 
 function navigateToDocuments() {

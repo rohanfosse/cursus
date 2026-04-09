@@ -8,6 +8,7 @@ import { computed } from 'vue'
 import { Lightbulb, ChevronRight } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useLumenStore } from '@/stores/lumen'
+import { relativeTime } from '@/utils/date'
 
 const router = useRouter()
 const lumenStore = useLumenStore()
@@ -17,15 +18,7 @@ const visibleCourses = computed(() => lumenStore.unreadCourses.slice(0, 3))
 const remaining = computed(() => Math.max(0, lumenStore.unreadCount - visibleCourses.value.length))
 
 function relativeDate(iso: string | null): string {
-  if (!iso) return ''
-  const diff = Date.now() - new Date(iso).getTime()
-  const hours = diff / (3600 * 1000)
-  if (hours < 1) return "Il y a moins d'1h"
-  if (hours < 24) return `Il y a ${Math.floor(hours)}h`
-  const days = Math.floor(hours / 24)
-  if (days === 1) return 'Hier'
-  if (days < 7) return `Il y a ${days}j`
-  return `Il y a ${Math.floor(days / 7)} sem.`
+  return iso ? relativeTime(iso) : ''
 }
 
 function openCourse(courseId: number) {
