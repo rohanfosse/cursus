@@ -416,7 +416,7 @@ contextBridge.exposeInMainWorld('api', {
   setTeacherChannels: (payload: { teacherId: number; channelIds: number[] }) => post(`/api/teachers/${payload.teacherId}/channels`, payload),
 
   // ── Projets (entite backend) ──────────────────────────────────────────────
-  getProjectsByPromo:      (promoId: number)                          => get(`/api/projects?promoId=${promoId}`),
+  getProjectsByPromo:      (promoId: number)                          => get(`/api/projects/promo/${promoId}`),
   getProjectById:          (id: number)                               => get(`/api/projects/${id}`),
   createProject:           (payload: unknown)                         => post('/api/projects', payload),
   updateProject:           (id: number, payload: unknown)             => patch(`/api/projects/${id}`, payload),
