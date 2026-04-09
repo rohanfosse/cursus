@@ -94,10 +94,51 @@ export const useLumenStore = defineStore('lumen', () => {
   }
 
   async function deleteCourse(id: number): Promise<boolean> {
-    const data = await api<{ id: number; deleted: boolean }>(() => window.api.deleteLumenCourse(id))
+    const data = await api<{ id: number; deleted: boolean; soft?: boolean }>(() => window.api.deleteLumenCourse(id))
     if (data?.deleted) {
+      // Soft delete : retirer de la liste visible mais garder en cache
+      // pour pouvoir restaurer sans refetch.
       courses.value = courses.value.filter(c => c.id !== id)
       if (currentCourse.value?.id === id) currentCourse.value = null
+      return true
+    }
+    return false
+  }
+
+  // ── Corbeille (soft delete) ────────────────────────────────────────────
+
+  const trashedCourses = ref<LumenCourse[]>([])
+
+  async function fetchTrash(): Promise<void> {
+    const data = await api<LumenCourse[]>(
+      () => window.api.getLumenTrash(),
+      { silent: true },
+    )
+    trashedCourses.value = data ?? []
+  }
+
+  async function restoreCourse(id: number): Promise<boolean> {
+    const data = await api<{ id: number; restored: boolean; course: LumenCourse }>(
+      () => window.api.restoreLumenCourse(id),
+      { silent: true },
+    )
+    if (data?.restored && data.course) {
+      trashedCourses.value = trashedCourses.value.filter(c => c.id !== id)
+      // Re-inject dans la liste principale
+      const exists = courses.value.find(c => c.id === id)
+      if (!exists) courses.value = [data.course, ...courses.value]
+      return true
+    }
+    return false
+  }
+
+  async function purgeCourse(id: number): Promise<boolean> {
+    const data = await api<{ id: number; purged: boolean }>(
+      () => window.api.purgeLumenCourse(id),
+      { silent: true },
+    )
+    if (data?.purged) {
+      trashedCourses.value = trashedCourses.value.filter(c => c.id !== id)
       return true
     }
     return false
@@ -418,11 +459,13 @@ export const useLumenStore = defineStore('lumen', () => {
   return {
     courses, currentCourse, loading,
     unreadCourses, unreadCount, readCounts,
+    trashedCourses,
     snapshotTrees, fileContentCache, notesCache, notedCourseIds,
     publishedCourses, draftCourses,
     fetchCoursesForPromo, fetchCourse,
     createCourse, updateCourse,
     publishCourse, unpublishCourse, deleteCourse,
+    fetchTrash, restoreCourse, purgeCourse,
     clearCurrentCourse,
     fetchUnread, markAsRead, markAllAsRead, resetUnread, onCoursePublished,
     fetchReadCounts,

@@ -5,7 +5,7 @@ import {
   Lightbulb, Plus, Eye, Edit3, Trash2, ArrowLeft, CheckCircle2, Clock,
   Save, Columns, BookOpen, ListTree, Maximize2, Minimize2, Download, Clipboard,
   Command as CommandIcon, Github, RefreshCw, ExternalLink, Package, Search,
-  NotebookPen, X, CheckCheck, Users, Copy,
+  NotebookPen, X, CheckCheck, Users, Copy, Trash,
 } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useLumenStore } from '@/stores/lumen'
@@ -22,6 +22,7 @@ import LumenPreview from '@/components/lumen/LumenPreview.vue'
 import LumenCommandPalette from '@/components/lumen/LumenCommandPalette.vue'
 import LumenReader from '@/components/lumen/LumenReader.vue'
 import LumenKeyboardHelp from '@/components/lumen/LumenKeyboardHelp.vue'
+import LumenTrashModal from '@/components/lumen/LumenTrashModal.vue'
 import type { CursorInfo } from '@/composables/useLumenEditor'
 import type { LumenCourse, Promotion } from '@/types'
 import { relativeTime } from '@/utils/date'
@@ -46,6 +47,9 @@ const readerInitialFile = ref<string | null>(null)
 
 // Overlay d'aide clavier (ouvert via ?)
 const keyboardHelpOpen = ref(false)
+
+// Modal corbeille (teacher uniquement)
+const trashModalOpen = ref(false)
 function onGlobalKey(e: KeyboardEvent) {
   // ? = Shift+/ sur clavier FR et US. Ignore dans les inputs/textarea.
   if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -951,6 +955,14 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
         </div>
 
         <div class="lumen-topbar-actions">
+          <button
+            v-if="mode === 'list' && isTeacher"
+            class="lumen-btn lumen-btn--ghost"
+            title="Ouvrir la corbeille Lumen"
+            @click="trashModalOpen = true"
+          >
+            <Trash :size="15" /> Corbeille
+          </button>
           <button v-if="mode === 'list' && isTeacher" class="lumen-btn lumen-btn--primary" @click="openEditorNew">
             <Plus :size="15" /> Nouveau cours
           </button>
@@ -1475,6 +1487,13 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
         :open="keyboardHelpOpen"
         :mode="mode"
         @close="keyboardHelpOpen = false"
+      />
+
+      <!-- Modal corbeille (teacher uniquement) -->
+      <LumenTrashModal
+        v-if="isTeacher"
+        :open="trashModalOpen"
+        @close="trashModalOpen = false"
       />
     </div>
   </ErrorBoundary>

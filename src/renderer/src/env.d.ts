@@ -314,7 +314,10 @@ declare global {
       updateLumenCourse(id: number, payload: { title?: string; summary?: string; content?: string; projectId?: number | null; repoUrl?: string | null }): Promise<IpcResponse<import('./types').LumenCourse>>
       publishLumenCourse(id: number): Promise<IpcResponse<import('./types').LumenCourse>>
       unpublishLumenCourse(id: number): Promise<IpcResponse<import('./types').LumenCourse>>
-      deleteLumenCourse(id: number): Promise<IpcResponse<{ id: number; deleted: boolean }>>
+      deleteLumenCourse(id: number): Promise<IpcResponse<{ id: number; deleted: boolean; soft?: boolean }>>
+      restoreLumenCourse(id: number): Promise<IpcResponse<{ id: number; restored: boolean; course: import('./types').LumenCourse }>>
+      purgeLumenCourse(id: number): Promise<IpcResponse<{ id: number; purged: boolean }>>
+      getLumenTrash(): Promise<IpcResponse<Array<import('./types').LumenCourse & { deleted_at: string }>>>
       getLumenStatsForPromo(promoId: number): Promise<IpcResponse<{ total: number; published: number; drafts: number }>>
       markLumenCourseRead(id: number): Promise<IpcResponse<{ ok: true; courseId: number }>>
       markAllLumenCoursesRead(promoId: number): Promise<IpcResponse<{ marked: number }>>
