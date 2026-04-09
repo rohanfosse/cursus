@@ -240,6 +240,22 @@ function deleteLumenCourseNote(studentId, courseId) {
   ).run(studentId, courseId);
 }
 
+/**
+ * Retourne la liste des IDs de cours ayant une note non vide pour cet etudiant.
+ * Utilise par le frontend pour afficher un indicateur sur les course cards
+ * sans avoir a fetcher le contenu de chaque note (la vraie note reste privee
+ * et n'est chargee qu'a l'ouverture du reader).
+ */
+function getStudentNotedCourseIds(studentId) {
+  const rows = getDb().prepare(
+    `SELECT course_id
+     FROM lumen_course_notes
+     WHERE student_id = ?
+       AND length(trim(content)) > 0`
+  ).all(studentId);
+  return rows.map(r => r.course_id);
+}
+
 module.exports = {
   createLumenCourse,
   getLumenCourse,
@@ -259,4 +275,5 @@ module.exports = {
   getLumenCourseNote,
   upsertLumenCourseNote,
   deleteLumenCourseNote,
+  getStudentNotedCourseIds,
 };

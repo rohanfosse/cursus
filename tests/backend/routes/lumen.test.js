@@ -457,6 +457,29 @@ describe('Lumen snapshot routes', () => {
         .send({ content: huge })
       expect(res.status).toBe(400)
     })
+
+    it('GET /my-noted-courses : retourne les IDs des cours annotes', async () => {
+      // L'etudiant a deja une note vide apres DELETE precedent. On en cree deux nouvelles.
+      const a = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'NC A' })
+      const b = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'NC B' })
+      queries.publishLumenCourse(a.id)
+      queries.publishLumenCourse(b.id)
+      queries.upsertLumenCourseNote(1, a.id, 'note reelle A')
+      queries.upsertLumenCourseNote(1, b.id, 'note reelle B')
+
+      const res = await request(app)
+        .get('/api/lumen/my-noted-courses')
+        .set('Authorization', `Bearer ${studentToken}`)
+      expect(res.status).toBe(200)
+      expect(res.body.data.course_ids).toEqual(expect.arrayContaining([a.id, b.id]))
+    })
+
+    it('GET /my-noted-courses : refuse les teachers (403)', async () => {
+      const res = await request(app)
+        .get('/api/lumen/my-noted-courses')
+        .set('Authorization', `Bearer ${teacherToken}`)
+      expect(res.status).toBe(403)
+    })
   })
 
   it('POST /snapshot : cooldown anti-abuse en prod (429 REFRESH_COOLDOWN)', async () => {

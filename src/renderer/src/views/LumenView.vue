@@ -4,7 +4,8 @@ import { useRoute } from 'vue-router'
 import {
   Lightbulb, Plus, Eye, Edit3, Trash2, ArrowLeft, CheckCircle2, Clock,
   Save, Columns, BookOpen, ListTree, Maximize2, Minimize2, Download, Clipboard,
-  Command as CommandIcon, Github, RefreshCw, ExternalLink, Package,
+  Command as CommandIcon, Github, RefreshCw, ExternalLink, Package, Search,
+  NotebookPen, X,
 } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useLumenStore } from '@/stores/lumen'
@@ -32,6 +33,11 @@ const route = useRoute()
 
 type Mode = 'list' | 'editor' | 'reader'
 const mode = ref<Mode>('list')
+
+// ── Filtres de liste de cours (etudiants uniquement) ─────────────────────
+type CourseFilter = 'all' | 'unread' | 'noted' | 'withProject'
+const listFilter = ref<CourseFilter>('all')
+const listSearch = ref('')
 
 // Deep link vers un fichier precis du projet d'exemple (via query ?file=)
 // passe au LumenReader qui le transmet au LumenProjectPanel.
@@ -102,14 +108,52 @@ const sortedCoursesForSidebar = computed(() => {
   })
 })
 
+// Liste filtree pour l'ecran liste etudiant. Filtre + recherche combines,
+// la recherche s'applique sur title + summary en insensible casse.
+const filteredCourses = computed(() => {
+  const q = listSearch.value.trim().toLowerCase()
+  const unreadIds = new Set(lumenStore.unreadCourses.map(c => c.id))
+  const notedIds = lumenStore.notedCourseIds
+  return lumenStore.courses.filter((c) => {
+    if (q) {
+      const matches =
+        c.title.toLowerCase().includes(q) ||
+        (c.summary ?? '').toLowerCase().includes(q)
+      if (!matches) return false
+    }
+    switch (listFilter.value) {
+      case 'unread':      return unreadIds.has(c.id)
+      case 'noted':       return notedIds.has(c.id)
+      case 'withProject': return c.repo_snapshot_at != null
+      default:            return true
+    }
+  })
+})
+
+// Compteurs pour les boutons de filtre
+const filterCounts = computed(() => {
+  const unreadIds = new Set(lumenStore.unreadCourses.map(c => c.id))
+  const notedIds = lumenStore.notedCourseIds
+  return {
+    all: lumenStore.courses.length,
+    unread: lumenStore.courses.filter(c => unreadIds.has(c.id)).length,
+    noted: lumenStore.courses.filter(c => notedIds.has(c.id)).length,
+    withProject: lumenStore.courses.filter(c => c.repo_snapshot_at != null).length,
+  }
+})
+
 // ── Data loading ────────────────────────────────────────────────────────────
 async function loadCourses() {
   if (!promoId.value) return
-  // Charge cours + projets en parallele : le selecteur projet a besoin
-  // de la liste des projets de la promo, et c'est independant des cours.
+  // Charge cours + projets + compteurs unread/notes en parallele : le
+  // selecteur projet (cote prof) a besoin de la liste des projets de la
+  // promo, les etudiants ont besoin des IDs non-lus et des IDs annotes
+  // pour afficher les badges et les filtres.
   await Promise.all([
     lumenStore.fetchCoursesForPromo(promoId.value),
     isTeacher.value ? loadProjects(promoId.value) : Promise.resolve(),
+    !isTeacher.value ? lumenStore.fetchUnread(promoId.value) : Promise.resolve(),
+    !isTeacher.value ? lumenStore.fetchNotedCourseIds() : Promise.resolve(),
   ])
 }
 
@@ -843,9 +887,62 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
           </button>
         </div>
 
-        <div v-else class="lumen-list-grid">
+        <template v-else>
+          <!-- Barre de filtres + recherche (etudiants uniquement) -->
+          <div v-if="!isTeacher" class="lumen-list-toolbar">
+            <div class="lumen-list-search">
+              <Search :size="13" class="lumen-list-search-icon" />
+              <input
+                v-model="listSearch"
+                type="text"
+                class="lumen-list-search-input"
+                placeholder="Rechercher dans les cours…"
+                aria-label="Rechercher dans les cours"
+              />
+              <button
+                v-if="listSearch"
+                type="button"
+                class="lumen-list-search-clear"
+                title="Effacer"
+                aria-label="Effacer la recherche"
+                @click="listSearch = ''"
+              >
+                <X :size="12" />
+              </button>
+            </div>
+            <div class="lumen-list-filters" role="tablist" aria-label="Filtres de cours">
+              <button
+                v-for="f in [
+                  { id: 'all', label: 'Tous', count: filterCounts.all },
+                  { id: 'unread', label: 'Non lus', count: filterCounts.unread },
+                  { id: 'noted', label: 'Avec notes', count: filterCounts.noted },
+                  { id: 'withProject', label: 'Avec projet', count: filterCounts.withProject },
+                ]"
+                :key="f.id"
+                type="button"
+                role="tab"
+                :aria-selected="listFilter === f.id"
+                class="lumen-list-filter"
+                :class="{ 'lumen-list-filter--active': listFilter === f.id }"
+                @click="listFilter = f.id as CourseFilter"
+              >
+                {{ f.label }}
+                <span v-if="f.count > 0" class="lumen-list-filter-count">{{ f.count }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="filteredCourses.length === 0" class="lumen-empty lumen-empty--small">
+            <Search :size="24" class="lumen-empty-icon" />
+            <p>Aucun cours ne correspond a ta recherche ou ton filtre.</p>
+            <button v-if="listSearch || listFilter !== 'all'" class="lumen-btn lumen-btn--ghost" @click="() => { listSearch = ''; listFilter = 'all' }">
+              Reinitialiser
+            </button>
+          </div>
+
+          <div v-else class="lumen-list-grid">
           <article
-            v-for="course in lumenStore.courses"
+            v-for="course in filteredCourses"
             :key="course.id"
             class="lumen-card"
             :class="{ 'lumen-card--draft': course.status === 'draft' }"
@@ -863,9 +960,15 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
             </header>
             <h3 class="lumen-card-title">{{ course.title }}</h3>
             <p v-if="course.summary" class="lumen-card-summary">{{ course.summary }}</p>
-            <div v-if="course.repo_snapshot_at" class="lumen-card-repo" title="Ce cours contient un projet de code d'exemple">
-              <Package :size="11" />
-              <span>Projet d'exemple</span>
+            <div class="lumen-card-badges">
+              <span v-if="course.repo_snapshot_at" class="lumen-card-repo" title="Ce cours contient un projet de code d'exemple">
+                <Package :size="11" />
+                <span>Projet</span>
+              </span>
+              <span v-if="!isTeacher && lumenStore.notedCourseIds.has(course.id)" class="lumen-card-note" title="Tu as pris des notes sur ce cours">
+                <NotebookPen :size="11" />
+                <span>Notes</span>
+              </span>
             </div>
             <footer class="lumen-card-actions">
               <button class="lumen-card-link" @click.stop="openReader(course)">
@@ -876,7 +979,8 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
               </button>
             </footer>
           </article>
-        </div>
+          </div>
+        </template>
       </main>
 
       <!-- READER MODE -->
@@ -1398,20 +1502,125 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
   font-family: inherit;
 }
 .lumen-card-link:hover { color: var(--accent); }
-.lumen-card-repo {
+.lumen-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.lumen-card-repo,
+.lumen-card-note {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-top: 8px;
   padding: 3px 9px;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  border-radius: var(--radius-sm);
+}
+.lumen-card-repo {
   color: var(--accent);
   background: var(--accent-subtle);
+}
+.lumen-card-note {
+  color: #e6a700;
+  background: rgba(230, 167, 0, 0.15);
+}
+
+/* Barre de filtres + recherche liste */
+.lumen-list-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+  padding: 0 4px;
+}
+.lumen-list-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
   border-radius: var(--radius-sm);
-  width: fit-content;
+  padding: 6px 10px;
+  flex: 1;
+  min-width: 200px;
+  max-width: 360px;
+  transition: border-color 120ms ease;
+}
+.lumen-list-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+.lumen-list-search-icon { color: var(--text-muted); flex-shrink: 0; }
+.lumen-list-search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  min-width: 0;
+}
+.lumen-list-search-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.lumen-list-search-clear:hover { color: var(--text-primary); }
+
+.lumen-list-filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.lumen-list-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+  transition: all 120ms ease;
+}
+.lumen-list-filter:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.lumen-list-filter--active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.lumen-list-filter-count {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.lumen-list-filter--active .lumen-list-filter-count {
+  background: var(--accent);
+  color: var(--bg-primary, #111);
+}
+
+.lumen-empty--small {
+  padding: 40px 20px;
+  min-height: 140px;
 }
 .lumen-card-link:focus-visible {
   outline: var(--focus-ring);

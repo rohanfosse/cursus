@@ -87,11 +87,42 @@ const readingTime = computed(() => {
 const scrollRootRef = ref<HTMLElement | null>(null)
 const progress = ref(0)
 
+// Persistance de la position de scroll par cours : l'etudiant reprend
+// la ou il etait quand il revient sur un cours deja lu. Debounce 300ms
+// pour ne pas thrash localStorage pendant un scroll rapide.
+const SCROLL_STORAGE_KEY = 'lumen:scroll:' // + courseId
+let scrollPersistTimer: ReturnType<typeof setTimeout> | null = null
+
+function persistScrollPosition() {
+  if (scrollPersistTimer) clearTimeout(scrollPersistTimer)
+  scrollPersistTimer = setTimeout(() => {
+    try {
+      const el = scrollRootRef.value
+      if (!el || !props.course.id) return
+      localStorage.setItem(`${SCROLL_STORAGE_KEY}${props.course.id}`, String(el.scrollTop))
+    } catch { /* quota plein ou storage disabled, on ignore */ }
+  }, 300)
+}
+
+function restoreScrollPosition() {
+  try {
+    const el = scrollRootRef.value
+    if (!el || !props.course.id) return
+    const stored = localStorage.getItem(`${SCROLL_STORAGE_KEY}${props.course.id}`)
+    if (!stored) return
+    const top = Number(stored)
+    if (!Number.isFinite(top) || top < 20) return  // <20px = tete du cours, pas la peine
+    // scrollBehavior auto : pas de scroll anime, on saute directement
+    el.scrollTop = top
+  } catch { /* no-op */ }
+}
+
 function updateProgress() {
   const el = scrollRootRef.value
   if (!el) return
   const max = el.scrollHeight - el.clientHeight
   progress.value = max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) : 1
+  persistScrollPosition()
 }
 
 // ── Active section tracking : IntersectionObserver sur les headings ──────
@@ -148,12 +179,14 @@ watch(() => props.course.id, async () => {
   activeId.value = null
   progress.value = 0
   await nextTick()
-  scrollRootRef.value?.scrollTo({ top: 0 })
+  restoreScrollPosition()
+  updateProgress()
   setupObserver()
 })
 
 onMounted(async () => {
   await nextTick()
+  restoreScrollPosition()
   updateProgress()
   setupObserver()
   window.addEventListener('keydown', onKeyboardNav)
@@ -161,6 +194,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   observer?.disconnect()
   window.removeEventListener('keydown', onKeyboardNav)
+  if (scrollPersistTimer) clearTimeout(scrollPersistTimer)
 })
 
 // ── Prev / Next dans la liste de cours publies ────────────────────────────

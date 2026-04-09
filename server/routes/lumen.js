@@ -548,6 +548,17 @@ router.delete('/courses/:id/note',
   })
 )
 
+// GET /api/lumen/my-noted-courses — liste des course_id annotes par
+// l'etudiant courant. Utilise pour afficher un indicateur sur les cards
+// sans charger le contenu des notes (qui reste prive).
+router.get('/my-noted-courses',
+  requireExactStudent,
+  wrap((req) => {
+    const studentId = req.user.id
+    return { course_ids: queries.getStudentNotedCourseIds(studentId) }
+  })
+)
+
 // GET /api/lumen/courses/:id/snapshot/download — streaming du zip
 router.get('/courses/:id/snapshot/download', snapshotReadGuard, async (req, res, next) => {
   try {

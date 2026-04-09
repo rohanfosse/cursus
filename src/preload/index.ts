@@ -540,6 +540,7 @@ contextBridge.exposeInMainWorld('api', {
   getLumenCourseNote:    (id: number) => get(`/api/lumen/courses/${id}/note`),
   saveLumenCourseNote:   (id: number, content: string) => apiFetch(`/api/lumen/courses/${id}/note`, { method: 'PUT', body: JSON.stringify({ content }) }),
   deleteLumenCourseNote: (id: number) => del(`/api/lumen/courses/${id}/note`),
+  getLumenNotedCourses:  () => get('/api/lumen/my-noted-courses'),
 
   // ── Lumen snapshot (repo git d'exemple) ──────────────────────────────────
   refreshLumenSnapshot: (id: number) => post(`/api/lumen/courses/${id}/snapshot`, {}),

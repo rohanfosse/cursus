@@ -213,6 +213,19 @@ describe('Notes privees etudiant', () => {
     queries.deleteLumenCourse(course.id)
     expect(queries.getLumenCourseNote(1, course.id)).toBeNull()
   })
+
+  it('getStudentNotedCourseIds retourne uniquement les cours avec note non vide', () => {
+    const a = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Noted A' })
+    const b = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Noted B' })
+    const c = queries.createLumenCourse({ teacherId: 1, promoId: 1, title: 'Empty note' })
+    queries.upsertLumenCourseNote(1, a.id, 'contenu reel')
+    queries.upsertLumenCourseNote(1, b.id, 'autre note')
+    queries.upsertLumenCourseNote(1, c.id, '   ')  // blanc seulement, doit etre exclu
+    const ids = queries.getStudentNotedCourseIds(1)
+    expect(ids).toContain(a.id)
+    expect(ids).toContain(b.id)
+    expect(ids).not.toContain(c.id)
+  })
 })
 
 describe('Snapshot repo git', () => {

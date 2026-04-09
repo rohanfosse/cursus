@@ -317,6 +317,18 @@ export const useLumenStore = defineStore('lumen', () => {
 
   // Cache des notes par cours (pour eviter le refetch a l'ouverture repetee).
   const notesCache = ref<Map<number, LumenNote | null>>(new Map())
+  // Set des course IDs ayant une note non vide pour l'etudiant courant.
+  // Utilise pour afficher un badge "note" sur les course cards sans charger
+  // le contenu des notes (qui reste prive).
+  const notedCourseIds = ref<Set<number>>(new Set())
+
+  async function fetchNotedCourseIds(): Promise<void> {
+    const data = await api<{ course_ids: number[] }>(
+      () => window.api.getLumenNotedCourses(),
+      { silent: true },
+    )
+    notedCourseIds.value = new Set(data?.course_ids ?? [])
+  }
 
   async function fetchCourseNote(courseId: number): Promise<LumenNote | null> {
     if (notesCache.value.has(courseId)) {
@@ -341,6 +353,12 @@ export const useLumenStore = defineStore('lumen', () => {
       const next = new Map(notesCache.value)
       next.set(courseId, data)
       notesCache.value = next
+      // Maintient le Set d'indicateur a jour : ajoute si contenu non vide,
+      // retire sinon (l'etudiant a vide la note sans cliquer sur "supprimer").
+      const nextIds = new Set(notedCourseIds.value)
+      if (content.trim().length > 0) nextIds.add(courseId)
+      else nextIds.delete(courseId)
+      notedCourseIds.value = nextIds
     }
     return data ?? null
   }
@@ -354,6 +372,9 @@ export const useLumenStore = defineStore('lumen', () => {
       const next = new Map(notesCache.value)
       next.set(courseId, null)
       notesCache.value = next
+      const nextIds = new Set(notedCourseIds.value)
+      nextIds.delete(courseId)
+      notedCourseIds.value = nextIds
       return true
     }
     return false
@@ -362,7 +383,7 @@ export const useLumenStore = defineStore('lumen', () => {
   return {
     courses, currentCourse, loading,
     unreadCourses, unreadCount,
-    snapshotTrees, fileContentCache, notesCache,
+    snapshotTrees, fileContentCache, notesCache, notedCourseIds,
     publishedCourses, draftCourses,
     fetchCoursesForPromo, fetchCourse,
     createCourse, updateCourse,
@@ -370,6 +391,6 @@ export const useLumenStore = defineStore('lumen', () => {
     clearCurrentCourse,
     fetchUnread, markAsRead, resetUnread, onCoursePublished,
     fetchSnapshotTree, fetchFileContent, refreshSnapshot, invalidateSnapshotCache,
-    fetchCourseNote, saveCourseNote, deleteCourseNote,
+    fetchCourseNote, saveCourseNote, deleteCourseNote, fetchNotedCourseIds,
   }
 })
