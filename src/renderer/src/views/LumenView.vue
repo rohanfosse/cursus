@@ -5,7 +5,7 @@ import {
   Lightbulb, Plus, Eye, Edit3, Trash2, ArrowLeft, CheckCircle2, Clock,
   Save, Columns, BookOpen, ListTree, Maximize2, Minimize2, Download, Clipboard,
   Command as CommandIcon, Github, RefreshCw, ExternalLink, Package, Search,
-  NotebookPen, X, CheckCheck, Users,
+  NotebookPen, X, CheckCheck, Users, Copy,
 } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useLumenStore } from '@/stores/lumen'
@@ -124,6 +124,22 @@ const sortedCoursesForSidebar = computed(() => {
   })
 })
 
+// Groupe les cours de la sidebar par statut (drafts puis publies).
+// Utilise par le template pour afficher un header de section par groupe.
+interface SidebarGroup {
+  key: 'draft' | 'published'
+  label: string
+  courses: LumenCourse[]
+}
+const groupedSidebarCourses = computed<SidebarGroup[]>(() => {
+  const drafts = sortedCoursesForSidebar.value.filter(c => c.status === 'draft')
+  const published = sortedCoursesForSidebar.value.filter(c => c.status === 'published')
+  const groups: SidebarGroup[] = []
+  if (drafts.length > 0) groups.push({ key: 'draft', label: 'Brouillons', courses: drafts })
+  if (published.length > 0) groups.push({ key: 'published', label: 'Publies', courses: published })
+  return groups
+})
+
 // Liste filtree pour l'ecran liste etudiant. Filtre + recherche combines,
 // la recherche s'applique sur title + summary en insensible casse.
 const filteredCourses = computed(() => {
@@ -145,6 +161,35 @@ const filteredCourses = computed(() => {
     }
   })
 })
+
+/**
+ * Duplique un cours existant : copie le contenu markdown, le resume,
+ * le projet associe et l'URL du repo d'exemple dans un NOUVEAU draft.
+ * Le snapshot repo n'est PAS recopie (il sera reconstruit au publish).
+ * La liste des cours ne contient pas le `content` (LIST_COLS), donc on
+ * fetch le cours complet d'abord.
+ */
+async function handleDuplicateCourse(course: LumenCourse) {
+  if (!promoId.value) return
+  const full = await lumenStore.fetchCourse(course.id)
+  if (!full) {
+    showToast('Impossible de charger le cours source', 'error')
+    return
+  }
+  const baseTitle = `${full.title} (copie)`
+  const created = await lumenStore.createCourse({
+    promoId: full.promo_id,
+    projectId: full.project_id,
+    title: baseTitle,
+    summary: full.summary,
+    content: full.content,
+    repoUrl: full.repo_url,
+  })
+  if (created) {
+    showToast(`Cours duplique : ${baseTitle}`, 'success')
+    openEditorEdit(created)
+  }
+}
 
 async function handleExportNotes() {
   const result = await window.api.downloadLumenNotesExport()
@@ -1053,6 +1098,9 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
               <button v-if="isTeacher" class="lumen-card-link" @click.stop="openEditorEdit(course)">
                 <Edit3 :size="13" /> Éditer
               </button>
+              <button v-if="isTeacher" class="lumen-card-link" title="Dupliquer ce cours" @click.stop="handleDuplicateCourse(course)">
+                <Copy :size="13" /> Dupliquer
+              </button>
             </footer>
           </article>
           </div>
@@ -1083,23 +1131,32 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
             </button>
           </header>
           <div class="lumen-sidebar-list" role="list">
-            <button
-              v-for="course in sortedCoursesForSidebar"
-              :key="course.id"
-              type="button"
-              class="lumen-sidebar-item"
-              :class="{ 'lumen-sidebar-item--active': course.id === editorCourseId }"
-              :aria-current="course.id === editorCourseId ? 'page' : undefined"
-              role="listitem"
-              @click="openEditorEdit(course)"
-            >
-              <span
-                class="lumen-sidebar-dot"
-                :class="course.status === 'published' ? 'lumen-sidebar-dot--ok' : 'lumen-sidebar-dot--draft'"
-                :aria-label="course.status === 'published' ? 'Publié' : 'Brouillon'"
-              />
-              <span class="lumen-sidebar-title">{{ course.title || 'Sans titre' }}</span>
-            </button>
+            <template v-for="group in groupedSidebarCourses" :key="group.key">
+              <div class="lumen-sidebar-group-head">
+                {{ group.label }}
+                <span class="lumen-sidebar-group-count">{{ group.courses.length }}</span>
+              </div>
+              <button
+                v-for="course in group.courses"
+                :key="course.id"
+                type="button"
+                class="lumen-sidebar-item"
+                :class="{ 'lumen-sidebar-item--active': course.id === editorCourseId }"
+                :aria-current="course.id === editorCourseId ? 'page' : undefined"
+                role="listitem"
+                @click="openEditorEdit(course)"
+              >
+                <span
+                  class="lumen-sidebar-dot"
+                  :class="course.status === 'published' ? 'lumen-sidebar-dot--ok' : 'lumen-sidebar-dot--draft'"
+                  :aria-label="course.status === 'published' ? 'Publié' : 'Brouillon'"
+                />
+                <span class="lumen-sidebar-title">{{ course.title || 'Sans titre' }}</span>
+                <span v-if="course.repo_snapshot_at" class="lumen-sidebar-badge" title="Projet d'exemple">
+                  <Package :size="10" />
+                </span>
+              </button>
+            </template>
             <p v-if="sortedCoursesForSidebar.length === 0" class="lumen-sidebar-empty">
               Aucun cours
             </p>
@@ -1826,6 +1883,37 @@ const chromeHidden = computed(() => focusMode.value || zenMode.value)
   padding: 8px 0;
   overflow-y: auto;
   flex: 1;
+}
+
+.lumen-sidebar-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.lumen-sidebar-group-head:first-child { margin-top: 0; }
+.lumen-sidebar-group-count {
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--bg-hover);
+  border-radius: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lumen-sidebar-badge {
+  flex-shrink: 0;
+  color: var(--accent);
+  opacity: 0.7;
+  display: inline-flex;
+  align-items: center;
 }
 
 .lumen-sidebar-item {
