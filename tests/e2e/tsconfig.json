@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
+    "lib": ["ES2020", "DOM"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@playwright/test": ["/opt/node22/lib/node_modules/playwright/test.d.ts"]
+    },
+    "typeRoots": [
+      "/opt/node22/lib/node_modules/@types",
+      "/opt/node22/lib/node_modules"
+    ]
+  },
+  "include": ["./**/*.ts"]
+}
