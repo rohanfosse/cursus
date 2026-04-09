@@ -1,4 +1,4 @@
-<!-- Generated: 2026-04-01 | Cursus v2.5.0 | Token estimate: ~370 -->
+<!-- Generated: 2026-04-09 | Cursus v2.31.0 | Token estimate: ~420 -->
 
 # Backend Routes & Middleware
 
@@ -18,11 +18,12 @@
 13. **Protected route handlers**
 14. Global error handler
 
-## Route Files (22 total)
+## Route Files (23 total)
 
 | Route | Handlers | Purpose |
 |-------|----------|---------|
 | `/api/auth` | login, logout, register, changePassword, init | Auth + password resets |
+| `/api/lumen` | courses CRUD, publish, read, read-all, notes (CRUD), snapshot (build/refresh/tree/file/download), unread, stats, read-counts, my-noted-courses, my-notes/export | Cours markdown publies, notes privees etudiant, snapshot repo git public d'exemple |
 | `/api/promotions` | list, create, update, delete, archive | Promo management |
 | `/api/students` | list, get, update, delete, bulk | Student profiles + avatar |
 | `/api/teachers` | list, get, update, delete, setRole | Teacher profiles + roles (admin/ta) |

@@ -1,6 +1,6 @@
-<!-- Generated: 2026-04-01 | Cursus v2.5.0 | Token estimate: ~460 -->
+<!-- Generated: 2026-04-09 | Cursus v2.31.0 | Token estimate: ~510 -->
 
-# Database Schema (SQLite v48)
+# Database Schema (SQLite v53)
 
 ## Core Tables
 
@@ -157,7 +157,7 @@ channels
 | idx_doc_promo_project | channel_documents(promo_id, project) | Project docs |
 | idx_teacher_notes_student | teacher_notes(student_id) | Get notes per student |
 
-## Migrations (v0 → v47)
+## Migrations (v0 → v53)
 
 | Version | Feature Added |
 |---------|---------------|
@@ -176,6 +176,18 @@ channels
 | v44 | Error reports (monitoring) |
 | v45 | Student onboarding flag |
 | v47 | Channel archiving |
+| v50 | Lumen — cours markdown publies par les enseignants |
+| v51 | Lumen — lien projet optionnel + tracking lecture etudiant |
+| v52 | Lumen — snapshot repo git d'exemple (repo_url, repo_snapshot, repo_commit_sha, repo_default_branch, repo_snapshot_at) |
+| v53 | Lumen — notes privees etudiant (lumen_course_notes PK composite student+course) |
+
+## Lumen Tables (v50-v53)
+
+| Table | Key Columns | Purpose | References |
+|-------|------------|---------|-----------|
+| `lumen_courses` | id, teacher_id, promo_id, project_id, title, summary, content, status (draft/published), created_at, updated_at, published_at, repo_url, repo_snapshot (JSON), repo_commit_sha, repo_default_branch, repo_snapshot_at | Cours markdown publies par les profs + snapshot repo d'exemple | lumen_course_reads, lumen_course_notes, projects |
+| `lumen_course_reads` | student_id, course_id, read_at | Tracking lecture etudiant (idempotent upsert) | (pivot) |
+| `lumen_course_notes` | student_id, course_id, content, created_at, updated_at | Notes privees etudiant (max 10 000 chars) | (pivot, ON DELETE CASCADE) |
 
 ## Encryption Status
 

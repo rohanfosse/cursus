@@ -1,8 +1,8 @@
-<!-- Generated: 2026-04-01 | Cursus v2.5.0 | Token estimate: ~500 -->
+<!-- Generated: 2026-04-09 | Cursus v2.31.0 | Token estimate: ~560 -->
 
 # Frontend Views, Stores & Composables
 
-## Views (8 main routes)
+## Views (9 main routes)
 
 | View File | Route | Purpose | Role |
 |-----------|-------|---------|------|
@@ -14,8 +14,9 @@
 | `AgendaView.vue` | `/agenda` | Calendar + schedule view | both |
 | `LiveView.vue` | `/live` | Live quiz sessions (QCM, polls, word clouds) | both |
 | `RexView.vue` | `/rex` | REX feedback sessions (async-compatible) | both |
+| `LumenView.vue` | `/lumen` | Cours markdown publies, editeur teacher + reader etudiant, avec code examples et notes privees | both |
 
-## Stores (9 total, Pinia)
+## Stores (10 total, Pinia)
 
 | Store | Key State | Key Actions | Purpose |
 |-------|-----------|-------------|---------|
@@ -28,6 +29,7 @@
 | `rex.ts` | sessions, activities, responses, analytics | createSession, submitResponse, getAnalytics, exportResults | REX feedback |
 | `kanban.ts` | cards, columns, filter | fetchCards, createCard, updateCard, moveCard | Kanban task board |
 | `modals.ts` | open, type, data, callback | openModal, closeModal, confirmAction | Modal manager (global) |
+| `lumen.ts` | courses, currentCourse, unreadCourses, snapshotTrees, fileContentCache, notesCache, notedCourseIds, readCounts | fetchCoursesForPromo, createCourse, publishCourse, markAllAsRead, fetchSnapshotTree, fetchFileContent, refreshSnapshot, fetchCourseNote, saveCourseNote, fetchReadCounts | Cours Lumen, snapshot repo git, notes etudiant privees |
 
 ## Composables (50+, organized by feature)
 
@@ -174,3 +176,22 @@ Component re-render (reactivity)
 - Keyboard navigation (arrow keys, Enter, Escape)
 - Touch targets >= 44px (mobile-friendly)
 - Contrast ratios meet WCAG AA (per memory: Phase 8)
+
+## Lumen Components (`components/lumen/`)
+
+Composants dedies au module Lumen (cours markdown avec code examples et notes).
+
+| Composant | Role | Notes |
+|-----------|------|-------|
+| `LumenEditor.vue` | Editeur CodeMirror 6 pour le contenu markdown | Drop images et .md supporte |
+| `LumenToolbar.vue` | Toolbar markdown (h1/h2/bold/italic/code/list) | Emet events au parent |
+| `LumenPreview.vue` | Preview scrollable du rendu markdown live | Sync scroll avec l'editeur |
+| `LumenOutline.vue` | Plan du cours extrait des headings h1-h6 | Click → scrollToLine |
+| `LumenStatusBar.vue` | Barre d'etat bas : stats + raccourcis | Teacher uniquement |
+| `LumenCommandPalette.vue` | Palette Ctrl+K pour actions rapides | Teacher uniquement |
+| `LumenReader.vue` | Vue lecture etudiant : TOC sticky, progress bar, prev/next, restauration scroll | Alt+arrows nav, scroll persiste dans localStorage |
+| `LumenProjectPanel.vue` | Container projet d'exemple (tree + viewer + download) | Auto-select README.md, prop initialFile pour deep link |
+| `LumenProjectTree.vue` | Arborescence expandable avec fuzzy search Ctrl+P | Navigation clavier complete, expand/collapse all |
+| `LumenProjectFileViewer.vue` | Viewer single-file avec hljs, rendu md auto, Ctrl+F search | Breadcrumb + line count + copy + markdown toggle |
+| `LumenNotePanel.vue` | Panneau notes privees etudiant (details repliable) | Autosave debounce 1.5s, max 10 000 chars |
+| `LumenKeyboardHelp.vue` | Overlay aide clavier (ouvert via ?) | Groupes filtres selon mode actif |
