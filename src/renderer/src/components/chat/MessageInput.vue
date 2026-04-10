@@ -596,29 +596,31 @@ function onKeydown(e: KeyboardEvent) {
 .mi-actions-row {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 4px 8px;
+  padding: 3px 6px 3px 8px;
   border-top: 1px solid var(--border);
   margin-top: 2px;
-  height: 34px;
+  height: 32px;
+  flex-wrap: nowrap;
 }
 
 /* Groupe de boutons de formatage */
 .mi-fmt-group {
   display: flex;
   align-items: center;
-  gap: 1px;
+  flex: 1;
+  min-width: 0;
 }
 
 .mi-fmt-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
+  min-width: 24px;
   height: 26px;
+  padding: 0 3px;
   border: none;
   background: transparent;
-  border-radius: 5px;
+  border-radius: 4px;
   cursor: pointer;
   color: var(--text-muted);
   font-family: var(--font);
@@ -641,8 +643,9 @@ function onKeydown(e: KeyboardEvent) {
   width: 1px;
   height: 14px;
   background: var(--border);
-  margin: 0 3px;
-  opacity: .5;
+  margin: 0 2px;
+  flex-shrink: 0;
+  opacity: .4;
 }
 
 /* ── Preview markdown ── */
@@ -699,7 +702,7 @@ function onKeydown(e: KeyboardEvent) {
 .mi-actions-right {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   margin-left: auto;
   flex-shrink: 0;
 }
@@ -712,7 +715,7 @@ function onKeydown(e: KeyboardEvent) {
   height: 26px;
   border: none;
   background: transparent;
-  border-radius: 5px;
+  border-radius: 4px;
   cursor: pointer;
   color: var(--text-muted);
   transition: background .12s, color .12s;
@@ -733,10 +736,10 @@ function onKeydown(e: KeyboardEvent) {
 .mi-send-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 12px 5px 9px;
+  gap: 4px;
+  padding: 4px 10px 4px 8px;
   border: none;
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--accent, #4a90d9);
   color: #fff;
   font-family: var(--font);
