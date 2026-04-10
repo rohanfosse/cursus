@@ -600,8 +600,9 @@ function onKeydown(e: KeyboardEvent) {
   padding: 5px 8px;
   border-top: 1px solid var(--border);
   margin-top: 2px;
-  flex-wrap: wrap;
   min-height: 38px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 /* Groupe de boutons de formatage */
@@ -609,8 +610,7 @@ function onKeydown(e: KeyboardEvent) {
   display: flex;
   align-items: center;
   gap: 2px;
-  flex-wrap: wrap;
-  min-width: 0;
+  flex-shrink: 0;
 }
 
 .mi-fmt-btn {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
   // Section Messages Directs de la sidebar
   import { ChevronDown, Plus, UserPlus } from 'lucide-vue-next'
+  import Avatar from '@/components/ui/Avatar.vue'
   import EmptyState from '@/components/ui/EmptyState.vue'
   import { useAppStore } from '@/stores/app'
   import { avatarColor } from '@/utils/format'
@@ -77,7 +78,12 @@
       class="sidebar-item dm-search-result"
       @click="emit('startNewDm', s)"
     >
-      <span class="dm-avatar" :style="{ background: avatarColor(s.name) }">{{ s.avatar_initials }}</span>
+      <Avatar
+        :initials="s.avatar_initials ?? s.name.slice(0, 2).toUpperCase()"
+        :color="avatarColor(s.name)"
+        :photo-data="s.photo_data"
+        :size="28"
+      />
       <span class="channel-name">{{ s.name }}</span>
     </button>
     <EmptyState v-if="newDmQuery.trim() && !newDmFilteredStudents.length" title="Aucun resultat" compact />
@@ -98,7 +104,12 @@
         @contextmenu.prevent="emit('openDmContextMenu', $event, s)"
       >
         <span class="dm-avatar-wrap">
-          <span class="dm-avatar" :class="{ 'dm-avatar-teacher': s.id < 0 }" :style="{ background: s.id < 0 ? 'var(--accent)' : avatarColor(s.name) }">{{ s.avatar_initials }}</span>
+          <Avatar
+            :initials="s.avatar_initials ?? s.name.slice(0, 2).toUpperCase()"
+            :color="s.id < 0 ? 'var(--accent)' : avatarColor(s.name)"
+            :photo-data="s.photo_data"
+            :size="32"
+          />
           <span v-if="appStore.isUserOnline(s.name)" class="presence-dot presence-online" title="En ligne" role="img" aria-label="En ligne" />
           <span v-else class="presence-dot presence-offline" title="Hors ligne" role="img" aria-label="Hors ligne" />
         </span>
@@ -123,7 +134,12 @@
           :class="{ active: appStore.activeDmStudentId === s.id }"
           @click="emit('selectDm', s); emit('update:showAllDmStudents', false)"
         >
-          <span class="dm-avatar" :style="{ background: avatarColor(s.name) }">{{ s.avatar_initials }}</span>
+          <Avatar
+            :initials="s.avatar_initials ?? s.name.slice(0, 2).toUpperCase()"
+            :color="avatarColor(s.name)"
+            :photo-data="s.photo_data"
+            :size="28"
+          />
           <span class="channel-name">{{ s.name }}</span>
         </button>
       </nav>

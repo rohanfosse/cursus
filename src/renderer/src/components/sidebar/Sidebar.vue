@@ -876,10 +876,17 @@
   position: relative;
   flex-shrink: 0;
 }
+.dm-avatar-wrap .msg-avatar {
+  border-radius: 50% !important;
+  transition: transform var(--t-fast);
+}
+.dm-item:hover .dm-avatar-wrap .msg-avatar {
+  transform: scale(1.06);
+}
 .dm-avatar {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -989,6 +996,9 @@
   padding: 5px 10px !important;
   border-radius: var(--radius-sm);
   transition: background var(--t-fast);
+}
+.dm-search-result .msg-avatar {
+  border-radius: 50% !important;
 }
 
 /* ── Canaux archives ── */
