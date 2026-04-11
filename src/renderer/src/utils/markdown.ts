@@ -299,7 +299,7 @@ const ALLOWED_ATTR = [
   'aria-hidden',
   // Attributs data-* utilises par Lumen pour relier les liens
   // inter-chapitres a une navigation interne via un click handler.
-  'data-chapter-link', 'data-external',
+  'data-chapter-link', 'data-external', 'data-lumen-link',
 ]
 
 // Force rel="noopener noreferrer" sur tous les liens externes pour eviter window.opener leak
@@ -332,6 +332,8 @@ function resolveRelativePath(link: string, currentPath: string): string | null {
 /**
  * Post-process les liens du HTML rendu quand on est dans un contexte
  * Lumen (chapterPath fourni) :
+ *  - liens lumen://repo/path -> flag data-lumen-link pour navigation
+ *    cross-repo dans la meme promo (v2.72)
  *  - liens relatifs vers un .md -> flag data-chapter-link pour que le
  *    viewer intercepte le clic et navigue en interne
  *  - liens http/https -> marque data-external pour ouverture dans le
@@ -339,6 +341,20 @@ function resolveRelativePath(link: string, currentPath: string): string | null {
  */
 function rewriteLinksForLumen(html: string, chapterPath: string): string {
   return html.replace(/<a\s+([^>]*)href="([^"]+)"([^>]*)>/g, (full, beforeHref, href, afterHref) => {
+    // v2.72 : lumen://<repo-short-name>/<path> pour sauter vers un autre
+    // chapitre du meme org (meme promo). Le repo est resolu cote viewer
+    // par comparaison sur repo.repo (nom court) dans la liste des repos
+    // de la promo courante.
+    if (/^lumen:\/\//i.test(href)) {
+      const without = href.replace(/^lumen:\/\//i, '')
+      const firstSlash = without.indexOf('/')
+      if (firstSlash > 0) {
+        const repoName = without.slice(0, firstSlash)
+        const path = without.slice(firstSlash + 1)
+        return `<a ${beforeHref}href="#lumen:${repoName}:${path}"${afterHref} data-lumen-link="${repoName}|${path}">`
+      }
+      return full
+    }
     const isExternal = /^https?:\/\//i.test(href)
     if (isExternal) {
       return `<a ${beforeHref}href="${href}"${afterHref} data-external="1" target="_blank" rel="noopener noreferrer">`

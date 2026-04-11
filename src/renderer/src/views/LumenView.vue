@@ -427,6 +427,27 @@ function handleNavigateChapter(path: string) {
   }
   handleSelectChapter({ repoId: currentRepo.value.id, path })
 }
+
+/**
+ * v2.72 : navigation cross-repo via un lien `lumen://repo/path` dans un
+ * chapitre markdown. On cherche le repo cible dans la promo courante
+ * par son nom court (repo.repo). Si trouve, on selectionne le chapitre
+ * dedie dans ce repo (meme si c'est un autre repo que celui actuel).
+ */
+function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
+  const target = repos.value.find((r) => r.repo === payload.repoName)
+  if (!target) {
+    showToast(`Repo "${payload.repoName}" introuvable dans cette promo`, 'error')
+    return
+  }
+  // Verifie que le chapitre existe dans le manifest du repo cible
+  const chapterExists = target.manifest?.chapters.some((c) => c.path === payload.path)
+  if (!chapterExists) {
+    showToast(`Chapitre "${payload.path}" introuvable dans ${payload.repoName}`, 'error')
+    return
+  }
+  handleSelectChapter({ repoId: target.id, path: payload.path })
+}
 </script>
 
 <template>
@@ -582,6 +603,7 @@ function handleNavigateChapter(path: string) {
             @navigate-prev="handleNavigatePrev"
             @navigate-next="handleNavigateNext"
             @navigate-chapter="handleNavigateChapter"
+            @navigate-lumen-link="handleNavigateLumenLink"
             @resync="handleSync"
             @anchor-consumed="handleAnchorConsumed"
           />

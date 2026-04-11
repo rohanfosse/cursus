@@ -46,6 +46,8 @@ interface Emits {
   (e: 'navigate-next'): void
   (e: 'resync'): void
   (e: 'anchor-consumed'): void
+  /** Cross-repo jump via lumen://repo/path (v2.72) */
+  (e: 'navigate-lumen-link', payload: { repoName: string; path: string }): void
 }
 
 const props = defineProps<Props>()
@@ -581,6 +583,16 @@ function injectCopyButtons(root: HTMLElement) {
 function handleBodyClick(e: MouseEvent) {
   const target = (e.target as HTMLElement)?.closest('a') as HTMLAnchorElement | null
   if (!target) return
+
+  // v2.72 : lien cross-repo `lumen://repo/path` reecrit en
+  // data-lumen-link="repo|path" par markdown.ts.
+  const lumenLink = target.getAttribute('data-lumen-link')
+  if (lumenLink) {
+    e.preventDefault()
+    const [repoName, path] = lumenLink.split('|')
+    if (repoName && path) emit('navigate-lumen-link', { repoName, path })
+    return
+  }
 
   const chapterLink = target.getAttribute('data-chapter-link')
   if (chapterLink) {

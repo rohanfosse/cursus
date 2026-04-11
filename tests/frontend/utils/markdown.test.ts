@@ -243,3 +243,47 @@ describe('renderMarkdown - admonitions Obsidian-style', () => {
     expect(html).toContain('lumen-admonition-icon')
   })
 })
+
+// ── Cross-repo lumen:// links (v2.72) ────────────────────────────────────
+
+describe('renderMarkdown : liens lumen:// (v2.72)', () => {
+  it('reecrit un lien lumen://repo/path en data-lumen-link', () => {
+    const md = '[Voir maths](lumen://0-Mathematiques/sujets/qcm.pdf)'
+    const html = renderMarkdown(md, { chapterPath: 'guides/scrum.md' })
+    expect(html).toContain('data-lumen-link="0-Mathematiques|sujets/qcm.pdf"')
+    // Le href est reecrit en fragment pour passer DOMPurify
+    expect(html).toContain('href="#lumen:0-Mathematiques:sujets/qcm.pdf"')
+  })
+
+  it('gere les chemins avec sous-dossiers profonds', () => {
+    const md = '[Lab01](lumen://3-Reseau/02-Labs-and-Exercises/Lab01-Basic-LAN/instructions.md)'
+    const html = renderMarkdown(md, { chapterPath: 'README.md' })
+    expect(html).toContain('data-lumen-link="3-Reseau|02-Labs-and-Exercises/Lab01-Basic-LAN/instructions.md"')
+  })
+
+  it('preserve le texte du lien', () => {
+    const md = '[Retour au bloc](lumen://4-Programmation-Web/README.md)'
+    const html = renderMarkdown(md, { chapterPath: 'guides/php/mvc.md' })
+    expect(html).toContain('Retour au bloc')
+  })
+
+  it("n'affecte pas les liens http/https", () => {
+    const md = '[Google](https://google.com)'
+    const html = renderMarkdown(md, { chapterPath: 'README.md' })
+    expect(html).not.toContain('data-lumen-link')
+    expect(html).toContain('data-external="1"')
+  })
+
+  it("n'affecte pas les liens relatifs .md (data-chapter-link standard)", () => {
+    const md = '[Intro](intro.md)'
+    const html = renderMarkdown(md, { chapterPath: 'cours/01-main.md' })
+    expect(html).not.toContain('data-lumen-link')
+    expect(html).toContain('data-chapter-link')
+  })
+
+  it('ignore lumen:// mal forme (pas de /)', () => {
+    const md = '[broken](lumen://noslash)'
+    const html = renderMarkdown(md, { chapterPath: 'README.md' })
+    expect(html).not.toContain('data-lumen-link')
+  })
+})
