@@ -1,6 +1,7 @@
 /** AgendaView — calendrier agrégé : échéances travaux + rappels enseignant. */
 <script setup lang="ts">
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import VueCal from 'vue-cal'
 import 'vue-cal/dist/vuecal.css'
@@ -98,34 +99,38 @@ watch(() => promoId.value, load)
   <div class="agenda-area">
 
     <!-- Header -->
-    <header class="agenda-header">
-      <div class="agenda-header-left">
-        <Calendar :size="18" />
-        <span class="agenda-title">Calendrier</span>
-      </div>
-      <div class="agenda-header-filters">
-        <label class="ag-filter ag-filter--blue">
-          <input v-model="showDeadlines" type="checkbox" />
-          Échéances
-        </label>
-        <label class="ag-filter ag-filter--orange">
-          <input v-model="showStartDates" type="checkbox" />
-          Démarrages
-        </label>
-        <label class="ag-filter ag-filter--green">
-          <input v-model="showReminders" type="checkbox" />
-          Rappels
-        </label>
-      </div>
-      <div class="agenda-header-actions">
-        <button v-if="isTeacher" class="ag-btn-primary" @click="showForm = !showForm">
-          <Plus :size="13" /> Rappel
-        </button>
-        <button class="ag-btn-ghost" :disabled="agenda.loading" @click="load">
-          <RefreshCw :size="13" :class="{ 'ag-spin': agenda.loading }" />
-        </button>
-      </div>
-    </header>
+    <UiPageHeader wrap class="agenda-header">
+      <template #title>
+        <div class="agenda-header-left">
+          <Calendar :size="18" />
+          <span class="agenda-title">Calendrier</span>
+        </div>
+      </template>
+      <template #actions>
+        <div class="agenda-header-filters">
+          <label class="ag-filter ag-filter--blue">
+            <input v-model="showDeadlines" type="checkbox" />
+            Échéances
+          </label>
+          <label class="ag-filter ag-filter--orange">
+            <input v-model="showStartDates" type="checkbox" />
+            Démarrages
+          </label>
+          <label class="ag-filter ag-filter--green">
+            <input v-model="showReminders" type="checkbox" />
+            Rappels
+          </label>
+        </div>
+        <div class="agenda-header-actions">
+          <button v-if="isTeacher" class="ag-btn-primary" @click="showForm = !showForm">
+            <Plus :size="13" /> Rappel
+          </button>
+          <button class="ag-btn-ghost" :disabled="agenda.loading" @click="load">
+            <RefreshCw :size="13" :class="{ 'ag-spin': agenda.loading }" />
+          </button>
+        </div>
+      </template>
+    </UiPageHeader>
 
     <div class="agenda-body">
 
@@ -219,19 +224,9 @@ watch(() => promoId.value, load)
 }
 
 /* ── Header ── */
-.agenda-header {
-  min-height: var(--header-height, 52px);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-lg);
-  padding: 0 var(--space-xl);
-  background: var(--bg-main);
-  border-bottom: 1px solid var(--border);
-  box-shadow: var(--elevation-2);
-  flex-wrap: wrap;
-  z-index: 10;
-}
+/* .agenda-header : selecteur conserve uniquement comme namespace pour les
+   selecteurs internes (.agenda-header-left, .agenda-header-filters). Le base
+   visuel vient maintenant de UiPageHeader (cf. design-system/cursus/MASTER.md §7). */
 .agenda-header-left {
   display: flex; align-items: center; gap: 8px;
   color: var(--text-primary); font-size: 16px; font-weight: 700;

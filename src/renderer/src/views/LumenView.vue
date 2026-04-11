@@ -23,6 +23,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useLumenFocus } from '@/composables/useLumenFocus'
 import { useLumenLastChapter } from '@/composables/useLumenLastChapter'
 import { relativeTime } from '@/utils/date'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import LumenGithubConnect from '@/components/lumen/LumenGithubConnect.vue'
 import LumenRepoSidebar from '@/components/lumen/LumenRepoSidebar.vue'
 import LumenChapterViewer from '@/components/lumen/LumenChapterViewer.vue'
@@ -420,25 +421,27 @@ function handleNavigateChapter(path: string) {
 
 <template>
   <div class="lumen-view">
-    <header class="lumen-topbar">
-      <div class="lumen-brand">
-        <button
-          type="button"
-          class="lumen-btn ghost lumen-btn-icon lumen-home-btn"
-          title="Retour a Cursus (dashboard)"
-          aria-label="Retour au dashboard Cursus"
-          @click="handleCursusHome"
-        >
-          <LayoutGrid :size="14" />
-        </button>
-        <BookOpen :size="18" />
-        <span class="lumen-brand-name">Lumen</span>
-        <span v-if="promoOrg" class="lumen-brand-org">
-          <FolderGit2 :size="12" />
-          {{ promoOrg }}
-        </span>
-      </div>
-      <div class="lumen-topbar-actions">
+    <UiPageHeader class="lumen-topbar">
+      <template #title>
+        <div class="lumen-brand">
+          <button
+            type="button"
+            class="lumen-btn ghost lumen-btn-icon lumen-home-btn"
+            title="Retour a Cursus (dashboard)"
+            aria-label="Retour au dashboard Cursus"
+            @click="handleCursusHome"
+          >
+            <LayoutGrid :size="14" />
+          </button>
+          <BookOpen :size="18" />
+          <span class="lumen-brand-name">Lumen</span>
+          <span v-if="promoOrg" class="lumen-brand-org">
+            <FolderGit2 :size="12" />
+            {{ promoOrg }}
+          </span>
+        </div>
+      </template>
+      <template #actions>
         <button
           type="button"
           class="lumen-btn ghost lumen-btn-icon"
@@ -494,8 +497,8 @@ function handleNavigateChapter(path: string) {
             <LogOut :size="12" />
           </button>
         </div>
-      </div>
-    </header>
+      </template>
+    </UiPageHeader>
 
     <div class="lumen-body">
       <LumenGithubConnect v-if="!githubStatus.connected" />
@@ -672,19 +675,8 @@ function handleNavigateChapter(path: string) {
   overflow: hidden;
 }
 
-.lumen-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: 0 var(--space-xl);
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-main);
-  box-shadow: var(--elevation-2);
-  flex-shrink: 0;
-  min-height: var(--header-height);
-  z-index: 10;
-}
+/* .lumen-topbar : conserve la classe pour des selecteurs internes (.lumen-topbar
+   .lumen-brand) mais le baseline visuel vient maintenant de UiPageHeader. */
 
 .lumen-brand {
   display: flex;

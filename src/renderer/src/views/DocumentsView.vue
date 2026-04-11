@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
+  import UiPageHeader from '@/components/ui/UiPageHeader.vue'
   import { ref, computed, watch } from 'vue'
   import {
     FileText, Image, Link2, Video, File, Plus, Trash2,
@@ -114,20 +115,23 @@
   >
 
     <!-- ── Header ─────────────────────────────────────────────────────── -->
-    <header class="docs-header">
-      <div class="docs-header-left">
+    <UiPageHeader wrap class="docs-header">
+      <template #leading>
         <button v-if="props.toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="props.toggleSidebar">
           <Menu :size="22" />
         </button>
         <FolderOpen :size="18" class="docs-header-icon" />
+      </template>
+      <template #title>
         <div class="docs-header-title-block">
           <h1 class="docs-header-title">Ressources</h1>
           <span v-if="appStore.activeProject" class="docs-header-channel">{{ parseCategoryIcon(appStore.activeProject).label }}</span>
           <span v-else class="docs-header-channel">Tous les projets</span>
         </div>
-      </div>
+      </template>
 
-      <div class="docs-header-actions">
+      <template #actions>
+        <div class="docs-header-actions">
         <!-- Recherche -->
         <div class="docs-search">
           <Search :size="14" class="docs-search-icon" />
@@ -186,8 +190,9 @@
           <Plus :size="14" />
           Ajouter
         </button>
-      </div>
-    </header>
+        </div>
+      </template>
+    </UiPageHeader>
 
     <!-- ── Filtres catégories ──────────────────────────────────────────── -->
     <div v-if="categories.length > 1" class="docs-categories">
@@ -474,20 +479,9 @@
 }
 
 /* ── Header ── */
-.docs-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  min-height: var(--header-height);
-  padding: var(--space-sm) var(--space-xl);
-  background: var(--bg-main);
-  border-bottom: 1px solid var(--border);
-  box-shadow: var(--elevation-2);
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  z-index: 10;
-}
+/* .docs-header : namespace conserve uniquement pour les selecteurs internes
+   (.docs-header-title, .docs-header-actions, .docs-header-icon, etc.).
+   Le base visuel vient maintenant de UiPageHeader. */
 
 .docs-header-left {
   display: flex;

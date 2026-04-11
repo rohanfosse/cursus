@@ -1,10 +1,13 @@
 /**
- * En-tête de la vue Devoirs : breadcrumb projet, hamburger mobile, bouton "Nouveau".
+ * En-tete de la vue Devoirs : breadcrumb projet, hamburger mobile, bouton "Nouveau".
+ * Utilise UiPageHeader pour partager la base visuelle avec les autres sections
+ * (Messages, Lumen, Agenda, Documents). Cf. design-system/cursus/MASTER.md §7.
  */
 <script setup lang="ts">
 import { BookOpen, Plus, Menu } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 
 defineProps<{
   toggleSidebar?: () => void
@@ -15,99 +18,95 @@ const modals   = useModalsStore()
 </script>
 
 <template>
-  <header class="devoirs-header">
-    <div class="devoirs-header-title">
+  <UiPageHeader>
+    <template #leading>
       <button v-if="toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="toggleSidebar">
         <Menu :size="22" />
       </button>
-      <BookOpen :size="18" />
-      <span>Devoirs</span>
-      <template v-if="appStore.activeProject">
-        <span class="header-breadcrumb-sep">&rsaquo;</span>
-        <span class="header-project-ctx">{{ appStore.activeProject.replace(/^\S+\s/, '') }}</span>
-        <button class="header-project-clear" title="Voir tous les devoirs" @click="appStore.activeProject = null">&times;</button>
-      </template>
-      <span v-else-if="appStore.activeChannelName" class="header-channel-ctx">
-        # {{ appStore.activeChannelName }}
-      </span>
-    </div>
+    </template>
 
-    <div class="devoirs-header-actions">
-      <button v-if="appStore.isTeacher" class="btn-primary btn-nouveau" @click="modals.newDevoir = true">
+    <template #title>
+      <div class="dh-title">
+        <BookOpen :size="18" />
+        <span class="dh-title-text">Devoirs</span>
+        <template v-if="appStore.activeProject">
+          <span class="dh-sep">&rsaquo;</span>
+          <span class="dh-project">{{ appStore.activeProject.replace(/^\S+\s/, '') }}</span>
+          <button class="dh-project-clear" title="Voir tous les devoirs" @click="appStore.activeProject = null">&times;</button>
+        </template>
+        <span v-else-if="appStore.activeChannelName" class="dh-channel">
+          # {{ appStore.activeChannelName }}
+        </span>
+      </div>
+    </template>
+
+    <template #actions>
+      <button v-if="appStore.isTeacher" class="btn-primary dh-new" @click="modals.newDevoir = true">
         <Plus :size="14" /> Nouveau
       </button>
-    </div>
-  </header>
+    </template>
+  </UiPageHeader>
 </template>
 
 <style scoped>
-.devoirs-header {
-  min-height: var(--header-height);
-  flex-shrink: 0;
+.dh-title {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 var(--space-xl);
-  gap: var(--space-md);
-  background: var(--bg-main);
-  border-bottom: 1px solid var(--border);
-  box-shadow: var(--elevation-2);
-  z-index: 10;
-}
-
-.devoirs-header-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   font-size: 15px;
   font-weight: 700;
   color: var(--text-primary);
+  min-width: 0;
 }
+.dh-title-text { flex-shrink: 0; }
 
-.header-channel-ctx {
+.dh-channel {
   font-size: 13px;
   font-weight: 400;
   color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.header-breadcrumb-sep {
+.dh-sep {
   font-size: 13px;
   color: var(--text-muted);
   opacity: .5;
 }
 
-.header-project-ctx {
+.dh-project {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-cctl);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
-.header-project-clear {
+.dh-project-clear {
   font-size: 10px;
   line-height: 1;
   padding: 2px 5px;
   border: 1px solid rgba(155,135,245,.3);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   font-family: var(--font);
-  transition: background var(--t-fast), color var(--t-fast);
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+  flex-shrink: 0;
 }
-.header-project-clear:hover {
+.dh-project-clear:hover {
   background: rgba(155,135,245,.15);
   color: var(--color-cctl);
   border-color: rgba(155,135,245,.6);
 }
 
-.devoirs-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-nouveau {
+.dh-new {
   font-size: 13px;
-  padding: 6px 12px;
+  padding: var(--space-xs) var(--space-md);
 }
 </style>
