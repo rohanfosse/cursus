@@ -26,11 +26,17 @@ const IGNORED_DIRS = new Set([
 ])
 
 const RESOURCE_EXTS = new Set([
-  '.pdf', '.zip', '.tar', '.gz', '.7z',
+  // .pdf et .tex etaient ici en v2.63 ; v2.64 les a promus en chapitres
+  // (cf. CHAPTER_EXTS), donc plus dans les ressources.
+  '.zip', '.tar', '.gz', '.7z',
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg',
   '.mp4', '.mp3', '.wav',
   '.xlsx', '.docx', '.pptx',
 ])
+
+// Extensions qui deviennent des chapitres (v2.64) : markdown + pdf + tex.
+// L'ordre de priorite (md > pdf > tex) est applique au moment du pairing.
+const CHAPTER_EXTS = new Set(['.md', '.pdf', '.tex'])
 
 const MAX_CHAPTERS = 200
 const MAX_RESOURCES = 200
@@ -77,14 +83,26 @@ function extOf(path) {
 /**
  * Supprime le prefixe numerique d'un nom de fichier pour obtenir un titre
  * humain : "01-intro.md" -> "intro", "1-apache.md" -> "apache",
- * "prosit-3-mvc.md" -> "prosit 3 mvc".
+ * "prosit-3-mvc.md" -> "prosit 3 mvc". Toutes les extensions supportees
+ * sont supprimees (md, pdf, tex).
  */
 function humanizeFilename(name) {
-  const base = name.replace(/\.md$/i, '')
+  const base = name.replace(/\.(md|pdf|tex)$/i, '')
   const noPrefix = base.replace(/^\d+[-_.]?/, '')
   const spaced = noPrefix.replace(/[-_]+/g, ' ').trim()
   if (!spaced) return base
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+}
+
+/**
+ * Retourne le path sans son extension : "guides/scrum.md" -> "guides/scrum".
+ * Utilise pour le pairing md/pdf/tex sur basename commun.
+ */
+function stripExt(path) {
+  const idx = path.lastIndexOf('.')
+  const slash = path.lastIndexOf('/')
+  if (idx <= slash) return path
+  return path.slice(0, idx)
 }
 
 /**
@@ -140,33 +158,81 @@ function buildManifestFromTree(tree, { projectName = 'Cours', truncated = false 
     .map((e) => e.path)
     .filter((p) => !isIgnoredPath(p))
 
-  const mdFiles = files.filter((p) => p.toLowerCase().endsWith('.md'))
+  // v2.64 : md, pdf et tex sont tous des chapitres potentiels. On groupe par
+  // basename (sans extension) pour detecter les paires (ex: scrum.md +
+  // scrum.pdf, qcm-equadiff.tex + qcm-equadiff.pdf). Priorite md > pdf > tex :
+  // un .md a un compagnon pdf "Telecharger PDF", un .pdf a un compagnon tex
+  // "Voir le source LaTeX", et chaque format orphelin emet son propre chapitre.
+  const chapterFiles = files.filter((p) => CHAPTER_EXTS.has(extOf(p)))
   const resourceFiles = files.filter((p) => RESOURCE_EXTS.has(extOf(p)))
 
-  // README racine -> premier chapitre "Accueil", sinon on prend le premier
-  // README.md rencontre en profondeur.
-  const readmeRoot = mdFiles.find((p) => p.toLowerCase() === 'readme.md')
-  const otherMd = mdFiles.filter((p) => p !== readmeRoot)
-  otherMd.sort(comparePaths)
+  const groups = new Map() // basenameSansExt -> { md, pdf, tex }
+  for (const path of chapterFiles) {
+    const key = stripExt(path)
+    const ext = extOf(path)
+    if (!groups.has(key)) groups.set(key, {})
+    const slot = groups.get(key)
+    if (ext === '.md') slot.md = path
+    else if (ext === '.pdf') slot.pdf = path
+    else if (ext === '.tex') slot.tex = path
+  }
+
+  // Pour chaque groupe, on emet UN chapitre canonique selon la priorite.
+  // Le format choisi devient `kind`, l'autre format compagnon est stocke
+  // dans companionPdf / companionTex pour exposition cote viewer.
+  const emittedChapters = []
+  for (const [key, slot] of groups) {
+    if (slot.md) {
+      emittedChapters.push({
+        primary: slot.md,
+        kind: 'markdown',
+        ...(slot.pdf ? { companionPdf: slot.pdf } : {}),
+      })
+    } else if (slot.pdf) {
+      emittedChapters.push({
+        primary: slot.pdf,
+        kind: 'pdf',
+        ...(slot.tex ? { companionTex: slot.tex } : {}),
+      })
+    } else if (slot.tex) {
+      emittedChapters.push({
+        primary: slot.tex,
+        kind: 'tex',
+      })
+    }
+  }
+
+  // README racine -> premier chapitre "Accueil", sinon ordre par prefixe.
+  const readmeRoot = emittedChapters.find(
+    (c) => c.primary.toLowerCase() === 'readme.md',
+  )
+  const others = emittedChapters.filter((c) => c !== readmeRoot)
+  others.sort((a, b) => comparePaths(a.primary, b.primary))
 
   const chapters = []
 
   if (readmeRoot) {
     chapters.push({
       title: 'Accueil',
-      path: readmeRoot,
+      path: readmeRoot.primary,
       section: 'Presentation',
+      kind: readmeRoot.kind,
+      ...(readmeRoot.companionPdf ? { companionPdf: readmeRoot.companionPdf } : {}),
+      ...(readmeRoot.companionTex ? { companionTex: readmeRoot.companionTex } : {}),
     })
   }
 
-  for (const path of otherMd) {
+  for (const ch of others) {
     if (chapters.length >= MAX_CHAPTERS) break
-    const dir = dirname(path)
-    const name = path.split('/').pop() || path
+    const dir = dirname(ch.primary)
+    const name = ch.primary.split('/').pop() || ch.primary
     chapters.push({
       title: humanizeFilename(name),
-      path,
+      path: ch.primary,
       section: humanizeDirPath(dir) || 'Racine',
+      kind: ch.kind,
+      ...(ch.companionPdf ? { companionPdf: ch.companionPdf } : {}),
+      ...(ch.companionTex ? { companionTex: ch.companionTex } : {}),
     })
   }
 

@@ -298,6 +298,14 @@ export interface RexStats {
 
 // ─── Lumen (liseuse de cours adossee a GitHub) ──────────────────────────────
 
+/**
+ * Format d'un chapitre Lumen (v2.64). Determine le rendu cote viewer :
+ *  - markdown : rendu via marked + hljs + KaTeX (cas standard)
+ *  - pdf      : iframe data: URL (PDF natif Electron)
+ *  - tex      : source LaTeX colorisee via highlight.js
+ */
+export type LumenChapterKind = 'markdown' | 'pdf' | 'tex'
+
 export interface LumenChapter {
   title: string
   path: string
@@ -306,6 +314,12 @@ export interface LumenChapter {
   prerequis?: string[]
   /** Section/groupe d'affichage dans la sidebar (optionnel). */
   section?: string
+  /** Format du chapitre (v2.64). Si absent, infere depuis l'extension. */
+  kind?: LumenChapterKind
+  /** Compagnon PDF (v2.64) : path d'un .pdf jumeau a un .md ou .tex. */
+  companionPdf?: string
+  /** Compagnon TeX (v2.64) : path d'une source .tex jumelle a un .pdf. */
+  companionTex?: string
 }
 
 export interface LumenResource {
@@ -375,6 +389,8 @@ export interface LumenChapterContent {
   sha: string
   cached?: boolean
   fetchedAt?: string
+  /** Format du contenu (v2.64). Le viewer branche dessus pour le rendu. */
+  kind?: LumenChapterKind
 }
 
 export interface LumenSearchResult {

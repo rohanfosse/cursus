@@ -42,9 +42,15 @@ const MANIFEST_FILENAME = 'cursus.yaml'
  */
 const KIND_VALUES = ['course', 'prosit', 'workshop', 'miniproject', 'project', 'readme', 'group']
 
+// Format de chapitre supporte (v2.64). Detecte cote serveur depuis l'extension
+// du fichier au moment du sync, ou explicite par l'auteur dans cursus.yaml.
+const CHAPTER_KIND_VALUES = ['markdown', 'pdf', 'tex']
+
 const chapterSchema = z.object({
   title: z.string().min(1).max(200),
-  path: z.string().min(1).max(500).regex(/\.md$/i, 'path doit pointer vers un .md'),
+  // v2.64 : on accepte .md, .pdf et .tex. Le rendu cote viewer branche
+  // sur l'extension (ou sur le champ kind explicite).
+  path: z.string().min(1).max(500).regex(/\.(md|pdf|tex)$/i, 'path doit pointer vers un .md, .pdf ou .tex'),
   duration: z.number().int().positive().max(600).optional(),
   summary: z.string().max(500).optional(),
   prerequis: z.array(z.string()).optional(),
@@ -52,6 +58,14 @@ const chapterSchema = z.object({
   // dans un cursus.yaml ecrit a la main ; toujours renseigne quand le
   // manifest est auto-genere par lumenAutoManifest a partir de l'arborescence.
   section: z.string().max(200).optional(),
+  // Format du chapitre (v2.64). Si absent, infere depuis l'extension du path.
+  kind: z.enum(CHAPTER_KIND_VALUES).optional(),
+  // Compagnon PDF (v2.64) : si un .md ou .tex a un .pdf jumeau dans le meme
+  // dossier, on stocke ici le chemin du PDF pour un bouton "Telecharger PDF".
+  companionPdf: z.string().max(500).optional(),
+  // Compagnon TeX (v2.64) : si un .pdf est paire a un .tex jumeau, on stocke
+  // ici le chemin de la source pour bouton "Voir le source LaTeX".
+  companionTex: z.string().max(500).optional(),
 }).strict()
 
 const resourceSchema = z.object({
@@ -147,4 +161,4 @@ function parseManifest(yamlText) {
   return { ok: true, manifest: parsed.data }
 }
 
-module.exports = { parseManifest, MANIFEST_FILENAME, inferRepoKind, KIND_VALUES }
+module.exports = { parseManifest, MANIFEST_FILENAME, inferRepoKind, KIND_VALUES, CHAPTER_KIND_VALUES }

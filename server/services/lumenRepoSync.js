@@ -406,37 +406,75 @@ function markdownToPlainText(md) {
  */
 async function fetchChapterContent(octokit, dbRepo, path) {
   const { id: repoId } = dbRepo
+  const ext = (path.match(/\.([^./]+)$/) || [])[1]?.toLowerCase()
+
+  // v2.64 : les PDF sont fetches comme binaires et renvoyes en data URL.
+  // On ne passe pas par fetchFile (qui decode utf8) ni par inlineImages
+  // (les PDF ne contiennent pas de markdown). Limite a 8 MB pour eviter
+  // de saturer le cache SQLite et le transfert IPC.
+  if (ext === 'pdf') {
+    const cached = getLumenCachedFile(repoId, path)
+    // Pour les PDFs, on shortcut le cache : la clef sha est posee au sync
+    // suivant si re-fetch. On garde la meme structure que pour le markdown.
+    const bin = await fetchBinaryFile(octokit, {
+      owner: dbRepo.owner, repo: dbRepo.repo, path, ref: dbRepo.default_branch,
+    })
+    if (!bin) return null
+    if (cached && cached.sha === bin.sha) {
+      return { content: cached.content, sha: bin.sha, kind: 'pdf' }
+    }
+    if (bin.size > 8 * 1024 * 1024) {
+      // PDF trop gros : on le sert quand meme mais sans cache pour ne pas
+      // bloater SQLite. Le viewer peut quand meme l'afficher en streaming
+      // depuis la prochaine requete.
+      const dataUrl = `data:application/pdf;base64,${bin.buffer.toString('base64')}`
+      return { content: dataUrl, sha: bin.sha, kind: 'pdf' }
+    }
+    const dataUrl = `data:application/pdf;base64,${bin.buffer.toString('base64')}`
+    upsertLumenCachedFile(repoId, path, bin.sha, dataUrl)
+    return { content: dataUrl, sha: bin.sha, kind: 'pdf' }
+  }
+
+  // v2.64 : .tex et .md passent par le meme chemin texte. La difference
+  // de rendu se fait cote viewer (highlight.js latex pour tex, marked
+  // pour md). On evite cependant l'inlining d'images pour les .tex car
+  // ils n'ont pas de syntaxe ![](img) markdown.
   const file = await fetchFile(octokit, { owner: dbRepo.owner, repo: dbRepo.repo, path, ref: dbRepo.default_branch })
   if (!file) return null
 
   const cached = getLumenCachedFile(repoId, path)
   if (cached && cached.sha === file.sha) {
     // Cache hit : l'index FTS est deja a jour (pose au precedent fetch)
-    return { content: cached.content, sha: file.sha }
+    return { content: cached.content, sha: file.sha, kind: ext === 'tex' ? 'tex' : 'markdown' }
   }
 
-  const enriched = await inlineImages(octokit, dbRepo, path, file.content)
+  // Pas d'inline d'images pour les .tex (le format n'a pas la syntaxe md)
+  const enriched = ext === 'tex'
+    ? file.content
+    : await inlineImages(octokit, dbRepo, path, file.content)
   upsertLumenCachedFile(repoId, path, file.sha, enriched)
 
-  // Index FTS5 : on utilise le MD brut avant inline d'images (plus leger
-  // et on n'a pas besoin des images pour la recherche texte). Titre pioche
-  // depuis le manifest si possible, sinon depuis le path. On log les
-  // erreurs au lieu de les avaler silencieusement pour reperer un drift
-  // schema (ex: table FTS5 absente apres restore d'un backup).
-  try {
-    const manifest = dbRepo.manifest_json ? JSON.parse(dbRepo.manifest_json) : null
-    const chapter = manifest?.chapters?.find((c) => c.path === path)
-    const title = chapter?.title || path
-    upsertLumenChapterFts(repoId, path, title, markdownToPlainText(file.content))
-  } catch (err) {
+  // Index FTS5 : seulement pour le markdown (le tex est trop niche pour
+  // justifier un parser specialise). Titre pioche depuis le manifest si
+  // possible, sinon depuis le path. On log les erreurs au lieu de les
+  // avaler silencieusement pour reperer un drift schema (ex: table FTS5
+  // absente apres restore d'un backup).
+  if (ext !== 'tex') {
     try {
-      require('../utils/logger').warn('lumen_fts_upsert_failed', {
-        repoId, path, error: err.message,
-      })
-    } catch { /* logger module unavailable in some test contexts */ }
+      const manifest = dbRepo.manifest_json ? JSON.parse(dbRepo.manifest_json) : null
+      const chapter = manifest?.chapters?.find((c) => c.path === path)
+      const title = chapter?.title || path
+      upsertLumenChapterFts(repoId, path, title, markdownToPlainText(file.content))
+    } catch (err) {
+      try {
+        require('../utils/logger').warn('lumen_fts_upsert_failed', {
+          repoId, path, error: err.message,
+        })
+      } catch { /* logger module unavailable in some test contexts */ }
+    }
   }
 
-  return { content: enriched, sha: file.sha }
+  return { content: enriched, sha: file.sha, kind: ext === 'tex' ? 'tex' : 'markdown' }
 }
 
 /**
@@ -446,7 +484,11 @@ async function fetchChapterContent(octokit, dbRepo, path) {
 function getCachedChapter(repoId, path) {
   const cached = getLumenCachedFile(repoId, path)
   if (!cached) return null
-  return { content: cached.content, sha: cached.sha, fetchedAt: cached.fetched_at, cached: true }
+  // Infere le kind depuis l'extension : pas stocke explicitement en cache
+  // mais le path est suffisant pour brancher cote viewer.
+  const ext = (path.match(/\.([^./]+)$/) || [])[1]?.toLowerCase()
+  const kind = ext === 'pdf' ? 'pdf' : ext === 'tex' ? 'tex' : 'markdown'
+  return { content: cached.content, sha: cached.sha, fetchedAt: cached.fetched_at, cached: true, kind }
 }
 
 /**

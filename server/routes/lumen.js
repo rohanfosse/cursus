@@ -537,7 +537,7 @@ router.get(
       try {
         const file = await fetchChapterContent(octokit, repo, path)
         if (!file) throw new NotFoundError('Fichier introuvable dans le repo')
-        return { content: file.content, sha: file.sha, cached: false }
+        return { content: file.content, sha: file.sha, cached: false, kind: file.kind }
       } catch (err) {
         if (err.statusCode) throw err
         const cached = getCachedChapter(repo.id, path)

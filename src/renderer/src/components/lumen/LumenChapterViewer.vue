@@ -114,15 +114,48 @@ function navigateToProject() {
 
 const bodyRef = ref<HTMLElement | null>(null)
 
+// Detection du format de chapitre (v2.64). Le `kind` peut venir du manifest
+// (auto-manifest le pose, cursus.yaml peut le surcharger), sinon on infere
+// depuis l'extension du path. Branches de rendu :
+//  - pdf : iframe data: URL (PDF natif)
+//  - tex : source LaTeX colorisee via highlight.js
+//  - markdown : rendu standard, ou Marp si frontmatter `marp: true`
+function inferKindFromPath(path: string): 'markdown' | 'pdf' | 'tex' {
+  const m = path.match(/\.([^./]+)$/)
+  const ext = m ? m[1].toLowerCase() : ''
+  if (ext === 'pdf') return 'pdf'
+  if (ext === 'tex') return 'tex'
+  return 'markdown'
+}
+const chapterKind = computed<'markdown' | 'pdf' | 'tex'>(() => {
+  return props.chapter.kind ?? inferKindFromPath(props.chapter.path)
+})
+const isPdf = computed(() => chapterKind.value === 'pdf')
+const isTex = computed(() => chapterKind.value === 'tex')
+
 // Detection Marp via frontmatter `marp: true`. Si detecte, on bascule sur
 // LumenSlideDeck (rendu en slides) au lieu du rendu Markdown long-form.
-const parsed = computed(() => parseChapterContent(props.content))
+// Marp ne s'applique qu'aux chapitres markdown — un .pdf ou .tex ne peut
+// pas avoir de frontmatter Marp.
+const parsed = computed(() =>
+  chapterKind.value === 'markdown' ? parseChapterContent(props.content) : { frontmatter: {}, body: '', isMarp: false },
+)
 const isMarp = computed(() => parsed.value.isMarp)
 
 const html = computed(() => {
   if (!props.content) return ''
-  if (isMarp.value) return ''  // rendu via LumenSlideDeck, pas v-html
+  if (isPdf.value || isTex.value) return ''  // rendu dedie, pas v-html
+  if (isMarp.value) return ''                // rendu via LumenSlideDeck
   return renderMarkdown(props.content, { chapterPath: props.chapter.path })
+})
+
+// Pour les .tex : on rend le source via highlight.js (mode latex). On
+// reutilise le pipeline markdown + un fenced block ```latex pour beneficier
+// du wrapper .lumen-codeblock standard (header + scroll + theming).
+const texHtml = computed(() => {
+  if (!isTex.value || !props.content) return ''
+  const fenced = '```latex\n' + props.content + '\n```'
+  return renderMarkdown(fenced, { chapterPath: props.chapter.path })
 })
 
 // ── Outline (plan du chapitre) + breadcrumbs + stale indicator ────────────
@@ -283,9 +316,10 @@ async function renderMermaidBlocks(root: HTMLElement) {
 
 async function enrichRender() {
   await nextTick()
-  // En mode Marp, le contenu est rendu par LumenSlideDeck — pas de bodyRef
-  // a enrichir, pas de headings, pas de mermaid, pas d'ancres a scroller.
-  if (isMarp.value) {
+  // En mode PDF, le contenu est un iframe — rien a enrichir cote markdown.
+  // En mode Marp, le contenu est rendu par LumenSlideDeck — pas de bodyRef.
+  // En mode TeX, on rend un seul fenced block, pas de headings ni d'ancres.
+  if (isPdf.value || isMarp.value || isTex.value) {
     headings.value = []
     return
   }
@@ -436,8 +470,22 @@ watch(() => [props.content, props.chapter?.path], () => {
       <p>Contenu indisponible</p>
     </div>
     <template v-else>
+      <!-- Rendu PDF natif : iframe data: URL fetchee depuis le serveur (v2.64) -->
+      <div v-if="isPdf" class="lumen-viewer-main lumen-viewer-main--pdf">
+        <iframe
+          :src="content ?? ''"
+          class="lumen-pdf-frame"
+          :title="chapter.title"
+        />
+      </div>
+
+      <!-- Rendu source LaTeX : code block colorise via highlight.js (v2.64) -->
+      <div v-else-if="isTex" class="lumen-viewer-main lumen-viewer-main--tex">
+        <div class="lumen-viewer-body markdown-body" v-html="texHtml" />
+      </div>
+
       <!-- Rendu Marp : slide deck dedie quand `marp: true` dans la frontmatter -->
-      <div v-if="isMarp" class="lumen-viewer-main lumen-viewer-main--slides">
+      <div v-else-if="isMarp" class="lumen-viewer-main lumen-viewer-main--slides">
         <LumenSlideDeck :source="content ?? ''" :title="chapter.title" />
       </div>
 
@@ -461,7 +509,7 @@ watch(() => [props.content, props.chapter?.path], () => {
       <!-- Navigation prev/next : 2 boutons flottants en bordures du contenu.
            Apparaissent au hover du viewer, gardent l'espace disponible pour
            le contenu en permanence (cf. demande utilisateur v2.61). -->
-      <div v-if="!isMarp && (prevChapter || nextChapter)" class="lumen-floating-nav">
+      <div v-if="!isMarp && !isPdf && (prevChapter || nextChapter)" class="lumen-floating-nav">
         <button
           v-if="prevChapter"
           type="button"
@@ -610,6 +658,29 @@ button.lumen-viewer-chip:focus-visible {
   justify-content: flex-start;
   overflow-y: auto;
   padding: var(--space-md) var(--space-lg);
+}
+
+/* Mode PDF (v2.64) : iframe pleine taille rendant le PDF nativement
+   via le moteur Chromium d'Electron. */
+.lumen-viewer-main--pdf {
+  flex-direction: column;
+  background: var(--bg-rail);
+  padding: 0;
+}
+.lumen-pdf-frame {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
+}
+
+/* Mode TeX (v2.64) : on reuse le wrapper markdown-body pour profiter du
+   styling .lumen-codeblock standard, mais le contenu est uniquement un
+   bloc <pre><code class="language-latex"> rendu par le pipeline. */
+.lumen-viewer-main--tex .lumen-viewer-body {
+  padding: var(--space-xl) var(--space-2xl, 32px);
+  max-width: none;
 }
 
 .lumen-viewer-body {

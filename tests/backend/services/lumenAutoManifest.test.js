@@ -35,10 +35,11 @@ describe('buildManifestFromTree', () => {
       [{ path: 'README.md' }, { path: 'cours/01-intro.md' }],
       { projectName: 'test' },
     )
-    expect(m.chapters[0]).toEqual({
+    expect(m.chapters[0]).toMatchObject({
       title: 'Accueil',
       path: 'README.md',
       section: 'Presentation',
+      kind: 'markdown',
     })
     expect(m.chapters[1].title.toLowerCase()).toContain('intro')
     validateAgainstSchema(m)
@@ -74,11 +75,10 @@ describe('buildManifestFromTree', () => {
     validateAgainstSchema(m)
   })
 
-  it('fichiers non-.md (pdf/zip/png) → resources', () => {
+  it('archives et images non-chapitre → resources (pdf est devenu chapitre en v2.64)', () => {
     const m = buildManifestFromTree(
       [
         { path: 'README.md' },
-        { path: 'guides/cheat.pdf' },
         { path: 'archive.zip' },
         { path: 'images/logo.png' },
       ],
@@ -86,7 +86,6 @@ describe('buildManifestFromTree', () => {
     )
     expect(m.resources).toBeDefined()
     const resourcePaths = m.resources.map((r) => r.path)
-    expect(resourcePaths).toContain('guides/cheat.pdf')
     expect(resourcePaths).toContain('archive.zip')
     expect(resourcePaths).toContain('images/logo.png')
     validateAgainstSchema(m)
@@ -138,5 +137,153 @@ describe('buildManifestFromTree', () => {
     expect(m.chapters[0].path).toBe('README.md')
     expect(m.chapters[0].title).toBe('Aucun chapitre')
     validateAgainstSchema(m)
+  })
+})
+
+// ── PDF / TeX support v2.64 ─────────────────────────────────────────────
+
+describe('buildManifestFromTree : PDF et TeX (v2.64)', () => {
+  it('PDF orphelin -> chapitre kind=pdf', () => {
+    const m = buildManifestFromTree(
+      [{ path: 'guide.pdf' }],
+      { projectName: 'test' },
+    )
+    const ch = m.chapters.find((c) => c.path === 'guide.pdf')
+    expect(ch).toBeDefined()
+    expect(ch.kind).toBe('pdf')
+    expect(ch.companionPdf).toBeUndefined()
+    expect(ch.companionTex).toBeUndefined()
+    validateAgainstSchema(m)
+  })
+
+  it('TeX orphelin -> chapitre kind=tex', () => {
+    const m = buildManifestFromTree(
+      [{ path: 'qcm.tex' }],
+      { projectName: 'test' },
+    )
+    const ch = m.chapters.find((c) => c.path === 'qcm.tex')
+    expect(ch).toBeDefined()
+    expect(ch.kind).toBe('tex')
+    validateAgainstSchema(m)
+  })
+
+  it('paire .md + .pdf meme basename -> 1 chapitre kind=markdown avec companionPdf', () => {
+    const m = buildManifestFromTree(
+      [{ path: 'guides/scrum.md' }, { path: 'guides/scrum.pdf' }],
+      { projectName: 'test' },
+    )
+    // Un seul chapitre emis (priorite md > pdf)
+    expect(m.chapters.filter((c) => c.path.includes('scrum'))).toHaveLength(1)
+    const ch = m.chapters.find((c) => c.path === 'guides/scrum.md')
+    expect(ch).toBeDefined()
+    expect(ch.kind).toBe('markdown')
+    expect(ch.companionPdf).toBe('guides/scrum.pdf')
+    expect(ch.companionTex).toBeUndefined()
+    validateAgainstSchema(m)
+  })
+
+  it('paire .tex + .pdf meme basename -> 1 chapitre kind=pdf avec companionTex', () => {
+    const m = buildManifestFromTree(
+      [{ path: 'sujets/qcm-equadiff.tex' }, { path: 'sujets/qcm-equadiff.pdf' }],
+      { projectName: 'maths' },
+    )
+    expect(m.chapters.filter((c) => c.path.includes('qcm-equadiff'))).toHaveLength(1)
+    const ch = m.chapters.find((c) => c.path === 'sujets/qcm-equadiff.pdf')
+    expect(ch).toBeDefined()
+    expect(ch.kind).toBe('pdf')
+    expect(ch.companionTex).toBe('sujets/qcm-equadiff.tex')
+    validateAgainstSchema(m)
+  })
+
+  it('triple .md + .pdf + .tex -> 1 chapitre md + pdf compagnon (priorite md la plus haute)', () => {
+    const m = buildManifestFromTree(
+      [
+        { path: 'guides/scrum.md' },
+        { path: 'guides/scrum.pdf' },
+        { path: 'guides/scrum.tex' },
+      ],
+      { projectName: 'test' },
+    )
+    expect(m.chapters.filter((c) => c.path.includes('scrum'))).toHaveLength(1)
+    const ch = m.chapters.find((c) => c.path === 'guides/scrum.md')
+    expect(ch.kind).toBe('markdown')
+    expect(ch.companionPdf).toBe('guides/scrum.pdf')
+    // Le .tex n'est PAS expose comme compagnon dans cette config (md > pdf
+    // > tex). Si l'auteur veut le voir, il peut l'editer dans cursus.yaml.
+    expect(ch.companionTex).toBeUndefined()
+    validateAgainstSchema(m)
+  })
+
+  it('PDF n\'est plus liste comme resource (promu en chapitre)', () => {
+    const m = buildManifestFromTree(
+      [{ path: 'README.md' }, { path: 'guide.pdf' }],
+      { projectName: 'test' },
+    )
+    // .pdf est devenu chapitre, donc absent de resources
+    const pdfResources = (m.resources || []).filter((r) => r.path === 'guide.pdf')
+    expect(pdfResources).toHaveLength(0)
+    const pdfChapter = m.chapters.find((c) => c.path === 'guide.pdf')
+    expect(pdfChapter).toBeDefined()
+    expect(pdfChapter.kind).toBe('pdf')
+  })
+
+  it('cas reel CESI Mathematiques : 3 paires tex+pdf dans sujets/', () => {
+    const m = buildManifestFromTree(
+      [
+        { path: 'README.md' },
+        { path: 'sujets/qcm-equadiff-integrales.pdf' },
+        { path: 'sujets/qcm-equadiff-integrales.tex' },
+        { path: 'sujets/qcm-fonctions.pdf' },
+        { path: 'sujets/qcm-fonctions.tex' },
+        { path: 'sujets/qcm-unique.pdf' },
+        { path: 'sujets/qcm-unique.tex' },
+        { path: 'corriges/corrige-equadiff-integrales.pdf' },
+        { path: 'corriges/corrige-equadiff-integrales.tex' },
+      ],
+      { projectName: '0-Mathematiques' },
+    )
+    // README + 3 paires sujets + 1 paire corriges = 5 chapitres
+    expect(m.chapters).toHaveLength(5)
+    // Tous les sujets sont kind=pdf avec companionTex
+    const sujets = m.chapters.filter((c) => c.path.startsWith('sujets/'))
+    expect(sujets).toHaveLength(3)
+    sujets.forEach((c) => {
+      expect(c.kind).toBe('pdf')
+      expect(c.companionTex).toBeDefined()
+      expect(c.companionTex).toMatch(/\.tex$/)
+    })
+    validateAgainstSchema(m)
+  })
+
+  it('schema accepte chapter avec kind explicite et compagnons', () => {
+    const yamlText = `
+project: Test
+chapters:
+  - title: Guide Scrum
+    path: guides/scrum.md
+    kind: markdown
+    companionPdf: guides/scrum.pdf
+  - title: QCM Equadiff
+    path: sujets/qcm-equadiff.pdf
+    kind: pdf
+    companionTex: sujets/qcm-equadiff.tex
+`
+    const r = parseManifest(yamlText)
+    expect(r.ok).toBe(true)
+    expect(r.manifest.chapters[0].kind).toBe('markdown')
+    expect(r.manifest.chapters[0].companionPdf).toBe('guides/scrum.pdf')
+    expect(r.manifest.chapters[1].kind).toBe('pdf')
+    expect(r.manifest.chapters[1].companionTex).toBe('sujets/qcm-equadiff.tex')
+  })
+
+  it('schema rejette kind invalide', () => {
+    const r = parseManifest(`
+project: Test
+chapters:
+  - title: A
+    path: a.md
+    kind: invalid_kind
+`)
+    expect(r.ok).toBe(false)
   })
 })

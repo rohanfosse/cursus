@@ -16,7 +16,7 @@
  */
 import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { FileText, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, Sparkles, BookOpen, Presentation, Home, Lightbulb, Wrench, Hammer, Folder, Users } from 'lucide-vue-next'
+import { FileText, FileDown, FileCode, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, Sparkles, BookOpen, Presentation, Home, Lightbulb, Wrench, Hammer, Folder, Users } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import { useLumenStore } from '@/stores/lumen'
 import { chapterKey } from '@/utils/lumenDevoirLinks'
@@ -348,11 +348,26 @@ function handleSelectSearchResult(r: LumenSearchResult) {
                     }"
                     @click="emit('select', { repoId: repo.id, path: ch.path })"
                   >
+                    <!-- Icone selon le format du chapitre (v2.64). Marp prime
+                         sur tout : un .md detecte avec frontmatter `marp: true`
+                         affiche l'icone Presentation. -->
                     <Presentation
                       v-if="marpChapters.has(chapterKey(repo.id, ch.path))"
                       :size="12"
                       class="lumen-chapter-icon lumen-chapter-icon--marp"
                       aria-label="Presentation Marp"
+                    />
+                    <FileDown
+                      v-else-if="ch.kind === 'pdf' || ch.path.toLowerCase().endsWith('.pdf')"
+                      :size="12"
+                      class="lumen-chapter-icon lumen-chapter-icon--pdf"
+                      aria-label="Document PDF"
+                    />
+                    <FileCode
+                      v-else-if="ch.kind === 'tex' || ch.path.toLowerCase().endsWith('.tex')"
+                      :size="12"
+                      class="lumen-chapter-icon lumen-chapter-icon--tex"
+                      aria-label="Source LaTeX"
                     />
                     <FileText v-else :size="12" class="lumen-chapter-icon" />
                     <span class="lumen-chapter-title">{{ ch.title }}</span>
@@ -687,6 +702,8 @@ function handleSelectSearchResult(r: LumenSearchResult) {
 .lumen-chapter-noted { color: var(--accent); flex-shrink: 0; }
 .lumen-chapter-icon { flex-shrink: 0; }
 .lumen-chapter-icon--marp { color: var(--accent); }
+.lumen-chapter-icon--pdf { color: var(--color-danger); }
+.lumen-chapter-icon--tex { color: var(--color-warning); }
 
 /* ── Sections par kind (v2.63) ─────────────────────────────────────────── */
 .lumen-kind-sections {
