@@ -37,22 +37,29 @@ const renderError = ref<string | null>(null)
 const isFullscreen = ref(false)
 
 interface RenderedDeck {
-  slides: string[]   // tableau de HTML par slide
-  css: string        // CSS global Marp + theme
+  /** Chaque slide est un document HTML complet (iframe srcdoc) */
+  slides: string[]
   count: number
 }
 
-const rendered = ref<RenderedDeck>({ slides: [], css: '', count: 0 })
+const rendered = ref<RenderedDeck>({ slides: [], count: 0 })
 
 /**
- * Compile le markdown Marp en sections HTML individuelles.
- * Marp emet un seul HTML avec toutes les <section class="..."> consecutives.
- * On les decoupe pour pouvoir naviguer slide par slide.
+ * Compile le markdown Marp et produit UN document HTML complet par slide.
+ *
+ * Pourquoi srcdoc plutot que v-html dans la page ? (fix v2.67.1)
+ * Marp emet du CSS global avec des selecteurs comme `section { ... }` qui
+ * fuitaient dans le DOM Cursus et cassaient le styling des <section> /
+ * <header> de LumenChapterViewer (viewer-head, linked-travaux, etc.).
+ * En encapsulant chaque slide dans une iframe srcdoc, on obtient une
+ * isolation complete : le CSS Marp + le `style: |` de l'auteur ne peuvent
+ * plus affecter le reste de l'app, et reciproquement les styles parents
+ * ne polluent pas le rendu de la slide.
  */
 function renderDeck(): void {
   renderError.value = null
   if (!props.source) {
-    rendered.value = { slides: [], css: '', count: 0 }
+    rendered.value = { slides: [], count: 0 }
     return
   }
   try {
@@ -71,38 +78,68 @@ function renderDeck(): void {
     // de l'auteur prime.
     marp.themeSet.add(MARP_CURSUS_THEME)
     const { html, css } = marp.render(props.source)
-    // Marp emet <section ...>...</section> ; on les separe.
-    // On utilise un parser DOM plutot qu'une regex pour gerer les sections
-    // imbriquees (ex. notes ou advanced fenced sections).
+    // Marp emet <section ...>...</section> ; on les separe puis on embed
+    // chaque section dans un document HTML autonome pour l'iframe.
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, 'text/html')
     const sections = Array.from(doc.querySelectorAll('section'))
-    const slides = sections.map((s) => DOMPurify.sanitize(s.outerHTML, {
-      // 'style' indispensable : Marpit injecte le `style: |` de la frontmatter
-      // comme <style scoped> dans chaque <section>. Sans ce ADD_TAGS, tout
-      // le theme inline de l'auteur est strippe silencieusement.
-      ADD_TAGS: [
-        'section', 'style',
-        'foreignObject', 'svg', 'g', 'path', 'rect', 'text',
-        'circle', 'line', 'polygon', 'polyline',
-      ],
-      // 'class' indispensable pour les directives Marpit `<!-- _class: title -->`
-      // et les classes utilitaires du theme auteur (.columns, .lead, etc.).
-      ADD_ATTR: [
-        'xmlns', 'viewBox', 'preserveAspectRatio',
-        'data-marpit-pagination', 'data-marpit-fragment',
-        'class',
-      ],
-    }))
-    rendered.value = { slides, css, count: slides.length }
+
+    // Styles globaux iframe : reset body/html + fit contain sur la section
+    // pour qu'elle prenne toute la viewport peu importe sa dimension native.
+    const iframeBaseCss = `
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #fff;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* Marp emet des sections avec des dimensions fixes (1280x720 typique).
+         On les fit au viewport de l'iframe en preservant le ratio. */
+      section {
+        max-width: 100%;
+        max-height: 100%;
+        box-sizing: border-box;
+        flex-shrink: 0;
+      }
+    `
+
+    const slides = sections.map((section) => {
+      // DOMPurify avant injection dans l'iframe — on laisse passer <style>,
+      // <section>, <svg> et classes pour supporter le style: | auteur et
+      // les directives Marpit.
+      const clean = DOMPurify.sanitize(section.outerHTML, {
+        ADD_TAGS: [
+          'section', 'style',
+          'foreignObject', 'svg', 'g', 'path', 'rect', 'text',
+          'circle', 'line', 'polygon', 'polyline',
+        ],
+        ADD_ATTR: [
+          'xmlns', 'viewBox', 'preserveAspectRatio',
+          'data-marpit-pagination', 'data-marpit-fragment',
+          'class',
+        ],
+      })
+      // Document HTML complet : base + css marp + css iframe + section
+      return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${iframeBaseCss}\n${css}</style></head><body>${clean}</body></html>`
+    })
+
+    rendered.value = { slides, count: slides.length }
     if (currentIndex.value >= slides.length) currentIndex.value = 0
   } catch (err) {
     renderError.value = (err as Error).message ?? 'Erreur de rendu Marp'
-    rendered.value = { slides: [], css: '', count: 0 }
+    rendered.value = { slides: [], count: 0 }
   }
 }
 
-const currentSlideHtml = computed(() => rendered.value.slides[currentIndex.value] ?? '')
+const currentSlideSrcDoc = computed(() => rendered.value.slides[currentIndex.value] ?? '')
 const totalSlides = computed(() => rendered.value.count)
 const hasPrev = computed(() => currentIndex.value > 0)
 const hasNext = computed(() => currentIndex.value < totalSlides.value - 1)
@@ -180,9 +217,6 @@ watch(() => props.source, () => {
 
 <template>
   <div ref="containerRef" class="lumen-slidedeck" :class="{ 'lumen-slidedeck--fullscreen': isFullscreen }" tabindex="0">
-    <!-- Style Marp injecte une seule fois pour le deck courant -->
-    <component :is="'style'" v-if="rendered.css">{{ rendered.css }}</component>
-
     <div v-if="renderError" class="lsd-error">
       <AlertTriangle :size="20" />
       <div>
@@ -196,7 +230,14 @@ watch(() => props.source, () => {
     </div>
 
     <template v-else>
-      <div ref="slideHostRef" class="lsd-stage" v-html="currentSlideHtml" />
+      <div ref="slideHostRef" class="lsd-stage">
+        <iframe
+          :srcdoc="currentSlideSrcDoc"
+          class="lsd-stage-frame"
+          :title="`Slide ${currentIndex + 1} / ${totalSlides}`"
+          sandbox="allow-same-origin"
+        />
+      </div>
 
       <div class="lsd-controls">
         <button
@@ -252,8 +293,10 @@ watch(() => props.source, () => {
      (.lumen-viewer-main--slides). v2.66.2 : on ajoute width/height 100%
      pour ne pas dependre de l'auto-sizing flex. */
   width: 100%;
+  height: 100%;
   flex: 1;
   min-height: 0;
+  min-width: 0;
 }
 .lumen-slidedeck:focus-visible {
   box-shadow: var(--focus-ring);
@@ -267,34 +310,31 @@ watch(() => props.source, () => {
   justify-content: center;
 }
 
-/* Stage : la slide elle-meme. Largeur max calculee depuis la HAUTEUR
-   disponible (sinon une slide tres haute deborderait). En pratique le
-   facteur 16/9 garantit une slide proportionnee qui exploite tout
-   l'espace disponible — soit en mode portrait (limited by width) soit
-   en mode landscape (limited by height). */
+/* Stage : container qui heberge l'iframe. L'iframe prend 100% du stage
+   via absolute inset. Le stage lui-meme calcule sa taille pour respecter
+   le ratio 16/9 centre dans l'espace dispo (letterbox). */
 .lsd-stage {
-  flex: 1;
+  position: relative;
   width: 100%;
-  max-width: min(100%, calc((100vh - 200px) * 16 / 9));
+  height: 100%;
+  max-width: min(100%, calc((100% * 16 / 9)));
   aspect-ratio: 16 / 9;
   background: #fff;
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--elevation-3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
+  flex-shrink: 0;
+  /* Container query : on contraint via max-height du parent pour eviter
+     que l'aspect-ratio fasse deborder. */
+  max-height: 100%;
 }
-
-/* Marp injecte ses propres styles ; on s'assure que la section
-   prend bien tout l'espace du stage. */
-.lsd-stage :deep(section) {
+.lsd-stage-frame {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
+  border: none;
+  background: #fff;
 }
 
 .lumen-slidedeck--fullscreen .lsd-stage {

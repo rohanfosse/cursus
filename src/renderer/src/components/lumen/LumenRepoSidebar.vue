@@ -79,10 +79,24 @@ interface SectionGroup {
 }
 
 /**
- * Groupe une liste de chapitres par section en preservant l'ordre
- * d'apparition. Les chapitres sans champ `section` tombent dans un
- * bucket "Chapitres".
+ * Groupe une liste de chapitres par section. Les sections sont triees par
+ * leur prefixe numerique (si present) puis alphabetiquement — evite que
+ * "02 Labs" passe avant "01 Fundamentals" quand l'ordre des fichiers dans
+ * le manifest est arbitraire. Les chapitres sans champ `section` tombent
+ * dans un bucket "Chapitres".
+ *
+ * Le prefixe numerique est extrait du DEBUT de la section (ex: "01 Fundamentals"
+ * -> 1, "02 Labs · Lab01" -> 2). Les sections sans prefixe tombent apres
+ * les sections prefixees, triees alphabetiquement entre elles.
  */
+function sectionSortKey(title: string): { num: number; title: string } {
+  const m = title.match(/^(\d+)/)
+  return {
+    num: m ? Number(m[1]) : Number.POSITIVE_INFINITY,
+    title: title.toLowerCase(),
+  }
+}
+
 function groupBySection(chapters: LumenChapter[]): SectionGroup[] {
   const map = new Map<string, LumenChapter[]>()
   for (const ch of chapters) {
@@ -91,7 +105,14 @@ function groupBySection(chapters: LumenChapter[]): SectionGroup[] {
     if (existing) existing.push(ch)
     else map.set(key, [ch])
   }
-  return Array.from(map.entries()).map(([title, chs]) => ({ title, chapters: chs }))
+  return Array.from(map.entries())
+    .map(([title, chs]) => ({ title, chapters: chs }))
+    .sort((a, b) => {
+      const ka = sectionSortKey(a.title)
+      const kb = sectionSortKey(b.title)
+      if (ka.num !== kb.num) return ka.num - kb.num
+      return ka.title.localeCompare(kb.title)
+    })
 }
 
 interface FilteredRepo {
