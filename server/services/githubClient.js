@@ -62,17 +62,35 @@ async function validateToken(token) {
 
 /**
  * Mappe une RequestError Octokit vers un shape HTTP stable reutilisable dans les routes.
- * Accepte aussi un objet duck-typed avec { status, message } pour les tests.
+ * Accepte aussi un objet duck-typed avec { status, message, response } pour les tests.
+ *
+ * Les erreurs 403 sont analysees plus finement pour distinguer rate limit
+ * vs permissions refusees et fournir un message actionnable (delai avant
+ * reset pour le rate limit, verification d'acces sinon).
  */
 async function mapOctokitError(err) {
   const RequestError = await loadRequestError().catch(() => null)
   const isOctokit = RequestError && err instanceof RequestError
   if (isOctokit || typeof err?.status === 'number') {
     const status = err.status
-    if (status === 401) return { status: 401, code: 'GITHUB_UNAUTHORIZED', message: 'Token GitHub invalide ou expire' }
-    if (status === 403) return { status: 403, code: 'GITHUB_RATE_LIMIT_OR_FORBIDDEN', message: 'Acces GitHub refuse (rate limit ou permissions)' }
-    if (status === 404) return { status: 404, code: 'GITHUB_NOT_FOUND', message: 'Ressource GitHub introuvable' }
-    return { status, code: 'GITHUB_ERROR', message: err.message }
+    if (status === 401) return { status: 401, code: 'GITHUB_UNAUTHORIZED', message: 'Token GitHub invalide ou expire (reconnecte-toi)' }
+    if (status === 403) {
+      const headers = err.response?.headers ?? {}
+      const remaining = Number(headers['x-ratelimit-remaining'] ?? -1)
+      const resetEpoch = Number(headers['x-ratelimit-reset'] ?? 0)
+      if (remaining === 0 && resetEpoch > 0) {
+        const waitMin = Math.max(1, Math.ceil((resetEpoch * 1000 - Date.now()) / 60_000))
+        return {
+          status: 429,
+          code: 'GITHUB_RATE_LIMIT',
+          message: `Rate limit GitHub atteint. Reessaye dans ${waitMin} minute${waitMin > 1 ? 's' : ''}.`,
+        }
+      }
+      return { status: 403, code: 'GITHUB_FORBIDDEN', message: 'Acces GitHub refuse (verifie que ton compte est membre de l\'organisation)' }
+    }
+    if (status === 404) return { status: 404, code: 'GITHUB_NOT_FOUND', message: 'Ressource GitHub introuvable (organisation ou repo inexistant)' }
+    if (status === 422) return { status: 422, code: 'GITHUB_INVALID', message: err.message ?? 'Donnees GitHub invalides' }
+    return { status, code: 'GITHUB_ERROR', message: err.message ?? 'Erreur GitHub' }
   }
   return { status: 500, code: 'GITHUB_ERROR', message: err?.message ?? 'Erreur GitHub inconnue' }
 }

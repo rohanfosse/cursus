@@ -19,6 +19,7 @@ import { useLumenStore } from '@/stores/lumen'
 import { useAppStore } from '@/stores/app'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { relativeTime } from '@/utils/date'
 import LumenGithubConnect from '@/components/lumen/LumenGithubConnect.vue'
 import LumenRepoSidebar from '@/components/lumen/LumenRepoSidebar.vue'
 import LumenChapterViewer from '@/components/lumen/LumenChapterViewer.vue'
@@ -81,6 +82,23 @@ const notedChaptersSet = computed<Set<string>>(() => {
   return set
 })
 
+/** Timestamp du sync le plus recent parmi tous les repos de la promo. */
+const lastSyncedAt = computed<string | null>(() => {
+  let latest: string | null = null
+  for (const r of repos.value) {
+    if (r.lastSyncedAt && (!latest || r.lastSyncedAt > latest)) latest = r.lastSyncedAt
+  }
+  return latest
+})
+
+/** Duree depuis le dernier sync en ms (null si jamais synchronise). */
+const staleMs = computed<number | null>(() => {
+  if (!lastSyncedAt.value) return null
+  return Date.now() - new Date(lastSyncedAt.value + 'Z').getTime()
+})
+
+const STALE_THRESHOLD_MS = 15 * 60 * 1000  // 15 minutes
+
 const loadingChapter = ref(false)
 
 // ── Settings modal (teacher configure github org) ─────────────────────────
@@ -112,6 +130,17 @@ async function boot() {
 onMounted(async () => {
   await boot()
   applyUrlSelection()
+  // Auto-sync si le cache est stale (> 15 min) ET qu'on est connecte
+  // a GitHub ET qu'une org est configuree. Reveille l'utilisateur avec
+  // du contenu frais sans qu'il ait a cliquer "Sync".
+  if (
+    githubStatus.value.connected
+    && promoOrg.value
+    && staleMs.value !== null
+    && staleMs.value > STALE_THRESHOLD_MS
+  ) {
+    handleSync()
+  }
   window.addEventListener('keydown', handleKeydown)
 })
 
@@ -261,6 +290,13 @@ function handleNavigateChapter(path: string) {
         </span>
       </div>
       <div class="lumen-topbar-actions">
+        <span
+          v-if="githubStatus.connected && lastSyncedAt"
+          class="lumen-last-sync"
+          :title="`Derniere synchronisation : ${new Date(lastSyncedAt + 'Z').toLocaleString()}`"
+        >
+          Maj {{ relativeTime(lastSyncedAt + 'Z') }}
+        </span>
         <button
           v-if="githubStatus.connected"
           type="button"
@@ -270,7 +306,7 @@ function handleNavigateChapter(path: string) {
           @click="handleSync"
         >
           <component :is="syncing ? Loader2 : RefreshCw" :size="14" :class="{ spin: syncing }" />
-          Synchroniser
+          {{ syncing ? 'Sync...' : 'Synchroniser' }}
         </button>
         <button
           v-if="isTeacher"
@@ -435,6 +471,17 @@ function handleNavigateChapter(path: string) {
   font-weight: 700;
   letter-spacing: 0.02em;
 }
+.lumen-last-sync {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  padding: 4px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
 .lumen-brand-org {
   display: inline-flex;
   align-items: center;
