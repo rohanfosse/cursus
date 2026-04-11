@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /**
- * Panneau "Mes notes" prive a un etudiant pour un cours Lumen.
+ * Panneau "Mes notes" prive a un etudiant pour un chapitre Lumen.
  * Persiste automatiquement le contenu (debounce 1.5s) dans la table
- * lumen_course_notes. Affiche "Modifie il y a ..." avec le relativeTime.
+ * lumen_chapter_notes. Identifie le chapitre par (repoId, path).
  *
  * Un seul etudiant voit sa propre note (aucune visibilite prof / pair).
  */
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { NotebookPen, Trash2, Check, Loader2 } from 'lucide-vue-next'
 import { useLumenStore } from '@/stores/lumen'
 import { useToast } from '@/composables/useToast'
@@ -14,7 +14,8 @@ import { useConfirm } from '@/composables/useConfirm'
 import { relativeTime } from '@/utils/date'
 
 interface Props {
-  courseId: number
+  repoId: number
+  path: string
 }
 const props = defineProps<Props>()
 
@@ -23,45 +24,40 @@ const { showToast } = useToast()
 const { confirm: confirmDialog } = useConfirm()
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
+
 const draft       = ref<string>('')
 const saveState   = ref<SaveState>('idle')
 const lastSavedAt = ref<string | null>(null)
 const initialized = ref(false)
-const expanded    = ref(false)
 
-// ── Chargement initial au montage / changement de cours ─────────────────
+const MAX_CHARS = 10_000
+
 async function loadNote() {
   initialized.value = false
-  const note = await lumenStore.fetchCourseNote(props.courseId)
+  const note = await lumenStore.fetchChapterNote(props.repoId, props.path)
   draft.value = note?.content ?? ''
   lastSavedAt.value = note?.updated_at ?? null
   initialized.value = true
 }
-onMounted(loadNote)
-watch(() => props.courseId, loadNote)
 
-// ── Auto-save debounce 1.5s ──────────────────────────────────────────────
+onMounted(loadNote)
+watch(() => [props.repoId, props.path], loadNote)
+
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
-const MAX_CHARS = 10_000
 
 watch(draft, (newVal) => {
   if (!initialized.value) return
-  if (newVal.length > MAX_CHARS) return  // bloque au-dela (textarea maxlength)
+  if (newVal.length > MAX_CHARS) return
   if (debounceTimer) clearTimeout(debounceTimer)
   saveState.value = 'saving'
   debounceTimer = setTimeout(async () => {
     try {
-      const saved = await lumenStore.saveCourseNote(props.courseId, newVal)
-      if (saved) {
-        lastSavedAt.value = saved.updated_at
-        saveState.value = 'saved'
-        // Revient a idle apres 1s pour ne pas garder "sauve" indefiniment
-        setTimeout(() => {
-          if (saveState.value === 'saved') saveState.value = 'idle'
-        }, 1200)
-      } else {
-        saveState.value = 'error'
-      }
+      await lumenStore.saveChapterNote(props.repoId, props.path, newVal)
+      lastSavedAt.value = new Date().toISOString()
+      saveState.value = 'saved'
+      setTimeout(() => {
+        if (saveState.value === 'saved') saveState.value = 'idle'
+      }, 1200)
     } catch {
       saveState.value = 'error'
     }
@@ -71,192 +67,122 @@ watch(draft, (newVal) => {
 async function handleDelete() {
   if (!draft.value.trim() && !lastSavedAt.value) return
   if (!(await confirmDialog('Supprimer definitivement cette note ?', 'danger', 'Supprimer'))) return
-  const ok = await lumenStore.deleteCourseNote(props.courseId)
-  if (ok) {
-    draft.value = ''
-    lastSavedAt.value = null
-    saveState.value = 'idle'
-    showToast('Note supprimee', 'info')
-  }
+  await lumenStore.deleteChapterNoteAction(props.repoId, props.path)
+  draft.value = ''
+  lastSavedAt.value = null
+  saveState.value = 'idle'
+  showToast('Note supprimee', 'info')
 }
-
-const charCount = computed(() => draft.value.length)
-const charCountWarn = computed(() => charCount.value > MAX_CHARS * 0.9)
-
-const hasContent = computed(() => draft.value.trim().length > 0 || lastSavedAt.value !== null)
 </script>
 
 <template>
-  <details
-    class="notes-panel"
-    :open="expanded || hasContent"
-    @toggle="(e) => expanded = (e.target as HTMLDetailsElement).open"
-  >
-    <summary class="notes-summary">
+  <aside class="lumen-note-panel">
+    <header class="lumen-note-head">
       <NotebookPen :size="14" />
-      <span class="notes-summary-title">Mes notes</span>
-      <span v-if="lastSavedAt" class="notes-summary-meta">
-        Modifie {{ relativeTime(lastSavedAt) }}
+      <span class="lumen-note-label">Mes notes</span>
+      <span class="lumen-note-state" :class="`state-${saveState}`">
+        <Loader2 v-if="saveState === 'saving'" :size="11" class="spin" />
+        <Check v-else-if="saveState === 'saved'" :size="11" />
+        <template v-else-if="lastSavedAt">{{ relativeTime(lastSavedAt) }}</template>
       </span>
-      <span v-else-if="!initialized" class="notes-summary-meta">Chargement…</span>
-      <span v-else class="notes-summary-meta">Prive — visible uniquement par toi</span>
-    </summary>
+      <button
+        v-if="draft.length > 0 || lastSavedAt"
+        type="button"
+        class="lumen-note-delete"
+        title="Supprimer la note"
+        @click="handleDelete"
+      >
+        <Trash2 :size="12" />
+      </button>
+    </header>
 
-    <div class="notes-body">
-      <textarea
-        v-model="draft"
-        class="notes-textarea"
-        placeholder="Prends des notes sur ce cours… (auto-sauvegarde)"
-        :maxlength="MAX_CHARS"
-        :disabled="!initialized"
-        rows="8"
-        aria-label="Notes personnelles pour ce cours"
-      />
+    <textarea
+      v-model="draft"
+      class="lumen-note-textarea"
+      placeholder="Ecris tes notes personnelles sur ce chapitre (markdown supporte)..."
+      :maxlength="MAX_CHARS"
+      spellcheck="true"
+    />
 
-      <footer class="notes-footer">
-        <div class="notes-status">
-          <template v-if="saveState === 'saving'">
-            <Loader2 :size="12" class="notes-spinner" />
-            <span>Sauvegarde…</span>
-          </template>
-          <template v-else-if="saveState === 'saved'">
-            <Check :size="12" />
-            <span>Sauve</span>
-          </template>
-          <template v-else-if="saveState === 'error'">
-            <span class="notes-error">Echec de sauvegarde</span>
-          </template>
-        </div>
-        <span class="notes-count" :class="{ 'notes-count--warn': charCountWarn }">
-          {{ charCount }} / {{ MAX_CHARS }}
-        </span>
-        <button
-          v-if="hasContent"
-          type="button"
-          class="notes-delete"
-          title="Supprimer la note"
-          aria-label="Supprimer la note"
-          @click="handleDelete"
-        >
-          <Trash2 :size="13" />
-        </button>
-      </footer>
-    </div>
-  </details>
+    <footer class="lumen-note-foot">
+      <span class="lumen-note-count">{{ draft.length }} / {{ MAX_CHARS }}</span>
+    </footer>
+  </aside>
 </template>
 
 <style scoped>
-.notes-panel {
-  margin-top: 40px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg-elevated);
+.lumen-note-panel {
+  width: 320px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--bg-sidebar, var(--bg-secondary));
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
-.notes-summary {
+.lumen-note-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 12px 16px;
-  cursor: pointer;
-  user-select: none;
-  list-style: none;
-  background: var(--bg-sidebar, var(--bg-elevated));
-  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
   font-weight: 700;
-  color: var(--text-primary);
-  transition: background 120ms ease;
-}
-.notes-summary:hover { background: var(--bg-hover); }
-.notes-summary::-webkit-details-marker { display: none; }
-.notes-summary::before {
-  content: '\25B6';
-  font-size: 9px;
-  color: var(--text-muted);
-  transition: transform 150ms ease;
-  margin-right: 2px;
-}
-.notes-panel[open] > .notes-summary::before { transform: rotate(90deg); }
-
-.notes-summary-title {
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 11px;
-}
-.notes-summary-meta {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 500;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
+}
+.lumen-note-label { flex: 1; }
+
+.lumen-note-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
   text-transform: none;
   letter-spacing: 0;
+  font-weight: 500;
 }
+.state-saving { color: var(--accent); }
+.state-saved  { color: var(--success, #4caf50); }
+.state-error  { color: var(--danger); }
 
-.notes-body { padding: 14px 16px 12px; }
-
-.notes-textarea {
-  width: 100%;
-  min-height: 140px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-input);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 13px;
-  line-height: 1.6;
-  resize: vertical;
-  box-sizing: border-box;
-}
-.notes-textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-subtle);
-}
-.notes-textarea:disabled { opacity: 0.5; }
-
-.notes-footer {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-.notes-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 100px;
-}
-.notes-error { color: var(--color-danger, #d9534f); }
-.notes-count {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-}
-.notes-count--warn { color: var(--color-warning, #e6a700); }
-.notes-delete {
+.lumen-note-delete {
   background: none;
   border: none;
-  cursor: pointer;
   color: var(--text-muted);
+  cursor: pointer;
   padding: 4px;
-  border-radius: 3px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 120ms ease, background 120ms ease;
+  border-radius: 4px;
 }
-.notes-delete:hover {
-  color: var(--color-danger, #d9534f);
-  background: var(--bg-hover);
+.lumen-note-delete:hover { color: var(--danger); background: var(--bg-hover); }
+
+.lumen-note-textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.55;
+  padding: 16px;
 }
 
-.notes-spinner { animation: notes-spin 0.8s linear infinite; }
-@keyframes notes-spin { to { transform: rotate(360deg); } }
-
-@media (prefers-reduced-motion: reduce) {
-  .notes-spinner { animation: none; }
+.lumen-note-foot {
+  padding: 6px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
 }
+.lumen-note-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

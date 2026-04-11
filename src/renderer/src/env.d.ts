@@ -365,7 +365,6 @@ declare global {
       onSignatureUpdate(cb: (data: { id: number; status: string; signed_file_url?: string; signer_name?: string; rejection_reason?: string }) => void): () => void
       onDocumentNew(cb: (data: { name: string; category?: string }) => void): () => void
       onAssignmentNew(cb: (data: { title: string; category?: string; deadline?: string }) => void): () => void
-      onLumenCoursePublished(cb: (data: { promoId: number; courseId: number }) => void): () => void
       onUpdaterAvailable(cb: (version: string) => void): () => void
       onUpdaterDownloaded(cb: (version: string) => void): () => void
       onUpdaterProgress(cb: (percent: number) => void): () => void
