@@ -463,6 +463,7 @@ interface HeadingEntry {
 }
 
 const headings = ref<HeadingEntry[]>([])
+const activeHeadingId = ref<string | null>(null)
 // v2.73 : l'etat ouvert/ferme de l'outline est persiste en localStorage
 // pour que le prof qui a masque l'outline ne doive pas le refermer a
 // chaque changement de chapitre. Cle globale (pas per-repo).
@@ -476,6 +477,53 @@ const outlineOpen = ref<boolean>((() => {
 watch(outlineOpen, (v) => {
   try { localStorage.setItem(OUTLINE_STATE_KEY, v ? '1' : '0') } catch { /* noop */ }
 })
+
+// Scroll spy (v2.77) : observe les headings du body pour highlighter
+// celui actuellement visible dans l'outline. On utilise IntersectionObserver
+// avec un rootMargin negatif en haut pour prendre le heading "en train
+// d'entrer" dans le tiers superieur du viewport.
+let outlineObserver: IntersectionObserver | null = null
+function setupScrollSpy() {
+  if (outlineObserver) {
+    outlineObserver.disconnect()
+    outlineObserver = null
+  }
+  if (!bodyRef.value || headings.value.length === 0) return
+  const nodes = bodyRef.value.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')
+  if (!nodes.length) return
+
+  // Map id -> heading index pour pouvoir resoudre le plus haut visible
+  const visible = new Set<string>()
+
+  outlineObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        const id = entry.target.id
+        if (!id) continue
+        if (entry.isIntersecting) visible.add(id)
+        else visible.delete(id)
+      }
+      // Le heading actif = le premier visible dans l'ordre du document.
+      // On tombe dans ce cas sur tous les headings qui ont un rect dans
+      // la zone d'intersection (les 40% du haut).
+      for (const h of headings.value) {
+        if (visible.has(h.id)) {
+          activeHeadingId.value = h.id
+          return
+        }
+      }
+    },
+    {
+      root: bodyRef.value,
+      // On ne prend en compte que le tiers superieur du viewport : un
+      // heading devient "actif" quand il touche cette zone. Evite que
+      // tous les headings visibles clignotent en meme temps.
+      rootMargin: '0px 0px -60% 0px',
+      threshold: 0,
+    },
+  )
+  nodes.forEach((el) => outlineObserver?.observe(el))
+}
 
 /**
  * Extrait les headings du DOM rendu pour alimenter l'outline. Les ids sont
@@ -661,6 +709,9 @@ async function enrichRender() {
   if (!bodyRef.value) return
   injectCopyButtons(bodyRef.value)
   headings.value = extractHeadings(bodyRef.value)
+  // v2.77 : setup scroll spy apres l'extraction. On attend le prochain
+  // tick pour que le DOM soit stabilise avant de poser l'observer.
+  nextTick(() => setupScrollSpy())
   // Scroll en premier pour eviter que l'utilisateur voie un saut de layout
   // apres que mermaid remplace les <pre> par des SVG plus grands.
   // Si une ancre est fournie via le deep-link (ex: ouverture depuis un
@@ -691,6 +742,8 @@ onBeforeUnmount(() => {
   document.removeEventListener('mousedown', onDocumentClick)
   document.removeEventListener('keydown', onDocumentKey)
   document.removeEventListener('keydown', onLumenKeyboard)
+  outlineObserver?.disconnect()
+  outlineObserver = null
 })
 watch(() => [props.content, props.chapter?.path], () => {
   enrichRender()
@@ -914,6 +967,7 @@ watch(() => [props.content, props.chapter?.path], () => {
           v-if="headings.length > 0"
           :headings="headings"
           :collapsed="!outlineOpen"
+          :active-heading-id="activeHeadingId"
           @toggle="outlineOpen = !outlineOpen"
           @navigate="scrollToHeading"
         />

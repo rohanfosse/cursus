@@ -18,6 +18,8 @@ interface HeadingEntry {
 interface Props {
   headings: HeadingEntry[]
   collapsed?: boolean
+  /** Id du heading actuellement visible (scroll-spy, v2.77) */
+  activeHeadingId?: string | null
 }
 interface Emits {
   (e: 'navigate', id: string): void
@@ -46,7 +48,10 @@ defineEmits<Emits>()
         v-for="h in headings"
         :key="h.id"
         class="lumen-outline-item"
-        :class="`lumen-outline-item--h${h.level}`"
+        :class="[
+          `lumen-outline-item--h${h.level}`,
+          { 'is-active': h.id === activeHeadingId },
+        ]"
         :title="h.text"
         @click="$emit('navigate', h.id)"
       >
@@ -136,6 +141,13 @@ defineEmits<Emits>()
 .lumen-outline-item:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+}
+/* Scroll spy (v2.77) : heading actuellement visible dans le viewport */
+.lumen-outline-item.is-active {
+  background: rgba(var(--accent-rgb), .08);
+  color: var(--accent);
+  border-left-color: var(--accent);
+  font-weight: 700;
 }
 
 .lumen-outline-item--h1 { font-weight: 700; color: var(--text-primary); padding-left: 12px; }

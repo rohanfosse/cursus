@@ -101,6 +101,8 @@ const sortedRepos = computed(() => [...props.repos].sort((a, b) => {
 interface SectionGroup {
   title: string
   chapters: LumenChapter[]
+  /** Somme des durees des chapitres de cette section (minutes). 0 si aucun. */
+  totalDuration: number
 }
 
 /**
@@ -143,13 +145,30 @@ function groupBySection(chapters: LumenChapter[]): SectionGroup[] {
     else map.set(key, [ch])
   }
   return Array.from(map.entries())
-    .map(([title, chs]) => ({ title, chapters: chs }))
+    .map(([title, chs]) => ({
+      title,
+      chapters: chs,
+      totalDuration: chs.reduce((sum, c) => sum + (c.duration ?? 0), 0),
+    }))
     .sort((a, b) => {
       const ka = sectionSortKey(a.title)
       const kb = sectionSortKey(b.title)
       if (ka.num !== kb.num) return ka.num - kb.num
       return ka.title.localeCompare(kb.title)
     })
+}
+
+/**
+ * Format une duree en minutes vers "1h30", "45 min", "2h", "5 min", etc.
+ * Retourne null si la duree est 0 ou negative (pas d'affichage).
+ */
+function formatDuration(minutes: number): string | null {
+  if (!minutes || minutes <= 0) return null
+  if (minutes < 60) return `${minutes} min`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (m === 0) return `${h}h`
+  return `${h}h${String(m).padStart(2, '0')}`
 }
 
 interface FilteredRepo {
@@ -577,6 +596,13 @@ async function saveNewChapter(): Promise<void> {
                     {{ splitSectionTitle(group.title).child }}
                   </span>
                 </p>
+                <span
+                  v-if="formatDuration(group.totalDuration)"
+                  class="lumen-section-duration"
+                  :title="`Duree totale : ${group.totalDuration} min (${group.chapters.length} chapitres)`"
+                >
+                  {{ formatDuration(group.totalDuration) }}
+                </span>
                 <button
                   v-if="canToggleVisibility"
                   type="button"
@@ -995,6 +1021,17 @@ async function saveNewChapter(): Promise<void> {
   gap: 1px;
   flex: 1;
   min-width: 0;
+}
+.lumen-section-duration {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
 }
 .lumen-section-add {
   display: inline-flex;
