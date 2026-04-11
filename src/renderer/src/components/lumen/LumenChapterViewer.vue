@@ -13,7 +13,7 @@
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, FileText, Clock, User, ChevronLeft, ChevronRight, Copy, Check, FolderGit2, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2 } from 'lucide-vue-next'
+import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Copy, Check, FolderGit2, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2 } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
 import { resolveAnchorTarget } from '@/utils/lumenDevoirLinks'
 import { parseChapterContent } from '@/utils/lumenFrontmatter'
@@ -365,6 +365,104 @@ const texHtml = computed(() => {
   return renderMarkdown(fenced, { chapterPath: props.chapter.path })
 })
 
+// ── Companion PDF/TeX toggle (v2.71) ──────────────────────────────────────
+// Un chapitre markdown peut avoir un companionPdf (ex: scrum.md + scrum.pdf)
+// et un chapitre PDF peut avoir un companionTex (ex: qcm.pdf + qcm.tex).
+// Quand companionMode est true, on affiche le compagnon au lieu du contenu
+// principal, en fetchant sa data a la demande (cache cote serveur).
+const companionMode = ref(false)
+const companionContent = ref<string | null>(null)
+const companionLoading = ref(false)
+const companionKind = ref<'pdf' | 'tex' | 'markdown' | null>(null)
+const companionBlobUrl = ref<string | null>(null)
+
+function revokeCompanionBlob() {
+  if (companionBlobUrl.value) {
+    URL.revokeObjectURL(companionBlobUrl.value)
+    companionBlobUrl.value = null
+  }
+}
+
+const companionPath = computed<string | null>(() => {
+  return props.chapter.companionPdf ?? props.chapter.companionTex ?? null
+})
+const hasCompanion = computed<boolean>(() => Boolean(companionPath.value))
+
+/**
+ * Bouton "Voir le PDF" / "Voir le source LaTeX" / "Voir le markdown".
+ * Le label depend du format courant et du compagnon disponible.
+ */
+const companionToggleLabel = computed<string>(() => {
+  if (companionMode.value) {
+    return chapterKind.value === 'markdown' ? 'Voir le markdown' : 'Voir le rendu'
+  }
+  if (props.chapter.companionPdf) return 'Voir le PDF'
+  if (props.chapter.companionTex) return 'Voir le source'
+  return ''
+})
+
+async function toggleCompanion(): Promise<void> {
+  if (!companionPath.value) return
+  if (companionMode.value) {
+    // Retour au contenu principal : pas de refetch necessaire
+    companionMode.value = false
+    revokeCompanionBlob()
+    return
+  }
+  // Bascule vers le compagnon : fetch on-demand
+  companionLoading.value = true
+  try {
+    const resp = await window.api.getLumenChapterContent(props.repo.id, companionPath.value) as {
+      ok: boolean
+      data?: { content: string; sha: string; kind?: string }
+      error?: string
+    }
+    if (!resp?.ok || !resp.data) {
+      showToast(resp?.error || 'Impossible de charger le compagnon', 'error')
+      return
+    }
+    const { content, kind } = resp.data
+    companionContent.value = content
+    companionKind.value = (kind as 'pdf' | 'tex' | 'markdown' | undefined) ?? 'markdown'
+
+    // Pour un PDF, convertir data: URL en Blob URL (meme logique que le
+    // rendu principal)
+    if (companionKind.value === 'pdf') {
+      revokeCompanionBlob()
+      const m = content.match(/^data:application\/pdf;base64,(.+)$/)
+      if (m) {
+        const binary = atob(m[1])
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+        const blob = new Blob([bytes], { type: 'application/pdf' })
+        companionBlobUrl.value = URL.createObjectURL(blob)
+      }
+    }
+
+    companionMode.value = true
+  } catch (err) {
+    showToast((err as { message?: string })?.message || 'Erreur reseau', 'error')
+  } finally {
+    companionLoading.value = false
+  }
+}
+
+// Reset le companion mode a chaque changement de chapitre
+watch(() => props.chapter.path, () => {
+  companionMode.value = false
+  companionContent.value = null
+  companionKind.value = null
+  revokeCompanionBlob()
+})
+onBeforeUnmount(revokeCompanionBlob)
+
+// HTML du compagnon si mode tex
+const companionTexHtml = computed<string>(() => {
+  if (!companionMode.value || companionKind.value !== 'tex' || !companionContent.value) return ''
+  const fenced = '```latex\n' + companionContent.value + '\n```'
+  return renderMarkdown(fenced, { chapterPath: companionPath.value ?? '' })
+})
+
 // ── Outline (plan du chapitre) + breadcrumbs + stale indicator ────────────
 
 interface HeadingEntry {
@@ -604,6 +702,21 @@ watch(() => [props.content, props.chapter?.path], () => {
           <Pencil :size="11" /> Modifier
           <kbd class="lumen-viewer-chip-kbd">E</kbd>
         </button>
+        <button
+          v-if="hasCompanion"
+          type="button"
+          class="lumen-viewer-chip lumen-viewer-chip--companion"
+          :class="{ active: companionMode }"
+          :disabled="companionLoading"
+          :title="companionMode ? 'Retour au contenu principal' : `Voir ${chapter.companionPdf ? 'le PDF' : 'le source'} jumeau`"
+          @click="toggleCompanion"
+        >
+          <Loader2 v-if="companionLoading" :size="11" class="spin" />
+          <FileDown v-else-if="chapter.companionPdf && !companionMode" :size="11" />
+          <FileCode v-else-if="chapter.companionTex && !companionMode" :size="11" />
+          <FileText v-else :size="11" />
+          {{ companionToggleLabel }}
+        </button>
         <span v-if="isMarp" class="lumen-viewer-chip lumen-viewer-chip--marp">
           <Presentation :size="11" /> Slides
         </span>
@@ -704,11 +817,31 @@ watch(() => [props.content, props.chapter?.path], () => {
       <p>Contenu indisponible</p>
     </div>
     <template v-else>
+      <!-- Compagnon PDF (v2.71) : mode override quand le prof bascule sur
+           le compagnon PDF d'un chapitre markdown ou tex. -->
+      <div v-if="companionMode && companionKind === 'pdf'" class="lumen-viewer-main lumen-viewer-main--pdf">
+        <iframe
+          v-if="companionBlobUrl"
+          :src="companionBlobUrl"
+          class="lumen-pdf-frame"
+          :title="`${chapter.title} (PDF compagnon)`"
+        />
+        <div v-else class="lumen-viewer-empty">
+          <FileText :size="32" />
+          <p>Impossible de rendre le PDF compagnon</p>
+        </div>
+      </div>
+
+      <!-- Compagnon TeX : source LaTeX du chapitre PDF courant -->
+      <div v-else-if="companionMode && companionKind === 'tex'" class="lumen-viewer-main lumen-viewer-main--tex">
+        <div class="lumen-viewer-body markdown-body" v-html="companionTexHtml" />
+      </div>
+
       <!-- Rendu PDF natif : iframe Blob URL local (v2.64, fix CSP v2.67).
            La data: URL renvoyee par le serveur est convertie en Blob locale
            pour contourner les restrictions CSP frame-src + ne pas bloater
            le DOM avec une string base64 multi-MB. -->
-      <div v-if="isPdf" class="lumen-viewer-main lumen-viewer-main--pdf">
+      <div v-else-if="isPdf" class="lumen-viewer-main lumen-viewer-main--pdf">
         <iframe
           v-if="pdfBlobUrl"
           :src="pdfBlobUrl"
@@ -992,6 +1125,25 @@ button.lumen-viewer-chip:focus-visible {
   border-radius: 3px;
   color: var(--accent);
   line-height: 1;
+}
+.lumen-viewer-chip--companion {
+  color: var(--color-warning);
+  border-color: rgba(232,137,26,.35);
+  background: transparent;
+  font-weight: 600;
+}
+.lumen-viewer-chip--companion:hover:not(:disabled) {
+  background: rgba(232,137,26,.12);
+  border-color: var(--color-warning);
+}
+.lumen-viewer-chip--companion.active {
+  background: rgba(232,137,26,.16);
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+.lumen-viewer-chip--companion:disabled {
+  opacity: .5;
+  cursor: not-allowed;
 }
 
 /* Modale d'edition de chapitre (v2.67 + v2.69 split preview) */

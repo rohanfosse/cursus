@@ -526,9 +526,12 @@ router.get(
 
     // Securite : empeche de fetcher un fichier arbitraire du repo via
     // Lumen — seuls les chapitres declares dans le manifest (cursus.yaml
-    // OU auto-genere) sont servis.
+    // OU auto-genere) sont servis, PLUS leurs compagnons .pdf/.tex
+    // (v2.71) pour permettre le toggle "voir le PDF" cote viewer.
     const manifest = parseManifestField(repo)
-    const inManifest = manifest?.chapters?.some((c) => c.path === path)
+    const inManifest = manifest?.chapters?.some((c) =>
+      c.path === path || c.companionPdf === path || c.companionTex === path,
+    )
     if (!inManifest) throw new NotFoundError('Chapitre non declare dans le manifest')
 
     const key = userKey(req)
