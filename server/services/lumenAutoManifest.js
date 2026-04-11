@@ -124,7 +124,37 @@ const GROUP_SECTION_ALIASES = {
   cm: 'Cours magistraux',
   td: 'TD',
   tp: 'TP',
+  // v2.74 : alias pedagogiques pour le bloc Mathematiques et similaires
+  sujets: 'Sujets',
+  sujet: 'Sujets',
+  corriges: 'Corriges',
+  corrige: 'Corriges',
+  'fiche revision': 'Fiches de revision',
+  'fiches revision': 'Fiches de revision',
+  'fiche-revision': 'Fiches de revision',
+  'fiches-revision': 'Fiches de revision',
+  exercices: 'Exercices',
+  exercice: 'Exercices',
+  exemples: 'Exemples',
+  exemple: 'Exemples',
 }
+
+/**
+ * Liste de prefixes de fichiers communs qu'on supprime du titre affiche
+ * quand tous les fichiers d'un dossier le partagent. Ex: dans `sujets/`,
+ * tous les fichiers commencent par `qcm-` -> on les affiche sans.
+ * v2.74 (optimise pour le bloc Mathematiques CESI).
+ */
+const COMMON_FILE_PREFIXES = [
+  'qcm-', 'qcm_',
+  'corrige-', 'corrige_', 'corriges-',
+  'fiche-revision-', 'fiche_revision_',
+  'fiche-', 'fiche_',
+  'exercice-', 'exercice_',
+  'exemple-', 'exemple_',
+  'tp-', 'tp_',
+  'td-', 'td_',
+]
 
 /**
  * Humanise un nom de dossier pour en faire un titre de section.
@@ -240,6 +270,37 @@ function buildManifestFromTree(tree, { projectName = 'Cours', truncated = false 
   const others = emittedChapters.filter((c) => c !== readmeRoot)
   others.sort((a, b) => comparePaths(a.primary, b.primary))
 
+  // v2.74 : detection du prefixe commun par dossier.
+  // Si tous les fichiers d'un dossier commencent par le meme prefixe
+  // de COMMON_FILE_PREFIXES (ex: "qcm-", "corrige-", "fiche-revision-"),
+  // on le retire du titre affiche. Ex: `sujets/qcm-equadiff.pdf` ->
+  // "Equadiff" au lieu de "Qcm equadiff". Le prefixe est deja signale
+  // par la section, donc le redondance est supprimee.
+  const filesByDir = new Map() // dir -> [filenames]
+  for (const ch of others) {
+    const dir = dirname(ch.primary)
+    const name = ch.primary.split('/').pop() || ch.primary
+    if (!filesByDir.has(dir)) filesByDir.set(dir, [])
+    filesByDir.get(dir).push(name)
+  }
+  const dirCommonPrefix = new Map() // dir -> prefixe commun (ou '')
+  for (const [dir, names] of filesByDir) {
+    if (names.length < 2) { dirCommonPrefix.set(dir, ''); continue }
+    const lowered = names.map((n) => n.toLowerCase())
+    // On cherche un prefixe qui matche TOUS les fichiers du dossier
+    const matching = COMMON_FILE_PREFIXES.find((p) => lowered.every((n) => n.startsWith(p)))
+    dirCommonPrefix.set(dir, matching || '')
+  }
+
+  function humanizeFilenameWithPrefix(name, dir) {
+    const commonPrefix = dirCommonPrefix.get(dir) || ''
+    let effectiveName = name
+    if (commonPrefix && name.toLowerCase().startsWith(commonPrefix)) {
+      effectiveName = name.slice(commonPrefix.length)
+    }
+    return humanizeFilename(effectiveName)
+  }
+
   const chapters = []
 
   if (readmeRoot) {
@@ -258,7 +319,7 @@ function buildManifestFromTree(tree, { projectName = 'Cours', truncated = false 
     const dir = dirname(ch.primary)
     const name = ch.primary.split('/').pop() || ch.primary
     chapters.push({
-      title: humanizeFilename(name),
+      title: humanizeFilenameWithPrefix(name, dir),
       path: ch.primary,
       section: humanizeDirPath(dir) || 'Racine',
       kind: ch.kind,

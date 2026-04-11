@@ -288,6 +288,91 @@ chapters:
   })
 })
 
+// ── v2.74 : prefixe commun detecte -> strippe du titre ─────────────────
+
+describe('buildManifestFromTree : prefixe commun detecte (v2.74)', () => {
+  it('sujets avec tous les fichiers qcm-* -> titres sans qcm-', () => {
+    const m = buildManifestFromTree(
+      [
+        { path: 'sujets/qcm-equadiff-integrales.pdf' },
+        { path: 'sujets/qcm-fonctions-plusieurs-variables.pdf' },
+        { path: 'sujets/qcm-unique.pdf' },
+      ],
+      { projectName: '0-Mathematiques' },
+    )
+    const titles = m.chapters.filter((c) => c.path.startsWith('sujets/')).map((c) => c.title)
+    expect(titles).toEqual([
+      'Equadiff integrales',
+      'Fonctions plusieurs variables',
+      'Unique',
+    ])
+  })
+
+  it('corriges avec tous les fichiers corrige-* -> titres sans corrige-', () => {
+    const m = buildManifestFromTree(
+      [
+        { path: 'corriges/corrige-equadiff-integrales.pdf' },
+        { path: 'corriges/corrige-unique.pdf' },
+      ],
+      { projectName: '0-Mathematiques' },
+    )
+    const titles = m.chapters.filter((c) => c.path.startsWith('corriges/')).map((c) => c.title)
+    expect(titles).toEqual(['Equadiff integrales', 'Unique'])
+  })
+
+  it('fiches-revision avec tous les fichiers fiche-revision-* -> titres sans fiche-revision-', () => {
+    const m = buildManifestFromTree(
+      [
+        { path: 'fiches-revision/fiche-revision-equadiff.pdf' },
+        { path: 'fiches-revision/fiche-revision-integrales.pdf' },
+      ],
+      { projectName: '0-Mathematiques' },
+    )
+    const titles = m.chapters.filter((c) => c.path.startsWith('fiches-revision/')).map((c) => c.title)
+    expect(titles).toEqual(['Equadiff', 'Integrales'])
+  })
+
+  it('dossier avec prefixe mixte -> pas de strip', () => {
+    const m = buildManifestFromTree(
+      [
+        { path: 'divers/qcm-un.pdf' },
+        { path: 'divers/exercice-deux.pdf' },
+      ],
+      { projectName: 'test' },
+    )
+    const titles = m.chapters.filter((c) => c.path.startsWith('divers/')).map((c) => c.title)
+    // Aucun prefixe commun -> titres humanises classiques
+    expect(titles).toContain('Qcm un')
+    expect(titles).toContain('Exercice deux')
+  })
+
+  it('un seul fichier dans un dossier -> pas de detection prefixe (ambigu)', () => {
+    const m = buildManifestFromTree(
+      [
+        { path: 'solo/qcm-unique.pdf' },
+      ],
+      { projectName: 'test' },
+    )
+    const chapter = m.chapters.find((c) => c.path === 'solo/qcm-unique.pdf')
+    expect(chapter.title).toBe('Qcm unique')
+  })
+
+  it('sections avec alias pedagogiques normalisees', () => {
+    const m = buildManifestFromTree(
+      [
+        { path: 'sujets/qcm-a.pdf' },
+        { path: 'corriges/corrige-a.pdf' },
+        { path: 'fiches-revision/fiche-revision-a.pdf' },
+      ],
+      { projectName: '0-Mathematiques' },
+    )
+    const sections = new Set(m.chapters.map((c) => c.section))
+    expect(sections.has('Sujets')).toBe(true)
+    expect(sections.has('Corriges')).toBe(true)
+    expect(sections.has('Fiches de revision')).toBe(true)
+  })
+})
+
 // ── Normalisation des sections de groupes etudiants v2.66 ────────────────
 
 describe('humanizeDirPath : alias sections groupes etudiants', () => {
