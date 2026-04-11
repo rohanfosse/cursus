@@ -16,7 +16,7 @@ const { validate } = require('../middleware/validate')
 const { AppError, NotFoundError, ForbiddenError } = require('../utils/errors')
 const { buildClientForUser, validateToken, mapOctokitError } = require('../services/githubClient')
 const { safeAuthorType } = require('../utils/roles')
-const { syncPromoRepos, fetchChapterContent, getCachedChapter } = require('../services/lumenRepoSync')
+const { syncPromoRepos, fetchChapterContent, getCachedChapter, createRepoWithScaffold } = require('../services/lumenRepoSync')
 const {
   // auth
   getLumenGithubAuth,
@@ -211,6 +211,73 @@ router.get(
     const promoId = Number(req.params.promoId)
     const repos = getLumenReposForPromo(promoId, { visibleOnly: isStudent(req) }).map(serializeRepo)
     return { repos, org: getPromoGithubOrg(promoId) }
+  }),
+)
+
+/**
+ * Cree un nouveau repo dans l'org GitHub de la promo et y pousse le scaffold
+ * Lumen "Nouveau cours" (README + projet + process-daily + 1 prosit exemple).
+ * Apres creation, declenche un sync auto pour ramener le repo dans la sidebar.
+ *
+ * Body : { slug: string, blocTitle: string }
+ * - slug : nom du repo GitHub (ex: "5-Base-de-Donnees")
+ * - blocTitle : titre humain du bloc (ex: "Bloc 5 — Bases de donnees")
+ */
+const newCourseSchema = z.object({
+  slug: z.string().min(1).max(80).regex(
+    /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/,
+    'Slug invalide : alphanumerique, ., _, - uniquement (ne commence pas par - ou .)',
+  ),
+  blocTitle: z.string().min(1).max(200),
+}).strict()
+
+router.post(
+  '/promos/:id/repos',
+  requireRole('teacher', 'admin'),
+  requirePromoAdmin(promoFromIdParam),
+  validate(newCourseSchema),
+  wrap(async (req) => {
+    const promoId = Number(req.params.id)
+    const org = getPromoGithubOrg(promoId)
+    if (!org) throw new AppError('Aucune organisation GitHub configuree pour cette promo', 400)
+
+    const octokit = await requireGithubClient(req)
+    let created
+    try {
+      created = await createRepoWithScaffold(octokit, {
+        org,
+        slug: req.body.slug,
+        blocTitle: req.body.blocTitle,
+      })
+    } catch (err) {
+      // 422 = validation GitHub : nom deja pris (le plus frequent), nom
+      // reserve, longueur, plan d'org. On extrait le 1er message d'erreur
+      // de la response pour donner du contexte au lieu d'un 409 generique.
+      if (err.status === 422) {
+        const ghMsg = err.response?.data?.errors?.[0]?.message
+          || err.response?.data?.message
+          || 'le nom est invalide ou deja pris'
+        const isAlreadyExists = /already exists/i.test(ghMsg)
+        throw new AppError(
+          `Impossible de creer "${req.body.slug}" dans ${org} : ${ghMsg}`,
+          isAlreadyExists ? 409 : 422,
+        )
+      }
+      throw await handleOctokit(err)
+    }
+
+    // Sync auto pour ramener le nouveau repo dans la DB locale + sidebar.
+    // Le repo herite du default is_visible=0 (cf. v58) — il est masque aux
+    // etudiants tant que le prof ne le publie pas.
+    try {
+      await syncPromoRepos(octokit, { promoId, org })
+    } catch {
+      // Le repo est cree cote GitHub meme si le sync echoue. On laisse
+      // remonter le repo cote client mais on ne bloque pas la creation.
+    }
+
+    const repos = getLumenReposForPromo(promoId, { visibleOnly: false }).map(serializeRepo)
+    return { created, repos }
   }),
 )
 

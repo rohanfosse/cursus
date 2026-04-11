@@ -321,6 +321,7 @@ declare global {
       getLumenReposForPromo(promoId: number): Promise<IpcResponse<{ repos: import('./types').LumenRepo[]; org: string | null }>>
       syncLumenReposForPromo(promoId: number): Promise<IpcResponse<{ synced: number; errors: Array<{ repo: string; error: string }>; repos: import('./types').LumenRepo[] }>>
       getLumenRepo(id: number): Promise<IpcResponse<import('./types').LumenRepo>>
+      createLumenRepoFromScaffold(promoId: number, slug: string, blocTitle: string): Promise<IpcResponse<{ created: { owner: string; repo: string; defaultBranch: string }; repos: import('./types').LumenRepo[] }>>
 
       // Integration projets Cursus
       getLumenReposByProjectName(promoId: number, name: string): Promise<IpcResponse<{ repos: import('./types').LumenRepo[] }>>

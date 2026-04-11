@@ -15,6 +15,7 @@
  */
 const { parseManifest, MANIFEST_FILENAME } = require('./lumenManifest')
 const { generateAutoManifest } = require('./lumenAutoManifest')
+const { buildScaffoldFiles } = require('./lumenScaffold')
 const {
   upsertLumenRepo,
   updateLumenRepoManifest,
@@ -328,6 +329,110 @@ function getCachedChapter(repoId, path) {
   return { content: cached.content, sha: cached.sha, fetchedAt: cached.fetched_at, cached: true }
 }
 
+/**
+ * Cree un nouveau repo dans une organisation GitHub et y pousse le scaffold
+ * Lumen "Nouveau cours" en un seul commit initial.
+ *
+ * Strategie :
+ *   1. Cree le repo prive (auto_init=true pour avoir une branche default
+ *      avec un commit racine — necessaire pour pouvoir pousser des fichiers
+ *      via la Trees API).
+ *   2. Construit un blob pour chaque fichier du scaffold.
+ *   3. Cree un tree avec tous les blobs en une seule API call.
+ *   4. Cree un commit pointant vers ce tree, avec le commit auto-init comme
+ *      parent.
+ *   5. Met a jour la ref de la branche default vers ce commit.
+ *
+ * Cette approche est preferee a N appels createOrUpdateFileContents :
+ *   - 1 commit initial propre au lieu de N commits "add file X"
+ *   - moins de round-trips
+ *   - atomique : si une etape echoue, on n'a pas un repo a moitie scaffolde
+ *
+ * @param {Octokit} octokit
+ * @param {{ org: string, slug: string, blocTitle: string }} params
+ * @returns {Promise<{ owner: string, repo: string, defaultBranch: string }>}
+ */
+/**
+ * Petit retry exponentiel pour les API GitHub qui peuvent renvoyer 404/409
+ * pendant ~500ms apres certaines operations (create + auto_init notamment).
+ */
+async function retryWithBackoff(fn, { attempts = 4, baseDelayMs = 200 } = {}) {
+  let lastErr
+  for (let i = 0; i < attempts; i++) {
+    try { return await fn() }
+    catch (err) {
+      lastErr = err
+      const transient = err.status === 404 || err.status === 409
+      if (!transient || i === attempts - 1) throw err
+      await new Promise((r) => setTimeout(r, baseDelayMs * (2 ** i)))
+    }
+  }
+  throw lastErr
+}
+
+async function createRepoWithScaffold(octokit, { org, slug, blocTitle }) {
+  // 1. Cree le repo (echoue avec 422 si nom deja pris)
+  const { data: created } = await octokit.rest.repos.createInOrg({
+    org,
+    name: slug,
+    description: blocTitle,
+    private: true,
+    auto_init: true,
+  })
+  const owner = created.owner.login
+  const repo = created.name
+  const defaultBranch = created.default_branch || 'main'
+
+  // 2. Recupere le commit racine cree par auto_init. GitHub peut renvoyer
+  //    404 transitoire pendant que le repo s'initialise — d'ou le retry.
+  const branch = await retryWithBackoff(() =>
+    octokit.rest.repos.getBranch({ owner, repo, branch: defaultBranch }),
+  )
+  const baseCommitSha = branch.data.commit.sha
+
+  // 3. Cree un blob par fichier du scaffold (parallelise). On utilise
+  //    encoding: utf-8 directement, plus simple que double-encoder en base64.
+  const files = buildScaffoldFiles({ blocTitle })
+  const blobs = await Promise.all(files.map(async (f) => {
+    const { data } = await octokit.rest.git.createBlob({
+      owner, repo,
+      content: f.content,
+      encoding: 'utf-8',
+    })
+    return { path: f.path, sha: data.sha }
+  }))
+
+  // 4. Cree un tree fresh (sans base_tree) — sinon le README.md auto-genere
+  //    par auto_init coexiste avec celui du scaffold (overwrite OK mais
+  //    bruyant cote historique). Le scaffold est self-contained.
+  const { data: tree } = await octokit.rest.git.createTree({
+    owner, repo,
+    tree: blobs.map((b) => ({
+      path: b.path,
+      mode: '100644',
+      type: 'blob',
+      sha: b.sha,
+    })),
+  })
+
+  // 5. Commit pointant vers ce tree avec le commit auto-init comme parent,
+  //    puis fast-forward de la branche default.
+  const { data: commit } = await octokit.rest.git.createCommit({
+    owner, repo,
+    message: 'chore: scaffold Cursus',
+    tree: tree.sha,
+    parents: [baseCommitSha],
+  })
+
+  await octokit.rest.git.updateRef({
+    owner, repo,
+    ref: `heads/${defaultBranch}`,
+    sha: commit.sha,
+  })
+
+  return { owner, repo, defaultBranch }
+}
+
 module.exports = {
   listOrgRepos,
   fetchFile,
@@ -336,4 +441,5 @@ module.exports = {
   syncPromoRepos,
   fetchChapterContent,
   getCachedChapter,
+  createRepoWithScaffold,
 }

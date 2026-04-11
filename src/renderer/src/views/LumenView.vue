@@ -13,7 +13,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import {
-  BookOpen, RefreshCw, Github, LogOut, Settings, AlertCircle, Loader2, FolderGit2,
+  BookOpen, RefreshCw, Github, LogOut, Settings, AlertCircle, Loader2, FolderGit2, Plus,
 } from 'lucide-vue-next'
 import { useLumenStore } from '@/stores/lumen'
 import { useAppStore } from '@/stores/app'
@@ -115,6 +115,61 @@ async function saveOrg() {
   await lumenStore.setPromoOrgAction(activePromoId.value, value)
   showToast(value ? 'Organisation enregistree' : 'Organisation retiree', 'success')
   settingsOpen.value = false
+}
+
+// ── New course modal (teacher cree un nouveau repo dans l'org) ────────────
+const newCourseOpen = ref(false)
+const newCourseSlug = ref('')
+const newCourseTitle = ref('')
+const newCourseSubmitting = ref(false)
+
+const newCourseSlugError = computed(() => {
+  const v = newCourseSlug.value.trim()
+  if (!v) return ''
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(v)) {
+    return 'Alphanumerique, ., _, - uniquement (ne commence pas par - ou .)'
+  }
+  if (v.length > 80) return 'Max 80 caracteres'
+  return ''
+})
+const canCreateCourse = computed(() =>
+  newCourseSlug.value.trim().length > 0
+  && newCourseTitle.value.trim().length > 0
+  && !newCourseSlugError.value
+  && !newCourseSubmitting.value,
+)
+
+function openNewCourse() {
+  if (!promoOrg.value) {
+    showToast('Configure d\'abord une organisation GitHub', 'info')
+    openSettings()
+    return
+  }
+  newCourseSlug.value = ''
+  newCourseTitle.value = ''
+  newCourseOpen.value = true
+}
+
+async function submitNewCourse() {
+  if (!canCreateCourse.value || !activePromoId.value) return
+  newCourseSubmitting.value = true
+  try {
+    const repo = await lumenStore.createRepoFromScaffold(
+      activePromoId.value,
+      newCourseSlug.value.trim(),
+      newCourseTitle.value.trim(),
+    )
+    if (!repo) {
+      // L'erreur a deja ete affichee par useApi (toast)
+      return
+    }
+    showToast(`Cours "${repo.repo}" cree dans ${promoOrg.value}`, 'success')
+    newCourseOpen.value = false
+    // Selectionne le nouveau repo dans la sidebar pour montrer le scaffold
+    lumenStore.selectRepo(repo.id)
+  } finally {
+    newCourseSubmitting.value = false
+  }
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────────
@@ -307,6 +362,17 @@ function handleNavigateChapter(path: string) {
           Maj {{ relativeTime(lastSyncedAt + 'Z') }}
         </span>
         <button
+          v-if="githubStatus.connected && isTeacher"
+          type="button"
+          class="lumen-btn"
+          :disabled="syncing || !promoOrg"
+          :title="promoOrg ? 'Creer un nouveau cours (scaffold)' : 'Configure d\'abord une organisation'"
+          @click="openNewCourse"
+        >
+          <Plus :size="14" />
+          Nouveau cours
+        </button>
+        <button
           v-if="githubStatus.connected"
           type="button"
           class="lumen-btn"
@@ -417,6 +483,55 @@ function handleNavigateChapter(path: string) {
           :path="currentChapterPath"
         />
       </template>
+    </div>
+
+    <div v-if="newCourseOpen" class="lumen-modal-backdrop" @click.self="newCourseOpen = false">
+      <div class="lumen-modal" role="dialog" aria-labelledby="lumen-newcourse-title">
+        <h3 id="lumen-newcourse-title">Nouveau cours</h3>
+        <p class="lumen-modal-desc">
+          Cree un repo prive dans <strong>{{ promoOrg }}</strong> avec un scaffold initial
+          (README, projet, daily, exemple de prosit, dossiers vides). Tu pourras editer
+          le contenu directement sur GitHub ou en local.
+        </p>
+        <label class="lumen-modal-field">
+          <span>Slug du repo</span>
+          <input
+            v-model="newCourseSlug"
+            type="text"
+            placeholder="ex: 5-Base-de-Donnees"
+            autofocus
+            spellcheck="false"
+            @keydown.enter="submitNewCourse"
+          />
+          <small v-if="newCourseSlugError" class="lumen-modal-error">{{ newCourseSlugError }}</small>
+        </label>
+        <label class="lumen-modal-field">
+          <span>Titre du bloc</span>
+          <input
+            v-model="newCourseTitle"
+            type="text"
+            placeholder="ex: Bloc 5 - Bases de donnees"
+            @keydown.enter="submitNewCourse"
+          />
+        </label>
+        <p class="lumen-modal-hint">
+          Le repo sera <strong>masque aux etudiants</strong> jusqu'a ce que tu le publies
+          via l'icone oeil dans la sidebar.
+        </p>
+        <div class="lumen-modal-actions">
+          <button type="button" class="lumen-btn ghost" :disabled="newCourseSubmitting" @click="newCourseOpen = false">Annuler</button>
+          <button
+            type="button"
+            class="lumen-btn primary"
+            :disabled="!canCreateCourse"
+            @click="submitNewCourse"
+          >
+            <Loader2 v-if="newCourseSubmitting" :size="14" class="spin" />
+            <Plus v-else :size="14" />
+            {{ newCourseSubmitting ? 'Creation...' : 'Creer le cours' }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <div v-if="settingsOpen" class="lumen-modal-backdrop" @click.self="settingsOpen = false">
@@ -739,6 +854,21 @@ function handleNavigateChapter(path: string) {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+.lumen-modal-error {
+  font-size: 11px;
+  color: var(--danger, #ef4444);
+  margin-top: 2px;
+}
+.lumen-modal-hint {
+  margin: -8px 0 16px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 </style>
 

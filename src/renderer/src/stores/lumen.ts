@@ -124,6 +124,32 @@ export const useLumenStore = defineStore('lumen', () => {
     }
   }
 
+  /**
+   * Cree un nouveau repo dans l'org GitHub de la promo + scaffold initial.
+   * Le sync auto cote serveur ramene le repo dans la liste — on ecrase
+   * `repos.value` avec la nouvelle liste a la reception.
+   * Renvoie le LumenRepo nouvellement cree (ou null en cas d'echec).
+   */
+  async function createRepoFromScaffold(
+    promoId: number,
+    slug: string,
+    blocTitle: string,
+  ): Promise<LumenRepo | null> {
+    syncing.value = true
+    try {
+      const data = await api<{
+        created: { owner: string; repo: string; defaultBranch: string }
+        repos: LumenRepo[]
+      }>(() => window.api.createLumenRepoFromScaffold(promoId, slug, blocTitle))
+      if (!data) return null
+      repos.value = data.repos
+      const fullName = `${data.created.owner}/${data.created.repo}`
+      return repos.value.find((r) => r.fullName === fullName) ?? null
+    } finally {
+      syncing.value = false
+    }
+  }
+
   async function syncReposForPromo(promoId: number): Promise<{ synced: number; errors: Array<{ repo: string; error: string }> }> {
     syncing.value = true
     try {
@@ -366,6 +392,7 @@ export const useLumenStore = defineStore('lumen', () => {
     fetchUnlinkedReposForPromo,
     linkRepoToProject,
     setRepoVisibility,
+    createRepoFromScaffold,
     selectRepo,
     fetchChapterContent,
     selectChapter,

@@ -539,6 +539,8 @@ contextBridge.exposeInMainWorld('api', {
   getLumenReposForPromo:    (promoId: number)       => get(`/api/lumen/repos/promo/${promoId}`),
   syncLumenReposForPromo:   (promoId: number)       => post(`/api/lumen/repos/sync/promo/${promoId}`, {}),
   getLumenRepo:             (id: number)            => get(`/api/lumen/repos/${id}`),
+  createLumenRepoFromScaffold: (promoId: number, slug: string, blocTitle: string) =>
+    post(`/api/lumen/promos/${promoId}/repos`, { slug, blocTitle }),
 
   // Integration projets Cursus
   getLumenReposByProjectName: (promoId: number, name: string) =>
