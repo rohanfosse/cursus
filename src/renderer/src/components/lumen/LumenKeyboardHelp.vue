@@ -6,36 +6,40 @@
  */
 import { Keyboard, X } from 'lucide-vue-next'
 
-interface Props {
-  open: boolean
-  mode: 'list' | 'editor' | 'reader'
-}
-defineProps<Props>()
+defineProps<{ open: boolean }>()
 defineEmits<(e: 'close') => void>()
 
 interface Shortcut {
   keys: string[]
   description: string
-  modes?: ('list' | 'editor' | 'reader')[]
 }
 
-// Groupes de raccourcis par contexte. Les raccourcis sans `modes` sont
-// affiches dans tous les modes.
+// v2.75 : liste des raccourcis reels implementes dans Lumen (reflet
+// de handleKeydown dans LumenView.vue + onLumenKeyboard dans
+// LumenChapterViewer.vue).
 const SHORTCUTS: Record<string, Shortcut[]> = {
   Navigation: [
-    { keys: ['Alt', '←'], description: 'Cours precedent', modes: ['reader'] },
-    { keys: ['Alt', '→'], description: 'Cours suivant', modes: ['reader'] },
-    { keys: ['Esc'], description: 'Retour / fermer', modes: ['reader', 'editor'] },
+    { keys: ['←'], description: 'Chapitre precedent' },
+    { keys: ['→'], description: 'Chapitre suivant' },
+    { keys: ['/'], description: 'Focus la barre de recherche' },
   ],
-  Lecture: [
-    { keys: ['Ctrl', 'F'], description: 'Rechercher dans le fichier', modes: ['reader'] },
-    { keys: ['Ctrl', 'P'], description: 'Rechercher un fichier du projet', modes: ['reader'] },
-    { keys: ['Enter'], description: 'Resultat suivant (en recherche)', modes: ['reader'] },
-    { keys: ['Shift', 'Enter'], description: 'Resultat precedent (en recherche)', modes: ['reader'] },
+  'Lecture markdown': [
+    { keys: ['E'], description: 'Modifier le chapitre (teacher uniquement)' },
+    { keys: ['Esc'], description: 'Fermer une modale ou un popover' },
+  ],
+  Slides: [
+    { keys: ['←'], description: 'Slide precedente (sur un Marp)' },
+    { keys: ['→'], description: 'Slide suivante' },
+    { keys: ['Space'], description: 'Slide suivante' },
+    { keys: ['Home'], description: 'Premiere slide' },
+    { keys: ['End'], description: 'Derniere slide' },
+    { keys: ['Esc'], description: 'Quitter le plein-ecran' },
   ],
   Edition: [
-    { keys: ['Ctrl', 'S'], description: 'Sauvegarder (auto-save 3s sinon)', modes: ['editor'] },
-    { keys: ['Ctrl', 'K'], description: 'Palette de commandes', modes: ['editor'] },
+    { keys: ['Ctrl', 'Z'], description: 'Annuler (CodeMirror)' },
+    { keys: ['Ctrl', 'Y'], description: 'Refaire' },
+    { keys: ['Ctrl', 'F'], description: 'Rechercher dans le fichier' },
+    { keys: ['Tab'], description: 'Indenter' },
   ],
   General: [
     { keys: ['?'], description: 'Afficher cette aide' },
@@ -72,11 +76,7 @@ const SHORTCUTS: Record<string, Shortcut[]> = {
             <section v-for="(shortcuts, group) in SHORTCUTS" :key="group" class="khelp-group">
               <h3 class="khelp-group-title">{{ group }}</h3>
               <ul class="khelp-list">
-                <li
-                  v-for="(sc, i) in shortcuts.filter(s => !s.modes || s.modes.includes(mode))"
-                  :key="i"
-                  class="khelp-row"
-                >
+                <li v-for="(sc, i) in shortcuts" :key="i" class="khelp-row">
                   <span class="khelp-keys">
                     <template v-for="(k, ki) in sc.keys" :key="ki">
                       <kbd>{{ k }}</kbd>
@@ -110,10 +110,10 @@ const SHORTCUTS: Record<string, Shortcut[]> = {
   padding: 20px;
 }
 .khelp-modal {
-  background: var(--bg-primary, #14161a);
+  background: var(--bg-modal);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-4);
   max-width: 560px;
   width: 100%;
   max-height: 80vh;

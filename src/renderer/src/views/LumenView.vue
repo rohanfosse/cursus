@@ -13,7 +13,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import {
-  BookOpen, RefreshCw, Github, LogOut, Settings, AlertCircle, Loader2, FolderGit2, Plus,
+  BookOpen, RefreshCw, Github, LogOut, Settings, AlertCircle, Loader2, FolderGit2, Plus, Keyboard,
   PanelLeftClose, PanelLeftOpen, LayoutGrid,
 } from 'lucide-vue-next'
 import { useLumenStore } from '@/stores/lumen'
@@ -27,6 +27,7 @@ import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import LumenGithubConnect from '@/components/lumen/LumenGithubConnect.vue'
 import LumenRepoSidebar from '@/components/lumen/LumenRepoSidebar.vue'
 import LumenChapterViewer from '@/components/lumen/LumenChapterViewer.vue'
+import LumenKeyboardHelp from '@/components/lumen/LumenKeyboardHelp.vue'
 import LumenNotePanel from '@/components/lumen/LumenNotePanel.vue'
 
 const lumenStore = useLumenStore()
@@ -121,6 +122,9 @@ const loadingChapter = ref(false)
 // Ref vers le composant sidebar pour pouvoir lui demander de focus son
 // champ de recherche depuis un shortcut clavier "/" (v2.73).
 const sidebarRef = ref<InstanceType<typeof LumenRepoSidebar> | null>(null)
+
+// Modale d'aide sur les raccourcis clavier (v2.75). Ouverte via la touche ?
+const keyboardHelpOpen = ref(false)
 
 // Ancre cible quand on arrive via deep-link `?anchor=section-id` (par
 // exemple depuis un devoir lie). Consume-once : remise a null des qu'elle
@@ -417,6 +421,18 @@ function handleKeydown(e: KeyboardEvent) {
     sidebarRef.value?.focusSearch()
     return
   }
+  // v2.75 : "?" (shift+/) ouvre la modale d'aide sur les raccourcis.
+  if (e.key === '?') {
+    e.preventDefault()
+    keyboardHelpOpen.value = true
+    return
+  }
+  // Esc ferme la modale d'aide si elle est ouverte
+  if (e.key === 'Escape' && keyboardHelpOpen.value) {
+    e.preventDefault()
+    keyboardHelpOpen.value = false
+    return
+  }
 }
 
 function handleNavigatePrev() {
@@ -530,6 +546,15 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
           {{ syncing ? 'Sync...' : 'Synchroniser' }}
         </button>
         <button
+          type="button"
+          class="lumen-btn ghost"
+          title="Raccourcis clavier (?)"
+          aria-label="Afficher les raccourcis clavier"
+          @click="keyboardHelpOpen = true"
+        >
+          <Keyboard :size="14" />
+        </button>
+        <button
           v-if="isTeacher"
           type="button"
           class="lumen-btn ghost"
@@ -635,6 +660,12 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
         />
       </template>
     </div>
+
+    <!-- Modale d'aide raccourcis clavier (v2.75) -->
+    <LumenKeyboardHelp
+      :open="keyboardHelpOpen"
+      @close="keyboardHelpOpen = false"
+    />
 
     <div v-if="newCourseOpen" class="lumen-modal-backdrop" @click.self="newCourseOpen = false">
       <div class="lumen-modal" role="dialog" aria-labelledby="lumen-newcourse-title">
