@@ -12,6 +12,7 @@ import { parseCategoryIcon } from '@/utils/categoryIcon'
 import { typeLabel }         from '@/utils/devoir'
 import { useStudentReminders } from '@/composables/useStudentReminders'
 import StudentDepositForm    from './StudentDepositForm.vue'
+import LumenDevoirChapterHints from '@/components/lumen/LumenDevoirChapterHints.vue'
 import type { Devoir, Rubric } from '@/types'
 
 const props = defineProps<{
@@ -80,6 +81,7 @@ function formatDesc(text: string): string {
     <!-- Body -->
     <h3 class="devoir-card-title">{{ devoir.title }}</h3>
     <p v-if="devoir.description" class="devoir-card-desc" v-html="formatDesc(devoir.description)" />
+    <LumenDevoirChapterHints :travail-id="devoir.id" />
     <p v-if="devoir.room" class="devoir-card-room">Salle {{ devoir.room }}</p>
     <div v-if="devoir.aavs" class="devoir-card-aavs">
       <span v-for="a in devoir.aavs.split('\n').filter(Boolean)" :key="a" class="aav-tag">{{ a.trim() }}</span>
