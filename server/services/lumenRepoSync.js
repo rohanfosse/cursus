@@ -57,6 +57,103 @@ async function fetchFile(octokit, { owner, repo, path, ref }) {
 }
 
 /**
+ * Fetch le contenu binaire d'un fichier (image, pdf, etc.) via l'API
+ * contents. Retourne le buffer + mime devine depuis l'extension.
+ */
+async function fetchBinaryFile(octokit, { owner, repo, path, ref }) {
+  try {
+    const { data } = await octokit.rest.repos.getContent({ owner, repo, path, ref })
+    if (Array.isArray(data) || data.type !== 'file') return null
+    const buf = Buffer.from(data.content, data.encoding ?? 'base64')
+    return { buffer: buf, sha: data.sha, size: data.size }
+  } catch (err) {
+    if (err.status === 404) return null
+    throw err
+  }
+}
+
+const IMAGE_MIME_BY_EXT = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+}
+
+const MAX_IMAGE_BYTES = 1_500_000       // 1.5 MB par image
+const MAX_TOTAL_INLINE_BYTES = 6_000_000 // 6 MB total par chapitre
+
+/** Resout un chemin relatif par rapport a un fichier de reference. */
+function resolveRelativePath(link, currentPath) {
+  if (!link || /^(https?:|data:|mailto:|#)/i.test(link)) return null
+  if (link.startsWith('/')) return link.replace(/^\/+/, '')
+  const dirParts = currentPath.split('/').slice(0, -1)
+  const parts = link.split('/')
+  for (const p of parts) {
+    if (p === '..') dirParts.pop()
+    else if (p !== '.' && p !== '') dirParts.push(p)
+  }
+  return dirParts.join('/')
+}
+
+/**
+ * Scanne un markdown pour trouver toutes les images ![alt](path) et
+ * remplace les chemins relatifs par des data URIs inlinees apres fetch
+ * via octokit. Les URLs absolues (http, data:) sont laissees telles
+ * quelles. Les images trop grosses ou au-dela du budget total sont
+ * remplacees par un placeholder lisible.
+ */
+async function inlineImages(octokit, repo, chapterPath, md) {
+  const { owner, repo: repoName, default_branch: ref } = repo
+  const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g
+  const matches = []
+  let m
+  while ((m = imageRegex.exec(md)) !== null) {
+    matches.push({ full: m[0], alt: m[1], src: m[2], index: m.index })
+  }
+  if (!matches.length) return md
+
+  let totalBytes = 0
+  const replacements = new Map()
+
+  for (const match of matches) {
+    const rel = resolveRelativePath(match.src, chapterPath)
+    if (!rel) continue
+    const ext = '.' + (rel.split('.').pop() ?? '').toLowerCase()
+    const mime = IMAGE_MIME_BY_EXT[ext]
+    if (!mime) continue
+
+    try {
+      const file = await fetchBinaryFile(octokit, { owner, repo: repoName, path: rel, ref })
+      if (!file) {
+        replacements.set(match.full, `*[image manquante : ${match.alt || rel}]*`)
+        continue
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        replacements.set(match.full, `*[image trop volumineuse (${Math.round(file.size / 1024)} Ko) : ${match.alt || rel}]*`)
+        continue
+      }
+      if (totalBytes + file.size > MAX_TOTAL_INLINE_BYTES) {
+        replacements.set(match.full, `*[image non chargee (budget atteint) : ${match.alt || rel}]*`)
+        continue
+      }
+      totalBytes += file.size
+      const dataUri = `data:${mime};base64,${file.buffer.toString('base64')}`
+      replacements.set(match.full, `![${match.alt}](${dataUri})`)
+    } catch {
+      replacements.set(match.full, `*[image inaccessible : ${match.alt || rel}]*`)
+    }
+  }
+
+  let result = md
+  for (const [original, replacement] of replacements) {
+    result = result.split(original).join(replacement)
+  }
+  return result
+}
+
+/**
  * Recupere le SHA du dernier commit sur la branche par defaut du repo.
  */
 async function getLatestCommitSha(octokit, { owner, repo, defaultBranch }) {
@@ -143,18 +240,23 @@ async function syncPromoRepos(octokit, { promoId, org }) {
 /**
  * Fetch un chapitre (fichier .md) avec cache par sha.
  * Si le cache contient deja le meme sha, on retourne directement le contenu
- * stocke. Sinon on fetch et on met a jour le cache.
+ * stocke. Sinon on fetch, on inline les images referencees en data URIs
+ * puis on met a jour le cache. Les images privees sont ainsi disponibles
+ * sans que le renderer ait besoin de gerer l'auth GitHub.
  */
 async function fetchChapterContent(octokit, dbRepo, path) {
-  const { id: repoId, owner, repo, default_branch: ref } = dbRepo
-  const file = await fetchFile(octokit, { owner, repo, path, ref })
+  const { id: repoId } = dbRepo
+  const file = await fetchFile(octokit, { owner: dbRepo.owner, repo: dbRepo.repo, path, ref: dbRepo.default_branch })
   if (!file) return null
 
   const cached = getLumenCachedFile(repoId, path)
-  if (!cached || cached.sha !== file.sha) {
-    upsertLumenCachedFile(repoId, path, file.sha, file.content)
+  if (cached && cached.sha === file.sha) {
+    return { content: cached.content, sha: file.sha }
   }
-  return { content: file.content, sha: file.sha }
+
+  const enriched = await inlineImages(octokit, dbRepo, path, file.content)
+  upsertLumenCachedFile(repoId, path, file.sha, enriched)
+  return { content: enriched, sha: file.sha }
 }
 
 /**

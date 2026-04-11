@@ -202,6 +202,9 @@ const ALLOWED_ATTR = [
   'stroke-linecap', 'stroke-linejoin', 'cx', 'cy', 'r',
   'x1', 'y1', 'x2', 'y2', 'd', 'points',
   'aria-hidden',
+  // Attributs data-* utilises par Lumen pour relier les liens
+  // inter-chapitres a une navigation interne via un click handler.
+  'data-chapter-link', 'data-external',
 ]
 
 // Force rel="noopener noreferrer" sur tous les liens externes pour eviter window.opener leak
@@ -215,17 +218,73 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
 })
 
 /**
- * Convertit un markdown en HTML sanitise (allowlist + force rel noopener).
- * DOMPurify retire automatiquement les protocoles dangereux (javascript:, data:).
+ * Resout un chemin relatif (lien markdown) par rapport au chemin d'un
+ * fichier de reference. Supporte `../`, `./`, `/` absolu (racine repo).
+ * Retourne null si le lien est absolu (http, mailto, ancre, data:).
  */
-export function renderMarkdown(md: string): string {
+function resolveRelativePath(link: string, currentPath: string): string | null {
+  if (!link || /^(https?:|data:|mailto:|#)/i.test(link)) return null
+  if (link.startsWith('/')) return link.replace(/^\/+/, '')
+  const dirParts = currentPath.split('/').slice(0, -1)
+  const parts = link.split('/')
+  for (const p of parts) {
+    if (p === '..') dirParts.pop()
+    else if (p !== '.' && p !== '') dirParts.push(p)
+  }
+  return dirParts.join('/')
+}
+
+/**
+ * Post-process les liens du HTML rendu quand on est dans un contexte
+ * Lumen (chapterPath fourni) :
+ *  - liens relatifs vers un .md -> flag data-chapter-link pour que le
+ *    viewer intercepte le clic et navigue en interne
+ *  - liens http/https -> marque data-external pour ouverture dans le
+ *    navigateur systeme (geree par le click handler du viewer)
+ */
+function rewriteLinksForLumen(html: string, chapterPath: string): string {
+  return html.replace(/<a\s+([^>]*)href="([^"]+)"([^>]*)>/g, (full, beforeHref, href, afterHref) => {
+    const isExternal = /^https?:\/\//i.test(href)
+    if (isExternal) {
+      return `<a ${beforeHref}href="${href}"${afterHref} data-external="1" target="_blank" rel="noopener noreferrer">`
+    }
+    if (/\.md(#.*)?$/i.test(href)) {
+      const [rawPath, hash] = href.split('#')
+      const resolved = resolveRelativePath(rawPath, chapterPath)
+      if (resolved) {
+        const target = hash ? `${resolved}#${hash}` : resolved
+        return `<a ${beforeHref}href="#${target}"${afterHref} data-chapter-link="${resolved}">`
+      }
+    }
+    return full
+  })
+}
+
+export interface RenderMarkdownOptions {
+  /** Chemin du chapitre courant dans le repo (ex: "cours/01-intro.md").
+   *  Quand fourni, les liens relatifs vers d'autres .md recoivent un
+   *  attribut data-chapter-link pour etre interceptes par le viewer. */
+  chapterPath?: string
+}
+
+/**
+ * Convertit un markdown en HTML sanitise (allowlist + force rel noopener).
+ * DOMPurify retire automatiquement les protocoles dangereux (javascript:).
+ */
+export function renderMarkdown(md: string, options: RenderMarkdownOptions = {}): string {
   if (!md) return ''
   const withAdmonitions = preprocessAdmonitions(md)
   const rawHtml = marked.parse(withAdmonitions, { async: false }) as string
   const withIds = injectHeadingIds(rawHtml)
   const withKeywords = highlightKeywords(withIds)
-  return DOMPurify.sanitize(withKeywords, {
+  const withLinks = options.chapterPath
+    ? rewriteLinksForLumen(withKeywords, options.chapterPath)
+    : withKeywords
+  return DOMPurify.sanitize(withLinks, {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
+    // Autorise les data URIs sur img (necessaire pour les images
+    // inlinees par le backend Lumen) et les fragments internes (#...)
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|ftp):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))|^(?:data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,)|^#/i,
   })
 }

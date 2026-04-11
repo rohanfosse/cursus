@@ -42,6 +42,23 @@ const currentChapter = computed(() => {
   return currentRepo.value.manifest?.chapters.find((c) => c.path === currentChapterPath.value) ?? null
 })
 
+const currentChapterIndex = computed<number>(() => {
+  if (!currentRepo.value || !currentChapterPath.value) return -1
+  return currentRepo.value.manifest?.chapters.findIndex((c) => c.path === currentChapterPath.value) ?? -1
+})
+
+const prevChapter = computed(() => {
+  const chapters = currentRepo.value?.manifest?.chapters
+  const i = currentChapterIndex.value
+  return chapters && i > 0 ? chapters[i - 1] : null
+})
+
+const nextChapter = computed(() => {
+  const chapters = currentRepo.value?.manifest?.chapters
+  const i = currentChapterIndex.value
+  return chapters && i >= 0 && i < chapters.length - 1 ? chapters[i + 1] : null
+})
+
 const currentContent = computed<string | null>(() => {
   if (!currentRepo.value || !currentChapterPath.value) return null
   const key = `${currentRepo.value.id}::${currentChapterPath.value}`
@@ -140,6 +157,32 @@ async function handleSelectChapter(payload: { repoId: number; path: string }) {
 async function handleAutoRead() {
   if (!currentRepo.value || !currentChapterPath.value) return
   await lumenStore.markChapterRead(currentRepo.value.id, currentChapterPath.value)
+}
+
+function handleNavigatePrev() {
+  if (!currentRepo.value || !prevChapter.value) return
+  handleSelectChapter({ repoId: currentRepo.value.id, path: prevChapter.value.path })
+}
+
+function handleNavigateNext() {
+  if (!currentRepo.value || !nextChapter.value) return
+  handleSelectChapter({ repoId: currentRepo.value.id, path: nextChapter.value.path })
+}
+
+/**
+ * Lien inter-chapitre clique dans le body markdown. Le path a ete
+ * resolu cote utils/markdown — on verifie juste qu'il existe dans le
+ * manifest du repo courant. Sinon on affiche un toast explicite plutot
+ * que de faire echouer silencieusement.
+ */
+function handleNavigateChapter(path: string) {
+  if (!currentRepo.value) return
+  const target = currentRepo.value.manifest?.chapters.find((c) => c.path === path)
+  if (!target) {
+    showToast(`Chapitre introuvable dans cursus.yaml : ${path}`, 'error')
+    return
+  }
+  handleSelectChapter({ repoId: currentRepo.value.id, path })
 }
 </script>
 
@@ -248,7 +291,12 @@ async function handleAutoRead() {
             :content="currentContent"
             :loading="loadingChapter"
             :is-read="isCurrentRead"
+            :prev-chapter="prevChapter"
+            :next-chapter="nextChapter"
             @read="handleAutoRead"
+            @navigate-prev="handleNavigatePrev"
+            @navigate-next="handleNavigateNext"
+            @navigate-chapter="handleNavigateChapter"
           />
         </main>
 
