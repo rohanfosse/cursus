@@ -113,9 +113,10 @@ export const useLumenStore = defineStore('lumen', () => {
   async function fetchReposForPromo(promoId: number): Promise<void> {
     loading.value = true
     try {
+      // Pas de silent: on veut que l'utilisateur voie l'erreur si la liste
+      // de cours echoue (sinon UI stale silencieuse — antipattern useApi).
       const data = await api<{ repos: LumenRepo[]; org: string | null }>(
         () => window.api.getLumenReposForPromo(promoId),
-        { silent: true },
       )
       repos.value = data?.repos ?? []
       promoOrg.value = data?.org ?? null
@@ -171,7 +172,6 @@ export const useLumenStore = defineStore('lumen', () => {
   async function fetchReposByProjectName(promoId: number, projectName: string): Promise<LumenRepo[]> {
     const data = await api<{ repos: LumenRepo[] }>(
       () => window.api.getLumenReposByProjectName(promoId, projectName),
-      { silent: true },
     )
     return data?.repos ?? []
   }
@@ -180,7 +180,6 @@ export const useLumenStore = defineStore('lumen', () => {
   async function fetchUnlinkedReposForPromo(promoId: number): Promise<LumenRepo[]> {
     const data = await api<{ repos: LumenRepo[] }>(
       () => window.api.getLumenUnlinkedReposForPromo(promoId),
-      { silent: true },
     )
     return data?.repos ?? []
   }

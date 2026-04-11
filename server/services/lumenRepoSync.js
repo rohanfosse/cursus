@@ -21,6 +21,7 @@ const {
   updateLumenRepoManifest,
   setLumenRepoProjectFromManifest,
   pruneLumenReposForPromo,
+  getLumenReposForPromo,
   getLumenCachedFile,
   upsertLumenCachedFile,
   pruneLumenFileCacheForRepo,
@@ -110,6 +111,26 @@ function resolveRelativePath(link, currentPath) {
  * quelles. Les images trop grosses ou au-dela du budget total sont
  * remplacees par un placeholder lisible.
  */
+/**
+ * Decoupe `items` en batches de taille `limit`, applique `fn` en parallele
+ * dans chaque batch (un batch attend que TOUS ses items finissent avant que
+ * le suivant demarre). Pas une vraie sliding window — un item lent dans un
+ * batch stalle le batch entier — mais c'est suffisant pour notre cas (fetch
+ * d'images de qq centaines de Ko, peu de variance). Preserve l'ordre via
+ * indexation explicite.
+ */
+async function mapWithConcurrency(items, limit, fn) {
+  const results = new Array(items.length)
+  for (let i = 0; i < items.length; i += limit) {
+    const batch = items.slice(i, i + limit)
+    const batchResults = await Promise.all(batch.map((item, idx) => fn(item, i + idx)))
+    for (let j = 0; j < batchResults.length; j++) {
+      results[i + j] = batchResults[j]
+    }
+  }
+  return results
+}
+
 async function inlineImages(octokit, repo, chapterPath, md) {
   const { owner, repo: repoName, default_branch: ref } = repo
   const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g
@@ -120,36 +141,51 @@ async function inlineImages(octokit, repo, chapterPath, md) {
   }
   if (!matches.length) return md
 
-  let totalBytes = 0
-  const replacements = new Map()
-
-  for (const match of matches) {
+  // Phase 1 : fetch toutes les images en parallele borne (5 a la fois). On
+  // collecte les resultats sans encore decider du replacement, car le budget
+  // total doit etre applique sequentiellement (les premieres images dans
+  // l'ordre du document gagnent). x4-x5 plus rapide que l'ancien sequentiel.
+  const fetched = await mapWithConcurrency(matches, 5, async (match) => {
     const rel = resolveRelativePath(match.src, chapterPath)
-    if (!rel) continue
+    if (!rel) return { match, kind: 'skip' }
     const ext = '.' + (rel.split('.').pop() ?? '').toLowerCase()
     const mime = IMAGE_MIME_BY_EXT[ext]
-    if (!mime) continue
-
+    if (!mime) return { match, kind: 'skip' }
     try {
       const file = await fetchBinaryFile(octokit, { owner, repo: repoName, path: rel, ref })
-      if (!file) {
-        replacements.set(match.full, `*[image manquante : ${match.alt || rel}]*`)
-        continue
-      }
-      if (file.size > MAX_IMAGE_BYTES) {
-        replacements.set(match.full, `*[image trop volumineuse (${Math.round(file.size / 1024)} Ko) : ${match.alt || rel}]*`)
-        continue
-      }
-      if (totalBytes + file.size > MAX_TOTAL_INLINE_BYTES) {
-        replacements.set(match.full, `*[image non chargee (budget atteint) : ${match.alt || rel}]*`)
-        continue
-      }
-      totalBytes += file.size
-      const dataUri = `data:${mime};base64,${file.buffer.toString('base64')}`
-      replacements.set(match.full, `![${match.alt}](${dataUri})`)
+      if (!file) return { match, kind: 'missing', rel }
+      return { match, kind: 'ok', rel, mime, file }
     } catch {
-      replacements.set(match.full, `*[image inaccessible : ${match.alt || rel}]*`)
+      return { match, kind: 'error', rel }
     }
+  })
+
+  // Phase 2 : applique le budget total dans l'ordre du document.
+  let totalBytes = 0
+  const replacements = new Map()
+  for (const item of fetched) {
+    if (!item || item.kind === 'skip') continue
+    const { match, rel } = item
+    if (item.kind === 'missing') {
+      replacements.set(match.full, `*[image manquante : ${match.alt || rel}]*`)
+      continue
+    }
+    if (item.kind === 'error') {
+      replacements.set(match.full, `*[image inaccessible : ${match.alt || rel}]*`)
+      continue
+    }
+    const { mime, file } = item
+    if (file.size > MAX_IMAGE_BYTES) {
+      replacements.set(match.full, `*[image trop volumineuse (${Math.round(file.size / 1024)} Ko) : ${match.alt || rel}]*`)
+      continue
+    }
+    if (totalBytes + file.size > MAX_TOTAL_INLINE_BYTES) {
+      replacements.set(match.full, `*[image non chargee (budget atteint) : ${match.alt || rel}]*`)
+      continue
+    }
+    totalBytes += file.size
+    const dataUri = `data:${mime};base64,${file.buffer.toString('base64')}`
+    replacements.set(match.full, `![${match.alt}](${dataUri})`)
   }
 
   let result = md
@@ -218,22 +254,28 @@ async function syncRepo(octokit, dbRepo) {
   // manifest est maitre : son absence doit delier).
   // En cas d'ambiguite ou introuvable, on stocke un avertissement dans
   // manifestError mais on continue (le sync du manifest reste valide).
-  let projectWarning = null
+  const warnings = []
   let resolvedProjectId = null
   if (parsed.manifest.cursusProject) {
     const found = findProjectByNormalizedName(dbRepo.promo_id, parsed.manifest.cursusProject)
     if (found.ok) {
       resolvedProjectId = found.project.id
     } else if (found.code === 'not_found') {
-      projectWarning = `Projet Cursus "${parsed.manifest.cursusProject}" introuvable dans la promo`
+      warnings.push(`Projet Cursus "${parsed.manifest.cursusProject}" introuvable dans la promo`)
     } else if (found.code === 'ambiguous') {
-      projectWarning = `Projet Cursus "${parsed.manifest.cursusProject}" ambigu (${found.matches.length} projets portent ce nom, renomme l'un d'eux)`
+      warnings.push(`Projet Cursus "${parsed.manifest.cursusProject}" ambigu (${found.matches.length} projets portent ce nom, renomme l'un d'eux)`)
     }
+  }
+
+  // Auto-manifest tronque (repo > 100k entrees GitHub) : warning lisible
+  // affiche dans l'UI a cote du nom du repo. Le manifest reste exploitable.
+  if (parsed.manifest.truncated) {
+    warnings.push('Repo tres volumineux : tous les chapitres ne sont pas indexes')
   }
 
   updateLumenRepoManifest(id, {
     manifestJson: JSON.stringify(parsed.manifest),
-    manifestError: projectWarning,
+    manifestError: warnings.length ? warnings.join(' · ') : null,
     lastCommitSha: commitSha,
   })
 
@@ -252,7 +294,7 @@ async function syncRepo(octokit, dbRepo) {
   const validPaths = parsed.manifest.chapters.map((c) => c.path)
   pruneLumenFileCacheForRepo(id, validPaths)
 
-  return { ok: true, manifest: parsed.manifest, projectWarning }
+  return { ok: true, manifest: parsed.manifest, warnings }
 }
 
 /**
@@ -269,6 +311,11 @@ async function syncPromoRepos(octokit, { promoId, org }) {
   // sync d'une promo — evite la croissance non-bornee de la table
   // lumen_file_cache sur des chapitres oublies.
   purgeStaleLumenFileCache(30)
+
+  // Snapshot des repos deja en DB AVANT le sync. Permet au prune de
+  // distinguer les repos supprimes cote GitHub des repos crees apres le
+  // demarrage du sync (race "Nouveau cours" en parallele).
+  const snapshotIds = getLumenReposForPromo(promoId).map((r) => r.id)
 
   const orgRepos = await listOrgRepos(octokit, org)
 
@@ -293,7 +340,7 @@ async function syncPromoRepos(octokit, { promoId, org }) {
     })
   }
 
-  pruneLumenReposForPromo(promoId, keepIds)
+  pruneLumenReposForPromo(promoId, keepIds, snapshotIds)
   return { synced: orgRepos.length, errors }
 }
 

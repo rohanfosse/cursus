@@ -306,6 +306,16 @@ require('./socket')(io, queries, SECRET)
 queries.init()
 log.info('db_initialized')
 
+// Migration tokens GitHub legacy : chiffre au boot tous les tokens stockes
+// en clair (vestige v2.32.x avant le chiffrement AES-GCM). Idempotent.
+try {
+  const { migrateLumenTokensAtBoot } = require('./db/models/lumen')
+  const migrated = migrateLumenTokensAtBoot()
+  if (migrated > 0) log.info('lumen_tokens_migrated', { count: migrated })
+} catch (err) {
+  log.error('lumen_token_migration_failed', { error: err.message })
+}
+
 // ── Timer : envoi des annonces planifiees (toutes les 30s) ─────────────────
 const _scheduledTimer = require('./services/scheduler')(io, queries)
 

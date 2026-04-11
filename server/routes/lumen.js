@@ -61,13 +61,18 @@ router.use(authMiddleware)
 // Normalise 'admin' / 'ta' vers 'teacher' via safeAuthorType : ces roles
 // partagent la meme table teachers et le meme namespace d'id (stocke negatif
 // dans le JWT), donc un seul row dans lumen_github_auth par humain.
+//
+// Type-check explicite sur req.user.id : sans ca, Math.abs(undefined) ou
+// Math.abs(string) renvoie NaN, et un user avec un JWT mal forme se
+// retrouverait silencieusement avec une cle DB invalide.
 function userKey(req) {
   const type = req.user?.type
-  if (!type) return null
+  const id = req.user?.id
+  if (!type || typeof id !== 'number' || !Number.isFinite(id)) return null
   try {
     const normalized = safeAuthorType(type)
-    if (normalized === 'teacher') return { userType: 'teacher', userId: Math.abs(req.user.id) }
-    if (normalized === 'student') return { userType: 'student', userId: req.user.id }
+    if (normalized === 'teacher') return { userType: 'teacher', userId: Math.abs(id) }
+    if (normalized === 'student') return { userType: 'student', userId: id }
   } catch { /* type inconnu */ }
   return null
 }

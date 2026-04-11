@@ -64,6 +64,34 @@ function deleteLumenGithubAuth(userType, userId) {
   getDb().prepare('DELETE FROM lumen_github_auth WHERE user_type = ? AND user_id = ?').run(userType, userId)
 }
 
+/**
+ * Migration au boot : chiffre tous les tokens GitHub stockes en clair (legacy
+ * v2.32.x). Appele une fois apres initSchema. Atomique via une transaction —
+ * si un seul row echoue, rien n'est ecrit. Garde le code lazy de
+ * getLumenGithubAuth en filet de securite mais il ne devrait plus jamais se
+ * declencher en pratique apres ce boot.
+ *
+ * @returns {number} nombre de tokens migres (0 si tout etait deja chiffre)
+ */
+function migrateLumenTokensAtBoot() {
+  const db = getDb()
+  const rows = db.prepare(
+    'SELECT user_type, user_id, access_token FROM lumen_github_auth'
+  ).all()
+  const legacy = rows.filter((r) => r.access_token && !String(r.access_token).startsWith('enc:'))
+  if (!legacy.length) return 0
+
+  const updateStmt = db.prepare(
+    'UPDATE lumen_github_auth SET access_token = ? WHERE user_type = ? AND user_id = ?'
+  )
+  db.transaction(() => {
+    for (const row of legacy) {
+      updateStmt.run(encrypt(row.access_token), row.user_type, row.user_id)
+    }
+  })()
+  return legacy.length
+}
+
 // ─── Promo ↔ GitHub org mapping ─────────────────────────────────────────────
 
 function getPromoGithubOrg(promoId) {
@@ -202,14 +230,42 @@ function getUnlinkedLumenReposForPromo(promoId) {
   `).all(promoId)
 }
 
-/** Supprime les repos d'une promo absents de la liste fournie (housekeeping apres sync). */
-function pruneLumenReposForPromo(promoId, keepIds) {
+/**
+ * Supprime les repos d'une promo absents de la liste fournie (housekeeping
+ * apres sync).
+ *
+ * Si `snapshotIds` est fourni, le prune ne touche QUE les repos dont l'id
+ * etait deja en DB au debut du sync (snapshot pris avant `listOrgRepos`).
+ * Cela evite la race ou un repo cree via "Nouveau cours" pendant le sync se
+ * fait pruner parce qu'il n'est pas dans le `keepIds` issu de l'API GitHub.
+ *
+ * @param {number} promoId
+ * @param {number[]} keepIds — repos a preserver (issus du sync)
+ * @param {number[]} [snapshotIds] — optionnel, ids deja en DB au debut du sync
+ */
+function pruneLumenReposForPromo(promoId, keepIds, snapshotIds) {
+  const db = getDb()
+
+  if (snapshotIds) {
+    // Mode safe : ne supprime que les repos qui etaient deja en DB ET qui ne
+    // sont plus dans la liste sync. Les nouveaux repos crees pendant le sync
+    // (id non dans snapshot) sont preserves.
+    const toDelete = snapshotIds.filter((id) => !keepIds.includes(id))
+    if (!toDelete.length) return
+    const placeholders = toDelete.map(() => '?').join(',')
+    db.prepare(`DELETE FROM lumen_repos WHERE promo_id = ? AND id IN (${placeholders})`)
+      .run(promoId, ...toDelete)
+    return
+  }
+
+  // Mode legacy : supprime tout ce qui n'est pas dans keepIds (utilise pour
+  // les chemins ou il n'y a pas de race possible).
   if (!keepIds.length) {
-    getDb().prepare('DELETE FROM lumen_repos WHERE promo_id = ?').run(promoId)
+    db.prepare('DELETE FROM lumen_repos WHERE promo_id = ?').run(promoId)
     return
   }
   const placeholders = keepIds.map(() => '?').join(',')
-  getDb().prepare(`DELETE FROM lumen_repos WHERE promo_id = ? AND id NOT IN (${placeholders})`)
+  db.prepare(`DELETE FROM lumen_repos WHERE promo_id = ? AND id NOT IN (${placeholders})`)
     .run(promoId, ...keepIds)
 }
 
@@ -428,6 +484,7 @@ module.exports = {
   getLumenGithubAuth,
   saveLumenGithubAuth,
   deleteLumenGithubAuth,
+  migrateLumenTokensAtBoot,
   // promo org
   getPromoGithubOrg,
   setPromoGithubOrg,
