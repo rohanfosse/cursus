@@ -161,6 +161,22 @@ describe('Lumen file cache', () => {
     queries.clearLumenFileCacheForRepo(repoId)
     expect(queries.getLumenCachedFile(repoId, 'cours/01.md')).toBeNull()
   })
+
+  it('pruneLumenFileCacheForRepo removes files not in keepPaths', () => {
+    queries.upsertLumenCachedFile(repoId, 'a.md', 's1', '# A')
+    queries.upsertLumenCachedFile(repoId, 'b.md', 's2', '# B')
+    queries.upsertLumenCachedFile(repoId, 'c.md', 's3', '# C')
+    queries.pruneLumenFileCacheForRepo(repoId, ['a.md', 'c.md'])
+    expect(queries.getLumenCachedFile(repoId, 'a.md')).not.toBeNull()
+    expect(queries.getLumenCachedFile(repoId, 'b.md')).toBeNull()
+    expect(queries.getLumenCachedFile(repoId, 'c.md')).not.toBeNull()
+  })
+
+  it('pruneLumenFileCacheForRepo with empty keepPaths is a noop (manifest invalide)', () => {
+    queries.upsertLumenCachedFile(repoId, 'd.md', 's4', '# D')
+    queries.pruneLumenFileCacheForRepo(repoId, [])
+    expect(queries.getLumenCachedFile(repoId, 'd.md')).not.toBeNull()
+  })
 })
 
 describe('Lumen chapter notes', () => {

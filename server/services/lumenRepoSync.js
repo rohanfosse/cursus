@@ -20,6 +20,8 @@ const {
   pruneLumenReposForPromo,
   getLumenCachedFile,
   upsertLumenCachedFile,
+  pruneLumenFileCacheForRepo,
+  purgeStaleLumenFileCache,
 } = require('../db/models/lumen')
 
 /**
@@ -167,6 +169,8 @@ async function getLatestCommitSha(octokit, { owner, repo, defaultBranch }) {
 
 /**
  * Sync un repo individuel : fetch manifest + commit sha, met a jour la DB.
+ * Apres un sync reussi, purge du cache les chapitres qui n'existent
+ * plus dans le manifest (fichier renomme ou supprime cote prof).
  */
 async function syncRepo(octokit, dbRepo) {
   const { owner, repo, default_branch: defaultBranch, id } = dbRepo
@@ -197,6 +201,12 @@ async function syncRepo(octokit, dbRepo) {
     manifestError: null,
     lastCommitSha: commitSha,
   })
+
+  // Supprime du cache les fichiers qui ne sont plus referencees par le
+  // manifest courant (chapitres supprimes/renomes cote prof).
+  const validPaths = parsed.manifest.chapters.map((c) => c.path)
+  pruneLumenFileCacheForRepo(id, validPaths)
+
   return { ok: true, manifest: parsed.manifest }
 }
 
@@ -210,6 +220,11 @@ async function syncRepo(octokit, dbRepo) {
 const SYNC_CONCURRENCY = 5
 
 async function syncPromoRepos(octokit, { promoId, org }) {
+  // Purge opportuniste du cache global obsolete (> 30 jours) a chaque
+  // sync d'une promo — evite la croissance non-bornee de la table
+  // lumen_file_cache sur des chapitres oublies.
+  purgeStaleLumenFileCache(30)
+
   const orgRepos = await listOrgRepos(octokit, org)
 
   const dbRepos = orgRepos.map((r) => upsertLumenRepo({

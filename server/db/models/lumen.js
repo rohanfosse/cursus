@@ -137,6 +137,30 @@ function clearLumenFileCacheForRepo(repoId) {
   getDb().prepare('DELETE FROM lumen_file_cache WHERE repo_id = ?').run(repoId)
 }
 
+/**
+ * Supprime les entrees du cache dont le path n'est plus reference par
+ * le manifest d'un repo (apres un sync qui a retire des chapitres).
+ * Si keepPaths est vide, ne touche a rien — le manifest est absent ou
+ * invalide et on ne veut pas purger un cache qui pourrait encore servir.
+ */
+function pruneLumenFileCacheForRepo(repoId, keepPaths) {
+  if (!keepPaths.length) return
+  const placeholders = keepPaths.map(() => '?').join(',')
+  getDb().prepare(`DELETE FROM lumen_file_cache WHERE repo_id = ? AND path NOT IN (${placeholders})`)
+    .run(repoId, ...keepPaths)
+}
+
+/**
+ * Purge les entrees du cache globalement obsoletes (> 30 jours).
+ * Appele periodiquement (au syncPromoRepos par exemple) pour eviter
+ * une croissance non-bornee sur des repos actifs ou des chapitres
+ * jamais ouverts par personne.
+ */
+function purgeStaleLumenFileCache(days = 30) {
+  getDb().prepare(`DELETE FROM lumen_file_cache WHERE fetched_at < datetime('now', ?)`)
+    .run(`-${days} days`)
+}
+
 // ─── Notes ──────────────────────────────────────────────────────────────────
 
 const NOTE_MAX_LEN = 10_000
@@ -256,6 +280,8 @@ module.exports = {
   getLumenCachedFile,
   upsertLumenCachedFile,
   clearLumenFileCacheForRepo,
+  pruneLumenFileCacheForRepo,
+  purgeStaleLumenFileCache,
   // notes
   getLumenChapterNote,
   upsertLumenChapterNote,
