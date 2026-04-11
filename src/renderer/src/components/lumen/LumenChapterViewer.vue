@@ -227,32 +227,49 @@ const staleRelative = computed(() => {
 
 // ── Enrichissement post-render (copy buttons + click handlers) ────────────
 
+// Icones SVG du bouton copier (constants pour eviter de re-allouer une string
+// par bloc et garder le code injecte concis).
+const COPY_ICON_DEFAULT = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>'
+const COPY_ICON_DONE = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+
+/**
+ * Injecte un bouton "Copier" dans le header de chaque .lumen-codeblock,
+ * a cote du label de langue. Le bouton est TOUJOURS visible (plus de
+ * hover-only) pour faciliter la copie sur tablette et mieux signaler
+ * l'affordance dans un contexte pedagogique (l'etudiant doit pouvoir
+ * copier le code rapidement pour le coller dans son IDE).
+ */
 function injectCopyButtons(root: HTMLElement) {
-  const blocks = root.querySelectorAll('pre.lumen-code')
-  blocks.forEach((pre) => {
-    if ((pre as HTMLElement).querySelector('.lumen-copy-btn')) return
+  const blocks = root.querySelectorAll<HTMLElement>('.lumen-codeblock')
+  blocks.forEach((block) => {
+    const header = block.querySelector<HTMLElement>('.lumen-codeblock-header')
+    const pre = block.querySelector<HTMLElement>('pre.lumen-code')
+    if (!header || !pre) return
+    if (header.querySelector('.lumen-copy-btn')) return
+
     const btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'lumen-copy-btn'
     btn.title = 'Copier le code'
     btn.setAttribute('aria-label', 'Copier le code')
-    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>'
+    btn.innerHTML = `${COPY_ICON_DEFAULT}<span class="lumen-copy-label">Copier</span>`
+
     btn.addEventListener('click', async (e) => {
       e.stopPropagation()
-      const code = (pre as HTMLElement).querySelector('code')?.innerText ?? ''
+      const code = pre.querySelector('code')?.innerText ?? ''
       try {
         await navigator.clipboard.writeText(code)
         btn.classList.add('copied')
-        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        btn.innerHTML = `${COPY_ICON_DONE}<span class="lumen-copy-label">Copie</span>`
         setTimeout(() => {
           btn.classList.remove('copied')
-          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>'
+          btn.innerHTML = `${COPY_ICON_DEFAULT}<span class="lumen-copy-label">Copier</span>`
         }, 1500)
       } catch {
         showToast('Copie impossible', 'error')
       }
     })
-    pre.appendChild(btn)
+    header.appendChild(btn)
   })
 }
 
@@ -936,69 +953,322 @@ button.lumen-viewer-chip:focus-visible {
 }
 </style>
 
-<!-- Styles globaux additionnels pour le body markdown : copy button injecte dynamiquement -->
+<!-- Styles globaux pour le body markdown : pedagogique, hierarchique, copy button.
+     Volontairement non scoped : marked emet du HTML brut sans data-v-* attributes,
+     les selecteurs scoped ne matcheraient pas. -->
 <style>
-/* ── Wrapper de bloc de code avec header (badge langue) ────────────────── */
-.lumen-viewer .markdown-body .lumen-codeblock {
-  margin: 16px 0;
+/* ════════════════════════════════════════════════════════════════════════
+   TYPOGRAPHIE PEDAGOGIQUE (v2.65)
+
+   Toute la mise en page d'un cours markdown : titres hierarchises, listes
+   avec marker accent, blockquote callout, tables zebrees, liens lisibles,
+   inline code souligne, hr discret. Tokenise sur les variables Cursus —
+   suit automatiquement le theme actif (default / cursus / marine / pulse).
+   ════════════════════════════════════════════════════════════════════════ */
+
+.lumen-viewer .markdown-body {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  font-family: var(--font);
+}
+
+/* ── Titres : hierarchie visuelle nette ─────────────────────────────────── */
+.lumen-viewer .markdown-body h1,
+.lumen-viewer .markdown-body h2,
+.lumen-viewer .markdown-body h3,
+.lumen-viewer .markdown-body h4,
+.lumen-viewer .markdown-body h5,
+.lumen-viewer .markdown-body h6 {
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.25;
+  scroll-margin-top: var(--space-lg);
+}
+
+.lumen-viewer .markdown-body h1 {
+  font-size: 28px;
+  margin: 0 0 var(--space-lg);
+  padding-bottom: var(--space-sm);
+  border-bottom: 2px solid var(--accent);
+  letter-spacing: -0.01em;
+}
+
+.lumen-viewer .markdown-body h2 {
+  font-size: 22px;
+  margin: var(--space-xl) 0 var(--space-md);
+  padding-left: var(--space-md);
+  border-left: 3px solid var(--accent);
+}
+
+.lumen-viewer .markdown-body h3 {
+  font-size: 18px;
+  margin: var(--space-lg) 0 var(--space-sm);
+  color: var(--accent);
+}
+
+.lumen-viewer .markdown-body h4 {
+  font-size: 16px;
+  margin: var(--space-lg) 0 var(--space-xs);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+}
+
+.lumen-viewer .markdown-body h5,
+.lumen-viewer .markdown-body h6 {
+  font-size: 14px;
+  margin: var(--space-md) 0 var(--space-xs);
+  color: var(--text-secondary);
+}
+
+/* ── Paragraphes ─────────────────────────────────────────────────────────── */
+.lumen-viewer .markdown-body p {
+  margin: 0 0 var(--space-md);
+}
+
+/* ── Listes ─────────────────────────────────────────────────────────────── */
+.lumen-viewer .markdown-body ul,
+.lumen-viewer .markdown-body ol {
+  margin: 0 0 var(--space-md);
+  padding-left: var(--space-xl);
+}
+
+.lumen-viewer .markdown-body li {
+  margin-bottom: var(--space-xs);
+}
+.lumen-viewer .markdown-body li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+.lumen-viewer .markdown-body li > p { margin-bottom: var(--space-xs); }
+.lumen-viewer .markdown-body li > ul,
+.lumen-viewer .markdown-body li > ol {
+  margin-top: var(--space-xs);
+  margin-bottom: var(--space-xs);
+}
+
+/* Checkbox lists (GFM) */
+.lumen-viewer .markdown-body li input[type="checkbox"] {
+  accent-color: var(--accent);
+  margin-right: var(--space-xs);
+  vertical-align: middle;
+}
+
+/* ── Liens ──────────────────────────────────────────────────────────────── */
+.lumen-viewer .markdown-body a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(var(--accent-rgb), .35);
+  transition: border-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.lumen-viewer .markdown-body a:hover {
+  color: var(--accent-hover);
+  border-bottom-color: var(--accent);
+}
+.lumen-viewer .markdown-body a:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 2px;
+}
+
+/* ── Code inline ────────────────────────────────────────────────────────── */
+.lumen-viewer .markdown-body :not(pre) > code {
+  background: rgba(var(--accent-rgb), .12);
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  font-weight: 600;
+  border: 1px solid rgba(var(--accent-rgb), .18);
+}
+
+/* ── Blockquotes (callout neutre par defaut) ───────────────────────────── */
+.lumen-viewer .markdown-body blockquote {
+  margin: var(--space-lg) 0;
+  padding: var(--space-md) var(--space-lg);
+  background: rgba(var(--accent-rgb), .06);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--text-secondary);
+}
+.lumen-viewer .markdown-body blockquote p:last-child { margin-bottom: 0; }
+
+/* ── Hr / separateur ────────────────────────────────────────────────────── */
+.lumen-viewer .markdown-body hr {
+  margin: var(--space-xl) 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Tables : zebra + sticky header ────────────────────────────────────── */
+.lumen-viewer .markdown-body table {
+  width: 100%;
+  margin: var(--space-lg) 0;
+  border-collapse: collapse;
+  font-size: 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  background: #282c34; /* atom-one-dark base */
+}
+.lumen-viewer .markdown-body th {
+  background: rgba(var(--accent-rgb), .08);
+  color: var(--text-primary);
+  font-weight: 700;
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 2px solid var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  font-size: 11px;
+}
+.lumen-viewer .markdown-body td {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.lumen-viewer .markdown-body tr:last-child td { border-bottom: none; }
+.lumen-viewer .markdown-body tr:nth-child(even) td {
+  background: var(--bg-hover);
+}
+.lumen-viewer .markdown-body tr:hover td {
+  background: rgba(var(--accent-rgb), .04);
+}
+
+/* ── Images ─────────────────────────────────────────────────────────────── */
+.lumen-viewer .markdown-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  margin: var(--space-md) 0;
+  box-shadow: var(--elevation-1);
+}
+
+/* ── Strong / em / mark ─────────────────────────────────────────────────── */
+.lumen-viewer .markdown-body strong { color: var(--text-primary); font-weight: 700; }
+.lumen-viewer .markdown-body em { color: var(--text-primary); font-style: italic; }
+.lumen-viewer .markdown-body mark {
+  background: rgba(229, 168, 66, .25);
+  color: var(--text-primary);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BLOCS DE CODE (v2.65)
+
+   Wrapper avec header sticky (langue + bouton Copier toujours visible)
+   et corps scrollable. Le bouton est dans le header, plus en absolute
+   sur le pre, pour une affordance claire et touch-friendly.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.lumen-viewer .markdown-body .lumen-codeblock {
+  margin: var(--space-lg) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #1a1d23;
+  box-shadow: var(--elevation-1);
 }
 .lumen-viewer .markdown-body .lumen-codeblock-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.04);
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-md);
+  background: rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 32px;
 }
 .lumen-viewer .markdown-body .lumen-codeblock-lang {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
-  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
 }
 .lumen-viewer .markdown-body .lumen-codeblock pre.lumen-code {
   margin: 0;
   border: none;
   border-radius: 0;
   background: transparent;
-  padding: 14px 16px;
+  padding: var(--space-md) var(--space-lg);
   overflow-x: auto;
   font-size: 13px;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 .lumen-viewer .markdown-body .lumen-codeblock pre.lumen-code code {
-  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
   font-size: 13px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #e8e9ea;
+  font-weight: 400;
+}
+
+/* ── Bouton Copier dans le header (v2.65 — toujours visible) ───────────── */
+.lumen-viewer .markdown-body .lumen-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.lumen-viewer .markdown-body .lumen-copy-btn:hover {
+  background: rgba(var(--accent-rgb), .18);
+  color: #fff;
+  border-color: rgba(var(--accent-rgb), .5);
+}
+.lumen-viewer .markdown-body .lumen-copy-btn.copied {
+  background: rgba(46, 204, 113, .18);
+  color: #6FCF97;
+  border-color: rgba(46, 204, 113, .45);
+}
+.lumen-viewer .markdown-body .lumen-copy-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), .5);
+}
+.lumen-viewer .markdown-body .lumen-copy-label {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Mermaid : SVG centre avec fond doux ──────────────────────────────── */
 .lumen-viewer .markdown-body .lumen-mermaid {
   display: flex;
   justify-content: center;
-  padding: 16px;
-  margin: 16px 0;
-  background: var(--bg-secondary);
+  padding: var(--space-lg);
+  margin: var(--space-lg) 0;
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   overflow-x: auto;
+  box-shadow: var(--elevation-1);
 }
 .lumen-viewer .markdown-body .lumen-mermaid svg {
   max-width: 100%;
   height: auto;
 }
 .lumen-viewer .markdown-body .lumen-mermaid-error {
-  padding: 12px 14px;
-  margin: 16px 0;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 6px;
-  color: var(--danger, #ef4444);
+  padding: var(--space-md) var(--space-lg);
+  margin: var(--space-lg) 0;
+  background: rgba(231, 76, 60, .08);
+  border: 1px solid rgba(231, 76, 60, .3);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
   font-size: 12px;
   font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
   white-space: pre-wrap;
@@ -1006,57 +1276,51 @@ button.lumen-viewer-chip:focus-visible {
 
 /* ── KaTeX : display math centre, inline dans le flux ─────────────────── */
 .lumen-viewer .markdown-body .katex-display {
-  margin: 18px 0;
+  margin: var(--space-lg) 0;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 4px 0;
+  padding: var(--space-xs) 0;
 }
 .lumen-viewer .markdown-body .katex {
   font-size: 1.05em;
 }
 .lumen-viewer .markdown-body .lumen-math-error {
-  color: var(--danger, #ef4444);
-  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
+  background: rgba(231, 76, 60, .1);
   padding: 1px 5px;
   border-radius: 3px;
 }
 
-.lumen-viewer .markdown-body pre.lumen-code {
-  position: relative;
-}
-.lumen-viewer .markdown-body .lumen-copy-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: var(--bg-primary);
+/* ── Admonitions / callouts (note, warning, tip, danger) ─────────────── */
+.lumen-viewer .markdown-body .lumen-admonition {
+  margin: var(--space-lg) 0;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius);
   border: 1px solid var(--border);
-  border-radius: 5px;
-  color: var(--text-muted);
-  cursor: pointer;
-  opacity: 0;
-  transition: all var(--motion-fast) var(--ease-out);
-  padding: 0;
+  border-left-width: 3px;
+  background: var(--bg-elevated);
 }
-.lumen-viewer .markdown-body pre.lumen-code:hover .lumen-copy-btn,
-.lumen-viewer .markdown-body .lumen-copy-btn:focus-visible {
-  opacity: 1;
+.lumen-viewer .markdown-body .lumen-admonition--note {
+  border-left-color: var(--accent);
+  background: rgba(var(--accent-rgb), .06);
 }
-.lumen-viewer .markdown-body .lumen-copy-btn:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
+.lumen-viewer .markdown-body .lumen-admonition--tip,
+.lumen-viewer .markdown-body .lumen-admonition--success {
+  border-left-color: var(--color-success);
+  background: rgba(46, 204, 113, .06);
 }
-.lumen-viewer .markdown-body .lumen-copy-btn.copied {
-  opacity: 1;
-  color: var(--success, #4caf50);
-  border-color: var(--success, #4caf50);
+.lumen-viewer .markdown-body .lumen-admonition--warning,
+.lumen-viewer .markdown-body .lumen-admonition--caution {
+  border-left-color: var(--color-warning);
+  background: rgba(232, 137, 26, .06);
 }
-.lumen-viewer .markdown-body .lumen-copy-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+.lumen-viewer .markdown-body .lumen-admonition--danger,
+.lumen-viewer .markdown-body .lumen-admonition--important {
+  border-left-color: var(--color-danger);
+  background: rgba(231, 76, 60, .06);
 }
+
+/* Premier element d'une admonition : pas de margin top */
+.lumen-viewer .markdown-body .lumen-admonition > *:first-child { margin-top: 0; }
+.lumen-viewer .markdown-body .lumen-admonition > *:last-child { margin-bottom: 0; }
 </style>
