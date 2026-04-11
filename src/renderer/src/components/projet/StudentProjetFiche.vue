@@ -16,6 +16,7 @@ import { numericGradeClass } from '@/utils/grade'
 import StudentProjetHeader      from './StudentProjetHeader.vue'
 import StudentProjetStats       from './StudentProjetStats.vue'
 import StudentProjetDevoirsList from './StudentProjetDevoirsList.vue'
+import LumenProjectSection      from '@/components/lumen/LumenProjectSection.vue'
 import type { AppDocument, Channel, Devoir } from '@/types'
 import type { ProjectMeta } from '@/components/modals/NewProjectModal.vue'
 
@@ -273,6 +274,13 @@ function fileTypeIcon(name: string): typeof FileText {
         :next-deadline-soon="nextDeadlineSoon"
       />
     </header>
+
+    <!-- Cours Lumen lies au projet (cache si aucun repo lie) -->
+    <LumenProjectSection
+      :promo-id="promoId"
+      :project-name="projectKey"
+      :is-teacher="false"
+    />
 
     <!-- ── Corps ────────────────────────────────────────────────────────── -->
     <div class="spf-body">
