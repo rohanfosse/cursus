@@ -10,9 +10,11 @@
  * Auto-marque comme lu au bout de 3 secondes d'affichage visible.
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue'
-import { Loader2, FileText, Clock, User, ChevronLeft, ChevronRight, Copy, Check } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { Loader2, FileText, Clock, User, ChevronLeft, ChevronRight, Copy, Check, FolderGit2 } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
 import { useToast } from '@/composables/useToast'
+import { useAppStore } from '@/stores/app'
 import type { LumenChapter, LumenRepo } from '@/types'
 
 interface Props {
@@ -34,6 +36,20 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 const { showToast } = useToast()
+const router = useRouter()
+const appStore = useAppStore()
+
+/**
+ * Clic sur le chip projet dans le header : set le projet actif de Cursus
+ * (pattern legacy ou les projets sont identifies par nom string) puis
+ * route vers /devoirs. L'utilisateur atterrit sur la vue du projet qui
+ * contient elle-meme LumenProjectSection — boucle fermee.
+ */
+function navigateToProject() {
+  if (!props.repo.projectName) return
+  appStore.activeProject = props.repo.projectName
+  router.push({ name: 'devoirs' })
+}
 
 const bodyRef = ref<HTMLElement | null>(null)
 
@@ -130,6 +146,15 @@ onBeforeUnmount(() => {
         <span class="lumen-viewer-title">{{ chapter.title }}</span>
       </div>
       <div class="lumen-viewer-info">
+        <button
+          v-if="repo.projectName"
+          type="button"
+          class="lumen-viewer-chip lumen-viewer-chip--link"
+          :title="`Aller au projet Cursus : ${repo.projectName}`"
+          @click="navigateToProject"
+        >
+          <FolderGit2 :size="11" /> {{ repo.projectName }}
+        </button>
         <span v-if="chapter.duration" class="lumen-viewer-chip">
           <Clock :size="11" /> {{ chapter.duration }} min
         </span>
@@ -242,6 +267,20 @@ onBeforeUnmount(() => {
 .lumen-viewer-chip.read {
   color: var(--success, #4caf50);
   border-color: var(--success, #4caf50);
+}
+
+button.lumen-viewer-chip {
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--t-fast, 150ms) ease;
+}
+.lumen-viewer-chip--link {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.lumen-viewer-chip--link:hover {
+  background: var(--accent);
+  color: white;
 }
 
 .lumen-viewer-loading,
