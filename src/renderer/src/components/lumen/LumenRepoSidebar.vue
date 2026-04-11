@@ -16,7 +16,7 @@
  */
 import { ref, computed, watch, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
-import { FileText, FileDown, FileCode, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, Sparkles, BookOpen, Presentation, Home, Lightbulb, Wrench, Hammer, Folder, Users, User, Plus, Loader2 } from 'lucide-vue-next'
+import { FileText, FileDown, FileCode, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, Sparkles, BookOpen, Presentation, Home, Lightbulb, Wrench, Hammer, Folder, Users, User, Plus, Loader2, ChevronsDown, ChevronsUp } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import { useLumenStore } from '@/stores/lumen'
 import { useToast } from '@/composables/useToast'
@@ -280,14 +280,39 @@ function loadCollapsedKinds(): Set<LumenRepoKind> {
   } catch { return new Set() }
 }
 const collapsedKinds = ref<Set<LumenRepoKind>>(loadCollapsedKinds())
+function saveCollapsedKinds(set: Set<LumenRepoKind>): void {
+  try {
+    localStorage.setItem(COLLAPSED_KINDS_KEY, Array.from(set).join(','))
+  } catch { /* quota exceeded ou private mode */ }
+}
 function toggleKind(k: LumenRepoKind): void {
   const next = new Set(collapsedKinds.value)
   if (next.has(k)) next.delete(k)
   else next.add(k)
   collapsedKinds.value = next
-  try {
-    localStorage.setItem(COLLAPSED_KINDS_KEY, Array.from(next).join(','))
-  } catch { /* quota exceeded ou private mode */ }
+  saveCollapsedKinds(next)
+}
+
+// v2.78 : toggle global "tout deplier / tout replier" les sections.
+// Heuristique : si au moins une section est repliee, on deplie TOUT.
+// Sinon on replie TOUT.
+const allSectionsCollapsed = computed<boolean>(() => {
+  // True si toutes les kinds presentes dans groupedRepos sont dans
+  // le Set. On ne compte pas les kinds vides.
+  return groupedRepos.value.length > 0
+    && groupedRepos.value.every((s) => collapsedKinds.value.has(s.kind))
+})
+function toggleAllSections(): void {
+  if (collapsedKinds.value.size === 0) {
+    // Tout deplie -> on replie tout
+    const all = new Set<LumenRepoKind>(groupedRepos.value.map((s) => s.kind))
+    collapsedKinds.value = all
+    saveCollapsedKinds(all)
+  } else {
+    // Au moins une repliee -> on deplie tout
+    collapsedKinds.value = new Set()
+    saveCollapsedKinds(new Set())
+  }
 }
 
 // Note v2.48 : sidebar flat (pas de collapse).
@@ -478,6 +503,15 @@ async function saveNewChapter(): Promise<void> {
         @click="filter = ''"
       >
         <X :size="12" />
+      </button>
+      <button
+        type="button"
+        class="lumen-sidebar-toggle-all"
+        :title="allSectionsCollapsed ? 'Tout deplier' : 'Tout replier'"
+        :aria-label="allSectionsCollapsed ? 'Deplier toutes les sections' : 'Replier toutes les sections'"
+        @click="toggleAllSections"
+      >
+        <component :is="allSectionsCollapsed ? ChevronsDown : ChevronsUp" :size="12" />
       </button>
     </div>
 
@@ -1032,6 +1066,25 @@ async function saveNewChapter(): Promise<void> {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
   line-height: 1.3;
+}
+.lumen-sidebar-toggle-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.lumen-sidebar-toggle-all:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 .lumen-section-add {
   display: inline-flex;

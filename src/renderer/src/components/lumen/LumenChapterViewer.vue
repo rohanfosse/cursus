@@ -13,7 +13,7 @@
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Copy, Check, FolderGit2, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2 } from 'lucide-vue-next'
+import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Copy, Check, FolderGit2, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2, Link2 } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
 import { resolveAnchorTarget } from '@/utils/lumenDevoirLinks'
 import { parseChapterContent } from '@/utils/lumenFrontmatter'
@@ -274,6 +274,25 @@ const canEdit = computed(() =>
   && props.content != null
   && Boolean(props.contentSha),
 )
+
+// v2.78 : copier un lien cross-repo lumen:// vers ce chapitre dans le
+// presse-papiers. Utile pour partager un chapitre precis dans un message
+// Slack / un devoir / un email.
+const linkCopied = ref(false)
+async function copyChapterLink() {
+  // On utilise le nom court du repo (sans owner) pour que le lien
+  // fonctionne avec handleNavigateLumenLink cote LumenView.
+  const repoName = props.repo.repo || props.repo.fullName.split('/').pop() || ''
+  const url = `lumen://${repoName}/${props.chapter.path}`
+  try {
+    await navigator.clipboard.writeText(url)
+    linkCopied.value = true
+    showToast('Lien copie', 'success')
+    setTimeout(() => { linkCopied.value = false }, 1500)
+  } catch {
+    showToast('Copie impossible', 'error')
+  }
+}
 
 // Detection du format de chapitre (v2.64). Le `kind` peut venir du manifest
 // (auto-manifest le pose, cursus.yaml peut le surcharger), sinon on infere
@@ -759,6 +778,17 @@ watch(() => [props.content, props.chapter?.path], () => {
            le breadcrumb "current" (plus bas), qui contient deja l'info section. -->
       <div class="lumen-viewer-info">
         <button
+          type="button"
+          class="lumen-viewer-chip lumen-viewer-chip--link-copy"
+          :class="{ copied: linkCopied }"
+          :title="linkCopied ? 'Lien copie' : 'Copier le lien lumen:// de ce chapitre'"
+          @click="copyChapterLink"
+        >
+          <Check v-if="linkCopied" :size="11" />
+          <Link2 v-else :size="11" />
+          {{ linkCopied ? 'Copie' : 'Copier lien' }}
+        </button>
+        <button
           v-if="canEdit"
           type="button"
           class="lumen-viewer-chip lumen-viewer-chip--edit"
@@ -1211,6 +1241,19 @@ button.lumen-viewer-chip:focus-visible {
 .lumen-viewer-chip--companion:disabled {
   opacity: .5;
   cursor: not-allowed;
+}
+.lumen-viewer-chip--link-copy {
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.lumen-viewer-chip--link-copy:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.lumen-viewer-chip--link-copy.copied {
+  color: var(--color-success);
+  border-color: rgba(46, 204, 113, .4);
+  background: rgba(46, 204, 113, .1);
 }
 
 /* Modale d'edition de chapitre (v2.67 + v2.69 split preview) */
