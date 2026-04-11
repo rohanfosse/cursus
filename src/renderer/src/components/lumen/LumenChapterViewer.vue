@@ -13,7 +13,7 @@
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Copy, Check, FolderGit2, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2, Link2 } from 'lucide-vue-next'
+import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Copy, Check, FolderGit2, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2, Link2, Printer } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
 import { resolveAnchorTarget } from '@/utils/lumenDevoirLinks'
 import { parseChapterContent } from '@/utils/lumenFrontmatter'
@@ -274,6 +274,15 @@ const canEdit = computed(() =>
   && props.content != null
   && Boolean(props.contentSha),
 )
+
+// v2.79 : imprimer le chapitre courant. Le stylesheet print masque tout
+// sauf le body markdown pour obtenir un PDF propre (via le dialogue
+// d'impression Chromium). Utile pour polycopies et archivage.
+function printChapter() {
+  // Chromium gere tout : on appelle juste window.print() et la feuille
+  // @media print cachee dans le styles global fait le reste.
+  window.print()
+}
 
 // v2.78 : copier un lien cross-repo lumen:// vers ce chapitre dans le
 // presse-papiers. Utile pour partager un chapitre precis dans un message
@@ -778,6 +787,16 @@ watch(() => [props.content, props.chapter?.path], () => {
            le breadcrumb "current" (plus bas), qui contient deja l'info section. -->
       <div class="lumen-viewer-info">
         <button
+          v-if="chapterKind === 'markdown' && !isMarp"
+          type="button"
+          class="lumen-viewer-chip lumen-viewer-chip--print"
+          title="Imprimer / exporter en PDF"
+          @click="printChapter"
+        >
+          <Printer :size="11" />
+          Imprimer
+        </button>
+        <button
           type="button"
           class="lumen-viewer-chip lumen-viewer-chip--link-copy"
           :class="{ copied: linkCopied }"
@@ -1254,6 +1273,14 @@ button.lumen-viewer-chip:focus-visible {
   color: var(--color-success);
   border-color: rgba(46, 204, 113, .4);
   background: rgba(46, 204, 113, .1);
+}
+.lumen-viewer-chip--print {
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.lumen-viewer-chip--print:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 /* Modale d'edition de chapitre (v2.67 + v2.69 split preview) */
@@ -2188,4 +2215,141 @@ button.lumen-viewer-chip:focus-visible {
 /* Premier element d'une admonition : pas de margin top */
 .lumen-viewer .markdown-body .lumen-admonition > *:first-child { margin-top: 0; }
 .lumen-viewer .markdown-body .lumen-admonition > *:last-child { margin-bottom: 0; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   PRINT STYLESHEET (v2.79)
+   Masque toute l'UI de l'app et ne garde que le body markdown, avec
+   des couleurs optimisees pour l'impression papier (fond blanc, texte
+   noir, code sur fond clair). Declenche par le bouton "Imprimer" du
+   header viewer ou par Ctrl+P natif.
+   ════════════════════════════════════════════════════════════════════════ */
+@media print {
+  /* Masque tout sauf le viewer */
+  body > *:not(.lumen-view):not([data-lumen-view]),
+  .lumen-sidebar,
+  .lumen-topbar,
+  .lumen-viewer-head,
+  .lumen-stale-banner,
+  .lumen-floating-nav,
+  .lumen-outline,
+  .lumen-viewer-chip,
+  .lumen-linked-travaux,
+  .lumen-viewer-nav,
+  .mobile-hamburger {
+    display: none !important;
+  }
+  /* Le viewer prend toute la page */
+  .lumen-view, .lumen-body, .lumen-main, .lumen-viewer,
+  .lumen-viewer-main, .lumen-viewer-body {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+  .lumen-viewer-body.markdown-body {
+    padding: 0 !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+    color: #000 !important;
+  }
+  .lumen-viewer-body.markdown-body h1,
+  .lumen-viewer-body.markdown-body h2,
+  .lumen-viewer-body.markdown-body h3,
+  .lumen-viewer-body.markdown-body h4,
+  .lumen-viewer-body.markdown-body h5,
+  .lumen-viewer-body.markdown-body h6 {
+    color: #000 !important;
+    page-break-after: avoid;
+  }
+  .lumen-viewer-body.markdown-body h1 {
+    font-size: 18pt !important;
+    border-bottom: 2pt solid #000 !important;
+    padding-bottom: 0.2em;
+  }
+  .lumen-viewer-body.markdown-body h2 {
+    font-size: 15pt !important;
+    border-left: 3pt solid #000 !important;
+    padding-left: 0.4em;
+    color: #000 !important;
+  }
+  .lumen-viewer-body.markdown-body h3 {
+    font-size: 13pt !important;
+    color: #000 !important;
+  }
+  .lumen-viewer-body.markdown-body p,
+  .lumen-viewer-body.markdown-body li {
+    orphans: 3;
+    widows: 3;
+  }
+  .lumen-viewer-body.markdown-body a {
+    color: #000 !important;
+    border-bottom: 1pt dotted #666 !important;
+  }
+  /* Code inline & blocs sur fond pale pour l'impression */
+  .lumen-viewer-body.markdown-body :not(pre) > code {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+    border: 1pt solid #ccc !important;
+  }
+  .lumen-viewer-body.markdown-body .lumen-codeblock {
+    background: #f8f8f8 !important;
+    border: 1pt solid #ccc !important;
+    page-break-inside: avoid;
+  }
+  .lumen-viewer-body.markdown-body .lumen-codeblock-header {
+    background: #e8e8e8 !important;
+    border-bottom: 1pt solid #ccc !important;
+  }
+  .lumen-viewer-body.markdown-body .lumen-codeblock-lang {
+    color: #444 !important;
+  }
+  .lumen-viewer-body.markdown-body .lumen-codeblock pre.lumen-code code {
+    color: #000 !important;
+  }
+  .lumen-viewer-body.markdown-body .lumen-copy-btn {
+    display: none !important;
+  }
+  .lumen-viewer-body.markdown-body blockquote {
+    background: #f8f8f8 !important;
+    border-left: 3pt solid #666 !important;
+    color: #333 !important;
+    page-break-inside: avoid;
+  }
+  .lumen-viewer-body.markdown-body table {
+    page-break-inside: avoid;
+    border: 1pt solid #000 !important;
+  }
+  .lumen-viewer-body.markdown-body th {
+    background: #e8e8e8 !important;
+    color: #000 !important;
+    border-bottom: 1pt solid #000 !important;
+  }
+  .lumen-viewer-body.markdown-body td {
+    color: #000 !important;
+    border-bottom: 0.5pt solid #ccc !important;
+  }
+  .lumen-viewer-body.markdown-body img {
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: 1pt solid #ccc !important;
+    page-break-inside: avoid;
+  }
+  .lumen-viewer-body.markdown-body .lumen-admonition {
+    background: #f8f8f8 !important;
+    border: 1pt solid #999 !important;
+    border-left-width: 3pt !important;
+    page-break-inside: avoid;
+  }
+  @page {
+    margin: 1.5cm 2cm 2cm 2cm;
+    size: A4;
+  }
+}
 </style>
