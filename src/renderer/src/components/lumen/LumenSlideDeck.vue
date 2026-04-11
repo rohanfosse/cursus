@@ -57,12 +57,18 @@ function renderDeck(): void {
   }
   try {
     const marp = new Marp({
-      html: false,        // securite : pas de HTML inline cote auteur
+      // html:true necessaire pour les templates qui utilisent <div class="columns">
+      // ou autres elements HTML inline. Le contenu vient d'un repo GitHub
+      // controle par le prof (write-access requis), DOMPurify reste comme
+      // 2e couche de defense.
+      html: true,
       math: 'katex',
       inlineSVG: true,
     })
-    // Theme custom Cursus enregistre une fois par instance Marp.
-    // Les auteurs y accedent via `theme: cursus` dans leur frontmatter.
+    // Theme custom Cursus enregistre comme alternative opt-in : l'auteur peut
+    // l'activer via `theme: cursus` dans sa frontmatter. Avec `theme: default`
+    // (cas standard), Marp utilise le theme default Marpit et le `style: |`
+    // de l'auteur prime.
     marp.themeSet.add(MARP_CURSUS_THEME)
     const { html, css } = marp.render(props.source)
     // Marp emet <section ...>...</section> ; on les separe.
@@ -72,8 +78,21 @@ function renderDeck(): void {
     const doc = parser.parseFromString(html, 'text/html')
     const sections = Array.from(doc.querySelectorAll('section'))
     const slides = sections.map((s) => DOMPurify.sanitize(s.outerHTML, {
-      ADD_TAGS: ['section', 'foreignObject', 'svg', 'g', 'path', 'rect', 'text', 'circle', 'line', 'polygon', 'polyline'],
-      ADD_ATTR: ['xmlns', 'viewBox', 'preserveAspectRatio', 'data-marpit-pagination', 'data-marpit-fragment'],
+      // 'style' indispensable : Marpit injecte le `style: |` de la frontmatter
+      // comme <style scoped> dans chaque <section>. Sans ce ADD_TAGS, tout
+      // le theme inline de l'auteur est strippe silencieusement.
+      ADD_TAGS: [
+        'section', 'style',
+        'foreignObject', 'svg', 'g', 'path', 'rect', 'text',
+        'circle', 'line', 'polygon', 'polyline',
+      ],
+      // 'class' indispensable pour les directives Marpit `<!-- _class: title -->`
+      // et les classes utilitaires du theme auteur (.columns, .lead, etc.).
+      ADD_ATTR: [
+        'xmlns', 'viewBox', 'preserveAspectRatio',
+        'data-marpit-pagination', 'data-marpit-fragment',
+        'class',
+      ],
     }))
     rendered.value = { slides, css, count: slides.length }
     if (currentIndex.value >= slides.length) currentIndex.value = 0
