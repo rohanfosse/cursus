@@ -909,21 +909,27 @@ function handleNavigateChapter(path: string) {
 .lumen-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: var(--z-modal-bg, 1000);
   animation: fade-in var(--motion-fast) var(--ease-out);
 }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
+/* Fix v2.68.1 : --bg-secondary n'existe pas dans les tokens Cursus, le
+   background etait donc transparent et laissait voir le viewer derriere.
+   On utilise --bg-modal + border + shadow tokenises pour aligner sur les
+   autres modales de l'app. */
 .lumen-modal {
-  background: var(--bg-secondary);
-  border-radius: 12px;
-  padding: 24px;
+  background: var(--bg-modal);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
   width: min(440px, calc(100% - 32px));
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--elevation-4);
   animation: slide-up var(--motion-base) var(--ease-out);
 }
 @keyframes slide-up {

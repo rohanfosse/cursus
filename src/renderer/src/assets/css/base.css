@@ -39,6 +39,10 @@ body.theme-transitioning *::after {
   --bg-active:  rgba(var(--accent-rgb), .16);
   --bg-modal:   #1e1f21;
   --bg-elevated: #2c2d2f;  /* Cartes / éléments en relief */
+  /* Alias v2.68.1 : --bg-secondary etait utilise dans 15+ composants mais
+     n'avait jamais ete defini → toutes ces surfaces etaient transparentes.
+     On l'alias vers --bg-elevated (meme visuel "card"). */
+  --bg-secondary: var(--bg-elevated);
 
   /* Alias legacy (composants existants) */
   --bg-darkest: #121314;
