@@ -19,6 +19,7 @@ import KanbanBoard           from './KanbanBoard.vue'
 import { useModules }        from '@/composables/useModules'
 import StudentDevoirGroup    from './StudentDevoirGroup.vue'
 import DevoirsProjectCard    from './DevoirsProjectCard.vue'
+import EmptyState            from '@/components/ui/EmptyState.vue'
 
 const props = defineProps<{
   now: number
@@ -134,19 +135,26 @@ const kanbanExpanded = ref<Record<number, boolean>>({})
   </div>
 
   <!-- État erreur -->
-  <div v-else-if="error" class="dv-empty">
-    <AlertCircle :size="48" class="dv-empty-icon" style="color: var(--color-danger);" />
-    <h3>Impossible de charger les devoirs</h3>
-    <p>Une erreur est survenue. Vérifiez votre connexion et réessayez.</p>
-    <button class="btn-primary" style="margin-top: 12px;" @click="retry"><RefreshCw :size="13" /> Réessayer</button>
-  </div>
+  <EmptyState
+    v-else-if="error"
+    size="lg"
+    tone="danger"
+    :icon="AlertCircle"
+    title="Impossible de charger les devoirs"
+    subtitle="Une erreur est survenue. Vérifiez votre connexion et réessayez."
+  >
+    <button class="btn-primary" @click="retry"><RefreshCw :size="13" /> Réessayer</button>
+  </EmptyState>
 
   <!-- État vide -->
-  <div v-else-if="filteredDevoirs.length === 0" class="dv-empty">
-    <CheckCircle2 :size="48" class="dv-empty-icon" />
-    <h3>Aucun devoir assigné</h3>
-    <p>Vos devoirs apparaîtront ici dès qu'un responsable en créera pour votre promotion.</p>
-  </div>
+  <EmptyState
+    v-else-if="filteredDevoirs.length === 0"
+    size="lg"
+    tone="success"
+    :icon="CheckCircle2"
+    title="Aucun devoir assigné"
+    subtitle="Vos devoirs apparaîtront ici dès qu'un responsable en créera pour votre promotion."
+  />
 
   <!-- ══ ACCUEIL étudiant (aucun projet sélectionné) - même layout que prof ══ -->
   <div v-else-if="isAccueil" class="dv-page">

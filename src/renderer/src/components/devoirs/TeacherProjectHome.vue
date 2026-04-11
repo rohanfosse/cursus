@@ -14,6 +14,7 @@ import { useModalsStore }  from '@/stores/modals'
 import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
 import { typeLabel, extractDuration } from '@/utils/devoir'
 import DevoirsProjectCard from './DevoirsProjectCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import type { GanttRow } from '@/types'
 
 const props = defineProps<{
@@ -73,24 +74,25 @@ const nextSoutenance = computed(() =>
     <div v-for="i in 4" :key="i" class="skel skel-line" style="height:100px;margin-bottom:10px;border-radius:10px" />
   </div>
 
-  <div v-else-if="!teacherCategories.length" class="dv-empty">
-    <BookOpen :size="48" class="dv-empty-icon" />
-    <template v-if="!hasDevoirsAtAll">
-      <h3>Aucun devoir pour cette promotion</h3>
-      <p>Créez votre premier devoir pour commencer à organiser vos projets.</p>
-    </template>
-    <template v-else-if="!hasPublishedDevoirs">
-      <h3>Aucun projet publié</h3>
-      <p>Vos devoirs existent en brouillon. Publiez-les et associez-leur une catégorie pour les organiser.</p>
-    </template>
-    <template v-else>
-      <h3>Aucun projet pour cette promotion</h3>
-      <p>Les projets apparaîtront automatiquement quand vous créerez un devoir avec une catégorie.</p>
-    </template>
-    <button class="btn-primary dh-empty-btn" @click="modals.newDevoir = true">
+  <EmptyState
+    v-else-if="!teacherCategories.length"
+    size="lg"
+    :icon="BookOpen"
+    :title="!hasDevoirsAtAll
+      ? 'Aucun devoir pour cette promotion'
+      : !hasPublishedDevoirs
+        ? 'Aucun projet publié'
+        : 'Aucun projet pour cette promotion'"
+    :subtitle="!hasDevoirsAtAll
+      ? 'Créez votre premier devoir pour commencer à organiser vos projets.'
+      : !hasPublishedDevoirs
+        ? 'Vos devoirs existent en brouillon. Publiez-les et associez-leur une catégorie pour les organiser.'
+        : 'Les projets apparaîtront automatiquement quand vous créerez un devoir avec une catégorie.'"
+  >
+    <button class="btn-primary" @click="modals.newDevoir = true">
       <PlusCircle :size="14" /> Créer un devoir
     </button>
-  </div>
+  </EmptyState>
 
   <template v-else>
     <div class="dv-page">

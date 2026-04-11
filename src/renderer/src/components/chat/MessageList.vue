@@ -5,6 +5,7 @@ import { useMessagesStore } from '@/stores/messages'
 import { useAppStore } from '@/stores/app'
 import MessageBubble from './MessageBubble.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { formatDateSeparator } from '@/utils/date'
 import type { Message } from '@/types'
 
@@ -211,47 +212,44 @@ const dateGroups = computed<DateGroup[]>(() => {
       </template>
 
       <!-- État vide -->
-      <div v-else class="empty-state">
-        <!-- Recherche sans résultat -->
-        <template v-if="store.searchTerm">
-          <div class="empty-icon-wrap empty-icon-wrap--search">
-            <Search :size="28" />
-          </div>
-          <p class="empty-title">Aucun résultat pour « {{ store.searchTerm }} »</p>
-          <p class="empty-sub">Essayez des mots-clés différents ou vérifiez l'orthographe.</p>
-        </template>
-
-        <!-- Canal vide -->
-        <template v-else-if="appStore.activeChannelId">
-          <div class="empty-icon-wrap">
-            <Hash :size="28" />
-          </div>
-          <p class="empty-title">Bienvenue dans #{{ appStore.activeChannelName ?? 'ce canal' }}</p>
-          <p class="empty-sub">C'est le tout début de ce canal. Envoyez un message pour lancer la discussion.</p>
+      <template v-else>
+        <EmptyState
+          v-if="store.searchTerm"
+          size="lg"
+          tone="warning"
+          :icon="Search"
+          :title="`Aucun résultat pour « ${store.searchTerm} »`"
+          subtitle="Essayez des mots-clés différents ou vérifiez l'orthographe."
+        />
+        <EmptyState
+          v-else-if="appStore.activeChannelId"
+          size="lg"
+          tone="accent"
+          :icon="Hash"
+          :title="`Bienvenue dans #${appStore.activeChannelName ?? 'ce canal'}`"
+          subtitle="C'est le tout début de ce canal. Envoyez un message pour lancer la discussion."
+        >
           <div class="empty-hint">
             <Send :size="12" />
             <span>Écrivez dans le champ ci-dessous et appuyez sur Entrée</span>
           </div>
-        </template>
-
-        <!-- DM vide -->
-        <template v-else-if="appStore.activeDmStudentId">
-          <div class="empty-icon-wrap empty-icon-wrap--dm">
-            <MessageSquare :size="28" />
-          </div>
-          <p class="empty-title">Nouvelle conversation</p>
-          <p class="empty-sub">Aucun message pour l'instant. Envoyez le premier !</p>
-        </template>
-
-        <!-- Aucun canal sélectionné -->
-        <template v-else>
-          <div class="empty-icon-wrap">
-            <MessageSquare :size="28" />
-          </div>
-          <p class="empty-title">Sélectionnez un salon</p>
-          <p class="empty-sub">Choisissez un salon ou une conversation dans la barre latérale.</p>
-        </template>
-      </div>
+        </EmptyState>
+        <EmptyState
+          v-else-if="appStore.activeDmStudentId"
+          size="lg"
+          tone="success"
+          :icon="MessageSquare"
+          title="Nouvelle conversation"
+          subtitle="Aucun message pour l'instant. Envoyez le premier !"
+        />
+        <EmptyState
+          v-else
+          size="lg"
+          :icon="MessageSquare"
+          title="Sélectionnez un salon"
+          subtitle="Choisissez un salon ou une conversation dans la barre latérale."
+        />
+      </template>
     </template>
 
     <!-- Bouton retour en bas -->
