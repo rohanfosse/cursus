@@ -9,6 +9,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useApi } from '@/composables/useApi'
+import { chapterKey } from '@/utils/lumenDevoirLinks'
 import type {
   LumenRepo,
   LumenChapter,
@@ -17,10 +18,6 @@ import type {
   LumenGithubStatus,
   LumenSearchResult,
 } from '@/types'
-
-function chapterKey(repoId: number, path: string): string {
-  return `${repoId}::${path}`
-}
 
 export const useLumenStore = defineStore('lumen', () => {
   const { api } = useApi()

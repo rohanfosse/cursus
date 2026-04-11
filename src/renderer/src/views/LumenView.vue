@@ -107,6 +107,12 @@ const STALE_THRESHOLD_MS = 15 * 60 * 1000  // 15 minutes
 
 const loadingChapter = ref(false)
 
+// Ancre cible quand on arrive via deep-link `?anchor=section-id` (par
+// exemple depuis un devoir lie). Consume-once : remise a null des qu'elle
+// est passee au viewer pour eviter de re-scroller a chaque resync ou
+// switch de chapitre dans la meme session.
+const pendingAnchor = ref<string | null>(null)
+
 // ── Settings modal (teacher configure github org) ─────────────────────────
 const settingsOpen = ref(false)
 const orgDraft = ref('')
@@ -265,6 +271,17 @@ async function handleDisconnect() {
 async function handleSelectChapter(payload: { repoId: number; path: string }) {
   const repo = repos.value.find((r) => r.id === payload.repoId)
   if (!repo) return
+  // Si l'utilisateur navigue vers un chapitre qui ne correspond pas a la
+  // query URL ?repo=...&chapter=... courante, on efface le pendingAnchor
+  // (l'ancre etait liee a un autre chapitre, plus pertinente ici).
+  const queryRepo = route.query.repo
+  const queryChapter = route.query.chapter
+  if (
+    typeof queryRepo !== 'string' || Number(queryRepo) !== payload.repoId
+    || typeof queryChapter !== 'string' || queryChapter !== payload.path
+  ) {
+    pendingAnchor.value = null
+  }
   currentRepo.value = repo
   currentChapterPath.value = payload.path
 
@@ -276,10 +293,16 @@ async function handleSelectChapter(payload: { repoId: number; path: string }) {
   // Reflete la selection dans l'URL pour permettre le deep-link et la
   // restauration a l'ouverture. `replace` plutot que `push` pour eviter
   // de polluer l'historique de navigation avec chaque chapitre lu.
-  router.replace({
-    name: 'lumen',
-    query: { ...route.query, repo: String(repo.id), chapter: payload.path },
-  })
+  // L'ancre est preservee uniquement si elle vient encore d'etre
+  // memorisee (deep-link en cours), sinon retiree pour eviter qu'un
+  // resync re-scrolle a une section qui n'est plus pertinente.
+  const nextQuery: Record<string, string> = {
+    ...route.query as Record<string, string>,
+    repo: String(repo.id),
+    chapter: payload.path,
+  }
+  if (!pendingAnchor.value) delete nextQuery.anchor
+  router.replace({ name: 'lumen', query: nextQuery })
 
   const key = `${repo.id}::${payload.path}`
   if (!chapterContents.value.has(key)) {
@@ -318,7 +341,19 @@ function applyUrlSelection() {
   if (!repo) return
   const chapterExists = repo.manifest?.chapters.some((c) => c.path === chapterPath)
   if (!chapterExists) return
+  // Si le deep-link contient `?anchor=section-id`, on memorise pour que
+  // le viewer scrolle a la section correspondante apres extraction des
+  // headings (deep-link depuis un devoir vers une section precise).
+  const rawAnchor = route.query.anchor
+  pendingAnchor.value = typeof rawAnchor === 'string' && rawAnchor ? rawAnchor : null
   handleSelectChapter({ repoId, path: chapterPath })
+}
+
+function handleAnchorConsumed() {
+  if (pendingAnchor.value === null) return
+  pendingAnchor.value = null
+  const { anchor: _omit, ...rest } = route.query
+  router.replace({ name: 'lumen', query: rest as Record<string, string> })
 }
 
 /**
@@ -529,10 +564,12 @@ function handleNavigateChapter(path: string) {
             :prev-chapter="prevChapter"
             :next-chapter="nextChapter"
             :cached="currentContentCached"
+            :initial-anchor="pendingAnchor"
             @navigate-prev="handleNavigatePrev"
             @navigate-next="handleNavigateNext"
             @navigate-chapter="handleNavigateChapter"
             @resync="handleSync"
+            @anchor-consumed="handleAnchorConsumed"
           />
         </main>
 

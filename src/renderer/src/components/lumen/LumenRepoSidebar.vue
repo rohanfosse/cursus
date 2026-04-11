@@ -17,6 +17,7 @@
 import { ref, computed, watch } from 'vue'
 import { FileText, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, Sparkles, BookOpen } from 'lucide-vue-next'
 import { useLumenStore } from '@/stores/lumen'
+import { chapterKey } from '@/utils/lumenDevoirLinks'
 import type { LumenRepo, LumenChapter, LumenSearchResult } from '@/types'
 
 interface Props {
@@ -36,10 +37,6 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const filter = ref('')
-
-function chapterKey(repoId: number, path: string): string {
-  return `${repoId}::${path}`
-}
 
 const sortedRepos = computed(() => [...props.repos].sort((a, b) => a.fullName.localeCompare(b.fullName)))
 

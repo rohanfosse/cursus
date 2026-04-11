@@ -18,6 +18,7 @@
   import DevoirRendusList    from '@/components/modals/devoir/DevoirRendusList.vue'
   import DevoirReminderBuilder from '@/components/modals/devoir/DevoirReminderBuilder.vue'
   import DevoirConsignesSection from '@/components/modals/devoir/DevoirConsignesSection.vue'
+  import DevoirChapterLinksSection from '@/components/modals/devoir/DevoirChapterLinksSection.vue'
   import type { Rubric } from '@/types'
 
   const props = defineProps<{ modelValue: boolean }>()
@@ -301,7 +302,16 @@
         <!-- Separator -->
         <hr class="gd-separator" />
 
-        <!-- ═══ 3. CONSIGNES + AAVs + RESSOURCES ═══ -->
+        <!-- ═══ 3. CHAPITRES LUMEN LIES ═══ -->
+        <DevoirChapterLinksSection
+          :travail-id="travail.id"
+          :promo-id="appStore.activePromoId"
+        />
+
+        <!-- Separator -->
+        <hr class="gd-separator" />
+
+        <!-- ═══ 4. CONSIGNES + AAVs + RESSOURCES ═══ -->
         <DevoirConsignesSection
           :travail="travail"
           :ressources="ressources"

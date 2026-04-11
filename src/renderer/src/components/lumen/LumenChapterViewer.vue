@@ -15,6 +15,7 @@ import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Loader2, FileText, Clock, User, ChevronLeft, ChevronRight, Copy, Check, FolderGit2, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
+import { resolveAnchorTarget } from '@/utils/lumenDevoirLinks'
 import { useToast } from '@/composables/useToast'
 import { useAppStore } from '@/stores/app'
 import { relativeTime } from '@/utils/date'
@@ -30,12 +31,14 @@ interface Props {
   prevChapter: LumenChapter | null
   nextChapter: LumenChapter | null
   cached?: boolean
+  initialAnchor?: string | null
 }
 interface Emits {
   (e: 'navigate-chapter', path: string): void
   (e: 'navigate-prev'): void
   (e: 'navigate-next'): void
   (e: 'resync'): void
+  (e: 'anchor-consumed'): void
 }
 
 const props = defineProps<Props>()
@@ -254,7 +257,19 @@ async function enrichRender() {
   headings.value = extractHeadings(bodyRef.value)
   // Scroll en premier pour eviter que l'utilisateur voie un saut de layout
   // apres que mermaid remplace les <pre> par des SVG plus grands.
-  if (bodyRef.value.scrollTo) bodyRef.value.scrollTo({ top: 0 })
+  // Si une ancre est fournie via le deep-link (ex: ouverture depuis un
+  // devoir avec ?anchor=section-machin), on scrolle directement a la
+  // section correspondante au lieu du top du chapitre.
+  const targetAnchor = resolveAnchorTarget(
+    props.initialAnchor ?? null,
+    headings.value.map((h) => h.id),
+  )
+  if (targetAnchor) {
+    scrollToHeading(targetAnchor)
+    emit('anchor-consumed')
+  } else if (bodyRef.value.scrollTo) {
+    bodyRef.value.scrollTo({ top: 0 })
+  }
   renderMermaidBlocks(bodyRef.value).catch(() => { /* deja gere par bloc */ })
 }
 
