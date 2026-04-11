@@ -13,7 +13,7 @@
  */
 import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, FileText, Clock, User, ChevronLeft, ChevronRight, Copy, Check, FolderGit2, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep } from 'lucide-vue-next'
+import { Loader2, FileText, Clock, User, ChevronLeft, ChevronRight, Copy, Check, FolderGit2, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
 import { resolveAnchorTarget } from '@/utils/lumenDevoirLinks'
 import { parseChapterContent } from '@/utils/lumenFrontmatter'
@@ -306,6 +306,9 @@ watch(() => [props.content, props.chapter?.path], () => {
         <span class="lumen-viewer-title">{{ chapter.title }}</span>
       </div>
       <div class="lumen-viewer-info">
+        <span v-if="isMarp" class="lumen-viewer-chip lumen-viewer-chip--marp">
+          <Presentation :size="11" /> Slides
+        </span>
         <button
           v-if="repo.projectName"
           type="button"
@@ -511,7 +514,13 @@ watch(() => [props.content, props.chapter?.path], () => {
 button.lumen-viewer-chip {
   font-family: inherit;
   cursor: pointer;
-  transition: all var(--t-fast, 150ms) ease;
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+button.lumen-viewer-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 .lumen-viewer-chip--link {
   color: var(--accent);
@@ -520,6 +529,14 @@ button.lumen-viewer-chip {
 .lumen-viewer-chip--link:hover {
   background: var(--accent);
   color: white;
+}
+.lumen-viewer-chip--marp {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .12);
+  border-color: rgba(var(--accent-rgb), .25);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
 }
 
 .lumen-viewer-loading,
@@ -544,6 +561,13 @@ button.lumen-viewer-chip {
   flex-direction: row;
   min-height: 0;
   overflow: hidden;
+}
+.lumen-viewer-main--slides {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow-y: auto;
+  padding: var(--space-md) var(--space-lg);
 }
 
 .lumen-viewer-body {

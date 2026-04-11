@@ -15,7 +15,8 @@
  * - Badge "auto" quand le manifest est genere automatiquement
  */
 import { ref, computed, watch } from 'vue'
-import { FileText, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, Sparkles, BookOpen } from 'lucide-vue-next'
+import { storeToRefs } from 'pinia'
+import { FileText, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, Sparkles, BookOpen, Presentation } from 'lucide-vue-next'
 import { useLumenStore } from '@/stores/lumen'
 import { chapterKey } from '@/utils/lumenDevoirLinks'
 import type { LumenRepo, LumenChapter, LumenSearchResult } from '@/types'
@@ -102,6 +103,7 @@ const filteredRepos = computed<FilteredRepo[]>(() => {
 // apparait au-dessus de la liste filtree quand un query est actif.
 
 const lumenStore = useLumenStore()
+const { marpChapters } = storeToRefs(lumenStore)
 const searchResults = ref<LumenSearchResult[]>([])
 const searchInFlight = ref(false)
 let searchDebounce: ReturnType<typeof setTimeout> | null = null
@@ -257,7 +259,13 @@ function handleSelectSearchResult(r: LumenSearchResult) {
                     }"
                     @click="emit('select', { repoId: repo.id, path: ch.path })"
                   >
-                    <FileText :size="12" />
+                    <Presentation
+                      v-if="marpChapters.has(chapterKey(repo.id, ch.path))"
+                      :size="12"
+                      class="lumen-chapter-icon lumen-chapter-icon--marp"
+                      aria-label="Presentation Marp"
+                    />
+                    <FileText v-else :size="12" class="lumen-chapter-icon" />
                     <span class="lumen-chapter-title">{{ ch.title }}</span>
                     <StickyNote v-if="notedChapters.has(chapterKey(repo.id, ch.path))" :size="11" class="lumen-chapter-noted" />
                   </button>
@@ -586,4 +594,6 @@ function handleSelectSearchResult(r: LumenSearchResult) {
 
 .lumen-chapter-read  { color: var(--success, #4caf50); flex-shrink: 0; }
 .lumen-chapter-noted { color: var(--accent); flex-shrink: 0; }
+.lumen-chapter-icon { flex-shrink: 0; }
+.lumen-chapter-icon--marp { color: var(--accent); }
 </style>

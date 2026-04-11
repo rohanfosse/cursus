@@ -10,6 +10,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useApi } from '@/composables/useApi'
 import { chapterKey } from '@/utils/lumenDevoirLinks'
+import { parseChapterContent } from '@/utils/lumenFrontmatter'
 import type {
   LumenRepo,
   LumenChapter,
@@ -34,6 +35,13 @@ export const useLumenStore = defineStore('lumen', () => {
 
   /** Cache des contenus de chapitres : clef = `${repoId}::${path}`. */
   const chapterContents = ref<Map<string, LumenChapterContent>>(new Map())
+
+  /**
+   * Set des chapitres detectes comme presentations Marp (frontmatter `marp: true`).
+   * Alimente lors du fetchChapterContent. Permet a la sidebar d'afficher un
+   * badge "Slides" sans avoir a re-parser la frontmatter cote rendu.
+   */
+  const marpChapters = ref<Set<string>>(new Set())
 
   /** Cache des notes privees : clef = `${repoId}::${path}`. */
   const chapterNotes = ref<Map<string, LumenChapterNote | null>>(new Map())
@@ -266,14 +274,25 @@ export const useLumenStore = defineStore('lumen', () => {
         () => window.api.getLumenChapterContent(repoId, path),
       )
       if (data) {
-        chapterContents.value.set(chapterKey(repoId, path), data)
+        const key = chapterKey(repoId, path)
+        chapterContents.value.set(key, data)
         chapterContents.value = new Map(chapterContents.value)
+        // Detection Marp paresseuse : on parse la frontmatter une seule fois
+        // au moment du fetch. La sidebar peut ensuite afficher un badge.
+        if (parseChapterContent(data.content).isMarp) {
+          marpChapters.value.add(key)
+          marpChapters.value = new Set(marpChapters.value)
+        }
         return data
       }
       return null
     } finally {
       loading.value = false
     }
+  }
+
+  function isChapterMarp(repoId: number, path: string): boolean {
+    return marpChapters.value.has(chapterKey(repoId, path))
   }
 
   function selectChapter(path: string): void {
@@ -364,6 +383,7 @@ export const useLumenStore = defineStore('lumen', () => {
     chapterContents.value = new Map()
     chapterNotes.value = new Map()
     readCounts.value = new Map()
+    marpChapters.value = new Set()
     promoOrg.value = null
   }
 
@@ -379,6 +399,7 @@ export const useLumenStore = defineStore('lumen', () => {
     chapterContents,
     chapterNotes,
     readCounts,
+    marpChapters,
     // computed
     reposWithManifest,
     reposWithError,
@@ -399,6 +420,7 @@ export const useLumenStore = defineStore('lumen', () => {
     createRepoFromScaffold,
     selectRepo,
     fetchChapterContent,
+    isChapterMarp,
     selectChapter,
     searchChapters,
     fetchReadCountsForRepo,
