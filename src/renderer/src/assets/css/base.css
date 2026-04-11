@@ -9,7 +9,21 @@ body.theme-transitioning,
 body.theme-transitioning *,
 body.theme-transitioning *::before,
 body.theme-transitioning *::after {
-  transition: background-color .3s ease, color .2s ease, border-color .3s ease, box-shadow .3s ease !important;
+  transition: background-color var(--motion-slow, .3s) ease,
+              color var(--motion-base, .2s) ease,
+              border-color var(--motion-slow, .3s) ease,
+              box-shadow var(--motion-slow, .3s) ease !important;
+}
+
+/* Reduced motion : respecter la preference systeme.
+   Cf. design-system/cursus/MASTER.md §5. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ════════════════════════════════════════════
@@ -53,10 +67,29 @@ body.theme-transitioning *::after {
   --shadow-card: 0 1px 3px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.2);
   --shadow-card-hover: 0 8px 25px rgba(0,0,0,.4), 0 3px 10px rgba(0,0,0,.3);
 
-  /* Timings de transition */
-  --t-fast: .15s;
-  --t-base: .2s;
-  --t-slow: .3s;
+  /* Echelle d'elevation unifiee (v2.52.0) — toute box-shadow doit en venir.
+     Cf. design-system/cursus/MASTER.md §4. */
+  --elevation-0: none;
+  --elevation-1: var(--shadow-card);
+  --elevation-2: 0 1px 0 rgba(255,255,255,.04), 0 4px 16px rgba(0,0,0,.25);
+  --elevation-3: 0 12px 40px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.04) inset;
+  --elevation-4: 0 24px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04) inset;
+
+  /* Motion (v2.52.0). Anciens alias --t-* preserves pour compat. */
+  --motion-instant: 0ms;
+  --motion-fast:    150ms;
+  --motion-base:    220ms;
+  --motion-slow:    320ms;
+
+  --ease-out:    cubic-bezier(.2,.8,.2,1);
+  --ease-in:     cubic-bezier(.4,0,1,1);
+  --ease-in-out: cubic-bezier(.4,0,.2,1);
+  --ease-spring: cubic-bezier(.34,1.56,.64,1);
+
+  /* Timings de transition (legacy aliases) */
+  --t-fast: var(--motion-fast);
+  --t-base: var(--motion-base);
+  --t-slow: var(--motion-slow);
 
   /* Bordures */
   --border:       rgba(255,255,255,.1);
@@ -111,8 +144,13 @@ body.theme-transitioning *::after {
   --color-gold:    #E5A842;
   --color-online:  #27AE60;
 
-  /* Focus ring (accessibilité clavier) */
-  --focus-ring: 2px solid var(--accent);
+  /* Focus ring unifie (accessibilite clavier, v2.52.0).
+     Usage : box-shadow: var(--focus-ring); — preferer a outline car
+     respecte border-radius. Cf. MASTER.md §6. */
+  --focus-ring-offset: 2px;
+  --focus-ring-width:  2px;
+  --focus-ring: 0 0 0 var(--focus-ring-offset) var(--bg-main),
+                0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width)) var(--accent);
   --focus-offset: 2px;
 
   /* Échelle typographique */

@@ -51,7 +51,7 @@ const modals   = useModalsStore()
   gap: var(--space-md);
   background: var(--bg-main);
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 0 rgba(255,255,255,.04), 0 2px 12px rgba(0,0,0,.2);
+  box-shadow: var(--elevation-2);
   z-index: 10;
 }
 

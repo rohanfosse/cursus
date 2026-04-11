@@ -554,7 +554,7 @@ button { font-family: var(--font); }
   background: var(--bg-modal);
   border: 1px solid var(--border-input);
   border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  box-shadow: var(--elevation-3);
   padding: 6px;
   display: flex;
   gap: 4px;
@@ -764,7 +764,7 @@ button { font-family: var(--font); }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 24px 80px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.04) inset;
+  box-shadow: var(--elevation-4);
 }
 
 .modal-sm  { width: min(400px, 92vw); }
@@ -837,7 +837,7 @@ button { font-family: var(--font); }
   border-radius: var(--radius-xl);
   width: 100%;
   max-width: 440px;
-  box-shadow: 0 24px 80px rgba(0,0,0,.7);
+  box-shadow: var(--elevation-4);
   overflow: hidden;
 }
 
@@ -1214,7 +1214,7 @@ button { font-family: var(--font); }
   font-size: 14px;
   font-weight: 500;
   color: #fff;
-  box-shadow: 0 4px 20px rgba(0,0,0,.45);
+  box-shadow: var(--elevation-3);
   pointer-events: auto;
   min-width: 220px;
   max-width: 420px;
@@ -1536,7 +1536,7 @@ button { font-family: var(--font); }
   background: var(--bg-modal);
   border: 1px solid var(--border-input);
   border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  box-shadow: var(--elevation-3);
   padding: 6px;
   display: flex;
   gap: 2px;

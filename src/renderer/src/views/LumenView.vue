@@ -680,7 +680,7 @@ function handleNavigateChapter(path: string) {
   padding: 0 var(--space-xl);
   border-bottom: 1px solid var(--border);
   background: var(--bg-main);
-  box-shadow: 0 1px 0 rgba(255,255,255,.04), 0 2px 12px rgba(0,0,0,.2);
+  box-shadow: var(--elevation-2);
   flex-shrink: 0;
   min-height: var(--header-height);
   z-index: 10;
