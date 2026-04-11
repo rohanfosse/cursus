@@ -1,15 +1,25 @@
 /**
  * Modele DB Lumen — liseuse de cours adossee a GitHub.
  *
- * Schema (v56) :
- *   lumen_github_auth   — token d'acces GitHub par utilisateur (chiffre AES-GCM)
- *   lumen_repos         — un repo de cours liee a une promo
- *   lumen_file_cache    — cache local des fichiers markdown fetches
- *   lumen_chapter_notes — notes privees etudiant (cle : student_id, repo_id, path)
- *   lumen_chapter_reads — tracking de lecture par chapitre
+ * Schema (v58) :
+ *   lumen_github_auth     — token d'acces GitHub par utilisateur (chiffre AES-GCM)
+ *   lumen_repos           — un repo de cours liee a une promo (+ is_visible v58)
+ *   lumen_file_cache      — cache local des fichiers markdown fetches
+ *   lumen_chapter_notes   — notes privees etudiant (cle : student_id, repo_id, path)
+ *   lumen_chapter_reads   — tracking de lecture par chapitre
+ *   lumen_chapter_travaux — liaison N:M chapitres <-> devoirs (v57)
  */
 const { getDb } = require('../connection')
 const { encrypt, decrypt } = require('../../utils/crypto')
+
+// Liste des colonnes de lumen_repos partagee par toutes les requetes SELECT —
+// extraire en constante evite de dropper une colonne dans une query lors d'une
+// migration future (cf. v58 ou is_visible avait ete oublie dans 2 selects).
+const LUMEN_REPO_COLUMNS = `
+  id, promo_id, owner, repo, default_branch,
+  manifest_json, manifest_error, last_commit_sha, last_synced_at,
+  project_id, is_visible, created_at, updated_at
+`
 
 // ─── GitHub auth ────────────────────────────────────────────────────────────
 //
@@ -68,25 +78,39 @@ function setPromoGithubOrg(promoId, org) {
 
 // ─── Repos ──────────────────────────────────────────────────────────────────
 
-function getLumenReposForPromo(promoId) {
+/**
+ * Liste les repos d'une promo. Si `visibleOnly` est true (vue etudiant),
+ * filtre sur `is_visible = 1` — le prof decide explicitement quels repos
+ * sont publies. Teachers/admins appellent avec false pour tout voir.
+ */
+function getLumenReposForPromo(promoId, { visibleOnly = false } = {}) {
+  const where = visibleOnly ? 'WHERE promo_id = ? AND is_visible = 1' : 'WHERE promo_id = ?'
   return getDb().prepare(`
-    SELECT id, promo_id, owner, repo, default_branch,
-           manifest_json, manifest_error, last_commit_sha, last_synced_at,
-           project_id, created_at, updated_at
+    SELECT ${LUMEN_REPO_COLUMNS}
       FROM lumen_repos
-     WHERE promo_id = ?
+     ${where}
      ORDER BY owner, repo
   `).all(promoId)
 }
 
 function getLumenRepo(id) {
   return getDb().prepare(`
-    SELECT id, promo_id, owner, repo, default_branch,
-           manifest_json, manifest_error, last_commit_sha, last_synced_at,
-           project_id, created_at, updated_at
+    SELECT ${LUMEN_REPO_COLUMNS}
       FROM lumen_repos
      WHERE id = ?
   `).get(id) ?? null
+}
+
+/**
+ * Teacher/admin bascule la visibilite d'un repo pour les etudiants.
+ * Renvoie la nouvelle valeur booleenne effective.
+ */
+function setLumenRepoVisibility(id, visible) {
+  const value = visible ? 1 : 0
+  getDb().prepare(
+    'UPDATE lumen_repos SET is_visible = ?, updated_at = datetime(\'now\') WHERE id = ?'
+  ).run(value, id)
+  return Boolean(value)
 }
 
 function upsertLumenRepo({ promoId, owner, repo, defaultBranch = 'main' }) {
@@ -153,10 +177,12 @@ function getLumenReposByProjectName(promoId, projectName) {
   const { normalizeProjectName } = require('./projects')
   const normalized = normalizeProjectName(projectName)
   if (!normalized) return []
+  // Note : on duplique la liste de colonnes ici car le JOIN demande l'alias r.,
+  // on garde aligne avec LUMEN_REPO_COLUMNS pour eviter le drift.
   const rows = getDb().prepare(`
     SELECT r.id, r.promo_id, r.owner, r.repo, r.default_branch,
            r.manifest_json, r.manifest_error, r.last_commit_sha,
-           r.last_synced_at, r.project_id, r.created_at, r.updated_at,
+           r.last_synced_at, r.project_id, r.is_visible, r.created_at, r.updated_at,
            p.name AS project_name
       FROM lumen_repos r
       JOIN projects p ON p.id = r.project_id
@@ -169,9 +195,7 @@ function getLumenReposByProjectName(promoId, projectName) {
 /** Liste les repos d'une promo non encore lies a un projet (pour picker UI). */
 function getUnlinkedLumenReposForPromo(promoId) {
   return getDb().prepare(`
-    SELECT id, promo_id, owner, repo, default_branch,
-           manifest_json, manifest_error, last_commit_sha, last_synced_at,
-           project_id, created_at, updated_at
+    SELECT ${LUMEN_REPO_COLUMNS}
       FROM lumen_repos
      WHERE promo_id = ? AND project_id IS NULL
      ORDER BY owner, repo
@@ -414,6 +438,7 @@ module.exports = {
   updateLumenRepoManifest,
   setLumenRepoProjectFromManifest,
   setLumenRepoProject,
+  setLumenRepoVisibility,
   getLumenReposByProjectName,
   getUnlinkedLumenReposForPromo,
   deleteLumenRepo,

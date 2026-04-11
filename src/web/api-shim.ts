@@ -516,6 +516,8 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
     get(`/api/lumen/repos/promo/${promoId}/unlinked`),
   setLumenRepoProject:        (repoId: number, projectId: number | null) =>
     put(`/api/lumen/repos/${repoId}/project`, { projectId }),
+  setLumenRepoVisibility:     (repoId: number, visible: boolean) =>
+    put(`/api/lumen/repos/${repoId}/visibility`, { visible }),
   getLumenTravauxForChapter:  (repoId: number, path: string) =>
     get(`/api/lumen/repos/${repoId}/chapters/travaux?path=${encodeURIComponent(path)}`),
   getLumenChaptersForTravail: (travailId: number) =>

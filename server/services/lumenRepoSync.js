@@ -14,6 +14,7 @@
  *   3. Stocker dans le cache et retourner le contenu
  */
 const { parseManifest, MANIFEST_FILENAME } = require('./lumenManifest')
+const { generateAutoManifest } = require('./lumenAutoManifest')
 const {
   upsertLumenRepo,
   updateLumenRepoManifest,
@@ -179,23 +180,35 @@ async function syncRepo(octokit, dbRepo) {
   const commitSha = await getLatestCommitSha(octokit, { owner, repo, defaultBranch })
 
   const manifestFile = await fetchFile(octokit, { owner, repo, path: MANIFEST_FILENAME, ref: defaultBranch })
-  if (!manifestFile) {
-    updateLumenRepoManifest(id, {
-      manifestJson: null,
-      manifestError: `Fichier ${MANIFEST_FILENAME} absent a la racine du repo`,
-      lastCommitSha: commitSha,
-    })
-    return { ok: false, error: 'manifest_missing' }
-  }
 
-  const parsed = parseManifest(manifestFile.content)
-  if (!parsed.ok) {
-    updateLumenRepoManifest(id, {
-      manifestJson: null,
-      manifestError: parsed.error,
-      lastCommitSha: commitSha,
-    })
-    return { ok: false, error: parsed.error }
+  // Pas de cursus.yaml : on genere un manifest automatique depuis l'arbre
+  // du repo. Le prof peut toujours ajouter un cursus.yaml pour reprendre
+  // la main (il aura priorite au prochain sync).
+  let parsed
+  if (!manifestFile) {
+    try {
+      const autoManifest = await generateAutoManifest(octokit, {
+        owner, repo, ref: defaultBranch, projectName: repo,
+      })
+      parsed = { ok: true, manifest: autoManifest }
+    } catch (err) {
+      updateLumenRepoManifest(id, {
+        manifestJson: null,
+        manifestError: `Auto-manifest impossible : ${err.message ?? err}`,
+        lastCommitSha: commitSha,
+      })
+      return { ok: false, error: 'auto_manifest_failed' }
+    }
+  } else {
+    parsed = parseManifest(manifestFile.content)
+    if (!parsed.ok) {
+      updateLumenRepoManifest(id, {
+        manifestJson: null,
+        manifestError: parsed.error,
+        lastCommitSha: commitSha,
+      })
+      return { ok: false, error: parsed.error }
+    }
   }
 
   // Resout l'optionnel cursusProject du manifest contre projects.name.

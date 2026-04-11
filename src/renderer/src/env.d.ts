@@ -326,6 +326,7 @@ declare global {
       getLumenReposByProjectName(promoId: number, name: string): Promise<IpcResponse<{ repos: import('./types').LumenRepo[] }>>
       getLumenUnlinkedReposForPromo(promoId: number): Promise<IpcResponse<{ repos: import('./types').LumenRepo[] }>>
       setLumenRepoProject(repoId: number, projectId: number | null): Promise<IpcResponse<import('./types').LumenRepo>>
+      setLumenRepoVisibility(repoId: number, visible: boolean): Promise<IpcResponse<import('./types').LumenRepo>>
 
       // Integration devoirs <-> chapitres
       getLumenTravauxForChapter(repoId: number, path: string): Promise<IpcResponse<{ travaux: import('./types').LumenLinkedTravail[] }>>

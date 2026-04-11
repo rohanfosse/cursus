@@ -177,6 +177,15 @@ async function handleSync() {
   applyUrlSelection()
 }
 
+async function handleToggleVisibility({ repoId, visible }: { repoId: number; visible: boolean }) {
+  try {
+    await lumenStore.setRepoVisibility(repoId, visible)
+    showToast(visible ? 'Cours publie pour les etudiants' : 'Cours masque aux etudiants', 'success')
+  } catch {
+    showToast('Impossible de changer la visibilite', 'error')
+  }
+}
+
 async function handleDisconnect() {
   if (!(await confirm('Deconnecter ton compte GitHub de Lumen ?', 'danger', 'Deconnecter'))) return
   await lumenStore.disconnectGithub()
@@ -343,7 +352,9 @@ function handleNavigateChapter(path: string) {
             :current-chapter-path="currentChapterPath"
             :read-chapters="readChapters"
             :noted-chapters="notedChaptersSet"
+            :can-toggle-visibility="isTeacher"
             @select="handleSelectChapter"
+            @toggle-visibility="handleToggleVisibility"
           />
 
           <footer v-if="promoOrg && !repos.length && !loading" class="lumen-sidebar-footer">

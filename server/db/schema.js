@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 57;
+const CURRENT_VERSION = 58;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -1216,6 +1216,18 @@ function runMigrations(db) {
         CREATE INDEX IF NOT EXISTS idx_lct_repo_chapter ON lumen_chapter_travaux(repo_id, chapter_path);
         CREATE INDEX IF NOT EXISTS idx_lct_travail ON lumen_chapter_travaux(travail_id);
       `);
+    },
+
+    // v58 : Lumen — visibilite repo (le prof choisit quels repos sont
+    // visibles pour les etudiants). Pour les nouveaux repos sync apres
+    // cette migration, default 0 (masque) — le prof doit explicitement
+    // publier. Mais les repos DEJA presents en base sont marques visible=1
+    // pour ne pas casser l'experience etudiante des installations existantes
+    // (sinon tout disparait du jour au lendemain). Admin/teacher voient
+    // toujours tous les repos quel que soit ce flag.
+    (db) => {
+      tryAlter(db, `ALTER TABLE lumen_repos ADD COLUMN is_visible INTEGER NOT NULL DEFAULT 0`);
+      db.exec(`UPDATE lumen_repos SET is_visible = 1 WHERE is_visible = 0`);
     },
   ];
 

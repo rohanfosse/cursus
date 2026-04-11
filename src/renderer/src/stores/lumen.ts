@@ -179,6 +179,43 @@ export const useLumenStore = defineStore('lumen', () => {
     return data ?? null
   }
 
+  /**
+   * Teacher/admin bascule la visibilite etudiante d'un repo. Optimistic update
+   * immediat puis rollback si l'API echoue. useApi() avale les erreurs et
+   * retourne null en cas d'echec — on ne peut pas se reposer sur try/catch,
+   * on detecte le null pour decider du rollback (et lever explicitement pour
+   * que le caller puisse afficher un toast d'erreur).
+   */
+  async function setRepoVisibility(repoId: number, visible: boolean): Promise<void> {
+    const idx = repos.value.findIndex((r) => r.id === repoId)
+    if (idx === -1) return
+    const previous = repos.value[idx]
+    const next = [...repos.value]
+    next[idx] = { ...previous, isVisible: visible }
+    repos.value = next
+
+    const data = await api<LumenRepo>(
+      () => window.api.setLumenRepoVisibility(repoId, visible),
+    )
+
+    const j = repos.value.findIndex((r) => r.id === repoId)
+    if (j === -1) return
+
+    if (data) {
+      const updated = [...repos.value]
+      updated[j] = data
+      repos.value = updated
+      return
+    }
+
+    // Echec serveur (api a renvoye null) : rollback puis throw pour que
+    // le caller puisse signaler l'erreur a l'utilisateur.
+    const reverted = [...repos.value]
+    reverted[j] = previous
+    repos.value = reverted
+    throw new Error('Visibility toggle failed')
+  }
+
   function selectRepo(repoId: number | null): void {
     if (repoId == null) {
       currentRepo.value = null
@@ -328,6 +365,7 @@ export const useLumenStore = defineStore('lumen', () => {
     fetchReposByProjectName,
     fetchUnlinkedReposForPromo,
     linkRepoToProject,
+    setRepoVisibility,
     selectRepo,
     fetchChapterContent,
     selectChapter,

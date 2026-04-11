@@ -29,6 +29,7 @@ const {
   getLumenReposForPromo,
   getLumenRepo,
   setLumenRepoProject,
+  setLumenRepoVisibility,
   getLumenReposByProjectName,
   getUnlinkedLumenReposForPromo,
   // notes
@@ -124,7 +125,13 @@ function serializeRepo(repo) {
     lastSyncedAt: repo.last_synced_at ?? null,
     projectId: repo.project_id ?? null,
     projectName,
+    isVisible: Boolean(repo.is_visible ?? 0),
   }
+}
+
+/** Les etudiants ne voient que les repos publies. Teachers/admins/TAs ont tout. */
+function isStudent(req) {
+  return req.user?.type === 'student'
 }
 
 async function handleOctokit(err) {
@@ -202,7 +209,7 @@ router.get(
   requirePromo(promoFromParam),
   wrap(async (req) => {
     const promoId = Number(req.params.promoId)
-    const repos = getLumenReposForPromo(promoId).map(serializeRepo)
+    const repos = getLumenReposForPromo(promoId, { visibleOnly: isStudent(req) }).map(serializeRepo)
     return { repos, org: getPromoGithubOrg(promoId) }
   }),
 )
@@ -221,7 +228,7 @@ router.post(
     } catch (err) {
       throw await handleOctokit(err)
     }
-    const repos = getLumenReposForPromo(promoId).map(serializeRepo)
+    const repos = getLumenReposForPromo(promoId, { visibleOnly: isStudent(req) }).map(serializeRepo)
     return { synced: result.synced, errors: result.errors, repos }
   }),
 )
@@ -231,7 +238,28 @@ router.get(
   requirePromo(promoFromRepoParam),
   wrap(async (req) => {
     const repo = repoOrThrow(Number(req.params.id))
+    if (isStudent(req) && !repo.is_visible) {
+      throw new NotFoundError('Repo Lumen introuvable')
+    }
     return serializeRepo(repo)
+  }),
+)
+
+/**
+ * Bascule la visibilite etudiante d'un repo (teacher/admin + responsable
+ * de promo uniquement). Body : { visible: boolean }.
+ */
+const visibilitySchema = z.object({ visible: z.boolean() }).strict()
+
+router.put(
+  '/repos/:id/visibility',
+  requireRole('teacher', 'admin'),
+  requirePromoAdmin(promoFromRepoParam),
+  validate(visibilitySchema),
+  wrap(async (req) => {
+    const repo = repoOrThrow(Number(req.params.id))
+    setLumenRepoVisibility(repo.id, req.body.visible)
+    return serializeRepo(getLumenRepo(repo.id))
   }),
 )
 
@@ -250,8 +278,11 @@ router.get(
     const promoId = Number(req.query.promoId)
     const name = String(req.query.name ?? '').trim()
     if (!name) return { repos: [] }
-    const repos = getLumenReposByProjectName(promoId, name).map(serializeRepo)
-    return { repos }
+    // Filtre etudiant coherent avec /repos/promo/:id : un student ne doit pas
+    // pouvoir decouvrir un repo masque via l'integration projets.
+    const raw = getLumenReposByProjectName(promoId, name)
+    const filtered = isStudent(req) ? raw.filter((r) => r.is_visible) : raw
+    return { repos: filtered.map(serializeRepo) }
   }),
 )
 
@@ -318,14 +349,18 @@ router.get(
   requirePromo(promoFromRepoParam),
   wrap(async (req) => {
     const repo = repoOrThrow(Number(req.params.id))
+    if (isStudent(req) && !repo.is_visible) {
+      throw new NotFoundError('Repo Lumen introuvable')
+    }
     const path = String(req.query.path ?? '').trim()
     if (!path) throw new AppError('Parametre path requis', 400)
 
     // Securite : empeche de fetcher un fichier arbitraire du repo via
-    // Lumen — seuls les chapitres declares dans cursus.yaml sont servis.
+    // Lumen — seuls les chapitres declares dans le manifest (cursus.yaml
+    // OU auto-genere) sont servis.
     const manifest = parseManifestField(repo)
     const inManifest = manifest?.chapters?.some((c) => c.path === path)
-    if (!inManifest) throw new NotFoundError('Chapitre non declare dans cursus.yaml')
+    if (!inManifest) throw new NotFoundError('Chapitre non declare dans le manifest')
 
     const key = userKey(req)
     const octokit = key ? await buildClientForUser(key.userType, key.userId) : null

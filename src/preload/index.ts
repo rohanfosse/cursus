@@ -547,6 +547,8 @@ contextBridge.exposeInMainWorld('api', {
     get(`/api/lumen/repos/promo/${promoId}/unlinked`),
   setLumenRepoProject:      (repoId: number, projectId: number | null) =>
     put(`/api/lumen/repos/${repoId}/project`, { projectId }),
+  setLumenRepoVisibility:   (repoId: number, visible: boolean) =>
+    put(`/api/lumen/repos/${repoId}/visibility`, { visible }),
 
   // Integration devoirs <-> chapitres
   getLumenTravauxForChapter: (repoId: number, path: string) =>
