@@ -548,6 +548,16 @@ contextBridge.exposeInMainWorld('api', {
   setLumenRepoProject:      (repoId: number, projectId: number | null) =>
     put(`/api/lumen/repos/${repoId}/project`, { projectId }),
 
+  // Integration devoirs <-> chapitres
+  getLumenTravauxForChapter: (repoId: number, path: string) =>
+    get(`/api/lumen/repos/${repoId}/chapters/travaux?path=${encodeURIComponent(path)}`),
+  getLumenChaptersForTravail: (travailId: number) =>
+    get(`/api/lumen/travaux/${travailId}/chapters`),
+  linkLumenChapterToTravail: (travailId: number, repoId: number, chapterPath: string) =>
+    post('/api/lumen/chapters/travaux', { travailId, repoId, chapterPath }),
+  unlinkLumenChapterFromTravail: (travailId: number, repoId: number, chapterPath: string) =>
+    del('/api/lumen/chapters/travaux', { travailId, repoId, chapterPath }),
+
   // Chapitres
   getLumenChapterContent:   (repoId: number, path: string) =>
     get(`/api/lumen/repos/${repoId}/content?path=${encodeURIComponent(path)}`),

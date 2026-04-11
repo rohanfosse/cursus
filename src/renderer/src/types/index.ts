@@ -366,6 +366,28 @@ export interface LumenRead {
   read_at: string
 }
 
+/** Devoir lie a un chapitre Lumen (shape retourne par la route). */
+export interface LumenLinkedTravail {
+  id: number
+  title: string
+  deadline: string | null
+  type: string
+  category: string | null
+  promo_id: number
+  published: number
+}
+
+/** Chapitre lie a un devoir (shape retourne par la route, avec repo meta). */
+export interface LumenLinkedChapter {
+  travail_id: number
+  repo_id: number
+  chapter_path: string
+  created_at: string
+  owner: string
+  repo: string
+  manifest_json: string | null
+}
+
 // ─── Kanban ──────────────────────────────────────────────────────────────────
 
 export interface KanbanCard {
