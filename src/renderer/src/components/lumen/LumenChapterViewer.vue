@@ -84,6 +84,63 @@ function onDocumentKey(ev: KeyboardEvent): void {
   }
 }
 
+// ── Raccourcis clavier Lumen (v2.70) ──────────────────────────────────────
+// Attaches au document : actifs quand le focus n'est pas dans un input ou
+// quand une modale est ouverte.
+//  - ArrowLeft       : chapitre precedent
+//  - ArrowRight      : chapitre suivant
+//  - e               : ouvrir la modale Modifier (teacher, markdown only)
+//  - /               : focus la barre de recherche de la sidebar
+//  - ?               : afficher l'aide (future)
+// Les touches sont ignorees si l'utilisateur est en train de taper dans
+// un champ ou si la modale d'edition est ouverte (CodeMirror a ses propres
+// raccourcis pour ArrowLeft/Right etc.).
+function isTypingInField(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+  if (target.isContentEditable) return true
+  // CodeMirror wrapper : le contenu editable est dans un element .cm-content
+  if (target.closest('.cm-editor')) return true
+  return false
+}
+
+function onLumenKeyboard(ev: KeyboardEvent): void {
+  // Si une modale est ouverte (edit ou link-devoir), on laisse la modale
+  // gerer ses propres raccourcis et on ne reagit pas aux globaux.
+  if (editModalOpen.value || linkDevoirModalOpen.value || linkedPopoverOpen.value) return
+  // Si l'utilisateur tape dans un champ, on laisse passer (ex: la search
+  // sidebar).
+  if (isTypingInField(ev.target)) return
+  // Modificateurs (Ctrl/Cmd/Alt/Meta) : on reserve aux shortcuts natifs
+  // du navigateur et de l'app. Shift est accepte (pour shift+? = ?).
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return
+
+  // Navigation chapitre
+  if (ev.key === 'ArrowLeft') {
+    if (props.prevChapter) {
+      ev.preventDefault()
+      emit('navigate-prev')
+    }
+    return
+  }
+  if (ev.key === 'ArrowRight') {
+    if (props.nextChapter) {
+      ev.preventDefault()
+      emit('navigate-next')
+    }
+    return
+  }
+  // 'e' ouvre l'edition (teacher only, markdown only)
+  if (ev.key === 'e' || ev.key === 'E') {
+    if (canEdit.value) {
+      ev.preventDefault()
+      openEditModal()
+    }
+    return
+  }
+}
+
 async function loadLinkedTravaux() {
   if (!props.chapter?.path) return
   linkedTravauxLoading.value = true
@@ -516,11 +573,13 @@ onMounted(() => {
   loadLinkedTravaux()
   document.addEventListener('mousedown', onDocumentClick)
   document.addEventListener('keydown', onDocumentKey)
+  document.addEventListener('keydown', onLumenKeyboard)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', onDocumentClick)
   document.removeEventListener('keydown', onDocumentKey)
+  document.removeEventListener('keydown', onLumenKeyboard)
 })
 watch(() => [props.content, props.chapter?.path], () => {
   enrichRender()
@@ -539,10 +598,11 @@ watch(() => [props.content, props.chapter?.path], () => {
           v-if="canEdit"
           type="button"
           class="lumen-viewer-chip lumen-viewer-chip--edit"
-          title="Modifier ce chapitre (commit GitHub)"
+          title="Modifier ce chapitre (raccourci : E)"
           @click="openEditModal"
         >
           <Pencil :size="11" /> Modifier
+          <kbd class="lumen-viewer-chip-kbd">E</kbd>
         </button>
         <span v-if="isMarp" class="lumen-viewer-chip lumen-viewer-chip--marp">
           <Presentation :size="11" /> Slides
@@ -910,11 +970,28 @@ button.lumen-viewer-chip:focus-visible {
   border-color: rgba(var(--accent-rgb), .35);
   background: transparent;
   font-weight: 600;
+  gap: 5px;
 }
 .lumen-viewer-chip--edit:hover {
   background: rgba(var(--accent-rgb), .14);
   color: var(--accent);
   border-color: var(--accent);
+}
+.lumen-viewer-chip-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(var(--accent-rgb), .18);
+  border: 1px solid rgba(var(--accent-rgb), .3);
+  border-radius: 3px;
+  color: var(--accent);
+  line-height: 1;
 }
 
 /* Modale d'edition de chapitre (v2.67 + v2.69 split preview) */
