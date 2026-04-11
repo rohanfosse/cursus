@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 55;
+const CURRENT_VERSION = 56;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -1110,6 +1110,94 @@ function runMigrations(db) {
     (db) => {
       tryAlter(db, `ALTER TABLE lumen_courses ADD COLUMN scheduled_publish_at TEXT`);
       db.exec(`CREATE INDEX IF NOT EXISTS idx_lumen_courses_scheduled ON lumen_courses(scheduled_publish_at) WHERE scheduled_publish_at IS NOT NULL;`);
+    },
+
+    // v56 : Lumen — pivot GitHub (table rase)
+    // Lumen devient une liseuse de cours adossee a GitHub.
+    // 1 promo = 1 org, 1 projet pedagogique = 1 repo, un fichier cursus.yaml decrit les chapitres.
+    // Les cours markdown ne vivent plus en DB : ils sont fetches depuis GitHub et mis en cache.
+    (db) => {
+      // Table rase : anciens cours en DB = brouillons jetables
+      db.exec(`
+        DROP TABLE IF EXISTS lumen_course_reads;
+        DROP TABLE IF EXISTS lumen_course_notes;
+        DROP TABLE IF EXISTS lumen_courses;
+      `);
+
+      // Mapping promo -> organisation GitHub
+      tryAlter(db, `ALTER TABLE promotions ADD COLUMN github_org TEXT`);
+
+      // Tokens d'acces GitHub stockes par utilisateur (eleve ou prof)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS lumen_github_auth (
+          user_type    TEXT NOT NULL CHECK(user_type IN ('student','teacher')),
+          user_id      INTEGER NOT NULL,
+          github_login TEXT NOT NULL,
+          access_token TEXT NOT NULL,
+          scopes       TEXT NOT NULL DEFAULT '',
+          created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_type, user_id)
+        );
+      `);
+
+      // Repo = projet pedagogique lie a une promo
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS lumen_repos (
+          id              INTEGER PRIMARY KEY AUTOINCREMENT,
+          promo_id        INTEGER NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+          owner           TEXT NOT NULL,
+          repo            TEXT NOT NULL,
+          default_branch  TEXT NOT NULL DEFAULT 'main',
+          manifest_json   TEXT,
+          manifest_error  TEXT,
+          last_commit_sha TEXT,
+          last_synced_at  TEXT,
+          project_id      INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+          created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (promo_id, owner, repo)
+        );
+        CREATE INDEX IF NOT EXISTS idx_lumen_repos_promo ON lumen_repos(promo_id);
+      `);
+
+      // Cache de fichiers markdown fetches depuis GitHub (identifies par sha)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS lumen_file_cache (
+          repo_id    INTEGER NOT NULL REFERENCES lumen_repos(id) ON DELETE CASCADE,
+          path       TEXT NOT NULL,
+          sha        TEXT NOT NULL,
+          content    TEXT NOT NULL,
+          fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (repo_id, path)
+        );
+      `);
+
+      // Notes privees etudiant, attachees a un chapitre (repo, path)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS lumen_chapter_notes (
+          student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+          repo_id    INTEGER NOT NULL REFERENCES lumen_repos(id) ON DELETE CASCADE,
+          path       TEXT NOT NULL,
+          content    TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (student_id, repo_id, path)
+        );
+        CREATE INDEX IF NOT EXISTS idx_lumen_chapter_notes_student ON lumen_chapter_notes(student_id);
+      `);
+
+      // Tracking de lecture par chapitre
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS lumen_chapter_reads (
+          student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+          repo_id    INTEGER NOT NULL REFERENCES lumen_repos(id) ON DELETE CASCADE,
+          path       TEXT NOT NULL,
+          read_at    TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (student_id, repo_id, path)
+        );
+        CREATE INDEX IF NOT EXISTS idx_lumen_chapter_reads_repo ON lumen_chapter_reads(repo_id);
+      `);
     },
   ];
 
