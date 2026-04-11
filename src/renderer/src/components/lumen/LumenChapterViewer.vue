@@ -16,11 +16,13 @@ import { useRouter } from 'vue-router'
 import { Loader2, FileText, Clock, User, ChevronLeft, ChevronRight, Copy, Check, FolderGit2, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
 import { resolveAnchorTarget } from '@/utils/lumenDevoirLinks'
+import { parseChapterContent } from '@/utils/lumenFrontmatter'
 import { useToast } from '@/composables/useToast'
 import { useAppStore } from '@/stores/app'
 import { relativeTime } from '@/utils/date'
 import LumenLinkDevoirModal from '@/components/lumen/LumenLinkDevoirModal.vue'
 import LumenOutline from '@/components/lumen/LumenOutline.vue'
+import LumenSlideDeck from '@/components/lumen/LumenSlideDeck.vue'
 import type { LumenChapter, LumenRepo, LumenLinkedTravail } from '@/types'
 
 interface Props {
@@ -89,8 +91,14 @@ function navigateToProject() {
 
 const bodyRef = ref<HTMLElement | null>(null)
 
+// Detection Marp via frontmatter `marp: true`. Si detecte, on bascule sur
+// LumenSlideDeck (rendu en slides) au lieu du rendu Markdown long-form.
+const parsed = computed(() => parseChapterContent(props.content))
+const isMarp = computed(() => parsed.value.isMarp)
+
 const html = computed(() => {
   if (!props.content) return ''
+  if (isMarp.value) return ''  // rendu via LumenSlideDeck, pas v-html
   return renderMarkdown(props.content, { chapterPath: props.chapter.path })
 })
 
@@ -252,6 +260,12 @@ async function renderMermaidBlocks(root: HTMLElement) {
 
 async function enrichRender() {
   await nextTick()
+  // En mode Marp, le contenu est rendu par LumenSlideDeck — pas de bodyRef
+  // a enrichir, pas de headings, pas de mermaid, pas d'ancres a scroller.
+  if (isMarp.value) {
+    headings.value = []
+    return
+  }
   if (!bodyRef.value) return
   injectCopyButtons(bodyRef.value)
   headings.value = extractHeadings(bodyRef.value)
@@ -337,7 +351,13 @@ watch(() => [props.content, props.chapter?.path], () => {
       <p>Contenu indisponible</p>
     </div>
     <template v-else>
-      <div class="lumen-viewer-main">
+      <!-- Rendu Marp : slide deck dedie quand `marp: true` dans la frontmatter -->
+      <div v-if="isMarp" class="lumen-viewer-main lumen-viewer-main--slides">
+        <LumenSlideDeck :source="content ?? ''" :title="chapter.title" />
+      </div>
+
+      <!-- Rendu Markdown standard sinon -->
+      <div v-else class="lumen-viewer-main">
         <div
           ref="bodyRef"
           class="lumen-viewer-body markdown-body"
