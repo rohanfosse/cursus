@@ -247,14 +247,28 @@ const groupedRepos = computed<RepoSection[]>(() => {
     }))
 })
 
-// Sections collapsible : etat persiste en memoire (pas de localStorage —
-// le user a explicitement demande "categories simples" sans sur-config).
-const collapsedKinds = ref<Set<LumenRepoKind>>(new Set())
+// Sections collapsible : v2.76 on persiste maintenant en localStorage.
+// Format : une chaine comma-separated des kinds collapsed (ex: "prosit,group").
+const COLLAPSED_KINDS_KEY = 'lumen.sidebar.collapsedKinds'
+function loadCollapsedKinds(): Set<LumenRepoKind> {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_KINDS_KEY)
+    if (!raw) return new Set()
+    const parts = raw.split(',').filter((k): k is LumenRepoKind =>
+      KIND_ORDER.includes(k as LumenRepoKind),
+    )
+    return new Set(parts)
+  } catch { return new Set() }
+}
+const collapsedKinds = ref<Set<LumenRepoKind>>(loadCollapsedKinds())
 function toggleKind(k: LumenRepoKind): void {
   const next = new Set(collapsedKinds.value)
   if (next.has(k)) next.delete(k)
   else next.add(k)
   collapsedKinds.value = next
+  try {
+    localStorage.setItem(COLLAPSED_KINDS_KEY, Array.from(next).join(','))
+  } catch { /* quota exceeded ou private mode */ }
 }
 
 // Note v2.48 : sidebar flat (pas de collapse).
@@ -607,6 +621,9 @@ async function saveNewChapter(): Promise<void> {
                     />
                     <FileText v-else :size="12" class="lumen-chapter-icon" />
                     <span class="lumen-chapter-title">{{ ch.title }}</span>
+                    <span v-if="ch.duration" class="lumen-chapter-duration" :title="`~${ch.duration} minutes`">
+                      {{ ch.duration }}<span class="lumen-chapter-duration-unit">m</span>
+                    </span>
                     <StickyNote v-if="notedChapters.has(chapterKey(repo.id, ch.path))" :size="11" class="lumen-chapter-noted" />
                   </button>
                 </li>
@@ -1068,6 +1085,27 @@ async function saveNewChapter(): Promise<void> {
 .lumen-chapter-icon--marp { color: var(--accent); }
 .lumen-chapter-icon--pdf { color: var(--color-danger); }
 .lumen-chapter-icon--tex { color: var(--color-warning); }
+
+/* Badge duree (v2.76) : petit indicateur "15m" a droite du titre */
+.lumen-chapter-duration {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 1px 5px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.lumen-chapter-item.is-active .lumen-chapter-duration {
+  background: rgba(var(--accent-rgb), .14);
+  color: var(--accent);
+}
+.lumen-chapter-duration-unit {
+  opacity: .6;
+  margin-left: 1px;
+}
 
 /* ── Sections par kind (v2.63) ─────────────────────────────────────────── */
 .lumen-kind-sections {

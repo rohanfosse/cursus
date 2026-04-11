@@ -5,8 +5,12 @@ import { describe, it, expect } from 'vitest'
 import { computeStreak } from '@/composables/useStreak'
 
 function daysAgo(n: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
+  // UTC pour eviter les sauts DST (la transition heure d'ete/hiver en
+  // France faisait que setDate traversant le changement d'heure generait
+  // 2 dates sur le meme calendrier, cassant le computeStreak autour du
+  // 29 mars et 25 octobre).
+  const now = new Date()
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - n))
   return d.toISOString()
 }
 
