@@ -8,7 +8,7 @@
  */
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing-only-32chars!!'
 
-const { buildManifestFromTree } = require('../../../server/services/lumenAutoManifest')
+const { buildManifestFromTree, humanizeDirPath } = require('../../../server/services/lumenAutoManifest')
 const { parseManifest } = require('../../../server/services/lumenManifest')
 const yaml = require('js-yaml')
 
@@ -285,5 +285,72 @@ chapters:
     kind: invalid_kind
 `)
     expect(r.ok).toBe(false)
+  })
+})
+
+// ── Normalisation des sections de groupes etudiants v2.66 ────────────────
+
+describe('humanizeDirPath : alias sections groupes etudiants', () => {
+  it('LIVRABLES (uppercase) -> Livrables', () => {
+    expect(humanizeDirPath('LIVRABLES')).toBe('Livrables')
+  })
+  it('Livrables (capitalized) -> Livrables', () => {
+    expect(humanizeDirPath('Livrables')).toBe('Livrables')
+  })
+  it('PROSIT singulier -> Prosits (pluriel canonique)', () => {
+    expect(humanizeDirPath('PROSIT')).toBe('Prosits')
+  })
+  it('Prosits (deja canonique) -> Prosits', () => {
+    expect(humanizeDirPath('Prosits')).toBe('Prosits')
+  })
+  it('rendu / rendus -> Rendus', () => {
+    expect(humanizeDirPath('rendu')).toBe('Rendus')
+    expect(humanizeDirPath('rendus')).toBe('Rendus')
+  })
+  it('TD / TP / CM -> labels canoniques', () => {
+    expect(humanizeDirPath('TD')).toBe('TD')
+    expect(humanizeDirPath('TP')).toBe('TP')
+    expect(humanizeDirPath('CM')).toBe('Cours magistraux')
+  })
+  it('dossier non aliase -> humanise classique', () => {
+    expect(humanizeDirPath('mon-dossier')).toBe('Mon dossier')
+    // Le humanizer n'uppercase que la 1ere lettre, donc php -> Php
+    expect(humanizeDirPath('guides/php')).toBe('Guides · Php')
+  })
+  it('LIVRABLES dans une arborescence imbriquee -> normalise', () => {
+    // Le segment LIVRABLES est normalise individuellement dans la chaine
+    expect(humanizeDirPath('LIVRABLES/projet1')).toBe('Livrables · Projet1')
+  })
+})
+
+describe('buildManifestFromTree : sections groupes normalisees', () => {
+  it('repo de groupe avec LIVRABLES + PROSIT -> sections Livrables + Prosits', () => {
+    const m = buildManifestFromTree(
+      [
+        { path: 'README.md' },
+        { path: 'LIVRABLES/01-rapport.md' },
+        { path: 'PROSIT/p1-mvc.md' },
+        { path: 'PROSIT/p2-poo.md' },
+      ],
+      { projectName: 'SE-groupe-01' },
+    )
+    const sections = new Set(m.chapters.map((c) => c.section))
+    expect(sections.has('Livrables')).toBe(true)
+    expect(sections.has('Prosits')).toBe(true)
+    // Pas de fuite avec la casse d'origine
+    expect(sections.has('LIVRABLES')).toBe(false)
+    expect(sections.has('PROSIT')).toBe(false)
+  })
+
+  it('repo de groupe avec mix Livrables + LIVRABLES -> meme section unifiee', () => {
+    const m = buildManifestFromTree(
+      [
+        { path: 'Livrables/projet-1.md' },
+        { path: 'LIVRABLES/projet-2.md' },
+      ],
+      { projectName: 'POO-groupe-01' },
+    )
+    const sections = new Set(m.chapters.map((c) => c.section))
+    expect(sections).toEqual(new Set(['Livrables']))
   })
 })

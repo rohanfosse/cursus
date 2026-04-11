@@ -170,7 +170,7 @@ chapters:
 // ── Categorisation v2.63 (kind / audience / groupName) ────────────────────
 
 describe('parseManifest : champ kind', () => {
-  const KINDS = ['course', 'prosit', 'workshop', 'miniproject', 'project', 'readme', 'group']
+  const KINDS = ['course', 'prosit', 'workshop', 'miniproject', 'project', 'readme', 'group', 'student']
 
   KINDS.forEach((kind) => {
     it(`accepte kind: ${kind}`, () => {
@@ -277,6 +277,23 @@ describe('inferRepoKind : heuristique de classification', () => {
   it('detecte projet (apres group pour ne pas confondre group-project)', () => {
     expect(inferRepoKind('projet-final')).toBe('project')
     expect(inferRepoKind('project-2024')).toBe('project')
+  })
+
+  it('detecte etudiant individuel (Nom-Prenom capitalise, v2.66)', () => {
+    expect(inferRepoKind('Astruc-Sebastien')).toBe('student')
+    expect(inferRepoKind('Bougette-Jean')).toBe('student')
+    expect(inferRepoKind('Chahbouni-Ali')).toBe('student')
+    expect(inferRepoKind('Rohan-Fosse')).toBe('student')
+    expect(inferRepoKind('Mekhmoukhen-Laurys')).toBe('student')
+  })
+
+  it('ne detecte PAS comme student les patterns ambigus', () => {
+    // lowercase n'a pas le pattern Capitalize-Capitalize
+    expect(inferRepoKind('astruc-sebastien')).toBe('course')
+    // un seul mot
+    expect(inferRepoKind('Sebastien')).toBe('course')
+    // chiffres
+    expect(inferRepoKind('Eleve-2024')).toBe('course')
   })
 
   it('defaut prudent : course pour les noms ambigus', () => {

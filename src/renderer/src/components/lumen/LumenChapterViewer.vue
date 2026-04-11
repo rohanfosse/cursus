@@ -114,6 +114,45 @@ function navigateToProject() {
 
 const bodyRef = ref<HTMLElement | null>(null)
 
+/**
+ * Detection chapitre "Accueil" (v2.66) : le README racine du repo, ou tout
+ * chapitre marque comme presentation. Quand actif, on bascule sur un layout
+ * "tableau de bord du bloc" : titre h1 enrichi + sommaire des autres
+ * chapitres en bas.
+ */
+const isAccueilChapter = computed(() => {
+  const path = props.chapter.path?.toLowerCase() ?? ''
+  return path === 'readme.md'
+    || path.endsWith('/readme.md')
+    || props.chapter.section === 'Presentation'
+    || props.chapter.title === 'Accueil'
+})
+
+/**
+ * Sommaire du bloc affiche en bas de l'Accueil : liste de tous les autres
+ * chapitres du repo, groupes par section dans l'ordre de declaration.
+ */
+interface AccueilTocSection {
+  title: string
+  chapters: LumenChapter[]
+}
+const accueilToc = computed<AccueilTocSection[]>(() => {
+  if (!isAccueilChapter.value) return []
+  const all = props.repo.manifest?.chapters ?? []
+  const others = all.filter((c) => c.path !== props.chapter.path)
+  const map = new Map<string, LumenChapter[]>()
+  for (const c of others) {
+    const key = c.section?.trim() || 'Chapitres'
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(c)
+  }
+  return Array.from(map.entries()).map(([title, chs]) => ({ title, chapters: chs }))
+})
+
+function openAccueilChapter(ch: LumenChapter) {
+  emit('navigate-chapter', ch.path)
+}
+
 // Detection du format de chapitre (v2.64). Le `kind` peut venir du manifest
 // (auto-manifest le pose, cursus.yaml peut le surcharger), sinon on infere
 // depuis l'extension du path. Branches de rendu :
@@ -511,9 +550,34 @@ watch(() => [props.content, props.chapter?.path], () => {
         <div
           ref="bodyRef"
           class="lumen-viewer-body markdown-body"
+          :class="{ 'lumen-viewer-body--accueil': isAccueilChapter }"
           @click="handleBodyClick"
-          v-html="html"
-        />
+        >
+          <div v-html="html" />
+          <!-- Sommaire du bloc (v2.66) : affiche apres le contenu README
+               quand on est sur l'Accueil. Liste les autres chapitres du
+               repo en cards cliquables groupees par section. -->
+          <section v-if="isAccueilChapter && accueilToc.length > 0" class="lumen-bloc-toc">
+            <h2 class="lumen-bloc-toc-title">Sommaire du bloc</h2>
+            <div v-for="section in accueilToc" :key="section.title" class="lumen-bloc-toc-section">
+              <h3 class="lumen-bloc-toc-section-title">{{ section.title }}</h3>
+              <ul class="lumen-bloc-toc-list">
+                <li v-for="ch in section.chapters" :key="ch.path">
+                  <button
+                    type="button"
+                    class="lumen-bloc-toc-item"
+                    @click="openAccueilChapter(ch)"
+                  >
+                    <span class="lumen-bloc-toc-item-title">{{ ch.title }}</span>
+                    <span v-if="ch.duration" class="lumen-bloc-toc-item-duration">
+                      <Clock :size="11" /> {{ ch.duration }} min
+                    </span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </div>
         <LumenOutline
           v-if="headings.length > 0"
           :headings="headings"
@@ -703,10 +767,112 @@ button.lumen-viewer-chip:focus-visible {
 .lumen-viewer-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 48px 16px;
+  padding: var(--space-lg) 48px var(--space-md);
   max-width: 820px;
   width: 100%;
   margin: 0 auto;
+}
+
+/* Mode Accueil (v2.66) : layout plus aere, h1 plus visible, padding genereux
+   pour donner une impression de "tableau de bord du bloc". */
+.lumen-viewer-body--accueil {
+  max-width: 920px;
+  padding: var(--space-xl) 64px var(--space-xl);
+}
+.lumen-viewer-body--accueil :deep(h1) {
+  font-size: 32px;
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-md);
+  border-bottom: 3px solid var(--accent);
+}
+
+/* Sommaire du bloc affiche en bas de la page d'accueil (v2.66) */
+.lumen-bloc-toc {
+  margin-top: var(--space-2xl, 48px);
+  padding-top: var(--space-xl);
+  border-top: 1px solid var(--border);
+}
+.lumen-bloc-toc-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.lumen-bloc-toc-title::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 22px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.lumen-bloc-toc-section {
+  margin-bottom: var(--space-lg);
+}
+.lumen-bloc-toc-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-sm);
+}
+.lumen-bloc-toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-sm);
+}
+.lumen-bloc-toc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-base) var(--ease-out),
+              box-shadow var(--motion-base) var(--ease-out);
+}
+.lumen-bloc-toc-item:hover {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), .04);
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-2);
+}
+.lumen-bloc-toc-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.lumen-bloc-toc-item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lumen-bloc-toc-item-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-weight: 500;
 }
 
 /* Breadcrumbs : fil d'ariane discret sous la meta du header */

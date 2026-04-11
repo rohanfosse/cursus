@@ -341,6 +341,7 @@ export type LumenRepoKind =
   | 'project'     // projet long
   | 'readme'      // repo README de la promo (epingle en haut)
   | 'group'       // dossier d'un groupe d'etudiants
+  | 'student'     // dossier d'un etudiant individuel (Nom-Prenom)
 
 export interface LumenManifest {
   project: string

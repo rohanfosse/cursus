@@ -106,15 +106,43 @@ function stripExt(path) {
 }
 
 /**
+ * Normalise les sections des repos de groupes etudiants (v2.66). Les
+ * conventions CESI sont incoherentes entre groupes : LIVRABLES vs Livrables,
+ * PROSIT vs Prosits, etc. On uniformise vers une forme canonique pour que
+ * tous les groupes aient des sections affichees avec la meme casse / pluriel.
+ */
+const GROUP_SECTION_ALIASES = {
+  livrable: 'Livrables',
+  livrables: 'Livrables',
+  prosit: 'Prosits',
+  prosits: 'Prosits',
+  rendu: 'Rendus',
+  rendus: 'Rendus',
+  livraisons: 'Livraisons',
+  livraison: 'Livraisons',
+  cours: 'Cours',
+  cm: 'Cours magistraux',
+  td: 'TD',
+  tp: 'TP',
+}
+
+/**
  * Humanise un nom de dossier pour en faire un titre de section.
  * "guides/php" -> "Guides · PHP", "mini-projet" -> "Mini projet".
+ * Les sections "standard" des repos groupes (LIVRABLES, PROSIT, ...) sont
+ * normalisees vers leur forme canonique francaise.
  */
 function humanizeDirPath(dirPath) {
   if (!dirPath) return 'Racine'
   return dirPath
     .split('/')
-    .map((seg) => seg.replace(/[-_]+/g, ' ').trim())
-    .map((seg) => seg.charAt(0).toUpperCase() + seg.slice(1))
+    .map((seg) => {
+      const cleaned = seg.replace(/[-_]+/g, ' ').trim()
+      // Alias normalisation : on cherche le segment lowercased dans la table
+      const alias = GROUP_SECTION_ALIASES[cleaned.toLowerCase()]
+      if (alias) return alias
+      return cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+    })
     .join(' · ')
 }
 

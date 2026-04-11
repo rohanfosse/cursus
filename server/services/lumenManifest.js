@@ -40,7 +40,7 @@ const MANIFEST_FILENAME = 'cursus.yaml'
  * Categories de repo Lumen (v2.63). Determine le bucket dans le sommaire
  * et l'icone affichee. Inferable depuis le nom du repo si non explicite.
  */
-const KIND_VALUES = ['course', 'prosit', 'workshop', 'miniproject', 'project', 'readme', 'group']
+const KIND_VALUES = ['course', 'prosit', 'workshop', 'miniproject', 'project', 'readme', 'group', 'student']
 
 // Format de chapitre supporte (v2.64). Detecte cote serveur depuis l'extension
 // du fichier au moment du sync, ou explicite par l'auteur dans cursus.yaml.
@@ -120,6 +120,7 @@ const manifestSchema = z.object({
  */
 function inferRepoKind(repoName) {
   if (typeof repoName !== 'string') return 'course'
+  const original = repoName
   const n = repoName.toLowerCase()
   // README en premier : "promo-readme", ".github", "readme-php"
   if (n === 'readme' || n.startsWith('readme-') || n.endsWith('-readme') || n === '.github') return 'readme'
@@ -135,6 +136,11 @@ function inferRepoKind(repoName) {
   if (/(?:^|[-_])(?:groupe?|equipe|team)(?:[-_]|$)/i.test(n)) return 'group'
   // Projet (apres groupe car "group-project" doit etre group)
   if (n.includes('projet') || n.includes('project')) return 'project'
+  // Etudiant individuel (v2.66) : pattern "Nom-Prenom" — deux mots
+  // capitalises separes par un tiret, sans mot-cle pedagogique. On
+  // travaille sur la chaine ORIGINALE (pas lowercased) pour detecter la
+  // capitalisation. Ex: "Astruc-Sebastien", "Bougette-Jean", "Rohan-Fosse".
+  if (/^[A-Z][a-z]+(?:-[A-Z][a-z]+)+$/.test(original)) return 'student'
   return 'course'
 }
 
