@@ -780,21 +780,29 @@ button.lumen-viewer-chip:focus-visible {
 }
 .lumen-viewer-main--slides {
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  overflow-y: auto;
-  padding: var(--space-md) var(--space-lg);
+  align-items: stretch;
+  justify-content: stretch;
+  /* Le slidedeck gere son propre padding interne et son alignement.
+     v2.66.2 : on retire l'overflow-y:auto qui empechait le slidedeck
+     d'utiliser toute la hauteur disponible. */
+  overflow: hidden;
+  padding: 0;
 }
 
-/* Mode PDF (v2.64) : iframe pleine taille rendant le PDF nativement
-   via le moteur Chromium d'Electron. */
+/* Mode PDF (v2.64, fix v2.66.2) : iframe pleine taille rendant le PDF
+   nativement via le moteur Chromium d'Electron. L'iframe doit prendre
+   100% du parent — on utilise position absolute + inset 0 plutot que
+   flex pour eviter les soucis de % heights dans les flex containers. */
 .lumen-viewer-main--pdf {
   flex-direction: column;
   background: var(--bg-rail);
   padding: 0;
+  /* position: relative est deja sur .lumen-viewer-main, mais on s'assure */
+  position: relative;
 }
 .lumen-pdf-frame {
-  flex: 1;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   border: none;

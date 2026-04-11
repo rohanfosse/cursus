@@ -243,11 +243,17 @@ watch(() => props.source, () => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--space-md);
-  padding: var(--space-xl);
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
   background: var(--bg-main);
-  border-radius: var(--radius-lg);
   outline: none;
+  /* Le slidedeck doit prendre toute la place dispo dans son parent
+     (.lumen-viewer-main--slides). v2.66.2 : on ajoute width/height 100%
+     pour ne pas dependre de l'auto-sizing flex. */
+  width: 100%;
+  flex: 1;
+  min-height: 0;
 }
 .lumen-slidedeck:focus-visible {
   box-shadow: var(--focus-ring);
@@ -257,14 +263,19 @@ watch(() => props.source, () => {
   inset: 0;
   z-index: var(--z-overlay, 2000);
   padding: var(--space-md);
-  border-radius: 0;
   background: #000;
   justify-content: center;
 }
 
+/* Stage : la slide elle-meme. Largeur max calculee depuis la HAUTEUR
+   disponible (sinon une slide tres haute deborderait). En pratique le
+   facteur 16/9 garantit une slide proportionnee qui exploite tout
+   l'espace disponible — soit en mode portrait (limited by width) soit
+   en mode landscape (limited by height). */
 .lsd-stage {
+  flex: 1;
   width: 100%;
-  max-width: 1100px;
+  max-width: min(100%, calc((100vh - 200px) * 16 / 9));
   aspect-ratio: 16 / 9;
   background: #fff;
   border-radius: var(--radius);
@@ -273,6 +284,7 @@ watch(() => props.source, () => {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 0;
 }
 
 /* Marp injecte ses propres styles ; on s'assure que la section
