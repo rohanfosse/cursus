@@ -38,7 +38,9 @@ function load() {
 }
 
 function save() {
-  localStorage.setItem(storageKey.value, JSON.stringify(annotations.value))
+  try {
+    localStorage.setItem(storageKey.value, JSON.stringify(annotations.value))
+  } catch { /* quota exceeded — annotations non persistees */ }
 }
 
 function addAnnotation() {

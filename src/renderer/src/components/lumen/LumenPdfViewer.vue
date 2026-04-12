@@ -51,8 +51,9 @@ function zoomOut() {
 
 function fitWidth() {
   if (!containerRef.value || !currentPdf) return
-  // Get first page to compute fit scale
+  const gen = renderGeneration
   currentPdf.getPage(1).then((page) => {
+    if (gen !== renderGeneration) return
     const viewport = page.getViewport({ scale: 1 })
     const containerWidth = containerRef.value?.clientWidth ?? 800
     scale.value = Math.min(
@@ -70,6 +71,7 @@ const searchQuery = ref('')
 const searchResults = ref(0)
 const searchCurrent = ref(0)
 const searchInputRef = ref<HTMLInputElement | null>(null)
+let searchGeneration = 0
 
 function toggleSearch() {
   searchOpen.value = !searchOpen.value
@@ -90,6 +92,7 @@ function clearHighlights() {
 }
 
 async function doSearch() {
+  const gen = ++searchGeneration
   clearHighlights()
   searchResults.value = 0
   searchCurrent.value = 0
@@ -102,6 +105,7 @@ async function doSearch() {
   let total = 0
 
   for (let i = 1; i <= currentPdf.numPages; i++) {
+    if (gen !== searchGeneration) return
     const page = await currentPdf.getPage(i)
     const textContent = await page.getTextContent()
     const viewport = page.getViewport({ scale: scale.value })
@@ -288,7 +292,9 @@ watch(scale, () => {
 })
 
 onBeforeUnmount(() => {
+  if (searchTimer) clearTimeout(searchTimer)
   renderGeneration++
+  searchGeneration++
   if (currentPdf) { currentPdf.destroy(); currentPdf = null }
 })
 </script>

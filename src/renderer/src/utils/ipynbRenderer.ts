@@ -108,9 +108,11 @@ export function renderIpynb(source: string, chapterPath: string): string {
     ?? nb.metadata?.language_info?.name
     ?? 'python'
 
+  const MAX_CELLS = 500
+  const cells = nb.cells.length > MAX_CELLS ? nb.cells.slice(0, MAX_CELLS) : nb.cells
   const parts: string[] = []
 
-  for (const cell of nb.cells) {
+  for (const cell of cells) {
     const src = joinSource(cell.source)
 
     if (cell.cell_type === 'markdown') {
@@ -142,6 +144,10 @@ export function renderIpynb(source: string, chapterPath: string): string {
     if (cell.cell_type === 'raw') {
       parts.push(`<div class="ipynb-cell ipynb-cell--raw"><pre>${escapeHtml(src)}</pre></div>`)
     }
+  }
+
+  if (nb.cells.length > MAX_CELLS) {
+    parts.push(`<div class="ipynb-parse-error"><p>Notebook tronque : ${nb.cells.length - MAX_CELLS} cellules masquees</p></div>`)
   }
 
   return parts.join('\n')

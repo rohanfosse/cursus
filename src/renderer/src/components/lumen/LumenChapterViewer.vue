@@ -423,11 +423,12 @@ async function toggleCompanion(): Promise<void> {
   }
 }
 
-// Reset le companion mode a chaque changement de chapitre.
+// Reset companion + edition a chaque changement de chapitre.
 watch(() => props.chapter.path, () => {
   companionMode.value = false
   companionContent.value = null
   companionKind.value = null
+  if (editMode.value) editMode.value = false
 })
 
 // Auto-open PDF pour Marp : les etudiants preferent le PDF imprimable.

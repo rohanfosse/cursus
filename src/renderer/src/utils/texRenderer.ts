@@ -22,11 +22,16 @@ function escapeHtml(s: string): string {
 }
 
 const katexCache = new Map<string, string>()
+const KATEX_CACHE_MAX = 2000
 
 function renderKatex(tex: string, display: boolean): string {
   const key = `${display ? 'd' : 'i'}:${tex}`
   const cached = katexCache.get(key)
   if (cached !== undefined) return cached
+  if (katexCache.size >= KATEX_CACHE_MAX) {
+    const first = katexCache.keys().next().value
+    if (first !== undefined) katexCache.delete(first)
+  }
   let html: string
   try {
     html = katex.renderToString(tex, {
@@ -71,6 +76,9 @@ function extractMeta(tex: string): { title: string | null; author: string | null
  * Rend le contenu LaTeX en HTML.
  */
 export function renderTex(source: string): string {
+  if (source.length > 2_000_000) {
+    return '<div class="lumen-tex-img-placeholder"><span>Fichier .tex trop volumineux pour le rendu en ligne</span></div>'
+  }
   const meta = extractMeta(source)
   let body = extractBody(source)
 

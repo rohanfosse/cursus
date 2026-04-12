@@ -266,13 +266,13 @@ export const useLumenStore = defineStore('lumen', () => {
       return
     }
     const repo = repos.value.find((r) => r.id === repoId) ?? null
-    currentRepo.value = repo
-    // Selectionne le premier chapitre si manifest dispo
-    if (repo?.manifest?.chapters.length) {
-      currentChapterPath.value = repo.manifest.chapters[0].path
-    } else {
+    if (!repo?.manifest?.chapters.length) {
+      currentRepo.value = null
       currentChapterPath.value = null
+      return
     }
+    currentRepo.value = repo
+    currentChapterPath.value = repo.manifest.chapters[0].path
   }
 
   // ── Actions : chapitres ───────────────────────────────────────────────────

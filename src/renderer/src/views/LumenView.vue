@@ -125,6 +125,7 @@ const staleMs = computed<number | null>(() => {
 const STALE_THRESHOLD_MS = 15 * 60 * 1000  // 15 minutes
 
 const loadingChapter = ref(false)
+let chapterFetchGen = 0  // C1: garde contre les fetches concurrents
 
 // Modale d'aide sur les raccourcis clavier (v2.75). Ouverte via la touche ?
 const keyboardHelpOpen = ref(false)
@@ -209,11 +210,15 @@ async function submitNewCourse() {
 // ── Boot ────────────────────────────────────────────────────────────────────
 async function boot() {
   const pid = activePromoId.value
-  await Promise.all([
-    lumenStore.fetchGithubStatus(),
-    pid ? lumenStore.fetchReposForPromo(pid) : Promise.resolve(),
-    lumenStore.fetchMyReads(),
-  ])
+  try {
+    await Promise.all([
+      lumenStore.fetchGithubStatus(),
+      pid ? lumenStore.fetchReposForPromo(pid) : Promise.resolve(),
+      lumenStore.fetchMyReads(),
+    ])
+  } catch {
+    showToast('Impossible de charger les cours. Verifie ta connexion.', 'error')
+  }
 }
 
 onMounted(async () => {
@@ -265,7 +270,7 @@ onBeforeUnmount(() => {
 
 // ── Actions ────────────────────────────────────────────────────────────────
 async function handleSync() {
-  if (!activePromoId.value) return
+  if (!activePromoId.value || syncing.value) return
   if (!githubStatus.value.connected) {
     showToast('Connecte ton compte GitHub d\'abord', 'info')
     return
@@ -331,13 +336,15 @@ async function handleSelectChapter(payload: { repoId: number; path: string }) {
   router.replace({ name: 'lumen', query: nextQuery })
 
   const key = `${repo.id}::${payload.path}`
+  const gen = ++chapterFetchGen
   if (!chapterContents.value.has(key)) {
     loadingChapter.value = true
     try {
       await lumenStore.fetchChapterContent(repo.id, payload.path)
     } finally {
-      loadingChapter.value = false
+      if (gen === chapterFetchGen) loadingChapter.value = false
     }
+    if (gen !== chapterFetchGen) return  // navigation a change entre-temps
   }
   lumenStore.fetchChapterNote(repo.id, payload.path)
   // Tracking de lecture (v2.85) — marque le chapitre comme lu pour la
