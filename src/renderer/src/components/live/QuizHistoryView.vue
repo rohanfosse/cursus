@@ -1,14 +1,17 @@
 /** QuizHistoryView — Historique des sessions Quiz terminees par promotion. */
 <script setup lang="ts">
   import { ref, watch } from 'vue'
-  import { Search, Calendar, ChevronDown, ChevronUp, Users, BarChart2, MessageSquare, Cloud } from 'lucide-vue-next'
+  import { Search, Calendar, ChevronDown, ChevronUp, Users, BarChart2 } from 'lucide-vue-next'
   import { useLiveStore } from '@/stores/live'
   import { useDebounce } from '@/composables/useDebounce'
+  import { activityIcon, activityTypeLabel } from '@/utils/liveActivity'
   import type { LiveSessionWithStats, LiveSession, LiveResults } from '@/types'
 
-  import QcmResults  from './QcmResults.vue'
-  import PollResults from './PollResults.vue'
-  import WordCloud   from './WordCloud.vue'
+  import QcmResults          from './QcmResults.vue'
+  import PollResults         from './PollResults.vue'
+  import WordCloud           from './WordCloud.vue'
+  import AssociationResults  from './AssociationResults.vue'
+  import EstimationResults   from './EstimationResults.vue'
 
   const props = defineProps<{ promoId: number }>()
   const liveStore = useLiveStore()
@@ -66,17 +69,6 @@
     return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
-  function activityIcon(type: string) {
-    if (type === 'qcm') return BarChart2
-    if (type === 'nuage') return Cloud
-    return MessageSquare
-  }
-
-  function activityTypeLabel(type: string) {
-    if (type === 'qcm') return 'QCM'
-    if (type === 'nuage') return 'Nuage de mots'
-    return 'Sondage'
-  }
 </script>
 
 <template>
@@ -128,15 +120,23 @@
               </div>
               <div v-if="expandedResults[act.id]" class="qh-act-results">
                 <QcmResults
-                  v-if="expandedResults[act.id].type === 'qcm'"
+                  v-if="expandedResults[act.id].type === 'qcm' || expandedResults[act.id].type === 'vrai_faux'"
                   :results="expandedResults[act.id]"
                 />
                 <PollResults
-                  v-else-if="expandedResults[act.id].type === 'sondage'"
+                  v-else-if="expandedResults[act.id].type === 'sondage' || expandedResults[act.id].type === 'reponse_courte'"
                   :results="expandedResults[act.id]"
                 />
                 <WordCloud
                   v-else-if="expandedResults[act.id].type === 'nuage'"
+                  :results="expandedResults[act.id]"
+                />
+                <AssociationResults
+                  v-else-if="expandedResults[act.id].type === 'association'"
+                  :results="expandedResults[act.id]"
+                />
+                <EstimationResults
+                  v-else-if="expandedResults[act.id].type === 'estimation'"
                   :results="expandedResults[act.id]"
                 />
                 <p v-else class="qh-no-results">Aucune reponse</p>

@@ -1,13 +1,16 @@
 <!-- StudentLiveView.vue - Vue étudiant pour le Live Quiz interactif -->
 <script setup lang="ts">
   import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-  import { Zap, CheckCircle2, Send, LogOut, XCircle } from 'lucide-vue-next'
+  import { Zap, CheckCircle2, Send, LogOut, XCircle, Trophy } from 'lucide-vue-next'
   import { useAppStore }  from '@/stores/app'
   import { useLiveStore } from '@/stores/live'
+  import { shuffleArray, KAHOOT_COLORS, KAHOOT_SHAPES } from '@/utils/liveActivity'
   import type { LiveScoreResult } from '@/types'
   import CountdownTimer from './CountdownTimer.vue'
-  import QcmResults  from './QcmResults.vue'
-  import PollResults from './PollResults.vue'
+  import QcmResults           from './QcmResults.vue'
+  import PollResults          from './PollResults.vue'
+  import AssociationResults   from './AssociationResults.vue'
+  import EstimationResults    from './EstimationResults.vue'
 
   const appStore  = useAppStore()
   const liveStore = useLiveStore()
@@ -32,21 +35,32 @@
   const activity = computed(() => liveStore.currentActivity)
   const scoreResult = ref<LiveScoreResult | null>(null)
   const timerExpired = ref(false)
+  const cumulativePoints = ref(0)
 
-  // Kahoot colors & shapes
-  const KAHOOT_COLORS = ['#E21B3C', '#1368CE', '#26890C', '#D89E00', '#9b59b6', '#1abc9c']
-  const KAHOOT_SHAPES = ['\u25B2', '\u25C6', '\u25CF', '\u25A0', '\u2605', '\u2B22'] // triangle, diamond, circle, square, star, hex
+  // Reset cumulative score when session changes
+  watch(session, () => { cumulativePoints.value = 0 })
 
-  // Initialize word inputs when activity changes
-  function shuffleArray<T>(arr: T[]): T[] {
-    const a = [...arr]
-    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
-    return a
-  }
+  // Shuffled QCM options (index mapping: display index → original index)
+  const qcmShuffleMap = ref<number[]>([])
+  const shuffledOptions = computed(() => {
+    if (!activity.value?.options || activity.value.type !== 'qcm') return []
+    return qcmShuffleMap.value.map(origIdx => (activity.value!.options as string[])[origIdx])
+  })
 
   watch(activity, (act) => {
     selectedAnswers.value = []
     textInput.value = ''
+
+    // Shuffle QCM options for this student
+    if (act?.type === 'qcm' && act.options) {
+      const opts = Array.isArray(act.options) ? act.options : JSON.parse(act.options as unknown as string)
+      const studentId = appStore.currentUser?.id ?? 1
+      const seed = act.id * 1000 + studentId
+      qcmShuffleMap.value = shuffleArray(opts.map((_: unknown, i: number) => i), seed)
+    } else {
+      qcmShuffleMap.value = []
+    }
+
     if (act?.type === 'association' && act.correct_answers) {
       try {
         const parsed = JSON.parse(act.correct_answers as unknown as string)
@@ -88,22 +102,27 @@
     }
   }
 
+  function accumulateScore(result: LiveScoreResult) {
+    scoreResult.value = result
+    if (result.points > 0) cumulativePoints.value += result.points
+  }
+
   async function submitQcm() {
     if (!activity.value || selectedAnswers.value.length === 0) return
     const result = await liveStore.submitResponse(activity.value.id, { answers: selectedAnswers.value })
-    if (result) scoreResult.value = result
+    if (result) accumulateScore(result)
   }
 
   async function submitAssociation() {
     if (!activity.value || associationMapping.value.some(v => v === -1)) return
     const result = await liveStore.submitResponse(activity.value.id, { answer: associationMapping.value.join(',') })
-    if (result) scoreResult.value = result
+    if (result) accumulateScore(result)
   }
 
   async function submitEstimation() {
     if (!activity.value || !textInput.value.trim()) return
     const result = await liveStore.submitResponse(activity.value.id, { text: textInput.value.trim() })
-    if (result) scoreResult.value = result
+    if (result) accumulateScore(result)
   }
 
   function onTimerExpired() {
@@ -186,17 +205,17 @@
 
         <h2 class="question-title">{{ activity.title }}</h2>
 
-        <!-- QCM Kahoot-style buttons -->
+        <!-- QCM Kahoot-style buttons (shuffled) -->
         <div v-if="activity.type === 'qcm' && activity.options" class="kahoot-grid">
           <button
-            v-for="(opt, i) in activity.options"
-            :key="i"
+            v-for="(opt, displayIdx) in shuffledOptions"
+            :key="qcmShuffleMap[displayIdx]"
             class="kahoot-btn"
-            :class="{ selected: selectedAnswers.includes(i) }"
-            :style="{ '--kahoot-color': KAHOOT_COLORS[i % KAHOOT_COLORS.length] }"
-            @click="toggleAnswer(i)"
+            :class="{ selected: selectedAnswers.includes(qcmShuffleMap[displayIdx]) }"
+            :style="{ '--kahoot-color': KAHOOT_COLORS[displayIdx % KAHOOT_COLORS.length] }"
+            @click="toggleAnswer(qcmShuffleMap[displayIdx])"
           >
-            <span class="kahoot-shape">{{ KAHOOT_SHAPES[i % KAHOOT_SHAPES.length] }}</span>
+            <span class="kahoot-shape">{{ KAHOOT_SHAPES[displayIdx % KAHOOT_SHAPES.length] }}</span>
             <span class="kahoot-text">{{ opt }}</span>
           </button>
         </div>
@@ -263,6 +282,9 @@
             <CheckCircle2 :size="56" />
             <span class="feedback-label">Correct !</span>
             <span class="feedback-points">+{{ scoreResult.points }} pts</span>
+            <span v-if="(scoreResult.streak ?? 0) >= 2" class="feedback-streak">
+              {{ scoreResult.streak }}x serie !
+            </span>
             <span v-if="scoreResult.rank" class="feedback-rank">{{ scoreResult.rank }}{{ scoreResult.rank === 1 ? 'er' : 'e' }} place</span>
           </div>
           <div v-else class="feedback-wrong">
@@ -291,7 +313,15 @@
         <h3 class="results-label">Resultats</h3>
         <QcmResults v-if="(activity.type === 'qcm' || activity.type === 'vrai_faux') && liveStore.results" :results="liveStore.results" />
         <PollResults v-else-if="activity.type === 'reponse_courte' && liveStore.results" :results="liveStore.results" />
+        <AssociationResults v-else-if="activity.type === 'association' && liveStore.results" :results="liveStore.results" />
+        <EstimationResults v-else-if="activity.type === 'estimation' && liveStore.results" :results="liveStore.results" />
       </div>
+    </div>
+
+    <!-- ══════════ Score cumule flottant ══════════ -->
+    <div v-if="session && cumulativePoints > 0" class="cumulative-score">
+      <Trophy :size="14" />
+      <span>{{ cumulativePoints.toLocaleString() }} pts</span>
     </div>
   </div>
 </template>
@@ -531,6 +561,15 @@
   font-weight: 900;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
+.feedback-streak {
+  font-size: 18px;
+  font-weight: 800;
+  color: #f59e0b;
+  background: rgba(245,158,11,.12);
+  padding: 4px 14px;
+  border-radius: 20px;
+  animation: feedback-pop .4s cubic-bezier(.34,1.56,.64,1);
+}
 .feedback-rank {
   font-size: 16px;
   font-weight: 600;
@@ -693,4 +732,29 @@
 .assoc-arrow { color: var(--text-secondary); font-size: 16px; flex-shrink: 0; }
 .assoc-select { flex: 1; padding: 10px 12px; border-radius: 8px; border: 2px solid var(--border); background: var(--bg-elevated); color: var(--text-primary); font-size: 14px; cursor: pointer; }
 .assoc-select:focus { border-color: var(--accent); outline: none; }
+
+/* ── Cumulative score floating badge ── */
+.cumulative-score {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(234,179,8,.3);
+  color: #eab308;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  box-shadow: 0 4px 16px rgba(0,0,0,.2);
+  z-index: 100;
+  animation: score-pop .3s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes score-pop {
+  from { transform: scale(.8); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
 </style>

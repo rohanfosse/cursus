@@ -12,7 +12,7 @@
   import { useModules }     from '@/composables/useModules'
   import { useLumenFocus }  from '@/composables/useLumenFocus'
   import { reportError }    from '@/utils/errorReporter'
-  import { MessageSquare, FileText, Camera, Lock, Trash2, Download, UserX, Download as DownloadIcon, RefreshCw, Shield, Scale, Clock, Mail, Globe, Eye, Pencil, ChevronDown, Server } from 'lucide-vue-next'
+  import { MessageSquare, FileText, Camera, Lock, Trash2, Download, UserX, Download as DownloadIcon, RefreshCw, Shield, Scale, Clock, Mail, Globe, Eye, Pencil, ChevronDown, Server, Zap } from 'lucide-vue-next'
   import Toast        from '@/components/ui/Toast.vue'
   import ConfirmModal from '@/components/ui/ConfirmModal.vue'
   import NavRail    from '@/components/layout/NavRail.vue'
@@ -323,10 +323,12 @@
     <div v-if="liveInvite" class="live-invite-popup">
       <div class="live-invite-content">
         <div class="live-invite-header">
+          <Zap :size="16" class="live-invite-icon" />
           <span class="live-invite-dot" />
           <strong>{{ liveInvite.teacherName }}</strong> vous invite a un Spark
         </div>
         <div class="live-invite-title">{{ liveInvite.title }}</div>
+        <div class="live-invite-code">Code : <strong>{{ liveInvite.joinCode }}</strong></div>
         <div class="live-invite-actions">
           <button class="live-invite-btn live-invite-join" @click="acceptLiveInvite">Rejoindre</button>
           <button class="live-invite-btn live-invite-dismiss" @click="dismissLiveInvite">Ignorer</button>
@@ -1046,12 +1048,27 @@
     0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239,68,68,.4); }
     50% { opacity: .7; box-shadow: 0 0 0 4px rgba(239,68,68,0); }
   }
+  .live-invite-icon {
+    color: var(--accent, #4a90d9);
+    flex-shrink: 0;
+  }
   .live-invite-title {
     font-size: 15px;
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 12px;
+    margin-bottom: 4px;
     padding-left: 16px;
+  }
+  .live-invite-code {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding-left: 16px;
+    margin-bottom: 12px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    letter-spacing: 1px;
+  }
+  .live-invite-code strong {
+    color: var(--accent, #4a90d9);
   }
   .live-invite-actions {
     display: flex;

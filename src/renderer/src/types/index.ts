@@ -230,12 +230,18 @@ export interface LiveActivity {
 export interface LiveResults {
   activityId: number; type: string; totalResponses: number
   data: { option?: string; text?: string; word?: string; index?: number; count: number; percent?: number; size?: number }[]
+  // Association / Estimation extended fields (returned by backend aggregation)
+  correctCount?: number
+  average?: number
+  values?: number[]
+  target?: number
+  margin?: number
 }
 export interface LeaderboardEntry {
   rank: number; studentId: number; name: string; points: number; pointsThisRound?: number
 }
 export interface LiveScoreResult {
-  isCorrect: boolean | null; points: number; rank: number | null
+  isCorrect: boolean | null; points: number; rank: number | null; streak?: number
 }
 
 export interface LiveSessionWithStats extends LiveSession {
@@ -249,6 +255,8 @@ export interface LiveStats {
   totalSessions: number
   avgParticipationRate: number
   enrolledStudents: number
+  avgResponseTimeMs?: number
+  avgCorrectnessRate?: number
   activityTypeDistribution: { type: string; count: number }[]
   participationTrend: { sessionId: number; title: string; endedAt: string; participants: number; enrolled: number }[]
 }

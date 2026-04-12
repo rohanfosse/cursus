@@ -265,7 +265,7 @@ router.post('/activities/:id/respond', requirePromo(promoFromActivity), validate
     const db = require('../db/connection').getDb()
     const activityRow = db.prepare('SELECT * FROM live_activities WHERE id = ?').get(activityId)
 
-    let scoreResult = { isCorrect: null, points: 0, rank: null }
+    let scoreResult = { isCorrect: null, points: 0, rank: null, streak: 0 }
 
     if (activityRow) {
       const session = queries.getSession(activityRow.session_id)
@@ -279,9 +279,9 @@ router.post('/activities/:id/respond', requirePromo(promoFromActivity), validate
           answerTimeMs = Math.max(0, Date.now() - new Date(activityRow.started_at + 'Z').getTime())
         }
         const name = studentName || `Etudiant ${studentId}`
-        const points = queries.calculateScore(activityId, studentId, name, answerTimeMs, isCorrect)
+        const { points, streak } = queries.calculateScore(activityId, studentId, name, answerTimeMs, isCorrect)
         const rank = queries.getStudentRank(activityRow.session_id, studentId)
-        scoreResult = { isCorrect, points, rank }
+        scoreResult = { isCorrect, points, rank, streak }
       }
 
       if (session) {
@@ -300,6 +300,19 @@ router.post('/activities/:id/respond', requirePromo(promoFromActivity), validate
 router.get('/activities/:id/results', requirePromo(promoFromActivity), wrap((req) => {
   return queries.getActivityResultsAggregated(Number(req.params.id))
 }))
+
+// GET /sessions/:id/export-csv - exporter les résultats d'une session en CSV (prof uniquement)
+router.get('/sessions/:id/export-csv', requireRole('teacher'), requireSessionOwner('live_sessions'), (req, res) => {
+  try {
+    const sessionId = Number(req.params.id)
+    const csv = queries.exportSessionCsv(sessionId)
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="spark-session-${sessionId}.csv"`)
+    res.send('\uFEFF' + csv) // BOM for Excel UTF-8 compat
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message })
+  }
+})
 
 // GET /sessions/:id/leaderboard - classement complet
 router.get('/sessions/:id/leaderboard', requirePromo(promoFromSession), wrap((req) => {

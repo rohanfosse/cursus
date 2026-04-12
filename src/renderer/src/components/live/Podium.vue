@@ -1,13 +1,20 @@
-/** Podium.vue - Ecran final avec podium 3 places et confettis CSS */
+/** Podium.vue - Ecran final avec podium 3 places, confettis CSS et resume de session */
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue'
+  import { ref, computed, onMounted } from 'vue'
+  import { Trophy, Users, Zap } from 'lucide-vue-next'
+  import { medal, KAHOOT_COLORS } from '@/utils/liveActivity'
 
   const props = defineProps<{
     top3: { name: string; points: number }[]
+    totalParticipants?: number
+    totalActivities?: number
+    sessionTitle?: string
   }>()
 
   const show = ref(false)
   onMounted(() => { setTimeout(() => { show.value = true }, 100) })
+
+  const totalPoints = computed(() => props.top3.reduce((s, p) => s + p.points, 0))
 
   // Reorder: [1st, 2nd, 3rd] → display [2nd, 1st, 3rd]
   function displayOrder() {
@@ -21,12 +28,7 @@
     ]
   }
 
-  function medal(rank: number): string {
-    if (rank === 1) return '\u{1F947}'
-    if (rank === 2) return '\u{1F948}'
-    if (rank === 3) return '\u{1F949}'
-    return ''
-  }
+
 </script>
 
 <template>
@@ -37,13 +39,30 @@
         left: `${Math.random() * 100}%`,
         animationDelay: `${Math.random() * 3}s`,
         animationDuration: `${2 + Math.random() * 2}s`,
-        background: ['#E21B3C','#1368CE','#26890C','#D89E00','#9b59b6','#1abc9c'][i % 6],
+        background: KAHOOT_COLORS[i % KAHOOT_COLORS.length],
         width: `${6 + Math.random() * 6}px`,
         height: `${6 + Math.random() * 6}px`,
       }" />
     </div>
 
     <h2 class="podium-title">Resultats finaux</h2>
+    <p v-if="sessionTitle" class="podium-session-name">{{ sessionTitle }}</p>
+
+    <!-- Session summary stats -->
+    <div v-if="totalParticipants || totalActivities" class="podium-summary">
+      <div v-if="totalParticipants" class="podium-stat">
+        <Users :size="14" />
+        <span>{{ totalParticipants }} participant{{ totalParticipants > 1 ? 's' : '' }}</span>
+      </div>
+      <div v-if="totalActivities" class="podium-stat">
+        <Zap :size="14" />
+        <span>{{ totalActivities }} question{{ totalActivities > 1 ? 's' : '' }}</span>
+      </div>
+      <div class="podium-stat">
+        <Trophy :size="14" />
+        <span>{{ totalPoints.toLocaleString() }} pts au total</span>
+      </div>
+    </div>
 
     <div class="podium-blocks">
       <div
@@ -108,6 +127,31 @@
   font-weight: 800;
   color: var(--text-primary);
   z-index: 1;
+}
+.podium-session-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  z-index: 1;
+  margin: -12px 0 0;
+}
+.podium-summary {
+  display: flex;
+  gap: 16px;
+  z-index: 1;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.podium-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #aaa);
+  padding: 6px 14px;
+  background: rgba(255,255,255,.04);
+  border-radius: 20px;
 }
 
 .podium-blocks {

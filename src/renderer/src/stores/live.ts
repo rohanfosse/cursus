@@ -314,6 +314,14 @@ export const useLiveStore = defineStore('live', () => {
     return false
   }
 
+  // ── Export CSV ──────────────────────────────────────────────────────────
+  async function exportCsv(sessionId: number): Promise<string | null> {
+    const data = await api<string>(
+      () => window.api.exportLiveSessionCsv(sessionId),
+    )
+    return data ?? null
+  }
+
   // ── Historique & Stats ──────────────────────────────────────────────────
   const historySessions = ref<LiveSessionWithStats[]>([])
   const stats           = ref<LiveStats | null>(null)
@@ -437,7 +445,7 @@ export const useLiveStore = defineStore('live', () => {
     fetchDraftSessions, updateActivity, reorderActivities, cloneSession, deleteSession,
     pushActivity, launchActivity, closeActivity, deleteActivity,
     submitResponse, fetchResults, fetchLeaderboard, endSession, startSession,
-    fetchHistory, fetchStats,
+    fetchHistory, fetchStats, exportCsv,
     initSocketListeners, disposeSocketListeners,
   }
 })

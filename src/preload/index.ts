@@ -457,6 +457,7 @@ contextBridge.exposeInMainWorld('api', {
   submitLiveResponse:      (activityId: number, payload: unknown) => post(`/api/live/activities/${activityId}/respond`, payload),
   getLiveActivityResults:   (activityId: number) => get(`/api/live/activities/${activityId}/results`),
   getLiveLeaderboard:       (sessionId: number)  => get(`/api/live/sessions/${sessionId}/leaderboard`),
+  exportLiveSessionCsv:     (sessionId: number)  => get(`/api/live/sessions/${sessionId}/export-csv`),
   getLiveHistoryForPromo:   (promoId: number, params?: { search?: string; dateFrom?: string; dateTo?: string }) => {
     const qs = new URLSearchParams()
     if (params?.search)   qs.set('search', params.search)

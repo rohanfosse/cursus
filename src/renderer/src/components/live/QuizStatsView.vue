@@ -1,8 +1,9 @@
 /** QuizStatsView — Statistiques Quiz par promotion. */
 <script setup lang="ts">
   import { computed, watch } from 'vue'
-  import { BarChart3, Users, Hash, TrendingUp } from 'lucide-vue-next'
+  import { BarChart3, Users, Hash, TrendingUp, Timer, Target } from 'lucide-vue-next'
   import { useLiveStore } from '@/stores/live'
+  import { ACTIVITY_TYPE_LABELS } from '@/utils/liveActivity'
 
   const props = defineProps<{ promoId: number }>()
   const liveStore = useLiveStore()
@@ -12,11 +13,7 @@
 
   const stats = computed(() => liveStore.stats)
 
-  const typeLabels: Record<string, string> = {
-    qcm: 'QCM',
-    sondage: 'Sondage',
-    nuage: 'Nuage de mots',
-  }
+  const typeLabels = ACTIVITY_TYPE_LABELS
 
   const maxTypeCount = computed(() =>
     Math.max(1, ...(stats.value?.activityTypeDistribution.map(d => d.count) ?? [1])),
@@ -55,6 +52,16 @@
           <Users :size="18" class="qs-icon" />
           <div class="qs-value">{{ stats.enrolledStudents }}</div>
           <div class="qs-label">Inscrits</div>
+        </div>
+        <div v-if="stats.avgCorrectnessRate !== undefined" class="qs-card">
+          <Target :size="18" class="qs-icon" />
+          <div class="qs-value">{{ stats.avgCorrectnessRate }}%</div>
+          <div class="qs-label">Reussite</div>
+        </div>
+        <div v-if="stats.avgResponseTimeMs" class="qs-card">
+          <Timer :size="18" class="qs-icon" />
+          <div class="qs-value">{{ (stats.avgResponseTimeMs / 1000).toFixed(1) }}s</div>
+          <div class="qs-label">Temps moyen</div>
         </div>
       </div>
 

@@ -277,14 +277,37 @@ function normalizeAnswer(s) {
 
 // ─── Scoring (Kahoot-style) ─────────────────────────────────────────────────
 
+// Count consecutive correct answers from a DESC-ordered score list
+function countStreak(rows) {
+  let streak = 0;
+  for (const s of rows) {
+    if (s.is_correct) streak++;
+    else break;
+  }
+  return streak;
+}
+
 function calculateScore(activityId, studentId, studentName, answerTimeMs, isCorrect) {
   const db = getDb();
   const activity = db.prepare('SELECT * FROM live_activities WHERE id = ?').get(activityId);
-  if (!activity) return 0;
+  if (!activity) return { points: 0, streak: 0 };
 
   const timerMs = Math.max(1000, (activity.timer_seconds || 30) * 1000);
   const clampedTime = Math.max(0, Math.min(answerTimeMs, timerMs));
-  const points = isCorrect ? Math.round(1000 * (1 - (clampedTime / timerMs) * 0.5)) : 0;
+  let points = isCorrect ? Math.round(1000 * (1 - (clampedTime / timerMs) * 0.5)) : 0;
+
+  // Streak bonus: +10% per consecutive correct (max +50%)
+  let streak = 0;
+  if (isCorrect) {
+    const prevScores = db.prepare(`
+      SELECT is_correct FROM live_scores
+      WHERE session_id = ? AND student_id = ? AND activity_id != ?
+      ORDER BY rowid DESC
+    `).all(activity.session_id, studentId, activityId);
+    streak = countStreak(prevScores);
+    points = Math.round(points * (1 + Math.min(streak * 0.1, 0.5)));
+    streak += 1; // include current correct answer
+  }
 
   db.prepare(`
     INSERT INTO live_scores (session_id, student_id, student_name, activity_id, points, answer_time_ms, is_correct)
@@ -294,7 +317,7 @@ function calculateScore(activityId, studentId, studentName, answerTimeMs, isCorr
       is_correct = excluded.is_correct, student_name = excluded.student_name
   `).run(activity.session_id, studentId, studentName, activityId, points, answerTimeMs, isCorrect ? 1 : 0);
 
-  return points;
+  return { points, streak };
 }
 
 function checkCorrectness(activityId, answer) {
@@ -461,7 +484,111 @@ function getLiveStatsForPromo(promoId) {
     ? Math.round(participationTrend.reduce((s, r) => s + r.participants / r.enrolled, 0) / totalSessions * 100)
     : 0;
 
-  return { totalSessions, avgParticipationRate, enrolledStudents, activityTypeDistribution, participationTrend };
+  const scoreAgg = db.prepare(`
+    SELECT
+      AVG(CASE WHEN ls2.answer_time_ms > 0 THEN ls2.answer_time_ms END) as avg_ms,
+      COUNT(CASE WHEN ls2.is_correct = 1 THEN 1 END) as correct,
+      COUNT(*) as total
+    FROM live_scores ls2
+    JOIN live_sessions sess ON sess.id = ls2.session_id
+    WHERE sess.promo_id = ? AND sess.status = 'ended'
+  `).get(promoId);
+
+  const avgResponseTimeMs = Math.round(scoreAgg?.avg_ms ?? 0);
+  const avgCorrectnessRate = scoreAgg?.total > 0
+    ? Math.round(scoreAgg.correct / scoreAgg.total * 100)
+    : 0;
+
+  return {
+    totalSessions, avgParticipationRate, enrolledStudents,
+    activityTypeDistribution, participationTrend,
+    avgResponseTimeMs, avgCorrectnessRate,
+  };
+}
+
+// ─── Export CSV ─────────────────────────────────────────────────────────────
+
+function exportSessionCsv(sessionId) {
+  const db = getDb();
+  const session = db.prepare('SELECT * FROM live_sessions WHERE id = ?').get(sessionId);
+  if (!session) throw new Error('Session introuvable');
+
+  const activities = db.prepare(
+    'SELECT * FROM live_activities WHERE session_id = ? ORDER BY position ASC'
+  ).all(sessionId);
+
+  const scores = db.prepare(`
+    SELECT ls.student_id, ls.student_name, ls.activity_id, ls.points, ls.is_correct, ls.answer_time_ms
+    FROM live_scores ls
+    WHERE ls.session_id = ?
+    ORDER BY ls.student_name ASC, ls.activity_id ASC
+  `).all(sessionId);
+
+  const responses = db.prepare(`
+    SELECT lr.activity_id, lr.student_id, lr.answer
+    FROM live_responses lr
+    JOIN live_activities la ON la.id = lr.activity_id
+    WHERE la.session_id = ?
+  `).all(sessionId);
+
+  const respMap = new Map();
+  for (const r of responses) {
+    respMap.set(`${r.activity_id}-${r.student_id}`, r.answer);
+  }
+
+  const studentMap = new Map();
+  for (const s of scores) {
+    if (!studentMap.has(s.student_id)) {
+      studentMap.set(s.student_id, s.student_name);
+    }
+  }
+  for (const r of responses) {
+    if (!studentMap.has(r.student_id)) {
+      studentMap.set(r.student_id, `Etudiant ${r.student_id}`);
+    }
+  }
+
+  const scoreMap = new Map();
+  for (const s of scores) {
+    scoreMap.set(`${s.activity_id}-${s.student_id}`, s);
+  }
+
+  const escapeCsv = (val) => {
+    const str = String(val ?? '');
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  };
+
+  const headers = ['Etudiant'];
+  for (const act of activities) {
+    headers.push(`${act.title} (Reponse)`);
+    headers.push(`${act.title} (Correct)`);
+    headers.push(`${act.title} (Points)`);
+    headers.push(`${act.title} (Temps ms)`);
+  }
+  headers.push('Total Points');
+
+  const rows = [headers.map(escapeCsv).join(',')];
+  for (const [studentId, studentName] of studentMap) {
+    const row = [escapeCsv(studentName)];
+    let totalPts = 0;
+    for (const act of activities) {
+      const key = `${act.id}-${studentId}`;
+      const resp = respMap.get(key) ?? '';
+      const sc = scoreMap.get(key);
+      row.push(escapeCsv(resp));
+      row.push(sc ? (sc.is_correct ? 'Oui' : 'Non') : '');
+      row.push(sc ? String(sc.points) : '0');
+      row.push(sc ? String(sc.answer_time_ms) : '');
+      totalPts += sc ? sc.points : 0;
+    }
+    row.push(String(totalPts));
+    rows.push(row.join(','));
+  }
+
+  return rows.join('\n');
 }
 
 module.exports = {
@@ -490,4 +617,5 @@ module.exports = {
   getStudentRank,
   getEndedSessionsForPromo,
   getLiveStatsForPromo,
+  exportSessionCsv,
 };

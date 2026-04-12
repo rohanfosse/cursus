@@ -54,7 +54,7 @@
   const options      = ref<string[]>(parseOptions(props.initialData))
   const timerSeconds = ref(props.initialData?.timer_seconds ?? 30)
   const correctAnswers = ref<number[]>(parseCorrectAnswers(props.initialData))
-  const timerOptions = [10, 20, 30, 60]
+  const timerOptions = [10, 15, 20, 30, 45, 60, 90, 120]
 
   const typeCards = [
     { id: 'qcm' as const,             label: 'QCM',             icon: ListChecks,   desc: 'Choix multiple' },
@@ -170,7 +170,7 @@
           :class="{ active: timerSeconds === t }"
           @click="timerSeconds = t"
         >
-          {{ t }}s
+          {{ t >= 60 ? `${t / 60}m` : `${t}s` }}
         </button>
       </div>
     </div>

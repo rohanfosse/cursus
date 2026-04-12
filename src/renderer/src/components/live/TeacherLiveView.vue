@@ -3,10 +3,10 @@
   import { ref, computed, onMounted, onUnmounted } from 'vue'
   import {
     Plus, Play, Square, ChevronRight, Trash2, Users, Zap,
-    ListChecks, ToggleLeft, Type, Link2, Hash,
-    LogOut, Pencil, GripVertical, Copy,
+    LogOut, Pencil, GripVertical, Copy, Download,
     History, BarChart3,
   } from 'lucide-vue-next'
+  import { activityIcon, activityTypeLabel } from '@/utils/liveActivity'
   import { useAppStore }  from '@/stores/app'
   import { useLiveStore } from '@/stores/live'
   import type { LiveActivity, LiveSession } from '@/types'
@@ -15,10 +15,12 @@
   import CountdownTimer  from './CountdownTimer.vue'
   import Leaderboard     from './Leaderboard.vue'
   import Podium          from './Podium.vue'
-  import QcmResults        from './QcmResults.vue'
-  import PollResults       from './PollResults.vue'
-  import QuizHistoryView   from './QuizHistoryView.vue'
-  import QuizStatsView     from './QuizStatsView.vue'
+  import QcmResults           from './QcmResults.vue'
+  import PollResults          from './PollResults.vue'
+  import AssociationResults   from './AssociationResults.vue'
+  import EstimationResults    from './EstimationResults.vue'
+  import QuizHistoryView      from './QuizHistoryView.vue'
+  import QuizStatsView        from './QuizStatsView.vue'
 
   const appStore  = useAppStore()
   const liveStore = useLiveStore()
@@ -37,10 +39,41 @@
   onMounted(async () => {
     liveStore.initSocketListeners()
     if (promoId.value) await liveStore.fetchDraftSessions(promoId.value)
+    window.addEventListener('keydown', onKeydown)
   })
   onUnmounted(() => {
     liveStore.disposeSocketListeners()
+    window.removeEventListener('keydown', onKeydown)
   })
+
+  // ── Keyboard shortcuts ───────────────────────────────────────────────────
+  function onKeydown(e: KeyboardEvent) {
+    // Skip if typing in an input
+    if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return
+
+    // Space or Enter: close current activity / launch next / dismiss leaderboard
+    if (e.code === 'Space' || e.code === 'Enter') {
+      e.preventDefault()
+      if (liveStore.currentActivity && liveStore.currentActivity.status === 'live') {
+        closeCurrentActivity()
+      } else if (showLeaderboard.value) {
+        if (nextPendingActivity.value) {
+          launchNext()
+        } else {
+          dismissLeaderboard()
+        }
+      } else if (showPodium.value) {
+        showPodium.value = false
+      }
+    }
+
+    // Escape: cancel activity form, dismiss leaderboard
+    if (e.code === 'Escape') {
+      if (showActivityForm.value) cancelActivityForm()
+      else if (showLeaderboard.value) dismissLeaderboard()
+      else if (showPodium.value) showPodium.value = false
+    }
+  }
 
   // ── Create / select session ──────────────────────────────────────────────
   async function createSession() {
@@ -96,6 +129,14 @@
 
   async function launch(activity: LiveActivity) {
     await liveStore.launchActivity(activity.id)
+  }
+
+  const autoCloseEnabled = ref(true)
+
+  function onTeacherTimerExpired() {
+    if (autoCloseEnabled.value && liveStore.currentActivity) {
+      closeCurrentActivity()
+    }
   }
 
   async function closeCurrentActivity() {
@@ -154,25 +195,60 @@
     liveStore.leaderboard.slice(0, 3).map(e => ({ name: e.name, points: e.points })),
   )
 
-  function activityIcon(type: string) {
-    if (type === 'qcm') return ListChecks
-    if (type === 'vrai_faux') return ToggleLeft
-    if (type === 'reponse_courte') return Type
-    if (type === 'association') return Link2
-    if (type === 'estimation') return Hash
-    return Zap
-  }
-
-  function activityTypeLabel(type: string) {
-    if (type === 'qcm') return 'QCM'
-    if (type === 'vrai_faux') return 'Vrai / Faux'
-    if (type === 'reponse_courte') return 'Reponse courte'
-    if (type === 'association') return 'Association'
-    if (type === 'estimation') return 'Estimation'
-    return 'Spark'
-  }
-
   const hasLiveActivity = computed(() => liveStore.sessionActivities.some(a => a.status === 'live'))
+  const nextPendingActivity = computed(() => liveStore.sessionActivities.find(a => a.status === 'pending') ?? null)
+
+  async function launchNext() {
+    if (!nextPendingActivity.value) return
+    showLeaderboard.value = false
+    await launch(nextPendingActivity.value)
+  }
+
+  // ── Activity progress ────────────────────────────────────────────────────
+  const closedCount = computed(() => liveStore.sessionActivities.filter(a => a.status === 'closed').length)
+  const totalCount  = computed(() => liveStore.sessionActivities.length)
+
+  // ── Export CSV ───────────────────────────────────────────────────────────
+  const exporting = ref(false)
+  async function exportCsv() {
+    if (!liveStore.currentSession) return
+    exporting.value = true
+    try {
+      const csv = await liveStore.exportCsv(liveStore.currentSession.id)
+      if (csv) {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `spark-${liveStore.currentSession.title.replace(/\s+/g, '-')}.csv`
+        a.click()
+        setTimeout(() => URL.revokeObjectURL(url), 5000)
+      }
+    } finally {
+      exporting.value = false
+    }
+  }
+
+  // ── Duplicate activity ───────────────────────────────────────────────────
+  async function duplicateActivity(activity: LiveActivity) {
+    if (!liveStore.currentSession) return
+    const payload: {
+      type: 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation'
+      title: string; options?: string[]
+      timer_seconds?: number; correct_answers?: number[] | string[]
+    } = {
+      type: activity.type,
+      title: activity.title + ' (copie)',
+      timer_seconds: activity.timer_seconds,
+    }
+    if (activity.options) {
+      try { payload.options = JSON.parse(activity.options as unknown as string) } catch { /* ignore */ }
+    }
+    if (activity.correct_answers) {
+      try { payload.correct_answers = JSON.parse(activity.correct_answers as unknown as string) } catch { /* ignore */ }
+    }
+    await liveStore.pushActivity(liveStore.currentSession.id, payload)
+  }
 </script>
 
 <template>
@@ -258,7 +334,12 @@
 
     <!-- ══════════ Podium final ══════════ -->
     <div v-else-if="showPodium && podiumTop3.length > 0" class="live-podium-view">
-      <Podium :top3="podiumTop3" />
+      <Podium
+        :top3="podiumTop3"
+        :total-participants="liveStore.leaderboard.length"
+        :total-activities="liveStore.currentSession?.activities?.length ?? 0"
+        :session-title="liveStore.currentSession?.title"
+      />
       <button class="btn-dismiss-podium" @click="showPodium = false">
         Fermer
       </button>
@@ -282,6 +363,10 @@
             <Play :size="16" />
             Diffuser aux étudiants
           </button>
+          <button class="btn-export" :disabled="exporting" @click="exportCsv" title="Exporter les resultats en CSV">
+            <Download :size="16" />
+            {{ exporting ? 'Export...' : 'CSV' }}
+          </button>
           <button class="btn-end" @click="endSession">
             <LogOut :size="16" />
             Terminer
@@ -291,9 +376,15 @@
 
       <JoinCodeDisplay :code="liveStore.currentSession.join_code" />
 
-      <div class="participant-bar">
-        <Users :size="16" />
-        <span>{{ liveStore.participantCount }} participant{{ liveStore.participantCount > 1 ? 's' : '' }}</span>
+      <div class="session-meta-bar">
+        <div class="participant-bar">
+          <Users :size="16" />
+          <span>{{ liveStore.participantCount }} participant{{ liveStore.participantCount > 1 ? 's' : '' }}</span>
+        </div>
+        <div v-if="totalCount > 0" class="progress-bar">
+          <div class="progress-fill" :style="{ width: (closedCount / totalCount * 100) + '%' }" />
+          <span class="progress-text">{{ closedCount }}/{{ totalCount }} terminee{{ closedCount > 1 ? 's' : '' }}</span>
+        </div>
       </div>
 
       <!-- Activity list -->
@@ -315,7 +406,10 @@
         </div>
 
         <div v-if="liveStore.sessionActivities.length === 0 && !showActivityForm" class="no-activities">
-          Aucune activité pour le moment. Ajoutez un QCM, sondage ou nuage de mots.
+          <Zap :size="24" class="no-activities-icon" />
+          <span class="no-activities-title">Aucune activite</span>
+          <span class="no-activities-desc">Ajoutez des QCM, Vrai/Faux, associations, estimations ou reponses courtes</span>
+          <span class="no-activities-tip">Astuce : Espace/Entree pour naviguer rapidement entre les activites</span>
         </div>
 
         <div v-else class="activity-list">
@@ -364,6 +458,14 @@
               </button>
               <button
                 v-if="act.status === 'pending'"
+                class="btn-edit-activity"
+                title="Dupliquer"
+                @click="duplicateActivity(act)"
+              >
+                <Copy :size="14" />
+              </button>
+              <button
+                v-if="act.status === 'pending'"
                 class="btn-delete-activity"
                 title="Supprimer"
                 @click="removeActivity(act)"
@@ -379,10 +481,16 @@
     <!-- ══════════ Leaderboard apres fermeture activite ══════════ -->
     <div v-else-if="showLeaderboard && !liveStore.currentActivity" class="live-leaderboard-view">
       <Leaderboard :entries="liveStore.leaderboard" />
-      <button class="btn-dismiss-lb" @click="dismissLeaderboard">
-        <ChevronRight :size="16" />
-        Continuer
-      </button>
+      <div class="lb-actions">
+        <button v-if="nextPendingActivity" class="btn-launch-next" @click="launchNext">
+          <Play :size="16" />
+          Lancer : {{ nextPendingActivity.title }}
+        </button>
+        <button class="btn-dismiss-lb" @click="dismissLeaderboard">
+          <ChevronRight :size="16" />
+          {{ nextPendingActivity ? 'Revenir a la liste' : 'Continuer' }}
+        </button>
+      </div>
     </div>
 
     <!-- ══════════ Activite en cours (presentation mode) ══════════ -->
@@ -411,17 +519,23 @@
           v-if="liveStore.timerStartedAt"
           :total-seconds="liveStore.currentActivity.timer_seconds ?? 30"
           :started-at="liveStore.timerStartedAt"
-          @expired="() => {}"
+          @expired="onTeacherTimerExpired"
         />
         <div class="response-count" v-if="liveStore.results">
           <Users :size="18" />
           <span>{{ liveStore.results.totalResponses }} ont repondu</span>
         </div>
+        <label class="auto-close-toggle" title="Fermer automatiquement quand le timer expire">
+          <input type="checkbox" v-model="autoCloseEnabled" />
+          <span class="auto-close-label">Auto-fermer</span>
+        </label>
       </div>
 
       <div class="results-area">
-        <QcmResults v-if="(liveStore.currentActivity.type === 'qcm' || liveStore.currentActivity.type === 'vrai_faux') && liveStore.results" :results="liveStore.results" />
+        <QcmResults v-if="(liveStore.currentActivity.type === 'qcm' || liveStore.currentActivity.type === 'vrai_faux') && liveStore.results" :results="liveStore.results" :activity="liveStore.currentActivity" />
         <PollResults v-else-if="liveStore.currentActivity.type === 'reponse_courte' && liveStore.results" :results="liveStore.results" />
+        <AssociationResults v-else-if="liveStore.currentActivity.type === 'association' && liveStore.results" :results="liveStore.results" />
+        <EstimationResults v-else-if="liveStore.currentActivity.type === 'estimation' && liveStore.results" :results="liveStore.results" />
         <div v-else class="results-waiting">
           <Zap :size="32" class="results-waiting-icon" />
           <span>En attente des reponses...</span>
@@ -655,11 +769,37 @@
   cursor: pointer; transition: all .15s;
 }
 .btn-end:hover { background: rgba(239,68,68,.2); }
+.btn-export {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  background: rgba(74,144,217,.08); color: var(--accent);
+  border: 1px solid rgba(74,144,217,.2); cursor: pointer;
+  transition: all .15s;
+}
+.btn-export:hover { background: rgba(74,144,217,.15); }
+.btn-export:disabled { opacity: .4; cursor: not-allowed; }
+.session-meta-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
 .participant-bar {
   display: flex; align-items: center; gap: 8px;
   padding: 12px 16px; border-radius: 8px;
   background: var(--bg-elevated); color: var(--text-muted);
   font-size: 14px; font-weight: 600;
+}
+.progress-bar {
+  flex: 1; min-width: 140px; height: 28px; position: relative;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: rgba(34,197,94,.25);
+  border-radius: 8px; transition: width .4s cubic-bezier(.25,.8,.25,1);
+}
+.progress-text {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: var(--text-secondary, #aaa);
 }
 
 /* ── Activities ── */
@@ -693,10 +833,36 @@
   border-radius: var(--radius, 12px);
 }
 .no-activities {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   text-align: center;
-  padding: 32px;
+  padding: 40px 32px;
   color: var(--text-muted);
-  font-size: 14px;
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+.no-activities-icon {
+  opacity: .3;
+  color: var(--accent);
+}
+.no-activities-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-secondary, #aaa);
+}
+.no-activities-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 360px;
+}
+.no-activities-tip {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: .6;
+  margin-top: 4px;
 }
 .activity-list {
   display: flex;
@@ -859,6 +1025,23 @@
   font-weight: 600;
   color: var(--text-secondary, #aaa);
 }
+.auto-close-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-muted);
+  user-select: none;
+}
+.auto-close-toggle input[type="checkbox"] {
+  width: 16px; height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.auto-close-label {
+  font-weight: 600;
+}
 
 /* ── Leaderboard view ── */
 .live-leaderboard-view {
@@ -870,6 +1053,31 @@
   width: 100%;
   margin-top: 40px;
 }
+.lb-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.btn-launch-next {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  background: #22c55e;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: all .15s;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.btn-launch-next:hover { filter: brightness(1.1); }
 .btn-dismiss-lb {
   display: flex;
   align-items: center;

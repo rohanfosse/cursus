@@ -363,19 +363,21 @@ describe('scoring', () => {
   })
 
   it('calculateScore returns points for correct answer', () => {
-    const points = queries.calculateScore(activity.id, 1, 'Jean Dupont', 5000, true)
-    expect(points).toBeGreaterThan(0)
-    expect(points).toBeLessThanOrEqual(1000)
+    const result = queries.calculateScore(activity.id, 1, 'Jean Dupont', 5000, true)
+    expect(result.points).toBeGreaterThan(0)
+    expect(result.points).toBeLessThanOrEqual(1000)
+    expect(result.streak).toBeGreaterThanOrEqual(1)
   })
 
   it('calculateScore returns 0 for incorrect answer', () => {
-    const points = queries.calculateScore(activity.id, 1, 'Jean Dupont', 5000, false)
-    expect(points).toBe(0)
+    const result = queries.calculateScore(activity.id, 1, 'Jean Dupont', 5000, false)
+    expect(result.points).toBe(0)
+    expect(result.streak).toBe(0)
   })
 
   it('calculateScore returns 0 for non-existent activity', () => {
-    const points = queries.calculateScore(99999, 1, 'Test', 5000, true)
-    expect(points).toBe(0)
+    const result = queries.calculateScore(99999, 1, 'Test', 5000, true)
+    expect(result.points).toBe(0)
   })
 })
 
