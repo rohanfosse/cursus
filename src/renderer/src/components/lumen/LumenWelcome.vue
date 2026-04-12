@@ -121,6 +121,11 @@ const totalStats = computed(() => {
   }
   return { courses: courseRepos.value.length, totalChapters, totalRead }
 })
+
+const globalPct = computed(() => {
+  if (!totalStats.value.totalChapters) return 0
+  return Math.round((totalStats.value.totalRead / totalStats.value.totalChapters) * 100)
+})
 </script>
 
 <template>
@@ -138,6 +143,14 @@ const totalStats = computed(() => {
         </p>
       </div>
     </header>
+
+    <!-- Progression globale (v2.93) -->
+    <div v-if="totalStats.totalChapters > 0 && totalStats.totalRead > 0" class="lw-global-progress">
+      <div class="lw-global-progress-bar">
+        <div class="lw-global-progress-fill" :style="{ width: globalPct + '%' }" />
+      </div>
+      <span class="lw-global-progress-label">{{ totalStats.totalRead }}/{{ totalStats.totalChapters }} chapitres lus ({{ globalPct }}%)</span>
+    </div>
 
     <!-- Message first-time (v2.88) -->
     <div v-if="!canResume && recentReads.length === 0 && courseRepos.length > 0" class="lw-firsttime">
@@ -249,6 +262,30 @@ const totalStats = computed(() => {
   margin: 2px 0 0;
   font-size: 13px;
   color: var(--text-muted);
+}
+
+/* ── Global progress bar (v2.93) ───────────────────────────────────── */
+.lw-global-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lw-global-progress-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+.lw-global-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+.lw-global-progress-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── First-time hint (v2.88) ───────────────────────────────────────── */
