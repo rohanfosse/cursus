@@ -147,7 +147,7 @@ async function handleDelete() {
     <textarea
       v-model="draft"
       class="lumen-note-textarea"
-      placeholder="Ecris tes notes personnelles sur ce chapitre (markdown supporte)..."
+      placeholder="Tes notes sur ce chapitre..."
       :maxlength="MAX_CHARS"
       spellcheck="true"
     />

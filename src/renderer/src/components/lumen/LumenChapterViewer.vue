@@ -420,6 +420,7 @@ const hasCompanion = computed<boolean>(() => Boolean(companionPath.value))
  */
 const companionToggleLabel = computed<string>(() => {
   if (companionMode.value) {
+    if (isMarp.value) return 'Voir les slides'
     return chapterKind.value === 'markdown' ? 'Voir le markdown' : 'Voir le rendu'
   }
   if (props.chapter.companionPdf) return 'Voir le PDF'
