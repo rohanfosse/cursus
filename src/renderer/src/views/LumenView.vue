@@ -100,6 +100,12 @@ const notedChaptersSet = computed<Set<string>>(() => {
   return set
 })
 
+/** Repos pedagogiques (cours, prosits, workshops, etc.) pour la grille d'accueil. */
+const HIDDEN_KINDS = new Set(['student', 'group', 'readme'])
+const courseRepos = computed(() =>
+  repos.value.filter((r) => r.manifest && !HIDDEN_KINDS.has(r.manifest.kind ?? '')),
+)
+
 /** Timestamp du sync le plus recent parmi tous les repos de la promo. */
 const lastSyncedAt = computed<string | null>(() => {
   let latest: string | null = null
@@ -333,6 +339,12 @@ async function handleSelectChapter(payload: { repoId: number; path: string }) {
     }
   }
   lumenStore.fetchChapterNote(repo.id, payload.path)
+}
+
+/** Ouvre le premier chapitre d'un repo (utilise par la grille d'accueil). */
+function openRepo(repo: typeof repos.value[number]) {
+  const first = repo.manifest?.chapters[0]
+  if (first) handleSelectChapter({ repoId: repo.id, path: first.path })
 }
 
 /**
@@ -641,10 +653,25 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
             </button>
           </div>
 
-          <div v-else-if="!currentRepo || !currentChapter" class="lumen-empty-state">
-            <BookOpen :size="32" />
-            <h3>Choisis un chapitre</h3>
-            <p>Selectionne un cours dans la colonne de gauche pour commencer la lecture.</p>
+          <div v-else-if="!currentRepo || !currentChapter" class="lumen-welcome">
+            <header class="lumen-welcome-head">
+              <BookOpen :size="24" />
+              <h3>Bienvenue sur Lumen</h3>
+              <p v-if="courseRepos.length">{{ courseRepos.length }} cours disponibles</p>
+              <p v-else>Aucun cours synchronise pour le moment.</p>
+            </header>
+            <div v-if="courseRepos.length" class="lumen-welcome-grid">
+              <button
+                v-for="repo in courseRepos"
+                :key="repo.id"
+                type="button"
+                class="lumen-welcome-card"
+                @click="openRepo(repo)"
+              >
+                <span class="lumen-welcome-card-title">{{ repo.manifest?.project ?? repo.fullName }}</span>
+                <span class="lumen-welcome-card-meta">{{ repo.manifest?.chapters.length ?? 0 }} chapitres</span>
+              </button>
+            </div>
           </div>
 
           <LumenChapterViewer
@@ -990,6 +1017,65 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
   padding: 1px 5px;
   background: var(--bg-secondary);
   border-radius: 3px;
+}
+
+/* ── Grille d'accueil Lumen (v2.83) ──────────────────────────────────── */
+.lumen-welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 32px;
+  overflow-y: auto;
+}
+.lumen-welcome-head {
+  text-align: center;
+  margin-bottom: 32px;
+  color: var(--text-muted);
+}
+.lumen-welcome-head h3 {
+  margin: 12px 0 4px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.lumen-welcome-head p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.lumen-welcome-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 800px;
+}
+.lumen-welcome-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.lumen-welcome-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.lumen-welcome-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+.lumen-welcome-card-meta {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .lumen-modal-backdrop {
