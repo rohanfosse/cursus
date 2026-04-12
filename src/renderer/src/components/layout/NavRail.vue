@@ -251,32 +251,32 @@
       <span class="nav-label">Calendrier</span>
     </button>
 
-    <!-- Quiz indicator pour étudiants - visible uniquement quand invitation active et module actif -->
+    <!-- Spark : profs ont toujours acces, etudiants seulement quand session active -->
     <button
-      v-if="isEnabled('live') && !appStore.isStaff && liveStore.currentSession && liveStore.currentSession.status !== 'ended'"
+      v-if="isEnabled('live') && (appStore.isStaff || (liveStore.currentSession && liveStore.currentSession.status !== 'ended'))"
       class="nav-btn"
       :class="{ active: route.name === 'live' }"
-      title="Spark en cours"
-      aria-label="Spark en cours"
+      title="Spark (quiz interactif)"
+      aria-label="Spark"
       @click="router.push('/live')"
     >
       <Zap :size="20" />
       <span class="nav-label">Spark</span>
-      <span class="nav-live-dot" />
+      <span v-if="!appStore.isStaff && liveStore.currentSession" class="nav-live-dot" />
     </button>
 
-    <!-- REX indicator pour étudiants - visible uniquement quand session active et module actif -->
+    <!-- Pulse : profs ont toujours acces, etudiants seulement quand session active -->
     <button
-      v-if="isEnabled('rex') && !appStore.isStaff && rexStore.currentSession && rexStore.currentSession.status !== 'ended'"
+      v-if="isEnabled('rex') && (appStore.isStaff || (rexStore.currentSession && rexStore.currentSession.status !== 'ended'))"
       class="nav-btn"
       :class="{ active: route.name === 'rex' }"
-      title="Session Pulse en cours"
-      aria-label="Session Pulse en cours"
+      title="Pulse (feedback anonyme)"
+      aria-label="Pulse"
       @click="router.push('/rex')"
     >
       <HeartPulse :size="20" />
       <span class="nav-label">Pulse</span>
-      <span class="nav-rex-dot" />
+      <span v-if="!appStore.isStaff && rexStore.currentSession" class="nav-rex-dot" />
     </button>
 
     <!-- ── Cloche de notifications ── -->
