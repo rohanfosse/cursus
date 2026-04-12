@@ -625,7 +625,11 @@ router.post(
   validate(chapterPathSchema),
   wrap(async (req) => {
     const repoId = Number(req.params.id)
-    markLumenChapterRead(req.user.id, repoId, req.body.path)
+    try {
+      markLumenChapterRead(req.user.id, repoId, req.body.path)
+    } catch {
+      // Echec du tracking silencieux — ne pas bloquer l'UX
+    }
     return { ok: true }
   }),
 )
@@ -634,7 +638,7 @@ router.get(
   '/my-reads',
   requireRole('student'),
   wrap(async (req) => {
-    return { reads: getStudentLumenReads(req.user.id) }
+    return { reads: getStudentLumenReads(req.user.id) ?? [] }
   }),
 )
 

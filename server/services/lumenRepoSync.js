@@ -122,12 +122,12 @@ function resolveRelativePath(link, currentPath) {
  * indexation explicite.
  */
 async function mapWithConcurrency(items, limit, fn) {
-  const results = new Array(items.length)
+  const results = new Array(items.length).fill(null)
   for (let i = 0; i < items.length; i += limit) {
     const batch = items.slice(i, i + limit)
-    const batchResults = await Promise.all(batch.map((item, idx) => fn(item, i + idx)))
+    const batchResults = await Promise.allSettled(batch.map((item, idx) => fn(item, i + idx)))
     for (let j = 0; j < batchResults.length; j++) {
-      results[i + j] = batchResults[j]
+      results[i + j] = batchResults[j].status === 'fulfilled' ? batchResults[j].value : null
     }
   }
   return results
@@ -537,7 +537,7 @@ async function createRepoWithScaffold(octokit, { org, slug, blocTitle }) {
   // 3. Cree un blob par fichier du scaffold (parallelise). On utilise
   //    encoding: utf-8 directement, plus simple que double-encoder en base64.
   const files = buildScaffoldFiles({ blocTitle })
-  const blobs = await Promise.all(files.map(async (f) => {
+  const blobResults = await Promise.allSettled(files.map(async (f) => {
     const { data } = await octokit.rest.git.createBlob({
       owner, repo,
       content: f.content,
@@ -545,6 +545,11 @@ async function createRepoWithScaffold(octokit, { org, slug, blocTitle }) {
     })
     return { path: f.path, sha: data.sha }
   }))
+  const failed = blobResults.filter((r) => r.status === 'rejected')
+  if (failed.length) {
+    throw new Error(`Scaffold : ${failed.length}/${files.length} fichiers n'ont pas pu etre crees`)
+  }
+  const blobs = blobResults.map((r) => r.value)
 
   // 4. Cree un tree fresh (sans base_tree) — sinon le README.md auto-genere
   //    par auto_init coexiste avec celui du scaffold (overwrite OK mais

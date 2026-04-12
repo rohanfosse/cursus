@@ -140,7 +140,9 @@ async function loadLinkedTravaux() {
       ok: boolean
       data?: { travaux: LumenLinkedTravail[] }
     }
-    linkedTravaux.value = resp?.ok && resp.data ? resp.data.travaux : []
+    linkedTravaux.value = resp?.ok && resp.data?.travaux ? resp.data.travaux : []
+  } catch {
+    linkedTravaux.value = []
   } finally {
     linkedTravauxLoading.value = false
   }
