@@ -13,11 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Audit app.cursus.school
+      - name: Audit cursus.school (landing page)
         uses: treosh/lighthouse-ci-action@v12
         with:
           urls: |
-            https://app.cursus.school
             https://cursus.school
           uploadArtifacts: true
           temporaryPublicStorage: true
