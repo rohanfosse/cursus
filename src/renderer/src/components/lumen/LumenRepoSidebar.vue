@@ -53,6 +53,10 @@ function focusSearch(): void {
 }
 defineExpose({ focusSearch })
 
+// v2.103 : reagit au signal requestSearchFocus() du store (raccourci "/" global)
+const lumenStore = useLumenStore()
+watch(() => lumenStore.searchFocusTick, () => { focusSearch() })
+
 // v2.73 : scroll l'item actif en vue quand il change (ex: navigation
 // prev/next, ou clic sur un lien cross-repo lumen://). Sans ca, on peut
 // cliquer Next plusieurs fois et perdre l'element selectionne hors
@@ -390,7 +394,6 @@ function isRepoDone(repo: LumenRepo): boolean {
 // Les deux jeux de resultats s'affichent cote a cote : la recherche fulltext
 // apparait au-dessus de la liste filtree quand un query est actif.
 
-const lumenStore = useLumenStore()
 const { marpChapters, myReads } = storeToRefs(lumenStore)
 
 function repoReadProgress(repo: LumenRepo): { read: number; total: number } {

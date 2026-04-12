@@ -16,6 +16,7 @@ import {
   BookOpen, RefreshCw, Github, LogOut, Settings, AlertCircle, Loader2, FolderGit2, Plus, Keyboard,
   PanelLeftClose, PanelLeftOpen, LayoutGrid,
 } from 'lucide-vue-next'
+import LumenTopBarMenu from '@/components/lumen/LumenTopBarMenu.vue'
 import { useLumenStore } from '@/stores/lumen'
 import { useAppStore } from '@/stores/app'
 import { useToast } from '@/composables/useToast'
@@ -415,7 +416,7 @@ function handleKeydown(e: KeyboardEvent) {
   // v2.73 : "/" focus la barre de recherche de la sidebar (pattern GitHub).
   if (e.key === '/') {
     e.preventDefault()
-    // Le "/" focus la recherche dans la sidebar app (geree par Sidebar.vue)
+    lumenStore.requestSearchFocus()
     return
   }
   // v2.75 : "?" (shift+/) ouvre la modale d'aide sur les raccourcis.
@@ -495,11 +496,7 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
             <LayoutGrid :size="14" />
           </button>
           <BookOpen :size="18" />
-          <span class="lumen-brand-name">Lumen</span>
-          <span v-if="promoOrg" class="lumen-brand-org">
-            <FolderGit2 :size="12" />
-            {{ promoOrg }}
-          </span>
+          <span class="lumen-brand-name" :title="promoOrg ? `Organisation : ${promoOrg}` : undefined">Lumen</span>
         </div>
       </template>
       <template #actions>
@@ -513,28 +510,11 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
         >
           <component :is="lumenFocusMode ? PanelLeftOpen : PanelLeftClose" :size="14" />
         </button>
-        <span
-          v-if="githubStatus.connected && lastSyncedAt"
-          class="lumen-last-sync"
-          :title="`Derniere synchronisation : ${new Date(lastSyncedAt + 'Z').toLocaleString()}`"
-        >
-          Maj {{ relativeTime(lastSyncedAt + 'Z') }}
-        </span>
-        <button
-          v-if="githubStatus.connected && isTeacher"
-          type="button"
-          class="lumen-btn"
-          :disabled="syncing || !promoOrg"
-          :title="promoOrg ? 'Creer un nouveau cours (scaffold)' : 'Configure d\'abord une organisation'"
-          @click="openNewCourse"
-        >
-          <Plus :size="14" />
-          Nouveau cours
-        </button>
         <button
           v-if="githubStatus.connected"
           type="button"
           class="lumen-btn"
+          :class="{ primary: staleMs !== null && staleMs > STALE_THRESHOLD_MS }"
           :disabled="syncing || !promoOrg"
           :title="promoOrg ? 'Synchroniser les cours depuis GitHub' : 'Configure d\'abord une organisation'"
           @click="handleSync"
@@ -542,31 +522,18 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
           <component :is="syncing ? Loader2 : RefreshCw" :size="14" :class="{ spin: syncing }" />
           {{ syncing ? 'Sync...' : 'Synchroniser' }}
         </button>
-        <button
-          type="button"
-          class="lumen-btn ghost"
-          title="Raccourcis clavier (?)"
-          aria-label="Afficher les raccourcis clavier"
-          @click="keyboardHelpOpen = true"
-        >
-          <Keyboard :size="14" />
-        </button>
-        <button
-          v-if="isTeacher"
-          type="button"
-          class="lumen-btn ghost"
-          title="Configurer l'organisation GitHub de la promo"
-          @click="openSettings"
-        >
-          <Settings :size="14" />
-        </button>
-        <div v-if="githubStatus.connected" class="lumen-user">
-          <Github :size="13" />
-          <span class="lumen-user-login">{{ githubStatus.login }}</span>
-          <button type="button" class="lumen-user-logout" title="Se deconnecter de GitHub" @click="handleDisconnect">
-            <LogOut :size="12" />
-          </button>
-        </div>
+        <LumenTopBarMenu
+          :is-teacher="isTeacher"
+          :github-connected="githubStatus.connected"
+          :github-login="githubStatus.login ?? null"
+          :last-synced-at="lastSyncedAt"
+          :syncing="syncing"
+          :promo-org="promoOrg"
+          @open-new-course="openNewCourse"
+          @open-settings="openSettings"
+          @show-keyboard-help="keyboardHelpOpen = true"
+          @disconnect="handleDisconnect"
+        />
       </template>
     </UiPageHeader>
 
@@ -743,30 +710,7 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
   font-weight: 700;
   letter-spacing: 0.02em;
 }
-.lumen-last-sync {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  padding: 4px 8px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  white-space: nowrap;
-}
-
-.lumen-brand-org {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 9px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  font-size: 11px;
-  font-family: var(--font-mono);
-  color: var(--text-secondary);
-  margin-left: 6px;
-}
+/* .lumen-last-sync et .lumen-brand-org supprimes v2.103 : deplace dans LumenTopBarMenu */
 
 .lumen-topbar-actions {
   display: flex;
@@ -774,29 +718,7 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
   gap: 8px;
 }
 
-.lumen-user {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-.lumen-user-login { font-weight: 600; }
-.lumen-user-logout {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px;
-  display: flex;
-  align-items: center;
-  border-radius: 3px;
-}
-.lumen-user-logout:hover { color: var(--danger); }
+/* .lumen-user styles supprimes v2.103 : deplace dans LumenTopBarMenu */
 
 .lumen-btn {
   display: inline-flex;

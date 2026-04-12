@@ -13,7 +13,7 @@
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Copy, Check, FolderGit2, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2, Link2, Printer } from 'lucide-vue-next'
+import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Copy, Check, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2, Link2, Printer } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
 import { resolveAnchorTarget } from '@/utils/lumenDevoirLinks'
 import { parseChapterContent } from '@/utils/lumenFrontmatter'
@@ -23,6 +23,7 @@ import { useLumenStore } from '@/stores/lumen'
 import { relativeTime } from '@/utils/date'
 import LumenLinkDevoirModal from '@/components/lumen/LumenLinkDevoirModal.vue'
 import LumenOutline from '@/components/lumen/LumenOutline.vue'
+import LumenPdfViewer from '@/components/lumen/LumenPdfViewer.vue'
 import LumenSlideDeck from '@/components/lumen/LumenSlideDeck.vue'
 import Modal from '@/components/ui/Modal.vue'
 import UiCodeEditor from '@/components/ui/UiCodeEditor.vue'
@@ -150,7 +151,11 @@ async function loadLinkedTravaux() {
 
 function navigateToFirstChapter() {
   const first = props.repo.manifest?.chapters[0]
-  if (first) emit('navigate-chapter', first.path)
+  if (first) {
+    emit('navigate-chapter', first.path)
+  } else {
+    showToast('Ce cours ne contient aucun chapitre', 'info')
+  }
 }
 
 function openTravail(travail: LumenLinkedTravail) {
@@ -160,17 +165,7 @@ function openTravail(travail: LumenLinkedTravail) {
   router.push({ name: 'devoirs' })
 }
 
-/**
- * Clic sur le chip projet dans le header : set le projet actif de Cursus
- * (pattern legacy ou les projets sont identifies par nom string) puis
- * route vers /devoirs. L'utilisateur atterrit sur la vue du projet qui
- * contient elle-meme LumenProjectSection — boucle fermee.
- */
-function navigateToProject() {
-  if (!props.repo.projectName) return
-  appStore.activeProject = props.repo.projectName
-  router.push({ name: 'devoirs' })
-}
+/* navigateToProject supprime v2.103 : le chip projet etait redondant avec le breadcrumb. */
 
 const bodyRef = ref<HTMLElement | null>(null)
 
@@ -330,41 +325,7 @@ const isPdf = computed(() => chapterKind.value === 'pdf')
 const isTex = computed(() => chapterKind.value === 'tex')
 
 // Pour le rendu PDF on convertit la data URL renvoyee par le serveur en
-// Blob URL local. Avantages :
-//  - le DOM ne contient pas une string base64 enorme (clean inspector)
-//  - blob: est natif Chromium et ne souffre pas des limitations CSP de data:
-//  - Chromium streame le PDF au lieu de tout decoder en memoire d'un coup
-// Le Blob URL est revoque a chaque changement de chapitre pour eviter les
-// fuites memoire (un PDF de plusieurs MB rest sinon retenu indefiniment).
-const pdfBlobUrl = ref<string | null>(null)
-function revokeCurrentPdfUrl() {
-  if (pdfBlobUrl.value) {
-    URL.revokeObjectURL(pdfBlobUrl.value)
-    pdfBlobUrl.value = null
-  }
-}
-watch(
-  [() => props.content, isPdf],
-  ([content, pdf]) => {
-    revokeCurrentPdfUrl()
-    if (!pdf || !content) return
-    // Le serveur renvoie une string `data:application/pdf;base64,XXXX`.
-    // On la decode en Uint8Array puis on cree un Blob + URL locale.
-    const m = content.match(/^data:application\/pdf;base64,(.+)$/)
-    if (!m) return
-    try {
-      const binary = atob(m[1])
-      const bytes = new Uint8Array(binary.length)
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-      const blob = new Blob([bytes], { type: 'application/pdf' })
-      pdfBlobUrl.value = URL.createObjectURL(blob)
-    } catch {
-      pdfBlobUrl.value = null
-    }
-  },
-  { immediate: true },
-)
-onBeforeUnmount(revokeCurrentPdfUrl)
+/* Blob URL logic supprimee v2.103 — le rendu PDF est delegue a LumenPdfViewer (pdf.js). */
 
 // Detection Marp via frontmatter `marp: true`. Si detecte, on bascule sur
 // LumenSlideDeck (rendu en slides) au lieu du rendu Markdown long-form.
@@ -400,14 +361,7 @@ const companionMode = ref(false)
 const companionContent = ref<string | null>(null)
 const companionLoading = ref(false)
 const companionKind = ref<'pdf' | 'tex' | 'markdown' | null>(null)
-const companionBlobUrl = ref<string | null>(null)
-
-function revokeCompanionBlob() {
-  if (companionBlobUrl.value) {
-    URL.revokeObjectURL(companionBlobUrl.value)
-    companionBlobUrl.value = null
-  }
-}
+/* companionBlobUrl supprime v2.103 : le companion PDF est rendu par LumenPdfViewer. */
 
 const companionPath = computed<string | null>(() => {
   return props.chapter.companionPdf ?? props.chapter.companionTex ?? null
@@ -431,12 +385,9 @@ const companionToggleLabel = computed<string>(() => {
 async function toggleCompanion(): Promise<void> {
   if (!companionPath.value) return
   if (companionMode.value) {
-    // Retour au contenu principal : pas de refetch necessaire
     companionMode.value = false
-    revokeCompanionBlob()
     return
   }
-  // Bascule vers le compagnon : fetch on-demand
   companionLoading.value = true
   try {
     const resp = await window.api.getLumenChapterContent(props.repo.id, companionPath.value) as {
@@ -451,21 +402,6 @@ async function toggleCompanion(): Promise<void> {
     const { content, kind } = resp.data
     companionContent.value = content
     companionKind.value = (kind as 'pdf' | 'tex' | 'markdown' | undefined) ?? 'markdown'
-
-    // Pour un PDF, convertir data: URL en Blob URL (meme logique que le
-    // rendu principal)
-    if (companionKind.value === 'pdf') {
-      revokeCompanionBlob()
-      const m = content.match(/^data:application\/pdf;base64,(.+)$/)
-      if (m) {
-        const binary = atob(m[1])
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-        const blob = new Blob([bytes], { type: 'application/pdf' })
-        companionBlobUrl.value = URL.createObjectURL(blob)
-      }
-    }
-
     companionMode.value = true
   } catch (err) {
     showToast((err as { message?: string })?.message || 'Erreur reseau', 'error')
@@ -475,22 +411,18 @@ async function toggleCompanion(): Promise<void> {
 }
 
 // Reset le companion mode a chaque changement de chapitre.
-// Pour les presentations Marp avec PDF compagnon, on ouvre le PDF
-// par defaut (les etudiants preferent le PDF imprimable aux slides HTML).
 watch(() => props.chapter.path, () => {
   companionMode.value = false
   companionContent.value = null
   companionKind.value = null
-  revokeCompanionBlob()
 })
 
-// Auto-open PDF pour Marp : declenche apres le parsing du contenu
+// Auto-open PDF pour Marp : les etudiants preferent le PDF imprimable.
 watch(isMarp, (marp) => {
   if (marp && props.chapter.companionPdf && !companionMode.value) {
     toggleCompanion()
   }
 })
-onBeforeUnmount(revokeCompanionBlob)
 
 // HTML du compagnon si mode tex
 const companionTexHtml = computed<string>(() => {
@@ -805,121 +737,117 @@ watch(() => [props.content, props.chapter?.path], () => {
            "project / chapter" est supprime. Le titre est maintenant porte par
            le breadcrumb "current" (plus bas), qui contient deja l'info section. -->
       <div class="lumen-viewer-info">
-        <button
-          v-if="chapterKind === 'markdown' && !isMarp"
-          type="button"
-          class="lumen-viewer-chip lumen-viewer-chip--print"
-          title="Imprimer / exporter en PDF"
-          @click="printChapter"
-        >
-          <Printer :size="11" />
-          Imprimer
-        </button>
-        <button
-          type="button"
-          class="lumen-viewer-chip lumen-viewer-chip--link-copy"
-          :class="{ copied: linkCopied }"
-          :title="linkCopied ? 'Lien copie' : 'Copier le lien lumen:// de ce chapitre'"
-          @click="copyChapterLink"
-        >
-          <Check v-if="linkCopied" :size="11" />
-          <Link2 v-else :size="11" />
-          {{ linkCopied ? 'Copie' : 'Copier lien' }}
-        </button>
-        <button
-          v-if="canEdit"
-          type="button"
-          class="lumen-viewer-chip lumen-viewer-chip--edit"
-          title="Modifier ce chapitre (raccourci : E)"
-          @click="openEditModal"
-        >
-          <Pencil :size="11" /> Modifier
-          <kbd class="lumen-viewer-chip-kbd">E</kbd>
-        </button>
-        <button
-          v-if="hasCompanion"
-          type="button"
-          class="lumen-viewer-chip lumen-viewer-chip--companion"
-          :class="{ active: companionMode }"
-          :disabled="companionLoading"
-          :title="companionMode ? 'Retour au contenu principal' : `Voir ${chapter.companionPdf ? 'le PDF' : 'le source'} jumeau`"
-          @click="toggleCompanion"
-        >
-          <Loader2 v-if="companionLoading" :size="11" class="spin" />
-          <FileDown v-else-if="chapter.companionPdf && !companionMode" :size="11" />
-          <FileCode v-else-if="chapter.companionTex && !companionMode" :size="11" />
-          <FileText v-else :size="11" />
-          {{ companionToggleLabel }}
-        </button>
-        <span v-if="isMarp" class="lumen-viewer-chip lumen-viewer-chip--marp">
-          <Presentation :size="11" /> Slides
-        </span>
-        <button
-          v-if="repo.projectName"
-          type="button"
-          class="lumen-viewer-chip lumen-viewer-chip--link"
-          :title="`Aller au projet Cursus : ${repo.projectName}`"
-          @click="navigateToProject"
-        >
-          <FolderGit2 :size="11" /> {{ repo.projectName }}
-        </button>
-        <span v-if="chapter.duration" class="lumen-viewer-chip">
-          <Clock :size="11" /> {{ chapter.duration }} min
-        </span>
-        <span v-if="repo.manifest?.author" class="lumen-viewer-chip">
-          <User :size="11" /> {{ repo.manifest.author }}
-        </span>
-
-        <!-- Devoirs lies : chip + popover. Cache par defaut, accessible via clic. -->
-        <div
-          v-if="linkedTravaux.length > 0 || isTeacher"
-          ref="linkedPopoverRef"
-          class="lumen-linked-popover-wrap"
-        >
+        <!-- Groupe A : Actions (gauche) -->
+        <div class="lumen-viewer-actions">
+          <button
+            v-if="canEdit"
+            type="button"
+            class="lumen-viewer-chip lumen-viewer-chip--edit"
+            title="Modifier ce chapitre (raccourci : E)"
+            @click="openEditModal"
+          >
+            <Pencil :size="11" /> Modifier
+            <kbd class="lumen-viewer-chip-kbd">E</kbd>
+          </button>
+          <button
+            v-if="hasCompanion"
+            type="button"
+            class="lumen-viewer-chip lumen-viewer-chip--companion"
+            :class="{ active: companionMode }"
+            :disabled="companionLoading"
+            :title="companionMode ? 'Retour au contenu principal' : `Voir ${chapter.companionPdf ? 'le PDF' : 'le source'} jumeau`"
+            @click="toggleCompanion"
+          >
+            <Loader2 v-if="companionLoading" :size="11" class="spin" />
+            <FileDown v-else-if="chapter.companionPdf && !companionMode" :size="11" />
+            <FileCode v-else-if="chapter.companionTex && !companionMode" :size="11" />
+            <FileText v-else :size="11" />
+            {{ companionToggleLabel }}
+          </button>
+          <button
+            v-if="chapterKind === 'markdown' && !isMarp"
+            type="button"
+            class="lumen-viewer-chip lumen-viewer-chip--print"
+            title="Imprimer / exporter en PDF"
+            @click="printChapter"
+          >
+            <Printer :size="11" />
+          </button>
           <button
             type="button"
-            class="lumen-viewer-chip lumen-viewer-chip--link"
-            :class="{ active: linkedPopoverOpen }"
-            :aria-expanded="linkedPopoverOpen"
-            :title="linkedTravaux.length ? `${linkedTravaux.length} devoir(s) lie(s)` : 'Aucun devoir lie'"
-            @click="toggleLinkedPopover"
+            class="lumen-viewer-chip lumen-viewer-chip--link-copy"
+            :class="{ copied: linkCopied }"
+            :title="linkCopied ? 'Lien copie' : 'Copier le lien lumen:// de ce chapitre'"
+            @click="copyChapterLink"
           >
-            <ClipboardList :size="11" />
-            <span>Devoirs</span>
-            <span v-if="linkedTravaux.length" class="llt-count">{{ linkedTravaux.length }}</span>
+            <Check v-if="linkCopied" :size="11" />
+            <Link2 v-else :size="11" />
           </button>
-          <div v-if="linkedPopoverOpen" class="lumen-linked-popover" role="dialog" aria-label="Devoirs lies a ce chapitre">
-            <header class="llt-head">
-              <div class="llt-title">
-                <ClipboardList :size="13" />
-                <span>Devoirs lies</span>
-                <span v-if="linkedTravaux.length" class="llt-count">{{ linkedTravaux.length }}</span>
-              </div>
-              <button
-                v-if="isTeacher"
-                type="button"
-                class="llt-link-btn"
-                @click="linkDevoirModalOpen = true; closeLinkedPopover()"
-              >
-                <Plus :size="12" />
-                Lier
-              </button>
-            </header>
-            <ul v-if="linkedTravaux.length > 0" class="llt-list">
-              <li v-for="t in linkedTravaux" :key="t.id">
-                <button type="button" class="llt-item" @click="openTravail(t); closeLinkedPopover()">
-                  <span class="llt-item-title">{{ t.title }}</span>
-                  <span v-if="t.category" class="llt-item-cat">{{ t.category }}</span>
-                  <span v-if="t.deadline" class="llt-item-deadline">
-                    <Calendar :size="10" /> {{ relativeTime(t.deadline) }}
-                  </span>
+
+          <!-- Devoirs lies : chip + popover -->
+          <div
+            v-if="linkedTravaux.length > 0 || isTeacher"
+            ref="linkedPopoverRef"
+            class="lumen-linked-popover-wrap"
+          >
+            <button
+              type="button"
+              class="lumen-viewer-chip lumen-viewer-chip--link"
+              :class="{ active: linkedPopoverOpen }"
+              :aria-expanded="linkedPopoverOpen"
+              :title="linkedTravaux.length ? `${linkedTravaux.length} devoir(s) lie(s)` : 'Aucun devoir lie'"
+              @click="toggleLinkedPopover"
+            >
+              <ClipboardList :size="11" />
+              <span>Devoirs</span>
+              <span v-if="linkedTravaux.length" class="llt-count">{{ linkedTravaux.length }}</span>
+            </button>
+            <div v-if="linkedPopoverOpen" class="lumen-linked-popover" role="dialog" aria-label="Devoirs lies a ce chapitre">
+              <header class="llt-head">
+                <div class="llt-title">
+                  <ClipboardList :size="13" />
+                  <span>Devoirs lies</span>
+                  <span v-if="linkedTravaux.length" class="llt-count">{{ linkedTravaux.length }}</span>
+                </div>
+                <button
+                  v-if="isTeacher"
+                  type="button"
+                  class="llt-link-btn"
+                  @click="linkDevoirModalOpen = true; closeLinkedPopover()"
+                >
+                  <Plus :size="12" />
+                  Lier
                 </button>
-              </li>
-            </ul>
-            <p v-else-if="isTeacher" class="llt-empty">
-              Ce chapitre n'est encore lie a aucun devoir.
-            </p>
+              </header>
+              <ul v-if="linkedTravaux.length > 0" class="llt-list">
+                <li v-for="t in linkedTravaux" :key="t.id">
+                  <button type="button" class="llt-item" @click="openTravail(t); closeLinkedPopover()">
+                    <span class="llt-item-title">{{ t.title }}</span>
+                    <span v-if="t.category" class="llt-item-cat">{{ t.category }}</span>
+                    <span v-if="t.deadline" class="llt-item-deadline">
+                      <Calendar :size="10" /> {{ relativeTime(t.deadline) }}
+                    </span>
+                  </button>
+                </li>
+              </ul>
+              <p v-else-if="isTeacher" class="llt-empty">
+                Ce chapitre n'est encore lie a aucun devoir.
+              </p>
+            </div>
           </div>
+        </div>
+
+        <!-- Groupe B : Metadonnees (droite, muted) -->
+        <div class="lumen-viewer-meta-group">
+          <span v-if="isMarp" class="lumen-viewer-chip lumen-viewer-chip--marp">
+            <Presentation :size="11" /> Slides
+          </span>
+          <span v-if="chapter.duration" class="lumen-viewer-meta-item">
+            <Clock :size="10" /> {{ chapter.duration }} min
+          </span>
+          <span v-if="repo.manifest?.author" class="lumen-viewer-meta-item">
+            <User :size="10" /> {{ repo.manifest.author }}
+          </span>
         </div>
       </div>
       <!-- Breadcrumbs : orientation rapide via project / section / chapitre -->
@@ -959,43 +887,16 @@ watch(() => [props.content, props.chapter?.path], () => {
       </button>
     </div>
     <template v-else>
-      <!-- Compagnon PDF (v2.71) : mode override quand le prof bascule sur
-           le compagnon PDF d'un chapitre markdown ou tex. -->
-      <div v-if="companionMode && companionKind === 'pdf'" class="lumen-viewer-main lumen-viewer-main--pdf">
-        <iframe
-          v-if="companionBlobUrl"
-          :src="companionBlobUrl"
-          class="lumen-pdf-frame"
-          :title="`${chapter.title} (PDF compagnon)`"
-        />
-        <div v-else class="lumen-viewer-empty">
-          <FileText :size="32" />
-          <p>Impossible de rendre le PDF compagnon</p>
-        </div>
-      </div>
+      <!-- Compagnon PDF (v2.103 : rendu pdf.js au lieu d'iframe) -->
+      <LumenPdfViewer v-if="companionMode && companionKind === 'pdf'" :content="companionContent" />
 
       <!-- Compagnon TeX : source LaTeX du chapitre PDF courant -->
       <div v-else-if="companionMode && companionKind === 'tex'" class="lumen-viewer-main lumen-viewer-main--tex">
         <div class="lumen-viewer-body markdown-body" v-html="companionTexHtml" />
       </div>
 
-      <!-- Rendu PDF natif : iframe Blob URL local (v2.64, fix CSP v2.67).
-           La data: URL renvoyee par le serveur est convertie en Blob locale
-           pour contourner les restrictions CSP frame-src + ne pas bloater
-           le DOM avec une string base64 multi-MB. -->
-      <div v-else-if="isPdf" class="lumen-viewer-main lumen-viewer-main--pdf">
-        <iframe
-          v-if="pdfBlobUrl"
-          :src="pdfBlobUrl"
-          class="lumen-pdf-frame"
-          :title="chapter.title"
-        />
-        <div v-else class="lumen-viewer-empty">
-          <FileText :size="32" />
-          <h3>Impossible d'afficher le PDF</h3>
-          <p>Le fichier n'a pas pu etre rendu dans le navigateur integre.</p>
-        </div>
-      </div>
+      <!-- Rendu PDF via pdf.js (v2.103 — remplace l'iframe + plugin Chromium) -->
+      <LumenPdfViewer v-else-if="isPdf" :content="content" />
 
       <!-- Rendu source LaTeX : code block colorise via highlight.js (v2.64) -->
       <div v-else-if="isTex" class="lumen-viewer-main lumen-viewer-main--tex">
@@ -1205,8 +1106,28 @@ watch(() => [props.content, props.chapter?.path], () => {
 
 .lumen-viewer-info {
   display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+.lumen-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.lumen-viewer-meta-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.lumen-viewer-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 .lumen-viewer-chip {
   display: inline-flex;
@@ -1498,30 +1419,8 @@ button.lumen-viewer-chip:focus-visible {
   padding: 0;
 }
 
-/* Mode PDF (v2.64, fix v2.66.2) : iframe pleine taille rendant le PDF
-   nativement via le moteur Chromium d'Electron. L'iframe doit prendre
-   100% du parent — on utilise position absolute + inset 0 plutot que
-   flex pour eviter les soucis de % heights dans les flex containers. */
-.lumen-viewer-main--pdf {
-  background: var(--bg-rail);
-  padding: 0;
-  /* height: 0 + flex-grow force le container a occuper tout l'espace
-     restant, meme quand les parents ne propagent pas une hauteur explicite.
-     C'est plus fiable que min-height: 0 pour les iframes. */
-  height: 0;
-  flex-grow: 1;
-  position: relative;
-  overflow: hidden;
-}
-.lumen-pdf-frame {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: #fff;
-}
+/* .lumen-viewer-main--pdf et .lumen-pdf-frame supprimes v2.103 :
+   le rendu PDF est desormais gere par LumenPdfViewer (pdf.js). */
 
 /* Mode TeX (v2.64) : on reuse le wrapper markdown-body pour profiter du
    styling .lumen-codeblock standard, mais le contenu est uniquement un
@@ -1675,7 +1574,7 @@ button.lumen-viewer-chip:focus-visible {
 .lumen-breadcrumbs-current {
   color: var(--text-primary);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 16px;
   max-width: 520px;
 }
 .lumen-breadcrumbs-sep {

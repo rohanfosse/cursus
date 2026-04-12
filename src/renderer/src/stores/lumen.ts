@@ -34,6 +34,10 @@ export const useLumenStore = defineStore('lumen', () => {
   const loading  = ref(false)
   const syncing  = ref(false)
 
+  /** Signal reactif : incrementer pour demander au sidebar de focus sa recherche. */
+  const searchFocusTick = ref(0)
+  function requestSearchFocus() { searchFocusTick.value++ }
+
   /** Cache des contenus de chapitres : clef = `${repoId}::${path}`. */
   const chapterContents = ref<Map<string, LumenChapterContent>>(new Map())
 
@@ -471,6 +475,8 @@ export const useLumenStore = defineStore('lumen', () => {
     fetchChapterNote,
     saveChapterNote,
     deleteChapterNoteAction,
+    searchFocusTick,
+    requestSearchFocus,
     reset,
   }
 })
