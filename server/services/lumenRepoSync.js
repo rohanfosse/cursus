@@ -219,7 +219,7 @@ async function syncRepo(octokit, dbRepo) {
   const commitSha = await getLatestCommitSha(octokit, { owner, repo, defaultBranch })
 
   // Detection automatique pure : le manifest est toujours genere depuis
-  // l'arbre du repo. Pas de cursus.yaml — convention over configuration.
+  // l'arbre du repo — convention over configuration.
   let parsed
   try {
     const autoManifest = await generateAutoManifest(octokit, {

@@ -78,7 +78,7 @@ Les etudiants et enseignants naviguent chaque jour entre 5 a 8 outils : Moodle, 
 
 | Fonctionnalite | Description |
 |----------------|-------------|
-| **Lumen — Liseuse de cours** | Cours markdown adosses a GitHub (1 promo = 1 organisation, 1 cours = 1 repo). Auto-manifest sans cursus.yaml, scaffold "Nouveau cours" en 1 clic, recherche fulltext FTS5, KaTeX + Mermaid + admonitions, mode focus plein-ecran, auto-resume du dernier chapitre. Visibilite par repo (le prof publie explicitement). |
+| **Lumen — Liseuse de cours** | Cours markdown adosses a GitHub (1 promo = 1 organisation, 1 cours = 1 repo). Detection automatique des chapitres depuis l'arbre du repo, scaffold "Nouveau cours" en 1 clic, recherche fulltext FTS5, KaTeX + Mermaid + admonitions, mode focus plein-ecran, auto-resume du dernier chapitre. Visibilite par repo (le prof publie explicitement). |
 | **Quiz en direct** | QCM, sondages, nuages de mots en temps reel pendant le cours |
 | **Kanban projet** | Suivi par groupe avec drag-and-drop (a faire, en cours, termine) |
 | **Frise chronologique** | Timeline interactive des devoirs, zoom semaine/mois/trimestre/annee |

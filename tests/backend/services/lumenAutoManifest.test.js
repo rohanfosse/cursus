@@ -209,7 +209,7 @@ describe('buildManifestFromTree : PDF et TeX (v2.64)', () => {
     expect(ch.kind).toBe('markdown')
     expect(ch.companionPdf).toBe('guides/scrum.pdf')
     // Le .tex n'est PAS expose comme compagnon dans cette config (md > pdf
-    // > tex). Si l'auteur veut le voir, il peut l'editer dans cursus.yaml.
+    // > tex). Priorite : md a un companionPdf, pas de companionTex.
     expect(ch.companionTex).toBeUndefined()
     validateAgainstSchema(m)
   })

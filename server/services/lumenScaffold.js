@@ -7,9 +7,8 @@
  * tes blocs, modifie ces constantes — pas de systeme de templates
  * pluggable, c'est volontaire (cf. spec deep-interview-lumen-scaffold).
  *
- * Le scaffold ne contient pas de cursus.yaml : l'auto-manifest (v2.43)
- * gere les nouveaux repos sans manifest. Le prof peut toujours en ajouter
- * un plus tard pour reprendre la main.
+ * Le scaffold ne contient pas de manifest : l'auto-detection (v2.80)
+ * genere le manifest depuis l'arbre du repo automatiquement.
  */
 
 /**
