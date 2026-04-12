@@ -232,6 +232,13 @@ body.light {
   --accent-rgb:    194,124,44;
   --accent-subtle: rgba(194,124,44,.12);
 
+  /* Code blocks (light theme) */
+  --code-bg: #f5f0eb;
+  --code-text: #2c2418;
+  --code-header-bg: rgba(0, 0, 0, 0.04);
+  --code-header-border: rgba(0, 0, 0, 0.06);
+  --code-lang-color: rgba(0, 0, 0, 0.45);
+
   /* Bordures */
   --border:       rgba(100,70,30,.1);
   --border-input: rgba(100,70,30,.16);

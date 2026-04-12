@@ -1519,6 +1519,12 @@ button.lumen-viewer-chip:focus-visible {
   width: 100%;
   margin: 0 auto;
 }
+@media (max-width: 1400px) {
+  .lumen-viewer-body {
+    padding: var(--space-lg) 24px var(--space-md);
+    max-width: 100%;
+  }
+}
 
 /* Mode Accueil (v2.66) : layout plus aere, h1 plus visible, padding genereux
    pour donner une impression de "tableau de bord du bloc". */
@@ -2110,7 +2116,7 @@ button.lumen-viewer-chip:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  background: #1a1d23;
+  background: var(--code-bg, #1a1d23);
   box-shadow: var(--elevation-1);
 }
 .lumen-viewer .markdown-body .lumen-codeblock-header {
@@ -2119,8 +2125,8 @@ button.lumen-viewer-chip:focus-visible {
   justify-content: space-between;
   gap: var(--space-sm);
   padding: var(--space-xs) var(--space-md);
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--code-header-bg, rgba(255, 255, 255, 0.05));
+  border-bottom: 1px solid var(--code-header-border, rgba(255, 255, 255, 0.08));
   min-height: 32px;
 }
 .lumen-viewer .markdown-body .lumen-codeblock-lang {
@@ -2128,7 +2134,7 @@ button.lumen-viewer-chip:focus-visible {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--code-lang-color, rgba(255, 255, 255, 0.6));
   font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
 }
 .lumen-viewer .markdown-body .lumen-codeblock pre.lumen-code {
@@ -2147,7 +2153,7 @@ button.lumen-viewer-chip:focus-visible {
   background: transparent;
   border: none;
   padding: 0;
-  color: #e8e9ea;
+  color: var(--code-text, #e8e9ea);
   font-weight: 400;
 }
 
