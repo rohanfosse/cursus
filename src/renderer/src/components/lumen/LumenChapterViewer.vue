@@ -13,9 +13,10 @@
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Copy, Check, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2, Link2, Printer } from 'lucide-vue-next'
+import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Copy, Check, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2, Link2, Printer, Sun, Moon } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
 import { renderTex } from '@/utils/texRenderer'
+import { renderIpynb } from '@/utils/ipynbRenderer'
 import { resolveAnchorTarget } from '@/utils/lumenDevoirLinks'
 import { parseChapterContent } from '@/utils/lumenFrontmatter'
 import { useToast } from '@/composables/useToast'
@@ -25,6 +26,7 @@ import { relativeTime } from '@/utils/date'
 import LumenLinkDevoirModal from '@/components/lumen/LumenLinkDevoirModal.vue'
 import LumenOutline from '@/components/lumen/LumenOutline.vue'
 import LumenPdfViewer from '@/components/lumen/LumenPdfViewer.vue'
+import LumenAnnotations from '@/components/lumen/LumenAnnotations.vue'
 import LumenSlideDeck from '@/components/lumen/LumenSlideDeck.vue'
 import UiCodeEditor from '@/components/ui/UiCodeEditor.vue'
 import type { LumenChapter, LumenRepo, LumenLinkedTravail } from '@/types'
@@ -109,8 +111,18 @@ function isTypingInField(target: EventTarget | null): boolean {
 }
 
 function onLumenKeyboard(ev: KeyboardEvent): void {
-  // Si une modale est ouverte (edit ou link-devoir), on laisse la modale
-  // gerer ses propres raccourcis et on ne reagit pas aux globaux.
+  // Ctrl+S / Cmd+S en mode edition : sauvegarde rapide
+  if (editMode.value && (ev.ctrlKey || ev.metaKey) && ev.key === 's') {
+    ev.preventDefault()
+    saveEdit()
+    return
+  }
+  // Escape en mode edition : quitter sans sauvegarder
+  if (editMode.value && ev.key === 'Escape') {
+    ev.preventDefault()
+    exitEditMode()
+    return
+  }
   if (editMode.value || linkDevoirModalOpen.value || linkedPopoverOpen.value) return
   // Si l'utilisateur tape dans un champ, on laisse passer (ex: la search
   // sidebar).
@@ -273,6 +285,13 @@ const canEdit = computed(() =>
   && Boolean(props.contentSha),
 )
 
+// Mode lecture clair/sombre — persiste dans localStorage
+const readingLight = ref(localStorage.getItem('lumen-reading-light') === '1')
+function toggleReadingLight() {
+  readingLight.value = !readingLight.value
+  localStorage.setItem('lumen-reading-light', readingLight.value ? '1' : '0')
+}
+
 // v2.79 : imprimer le chapitre courant. Le stylesheet print masque tout
 // sauf le body markdown pour obtenir un PDF propre (via le dialogue
 // d'impression Chromium). Utile pour polycopies et archivage.
@@ -307,18 +326,22 @@ async function copyChapterLink() {
 //  - pdf : iframe data: URL (PDF natif)
 //  - tex : source LaTeX colorisee via highlight.js
 //  - markdown : rendu standard, ou Marp si frontmatter `marp: true`
-function inferKindFromPath(path: string): 'markdown' | 'pdf' | 'tex' {
+type ChapterKind = 'markdown' | 'pdf' | 'tex' | 'ipynb'
+
+function inferKindFromPath(path: string): ChapterKind {
   const m = path.match(/\.([^./]+)$/)
   const ext = m ? m[1].toLowerCase() : ''
   if (ext === 'pdf') return 'pdf'
   if (ext === 'tex') return 'tex'
+  if (ext === 'ipynb') return 'ipynb'
   return 'markdown'
 }
-const chapterKind = computed<'markdown' | 'pdf' | 'tex'>(() => {
-  return props.chapter.kind ?? inferKindFromPath(props.chapter.path)
+const chapterKind = computed<ChapterKind>(() => {
+  return (props.chapter.kind as ChapterKind | undefined) ?? inferKindFromPath(props.chapter.path)
 })
 const isPdf = computed(() => chapterKind.value === 'pdf')
 const isTex = computed(() => chapterKind.value === 'tex')
+const isIpynb = computed(() => chapterKind.value === 'ipynb')
 
 // Detection Marp via frontmatter `marp: true`. Si detecte, on bascule sur
 // LumenSlideDeck (rendu en slides) au lieu du rendu Markdown long-form.
@@ -329,10 +352,15 @@ const parsed = computed(() =>
 )
 const isMarp = computed(() => parsed.value.isMarp)
 
+const ipynbHtml = computed(() => {
+  if (!isIpynb.value || !props.content) return ''
+  return renderIpynb(props.content, props.chapter.path)
+})
+
 const html = computed(() => {
   if (!props.content) return ''
-  if (isPdf.value || isTex.value) return ''  // rendu dedie, pas v-html
-  if (isMarp.value) return ''                // rendu via LumenSlideDeck
+  if (isPdf.value || isTex.value || isIpynb.value) return ''
+  if (isMarp.value) return ''
   return renderMarkdown(props.content, { chapterPath: props.chapter.path })
 })
 
@@ -753,7 +781,7 @@ watch(() => [props.content, props.chapter?.path], () => {
             {{ companionToggleLabel }}
           </button>
           <button
-            v-if="chapterKind === 'markdown' && !isMarp"
+            v-if="(chapterKind === 'markdown' || chapterKind === 'tex' || chapterKind === 'ipynb') && !isMarp && !editMode"
             type="button"
             class="lumen-viewer-chip lumen-viewer-chip--print"
             title="Imprimer / exporter en PDF"
@@ -836,6 +864,21 @@ watch(() => [props.content, props.chapter?.path], () => {
           <span v-if="repo.manifest?.author" class="lumen-viewer-meta-item">
             <User :size="10" /> {{ repo.manifest.author }}
           </span>
+          <button
+            v-if="!isPdf"
+            type="button"
+            class="lumen-viewer-chip lumen-viewer-chip--light-toggle"
+            :title="readingLight ? 'Mode sombre' : 'Mode clair'"
+            @click="toggleReadingLight"
+          >
+            <Sun v-if="readingLight" :size="11" />
+            <Moon v-else :size="11" />
+          </button>
+          <LumenAnnotations
+            v-if="!isPdf && !editMode"
+            :repo-id="repo.id"
+            :chapter-path="chapter.path"
+          />
         </div>
       </div>
       <!-- Breadcrumbs : orientation rapide via project / section / chapitre -->
@@ -886,9 +929,14 @@ watch(() => [props.content, props.chapter?.path], () => {
       <!-- Rendu PDF via pdf.js (v2.103 — remplace l'iframe + plugin Chromium) -->
       <LumenPdfViewer v-else-if="isPdf" :content="content" :title="chapter.title" />
 
-      <!-- Rendu TeX avec KaTeX (v2.104) -->
+      <!-- Rendu TeX avec KaTeX -->
       <div v-else-if="isTex && !editMode" class="lumen-viewer-main lumen-viewer-main--tex">
-        <div class="lumen-viewer-body markdown-body" v-html="texHtml" />
+        <div class="lumen-viewer-body markdown-body" :class="{ 'lumen-reading-light': readingLight }" v-html="texHtml" />
+      </div>
+
+      <!-- Rendu Jupyter Notebook -->
+      <div v-else-if="isIpynb" class="lumen-viewer-main lumen-viewer-main--ipynb">
+        <div class="lumen-viewer-body markdown-body" :class="{ 'lumen-reading-light': readingLight }" v-html="ipynbHtml" />
       </div>
 
       <!-- Rendu Marp : slide deck dedie quand `marp: true` dans la frontmatter -->
@@ -950,7 +998,7 @@ watch(() => [props.content, props.chapter?.path], () => {
         <div
           ref="bodyRef"
           class="lumen-viewer-body markdown-body"
-          :class="{ 'lumen-viewer-body--accueil': isAccueilChapter }"
+          :class="{ 'lumen-viewer-body--accueil': isAccueilChapter, 'lumen-reading-light': readingLight }"
           @click="handleBodyClick"
         >
           <div v-html="html" />
@@ -1367,6 +1415,115 @@ button.lumen-viewer-chip:focus-visible {
   padding: 6px 10px;
   border: 1px solid var(--border);
   font-size: 13px;
+}
+
+/* Jupyter Notebook (v2.105) */
+.lumen-viewer-main--ipynb .lumen-viewer-body {
+  padding: var(--space-lg) var(--space-2xl, 32px);
+  max-width: 900px;
+  margin: 0 auto;
+}
+.ipynb-cell { margin-bottom: 16px; }
+.ipynb-cell--code {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.ipynb-code-wrap {
+  display: flex;
+  gap: 0;
+  background: var(--bg-secondary);
+}
+.ipynb-exec-count {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px 8px 10px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  min-width: 36px;
+  justify-content: flex-end;
+  user-select: none;
+  flex-shrink: 0;
+}
+.ipynb-code-wrap .lumen-code {
+  margin: 0;
+  border-radius: 0;
+  flex: 1;
+  min-width: 0;
+}
+.ipynb-outputs {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  background: var(--bg-primary);
+}
+.ipynb-stream,
+.ipynb-text {
+  margin: 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+  color: var(--text-secondary);
+}
+.ipynb-error {
+  margin: 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+  color: var(--danger, #e74c3c);
+  background: rgba(231, 76, 60, 0.08);
+  padding: 8px;
+  border-radius: 4px;
+}
+.ipynb-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.ipynb-svg { max-width: 100%; overflow: auto; }
+.ipynb-html-output { overflow-x: auto; font-size: 13px; }
+.ipynb-parse-error {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Mode lecture clair */
+.lumen-viewer-chip--light-toggle {
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.lumen-viewer-chip--light-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.lumen-reading-light {
+  background: #faf9f7 !important;
+  color: #1a1a1a !important;
+}
+.lumen-reading-light :deep(h1),
+.lumen-reading-light :deep(h2),
+.lumen-reading-light :deep(h3),
+.lumen-reading-light :deep(h4),
+.lumen-reading-light :deep(h5),
+.lumen-reading-light :deep(h6) {
+  color: #111 !important;
+}
+.lumen-reading-light :deep(a) {
+  color: #1a73e8 !important;
+}
+.lumen-reading-light :deep(code):not(:deep(pre) code) {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: #c7254e !important;
+}
+.lumen-reading-light :deep(blockquote) {
+  border-color: #ddd !important;
+  color: #555 !important;
+}
+.lumen-reading-light :deep(table) td,
+.lumen-reading-light :deep(table) th {
+  border-color: #ddd !important;
+}
+.lumen-reading-light :deep(hr) {
+  border-color: #ddd !important;
 }
 
 .lumen-viewer-body {

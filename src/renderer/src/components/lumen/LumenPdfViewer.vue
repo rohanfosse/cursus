@@ -8,7 +8,7 @@
  * avec une couche texte selectionnable (TextLayer).
  */
 import { ref, watch, onBeforeUnmount, nextTick, computed } from 'vue'
-import { ZoomIn, ZoomOut, Maximize, FileText, Download } from 'lucide-vue-next'
+import { ZoomIn, ZoomOut, Maximize, FileText, Download, Search, X } from 'lucide-vue-next'
 // Legacy build : evite Uint8Array.toHex() absent dans Electron 35 sandbox
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 
@@ -63,6 +63,109 @@ function fitWidth() {
 }
 
 const zoomPercent = computed(() => Math.round(scale.value * 100))
+
+// ── Recherche dans le PDF ─────────────────────────────────────────────
+const searchOpen = ref(false)
+const searchQuery = ref('')
+const searchResults = ref(0)
+const searchCurrent = ref(0)
+const searchInputRef = ref<HTMLInputElement | null>(null)
+
+function toggleSearch() {
+  searchOpen.value = !searchOpen.value
+  if (searchOpen.value) {
+    nextTick(() => searchInputRef.value?.focus())
+  } else {
+    clearHighlights()
+    searchQuery.value = ''
+    searchResults.value = 0
+    searchCurrent.value = 0
+  }
+}
+
+function clearHighlights() {
+  const container = containerRef.value
+  if (!container) return
+  container.querySelectorAll('.lumen-pdf-highlight').forEach((el) => el.remove())
+}
+
+async function doSearch() {
+  clearHighlights()
+  searchResults.value = 0
+  searchCurrent.value = 0
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query || !currentPdf) return
+
+  const container = containerRef.value
+  if (!container) return
+  const pageDivs = container.querySelectorAll('.lumen-pdf-page')
+  let total = 0
+
+  for (let i = 1; i <= currentPdf.numPages; i++) {
+    const page = await currentPdf.getPage(i)
+    const textContent = await page.getTextContent()
+    const viewport = page.getViewport({ scale: scale.value })
+    const pageDiv = pageDivs[i - 1]
+    if (!pageDiv) continue
+
+    for (const item of textContent.items) {
+      if (!('str' in item)) continue
+      const text = item.str.toLowerCase()
+      let idx = text.indexOf(query)
+      while (idx >= 0) {
+        total++
+        // Create highlight overlay
+        const tx = item.transform
+        const x = tx[4]
+        const y = viewport.height - tx[5]
+        const charW = (item.width ?? 0) / (item.str.length || 1)
+        const hlX = x + idx * charW
+        const hlW = query.length * charW
+        const hlH = item.height ?? 12
+
+        const hl = document.createElement('div')
+        hl.className = 'lumen-pdf-highlight'
+        if (total === 1) hl.classList.add('lumen-pdf-highlight--active')
+        hl.style.left = `${hlX}px`
+        hl.style.top = `${y - hlH}px`
+        hl.style.width = `${hlW}px`
+        hl.style.height = `${hlH}px`
+        pageDiv.appendChild(hl)
+
+        idx = text.indexOf(query, idx + 1)
+      }
+    }
+  }
+
+  searchResults.value = total
+  if (total > 0) {
+    searchCurrent.value = 1
+    scrollToHighlight(1)
+  }
+}
+
+function scrollToHighlight(n: number) {
+  const container = containerRef.value
+  if (!container) return
+  const highlights = container.querySelectorAll('.lumen-pdf-highlight')
+  highlights.forEach((el, i) => {
+    el.classList.toggle('lumen-pdf-highlight--active', i === n - 1)
+  })
+  const target = highlights[n - 1]
+  if (target) target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+}
+
+function searchNext() {
+  if (searchResults.value === 0) return
+  searchCurrent.value = searchCurrent.value >= searchResults.value ? 1 : searchCurrent.value + 1
+  scrollToHighlight(searchCurrent.value)
+}
+
+function searchPrev() {
+  if (searchResults.value === 0) return
+  searchCurrent.value = searchCurrent.value <= 1 ? searchResults.value : searchCurrent.value - 1
+  scrollToHighlight(searchCurrent.value)
+}
 
 function downloadPdf() {
   if (!props.content) return
@@ -223,7 +326,39 @@ onBeforeUnmount(() => {
       >
         <Download :size="14" />
       </button>
+      <button
+        type="button"
+        class="lumen-pdf-tool-btn"
+        :class="{ active: searchOpen }"
+        title="Rechercher (Ctrl+F)"
+        @click="toggleSearch"
+      >
+        <Search :size="14" />
+      </button>
       <span v-if="pageCount" class="lumen-pdf-page-count">{{ pageCount }} page{{ pageCount > 1 ? 's' : '' }}</span>
+    </div>
+
+    <!-- Barre de recherche -->
+    <div v-if="searchOpen" class="lumen-pdf-search-bar">
+      <Search :size="13" class="lumen-pdf-search-icon" />
+      <input
+        ref="searchInputRef"
+        v-model="searchQuery"
+        type="text"
+        class="lumen-pdf-search-input"
+        placeholder="Rechercher dans le PDF..."
+        @input="doSearch"
+        @keydown.enter.prevent="searchNext"
+        @keydown.escape.prevent="toggleSearch"
+      />
+      <span v-if="searchQuery" class="lumen-pdf-search-count">
+        {{ searchResults > 0 ? `${searchCurrent}/${searchResults}` : 'Aucun resultat' }}
+      </span>
+      <button v-if="searchResults > 1" type="button" class="lumen-pdf-tool-btn lumen-pdf-tool-btn--sm" title="Precedent" @click="searchPrev">&#9650;</button>
+      <button v-if="searchResults > 1" type="button" class="lumen-pdf-tool-btn lumen-pdf-tool-btn--sm" title="Suivant" @click="searchNext">&#9660;</button>
+      <button type="button" class="lumen-pdf-tool-btn lumen-pdf-tool-btn--sm" title="Fermer" @click="toggleSearch">
+        <X :size="12" />
+      </button>
     </div>
 
     <!-- Loading -->
@@ -278,6 +413,45 @@ onBeforeUnmount(() => {
 }
 .lumen-pdf-tool-btn:hover:not(:disabled) { background: var(--bg-hover); }
 .lumen-pdf-tool-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.lumen-pdf-tool-btn.active {
+  background: rgba(var(--accent-rgb, 59, 130, 246), 0.15);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.lumen-pdf-tool-btn--sm {
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
+}
+
+.lumen-pdf-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-elevated, var(--bg-main));
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.lumen-pdf-search-icon { color: var(--text-muted); flex-shrink: 0; }
+.lumen-pdf-search-input {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  font-family: inherit;
+  outline: none;
+}
+.lumen-pdf-search-input:focus { border-color: var(--accent); }
+.lumen-pdf-search-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 
 .lumen-pdf-zoom-label {
   font-size: 11px;
@@ -347,10 +521,22 @@ onBeforeUnmount(() => {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   border-radius: 2px;
   line-height: 0;
+  position: relative;
 }
 .lumen-pdf-page canvas {
   display: block;
   max-width: 100%;
   height: auto;
+}
+.lumen-pdf-highlight {
+  position: absolute;
+  background: rgba(255, 213, 0, 0.35);
+  border-radius: 1px;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+.lumen-pdf-highlight--active {
+  background: rgba(255, 140, 0, 0.55);
+  outline: 2px solid rgba(255, 140, 0, 0.8);
 }
 </style>
