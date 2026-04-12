@@ -1,16 +1,19 @@
 /** StudentRexView — Vue etudiant pour les sessions REX anonymes. */
 <script setup lang="ts">
   import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-  import { HeartPulse, CheckCircle2, Send, LogOut, Clock } from 'lucide-vue-next'
-  import { Star } from 'lucide-vue-next'
+  import { HeartPulse, CheckCircle2, Send, LogOut, Clock, Star } from 'lucide-vue-next'
   import { useAppStore }  from '@/stores/app'
   import { useRexStore }  from '@/stores/rex'
+  import { rexActivityTypeLabel } from '@/utils/rexActivity'
   import type { RexActivity } from '@/types'
 
   import RexSondageResults          from './RexSondageResults.vue'
   import RexWordCloud               from './RexWordCloud.vue'
   import RexEchelleResults          from './RexEchelleResults.vue'
   import RexQuestionOuverteResults  from './RexQuestionOuverteResults.vue'
+  import RexHumeurResults           from './RexHumeurResults.vue'
+  import RexPrioriteResults         from './RexPrioriteResults.vue'
+  import RexMatriceResults          from './RexMatriceResults.vue'
 
   const appStore = useAppStore()
   const rex      = useRexStore()
@@ -150,6 +153,20 @@
     if (!(act.id in asyncWordInputs.value))   asyncWordInputs.value[act.id] = Array.from({ length: act.max_words || 2 }, () => '')
     if (!(act.id in asyncSondageInputs.value)) asyncSondageInputs.value[act.id] = null
     if (!(act.id in asyncHumeurInputs.value)) asyncHumeurInputs.value[act.id] = null
+    if (act.type === 'priorite' && !(act.id in asyncPrioriteInputs.value)) {
+      try {
+        const items = JSON.parse(act.options as string || '[]')
+        asyncPrioriteInputs.value[act.id] = Array.from({ length: items.length }, (_, i) => i)
+      } catch { asyncPrioriteInputs.value[act.id] = [] }
+    }
+    if (act.type === 'matrice' && !(act.id in asyncMatriceInputs.value)) {
+      try {
+        const criteria = JSON.parse(act.options as string || '[]')
+        const ratings: Record<string, number> = {}
+        for (const c of criteria) ratings[c] = 0
+        asyncMatriceInputs.value[act.id] = ratings
+      } catch { asyncMatriceInputs.value[act.id] = {} }
+    }
   }
 
   function expandAsyncActivity(act: RexActivity) {
@@ -196,16 +213,7 @@
     rex.leaveSession()
   }
 
-  function activityTypeLabel(type: string): string {
-    if (type === 'sondage_libre') return 'Sondage libre'
-    if (type === 'nuage') return 'Nuage de mots'
-    if (type === 'echelle') return 'Echelle'
-    if (type === 'sondage') return 'Sondage'
-    if (type === 'humeur') return 'Humeur'
-    if (type === 'priorite') return 'Priorite'
-    if (type === 'matrice') return 'Matrice'
-    return 'Question ouverte'
-  }
+  const activityTypeLabel = rexActivityTypeLabel
 
   function formatOpenUntil(dt: string | null) {
     if (!dt) return ''
@@ -348,7 +356,43 @@
                 </button>
               </template>
 
-              <!-- Priorite + Matrice : not supported in async mode yet -->
+              <!-- Priorite -->
+              <template v-else-if="act.type === 'priorite' && act.options">
+                <div class="rex-priorite-list">
+                  <div v-for="(idx, rank) in (asyncPrioriteInputs[act.id] ?? [])" :key="idx" class="rex-priorite-item">
+                    <span class="rex-priorite-rank">{{ rank + 1 }}</span>
+                    <span class="rex-priorite-label">{{ ((() => { try { return JSON.parse(act.options as string) } catch { return [] } })())[idx] }}</span>
+                    <div class="rex-priorite-btns">
+                      <button v-if="rank > 0" class="rex-priorite-move" @click="() => { const arr = [...(asyncPrioriteInputs[act.id] ?? [])]; const [it] = arr.splice(rank, 1); arr.splice(rank - 1, 0, it); asyncPrioriteInputs[act.id] = arr }">&uarr;</button>
+                      <button v-if="rank < (asyncPrioriteInputs[act.id]?.length ?? 0) - 1" class="rex-priorite-move" @click="() => { const arr = [...(asyncPrioriteInputs[act.id] ?? [])]; const [it] = arr.splice(rank, 1); arr.splice(rank + 1, 0, it); asyncPrioriteInputs[act.id] = arr }">&darr;</button>
+                    </div>
+                  </div>
+                </div>
+                <button class="rex-btn-primary" @click="async () => { const ok = await rex.submitResponse(act.id, { answer: (asyncPrioriteInputs[act.id] ?? []).join(',') }); if (ok) respondedIds = new Set([...respondedIds, act.id]) }">
+                  <Send :size="14" /> Envoyer
+                </button>
+              </template>
+
+              <!-- Matrice -->
+              <template v-else-if="act.type === 'matrice' && act.options">
+                <div class="rex-matrice-grid">
+                  <div v-for="crit in Object.keys(asyncMatriceInputs[act.id] ?? {})" :key="crit" class="rex-matrice-row">
+                    <span class="rex-matrice-label">{{ crit }}</span>
+                    <div class="rex-matrice-stars">
+                      <button
+                        v-for="n in (act.max_rating || 5)"
+                        :key="n"
+                        class="rex-matrice-star"
+                        :class="{ active: ((asyncMatriceInputs[act.id] ?? {})[crit] ?? 0) >= n }"
+                        @click="asyncMatriceInputs[act.id] = { ...asyncMatriceInputs[act.id], [crit]: n }"
+                      >&#9733;</button>
+                    </div>
+                  </div>
+                </div>
+                <button class="rex-btn-primary" :disabled="Object.values(asyncMatriceInputs[act.id] ?? {}).some(v => v === 0)" @click="async () => { const ok = await rex.submitResponse(act.id, { answer: JSON.stringify(asyncMatriceInputs[act.id]) }); if (ok) respondedIds = new Set([...respondedIds, act.id]) }">
+                  <Send :size="14" /> Envoyer
+                </button>
+              </template>
             </div>
           </div>
         </div>
@@ -546,29 +590,22 @@
           :results="results.counts"
           :total="results.total"
         />
-        <div v-else-if="results.type === 'humeur' && results.emojis" class="rex-humeur-results">
-          <div v-for="e in results.emojis" :key="e.emoji" class="rex-humeur-result">
-            <span class="rex-humeur-emoji">{{ e.emoji }}</span>
-            <div class="rex-humeur-bar" :style="{ width: (results.total ? e.count / results.total * 100 : 0) + '%' }" />
-            <span class="rex-humeur-count">{{ e.count }}</span>
-          </div>
-        </div>
-        <div v-else-if="results.type === 'priorite' && results.rankings" class="rex-priorite-results">
-          <div v-for="(r, i) in results.rankings" :key="r.item" class="rex-priorite-result">
-            <span class="rex-priorite-rank">{{ i + 1 }}</span>
-            <span class="rex-priorite-label">{{ r.item }}</span>
-            <span class="rex-priorite-avg">moy. {{ r.avgRank + 1 }}</span>
-          </div>
-        </div>
-        <div v-else-if="results.type === 'matrice' && results.criteria" class="rex-matrice-results">
-          <div v-for="c in results.criteria" :key="c.name" class="rex-matrice-result">
-            <span class="rex-matrice-label">{{ c.name }}</span>
-            <div class="rex-matrice-bar-wrap">
-              <div class="rex-matrice-bar" :style="{ width: (activity.max_rating ? c.average / activity.max_rating * 100 : 0) + '%' }" />
-            </div>
-            <span class="rex-matrice-avg">{{ c.average }}</span>
-          </div>
-        </div>
+        <RexHumeurResults
+          v-else-if="results.type === 'humeur' && results.emojis"
+          :emojis="results.emojis"
+          :total="results.total"
+        />
+        <RexPrioriteResults
+          v-else-if="results.type === 'priorite' && results.rankings"
+          :rankings="results.rankings"
+          :total="results.total"
+        />
+        <RexMatriceResults
+          v-else-if="results.type === 'matrice' && results.criteria"
+          :criteria="results.criteria"
+          :max-rating="activity.max_rating"
+          :total="results.total"
+        />
       </div>
 
       <!-- Session ended -->

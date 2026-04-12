@@ -2,15 +2,19 @@
 <script setup lang="ts">
   import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
   import {
-    ChevronLeft, ChevronRight, X, MessageSquare, Cloud, Star, FileText, Timer,
+    ChevronLeft, ChevronRight, X, Timer,
   } from 'lucide-vue-next'
   import { useRexStore }  from '@/stores/rex'
+  import { rexActivityIcon, rexActivityTypeLabel } from '@/utils/rexActivity'
   import type { RexSession, RexActivity, RexResults } from '@/types'
 
   import RexSondageResults          from './RexSondageResults.vue'
   import RexWordCloud               from './RexWordCloud.vue'
   import RexEchelleResults          from './RexEchelleResults.vue'
   import RexQuestionOuverteResults  from './RexQuestionOuverteResults.vue'
+  import RexHumeurResults           from './RexHumeurResults.vue'
+  import RexPrioriteResults         from './RexPrioriteResults.vue'
+  import RexMatriceResults          from './RexMatriceResults.vue'
 
   const props = defineProps<{ session: RexSession }>()
   const emit = defineEmits<{ close: [] }>()
@@ -132,19 +136,8 @@
     if (act) rex.fetchResults(act.id)
   }
 
-  function activityIcon(type: string) {
-    if (type === 'sondage_libre') return MessageSquare
-    if (type === 'nuage') return Cloud
-    if (type === 'echelle') return Star
-    return FileText
-  }
-
-  function activityTypeLabel(type: string) {
-    if (type === 'sondage_libre') return 'Sondage libre'
-    if (type === 'nuage') return 'Nuage de mots'
-    if (type === 'echelle') return 'Echelle'
-    return 'Question ouverte'
-  }
+  const activityIcon = rexActivityIcon
+  const activityTypeLabel = rexActivityTypeLabel
 
   async function onTogglePin(responseId: number, pinned: boolean) {
     await rex.togglePin(responseId, pinned)
@@ -233,6 +226,27 @@
             :answers="results.answers"
             :is-teacher="true"
             @toggle-pin="onTogglePin"
+          />
+          <RexSondageResults
+            v-else-if="results.type === 'sondage' && results.counts"
+            :results="results.counts"
+            :total="results.total"
+          />
+          <RexHumeurResults
+            v-else-if="results.type === 'humeur' && results.emojis"
+            :emojis="results.emojis"
+            :total="results.total"
+          />
+          <RexPrioriteResults
+            v-else-if="results.type === 'priorite' && results.rankings"
+            :rankings="results.rankings"
+            :total="results.total"
+          />
+          <RexMatriceResults
+            v-else-if="results.type === 'matrice' && results.criteria"
+            :criteria="results.criteria"
+            :max-rating="currentAct?.max_rating ?? 5"
+            :total="results.total"
           />
           <p v-else class="rex-presenter-waiting">En attente de reponses...</p>
         </template>

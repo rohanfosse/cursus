@@ -3,12 +3,12 @@
   import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
   import {
     Plus, Play, Square, Trash2, Users,
-    MessageSquare, Cloud, Star, FileText, LogOut, BarChart, Smile, ArrowUpDown, Grid3X3,
-    ChevronDown, Download, Pencil, GripVertical, Copy, Clock,
+    LogOut, ChevronDown, Download, Pencil, GripVertical, Copy, Clock,
     History, BarChart3, Presentation,
   } from 'lucide-vue-next'
   import { useAppStore }  from '@/stores/app'
   import { useRexStore }  from '@/stores/rex'
+  import { rexActivityIcon, rexActivityTypeLabel } from '@/utils/rexActivity'
   import type { RexActivity, RexSession } from '@/types'
 
   import RexJoinCodeDisplay         from './RexJoinCodeDisplay.vue'
@@ -17,6 +17,9 @@
   import RexWordCloud               from './RexWordCloud.vue'
   import RexEchelleResults          from './RexEchelleResults.vue'
   import RexQuestionOuverteResults  from './RexQuestionOuverteResults.vue'
+  import RexHumeurResults           from './RexHumeurResults.vue'
+  import RexPrioriteResults         from './RexPrioriteResults.vue'
+  import RexMatriceResults          from './RexMatriceResults.vue'
   import RexHistoryView             from './RexHistoryView.vue'
   import RexStatsView               from './RexStatsView.vue'
   import RexPresenterMode           from './RexPresenterMode.vue'
@@ -177,26 +180,32 @@
     if (activity.value) await rex.fetchResults(activity.value.id)
   }
 
-  function activityIcon(type: string) {
-    if (type === 'sondage_libre') return MessageSquare
-    if (type === 'nuage') return Cloud
-    if (type === 'echelle') return Star
-    if (type === 'sondage') return BarChart
-    if (type === 'humeur') return Smile
-    if (type === 'priorite') return ArrowUpDown
-    if (type === 'matrice') return Grid3X3
-    return FileText
-  }
+  const activityIcon = rexActivityIcon
+  const activityTypeLabel = rexActivityTypeLabel
 
-  function activityTypeLabel(type: string) {
-    if (type === 'sondage_libre') return 'Sondage libre'
-    if (type === 'nuage') return 'Nuage de mots'
-    if (type === 'echelle') return 'Echelle'
-    if (type === 'sondage') return 'Sondage'
-    if (type === 'humeur') return 'Humeur'
-    if (type === 'priorite') return 'Priorite'
-    if (type === 'matrice') return 'Matrice'
-    return 'Question ouverte'
+  // ── Activity progress ──────────────────────────────────────────────────
+  const closedCount = computed(() => rex.sessionActivities.filter(a => a.status === 'closed').length)
+  const totalActivities = computed(() => rex.sessionActivities.length)
+
+  // ── Response count from results ───────────────────────────────────────
+  const responseCount = computed(() => results.value?.total ?? 0)
+
+  // ── Duplicate activity ────────────────────────────────────────────────
+  async function duplicateActivity(act: RexActivity) {
+    if (!session.value) return
+    const payload: {
+      type: RexActivity['type']; title: string
+      max_words?: number; max_rating?: number; options?: string[]
+    } = {
+      type: act.type,
+      title: act.title + ' (copie)',
+      max_words: act.max_words,
+      max_rating: act.max_rating,
+    }
+    if (act.options) {
+      try { payload.options = JSON.parse(act.options as string) } catch { /* ignore */ }
+    }
+    await rex.pushActivity(session.value.id, payload)
   }
 </script>
 
@@ -339,10 +348,19 @@
       <!-- Join code -->
       <RexJoinCodeDisplay v-if="session.status !== 'ended'" :code="session.join_code" />
 
-      <!-- Participant count -->
-      <div v-if="session.status !== 'ended'" class="rex-participants">
-        <Users :size="14" />
-        <span>Participants connectes</span>
+      <!-- Participant count + progress -->
+      <div v-if="session.status !== 'ended'" class="rex-meta-bar">
+        <div class="rex-participants">
+          <Users :size="14" />
+          <span>Participants connectes</span>
+        </div>
+        <div v-if="totalActivities > 0" class="rex-progress-bar">
+          <div class="rex-progress-fill" :style="{ width: (closedCount / totalActivities * 100) + '%' }" />
+          <span class="rex-progress-text">{{ closedCount }}/{{ totalActivities }} terminee{{ closedCount > 1 ? 's' : '' }}</span>
+        </div>
+        <div v-if="activity && responseCount > 0" class="rex-response-count">
+          {{ responseCount }} reponse{{ responseCount > 1 ? 's' : '' }}
+        </div>
       </div>
 
       <!-- Live activity results -->
@@ -383,27 +401,22 @@
             :results="results.counts"
             :total="results.total"
           />
-          <div v-else-if="results.type === 'humeur' && results.emojis" class="rex-humeur-results">
-            <div v-for="e in results.emojis" :key="e.emoji" class="rex-humeur-result">
-              <span style="font-size:24px">{{ e.emoji }}</span>
-              <div class="rex-humeur-bar" :style="{ width: (results.total ? e.count / results.total * 100 : 0) + '%' }" />
-              <span>{{ e.count }}</span>
-            </div>
-          </div>
-          <div v-else-if="results.type === 'priorite' && results.rankings" class="rex-priorite-results">
-            <div v-for="(r, i) in results.rankings" :key="r.item" class="rex-priorite-result">
-              <strong>{{ i + 1 }}.</strong> {{ r.item }} <span style="margin-left:auto;opacity:.6">moy. {{ r.avgRank + 1 }}</span>
-            </div>
-          </div>
-          <div v-else-if="results.type === 'matrice' && results.criteria" class="rex-matrice-results">
-            <div v-for="c in results.criteria" :key="c.name" class="rex-matrice-result">
-              <span>{{ c.name }}</span>
-              <div style="flex:1;height:14px;background:var(--bg-elevated);border-radius:6px;overflow:hidden">
-                <div :style="{ width: (activity.max_rating ? c.average / activity.max_rating * 100 : 0) + '%', height: '100%', background: 'linear-gradient(90deg, #0d9488, #14b8a6)', borderRadius: '6px' }" />
-              </div>
-              <strong style="color:#0d9488">{{ c.average }}</strong>
-            </div>
-          </div>
+          <RexHumeurResults
+            v-else-if="results.type === 'humeur' && results.emojis"
+            :emojis="results.emojis"
+            :total="results.total"
+          />
+          <RexPrioriteResults
+            v-else-if="results.type === 'priorite' && results.rankings"
+            :rankings="results.rankings"
+            :total="results.total"
+          />
+          <RexMatriceResults
+            v-else-if="results.type === 'matrice' && results.criteria"
+            :criteria="results.criteria"
+            :max-rating="activity.max_rating"
+            :total="results.total"
+          />
           <p v-else class="rex-no-results">En attente de reponses...</p>
         </div>
 
@@ -462,6 +475,14 @@
               @click="viewResults(act)"
             >
               Résultats
+            </button>
+            <button
+              v-if="act.status === 'pending'"
+              class="rex-btn-sm rex-btn-ghost"
+              title="Dupliquer"
+              @click="duplicateActivity(act)"
+            >
+              <Copy :size="12" />
             </button>
             <button
               v-if="act.status === 'pending'"
@@ -837,8 +858,27 @@
   background: rgba(13, 148, 136, 0.08);
   border-color: #0d9488;
 }
-/* Resultats nouveaux types */
-.rex-humeur-results, .rex-priorite-results, .rex-matrice-results { display: flex; flex-direction: column; gap: 8px; }
-.rex-humeur-result, .rex-priorite-result, .rex-matrice-result { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
-.rex-humeur-bar { height: 18px; background: linear-gradient(90deg, #0d9488, #14b8a6); border-radius: 6px; min-width: 4px; transition: width .3s; }
+/* ── Meta bar (participants + progress + response count) ── */
+.rex-meta-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.rex-progress-bar {
+  flex: 1; min-width: 140px; height: 28px; position: relative;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden;
+}
+.rex-progress-fill {
+  height: 100%; background: rgba(13,148,136,.25);
+  border-radius: 8px; transition: width .4s cubic-bezier(.25,.8,.25,1);
+}
+.rex-progress-text {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: var(--text-secondary, #aaa);
+}
+.rex-response-count {
+  font-size: 13px; font-weight: 600; color: #14b8a6;
+  padding: 6px 12px; border-radius: 8px;
+  background: rgba(13,148,136,.08);
+}
 </style>

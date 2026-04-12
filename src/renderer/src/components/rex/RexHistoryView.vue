@@ -1,15 +1,19 @@
 /** RexHistoryView — Historique des sessions REX terminées par promotion. */
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
-  import { Search, Calendar, ChevronDown, ChevronUp, MessageSquare, Cloud, Star, FileText, Users } from 'lucide-vue-next'
+  import { Search, Calendar, ChevronDown, ChevronUp, Users } from 'lucide-vue-next'
   import { useRexStore }  from '@/stores/rex'
   import { useDebounce } from '@/composables/useDebounce'
+  import { rexActivityIcon, rexActivityTypeLabel } from '@/utils/rexActivity'
   import type { RexSessionWithStats, RexSession, RexActivity, RexResults } from '@/types'
 
   import RexSondageResults          from './RexSondageResults.vue'
   import RexWordCloud               from './RexWordCloud.vue'
   import RexEchelleResults          from './RexEchelleResults.vue'
   import RexQuestionOuverteResults  from './RexQuestionOuverteResults.vue'
+  import RexHumeurResults           from './RexHumeurResults.vue'
+  import RexPrioriteResults         from './RexPrioriteResults.vue'
+  import RexMatriceResults          from './RexMatriceResults.vue'
 
   const props = defineProps<{ promoId: number }>()
   const rex = useRexStore()
@@ -69,19 +73,8 @@
     return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
-  function activityIcon(type: string) {
-    if (type === 'sondage_libre') return MessageSquare
-    if (type === 'nuage') return Cloud
-    if (type === 'echelle') return Star
-    return FileText
-  }
-
-  function activityTypeLabel(type: string) {
-    if (type === 'sondage_libre') return 'Sondage libre'
-    if (type === 'nuage') return 'Nuage de mots'
-    if (type === 'echelle') return 'Echelle'
-    return 'Question ouverte'
-  }
+  const activityIcon = rexActivityIcon
+  const activityTypeLabel = rexActivityTypeLabel
 </script>
 
 <template>
@@ -165,6 +158,27 @@
                   v-else-if="expandedResults[act.id].type === 'question_ouverte' && expandedResults[act.id].answers"
                   :answers="expandedResults[act.id].answers!"
                   :is-teacher="false"
+                />
+                <RexSondageResults
+                  v-else-if="expandedResults[act.id].type === 'sondage' && expandedResults[act.id].counts"
+                  :results="expandedResults[act.id].counts!"
+                  :total="expandedResults[act.id].total"
+                />
+                <RexHumeurResults
+                  v-else-if="expandedResults[act.id].type === 'humeur' && expandedResults[act.id].emojis"
+                  :emojis="expandedResults[act.id].emojis!"
+                  :total="expandedResults[act.id].total"
+                />
+                <RexPrioriteResults
+                  v-else-if="expandedResults[act.id].type === 'priorite' && expandedResults[act.id].rankings"
+                  :rankings="expandedResults[act.id].rankings!"
+                  :total="expandedResults[act.id].total"
+                />
+                <RexMatriceResults
+                  v-else-if="expandedResults[act.id].type === 'matrice' && expandedResults[act.id].criteria"
+                  :criteria="expandedResults[act.id].criteria!"
+                  :max-rating="act.max_rating"
+                  :total="expandedResults[act.id].total"
                 />
                 <p v-else class="rex-no-results">Aucune reponse</p>
               </div>

@@ -3,6 +3,7 @@
   import { computed, watch } from 'vue'
   import { BarChart3, Users, Hash, TrendingUp } from 'lucide-vue-next'
   import { useRexStore } from '@/stores/rex'
+  import { REX_TYPE_LABELS } from '@/utils/rexActivity'
 
   const props = defineProps<{ promoId: number }>()
   const rex = useRexStore()
@@ -12,12 +13,7 @@
 
   const stats = computed(() => rex.stats)
 
-  const typeLabels: Record<string, string> = {
-    sondage_libre: 'Sondage libre',
-    nuage: 'Nuage de mots',
-    echelle: 'Echelle',
-    question_ouverte: 'Question ouverte',
-  }
+  const typeLabels = REX_TYPE_LABELS
 
   const maxTypeCount = computed(() =>
     Math.max(1, ...(stats.value?.activityTypeDistribution.map(d => d.count) ?? [1])),
