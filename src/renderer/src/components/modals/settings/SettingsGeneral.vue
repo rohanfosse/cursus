@@ -1,14 +1,18 @@
 /** SettingsGeneral — section General du modal Settings. */
 <script setup lang="ts">
-import { Home, User, Mail, Globe, Shield } from 'lucide-vue-next'
+import { Home, User, Mail, Globe, Shield, Wifi, WifiOff, Clock } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { ROLE_LABELS } from '@/constants'
 
 const appStore = useAppStore()
 
+const connectionStatus = appStore.socketConnected ? 'Connecte' : 'Deconnecte'
+const loginTime = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+
 const roleLabels = ROLE_LABELS
 
 const roleBadgeClass: Record<string, string> = {
+  admin: 'stg-role-admin',
   teacher: 'stg-role-teacher',
   ta: 'stg-role-ta',
   student: 'stg-role-student',
@@ -75,6 +79,27 @@ const roleBadgeClass: Record<string, string> = {
         <span class="stg-chip-badge stg-chip-ok">Defini</span>
       </div>
     </div>
+
+    <!-- Session -->
+    <div class="stg-group">
+      <div class="stg-group-header">
+        <Clock :size="13" class="stg-group-icon" />
+        <h4 class="stg-group-title">Session</h4>
+      </div>
+      <div class="stg-info-grid">
+        <div class="stg-info-cell">
+          <span class="stg-info-label">Statut</span>
+          <span class="stg-info-value">
+            <component :is="appStore.socketConnected ? Wifi : WifiOff" :size="12" :style="{ color: appStore.socketConnected ? '#22c55e' : '#ef4444' }" />
+            {{ connectionStatus }}
+          </span>
+        </div>
+        <div class="stg-info-cell">
+          <span class="stg-info-label">Connecte depuis</span>
+          <span class="stg-info-value">{{ loginTime }}</span>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -86,6 +111,7 @@ const roleBadgeClass: Record<string, string> = {
   font-size: 11.5px;
   font-weight: 600;
 }
+.stg-role-admin { background: rgba(139,92,246,0.12); color: #8b5cf6; }
 .stg-role-teacher { background: rgba(74,144,217,0.12); color: var(--accent); }
 .stg-role-ta { background: rgba(245,158,11,0.12); color: #d97706; }
 .stg-role-student { background: rgba(34,197,94,0.12); color: #16a34a; }

@@ -1,10 +1,26 @@
 /** SettingsAccount — section Mon compte du modal Settings. */
 <script setup lang="ts">
-import { User, Camera, X, Shield, KeyRound, Lock, Download } from 'lucide-vue-next'
+import { ref, onMounted } from 'vue'
+import { User, Camera, X, Shield, KeyRound, Lock, Download, HardDrive } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useSettingsAccount } from '@/composables/useSettingsAccount'
 
 const appStore = useAppStore()
+
+// Storage usage estimate
+const storageUsed = ref('')
+onMounted(() => {
+  try {
+    let totalBytes = 0
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key) totalBytes += (localStorage.getItem(key) ?? '').length * 2
+    }
+    if (totalBytes < 1024) storageUsed.value = `${totalBytes} o`
+    else if (totalBytes < 1024 * 1024) storageUsed.value = `${(totalBytes / 1024).toFixed(1)} Ko`
+    else storageUsed.value = `${(totalBytes / (1024 * 1024)).toFixed(1)} Mo`
+  } catch { storageUsed.value = 'Indisponible' }
+})
 
 const emit = defineEmits<{ 'update:modelValue': [v: boolean] }>()
 
@@ -105,6 +121,18 @@ const {
           <Download :size="13" />
           {{ exporting ? 'Export...' : 'Exporter' }}
         </button>
+      </div>
+    </div>
+
+    <!-- Stockage local -->
+    <div class="stg-group">
+      <div class="stg-group-header">
+        <HardDrive :size="13" class="stg-group-icon" />
+        <h4 class="stg-group-title">Stockage local</h4>
+      </div>
+      <div class="stg-info-chip">
+        <span>Preferences et cache</span>
+        <span class="stg-chip-badge">{{ storageUsed }}</span>
       </div>
     </div>
 

@@ -17,6 +17,7 @@ const groups: ShortcutGroup[] = [
       { keys: ['Ctrl', '4'], label: 'Aller aux Ressources' },
       { keys: ['Ctrl', 'N'], label: 'Ouvrir la palette de commandes' },
       { keys: ['Ctrl', 'K'], label: 'Recherche rapide' },
+      { keys: ['Echap'], label: 'Fermer la modale / annuler' },
     ],
   },
   {
@@ -24,18 +25,29 @@ const groups: ShortcutGroup[] = [
     shortcuts: [
       { keys: ['Entree'], label: 'Envoyer le message (si active)' },
       { keys: ['Ctrl', 'Entree'], label: 'Envoyer le message (mode alternatif)' },
-      { keys: ['Echap'], label: 'Fermer la modale / annuler' },
-    ],
-  },
-  {
-    title: 'Mise en forme',
-    shortcuts: [
       { keys: ['Ctrl', 'B'], label: 'Gras' },
       { keys: ['Ctrl', 'I'], label: 'Italique' },
       { keys: ['Ctrl', 'E'], label: 'Code inline' },
       { keys: ['Ctrl', 'Shift', 'C'], label: 'Bloc de code' },
       { keys: ['Ctrl', 'Shift', 'X'], label: 'Barre' },
       { keys: ['Ctrl', 'Shift', '>'], label: 'Citation' },
+    ],
+  },
+  {
+    title: 'Spark (Quiz live)',
+    shortcuts: [
+      { keys: ['Espace'], label: 'Fermer l\'activite en cours / suivante' },
+      { keys: ['Entree'], label: 'Lancer l\'activite suivante' },
+      { keys: ['Echap'], label: 'Annuler / fermer le leaderboard' },
+    ],
+  },
+  {
+    title: 'Pulse (Mode presentation)',
+    shortcuts: [
+      { keys: ['\u2192'], label: 'Activite suivante' },
+      { keys: ['\u2190'], label: 'Activite precedente' },
+      { keys: ['Espace'], label: 'Avancer' },
+      { keys: ['Echap'], label: 'Quitter la presentation' },
     ],
   },
 ]

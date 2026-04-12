@@ -73,11 +73,13 @@ export function useSettingsAccount(emit: (evt: 'update:modelValue', v: boolean) 
   const showChangePwd = ref(false)
 
   // ── Logout ─────────────────────────────────────────────────────────────────
-  function handleLogout() {
+  async function handleLogout() {
+    const ok = await confirmAction('Vos preferences locales seront conservees. Voulez-vous vous deconnecter ?', 'warning', 'Se deconnecter')
+    if (!ok) return
     emit('update:modelValue', false)
     appStore.logout()
     router.replace('/')
-    showToast('Déconnexion réussie.', 'info')
+    showToast('Deconnexion reussie.', 'info')
   }
 
   // ── Export data ────────────────────────────────────────────────────────────

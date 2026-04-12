@@ -69,6 +69,9 @@ async function checkUpdate() {
 }
 
 function installUpdate() { window.api.updaterQuitAndInstall() }
+
+const systemPlatform = navigator.platform
+const systemLanguage = navigator.language
 </script>
 
 <template>
@@ -201,6 +204,14 @@ function installUpdate() { window.api.updaterQuitAndInstall() }
         <div class="stg-info-cell">
           <span class="stg-info-label">Licence</span>
           <span class="stg-info-value">MIT</span>
+        </div>
+        <div class="stg-info-cell">
+          <span class="stg-info-label">Systeme</span>
+          <span class="stg-info-value">{{ systemPlatform }}</span>
+        </div>
+        <div class="stg-info-cell">
+          <span class="stg-info-label">Langue</span>
+          <span class="stg-info-value">{{ systemLanguage }}</span>
         </div>
       </div>
     </div>

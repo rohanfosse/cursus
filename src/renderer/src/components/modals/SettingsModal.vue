@@ -106,6 +106,19 @@
         </button>
       </nav>
 
+      <!-- ── Mobile tabs (visible <600px) ── -->
+      <div class="stg-mobile-tabs">
+        <button
+          v-for="item in navItems"
+          :key="item.key"
+          class="stg-mobile-tab"
+          :class="{ active: activeSection === item.key }"
+          @click="activeSection = item.key"
+        >
+          <component :is="item.icon" :size="16" />
+        </button>
+      </div>
+
       <!-- ── Contenu ── -->
       <div class="stg-body">
 
@@ -609,9 +622,43 @@
   color: #E67E22;
 }
 
+/* ── Mobile tabs ── */
+.stg-mobile-tabs {
+  display: none;
+  overflow-x: auto;
+  gap: 2px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,.1);
+  flex-shrink: 0;
+}
+.stg-mobile-tab {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 8px; border: none;
+  background: transparent; color: var(--text-muted); cursor: pointer;
+  transition: all .12s; flex-shrink: 0;
+}
+.stg-mobile-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+.stg-mobile-tab.active { background: var(--accent-subtle); color: var(--accent-light); }
+
+/* ── High contrast mode ── */
+:global(.high-contrast) {
+  --border: rgba(255,255,255,.2) !important;
+  --text-muted: rgba(255,255,255,.65) !important;
+  --text-secondary: rgba(255,255,255,.85) !important;
+}
+:global(.high-contrast.light),
+:global(.high-contrast.cursus) {
+  --border: rgba(0,0,0,.2) !important;
+  --text-muted: rgba(0,0,0,.6) !important;
+  --text-secondary: rgba(0,0,0,.8) !important;
+}
+
 /* ── Responsive ── */
 @media (max-width: 600px) {
   .stg-nav { display: none; }
+  .stg-mobile-tabs { display: flex; }
+  .stg-layout { flex-direction: column; }
   .stg-info-grid { grid-template-columns: 1fr; }
   .stg-theme-grid { grid-template-columns: repeat(3, 1fr); }
 }

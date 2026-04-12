@@ -56,6 +56,8 @@ export function useSettingsAppearance() {
   const compactImages     = ref(getPref('compactImages') ?? false)
   const animationsEnabled = ref(getPref('animationsEnabled') ?? true)
   const borderRadius      = ref<string>(getPref('borderRadius') ?? 'default')
+  const customAccent      = ref<string>(getPref('customAccent') ?? '')
+  const highContrast      = ref(getPref('highContrast') ?? false)
 
   watch(fontSize, (v) => {
     setPref('fontSize', v as 'small' | 'default' | 'large')
@@ -91,6 +93,25 @@ export function useSettingsAppearance() {
     document.documentElement.style.setProperty('--radius-sm', v === 'sharp' ? '2px' : v === 'round' ? '14px' : '8px')
   })
 
+  watch(customAccent, (v) => {
+    setPref('customAccent', v)
+    if (v) {
+      document.documentElement.style.setProperty('--accent', v)
+      document.documentElement.style.setProperty('--accent-light', v)
+      document.documentElement.style.setProperty('--accent-subtle', v + '1a')
+    } else {
+      document.documentElement.style.removeProperty('--accent')
+      document.documentElement.style.removeProperty('--accent-light')
+      document.documentElement.style.removeProperty('--accent-subtle')
+    }
+  })
+
+  watch(highContrast, (v) => {
+    setPref('highContrast', v)
+    if (v) document.documentElement.classList.add('high-contrast')
+    else document.documentElement.classList.remove('high-contrast')
+  })
+
   function setTheme(theme: ThemeId) {
     currentTheme.value = theme
     setPref('theme', theme)
@@ -105,6 +126,14 @@ export function useSettingsAppearance() {
   document.documentElement.style.setProperty('--radius', initRadii[borderRadius.value] ?? '12px')
   // Apply initial animations pref
   if (!animationsEnabled.value) document.documentElement.classList.add('no-animations')
+  // Apply initial custom accent
+  if (customAccent.value) {
+    document.documentElement.style.setProperty('--accent', customAccent.value)
+    document.documentElement.style.setProperty('--accent-light', customAccent.value)
+    document.documentElement.style.setProperty('--accent-subtle', customAccent.value + '1a')
+  }
+  // Apply initial high contrast
+  if (highContrast.value) document.documentElement.classList.add('high-contrast')
 
   /** Re-sync refs from stored prefs (called when modal opens). */
   function resetAppearance() {
@@ -120,6 +149,8 @@ export function useSettingsAppearance() {
     compactImages.value = false
     animationsEnabled.value = true
     borderRadius.value = 'default'
+    customAccent.value = ''
+    highContrast.value = false
   }
 
   return {
@@ -131,6 +162,8 @@ export function useSettingsAppearance() {
     compactImages,
     animationsEnabled,
     borderRadius,
+    customAccent,
+    highContrast,
     THEMES,
     setTheme,
     resetAppearance,

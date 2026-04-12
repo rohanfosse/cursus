@@ -174,12 +174,12 @@ describe('useSettingsAccount', () => {
     }
   })
 
-  it('handleLogout emits close, logs out, and navigates', () => {
+  it('handleLogout emits close, logs out, and navigates', async () => {
     setupUser()
     const appStore = useAppStore()
 
     const { handleLogout } = useSettingsAccount(emitMock)
-    handleLogout()
+    await handleLogout()
 
     expect(emitMock).toHaveBeenCalledWith('update:modelValue', false)
     expect(appStore.currentUser).toBeNull()

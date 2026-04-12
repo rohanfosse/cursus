@@ -26,6 +26,8 @@ interface Prefs {
   // Apparence avancee
   animationsEnabled: boolean
   borderRadius: 'sharp' | 'default' | 'round'
+  customAccent: string
+  highContrast: boolean
 }
 
 const DEFAULTS: Prefs = {
@@ -51,6 +53,8 @@ const DEFAULTS: Prefs = {
   dndEnd: '08:00',
   animationsEnabled: true,
   borderRadius: 'default',
+  customAccent: '',
+  highContrast: false,
 }
 
 function loadPrefs(): Prefs {
