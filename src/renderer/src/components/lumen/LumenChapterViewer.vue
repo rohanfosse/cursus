@@ -1493,8 +1493,11 @@ button.lumen-viewer-chip:focus-visible {
   flex-direction: column;
   background: var(--bg-rail);
   padding: 0;
-  /* position: relative est deja sur .lumen-viewer-main, mais on s'assure */
   position: relative;
+  /* Force l'iframe a remplir tout l'espace disponible */
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 .lumen-pdf-frame {
   position: absolute;
