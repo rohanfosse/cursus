@@ -89,17 +89,17 @@
 
 <style scoped>
 .sb-card-home {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .sb-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  width: calc(100% - 16px);
-  padding: 8px 12px;
-  margin: 2px 8px;
-  border-radius: 6px;
+  gap: 8px;
+  width: calc(100% - 20px);
+  padding: 10px 14px;
+  margin: 4px 10px;
+  border-radius: 8px;
   border: none;
   border-left: 3px solid var(--card-color, var(--accent));
   background: var(--bg-primary);
@@ -109,28 +109,29 @@
 }
 .sb-card:hover {
   background: var(--bg-hover);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .sb-card.active {
-  background: rgba(var(--accent-rgb), 0.12);
+  background: rgba(var(--accent-rgb), 0.10);
+  border-left-color: var(--accent);
 }
 .sb-card.active .sb-card-name {
   font-weight: 700;
   color: var(--text-primary);
 }
 .sb-card.done {
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .sb-card-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .sb-card-name {
   flex: 1;
-  font-size: 13px;
-  color: var(--text-secondary);
+  font-size: 13.5px;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
