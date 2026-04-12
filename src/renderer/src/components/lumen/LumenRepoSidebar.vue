@@ -16,7 +16,7 @@
  */
 import { ref, computed, watch, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
-import { FileText, FileDown, FileCode, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, BookOpen, Presentation, Lightbulb, Wrench, Hammer, Folder, Plus, Loader2, ChevronsDown, ChevronsUp } from 'lucide-vue-next'
+import { FileText, FileDown, FileCode, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, BookOpen, Presentation, Lightbulb, Wrench, Hammer, Folder, Plus, Loader2, ChevronsDown, ChevronsUp, ChevronRight } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import { useLumenStore } from '@/stores/lumen'
 import { useToast } from '@/composables/useToast'
@@ -313,7 +313,27 @@ function toggleAllSections(): void {
   }
 }
 
-// Note v2.48 : sidebar flat (pas de collapse).
+// ── Repos collapsibles (v2.100) ──────────────────────────────────────────
+// Chaque repo peut etre replie individuellement. Persiste en localStorage.
+const COLLAPSED_REPOS_KEY = 'lumen.sidebar.collapsedRepos'
+function loadCollapsedRepos(): Set<number> {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_REPOS_KEY)
+    if (!raw) return new Set()
+    return new Set(raw.split(',').map(Number).filter(Boolean))
+  } catch { return new Set() }
+}
+const collapsedRepos = ref<Set<number>>(loadCollapsedRepos())
+function saveCollapsedRepos(set: Set<number>): void {
+  try { localStorage.setItem(COLLAPSED_REPOS_KEY, Array.from(set).join(',')) } catch { /* noop */ }
+}
+function toggleRepo(repoId: number): void {
+  const next = new Set(collapsedRepos.value)
+  if (next.has(repoId)) next.delete(repoId)
+  else next.add(repoId)
+  collapsedRepos.value = next
+  saveCollapsedRepos(next)
+}
 
 // ── Recherche fulltext FTS5 (v2.49) ──────────────────────────────────────
 // Le champ filter a double usage :
@@ -603,10 +623,14 @@ async function saveNewChapter(): Promise<void> {
               :class="{ 'is-hidden-repo': canToggleVisibility && !repo.isVisible }"
             >
           <div class="lumen-repo-row">
-            <div
+            <button
+              type="button"
               class="lumen-repo-header"
               :class="{ 'has-error': repo.manifestError }"
+              :aria-expanded="!collapsedRepos.has(repo.id)"
+              @click="toggleRepo(repo.id)"
             >
+              <ChevronRight :size="11" class="lumen-repo-chevron" :class="{ open: !collapsedRepos.has(repo.id) }" />
               <span class="lumen-repo-name">{{ displayRepoName(repo) }}</span>
               <span
                 v-if="repoReadProgress(repo).total > 0"
@@ -614,7 +638,7 @@ async function saveNewChapter(): Promise<void> {
                 :title="`${repoReadProgress(repo).read}/${repoReadProgress(repo).total} chapitres lus`"
               >{{ repoReadProgress(repo).read }}/{{ repoReadProgress(repo).total }}</span>
               <AlertTriangle v-if="repo.manifestError" :size="13" class="lumen-repo-warning" />
-            </div>
+            </button>
             <button
               v-if="canToggleVisibility"
               type="button"
@@ -629,12 +653,12 @@ async function saveNewChapter(): Promise<void> {
           </div>
 
           <!-- Banner inline manifestError : message simplifie pour les etudiants -->
-          <p v-if="repo.manifestError" class="lumen-repo-error-banner" role="status" :title="repo.manifestError">
+          <p v-if="repo.manifestError && !collapsedRepos.has(repo.id)" class="lumen-repo-error-banner" role="status" :title="repo.manifestError">
             <AlertTriangle :size="11" />
             <span>Ce cours a un probleme de configuration. Contacte ton enseignant.</span>
           </p>
 
-          <div class="lumen-repo-body">
+          <div v-show="!collapsedRepos.has(repo.id)" class="lumen-repo-body">
             <div v-for="group in groups" :key="group.title" class="lumen-section">
               <div class="lumen-section-row">
                 <p class="lumen-section-title">
@@ -964,14 +988,16 @@ async function saveNewChapter(): Promise<void> {
   align-items: stretch;
 }
 
-/* Header repo : un simple label depuis v2.48 (sidebar flat). Plus de toggle
-   collapse, plus de cursor pointer, plus de hover background. */
+/* Header repo : cliquable pour toggle collapse (v2.100) */
 .lumen-repo-header {
   display: flex;
   align-items: center;
   gap: 5px;
   flex: 1;
-  padding: 6px 4px 2px 10px;
+  padding: 6px 4px 2px 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
   color: var(--text-primary);
   font-size: 11px;
   font-weight: 700;
@@ -980,7 +1006,15 @@ async function saveNewChapter(): Promise<void> {
   text-align: left;
   min-width: 0;
 }
+.lumen-repo-header:hover { color: var(--accent); }
 .lumen-repo-header.has-error { color: var(--text-muted); }
+
+.lumen-repo-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+.lumen-repo-chevron.open { transform: rotate(90deg); }
 
 .lumen-repo-name {
   flex: 1;
