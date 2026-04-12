@@ -70,6 +70,7 @@
     allProjects, projectStats, loadCustomProjects, loadDbProjects,
     onProjectCreated, selectProject, dashboardProjectGroups,
     editingProject, getProjectMeta, saveProjectMeta, deleteProject, getProjectColor,
+    projectTimePct, isProjectDone,
   } = useSidebarProjects(visibleChannels)
 
   // ── Canaux archives (staff only) ──────────────────────────────────────────
@@ -272,6 +273,8 @@
           :get-project-color="getProjectColor"
           :editing-project="editingProject"
           :get-project-meta="getProjectMeta"
+          :project-time-pct="projectTimePct"
+          :is-project-done="isProjectDone"
           @select-project="selectProject"
           @open-project-ctx="(e, proj) => openProjectCtx(e, proj)"
           @project-edit-save="(proj, data) => onProjectEditSave(proj, data)"

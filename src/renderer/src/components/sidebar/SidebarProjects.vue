@@ -1,6 +1,6 @@
 <script setup lang="ts">
-  // Section projets sidebar (vue Devoirs) : liste projets + barre progression
-  import { Layers, Plus } from 'lucide-vue-next'
+  // Section projets sidebar (vue Devoirs) : mini-cards Notion (v2.99)
+  import { Layers, Plus, Check } from 'lucide-vue-next'
   import { useAppStore } from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
   import { parseCategoryIcon } from '@/utils/categoryIcon'
@@ -15,6 +15,8 @@
     getProjectColor: (proj: string) => string
     editingProject: string | null
     getProjectMeta: (proj: string) => ProjectMeta | null
+    projectTimePct: (proj: string) => number | null
+    isProjectDone: (proj: string) => boolean
   }>()
 
   const emit = defineEmits<{
@@ -31,45 +33,43 @@
 
 <template>
   <div class="sidebar-section-header">
-    <span>{{ appStore.isStaff ? 'Projets' : 'Mes projets' }}</span>
+    <span>Projets</span>
+    <button
+      v-if="appStore.isTeacher"
+      class="dm-toggle-btn dm-toggle-btn--visible"
+      title="Nouveau projet"
+      aria-label="Nouveau projet"
+      @click.stop="modals.newProject = true"
+    ><Plus :size="13" /></button>
   </div>
 
   <nav aria-label="Projets" class="sidebar-projects-nav">
     <button
-      class="sidebar-item"
+      class="sidebar-item sb-card-home"
       :class="{ active: appStore.activeProject === null }"
       @click="emit('selectProject', null)"
     >
-      <Layers :size="13" class="project-icon" />
-      <span class="channel-name">Accueil</span>
+      <Layers :size="13" />
+      <span>Tout voir</span>
     </button>
 
     <div v-for="proj in allProjects" :key="proj" class="sidebar-project-group">
       <button
-        class="sidebar-item sb-project-rich"
-        :class="{ active: appStore.activeProject === proj }"
+        class="sb-card"
+        :class="{
+          active: appStore.activeProject === proj,
+          done: isProjectDone(proj),
+        }"
+        :style="{ '--card-color': getProjectColor(proj) }"
         @click="emit('selectProject', proj)"
         @contextmenu.prevent="emit('openProjectCtx', $event, proj)"
       >
-        <div class="sb-project-rich-top">
-          <span class="project-color-dot" :style="{ background: getProjectColor(proj) }" />
-          <component
-            v-if="parseCategoryIcon(proj).icon"
-            :is="parseCategoryIcon(proj).icon!"
-            :size="13"
-            class="project-icon"
-          />
-          <span v-else class="project-bullet" />
-          <span class="channel-name">{{ parseCategoryIcon(proj).label }}</span>
+        <div class="sb-card-head">
+          <span class="sb-card-name">{{ parseCategoryIcon(proj).label }}</span>
+          <Check v-if="isProjectDone(proj)" :size="12" class="sb-card-done" />
         </div>
-        <div v-if="projectStats[proj]" class="sb-project-rich-bar-wrap">
-          <div class="sb-project-rich-bar">
-            <div
-              class="sb-project-rich-bar-fill"
-              :style="{ width: (projectStats[proj].expected > 0 ? Math.round(projectStats[proj].depots / projectStats[proj].expected * 100) : 0) + '%', background: getProjectColor(proj) }"
-            />
-          </div>
-          <span class="sb-project-rich-sub">{{ projectStats[proj].depots }}/{{ projectStats[proj].expected }} soumis</span>
+        <div v-if="projectTimePct(proj) != null" class="sb-card-bar">
+          <div class="sb-card-bar-fill" :style="{ width: projectTimePct(proj) + '%' }" />
         </div>
       </button>
 
@@ -82,16 +82,74 @@
         @cancel="emit('cancelEdit')"
       />
     </div>
-
-    <button
-      v-if="appStore.isTeacher"
-      class="sidebar-item sidebar-add-project"
-      @click="modals.newProject = true"
-    >
-      <Plus :size="13" class="project-icon" />
-      <span class="channel-name">Nouveau projet</span>
-    </button>
   </nav>
 
   <NewProjectModal v-if="appStore.isTeacher" v-model="modals.newProject" @created="(name: string) => emit('projectCreated', name)" />
 </template>
+
+<style scoped>
+.sb-card-home {
+  margin-bottom: 4px;
+}
+
+.sb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: calc(100% - 16px);
+  padding: 8px 12px;
+  margin: 2px 8px;
+  border-radius: 6px;
+  border: none;
+  border-left: 3px solid var(--card-color, var(--accent));
+  background: var(--bg-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.sb-card:hover {
+  background: var(--bg-hover);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+.sb-card.active {
+  background: rgba(var(--accent-rgb), 0.12);
+}
+.sb-card.active .sb-card-name {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.sb-card.done {
+  opacity: 0.55;
+}
+
+.sb-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sb-card-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sb-card-done {
+  flex-shrink: 0;
+  color: var(--success, #4caf50);
+}
+
+.sb-card-bar {
+  height: 2px;
+  border-radius: 1px;
+  background: var(--border);
+  overflow: hidden;
+}
+.sb-card-bar-fill {
+  height: 100%;
+  border-radius: 1px;
+  background: var(--card-color, var(--accent));
+  transition: width 0.3s ease;
+}
+</style>

@@ -150,6 +150,29 @@ export function useSidebarProjects(visibleChannels: Ref<Channel[]>) {
     return groups
   })
 
+  // ── Progression temporelle (v2.99) ─────────────────────────────────────
+
+  /** Pourcentage d'avancement temporel (0-100) ou null si pas de dates. */
+  function projectTimePct(key: string): number | null {
+    const meta = getProjectMeta(key)
+    if (!meta?.startDate || !meta?.endDate) return null
+    if (meta.wholeYear) return null
+    const start = new Date(meta.startDate).getTime()
+    const end   = new Date(meta.endDate).getTime()
+    if (end <= start) return null
+    const now = Date.now()
+    if (now <= start) return 0
+    if (now >= end) return 100
+    return Math.round(((now - start) / (end - start)) * 100)
+  }
+
+  /** True si la date de fin du projet est depassee. */
+  function isProjectDone(key: string): boolean {
+    const meta = getProjectMeta(key)
+    if (!meta?.endDate || meta.wholeYear) return false
+    return Date.now() > new Date(meta.endDate).getTime()
+  }
+
   return {
     dbProjects,
     customProjects,
@@ -165,5 +188,7 @@ export function useSidebarProjects(visibleChannels: Ref<Channel[]>) {
     saveProjectMeta,
     deleteProject,
     getProjectColor,
+    projectTimePct,
+    isProjectDone,
   }
 }
