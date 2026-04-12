@@ -17,6 +17,7 @@
   import SidebarDashboard   from './SidebarDashboard.vue'
   import SidebarProjects    from './SidebarProjects.vue'
   import SidebarDocProjects from './SidebarDocProjects.vue'
+  import SidebarAgenda      from './SidebarAgenda.vue'
   import SidebarDmList      from './SidebarDmList.vue'
   import LumenRepoSidebar   from '@/components/lumen/LumenRepoSidebar.vue'
   import SkeletonLoader     from '@/components/ui/SkeletonLoader.vue'
@@ -311,6 +312,11 @@
           :doc-categories="docCategories"
           :doc-cat-counts="docCatCounts"
         />
+      </template>
+
+      <!-- Agenda (sidebar mini-cal + events, v2.108) -->
+      <template v-else-if="route.name === 'agenda'">
+        <SidebarAgenda @new-reminder="router.push({ name: 'agenda', query: { action: 'new-reminder' } })" />
       </template>
 
       <!-- Cours Lumen (sidebar unifiee v2.101) -->
