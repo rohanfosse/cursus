@@ -148,6 +148,11 @@ async function loadLinkedTravaux() {
   }
 }
 
+function navigateToFirstChapter() {
+  const first = props.repo.manifest?.chapters[0]
+  if (first) emit('navigate-chapter', first.path)
+}
+
 function openTravail(travail: LumenLinkedTravail) {
   // Navigation vers la vue devoir : on set le projet actif par category
   // et on route vers /devoirs qui affichera le projet contenant le devoir.
@@ -907,7 +912,11 @@ watch(() => [props.content, props.chapter?.path], () => {
       </div>
       <!-- Breadcrumbs : orientation rapide via project / section / chapitre -->
       <nav class="lumen-breadcrumbs" aria-label="Fil d'ariane">
-        <span class="lumen-breadcrumbs-seg">{{ repo.manifest?.project ?? repo.fullName }}</span>
+        <button
+          type="button"
+          class="lumen-breadcrumbs-seg lumen-breadcrumbs-link"
+          @click="navigateToFirstChapter"
+        >{{ repo.manifest?.project ?? repo.fullName }}</button>
         <CrumbSep v-if="chapter.section" :size="10" class="lumen-breadcrumbs-sep" />
         <span v-if="chapter.section" class="lumen-breadcrumbs-seg">{{ chapter.section }}</span>
         <CrumbSep :size="10" class="lumen-breadcrumbs-sep" />
@@ -1629,6 +1638,14 @@ button.lumen-viewer-chip:focus-visible {
   text-overflow: ellipsis;
   max-width: 240px;
 }
+.lumen-breadcrumbs-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+.lumen-breadcrumbs-link:hover { color: var(--accent); text-decoration: underline; }
 .lumen-breadcrumbs-current {
   color: var(--text-primary);
   font-weight: 700;

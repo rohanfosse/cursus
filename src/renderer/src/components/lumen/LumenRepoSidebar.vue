@@ -531,6 +531,7 @@ async function saveNewChapter(): Promise<void> {
       v-if="filter.trim().length >= 2 && searchResults.length > 0"
       class="lumen-search-results"
       aria-label="Resultats de recherche"
+      aria-live="polite"
     >
       <header class="lumen-search-head">
         <BookOpen :size="11" />

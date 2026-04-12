@@ -302,10 +302,11 @@ async function syncRepo(octokit, dbRepo) {
 const SYNC_CONCURRENCY = 5
 
 async function syncPromoRepos(octokit, { promoId, org }) {
-  // Purge opportuniste du cache global obsolete (> 30 jours) a chaque
-  // sync d'une promo — evite la croissance non-bornee de la table
-  // lumen_file_cache sur des chapitres oublies.
-  purgeStaleLumenFileCache(30)
+  // Purge opportuniste du cache global obsolete (> 7 jours) a chaque
+  // sync d'une promo. Reduit de 30 a 7 jours pour le pilote CESI
+  // (les profs mettent a jour frequemment, les etudiants doivent voir
+  // les changements rapidement).
+  purgeStaleLumenFileCache(7)
 
   // Snapshot des repos deja en DB AVANT le sync. Permet au prune de
   // distinguer les repos supprimes cote GitHub des repos crees apres le
