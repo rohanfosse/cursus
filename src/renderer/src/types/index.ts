@@ -469,6 +469,9 @@ export interface CalendarEvent {
   submissionStatus?: 'submitted' | 'pending' | 'late' | 'upcoming'
   depotsCount?: number
   studentsTotal?: number
+  promoId?: number
+  promoName?: string
+  promoColor?: string
 }
 
 // ─── Payloads IPC ────────────────────────────────────────────────────────────

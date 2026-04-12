@@ -1,9 +1,14 @@
-/** Store Agenda — calendrier agrege : echeances travaux + rappels enseignant. */
+/** Store Agenda — calendrier agrege multi-promo pour les profs. */
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useApi } from '@/composables/useApi'
-import { getCategoryColor } from '@/utils/categoryColor'
 import type { CalendarEvent, Reminder } from '@/types'
+
+export interface PromoCalendar {
+  id: number
+  name: string
+  color: string
+}
 
 export const useAgendaStore = defineStore('agenda', () => {
   const { api } = useApi()
@@ -12,7 +17,22 @@ export const useAgendaStore = defineStore('agenda', () => {
   const ganttRows = ref<any[]>([])
   const loading   = ref(false)
 
-  /** Categories uniques extraites des ganttRows. */
+  /** Promos uniques extraites des ganttRows (pour le mode multi-promo prof). */
+  const promos = computed<PromoCalendar[]>(() => {
+    const map = new Map<number, PromoCalendar>()
+    for (const t of ganttRows.value) {
+      if (t.promo_id && !map.has(t.promo_id)) {
+        map.set(t.promo_id, {
+          id: t.promo_id,
+          name: t.promo_name || `Promo ${t.promo_id}`,
+          color: t.promo_color || '#4A90D9',
+        })
+      }
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
+  })
+
+  /** Categories uniques. */
   const categories = computed<string[]>(() => {
     const set = new Set<string>()
     for (const t of ganttRows.value) {
@@ -21,12 +41,14 @@ export const useAgendaStore = defineStore('agenda', () => {
     return [...set].sort()
   })
 
-  /** Aggregate all events from ganttRows + reminders */
+  /** Aggregate all events. Couleur = promo color (pas categorie). */
   const events = computed<CalendarEvent[]>(() => {
     const list: CalendarEvent[] = []
     const now = new Date().toISOString().slice(0, 10)
 
     for (const t of ganttRows.value) {
+      const promoColor = t.promo_color || '#4A90D9'
+
       if (t.deadline) {
         const deadlineDate = t.deadline.substring(0, 10)
         let status: CalendarEvent['submissionStatus'] = 'upcoming'
@@ -35,49 +57,58 @@ export const useAgendaStore = defineStore('agenda', () => {
         else status = 'pending'
 
         list.push({
-          id:        `deadline-${t.id}`,
-          start:     deadlineDate,
-          end:       deadlineDate,
-          title:     t.title,
-          color:     getCategoryColor(t.category),
+          id: `deadline-${t.id}`,
+          start: deadlineDate,
+          end: deadlineDate,
+          title: t.title,
+          color: promoColor,
           eventType: 'deadline',
-          sourceId:  t.id,
-          category:  t.category ?? null,
+          sourceId: t.id,
+          category: t.category ?? null,
           submissionStatus: status,
           depotsCount: t.depots_count ?? 0,
           studentsTotal: t.students_total ?? 0,
+          promoId: t.promo_id,
+          promoName: t.promo_name,
+          promoColor,
         })
       }
       if (t.start_date) {
         list.push({
-          id:        `start-${t.id}`,
-          start:     t.start_date.substring(0, 10),
-          end:       t.start_date.substring(0, 10),
-          title:     t.title,
-          color:     getCategoryColor(t.category),
+          id: `start-${t.id}`,
+          start: t.start_date.substring(0, 10),
+          end: t.start_date.substring(0, 10),
+          title: t.title,
+          color: promoColor,
           eventType: 'start_date',
-          sourceId:  t.id,
-          category:  t.category ?? null,
+          sourceId: t.id,
+          category: t.category ?? null,
+          promoId: t.promo_id,
+          promoName: t.promo_name,
+          promoColor,
         })
       }
     }
 
     for (const r of reminders.value) {
       list.push({
-        id:        `reminder-${r.id}`,
-        start:     r.date.substring(0, 10),
-        end:       r.date.substring(0, 10),
-        title:     r.title,
-        color:     '#22c55e',
+        id: `reminder-${r.id}`,
+        start: r.date.substring(0, 10),
+        end: r.date.substring(0, 10),
+        title: r.title,
+        color: '#22c55e',
         eventType: 'reminder',
-        sourceId:  r.id,
-        category:  r.bloc ?? null,
+        sourceId: r.id,
+        category: r.bloc ?? null,
       })
     }
 
     return list.sort((a, b) => a.start.localeCompare(b.start))
   })
 
+  /**
+   * Charge les events. pid=0 charge toutes les promos (mode prof multi-promo).
+   */
   async function fetchEvents(pid: number): Promise<void> {
     loading.value = true
     try {
@@ -120,7 +151,7 @@ export const useAgendaStore = defineStore('agenda', () => {
   }
 
   return {
-    reminders, ganttRows, events, categories, loading,
+    reminders, ganttRows, events, promos, categories, loading,
     fetchEvents, createReminder, updateReminder, deleteReminder,
   }
 })

@@ -24,16 +24,21 @@ const { showToast } = useToast()
 const promoId   = computed(() => appStore.activePromoId ?? appStore.currentUser?.promo_id ?? 0)
 const isTeacher = computed(() => appStore.isTeacher)
 
+// En mode prof, charger toutes les promos (pid=0). En mode etudiant, sa promo.
+const fetchPromoId = computed(() => isTeacher.value ? 0 : promoId.value)
+
 // ── Filters ───────────────────────────────────────────────────────────────
 const showDeadlines  = ref(true)
 const showStartDates = ref(true)
 const showReminders  = ref(true)
+const hiddenPromos   = ref(new Set<number>())
 
 const filteredEvents = computed(() =>
   agenda.events.filter(e => {
     if (e.eventType === 'deadline'   && !showDeadlines.value)  return false
     if (e.eventType === 'start_date' && !showStartDates.value) return false
     if (e.eventType === 'reminder'   && !showReminders.value)  return false
+    if (e.promoId && hiddenPromos.value.has(e.promoId))        return false
     return true
   }).map(e => ({
     start: e.start,
@@ -156,7 +161,8 @@ function statusLabel(s?: string): string {
 let cleanupListener: (() => void) | null = null
 
 async function load() {
-  if (promoId.value) await agenda.fetchEvents(promoId.value)
+  const pid = fetchPromoId.value
+  if (pid !== null) await agenda.fetchEvents(pid)
 }
 
 onMounted(() => {
@@ -242,6 +248,10 @@ watch(() => route.query, (q) => {
           <div class="agenda-detail-meta">
             <Clock :size="12" />
             <span>{{ formatFullDate(selectedEvent.start) }}</span>
+          </div>
+          <div v-if="selectedEvent.promoName" class="agenda-detail-meta">
+            <span class="agenda-detail-promo-dot" :style="{ background: selectedEvent.promoColor }" />
+            <span>{{ selectedEvent.promoName }}</span>
           </div>
           <div v-if="selectedEvent.category" class="agenda-detail-meta">
             <Tag :size="12" />
@@ -408,6 +418,7 @@ watch(() => route.query, (q) => {
 .agenda-detail-close:hover { background: var(--bg-hover); color: var(--text-primary); }
 .agenda-detail-title { font-size: 18px; font-weight: 700; color: var(--text-primary); margin: 0; line-height: 1.3; }
 .agenda-detail-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+.agenda-detail-promo-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 
 /* Status badge */
 .agenda-detail-status {

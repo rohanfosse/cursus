@@ -8,7 +8,6 @@ import { useAgendaStore } from '@/stores/agenda'
 import { useAppStore } from '@/stores/app'
 import { useToast } from '@/composables/useToast'
 import { countdown } from '@/utils/date'
-import { getCategoryColor } from '@/utils/categoryColor'
 
 const agenda = useAgendaStore()
 const appStore = useAppStore()
@@ -107,15 +106,18 @@ const nextDeadline = computed(() => {
   return agenda.events.find((e) => e.eventType === 'deadline' && e.start >= now && e.submissionStatus !== 'submitted') ?? null
 })
 
-// ── Categories dynamiques (P1.3) ──────────────────────────────────────
-const hiddenCategories = ref(new Set<string>())
+// ── Promos toggleables (style Outlook) ────────────────────────────────
+const hiddenPromos = ref(new Set<number>())
+const showReminders = ref(true)
 
-function toggleCategory(cat: string) {
-  const next = new Set(hiddenCategories.value)
-  if (next.has(cat)) next.delete(cat)
-  else next.add(cat)
-  hiddenCategories.value = next
+function togglePromo(promoId: number) {
+  const next = new Set(hiddenPromos.value)
+  if (next.has(promoId)) next.delete(promoId)
+  else next.add(promoId)
+  hiddenPromos.value = next
 }
+
+defineExpose({ hiddenPromos, showReminders })
 
 // ── Sync ──────────────────────────────────────────────────────────────
 function copyIcalUrl() {
@@ -170,13 +172,19 @@ function copyIcalUrl() {
       </div>
     </div>
 
-    <!-- Categories (P1.3) -->
-    <div v-if="agenda.categories.length > 0" class="sb-agenda-section">
-      <h3 class="sb-section-title">Projets</h3>
-      <label v-for="cat in agenda.categories" :key="cat" class="sb-cat-toggle">
-        <input type="checkbox" :checked="!hiddenCategories.has(cat)" @change="toggleCategory(cat)" />
-        <span class="sb-cat-dot" :style="{ background: getCategoryColor(cat) }" />
-        <span class="sb-cat-name">{{ cat }}</span>
+    <!-- Mes calendriers = promos (style Outlook) -->
+    <div v-if="agenda.promos.length > 0" class="sb-agenda-section">
+      <h3 class="sb-section-title">Mes calendriers</h3>
+      <label v-for="p in agenda.promos" :key="p.id" class="sb-cal-toggle">
+        <input type="checkbox" :checked="!hiddenPromos.has(p.id)" @change="togglePromo(p.id)" />
+        <span class="sb-cal-dot" :style="{ background: p.color }" />
+        <span class="sb-cal-name">{{ p.name }}</span>
+      </label>
+      <!-- Rappels (toujours vert, pas lie a une promo) -->
+      <label class="sb-cal-toggle">
+        <input type="checkbox" :checked="showReminders" @change="showReminders = !showReminders" />
+        <span class="sb-cal-dot" style="background: #22c55e" />
+        <span class="sb-cal-name">Rappels</span>
       </label>
     </div>
 
@@ -245,17 +253,17 @@ function copyIcalUrl() {
 .sb-agenda-section { padding: 0 2px; }
 .sb-section-title { font-size: 11px; font-weight: 700; color: var(--text-muted); margin: 0 0 4px; }
 
-/* Category toggles */
-.sb-cat-toggle {
+/* Calendar toggles (promos style Outlook) */
+.sb-cal-toggle {
   display: flex; align-items: center; gap: 6px; padding: 4px 3px;
   border-radius: 4px; cursor: pointer; transition: background 0.1s;
 }
-.sb-cat-toggle:hover { background: var(--bg-hover); }
-.sb-cat-toggle input { width: 12px; height: 12px; cursor: pointer; accent-color: var(--accent); }
-.sb-cat-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-.sb-cat-toggle input:not(:checked) ~ .sb-cat-dot { opacity: 0.25; }
-.sb-cat-name { font-size: 11px; font-weight: 500; color: var(--text-primary); }
-.sb-cat-toggle input:not(:checked) ~ .sb-cat-name { color: var(--text-muted); text-decoration: line-through; }
+.sb-cal-toggle:hover { background: var(--bg-hover); }
+.sb-cal-toggle input { width: 12px; height: 12px; cursor: pointer; }
+.sb-cal-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.sb-cal-toggle input:not(:checked) ~ .sb-cal-dot { opacity: 0.2; }
+.sb-cal-name { font-size: 11px; font-weight: 500; color: var(--text-primary); }
+.sb-cal-toggle input:not(:checked) ~ .sb-cal-name { color: var(--text-muted); text-decoration: line-through; }
 
 /* Sync */
 .sb-sync-btn {
