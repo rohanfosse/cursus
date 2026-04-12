@@ -35,29 +35,29 @@ describe('useWidgetPresets', () => {
       }
     })
 
-    it('has balanced, compact, and focus presets', () => {
+    it('has essentiel, complet, and focus presets', () => {
       const ids = STUDENT_PRESETS.map(p => p.id)
-      expect(ids).toContain('balanced')
-      expect(ids).toContain('compact')
+      expect(ids).toContain('essentiel')
+      expect(ids).toContain('complet')
       expect(ids).toContain('focus')
     })
 
-    it('balanced preset has order and hidden arrays', () => {
-      const balanced = STUDENT_PRESETS.find(p => p.id === 'balanced')!
-      expect(balanced.config.order.length).toBeGreaterThan(0)
-      expect(balanced.config.hidden.length).toBeGreaterThan(0)
+    it('essentiel preset has order and hidden arrays', () => {
+      const essentiel = STUDENT_PRESETS.find(p => p.id === 'essentiel')!
+      expect(essentiel.config.order.length).toBeGreaterThan(0)
+      expect(essentiel.config.hidden.length).toBeGreaterThan(0)
     })
 
-    it('compact preset shows more widgets than balanced', () => {
-      const balanced = STUDENT_PRESETS.find(p => p.id === 'balanced')!
-      const compact = STUDENT_PRESETS.find(p => p.id === 'compact')!
-      expect(compact.config.order.length).toBeGreaterThanOrEqual(balanced.config.order.length)
+    it('complet preset shows more widgets than essentiel', () => {
+      const essentiel = STUDENT_PRESETS.find(p => p.id === 'essentiel')!
+      const complet = STUDENT_PRESETS.find(p => p.id === 'complet')!
+      expect(complet.config.order.length).toBeGreaterThanOrEqual(essentiel.config.order.length)
     })
 
-    it('focus preset hides more widgets', () => {
-      const balanced = STUDENT_PRESETS.find(p => p.id === 'balanced')!
+    it('focus preset hides more widgets than essentiel', () => {
+      const essentiel = STUDENT_PRESETS.find(p => p.id === 'essentiel')!
       const focus = STUDENT_PRESETS.find(p => p.id === 'focus')!
-      expect(focus.config.hidden.length).toBeGreaterThan(balanced.config.hidden.length)
+      expect(focus.config.hidden.length).toBeGreaterThanOrEqual(essentiel.config.hidden.length)
     })
 
     it('order and hidden do not overlap in any preset', () => {

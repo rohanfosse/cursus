@@ -3,8 +3,9 @@
  */
 <script setup lang="ts">
 import { computed, ref, watch, type Component } from 'vue'
+import { useRouter } from 'vue-router'
 import { VueDraggable } from 'vue-draggable-plus'
-import { AlertTriangle } from 'lucide-vue-next'
+import { AlertTriangle, User, Lightbulb, BookOpen } from 'lucide-vue-next'
 import { useBentoPrefs } from '@/composables/useBentoPrefs'
 import { useWidgetGrid } from '@/composables/useWidgetGrid'
 import { useAppStore } from '@/stores/app'
@@ -23,6 +24,7 @@ import WidgetProject from './student-widgets/WidgetProject.vue'
 import WidgetExams from './student-widgets/WidgetExams.vue'
 import WidgetLivrables from './student-widgets/WidgetLivrables.vue'
 import WidgetSoutenances from './student-widgets/WidgetSoutenances.vue'
+import WidgetEcheances from './student-widgets/WidgetEcheances.vue'
 import WidgetLastFeedback from './student-widgets/WidgetLastFeedback.vue'
 import WidgetRecentDoc from './student-widgets/WidgetRecentDoc.vue'
 import WidgetLumenCourses from './student-widgets/WidgetLumenCourses.vue'
@@ -54,7 +56,16 @@ const props = defineProps<{
 const emit = defineEmits<{ goToProject: [key: string] }>()
 
 const appStore = useAppStore()
+const router = useRouter()
 const showCustomizer = ref(false)
+
+// ── Onboarding first-time (v2.97) ──────────────────────────────────────
+const ONBOARDING_KEY = 'cc_dashboard_onboarding_done'
+const showOnboarding = ref(!localStorage.getItem(ONBOARDING_KEY))
+function dismissOnboarding() {
+  showOnboarding.value = false
+  localStorage.setItem(ONBOARDING_KEY, '1')
+}
 
 function toggleCustomizer() {
   showCustomizer.value = !showCustomizer.value
@@ -92,7 +103,7 @@ const nextLivrables = computed(() => nextUpcoming(props.urgentActions, ['livrabl
 const nextSoutenances = computed(() => nextUpcoming(props.urgentActions, ['soutenance'], Date.now(), 2))
 
 const widgetComponents: Record<string, Component> = {
-  live: WidgetLive, project: WidgetProject, exams: WidgetExams,
+  live: WidgetLive, project: WidgetProject, echeances: WidgetEcheances, exams: WidgetExams,
   livrables: WidgetLivrables, soutenances: WidgetSoutenances,
   feedback: WidgetLastFeedback, recentDoc: WidgetRecentDoc, lumenCourses: WidgetLumenCourses,
   lumenProgress: WidgetLumenProgress, lumenNotes: WidgetLumenNotes, dailyGoal: WidgetDailyGoal, promoActivity: WidgetPromoActivity,
@@ -110,6 +121,7 @@ const calendarDeadlines = computed(() =>
 
 const widgetProps = computed<Record<string, Record<string, unknown>>>(() => ({
   live: {}, project: { project: activeProject.value },
+  echeances: { exams: nextExams.value, livrables: nextLivrables.value, soutenances: nextSoutenances.value },
   exams: { exams: nextExams.value }, livrables: { livrables: nextLivrables.value },
   soutenances: { soutenances: nextSoutenances.value },
   feedback: { feedback: latestFeedback.value }, recentDoc: {},
@@ -126,6 +138,7 @@ const widgetProps = computed<Record<string, Record<string, unknown>>>(() => ({
 
 const widgetEvents: Record<string, Record<string, (...args: unknown[]) => void>> = {
   project: { goToProject: (key: unknown) => emit('goToProject', key as string) },
+  echeances: { goToProject: (key: unknown) => emit('goToProject', key as string) },
   exams: { goToProject: (key: unknown) => emit('goToProject', key as string) },
   livrables: { goToProject: (key: unknown) => emit('goToProject', key as string) },
   soutenances: { goToProject: (key: unknown) => emit('goToProject', key as string) },
@@ -156,8 +169,33 @@ function onReset() {
 <template>
   <div class="sb-bento">
 
+    <!-- Onboarding first-time (v2.97) -->
+    <div v-if="showOnboarding && appStore.isStudent" class="sb-onboarding">
+      <h3 class="sb-onboarding-title">Bienvenue sur Cursus</h3>
+      <div class="sb-onboarding-cards">
+        <button type="button" class="sb-onboarding-card" @click="dismissOnboarding">
+          <User :size="24" />
+          <span class="sb-onboarding-card-label">Complete ton profil</span>
+          <span class="sb-onboarding-card-desc">Photo, preferences et notifications</span>
+        </button>
+        <button type="button" class="sb-onboarding-card" @click="router.push('/lumen'); dismissOnboarding()">
+          <Lightbulb :size="24" />
+          <span class="sb-onboarding-card-label">Explore tes cours</span>
+          <span class="sb-onboarding-card-desc">Parcours les chapitres publies par ton enseignant</span>
+        </button>
+        <button type="button" class="sb-onboarding-card" @click="router.push('/devoirs'); dismissOnboarding()">
+          <BookOpen :size="24" />
+          <span class="sb-onboarding-card-label">Decouvre tes devoirs</span>
+          <span class="sb-onboarding-card-desc">Deadlines, rendus et notes</span>
+        </button>
+      </div>
+      <button type="button" class="sb-onboarding-skip" @click="dismissOnboarding">
+        Passer
+      </button>
+    </div>
+
     <!-- Alert banner (only if overdue) -->
-    <div v-if="showFocusAlert" class="sb-alert">
+    <div v-if="showFocusAlert && !showOnboarding" class="sb-alert">
       <AlertTriangle :size="16" />
       <span>{{ overdueCount }} devoir{{ overdueCount > 1 ? 's' : '' }} en retard</span>
     </div>
@@ -214,6 +252,69 @@ function onReset() {
 .sb-bento {
   display: flex; flex-direction: column; gap: 10px;
 }
+
+/* ── Onboarding first-time (v2.97) ── */
+.sb-onboarding {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 32px 24px;
+}
+.sb-onboarding-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.sb-onboarding-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 100%;
+  max-width: 700px;
+}
+@media (max-width: 640px) {
+  .sb-onboarding-cards { grid-template-columns: 1fr; }
+}
+.sb-onboarding-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  color: var(--accent);
+}
+.sb-onboarding-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+.sb-onboarding-card-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.sb-onboarding-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.sb-onboarding-skip {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.sb-onboarding-skip:hover { color: var(--text-secondary); text-decoration: underline; }
 
 /* ── Alert (overdue only) ── */
 .sb-alert {
