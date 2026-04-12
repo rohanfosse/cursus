@@ -5,22 +5,32 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { LayoutDashboard, MessageSquare, BookOpen, Lightbulb, Zap } from 'lucide-vue-next'
+import { LayoutDashboard, MessageSquare, BookOpen, Lightbulb, Zap, HeartPulse } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { useLiveStore }   from '@/stores/live'
+import { useRexStore }    from '@/stores/rex'
 import { useModules }     from '@/composables/useModules'
 
 const appStore     = useAppStore()
 const travauxStore = useTravauxStore()
 const liveStore    = useLiveStore()
+const rexStore     = useRexStore()
 const { isEnabled } = useModules()
 const router       = useRouter()
 const route        = useRoute()
 
 const pendingCount = computed(() => travauxStore.urgentPendingCount)
+const totalMsgUnread = computed(() => {
+  const dmCount = Object.values(appStore.unreadDms ?? {}).reduce((a: number, b) => a + (b as number), 0)
+  const chCount = Object.values(appStore.unread ?? {}).reduce((a: number, b) => a + (b as number), 0)
+  return dmCount + chCount
+})
 const showLive     = computed(() =>
   isEnabled('live') && !appStore.isStaff && liveStore.currentSession && liveStore.currentSession.status !== 'ended',
+)
+const showPulse    = computed(() =>
+  isEnabled('rex') && !appStore.isStaff && rexStore.currentSession && rexStore.currentSession.status !== 'ended',
 )
 </script>
 
@@ -42,6 +52,9 @@ const showLive     = computed(() =>
     >
       <MessageSquare :size="20" />
       <span>Messages</span>
+      <span v-if="totalMsgUnread > 0" class="mobile-nav-badge">
+        {{ totalMsgUnread > 99 ? '99+' : totalMsgUnread }}
+      </span>
     </button>
 
     <button
@@ -75,6 +88,17 @@ const showLive     = computed(() =>
       <Zap :size="20" />
       <span>Spark</span>
       <span class="mobile-nav-live-dot" />
+    </button>
+
+    <button
+      v-if="showPulse"
+      class="mobile-nav-btn"
+      :class="{ active: route.name === 'rex' }"
+      @click="router.push('/rex')"
+    >
+      <HeartPulse :size="20" />
+      <span>Pulse</span>
+      <span class="mobile-nav-live-dot mobile-nav-live-dot--pulse" />
     </button>
   </nav>
 </template>
@@ -163,6 +187,10 @@ const showLive     = computed(() =>
   background: #e74c3c;
   border-radius: 50%;
   animation: live-pulse 1.5s infinite;
+}
+
+.mobile-nav-live-dot--pulse {
+  background: #14b8a6;
 }
 
 @keyframes live-pulse {

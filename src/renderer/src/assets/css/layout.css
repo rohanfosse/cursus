@@ -955,6 +955,7 @@ nav[aria-label="Messages directs"] {
     transform: translateX(-100%);
     transition: transform var(--t-slow) cubic-bezier(.4, 0, .2, 1);
     box-shadow: none;
+    padding-top: env(safe-area-inset-top, 0);
   }
 
   .sidebar-wrapper.mobile-open {
@@ -975,12 +976,21 @@ nav[aria-label="Messages directs"] {
   /* ── Zone principale prend toute la largeur ── */
   .main-wrapper {
     width: 100%;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0));
   }
 
   /* ── Header compact ── */
-  .channel-header {
+  .channel-header,
+  .page-header {
     padding: 0 12px;
     gap: 8px;
+    min-height: 48px;
+  }
+
+  /* ── Channel description responsive ── */
+  .channel-description {
+    max-width: 200px;
+    font-size: 11px;
   }
 
   /* ── Barre de recherche adaptative ── */
@@ -994,7 +1004,16 @@ nav[aria-label="Messages directs"] {
   }
   .msg-row.pinned { padding-left: 10px; }
   .date-separator { margin: 16px 12px 6px; }
-  .message-input-area { padding: 8px 12px 14px; }
+  .message-input-area {
+    padding: 8px 12px 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0));
+  }
+
+  /* ── Message input - taller touch target ── */
+  .message-input {
+    min-height: 48px;
+    font-size: 16px; /* Prevent iOS zoom on focus */
+  }
 
   /* ── Panel droit en plein écran mobile ── */
   #right-panel {
@@ -1011,13 +1030,23 @@ nav[aria-label="Messages directs"] {
     padding: 6px 12px;
     font-size: 12px;
   }
+
+  /* ── Empty state compact ── */
+  .empty-state {
+    padding: 40px 16px;
+  }
+  .empty-title { font-size: 15px; }
+
+  /* ── Welcome tips stack ── */
+  .welcome-tips { max-width: 100%; }
 }
 
 /* ════════════════════════════════════════════
    RESPONSIVE - Petit mobile (≤ 480px)
 ════════════════════════════════════════════ */
 @media (max-width: 480px) {
-  .channel-header {
+  .channel-header,
+  .page-header {
     padding: 0 8px;
     height: 44px;
   }
@@ -1026,16 +1055,33 @@ nav[aria-label="Messages directs"] {
     font-size: 14px;
   }
 
+  .channel-description { display: none; }
   .channel-type-badge { display: none; }
-
   .search-wrapper { display: none; }
 
   .msg-row { padding: 5px 8px; gap: 8px; }
   .msg-avatar, .msg-avatar-placeholder { width: 30px; height: 30px; }
   .msg-text { font-size: 14px; }
-  .message-input-area { padding: 6px 8px 10px; }
+  .message-input-area {
+    padding: 6px 8px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0));
+  }
 
   .sidebar-wrapper { width: 260px; }
+
+  /* File cards */
+  .msg-file-card-name { max-width: 160px; }
+}
+
+/* ════════════════════════════════════════════
+   RESPONSIVE - Landscape mobile (short viewport)
+════════════════════════════════════════════ */
+@media (max-height: 500px) and (max-width: 768px) {
+  .messages-list { padding: 8px 0 4px; }
+  .message-input-area { padding: 4px 8px 6px; }
+  .message-input { min-height: 36px; max-height: 100px; }
+  .channel-header, .page-header { min-height: 40px; }
+  .empty-state { padding: 20px 12px; }
 }
 
 /* ════════════════════════════════════════════
