@@ -7,7 +7,7 @@
  * Un seul etudiant voit sa propre note (aucune visibilite prof / pair).
  */
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { NotebookPen, Trash2, Check, Loader2, AlertCircle, RotateCcw } from 'lucide-vue-next'
+import { NotebookPen, Trash2, Check, Loader2, AlertCircle, RotateCcw, Copy } from 'lucide-vue-next'
 import { useLumenStore } from '@/stores/lumen'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
@@ -93,6 +93,15 @@ function retrySave() {
   }
 }
 
+async function copyNotes() {
+  try {
+    await navigator.clipboard.writeText(draft.value)
+    showToast('Notes copiees dans le presse-papiers', 'success')
+  } catch {
+    showToast('Impossible de copier', 'error')
+  }
+}
+
 async function handleDelete() {
   if (!draft.value.trim() && !lastSavedAt.value) return
   if (!(await confirmDialog('Supprimer definitivement cette note ?', 'danger', 'Supprimer'))) return
@@ -144,6 +153,15 @@ async function handleDelete() {
     />
 
     <footer class="lumen-note-foot">
+      <button
+        v-if="draft.length > 0"
+        type="button"
+        class="lumen-note-copy"
+        title="Copier les notes"
+        @click="copyNotes"
+      >
+        <Copy :size="10" /> Copier
+      </button>
       <span class="lumen-note-count" :class="{ 'near-limit': nearLimit, 'at-limit': atLimit }">
         {{ draft.length }} / {{ MAX_CHARS }}
       </span>
@@ -229,8 +247,23 @@ async function handleDelete() {
   padding: 6px 16px;
   border-top: 1px solid var(--border);
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
 }
+.lumen-note-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: color var(--t-fast) ease;
+}
+.lumen-note-copy:hover { color: var(--accent); }
 .lumen-note-count {
   font-size: 11px;
   color: var(--text-muted);
