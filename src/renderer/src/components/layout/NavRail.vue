@@ -196,18 +196,6 @@
       </div>
     </button>
 
-    <!-- Calendrier (v2.96) : acces direct aux deadlines et planning -->
-    <button
-      class="nav-btn"
-      :class="{ active: route.name === 'agenda' }"
-      title="Calendrier"
-      aria-label="Calendrier"
-      @click="router.push('/agenda')"
-    >
-      <Calendar :size="20" />
-      <span class="nav-label">Calendrier</span>
-    </button>
-
     <!-- Cours (ex-Lumen) : liseuse de cours GitHub -->
     <button
       v-if="isEnabled('lumen')"
@@ -246,6 +234,18 @@
     >
       <Paperclip :size="20" />
       <span class="nav-label">Fichiers</span>
+    </button>
+
+    <!-- Calendrier : acces direct aux deadlines et planning -->
+    <button
+      class="nav-btn"
+      :class="{ active: route.name === 'agenda' }"
+      title="Calendrier"
+      aria-label="Calendrier"
+      @click="router.push('/agenda')"
+    >
+      <Calendar :size="20" />
+      <span class="nav-label">Calendrier</span>
     </button>
 
     <!-- Quiz indicator pour étudiants - visible uniquement quand invitation active et module actif -->
@@ -307,17 +307,6 @@
         />
       </Transition>
     </div>
-
-    <!-- Recherche rapide (Ctrl+K) -->
-    <button
-      class="nav-btn nav-search-hint"
-      title="Recherche rapide (Ctrl+K)"
-      aria-label="Recherche rapide"
-      @click="modals.cmdPalette = true"
-    >
-      <Search :size="18" />
-      <kbd class="nav-kbd">⌘K</kbd>
-    </button>
 
     <!-- Espaceur -->
     <div style="flex:1" />

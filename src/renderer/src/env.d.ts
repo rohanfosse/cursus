@@ -376,6 +376,9 @@ declare global {
       updateReminder(id: number, payload: unknown): Promise<IpcResponse<import('./types').Reminder>>
       deleteReminder(id: number): Promise<IpcResponse<null>>
 
+      // Calendrier (iCal sync)
+      getCalendarFeedUrl(): string
+
       // Onboarding wizard
       getOnboardingStatus(studentId: number): Promise<boolean>
       completeOnboarding(studentId: number): Promise<any>

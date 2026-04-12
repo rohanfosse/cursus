@@ -378,6 +378,9 @@ contextBridge.exposeInMainWorld('api', {
   updateReminder:  (id: number, payload: unknown) => patch(`/api/assignments/reminders/${id}`, payload),
   deleteReminder:  (id: number)                 => del(`/api/assignments/reminders/${id}`),
 
+  // ── Calendrier (iCal sync) ─────────────────────────────────────────────────
+  getCalendarFeedUrl: ()                         => `${BASE}/api/calendar/feed.ics`,
+
   // ── Dépôts ──────────────────────────────────────────────────────────────────
   getDepots:   (travailId: number) => get(`/api/depots?travailId=${travailId}`),
   addDepot:    (payload: unknown)  => post('/api/depots', payload),

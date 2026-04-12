@@ -1,16 +1,17 @@
 <script setup lang="ts">
 /**
- * Sidebar Agenda — inspire d'Outlook : mini calendrier + prochains evenements.
- * Remplace la sidebar channels par defaut quand route.name === 'agenda'.
+ * Sidebar Agenda — inspire d'Outlook : mini calendrier + calendriers
+ * toggleables + export iCal. v2.108.
  */
-import { ref, computed, onMounted, watch } from 'vue'
-import { Calendar, ChevronLeft, ChevronRight, Clock, MapPin, Plus } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { Calendar, ChevronLeft, ChevronRight, Download, ExternalLink } from 'lucide-vue-next'
 import { useAgendaStore } from '@/stores/agenda'
 import { useAppStore } from '@/stores/app'
-import type { CalendarEvent } from '@/types'
+import { useToast } from '@/composables/useToast'
 
 const agenda = useAgendaStore()
 const appStore = useAppStore()
+const { showToast } = useToast()
 const isTeacher = computed(() => appStore.isTeacher)
 
 // ── Mini calendar ─────────────────────────────────────────────────────
@@ -39,15 +40,14 @@ const calendarDays = computed<CalDay[]>(() => {
   const year = currentYear.value
   const month = currentMonth.value
   const firstDay = new Date(year, month, 1)
-  // Monday = 0, Sunday = 6
   let startDow = firstDay.getDay() - 1
   if (startDow < 0) startDow = 6
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const prevMonthDays = new Date(year, month, 0).getDate()
 
   const days: CalDay[] = []
+  const todayStr = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`
 
-  // Previous month trailing days
   for (let i = startDow - 1; i >= 0; i--) {
     const d = prevMonthDays - i
     const m = month === 0 ? 11 : month - 1
@@ -55,14 +55,11 @@ const calendarDays = computed<CalDay[]>(() => {
     days.push({ date: d, month: m, year: y, isToday: false, isCurrentMonth: false, eventCount: countEvents(y, m, d), key: `${y}-${m}-${d}` })
   }
 
-  // Current month
-  const todayStr = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`
   for (let d = 1; d <= daysInMonth; d++) {
     const isToday = `${year}-${month}-${d}` === todayStr
     days.push({ date: d, month, year, isToday, isCurrentMonth: true, eventCount: countEvents(year, month, d), key: `${year}-${month}-${d}` })
   }
 
-  // Next month leading days (fill to 42 = 6 rows)
   const remaining = 42 - days.length
   for (let d = 1; d <= remaining; d++) {
     const m = month === 11 ? 0 : month + 1
@@ -75,25 +72,22 @@ const calendarDays = computed<CalDay[]>(() => {
 
 function countEvents(year: number, month: number, day: number): number {
   const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  return agenda.events.filter((e) => e.start.startsWith(dateStr)).length
+  return agenda.events.filter((e) => {
+    if (e.eventType === 'deadline' && !showDeadlines.value) return false
+    if (e.eventType === 'start_date' && !showStarts.value) return false
+    if (e.eventType === 'reminder' && !showReminders.value) return false
+    return e.start.startsWith(dateStr)
+  }).length
 }
 
 function prevMonth() {
-  if (currentMonth.value === 0) {
-    currentMonth.value = 11
-    currentYear.value--
-  } else {
-    currentMonth.value--
-  }
+  if (currentMonth.value === 0) { currentMonth.value = 11; currentYear.value-- }
+  else { currentMonth.value-- }
 }
 
 function nextMonth() {
-  if (currentMonth.value === 11) {
-    currentMonth.value = 0
-    currentYear.value++
-  } else {
-    currentMonth.value++
-  }
+  if (currentMonth.value === 11) { currentMonth.value = 0; currentYear.value++ }
+  else { currentMonth.value++ }
 }
 
 function goToday() {
@@ -101,30 +95,29 @@ function goToday() {
   currentYear.value = today.getFullYear()
 }
 
-// ── Upcoming events ───────────────────────────────────────────────────
-const upcomingEvents = computed<CalendarEvent[]>(() => {
-  const now = new Date().toISOString().slice(0, 10)
-  return [...agenda.events]
-    .filter((e) => e.start >= now)
-    .sort((a, b) => a.start.localeCompare(b.start))
-    .slice(0, 10)
-})
+// ── Calendriers toggleables (style Outlook) ───────────────────────────
+const showDeadlines = ref(true)
+const showStarts = ref(true)
+const showReminders = ref(true)
 
-function formatEventDate(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+// Expose les filtres pour que AgendaView puisse les lire
+defineExpose({ showDeadlines, showStarts, showReminders })
+
+// ── Export iCal ───────────────────────────────────────────────────────
+async function exportIcs() {
+  try {
+    const feedUrl = window.api.getCalendarFeedUrl()
+    await navigator.clipboard.writeText(feedUrl)
+    showToast('URL du calendrier copiee. Colle-la dans Outlook > Ajouter un calendrier > A partir d\'Internet', 'success')
+  } catch {
+    showToast('Impossible de copier l\'URL', 'error')
+  }
 }
 
-function eventTypeLabel(type: string): string {
-  if (type === 'deadline') return 'Echeance'
-  if (type === 'start_date') return 'Demarrage'
-  return 'Rappel'
+function downloadIcs() {
+  const feedUrl = window.api.getCalendarFeedUrl()
+  window.open(feedUrl, '_blank')
 }
-
-// ── Emit ──────────────────────────────────────────────────────────────
-const emit = defineEmits<{
-  (e: 'new-reminder'): void
-}>()
 </script>
 
 <template>
@@ -160,38 +153,40 @@ const emit = defineEmits<{
       </div>
     </div>
 
-    <!-- New reminder button (teacher) -->
-    <button
-      v-if="isTeacher"
-      type="button"
-      class="sb-agenda-new-btn"
-      @click="emit('new-reminder')"
-    >
-      <Plus :size="13" />
-      Nouveau rappel
-    </button>
+    <!-- Mes calendriers (style Outlook) -->
+    <div class="sb-agenda-calendars">
+      <h3 class="sb-agenda-section-title">Mes calendriers</h3>
+      <label class="sb-agenda-cal-toggle">
+        <input v-model="showDeadlines" type="checkbox" class="sb-agenda-cal-check" />
+        <span class="sb-agenda-cal-color" style="background: #3b82f6" />
+        <span class="sb-agenda-cal-name">Echeances</span>
+      </label>
+      <label class="sb-agenda-cal-toggle">
+        <input v-model="showStarts" type="checkbox" class="sb-agenda-cal-check" />
+        <span class="sb-agenda-cal-color" style="background: #f97316" />
+        <span class="sb-agenda-cal-name">Demarrages</span>
+      </label>
+      <label class="sb-agenda-cal-toggle">
+        <input v-model="showReminders" type="checkbox" class="sb-agenda-cal-check" />
+        <span class="sb-agenda-cal-color" style="background: #22c55e" />
+        <span class="sb-agenda-cal-name">Rappels</span>
+      </label>
+    </div>
 
-    <!-- Upcoming events -->
-    <div class="sb-agenda-upcoming">
-      <h3 class="sb-agenda-section-title">A venir</h3>
-      <div v-if="upcomingEvents.length === 0" class="sb-agenda-empty">
-        Aucun evenement a venir
-      </div>
-      <div
-        v-for="ev in upcomingEvents"
-        :key="ev.id"
-        class="sb-agenda-event"
-      >
-        <div class="sb-agenda-event-bar" :class="`sb-agenda-event-bar--${ev.color}`" />
-        <div class="sb-agenda-event-body">
-          <span class="sb-agenda-event-title">{{ ev.title }}</span>
-          <span class="sb-agenda-event-meta">
-            <Clock :size="10" />
-            {{ formatEventDate(ev.start) }}
-            <span class="sb-agenda-event-type">{{ eventTypeLabel(ev.eventType) }}</span>
-          </span>
-        </div>
-      </div>
+    <!-- Synchronisation Outlook -->
+    <div class="sb-agenda-sync">
+      <h3 class="sb-agenda-section-title">Synchronisation</h3>
+      <button type="button" class="sb-agenda-sync-btn" @click="exportIcs" title="Copier l'URL pour Outlook / Google Calendar">
+        <ExternalLink :size="12" />
+        <span>Copier l'URL iCal</span>
+      </button>
+      <button type="button" class="sb-agenda-sync-btn" @click="downloadIcs" title="Telecharger le fichier .ics">
+        <Download :size="12" />
+        <span>Telecharger .ics</span>
+      </button>
+      <p class="sb-agenda-sync-hint">
+        Dans Outlook : Ajouter un calendrier &gt; A partir d'Internet &gt; coller l'URL
+      </p>
     </div>
   </div>
 </template>
@@ -265,7 +260,6 @@ const emit = defineEmits<{
   padding: 3px 0;
   border-radius: 4px;
   cursor: default;
-  position: relative;
 }
 .sb-agenda-day.is-other-month { opacity: 0.3; }
 .sb-agenda-day.is-today .sb-agenda-day-num {
@@ -292,88 +286,77 @@ const emit = defineEmits<{
   background: var(--accent);
 }
 
-/* New reminder button */
-.sb-agenda-new-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px dashed var(--border);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.12s ease;
-}
-.sb-agenda-new-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.06);
-}
-
 /* Section title */
 .sb-agenda-section-title {
   font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
-  margin: 4px 0 0;
+  margin: 0 0 6px;
   padding: 0 2px;
 }
 
-/* Empty state */
-.sb-agenda-empty {
-  font-size: 12px;
-  color: var(--text-muted);
-  padding: 8px 2px;
+/* Calendriers toggleables */
+.sb-agenda-calendars {
+  padding: 0 2px;
 }
-
-/* Event items */
-.sb-agenda-event {
-  display: flex;
-  gap: 8px;
-  padding: 8px 6px;
-  border-radius: 6px;
-  transition: background 0.1s ease;
-}
-.sb-agenda-event:hover { background: var(--bg-hover); }
-.sb-agenda-event-bar {
-  width: 3px;
-  border-radius: 2px;
-  flex-shrink: 0;
-  align-self: stretch;
-}
-.sb-agenda-event-bar--blue { background: #3b82f6; }
-.sb-agenda-event-bar--orange { background: #f97316; }
-.sb-agenda-event-bar--green { background: #22c55e; }
-
-.sb-agenda-event-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.sb-agenda-event-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.sb-agenda-event-meta {
+.sb-agenda-cal-toggle {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.sb-agenda-cal-toggle:hover { background: var(--bg-hover); }
+.sb-agenda-cal-check {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+.sb-agenda-cal-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.sb-agenda-cal-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.sb-agenda-cal-check:not(:checked) ~ .sb-agenda-cal-color { opacity: 0.3; }
+.sb-agenda-cal-check:not(:checked) ~ .sb-agenda-cal-name { color: var(--text-muted); text-decoration: line-through; }
+
+/* Sync section */
+.sb-agenda-sync {
+  padding: 0 2px;
+}
+.sb-agenda-sync-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.1s;
+}
+.sb-agenda-sync-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.sb-agenda-sync-hint {
   font-size: 10px;
   color: var(--text-muted);
-}
-.sb-agenda-event-type {
-  margin-left: auto;
-  font-weight: 600;
+  margin: 4px 0 0;
+  padding: 0 4px;
+  line-height: 1.4;
   opacity: 0.7;
 }
 </style>

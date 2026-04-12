@@ -5,11 +5,12 @@
 <script setup lang="ts">
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import VueCal from 'vue-cal'
 import 'vue-cal/dist/vuecal.css'
-import { Calendar, Plus, Trash2, RefreshCw, X, Clock, Tag } from 'lucide-vue-next'
+import { Calendar, Plus, Trash2, RefreshCw, X, Clock, Tag, ExternalLink } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 import { useAppStore }   from '@/stores/app'
 import { useAgendaStore } from '@/stores/agenda'
 import type { CalendarEvent } from '@/types'
@@ -17,6 +18,7 @@ import type { CalendarEvent } from '@/types'
 const appStore  = useAppStore()
 const agenda    = useAgendaStore()
 const route     = useRoute()
+const router    = useRouter()
 
 const promoId   = computed(() => appStore.activePromoId ?? appStore.currentUser?.promo_id ?? 0)
 const isTeacher = computed(() => appStore.isTeacher)
@@ -114,12 +116,18 @@ async function load() {
   }
 }
 
+// Real-time : refresh quand un nouveau devoir est publie
+let cleanupAssignmentListener: (() => void) | null = null
+
 onMounted(() => {
   load()
-  // Si la sidebar envoie ?action=new-reminder, ouvrir le formulaire
   if (route.query.action === 'new-reminder' && isTeacher.value) {
     showForm.value = true
   }
+  cleanupAssignmentListener = window.api.onAssignmentNew?.(() => { load() }) ?? null
+})
+onBeforeUnmount(() => {
+  cleanupAssignmentListener?.()
 })
 watch(() => promoId.value, load)
 watch(() => route.query.action, (action) => {
@@ -140,23 +148,6 @@ watch(() => route.query.action, (action) => {
         </div>
       </template>
       <template #actions>
-        <div class="agenda-filters">
-          <label class="ag-filter ag-filter--blue">
-            <input v-model="showDeadlines" type="checkbox" />
-            <span class="ag-filter-dot ag-dot--blue" />
-            Echeances
-          </label>
-          <label class="ag-filter ag-filter--orange">
-            <input v-model="showStartDates" type="checkbox" />
-            <span class="ag-filter-dot ag-dot--orange" />
-            Demarrages
-          </label>
-          <label class="ag-filter ag-filter--green">
-            <input v-model="showReminders" type="checkbox" />
-            <span class="ag-filter-dot ag-dot--green" />
-            Rappels
-          </label>
-        </div>
         <button v-if="isTeacher" class="ag-btn ag-btn--accent" @click="showForm = !showForm">
           <Plus :size="13" /> Rappel
         </button>
@@ -200,6 +191,13 @@ watch(() => route.query.action, (action) => {
             <Tag :size="12" />
             <span>{{ selectedEvent.category }}</span>
           </div>
+          <button
+            v-if="selectedEvent.eventType === 'deadline' || selectedEvent.eventType === 'start_date'"
+            class="ag-btn ag-btn--accent"
+            @click="router.push({ name: 'devoirs' }); closeDetail()"
+          >
+            <ExternalLink :size="12" /> Voir le devoir
+          </button>
           <button
             v-if="isTeacher && selectedEvent.eventType === 'reminder'"
             class="ag-btn ag-btn--danger"
@@ -261,27 +259,7 @@ watch(() => route.query.action, (action) => {
   color: var(--text-primary);
 }
 .agenda-title { font-size: 16px; font-weight: 700; }
-.agenda-filters { display: flex; gap: 14px; }
 
-.ag-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: color 0.1s;
-}
-.ag-filter:hover { color: var(--text-primary); }
-.ag-filter input[type="checkbox"] { display: none; }
-.ag-filter-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  transition: opacity 0.1s;
-}
-.ag-filter input:not(:checked) ~ .ag-filter-dot { opacity: 0.3; }
 .ag-dot--blue   { background: #3b82f6; }
 .ag-dot--orange { background: #f97316; }
 .ag-dot--green  { background: #22c55e; }
