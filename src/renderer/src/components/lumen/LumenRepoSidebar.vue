@@ -704,6 +704,17 @@ async function saveNewChapter(): Promise<void> {
             </button>
           </div>
 
+          <!-- Progress bar (v2.106) -->
+          <div
+            v-if="repoReadProgress(repo).total > 0 && !collapsedRepos.has(repo.id)"
+            class="lumen-repo-progress-bar"
+          >
+            <div
+              class="lumen-repo-progress-fill"
+              :style="{ width: `${(repoReadProgress(repo).read / repoReadProgress(repo).total) * 100}%` }"
+            />
+          </div>
+
           <!-- Banner inline manifestError : message simplifie pour les etudiants -->
           <p v-if="repo.manifestError && !collapsedRepos.has(repo.id)" class="lumen-repo-error-banner" role="status" :title="repo.manifestError">
             <AlertTriangle :size="11" />
@@ -922,10 +933,8 @@ async function saveNewChapter(): Promise<void> {
   align-items: center;
   gap: 5px;
   padding: 4px 10px 6px;
-  font-size: 9.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  font-size: 10px;
+  font-weight: 600;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
 }
@@ -953,14 +962,12 @@ async function saveNewChapter(): Promise<void> {
   border-left-color: var(--accent);
 }
 .lumen-search-item.is-active {
-  background: var(--bg-selected, var(--bg-hover));
+  background: var(--bg-active, rgba(var(--accent-rgb), .16));
   border-left-color: var(--accent);
 }
 .lumen-search-item-repo {
   font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -1038,15 +1045,13 @@ async function saveNewChapter(): Promise<void> {
   align-items: center;
   gap: 5px;
   flex: 1;
-  padding: 6px 4px 2px 6px;
+  padding: 6px 6px 6px 8px;
   background: none;
   border: none;
   cursor: pointer;
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   text-align: left;
   min-width: 0;
 }
@@ -1071,10 +1076,11 @@ async function saveNewChapter(): Promise<void> {
 
 .lumen-repo-progress {
   flex-shrink: 0;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 9px;
+  font-weight: 500;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+  opacity: 0.7;
 }
 
 .lumen-repo-visibility {
@@ -1131,8 +1137,39 @@ async function saveNewChapter(): Promise<void> {
 }
 .lumen-repo-error-banner svg { flex-shrink: 0; margin-top: 1px; }
 
+.lumen-repo-progress-bar {
+  height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  margin: 0 8px 2px 22px;
+  overflow: hidden;
+}
+.lumen-repo-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 1px;
+  transition: width 0.3s ease;
+}
+
 .lumen-repo-body {
   padding-bottom: 4px;
+  position: relative;
+  margin-left: 14px;
+  animation: sidebar-expand 0.15s ease-out;
+}
+.lumen-repo-body::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 4px;
+  width: 1px;
+  background: var(--border);
+  opacity: 0.4;
+}
+@keyframes sidebar-expand {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .lumen-section {
@@ -1144,7 +1181,7 @@ async function saveNewChapter(): Promise<void> {
   align-items: center;
   gap: 4px;
   width: 100%;
-  padding: 5px 8px 5px 20px;
+  padding: 6px 8px 6px 8px;
   margin: 1px 0;
   background: none;
   border: none;
@@ -1165,11 +1202,9 @@ async function saveNewChapter(): Promise<void> {
 .lumen-section-count {
   margin-left: auto;
   font-size: 9px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-muted);
-  background: var(--bg-hover);
-  padding: 0 5px;
-  border-radius: 8px;
+  opacity: 0.7;
 }
 .lumen-section-title {
   margin: 0;
@@ -1182,14 +1217,12 @@ async function saveNewChapter(): Promise<void> {
 }
 .lumen-section-duration {
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--text-muted);
-  background: var(--bg-hover);
-  padding: 1px 6px;
-  border-radius: 8px;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
   line-height: 1.3;
+  opacity: 0.7;
 }
 .lumen-sidebar-toggle-all {
   display: inline-flex;
@@ -1241,9 +1274,7 @@ async function saveNewChapter(): Promise<void> {
    (ex: "02 Labs And Exercises · Lab01" + "... · Lab02"). v2.67.2. */
 .lumen-section-parent {
   font-size: 9px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-weight: 500;
   color: var(--text-muted);
   opacity: 0.6;
   overflow: hidden;
@@ -1251,10 +1282,8 @@ async function saveNewChapter(): Promise<void> {
   white-space: nowrap;
 }
 .lumen-section-child {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1266,8 +1295,8 @@ async function saveNewChapter(): Promise<void> {
   align-items: center;
   gap: 5px;
   width: 100%;
-  padding: 7px 10px 7px 26px;
-  min-height: 32px;
+  padding: 6px 10px 6px 14px;
+  min-height: 30px;
   background: none;
   border: none;
   cursor: pointer;
@@ -1276,13 +1305,15 @@ async function saveNewChapter(): Promise<void> {
   line-height: 1.4;
   text-align: left;
   border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
   transition: all var(--t-fast) ease;
 }
 .lumen-chapter-item:hover { background: var(--bg-hover); color: var(--text-primary); }
 .lumen-chapter-item.is-active {
-  background: var(--bg-selected, var(--bg-hover));
+  background: var(--bg-active, rgba(var(--accent-rgb), .16));
   color: var(--text-primary);
   border-left-color: var(--accent);
+  font-weight: 600;
 }
 .lumen-chapter-item.is-read { color: var(--text-muted); }
 
@@ -1300,17 +1331,19 @@ async function saveNewChapter(): Promise<void> {
 .lumen-chapter-icon--pdf { color: var(--color-danger); }
 .lumen-chapter-icon--tex { color: var(--color-warning); }
 
-/* Badge duree (v2.76) : petit indicateur "15m" a droite du titre */
 .lumen-chapter-duration {
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-muted);
-  background: var(--bg-hover);
-  padding: 1px 5px;
-  border-radius: 8px;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+.lumen-chapter-item:hover .lumen-chapter-duration,
+.lumen-chapter-item.is-active .lumen-chapter-duration {
+  opacity: 1;
 }
 .lumen-chapter-item.is-active .lumen-chapter-duration {
   background: rgba(var(--accent-rgb), .14);
@@ -1341,10 +1374,8 @@ async function saveNewChapter(): Promise<void> {
   border: none;
   color: var(--text-muted);
   font-family: inherit;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   cursor: pointer;
   text-align: left;
   transition: color var(--motion-fast) var(--ease-out),
