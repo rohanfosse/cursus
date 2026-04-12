@@ -971,7 +971,8 @@ watch(() => [props.content, props.chapter?.path], () => {
         />
         <div v-else class="lumen-viewer-empty">
           <FileText :size="32" />
-          <p>Impossible de rendre le PDF</p>
+          <h3>Impossible d'afficher le PDF</h3>
+          <p>Le fichier n'a pas pu etre rendu dans le navigateur integre.</p>
         </div>
       </div>
 
@@ -1853,7 +1854,7 @@ button.lumen-viewer-chip:focus-visible {
   color: var(--text-secondary);
   cursor: pointer;
   box-shadow: var(--elevation-2);
-  opacity: 0;
+  opacity: 0.4;
   transform: translateY(0);
   transition: opacity var(--motion-base) var(--ease-out),
               background var(--motion-fast) var(--ease-out),

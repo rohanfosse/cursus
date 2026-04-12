@@ -139,6 +139,11 @@ const totalStats = computed(() => {
       </div>
     </header>
 
+    <!-- Message first-time (v2.88) -->
+    <div v-if="!canResume && recentReads.length === 0 && courseRepos.length > 0" class="lw-firsttime">
+      <p>Choisis un cours ci-dessous pour commencer la lecture. Ta progression sera sauvegardee automatiquement.</p>
+    </div>
+
     <!-- Resume rapide -->
     <button
       v-if="canResume"
@@ -245,6 +250,18 @@ const totalStats = computed(() => {
   font-size: 13px;
   color: var(--text-muted);
 }
+
+/* ── First-time hint (v2.88) ───────────────────────────────────────── */
+.lw-firsttime {
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  text-align: center;
+}
+.lw-firsttime p { margin: 0; }
 
 /* ── Resume button ─────────────────────────────────────────────────── */
 .lw-resume {

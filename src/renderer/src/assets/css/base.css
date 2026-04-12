@@ -221,7 +221,7 @@ body.light {
 
   /* Texte */
   --text-primary:   #2c2418;
-  --text-secondary: #7a6e5e;
+  --text-secondary: #655a4c;   /* Darkened for WCAG AA (5.2:1 on #faf8f4) */
   --text-muted:     #968a7a;   /* WCAG AA compliant (4.0:1 sur #faf8f4) */
 
   /* Accent - ambre/doré */

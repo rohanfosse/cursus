@@ -534,7 +534,7 @@ async function saveNewChapter(): Promise<void> {
     >
       <header class="lumen-search-head">
         <BookOpen :size="11" />
-        <span>Resultats ({{ searchResults.length }})</span>
+        <span>Dans le contenu ({{ searchResults.length }})</span>
       </header>
       <ul class="lumen-search-list">
         <li v-for="r in searchResults" :key="`${r.repoId}::${r.chapterPath}`">
@@ -621,10 +621,10 @@ async function saveNewChapter(): Promise<void> {
             </button>
           </div>
 
-          <!-- Banner inline manifestError : visible et lisible plutot que tooltip muet -->
-          <p v-if="repo.manifestError" class="lumen-repo-error-banner" role="status">
+          <!-- Banner inline manifestError : message simplifie pour les etudiants -->
+          <p v-if="repo.manifestError" class="lumen-repo-error-banner" role="status" :title="repo.manifestError">
             <AlertTriangle :size="11" />
-            <span>{{ repo.manifestError }}</span>
+            <span>Ce cours a un probleme de configuration. Contacte ton enseignant.</span>
           </p>
 
           <div class="lumen-repo-body">
@@ -789,9 +789,9 @@ async function saveNewChapter(): Promise<void> {
 .lumen-sidebar-filter {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 9px;
-  margin: 6px 10px 2px;
+  gap: 6px;
+  padding: 8px 10px;
+  margin: 6px 10px 4px;
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -818,7 +818,7 @@ async function saveNewChapter(): Promise<void> {
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 2px;
+  padding: 6px;
   display: flex;
   align-items: center;
   border-radius: 3px;
@@ -1153,8 +1153,8 @@ async function saveNewChapter(): Promise<void> {
   align-items: center;
   gap: 5px;
   width: 100%;
-  padding: 4px 10px 4px 26px;
-  /* WCAG 2.5.5 minimum tactile : 4 + 4 + 12 * 1.4 = ~24.8px */
+  padding: 7px 10px 7px 26px;
+  min-height: 32px;
   background: none;
   border: none;
   cursor: pointer;

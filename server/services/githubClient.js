@@ -92,7 +92,12 @@ async function mapOctokitError(err) {
     if (status === 422) return { status: 422, code: 'GITHUB_INVALID', message: err.message ?? 'Donnees GitHub invalides' }
     return { status, code: 'GITHUB_ERROR', message: err.message ?? 'Erreur GitHub' }
   }
-  return { status: 500, code: 'GITHUB_ERROR', message: err?.message ?? 'Erreur GitHub inconnue' }
+  // Erreurs reseau (pas de reponse HTTP)
+  const msg = err?.message ?? ''
+  if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND') || msg.includes('ETIMEDOUT') || msg.includes('fetch failed')) {
+    return { status: 0, code: 'GITHUB_NETWORK', message: 'Impossible de joindre GitHub. Verifie ta connexion internet.' }
+  }
+  return { status: 500, code: 'GITHUB_ERROR', message: msg || 'Erreur GitHub inconnue' }
 }
 
 module.exports = { buildClientForUser, validateToken, mapOctokitError, USER_AGENT }
