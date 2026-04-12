@@ -473,12 +473,21 @@ async function toggleCompanion(): Promise<void> {
   }
 }
 
-// Reset le companion mode a chaque changement de chapitre
+// Reset le companion mode a chaque changement de chapitre.
+// Pour les presentations Marp avec PDF compagnon, on ouvre le PDF
+// par defaut (les etudiants preferent le PDF imprimable aux slides HTML).
 watch(() => props.chapter.path, () => {
   companionMode.value = false
   companionContent.value = null
   companionKind.value = null
   revokeCompanionBlob()
+})
+
+// Auto-open PDF pour Marp : declenche apres le parsing du contenu
+watch(isMarp, (marp) => {
+  if (marp && props.chapter.companionPdf && !companionMode.value) {
+    toggleCompanion()
+  }
 })
 onBeforeUnmount(revokeCompanionBlob)
 
