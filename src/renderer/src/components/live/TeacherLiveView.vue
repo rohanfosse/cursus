@@ -444,21 +444,23 @@
 }
 
 /* ── Tabs ── */
+/* Tabs — segmented control unifie */
 .quiz-tabs {
-  display: flex; gap: 4px;
-  padding: 3px; border-radius: 10px;
-  background: rgba(255,255,255,.04);
+  display: flex; gap: 2px;
+  padding: 2px; border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   width: fit-content;
 }
 .quiz-tab {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border-radius: 8px; border: none;
-  background: transparent; color: var(--text-muted, #888);
-  font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: all .2s; font-family: var(--font, inherit);
+  padding: 6px 16px; border-radius: 6px; border: none;
+  background: transparent; color: var(--text-muted);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all .15s; font-family: inherit;
 }
-.quiz-tab:hover { color: var(--text-primary, #fff); background: rgba(255,255,255,.04); }
-.quiz-tab.active { background: var(--color-danger, #e74c3c); color: #fff; }
+.quiz-tab:hover { color: var(--text-primary); }
+.quiz-tab.active { background: var(--accent); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
 
 /* ── Drafts section ── */
 .drafts-section {
@@ -469,11 +471,9 @@
   gap: 10px;
 }
 .drafts-title {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
 }
 .draft-list {
   display: flex;
@@ -484,14 +484,15 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  background: var(--bg-elevated, #1e1f21);
-  border: 1px solid var(--border, rgba(255,255,255,.08));
-  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all .15s;
+  transition: all .12s;
 }
-.draft-card:hover { border-color: var(--accent, #4a90d9); }
+.draft-card:hover { background: var(--bg-hover); border-left-color: var(--accent); }
 .draft-card-body { flex: 1; min-width: 0; }
 .draft-card-title {
   display: block;
@@ -539,17 +540,20 @@
   gap: 8px;
 }
 .hero-icon {
-  color: var(--accent, #4a90d9);
-  opacity: .7;
+  color: var(--accent);
+  opacity: .5;
 }
 .hero-title {
-  font-size: 32px;
-  font-weight: 800;
-  color: var(--text-primary, #fff);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
 }
 .hero-desc {
-  font-size: 15px;
-  color: var(--text-muted, #888);
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 400px;
 }
 .create-card {
   width: 100%;
@@ -626,7 +630,6 @@
 .session-status {
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
   padding: 3px 10px;
   border-radius: 6px;
   letter-spacing: .5px;
@@ -727,8 +730,8 @@
   min-width: 0;
 }
 .activity-card-type {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  color: var(--text-muted, #888); letter-spacing: .3px;
+  font-size: 11px; font-weight: 600;
+  color: var(--text-muted);
 }
 .activity-card-title {
   font-size: 14px; font-weight: 600;
@@ -793,8 +796,7 @@
   color: var(--accent, #4a90d9);
 }
 .activity-topbar-type {
-  font-size: 13px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .5px;
+  font-size: 13px; font-weight: 700;
 }
 .activity-topbar-title {
   flex: 1;

@@ -673,8 +673,7 @@
 .results-label {
   font-size: 16px;
   font-weight: 700;
-  color: var(--text-secondary, #aaa);
-  text-transform: uppercase;
+  color: var(--text-secondary);
   letter-spacing: .5px;
 }
 /* Vrai/Faux */

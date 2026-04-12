@@ -716,7 +716,6 @@
 .rex-respond-type {
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
   color: #14b8a6;
 }

@@ -491,37 +491,39 @@
   gap: 20px;
 }
 
-/* ── Tabs ── */
+/* ── Tabs — segmented control unifie ── */
 .rex-tabs {
-  display: flex; gap: 4px;
-  padding: 3px; border-radius: 10px;
-  background: rgba(255,255,255,.04);
+  display: flex; gap: 2px;
+  padding: 2px; border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   width: fit-content;
 }
 .rex-tab {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border-radius: 8px; border: none;
-  background: transparent; color: var(--text-muted, #888);
-  font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: all .2s; font-family: var(--font, inherit);
+  padding: 6px 16px; border-radius: 6px; border: none;
+  background: transparent; color: var(--text-muted);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all .15s; font-family: inherit;
 }
-.rex-tab:hover { color: var(--text-primary, #fff); background: rgba(255,255,255,.04); }
-.rex-tab.active { background: #0d9488; color: #fff; }
+.rex-tab:hover { color: var(--text-primary); }
+.rex-tab.active { background: var(--accent); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
 
 /* ── Drafts ── */
 .rex-drafts { display: flex; flex-direction: column; gap: 8px; }
 .rex-drafts-title {
-  font-size: 12px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .5px; color: var(--text-muted, #888); margin: 0;
+  font-size: 11px; font-weight: 700;
+  color: var(--text-muted); margin: 0;
 }
 .rex-draft-card {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 14px;
-  background: var(--bg-elevated, #1e1f21);
-  border: 1px solid var(--border, rgba(255,255,255,.08));
-  border-radius: 10px; cursor: pointer; transition: all .15s;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  border-radius: 8px; cursor: pointer; transition: all .12s;
 }
-.rex-draft-card:hover { border-color: #0d9488; }
+.rex-draft-card:hover { background: var(--bg-hover); border-left-color: var(--accent); }
 .rex-draft-body { flex: 1; min-width: 0; }
 .rex-draft-title-row { display: flex; align-items: center; gap: 8px; }
 .rex-draft-title {
@@ -558,9 +560,9 @@
   gap: 12px;
 }
 .rex-title {
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
-  color: var(--text-primary, #fff);
+  color: var(--text-primary);
   margin: 0;
 }
 .rex-subtitle {
@@ -670,8 +672,7 @@
   border-radius: 20px;
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.02em;
 }
 .rex-status-badge.waiting { background: rgba(13, 148, 136, 0.12); color: #14b8a6; }
 .rex-status-badge.active  { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
@@ -803,8 +804,7 @@
 .rex-act-status {
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.02em;
   padding: 2px 8px;
   border-radius: 4px;
 }
