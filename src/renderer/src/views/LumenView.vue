@@ -336,13 +336,17 @@ async function handleSelectChapter(payload: { repoId: number; path: string }) {
 }
 
 /**
- * Ressortir du module Lumen vers le dashboard. Bouton toujours visible
- * dans la topbar Lumen, independamment du focus mode. Offre une issue
- * claire aux etudiants qui ne savent pas d'ou ils viennent quand le rail
- * Cursus est masque (v2.48).
+ * Ouvre le README du repo .github (kind=readme) de l'org courante.
+ * Sert de page d'accueil de la promo dans Lumen : presentation generale,
+ * liens utiles, planning. Le repo .github est cache de la sidebar (v2.81)
+ * mais accessible via ce bouton.
  */
-function handleCursusHome() {
-  router.push({ name: 'dashboard' })
+function handleLumenHome() {
+  const readmeRepo = repos.value.find((r) => r.manifest?.kind === 'readme')
+  if (!readmeRepo) return
+  const firstChapter = readmeRepo.manifest?.chapters[0]
+  if (!firstChapter) return
+  handleSelectChapter({ repoId: readmeRepo.id, path: firstChapter.path })
 }
 
 /**
@@ -491,9 +495,9 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
           <button
             type="button"
             class="lumen-btn ghost lumen-btn-icon lumen-home-btn"
-            title="Retour a Cursus (dashboard)"
-            aria-label="Retour au dashboard Cursus"
-            @click="handleCursusHome"
+            title="Accueil de la promo"
+            aria-label="Accueil de la promo"
+            @click="handleLumenHome"
           >
             <LayoutGrid :size="14" />
           </button>

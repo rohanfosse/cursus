@@ -16,7 +16,7 @@
  */
 import { ref, computed, watch, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
-import { FileText, FileDown, FileCode, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, BookOpen, Presentation, Home, Lightbulb, Wrench, Hammer, Folder, Users, User, Plus, Loader2, ChevronsDown, ChevronsUp } from 'lucide-vue-next'
+import { FileText, FileDown, FileCode, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, BookOpen, Presentation, Lightbulb, Wrench, Hammer, Folder, Plus, Loader2, ChevronsDown, ChevronsUp } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import { useLumenStore } from '@/stores/lumen'
 import { useToast } from '@/composables/useToast'
@@ -89,14 +89,20 @@ function displayRepoName(repo: LumenRepo): string {
   return name.replace(/^\d+[-_.]/, '').replace(/[-_]+/g, ' ')
 }
 
-const sortedRepos = computed(() => [...props.repos].sort((a, b) => {
-  // 1. Prefixe numerique en premier (0-Math, 1-SE, 2-POO, ...)
-  const pa = extractRepoNumericPrefix(a)
-  const pb = extractRepoNumericPrefix(b)
-  if (pa !== pb) return pa - pb
-  // 2. Tie-break alphabetique sur le fullName
-  return a.fullName.localeCompare(b.fullName)
-}))
+// Lumen = cours uniquement. On exclut les repos etudiants, groupes et le
+// repo .github (readme) qui est accessible via le bouton Accueil dans la topbar.
+const HIDDEN_KINDS = new Set<LumenRepoKind>(['student', 'group', 'readme'])
+
+const sortedRepos = computed(() => [...props.repos]
+  .filter((r) => !HIDDEN_KINDS.has(r.manifest?.kind as LumenRepoKind))
+  .sort((a, b) => {
+    // 1. Prefixe numerique en premier (0-Math, 1-SE, 2-POO, ...)
+    const pa = extractRepoNumericPrefix(a)
+    const pb = extractRepoNumericPrefix(b)
+    if (pa !== pb) return pa - pb
+    // 2. Tie-break alphabetique sur le fullName
+    return a.fullName.localeCompare(b.fullName)
+  }))
 
 interface SectionGroup {
   title: string
@@ -207,37 +213,29 @@ const filteredRepos = computed<FilteredRepo[]>(() => {
 // dans un ordre canonique. README en premier (epingle "Accueil promo"),
 // puis cours/prosits/workshops/mini-projets/projets/groupes.
 
+// Seuls les kinds pedagogiques apparaissent dans la sidebar.
 const KIND_ORDER: LumenRepoKind[] = [
-  'readme',
   'course',
   'prosit',
   'workshop',
   'miniproject',
   'project',
-  'group',
-  'student',
 ]
 
-const KIND_LABELS: Record<LumenRepoKind, string> = {
-  readme:      'Accueil promo',
+const KIND_LABELS: Partial<Record<LumenRepoKind, string>> = {
   course:      'Cours',
   prosit:      'Prosits',
   workshop:    'Workshops',
   miniproject: 'Mini-projets',
   project:     'Projets',
-  group:       'Groupes etudiants',
-  student:     'Etudiants individuels',
 }
 
-const KIND_ICONS: Record<LumenRepoKind, Component> = {
-  readme:      Home,
+const KIND_ICONS: Partial<Record<LumenRepoKind, Component>> = {
   course:      BookOpen,
   prosit:      Lightbulb,
   workshop:    Wrench,
   miniproject: Hammer,
   project:     Folder,
-  group:       Users,
-  student:     User,
 }
 
 interface RepoSection {
@@ -260,8 +258,8 @@ const groupedRepos = computed<RepoSection[]>(() => {
     .filter((k) => buckets.has(k))
     .map((k) => ({
       kind: k,
-      label: KIND_LABELS[k],
-      icon: KIND_ICONS[k],
+      label: KIND_LABELS[k] ?? k,
+      icon: KIND_ICONS[k] ?? BookOpen,
       repos: buckets.get(k)!,
     }))
 })
