@@ -287,10 +287,7 @@ const canEdit = computed(() =>
 
 // Mode lecture clair/sombre — persiste dans localStorage
 const readingLight = ref(localStorage.getItem('lumen-reading-light') === '1')
-function toggleReadingLight() {
-  readingLight.value = !readingLight.value
-  localStorage.setItem('lumen-reading-light', readingLight.value ? '1' : '0')
-}
+watch(readingLight, (v) => { localStorage.setItem('lumen-reading-light', v ? '1' : '0') })
 
 // v2.79 : imprimer le chapitre courant. Le stylesheet print masque tout
 // sauf le body markdown pour obtenir un PDF propre (via le dialogue
@@ -869,7 +866,7 @@ watch(() => [props.content, props.chapter?.path], () => {
             type="button"
             class="lumen-viewer-chip lumen-viewer-chip--light-toggle"
             :title="readingLight ? 'Mode sombre' : 'Mode clair'"
-            @click="toggleReadingLight"
+            @click="readingLight = !readingLight"
           >
             <Sun v-if="readingLight" :size="11" />
             <Moon v-else :size="11" />

@@ -61,6 +61,7 @@ function removeAnnotation(id: string) {
 }
 
 function onDocumentMouseUp() {
+  if (!panelOpen.value) return
   const sel = window.getSelection()
   if (!sel || sel.isCollapsed) return
   const text = sel.toString().trim()

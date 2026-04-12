@@ -8,13 +8,9 @@
  * - output : texte, images base64, HTML, erreurs
  */
 import { renderMarkdown } from '@/utils/markdown'
+import { escapeHtml } from '@/utils/html'
+import DOMPurify from 'dompurify'
 import hljs from 'highlight.js'
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]!))
-}
 
 interface NotebookCell {
   cell_type: 'code' | 'markdown' | 'raw'
@@ -66,13 +62,15 @@ function renderOutput(output: NotebookOutput): string {
       const img = joinSource(data['image/jpeg']).trim()
       parts.push(`<img class="ipynb-img" src="data:image/jpeg;base64,${img}" alt="Output" />`)
     } else if (data['image/svg+xml']) {
-      const svg = joinSource(data['image/svg+xml'])
+      const svg = DOMPurify.sanitize(joinSource(data['image/svg+xml']), {
+        USE_PROFILES: { svg: true },
+      })
       parts.push(`<div class="ipynb-svg">${svg}</div>`)
     }
 
-    // HTML
+    // HTML (sanitise pour eviter les XSS dans les notebooks non-trusted)
     if (data['text/html']) {
-      const html = joinSource(data['text/html'])
+      const html = DOMPurify.sanitize(joinSource(data['text/html']))
       parts.push(`<div class="ipynb-html-output">${html}</div>`)
     }
 

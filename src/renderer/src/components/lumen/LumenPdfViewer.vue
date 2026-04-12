@@ -167,6 +167,13 @@ function searchPrev() {
   scrollToHighlight(searchCurrent.value)
 }
 
+// Debounce la recherche pour eviter de scanner toutes les pages a chaque frappe
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchQuery, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(doSearch, 300)
+})
+
 function downloadPdf() {
   if (!props.content) return
   const data = decodeBase64Content(props.content)
@@ -347,7 +354,6 @@ onBeforeUnmount(() => {
         type="text"
         class="lumen-pdf-search-input"
         placeholder="Rechercher dans le PDF..."
-        @input="doSearch"
         @keydown.enter.prevent="searchNext"
         @keydown.escape.prevent="toggleSearch"
       />
