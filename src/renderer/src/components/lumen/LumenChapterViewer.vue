@@ -943,11 +943,43 @@ watch(() => [props.content, props.chapter?.path], () => {
 
       <!-- Edition inline (v2.104) : remplace la vue lecture par l'editeur -->
       <div v-else-if="editMode" class="lumen-viewer-main lumen-edit-inline">
+        <!-- Barre de commit fixe en haut (style GitHub) -->
+        <header class="lumen-edit-toolbar">
+          <div class="lumen-edit-toolbar-left">
+            <Pencil :size="12" />
+            <span class="lumen-edit-toolbar-path">{{ chapter.path }}</span>
+          </div>
+          <div class="lumen-edit-toolbar-right">
+            <input
+              v-model="editMessage"
+              type="text"
+              class="lumen-edit-message"
+              :placeholder="`docs: edit ${chapter.path}`"
+              maxlength="200"
+            />
+            <button
+              type="button"
+              class="lumen-edit-preview-toggle"
+              :class="{ active: editPreviewOpen }"
+              :title="editPreviewOpen ? 'Masquer la preview' : 'Afficher la preview'"
+              :disabled="editSaving"
+              @click="editPreviewOpen = !editPreviewOpen"
+            >
+              <Columns2 :size="14" />
+            </button>
+            <button type="button" class="lumen-edit-btn lumen-edit-btn--ghost" :disabled="editSaving" @click="exitEditMode">
+              Annuler
+            </button>
+            <button type="button" class="lumen-edit-btn lumen-edit-btn--primary" :disabled="editSaving" @click="saveEdit">
+              <Loader2 v-if="editSaving" :size="14" class="spin" />
+              <Save v-else :size="14" />
+              {{ editSaving ? 'Saving...' : 'Commit' }}
+            </button>
+          </div>
+        </header>
+        <!-- Editeur + preview -->
         <div class="lumen-edit-body" :class="{ 'lumen-edit-body--split': editPreviewOpen }">
-          <div class="lumen-edit-pane">
-            <div class="lumen-edit-pane-label">
-              <Pencil :size="11" /> Source {{ chapterKind === 'tex' ? 'LaTeX' : 'markdown' }}
-            </div>
+          <div class="lumen-edit-pane lumen-edit-pane--editor">
             <UiCodeEditor
               v-model="editDraft"
               :language="chapterKind === 'tex' ? 'plaintext' : 'markdown'"
@@ -961,33 +993,6 @@ watch(() => [props.content, props.chapter?.path], () => {
             <div class="lumen-edit-preview markdown-body" v-html="editPreviewHtml" />
           </div>
         </div>
-        <footer class="lumen-edit-foot">
-          <input
-            v-model="editMessage"
-            type="text"
-            class="form-input lumen-edit-message"
-            :placeholder="`docs: edit ${chapter.path}`"
-            maxlength="200"
-          />
-          <button
-            type="button"
-            class="lumen-edit-preview-toggle"
-            :class="{ active: editPreviewOpen }"
-            :title="editPreviewOpen ? 'Masquer la preview' : 'Afficher la preview'"
-            :disabled="editSaving"
-            @click="editPreviewOpen = !editPreviewOpen"
-          >
-            <Columns2 :size="14" />
-          </button>
-          <button type="button" class="btn-ghost" :disabled="editSaving" @click="exitEditMode">
-            Annuler
-          </button>
-          <button type="button" class="btn-primary" :disabled="editSaving" @click="saveEdit">
-            <Loader2 v-if="editSaving" :size="14" class="spin" />
-            <Save v-else :size="14" />
-            {{ editSaving ? 'Enregistrement...' : 'Enregistrer' }}
-          </button>
-        </footer>
       </div>
 
       <!-- Rendu Markdown standard sinon -->
@@ -1256,23 +1261,93 @@ button.lumen-viewer-chip:focus-visible {
   flex-direction: column;
   overflow: hidden;
 }
+
+/* Barre de commit fixe en haut (style GitHub) */
+.lumen-edit-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 8px 16px;
+  background: var(--bg-main);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 5;
+}
+.lumen-edit-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  min-width: 0;
+}
+.lumen-edit-toolbar-path {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lumen-edit-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.lumen-edit-message {
+  width: 220px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  outline: none;
+}
+.lumen-edit-message:focus { border-color: var(--accent); }
+.lumen-edit-message::placeholder { color: var(--text-muted); }
+
+.lumen-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.lumen-edit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.lumen-edit-btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+}
+.lumen-edit-btn--ghost:hover:not(:disabled) { background: var(--bg-hover); }
+.lumen-edit-btn--primary {
+  background: var(--color-success, #2ea043);
+  color: white;
+  border-color: var(--color-success, #2ea043);
+}
+.lumen-edit-btn--primary:hover:not(:disabled) { opacity: 0.9; }
+
 .lumen-edit-preview-toggle {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xs);
-  padding: 6px var(--space-md);
+  justify-content: center;
+  width: 32px;
   height: 32px;
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 6px;
   color: var(--text-muted);
   cursor: pointer;
-  font-family: var(--font);
-  font-size: 12px;
-  font-weight: 600;
-  transition: background var(--motion-fast) var(--ease-out),
-              color var(--motion-fast) var(--ease-out),
-              border-color var(--motion-fast) var(--ease-out);
+  transition: all 0.12s ease;
 }
 .lumen-edit-preview-toggle:hover:not(:disabled) {
   background: var(--bg-hover);
@@ -1285,24 +1360,31 @@ button.lumen-viewer-chip:focus-visible {
 }
 .lumen-edit-preview-toggle:disabled { opacity: .4; cursor: not-allowed; }
 
+/* Editeur + preview */
 .lumen-edit-body {
   flex: 1;
   min-height: 0;
-  padding: var(--space-md) var(--space-xl);
-  overflow: hidden;
   display: flex;
-  gap: var(--space-md);
+  overflow: hidden;
 }
-/* Split view : 2 colonnes egales. CodeMirror a gauche, preview a droite. */
-.lumen-edit-body--split .lumen-edit-pane {
-  flex: 1 1 50%;
+.lumen-edit-pane--editor {
+  flex: 1;
   min-width: 0;
-}
-.lumen-edit-pane {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+}
+.lumen-edit-body--split .lumen-edit-pane--editor {
+  flex: 1 1 50%;
+}
+.lumen-edit-body--split .lumen-edit-pane--preview {
+  flex: 1 1 50%;
+}
+.lumen-edit-pane--preview {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
 }
 .lumen-edit-pane-label {
   display: inline-flex;
@@ -1313,29 +1395,13 @@ button.lumen-viewer-chip:focus-visible {
   text-transform: uppercase;
   letter-spacing: .08em;
   color: var(--text-muted);
-  padding: 0 var(--space-xs);
-}
-.lumen-edit-pane--preview {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-md) var(--space-lg);
-  overflow-y: auto;
+  padding: 8px 16px 4px;
+  flex-shrink: 0;
 }
 .lumen-edit-preview {
-  padding: 0;
-}
-
-.lumen-edit-foot {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md) var(--space-xl) var(--space-lg);
-  border-top: 1px solid var(--border);
-}
-.lumen-edit-message {
+  padding: 16px 24px;
   flex: 1;
-  font-size: 13px;
+  overflow-y: auto;
 }
 
 .lumen-viewer-loading,
