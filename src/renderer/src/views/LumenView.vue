@@ -14,8 +14,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import {
   BookOpen, RefreshCw, Github, LogOut, Settings, AlertCircle, Loader2, FolderGit2, Plus, Keyboard,
-  PanelLeftClose, PanelLeftOpen, LayoutGrid,
+  PanelLeftClose, PanelLeftOpen, LayoutGrid, Lightbulb, Wrench, Hammer, Folder, Clock,
 } from 'lucide-vue-next'
+import type { Component } from 'vue'
 import { useLumenStore } from '@/stores/lumen'
 import { useAppStore } from '@/stores/app'
 import { useToast } from '@/composables/useToast'
@@ -105,6 +106,20 @@ const HIDDEN_KINDS = new Set(['student', 'group', 'readme'])
 const courseRepos = computed(() =>
   repos.value.filter((r) => r.manifest && !HIDDEN_KINDS.has(r.manifest.kind ?? '')),
 )
+
+const KIND_META: Record<string, { icon: Component; label: string }> = {
+  course:      { icon: BookOpen,  label: 'Cours' },
+  prosit:      { icon: Lightbulb, label: 'Prosit' },
+  workshop:    { icon: Wrench,    label: 'Workshop' },
+  miniproject: { icon: Hammer,    label: 'Mini-projet' },
+  project:     { icon: Folder,    label: 'Projet' },
+}
+function kindOf(repo: typeof repos.value[number]) {
+  return KIND_META[repo.manifest?.kind ?? 'course'] ?? KIND_META.course
+}
+function totalDuration(repo: typeof repos.value[number]): number {
+  return (repo.manifest?.chapters ?? []).reduce((sum, c) => sum + (c.duration ?? 0), 0)
+}
 
 /** Timestamp du sync le plus recent parmi tous les repos de la promo. */
 const lastSyncedAt = computed<string | null>(() => {
@@ -668,8 +683,18 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
                 class="lumen-welcome-card"
                 @click="openRepo(repo)"
               >
+                <span class="lumen-welcome-card-badge">
+                  <component :is="kindOf(repo).icon" :size="12" />
+                  {{ kindOf(repo).label }}
+                </span>
                 <span class="lumen-welcome-card-title">{{ repo.manifest?.project ?? repo.fullName }}</span>
-                <span class="lumen-welcome-card-meta">{{ repo.manifest?.chapters.length ?? 0 }} chapitres</span>
+                <span v-if="repo.manifest?.summary" class="lumen-welcome-card-desc">{{ repo.manifest.summary }}</span>
+                <span class="lumen-welcome-card-meta">
+                  {{ repo.manifest?.chapters.length ?? 0 }} chapitres
+                  <template v-if="totalDuration(repo) > 0">
+                    <Clock :size="10" /> {{ Math.round(totalDuration(repo) / 60) }}h
+                  </template>
+                </span>
               </button>
             </div>
           </div>
@@ -1073,9 +1098,32 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
   color: var(--text-primary);
   line-height: 1.3;
 }
+.lumen-welcome-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.lumen-welcome-card-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .lumen-welcome-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   color: var(--text-muted);
+  margin-top: auto;
 }
 
 .lumen-modal-backdrop {
