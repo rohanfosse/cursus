@@ -6,8 +6,8 @@
  *
  * Un seul etudiant voit sa propre note (aucune visibilite prof / pair).
  */
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { NotebookPen, Trash2, Check, Loader2 } from 'lucide-vue-next'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { NotebookPen, Trash2, Check, Loader2, AlertCircle, RotateCcw } from 'lucide-vue-next'
 import { useLumenStore } from '@/stores/lumen'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
@@ -31,6 +31,9 @@ const lastSavedAt = ref<string | null>(null)
 const initialized = ref(false)
 
 const MAX_CHARS = 10_000
+const WARN_THRESHOLD = 8_000
+const nearLimit = computed(() => draft.value.length >= WARN_THRESHOLD)
+const atLimit = computed(() => draft.value.length >= MAX_CHARS)
 
 async function loadNote() {
   initialized.value = false
@@ -49,24 +52,46 @@ onBeforeUnmount(() => {
   if (debounceTimer) clearTimeout(debounceTimer)
 })
 
+// Contenu a sauvegarder en cas de retry (dernier draft avant echec)
+let pendingContent: string | null = null
+
 watch(draft, (newVal) => {
   if (!initialized.value) return
-  if (newVal.length > MAX_CHARS) return
-  if (debounceTimer) clearTimeout(debounceTimer)
-  saveState.value = 'saving'
-  debounceTimer = setTimeout(async () => {
-    try {
-      await lumenStore.saveChapterNote(props.repoId, props.path, newVal)
-      lastSavedAt.value = new Date().toISOString()
-      saveState.value = 'saved'
-      setTimeout(() => {
-        if (saveState.value === 'saved') saveState.value = 'idle'
-      }, 1200)
-    } catch {
-      saveState.value = 'error'
-    }
-  }, 1500)
+  if (newVal.length >= MAX_CHARS) {
+    showToast('Limite de 10 000 caracteres atteinte', 'info')
+    return
+  }
+  scheduleSave(newVal)
 })
+
+function scheduleSave(content: string) {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  pendingContent = content
+  saveState.value = 'saving'
+  debounceTimer = setTimeout(() => doSave(content), 1500)
+}
+
+async function doSave(content: string) {
+  try {
+    await lumenStore.saveChapterNote(props.repoId, props.path, content)
+    lastSavedAt.value = new Date().toISOString()
+    pendingContent = null
+    saveState.value = 'saved'
+    setTimeout(() => {
+      if (saveState.value === 'saved') saveState.value = 'idle'
+    }, 1200)
+  } catch {
+    saveState.value = 'error'
+  }
+}
+
+function retrySave() {
+  if (pendingContent != null) {
+    doSave(pendingContent)
+  } else {
+    doSave(draft.value)
+  }
+}
 
 async function handleDelete() {
   if (!draft.value.trim() && !lastSavedAt.value) return
@@ -87,6 +112,16 @@ async function handleDelete() {
       <span class="lumen-note-state" :class="`state-${saveState}`">
         <Loader2 v-if="saveState === 'saving'" :size="11" class="spin" />
         <Check v-else-if="saveState === 'saved'" :size="11" />
+        <button
+          v-else-if="saveState === 'error'"
+          type="button"
+          class="lumen-note-retry"
+          title="Reessayer la sauvegarde"
+          @click="retrySave"
+        >
+          <AlertCircle :size="11" /> Echec
+          <RotateCcw :size="10" />
+        </button>
         <template v-else-if="lastSavedAt">{{ relativeTime(lastSavedAt) }}</template>
       </span>
       <button
@@ -109,7 +144,9 @@ async function handleDelete() {
     />
 
     <footer class="lumen-note-foot">
-      <span class="lumen-note-count">{{ draft.length }} / {{ MAX_CHARS }}</span>
+      <span class="lumen-note-count" :class="{ 'near-limit': nearLimit, 'at-limit': atLimit }">
+        {{ draft.length }} / {{ MAX_CHARS }}
+      </span>
     </footer>
   </aside>
 </template>
@@ -152,6 +189,19 @@ async function handleDelete() {
 .state-saved  { color: var(--success, #4caf50); }
 .state-error  { color: var(--danger); }
 
+.lumen-note-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+}
+.lumen-note-retry:hover { text-decoration: underline; }
+
 .lumen-note-delete {
   background: none;
   border: none;
@@ -185,7 +235,10 @@ async function handleDelete() {
   font-size: 11px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+  transition: color var(--t-fast) ease;
 }
+.lumen-note-count.near-limit { color: var(--warning, #f59e0b); font-weight: 600; }
+.lumen-note-count.at-limit { color: var(--danger); font-weight: 700; }
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

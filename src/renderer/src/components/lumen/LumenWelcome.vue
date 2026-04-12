@@ -204,7 +204,11 @@ const totalStats = computed(() => {
           </div>
         </button>
       </div>
-      <p v-else class="lw-empty">Aucun cours synchronise.</p>
+      <div v-else class="lw-empty-box">
+        <BookOpen :size="32" class="lw-empty-icon" />
+        <p class="lw-empty-text">Aucun cours disponible pour le moment.</p>
+        <p class="lw-empty-hint">Ton enseignant n'a pas encore publie de cours, ou la synchronisation est en attente.</p>
+      </div>
     </section>
   </div>
 </template>
@@ -254,6 +258,9 @@ const totalStats = computed(() => {
   cursor: pointer;
   transition: background 0.15s, box-shadow 0.15s;
   color: var(--text-primary);
+}
+@supports not (color: color-mix(in srgb, white, black)) {
+  .lw-resume { background: var(--bg-hover); }
 }
 .lw-resume:hover {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -392,9 +399,26 @@ const totalStats = computed(() => {
   min-width: 0;
 }
 
-.lw-empty {
-  font-size: 14px;
-  color: var(--text-muted);
+.lw-empty-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 24px;
+  gap: 8px;
+}
+.lw-empty-icon { color: var(--text-muted); }
+.lw-empty-text {
+  margin: 8px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.lw-empty-hint {
   margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 400px;
+  line-height: 1.5;
 }
 </style>

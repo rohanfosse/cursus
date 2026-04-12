@@ -917,11 +917,11 @@ watch(() => [props.content, props.chapter?.path], () => {
 
     <!-- Banner stale : contenu potentiellement obsolete (cache > 1h ou lecture
          depuis cache offline). Un clic declenche un resync de la promo. -->
-    <div v-if="isStaleContent && !loading && content" class="lumen-stale-banner">
-      <Clock :size="12" />
-      <span>Contenu potentiellement obsolete — derniere synchronisation {{ staleRelative }}</span>
+    <div v-if="isStaleContent && !loading && content" class="lumen-stale-banner" role="alert">
+      <Clock :size="14" />
+      <span>Ce chapitre n'est peut-etre pas a jour (derniere synchro {{ staleRelative }})</span>
       <button type="button" class="lumen-stale-refresh" @click="emit('resync')">
-        <RefreshCw :size="11" /> Resynchroniser
+        <RefreshCw :size="12" /> Mettre a jour
       </button>
     </div>
 
@@ -931,7 +931,11 @@ watch(() => [props.content, props.chapter?.path], () => {
     </div>
     <div v-else-if="!content" class="lumen-viewer-empty">
       <FileText :size="32" />
-      <p>Contenu indisponible</p>
+      <h3>Contenu indisponible</h3>
+      <p>Le chapitre n'a pas pu etre charge. Verifie ta connexion internet ou reessaie.</p>
+      <button type="button" class="lumen-btn primary" @click="emit('resync')">
+        <RefreshCw :size="14" /> Reessayer
+      </button>
     </div>
     <template v-else>
       <!-- Compagnon PDF (v2.71) : mode override quand le prof bascule sur
@@ -1048,6 +1052,12 @@ watch(() => [props.content, props.chapter?.path], () => {
         >
           <ChevronRight :size="18" />
         </button>
+      </div>
+
+      <!-- Indicateur de fin de cours (v2.87) -->
+      <div v-if="!isMarp && !isPdf && !nextChapter && prevChapter" class="lumen-end-of-course">
+        <Check :size="16" />
+        <span>Dernier chapitre du cours</span>
       </div>
     </template>
 
@@ -1635,17 +1645,36 @@ button.lumen-viewer-chip:focus-visible {
 .lumen-stale-banner {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 8px 48px 0;
-  padding: 6px 12px;
-  background: rgba(217, 138, 0, 0.09);
-  border: 1px solid rgba(217, 138, 0, 0.3);
-  border-radius: 6px;
-  font-size: 11px;
+  padding: 10px 14px;
+  background: rgba(217, 138, 0, 0.12);
+  border: 1px solid rgba(217, 138, 0, 0.35);
+  border-radius: 8px;
+  font-size: 13px;
   color: var(--warning, #d98a00);
   flex-shrink: 0;
 }
 .lumen-stale-banner svg { flex-shrink: 0; }
+
+/* Indicateur fin de cours (v2.87) */
+.lumen-end-of-course {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  margin: 24px 48px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--success, #4caf50) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success, #4caf50) 25%, transparent);
+  color: var(--success, #4caf50);
+  font-size: 14px;
+  font-weight: 600;
+}
+@supports not (color: color-mix(in srgb, white, black)) {
+  .lumen-end-of-course { background: var(--bg-hover); border-color: var(--border); }
+}
 .lumen-stale-refresh {
   margin-left: auto;
   display: inline-flex;
