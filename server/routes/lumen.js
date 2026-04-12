@@ -101,7 +101,7 @@ function promoFromIdParam(req) {
 
 function repoOrThrow(id) {
   const repo = getLumenRepo(id)
-  if (!repo) throw new NotFoundError('Repo Lumen introuvable')
+  if (!repo) throw new NotFoundError(`Repo Lumen introuvable (id=${id}). Synchronise d'abord les cours.`)
   return repo
 }
 
