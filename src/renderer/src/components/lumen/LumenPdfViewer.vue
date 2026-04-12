@@ -79,49 +79,61 @@ function decodeBase64Content(content: string): Uint8Array | null {
   }
 }
 
-async function renderPdf(data: Uint8Array, gen: number) {
+/** Release GPU memory from canvas elements before removing them. */
+function clearContainer(container: HTMLElement) {
+  container.querySelectorAll('canvas').forEach((c) => { c.width = 0; c.height = 0 })
+  container.innerHTML = ''
+}
+
+/** Render all pages of an already-loaded PDF document onto canvases. */
+async function renderPages(pdf: pdfjsLib.PDFDocumentProxy, gen: number) {
+  await nextTick()
+  const container = containerRef.value
+  if (!container || gen !== renderGeneration) return
+
+  clearContainer(container)
+
+  const dpr = window.devicePixelRatio || 1
+  const currentScale = scale.value
+
+  // Pre-create page wrappers in order, then render in parallel
+  const slots: { pageDiv: HTMLElement; pageNum: number }[] = []
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const pageDiv = document.createElement('div')
+    pageDiv.className = 'lumen-pdf-page'
+    container.appendChild(pageDiv)
+    slots.push({ pageDiv, pageNum: i })
+  }
+
+  await Promise.all(slots.map(async ({ pageDiv, pageNum }) => {
+    if (gen !== renderGeneration) return
+    const page = await pdf.getPage(pageNum)
+    const viewport = page.getViewport({ scale: currentScale })
+
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')!
+    canvas.width = Math.floor(viewport.width * dpr)
+    canvas.height = Math.floor(viewport.height * dpr)
+    canvas.style.width = `${Math.floor(viewport.width)}px`
+    canvas.style.height = `${Math.floor(viewport.height)}px`
+    ctx.scale(dpr, dpr)
+    pageDiv.appendChild(canvas)
+
+    if (gen !== renderGeneration) return
+    await page.render({ canvasContext: ctx, viewport, canvas } as Parameters<typeof page.render>[0]).promise
+  }))
+}
+
+/** Load a new PDF document from raw bytes, then render its pages. */
+async function loadPdf(data: Uint8Array, gen: number) {
   loading.value = true
   error.value = null
-
   try {
     const pdf = await pdfjsLib.getDocument({ data }).promise
-    if (gen !== renderGeneration) return  // stale render
-
+    if (gen !== renderGeneration) return
     currentPdf = pdf
     pageCount.value = pdf.numPages
-
-    await nextTick()
-    const container = containerRef.value
-    if (!container) return
-
-    // Clear previous pages
-    container.innerHTML = ''
-
-    for (let i = 1; i <= pdf.numPages; i++) {
-      if (gen !== renderGeneration) return
-
-      const page = await pdf.getPage(i)
-      const viewport = page.getViewport({ scale: scale.value })
-
-      // Page wrapper
-      const pageDiv = document.createElement('div')
-      pageDiv.className = 'lumen-pdf-page'
-
-      // Canvas
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')!
-      const dpr = window.devicePixelRatio || 1
-      canvas.width = Math.floor(viewport.width * dpr)
-      canvas.height = Math.floor(viewport.height * dpr)
-      canvas.style.width = `${Math.floor(viewport.width)}px`
-      canvas.style.height = `${Math.floor(viewport.height)}px`
-      ctx.scale(dpr, dpr)
-
-      pageDiv.appendChild(canvas)
-      container.appendChild(pageDiv)
-
-      await page.render({ canvasContext: ctx, viewport, canvas } as Parameters<typeof page.render>[0]).promise
-    }
+    await renderPages(pdf, gen)
   } catch (err) {
     if (gen !== renderGeneration) return
     error.value = err instanceof Error ? err.message : 'Erreur lors du rendu PDF'
@@ -130,50 +142,28 @@ async function renderPdf(data: Uint8Array, gen: number) {
   }
 }
 
-function loadFromContent(content: string | null) {
+// Content change: decode + load new PDF document
+watch(() => props.content, (content) => {
   renderGeneration++
   const gen = renderGeneration
-
-  if (currentPdf) {
-    currentPdf.destroy()
-    currentPdf = null
-  }
+  if (currentPdf) { currentPdf.destroy(); currentPdf = null }
   pageCount.value = 0
-
-  if (!content) {
-    error.value = 'Aucun contenu PDF'
-    return
-  }
-
+  if (!content) { error.value = 'Aucun contenu PDF'; return }
   const data = decodeBase64Content(content)
-  if (!data) {
-    error.value = 'Format de donnees PDF invalide'
-    return
-  }
-
-  renderPdf(data, gen)
-}
-
-watch(() => props.content, (content) => {
-  loadFromContent(content)
+  if (!data) { error.value = 'Format de donnees PDF invalide'; return }
+  loadPdf(data, gen)
 }, { immediate: true })
 
+// Scale change: re-render pages only (PDF document already loaded)
 watch(scale, () => {
-  if (currentPdf && props.content) {
-    const data = decodeBase64Content(props.content)
-    if (data) {
-      renderGeneration++
-      renderPdf(data, renderGeneration)
-    }
-  }
+  if (!currentPdf) return
+  renderGeneration++
+  renderPages(currentPdf, renderGeneration)
 })
 
 onBeforeUnmount(() => {
   renderGeneration++
-  if (currentPdf) {
-    currentPdf.destroy()
-    currentPdf = null
-  }
+  if (currentPdf) { currentPdf.destroy(); currentPdf = null }
 })
 </script>
 

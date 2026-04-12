@@ -165,8 +165,6 @@ function openTravail(travail: LumenLinkedTravail) {
   router.push({ name: 'devoirs' })
 }
 
-/* navigateToProject supprime v2.103 : le chip projet etait redondant avec le breadcrumb. */
-
 const bodyRef = ref<HTMLElement | null>(null)
 
 /**
@@ -324,9 +322,6 @@ const chapterKind = computed<'markdown' | 'pdf' | 'tex'>(() => {
 const isPdf = computed(() => chapterKind.value === 'pdf')
 const isTex = computed(() => chapterKind.value === 'tex')
 
-// Pour le rendu PDF on convertit la data URL renvoyee par le serveur en
-/* Blob URL logic supprimee v2.103 — le rendu PDF est delegue a LumenPdfViewer (pdf.js). */
-
 // Detection Marp via frontmatter `marp: true`. Si detecte, on bascule sur
 // LumenSlideDeck (rendu en slides) au lieu du rendu Markdown long-form.
 // Marp ne s'applique qu'aux chapitres markdown — un .pdf ou .tex ne peut
@@ -361,7 +356,6 @@ const companionMode = ref(false)
 const companionContent = ref<string | null>(null)
 const companionLoading = ref(false)
 const companionKind = ref<'pdf' | 'tex' | 'markdown' | null>(null)
-/* companionBlobUrl supprime v2.103 : le companion PDF est rendu par LumenPdfViewer. */
 
 const companionPath = computed<string | null>(() => {
   return props.chapter.companionPdf ?? props.chapter.companionTex ?? null
@@ -1419,8 +1413,6 @@ button.lumen-viewer-chip:focus-visible {
   padding: 0;
 }
 
-/* .lumen-viewer-main--pdf et .lumen-pdf-frame supprimes v2.103 :
-   le rendu PDF est desormais gere par LumenPdfViewer (pdf.js). */
 
 /* Mode TeX (v2.64) : on reuse le wrapper markdown-body pour profiter du
    styling .lumen-codeblock standard, mais le contenu est uniquement un

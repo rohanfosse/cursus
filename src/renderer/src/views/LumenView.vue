@@ -13,7 +13,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import {
-  BookOpen, RefreshCw, Github, LogOut, Settings, AlertCircle, Loader2, FolderGit2, Plus, Keyboard,
+  BookOpen, RefreshCw, Settings, AlertCircle, Loader2, FolderGit2, Plus,
   PanelLeftClose, PanelLeftOpen, LayoutGrid,
 } from 'lucide-vue-next'
 import LumenTopBarMenu from '@/components/lumen/LumenTopBarMenu.vue'
@@ -710,7 +710,6 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
   font-weight: 700;
   letter-spacing: 0.02em;
 }
-/* .lumen-last-sync et .lumen-brand-org supprimes v2.103 : deplace dans LumenTopBarMenu */
 
 .lumen-topbar-actions {
   display: flex;
@@ -718,7 +717,6 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
   gap: 8px;
 }
 
-/* .lumen-user styles supprimes v2.103 : deplace dans LumenTopBarMenu */
 
 .lumen-btn {
   display: inline-flex;
