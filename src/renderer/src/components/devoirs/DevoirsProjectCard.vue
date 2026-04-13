@@ -6,7 +6,7 @@
  */
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ChevronRight, Clock, FolderOpen } from 'lucide-vue-next'
+import { ChevronRight, Clock, FolderOpen, Award } from 'lucide-vue-next'
 import { deadlineClass, deadlineLabel } from '@/utils/date'
 import { typeLabel } from '@/utils/devoir'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
@@ -22,6 +22,8 @@ const props = defineProps<{
   drafts?: number
   devoirCount: number
   nextDeadline?: string | null
+  gradedCount?: number
+  bestGrade?: string | null
 }>()
 
 const emit = defineEmits<{ (e: 'click', ev: MouseEvent): void }>()

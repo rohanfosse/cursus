@@ -2,8 +2,8 @@
  * Vue rendus enseignant : rendus groupés par devoir, notation inline avec note et feedback.
  */
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Users, ChevronRight, Link2, FileText, Award, X } from 'lucide-vue-next'
+import { ref, computed } from 'vue'
+import { Users, ChevronRight, Link2, FileText, Award, X, Download, Clock } from 'lucide-vue-next'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import { useTravauxStore } from '@/stores/travaux'
 import { avatarColor, initials } from '@/utils/format'
@@ -23,6 +23,23 @@ const props = defineProps<{
   saveGrade: (depotId: number) => void
   openDevoir: (id: number) => void
 }>()
+
+/** Local filter for rendus */
+const localFilter = ref<'all' | 'ungraded' | 'graded' | 'late'>('all')
+
+/** Filtered rendus based on local filter */
+const displayedRendus = computed(() => {
+  if (localFilter.value === 'all') return props.rendusByDevoir
+  return props.rendusByDevoir.map(group => {
+    const filtered = group.rendus.filter(r => {
+      if (localFilter.value === 'ungraded') return !r.note
+      if (localFilter.value === 'graded') return !!r.note
+      if (localFilter.value === 'late') return isLate(r, group)
+      return true
+    })
+    return { ...group, rendus: filtered }
+  }).filter(g => g.rendus.length > 0)
+})
 
 /** Track which feedbacks are expanded */
 const expandedFeedbacks = ref<Set<number>>(new Set())
@@ -45,6 +62,62 @@ defineEmits<{
 }>()
 
 const travauxStore = useTravauxStore()
+
+/** Grade distribution across all visible rendus */
+const gradeDistribution = computed(() => {
+  const dist: Record<string, number> = {}
+  let ungraded = 0
+  for (const group of props.rendusByDevoir) {
+    for (const r of group.rendus) {
+      if (r.note) {
+        const key = r.note.toString().toUpperCase().trim()
+        dist[key] = (dist[key] ?? 0) + 1
+      } else {
+        ungraded++
+      }
+    }
+  }
+  return { dist, ungraded, total: Object.values(dist).reduce((s, n) => s + n, 0) + ungraded }
+})
+
+/** Total rendus count */
+const totalRendus = computed(() =>
+  props.rendusByDevoir.reduce((s, g) => s + g.rendus.length, 0),
+)
+
+/** Export all rendus as CSV */
+function exportCSV() {
+  const rows: string[][] = [['Devoir', 'Type', 'Étudiant', 'Fichier/Lien', 'Date de dépôt', 'Note', 'Feedback']]
+  for (const group of props.rendusByDevoir) {
+    const title = (group.devoir as any).title ?? `Devoir #${group.devoir.id}`
+    const type = (group.devoir as any).type ?? ''
+    for (const r of group.rendus) {
+      rows.push([
+        title,
+        type,
+        r.student_name ?? '',
+        r.content ?? '',
+        r.submitted_at ?? '',
+        r.note ?? '',
+        (r.feedback ?? '').replace(/\n/g, ' '),
+      ])
+    }
+  }
+  const csv = rows.map(row => row.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `rendus-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+/** Check if a rendu was submitted late */
+function isLate(r: any, group: { devoir: Partial<GanttRow> }): boolean {
+  if (!r.submitted_at || !group.devoir.deadline) return false
+  return new Date(r.submitted_at).getTime() > new Date(group.devoir.deadline).getTime()
+}
 </script>
 
 <template>
@@ -63,8 +136,37 @@ const travauxStore = useTravauxStore()
   />
 
   <div v-else class="devoirs-list">
+    <!-- Toolbar: filter pills + export + grade distribution -->
+    <div class="rendus-toolbar">
+      <div class="rendus-toolbar-left">
+        <span class="rendus-total-label">{{ totalRendus }} rendu{{ totalRendus > 1 ? 's' : '' }}</span>
+        <div class="rendus-filter-pills">
+          <button class="rendus-pill" :class="{ active: localFilter === 'all' }" @click="localFilter = 'all'">Tous</button>
+          <button class="rendus-pill" :class="{ active: localFilter === 'ungraded' }" @click="localFilter = 'ungraded'">Non notés</button>
+          <button class="rendus-pill" :class="{ active: localFilter === 'graded' }" @click="localFilter = 'graded'">Notés</button>
+          <button class="rendus-pill" :class="{ active: localFilter === 'late' }" @click="localFilter = 'late'">En retard</button>
+        </div>
+        <div v-if="gradeDistribution.total > 0" class="grade-dist">
+          <span
+            v-for="(count, grade) in gradeDistribution.dist"
+            :key="grade"
+            class="grade-dist-chip"
+            :class="`grade-dist--${(grade as string).charAt(0).toLowerCase()}`"
+          >
+            {{ grade }}: {{ count }}
+          </span>
+          <span v-if="gradeDistribution.ungraded > 0" class="grade-dist-chip grade-dist--none">
+            Non noté: {{ gradeDistribution.ungraded }}
+          </span>
+        </div>
+      </div>
+      <button class="btn-ghost rendus-export-btn" @click="exportCSV">
+        <Download :size="13" /> Exporter CSV
+      </button>
+    </div>
+
     <div
-      v-for="group in rendusByDevoir"
+      v-for="group in displayedRendus"
       :key="group.devoir.id"
       class="rendus-group"
     >
@@ -91,9 +193,17 @@ const travauxStore = useTravauxStore()
             <span class="rendus-progress-mini-label">{{ submissionPct(group) }}%</span>
           </div>
         </div>
-        <button class="btn-ghost btn-ouvrir" @click="openDevoir(group.devoir.id!)">
-          Ouvrir <ChevronRight :size="13" />
-        </button>
+        <div class="rendus-group-header-right">
+          <span v-if="group.rendus.filter(r => r.note).length" class="rendus-graded-count">
+            {{ group.rendus.filter(r => r.note).length }} noté{{ group.rendus.filter(r => r.note).length > 1 ? 's' : '' }}
+          </span>
+          <span v-if="group.rendus.some(r => isLate(r, group))" class="rendus-late-count">
+            {{ group.rendus.filter(r => isLate(r, group)).length }} retard{{ group.rendus.filter(r => isLate(r, group)).length > 1 ? 's' : '' }}
+          </span>
+          <button class="btn-ghost btn-ouvrir" @click="openDevoir(group.devoir.id!)">
+            Ouvrir <ChevronRight :size="13" />
+          </button>
+        </div>
       </div>
 
       <div class="rendus-list">
@@ -110,6 +220,10 @@ const travauxStore = useTravauxStore()
             </span>
           </div>
           <div class="rendu-right">
+            <!-- Late indicator -->
+            <span v-if="isLate(r, group)" class="rendu-late-badge" title="Dépôt en retard">
+              <Clock :size="9" /> Retard
+            </span>
             <!-- Notation inline -->
             <template v-if="editingDepotId === r.id">
               <div class="grade-inline-form">
@@ -180,6 +294,50 @@ const travauxStore = useTravauxStore()
 </template>
 
 <style scoped>
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+.rendus-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: 780px; margin: 0 auto 10px; padding: 0 4px; gap: 10px;
+}
+.rendus-toolbar-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.rendus-total-label { font-size: 13px; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+.rendus-export-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; padding: 5px 10px; flex-shrink: 0;
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.rendus-export-btn:hover { background: var(--bg-hover); border-color: var(--accent); color: var(--accent); }
+.rendus-filter-pills { display: flex; gap: 4px; }
+.rendus-pill {
+  font-size: 10px; font-weight: 600; padding: 3px 10px;
+  border-radius: 12px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted);
+  cursor: pointer; font-family: var(--font);
+  transition: all .15s;
+}
+.rendus-pill:hover { background: var(--bg-hover); color: var(--text-primary); }
+.rendus-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ── Grade distribution ──────────────────────────────────────────────────── */
+.grade-dist { display: flex; gap: 4px; flex-wrap: wrap; }
+.grade-dist-chip {
+  font-size: 10px; font-weight: 700; padding: 1px 6px;
+  border-radius: 8px; white-space: nowrap;
+}
+.grade-dist--a { background: rgba(39,174,96,.15); color: var(--color-success); }
+.grade-dist--b { background: rgba(74,144,217,.15); color: var(--accent); }
+.grade-dist--c { background: rgba(243,156,18,.15); color: var(--color-warning); }
+.grade-dist--d { background: rgba(231,76,60,.15); color: var(--color-danger); }
+.grade-dist--none { background: var(--bg-active); color: var(--text-muted); }
+
+/* ── Late badge ──────────────────────────────────────────────────────────── */
+.rendu-late-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 9px; font-weight: 700; padding: 1px 6px;
+  border-radius: 8px; white-space: nowrap;
+  background: rgba(231,76,60,.12); color: var(--color-danger);
+}
+
 /* ── Liste commune ────────────────────────────────────────────────────────── */
 .devoirs-list {
   display: flex;
@@ -236,6 +394,17 @@ const travauxStore = useTravauxStore()
   color: var(--accent);
 }
 
+.rendus-group-header-right {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.rendus-graded-count {
+  font-size: 10px; font-weight: 600; padding: 2px 6px;
+  border-radius: 8px; background: rgba(39,174,96,.12); color: var(--color-success);
+}
+.rendus-late-count {
+  font-size: 10px; font-weight: 600; padding: 2px 6px;
+  border-radius: 8px; background: rgba(231,76,60,.12); color: var(--color-danger);
+}
 .btn-ouvrir {
   flex-shrink: 0;
   display: inline-flex;
@@ -243,7 +412,6 @@ const travauxStore = useTravauxStore()
   gap: 4px;
   font-size: 12px;
   padding: 5px 10px;
-  margin-left: 12px;
 }
 
 .rendus-list {

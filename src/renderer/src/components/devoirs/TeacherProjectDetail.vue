@@ -138,8 +138,11 @@ async function handlePublishAll() {
                 <span v-if="extractDuration(t.description)" class="dc-card-duration">{{ extractDuration(t.description) }}</span>
                 <span v-if="t.room" class="dc-card-duration">{{ t.room }}</span>
               </div>
-              <div v-if="t.hasSubmission && t.students_total > 0" class="dc-card-progress">
-                <div class="dc-card-progress-fill" :style="{ width: Math.round((t.depots_count / t.students_total) * 100) + '%' }" />
+              <div v-if="t.hasSubmission && t.students_total > 0" class="dc-card-submission">
+                <div class="dc-card-progress">
+                  <div class="dc-card-progress-fill" :style="{ width: Math.round((t.depots_count / t.students_total) * 100) + '%' }" />
+                </div>
+                <span class="dc-card-submission-label">{{ t.depots_count }}/{{ t.students_total }}</span>
               </div>
               <span v-if="!t.is_published" class="dc-card-draft-tag">Brouillon</span>
             </div>
@@ -273,9 +276,15 @@ async function handlePublishAll() {
 .dc-card-meta { display: flex; align-items: center; gap: 5px; margin-top: 6px; }
 .dc-card-date { font-size: 10px; }
 .dc-card-duration { font-size: 10px; color: var(--text-muted); background: var(--bg-hover); padding: 1px 5px; border-radius: 6px; }
+.dc-card-submission {
+  display: flex; align-items: center; gap: 6px; margin-top: 6px;
+}
+.dc-card-submission-label {
+  font-size: 9px; font-weight: 700; color: var(--text-muted); white-space: nowrap;
+}
 .dc-card-progress {
-  height: 2px; border-radius: 1px; background: var(--bg-hover);
-  margin-top: 6px; overflow: hidden;
+  flex: 1; height: 2px; border-radius: 1px; background: var(--bg-hover);
+  overflow: hidden;
 }
 .dc-card-progress-fill { height: 100%; background: var(--color-success); border-radius: 1px; }
 

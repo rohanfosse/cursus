@@ -36,6 +36,7 @@ const {
 } = useDevoirsTeacher()
 
 const {
+  studentSearch, studentSort,
   studentGroups, filteredDevoirs, submittedDevoirs,
   studentStats, studentProjectOverview,
   nextExams, nextLivrables, nextSoutenances,
@@ -108,6 +109,8 @@ watch(() => appStore.activeChannelId, () => {
         :student-categories="studentCategories"
         :student-project-type-counts="studentProjectTypeCounts"
         :student-project-stats="studentProjectStats"
+        :student-search="studentSearch"
+        :student-sort="studentSort"
         :error="studentError"
         :retry="loadStudentView"
         :depositing-devoir-id="depositingDevoirId"
@@ -124,6 +127,8 @@ watch(() => appStore.activeChannelId, () => {
         :submit-deposit="submitDeposit"
         @update:deposit-mode="depositMode = $event"
         @update:deposit-link="depositLink = $event"
+        @update:student-search="studentSearch = $event"
+        @update:student-sort="studentSort = $event"
       />
 
       <!-- ══ ACCUEIL PROJETS (prof, pas de projet sélectionné) ══ -->

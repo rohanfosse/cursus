@@ -14,6 +14,8 @@ import type { Devoir } from '@/types'
 export function useDevoirsStudent(now: Ref<number>) {
   const appStore     = useAppStore()
   const travauxStore = useTravauxStore()
+  const studentSearch = ref('')
+  const studentSort = ref<'deadline' | 'title' | 'type'>('deadline')
 
   // ── Groupes urgence étudiant (single-pass) ────────────────────────────────────
   const studentGroups = computed(() => {
@@ -43,11 +45,19 @@ export function useDevoirsStudent(now: Ref<number>) {
   })
 
   // Simplification : submitted = ceux qui ont depot_id
-  const filteredDevoirs = computed(() =>
-    appStore.activeProject
+  const filteredDevoirs = computed(() => {
+    let items = appStore.activeProject
       ? travauxStore.devoirs.filter(t => t.category === appStore.activeProject)
       : travauxStore.devoirs
-  )
+    const q = studentSearch.value.toLowerCase().trim()
+    if (q) items = items.filter(t => t.title.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q))
+    if (studentSort.value === 'title') {
+      items = [...items].sort((a, b) => a.title.localeCompare(b.title, 'fr'))
+    } else if (studentSort.value === 'type') {
+      items = [...items].sort((a, b) => a.type.localeCompare(b.type))
+    }
+    return items
+  })
   const submittedDevoirs = computed(() => filteredDevoirs.value.filter(t => t.depot_id != null))
   const pendingDeposit   = computed(() =>
     filteredDevoirs.value.filter(t => t.depot_id == null && needsSubmission(t)),
@@ -124,7 +134,7 @@ export function useDevoirsStudent(now: Ref<number>) {
   }
 
   /** Stats per project category */
-  function studentProjectStats(cat: string): { submitted: number; total: number; pct: number; devoirCount: number; nextDeadline: string | null } {
+  function studentProjectStats(cat: string): { submitted: number; total: number; pct: number; devoirCount: number; nextDeadline: string | null; gradedCount: number; bestGrade: string | null } {
     const devs = travauxStore.devoirs.filter(t => t.category?.trim() === cat)
     const submittable = devs.filter(t => needsSubmission(t))
     const submitted = submittable.filter(t => t.depot_id != null).length
@@ -136,7 +146,16 @@ export function useDevoirsStudent(now: Ref<number>) {
       .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     const nextDeadline = upcoming.length > 0 ? upcoming[0].deadline : null
 
-    return { submitted, total, pct, devoirCount: devs.length, nextDeadline }
+    // Grade info
+    const graded = devs.filter(t => t.note)
+    const gradedCount = graded.length
+    const GRADE_ORDER = ['a', 'b', 'c', 'd']
+    const grades = graded.map(t => t.note!.toString().toLowerCase().charAt(0)).filter(g => GRADE_ORDER.includes(g))
+    const bestGrade = grades.length > 0
+      ? grades.sort((a, b) => GRADE_ORDER.indexOf(a) - GRADE_ORDER.indexOf(b))[0].toUpperCase()
+      : null
+
+    return { submitted, total, pct, devoirCount: devs.length, nextDeadline, gradedCount, bestGrade }
   }
 
   const error = ref(false)
@@ -153,6 +172,9 @@ export function useDevoirsStudent(now: Ref<number>) {
   }
 
   return {
+    // Refs
+    studentSearch,
+    studentSort,
     // Computeds
     studentGroups,
     filteredDevoirs,

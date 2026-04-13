@@ -7,7 +7,7 @@ import {
   CheckCircle2, Clock, Lock, Upload,
   Calendar, Award, Bell, BellOff,
 } from 'lucide-vue-next'
-import { deadlineClass, deadlineLabel, formatDate } from '@/utils/date'
+import { deadlineClass, deadlineLabel, formatDate, countdown } from '@/utils/date'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
 import { typeLabel }         from '@/utils/devoir'
 import { useStudentReminders } from '@/composables/useStudentReminders'
@@ -108,7 +108,7 @@ function formatDesc(text: string): string {
       </div>
       <div v-if="devoir.note" class="devoir-grade-row">
         <Award :size="13" class="devoir-grade-icon" />
-        <span class="devoir-grade-value">{{ devoir.note }}</span>
+        <span class="devoir-grade-value" :class="`grade--${devoir.note.toString().charAt(0).toLowerCase()}`">{{ devoir.note }}</span>
         <span v-if="devoir.feedback" class="devoir-grade-feedback">{{ devoir.feedback }}</span>
       </div>
     </template>
@@ -146,6 +146,9 @@ function formatDesc(text: string): string {
       <!-- Default footer with deposit button -->
       <div v-else class="devoir-card-footer">
         <span class="devoir-deadline-date">Échéance : {{ formatDate(devoir.deadline) }}</span>
+        <span class="devoir-countdown" :class="`countdown--${variant}`">
+          <Clock :size="10" /> {{ countdown(devoir.deadline) }}
+        </span>
         <button class="btn-primary btn-deposit" @click="startDeposit(devoir)">
           <Upload :size="12" /> Déposer
         </button>
@@ -293,7 +296,11 @@ function formatDesc(text: string): string {
   font-size: 12.5px;
 }
 .devoir-grade-icon { color: var(--accent-light); flex-shrink: 0; }
-.devoir-grade-value { font-weight: 700; color: var(--accent-light); }
+.devoir-grade-value { font-weight: 700; color: var(--accent-light); padding: 1px 8px; border-radius: 8px; font-size: 13px; }
+.grade--a { background: rgba(39,174,96,.15); color: var(--color-success); }
+.grade--b { background: rgba(74,144,217,.15); color: var(--accent); }
+.grade--c { background: rgba(243,156,18,.15); color: var(--color-warning); }
+.grade--d { background: rgba(231,76,60,.15); color: var(--color-danger); }
 .devoir-grade-feedback { color: var(--text-secondary); font-style: italic; flex: 1; line-height: 1.4; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin .8s linear infinite; }
@@ -324,6 +331,19 @@ function formatDesc(text: string): string {
   cursor: not-allowed;
   opacity: 0.75;
 }
+
+.devoir-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.countdown--urgent { background: rgba(243,156,18,.12); color: var(--color-warning); }
+.countdown--pending { background: rgba(74,144,217,.1); color: var(--accent-light); }
 
 .btn-deposit {
   display: inline-flex;

@@ -8,6 +8,7 @@ import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import {
   CheckCircle2, Clock, Lock, AlertTriangle, Calendar, AlertCircle,
   RefreshCw, ArrowUp, BookOpen, BarChart2, Award, FileText, Mic, FolderOpen,
+  Search, ArrowUpDown,
 } from 'lucide-vue-next'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
@@ -43,6 +44,9 @@ const props = defineProps<{
   studentCategories: string[]
   studentProjectTypeCounts: (cat: string) => { type: string; count: number }[]
   studentProjectStats: (cat: string) => { submitted: number; total: number; pct: number; devoirCount: number; nextDeadline: string | null }
+  // search & sort
+  studentSearch: string
+  studentSort: 'deadline' | 'title' | 'type'
   // composable: useStudentDeposit
   depositingDevoirId: number | null
   depositMode: 'file' | 'link'
@@ -64,6 +68,8 @@ const props = defineProps<{
 defineEmits<{
   (e: 'update:depositMode', v: 'file' | 'link'): void
   (e: 'update:depositLink', v: string): void
+  (e: 'update:studentSearch', v: string): void
+  (e: 'update:studentSort', v: 'deadline' | 'title' | 'type'): void
 }>()
 
 const appStore     = useAppStore()
@@ -122,6 +128,12 @@ const groupDevoirs = computed<Devoir[]>(() =>
 )
 
 const kanbanExpanded = ref<Record<number, boolean>>({})
+
+/** Global progression percentage */
+const globalPct = computed(() => {
+  const t = props.studentStats.total
+  return t > 0 ? Math.round((props.studentStats.submitted / t) * 100) : 0
+})
 </script>
 
 <template>
@@ -159,6 +171,30 @@ const kanbanExpanded = ref<Record<number, boolean>>({})
 
   <!-- ══ ACCUEIL étudiant (aucun projet sélectionné) - même layout que prof ══ -->
   <div v-else-if="isAccueil" class="dv-page">
+
+    <!-- ── Résumé global avec donut ──────────────────────────────── -->
+    <div class="sdv-summary-row">
+      <div class="sdv-donut-wrap">
+        <svg class="sdv-donut" viewBox="0 0 36 36">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--bg-active)" stroke-width="3" />
+          <circle
+            cx="18" cy="18" r="15.9" fill="none"
+            stroke="var(--color-success)"
+            stroke-width="3"
+            stroke-dasharray="100"
+            :stroke-dashoffset="100 - globalPct"
+            stroke-linecap="round"
+            transform="rotate(-90 18 18)"
+            class="sdv-donut-fill"
+          />
+        </svg>
+        <span class="sdv-donut-label">{{ globalPct }}%</span>
+      </div>
+      <div class="sdv-summary-info">
+        <span class="sdv-summary-title">Progression globale</span>
+        <span class="sdv-summary-desc">{{ studentStats.submitted }} / {{ studentStats.total }} devoirs rendus</span>
+      </div>
+    </div>
 
     <!-- ── Stat pills ──────────────────────────────────────────────── -->
     <div class="dv-stats-row">
@@ -245,6 +281,8 @@ const kanbanExpanded = ref<Record<number, boolean>>({})
           :pct="cachedProjectStats[cat].pct"
           :devoir-count="cachedProjectStats[cat].devoirCount"
           :next-deadline="cachedProjectStats[cat].nextDeadline"
+          :graded-count="cachedProjectStats[cat].gradedCount"
+          :best-grade="cachedProjectStats[cat].bestGrade"
           @click="appStore.activeProject = cat"
         />
       </div>
@@ -255,6 +293,32 @@ const kanbanExpanded = ref<Record<number, boolean>>({})
   <template v-else>
     <!-- Stats bar (sticky) -->
     <StudentStatsBar v-if="filteredDevoirs.length > 0" :stats="studentStats" class="sticky-stats" />
+
+    <!-- Search & sort bar -->
+    <div v-if="filteredDevoirs.length > 3" class="sdv-toolbar">
+      <div class="sdv-search">
+        <Search :size="13" class="sdv-search-icon" />
+        <input
+          type="text"
+          class="sdv-search-input"
+          placeholder="Rechercher un devoir..."
+          :value="studentSearch"
+          @input="$emit('update:studentSearch', ($event.target as HTMLInputElement).value)"
+        />
+      </div>
+      <div class="sdv-sort">
+        <ArrowUpDown :size="12" />
+        <select
+          class="sdv-sort-select"
+          :value="studentSort"
+          @change="$emit('update:studentSort', ($event.target as HTMLSelectElement).value as any)"
+        >
+          <option value="deadline">Par échéance</option>
+          <option value="title">Par titre</option>
+          <option value="type">Par type</option>
+        </select>
+      </div>
+    </div>
 
     <!-- Fiche projet étudiant (filtre projet actif) -->
     <template v-if="appStore.activeProject && appStore.activePromoId">
@@ -391,6 +455,56 @@ const kanbanExpanded = ref<Record<number, boolean>>({})
 }
 
 .sticky-stats { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(8px); }
+
+/* ── Toolbar (search + sort) ───────────────────────────────────────────────── */
+.sdv-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  max-width: 780px; margin: 0 auto 12px; padding: 0 4px;
+}
+.sdv-search {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  background: var(--bg-sidebar); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 10px;
+  transition: border-color var(--t-fast);
+}
+.sdv-search:focus-within { border-color: var(--accent); }
+.sdv-search-icon { color: var(--text-muted); flex-shrink: 0; }
+.sdv-search-input {
+  flex: 1; border: none; background: transparent;
+  font-size: 12px; color: var(--text-primary);
+  font-family: var(--font); outline: none;
+}
+.sdv-search-input::placeholder { color: var(--text-muted); }
+.sdv-sort {
+  display: flex; align-items: center; gap: 4px;
+  color: var(--text-muted); flex-shrink: 0;
+}
+.sdv-sort-select {
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg-sidebar); color: var(--text-secondary);
+  font-size: 11px; font-family: var(--font);
+  padding: 4px 8px; cursor: pointer; outline: none;
+}
+.sdv-sort-select:focus { border-color: var(--accent); }
+
+/* ── Student summary donut ──────────────────────────────────────────────── */
+.sdv-summary-row {
+  display: flex; align-items: center; gap: 16px;
+  max-width: 780px; margin: 0 auto 8px; padding: 0 4px;
+}
+.sdv-donut-wrap {
+  position: relative; width: 56px; height: 56px; flex-shrink: 0;
+}
+.sdv-donut { width: 100%; height: 100%; }
+.sdv-donut-fill { transition: stroke-dashoffset .6s ease; }
+.sdv-donut-label {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: var(--text-primary);
+}
+.sdv-summary-info { display: flex; flex-direction: column; gap: 2px; }
+.sdv-summary-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.sdv-summary-desc { font-size: 12px; color: var(--text-muted); }
 
 /* ── Student accueil specifics ───────────────────────────────────────────── */
 .sdv-next-section { margin-bottom: 4px; }
