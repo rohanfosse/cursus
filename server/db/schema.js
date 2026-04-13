@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 59;
+const CURRENT_VERSION = 60;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -1246,6 +1246,26 @@ function runMigrations(db) {
           content,
           tokenize='unicode61 remove_diacritics 2'
         );
+      `);
+    },
+
+    // v60 : Cahier — editeur collaboratif temps reel (Yjs CRDT + TipTap)
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS cahiers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          promo_id INTEGER NOT NULL REFERENCES promotions(id),
+          group_id INTEGER REFERENCES groups(id),
+          project TEXT,
+          title TEXT NOT NULL DEFAULT 'Sans titre',
+          yjs_state BLOB,
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_cahiers_promo ON cahiers(promo_id);
+        CREATE INDEX IF NOT EXISTS idx_cahiers_group ON cahiers(group_id);
+        CREATE INDEX IF NOT EXISTS idx_cahiers_project ON cahiers(promo_id, project);
       `);
     },
   ];

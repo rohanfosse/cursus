@@ -137,6 +137,15 @@ declare global {
       searchDocuments(promoId: number, q: string): Promise<IpcResponse<AppDocument[]>>
       linkDocumentToTravail(docId: number, travailId: number | null): Promise<IpcResponse<unknown>>
 
+      // Cahiers (notebooks collaboratifs)
+      getCahiers(promoId: number, project?: string | null): Promise<IpcResponse<import('./stores/cahier').Cahier[]>>
+      getCahierById(id: number): Promise<IpcResponse<import('./stores/cahier').Cahier>>
+      getCahierYjsState(id: number): Promise<IpcResponse<string | null>>
+      saveCahierYjsState(id: number, base64State: string): Promise<IpcResponse<unknown>>
+      createCahier(payload: object): Promise<IpcResponse<{ id: number }>>
+      renameCahier(id: number, title: string): Promise<IpcResponse<unknown>>
+      deleteCahier(id: number): Promise<IpcResponse<unknown>>
+
       // Messages épinglés
       getPinnedMessages(channelId: number): Promise<IpcResponse<Message[]>>
       togglePinMessage(payload: { messageId: number; pinned: boolean }): Promise<IpcResponse<number>>

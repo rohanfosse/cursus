@@ -34,6 +34,9 @@
   import { useDocumentsData, docIconType, iconColors, iconLabels, TYPE_FILTERS } from '@/composables/useDocumentsData'
   import { useDocumentsAdd } from '@/composables/useDocumentsAdd'
   import { useDocumentsEdit } from '@/composables/useDocumentsEdit'
+  import { useCahierStore } from '@/stores/cahier'
+  import CahierList from '@/components/cahier/CahierList.vue'
+  import CahierEditor from '@/components/cahier/CahierEditor.vue'
   import DocumentAddModal from '@/components/documents/DocumentAddModal.vue'
   import DocumentEditModal from '@/components/documents/DocumentEditModal.vue'
   import { useFileDrop } from '@/composables/useFileDrop'
@@ -45,6 +48,7 @@
   const api      = window.api
   const appStore = useAppStore()
   const docStore = useDocumentsStore()
+  const cahierStore = useCahierStore()
 
   // ── View mode: grid vs list (persisté en localStorage) ───────────────
   const VIEW_MODE_KEY = 'cc_docs_view_mode'
@@ -158,7 +162,11 @@
 
 <template>
   <ErrorBoundary label="Ressources">
+  <!-- Cahier editor overlay (takes over the full view) -->
+  <CahierEditor v-if="cahierStore.activeCahierId" />
+
   <div
+    v-else
     id="documents-area" class="docs-layout"
     @dragenter="onDragEnter" @dragleave="onDragLeave"
     @dragover="onDragOver" @drop="onDrop"
@@ -335,6 +343,11 @@
         <span class="docs-stat-value">{{ categories.length }}</span>
         <span class="docs-stat-label">catégories</span>
       </div>
+    </div>
+
+    <!-- ── Cahiers collaboratifs ─────────────────────────────────────── -->
+    <div class="docs-cahier-section">
+      <CahierList />
     </div>
 
     <!-- ── Contenu ─────────────────────────────────────────────────────── -->
@@ -565,7 +578,7 @@
       @confirm="onDropConfirm"
       @cancel="cancelDrop"
     />
-  </div>
+  </div> <!-- /docs-layout v-else -->
   </ErrorBoundary>
 </template>
 
@@ -1459,4 +1472,7 @@
 
 /* ── Stats accent ── */
 .docs-stat-value--accent { color: var(--accent); }
+
+/* ── Cahier section ── */
+.docs-cahier-section { padding: 12px 20px 0; flex-shrink: 0; }
 </style>

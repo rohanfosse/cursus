@@ -411,6 +411,18 @@ contextBridge.exposeInMainWorld('api', {
   searchDocuments:              (promoId: number, q: string) => get(`/api/documents/search?promoId=${promoId}&q=${encodeURIComponent(q)}`),
   linkDocumentToTravail:        (docId: number, travailId: number | null) => patch(`/api/documents/link/${docId}`, { travailId }),
 
+  // ── Cahiers (notebooks collaboratifs) ────────────────────────────────────
+  getCahiers:          (promoId: number, project?: string | null) => {
+    const qs = project ? `&project=${encodeURIComponent(project)}` : ''
+    return get(`/api/cahiers?promoId=${promoId}${qs}`)
+  },
+  getCahierById:       (id: number) => get(`/api/cahiers/${id}`),
+  getCahierYjsState:   (id: number) => get(`/api/cahiers/${id}/state`),
+  saveCahierYjsState:  (id: number, base64State: string) => patch(`/api/cahiers/${id}/state`, { state: base64State }),
+  createCahier:        (payload: unknown) => post('/api/cahiers', payload),
+  renameCahier:        (id: number, title: string) => patch(`/api/cahiers/${id}`, { title }),
+  deleteCahier:        (id: number) => del(`/api/cahiers/${id}`),
+
   // ── Intervenants ────────────────────────────────────────────────────────────
   getIntervenants:    ()                 => get('/api/teachers'),
   createIntervenant:  (payload: unknown) => post('/api/teachers', payload),

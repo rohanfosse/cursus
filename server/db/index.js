@@ -19,6 +19,7 @@ const teacherNotes   = require('./models/teacherNotes');
 const engagement     = require('./models/engagement')
 const projects       = require('./models/projects');
 const lumen          = require('./models/lumen');
+const cahiers        = require('./models/cahiers');
 
 // Initialisation complète : schema + migrations + seed
 function init() {
@@ -47,4 +48,5 @@ module.exports = {
   ...engagement,
   ...projects,
   ...lumen,
+  ...cahiers,
 };
