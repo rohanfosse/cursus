@@ -3,10 +3,10 @@
   import UiPageHeader from '@/components/ui/UiPageHeader.vue'
   import { ref, computed, watch } from 'vue'
   import {
-    FileText, Image, Link2, Video, File, Plus, Trash2,
+    FileText, Image, Link2, Video, File, Plus, Trash2, Upload,
     ExternalLink, Download, Search, X, FolderOpen, Eye, Menu,
     LayoutGrid, List, Grid3x3, Star, Copy, Pencil,
-    BookOpen, Github, Linkedin, Globe, Package, ClipboardList, FileSpreadsheet,
+    BookOpen, BookMarked, Github, Linkedin, Globe, Package, ClipboardList, FileSpreadsheet,
   } from 'lucide-vue-next'
   import type { Component } from 'vue'
 
@@ -81,13 +81,63 @@
   const {
     activeTypeFilter,
     sortBy,
+    showFavoritesOnly,
     filtered,
     categories,
     byCategory,
+    totalStorageBytes,
+    recentCount,
     openDoc,
     deleteDoc,
     loadDocuments,
   } = useDocumentsData()
+
+  // ── Batch selection ──────────────────────────────────────────────────
+  const selectionMode = ref(false)
+  const selectedIds = ref<Set<number>>(new Set())
+
+  function toggleSelection(id: number) {
+    if (selectedIds.value.has(id)) selectedIds.value.delete(id)
+    else selectedIds.value.add(id)
+    selectedIds.value = new Set(selectedIds.value) // trigger reactivity
+  }
+
+  function selectAll() {
+    for (const doc of filtered.value) selectedIds.value.add(doc.id)
+    selectedIds.value = new Set(selectedIds.value)
+  }
+
+  function clearSelection() {
+    selectedIds.value = new Set()
+    selectionMode.value = false
+  }
+
+  async function deleteSelected() {
+    if (!selectedIds.value.size) return
+    const count = selectedIds.value.size
+    const ok = await (await import('@/composables/useConfirm')).useConfirm().confirm(
+      `Supprimer ${count} document${count > 1 ? 's' : ''} ?`,
+      'danger',
+      'Supprimer',
+    )
+    if (!ok) return
+    let deleted = 0
+    for (const id of selectedIds.value) {
+      const res = await docStore.deleteDocument(id)
+      if (res) deleted++
+    }
+    showToast(`${deleted} document${deleted > 1 ? 's' : ''} supprimé${deleted > 1 ? 's' : ''}.`, 'success')
+    clearSelection()
+  }
+
+  /** Format storage size */
+  function formatStorage(bytes: number): string {
+    if (bytes <= 0) return '0 o'
+    const units = ['o', 'Ko', 'Mo', 'Go']
+    let i = 0; let size = bytes
+    while (size >= 1024 && i < units.length - 1) { size /= 1024; i++ }
+    return `${i === 0 ? size : size.toFixed(1)} ${units[i]}`
+  }
 
   // ── "Nouveau" badge: documents added in the last 24 h ───────────────────
   function isRecent(dateStr: string): boolean {
@@ -183,6 +233,7 @@
           <option value="date">Plus récents</option>
           <option value="name">Nom A-Z</option>
           <option value="type">Par type</option>
+          <option value="size">Par taille</option>
         </select>
 
         <!-- Ajouter (prof) -->
@@ -215,7 +266,7 @@
       </button>
     </div>
 
-    <!-- ── Filtres par type ──────────────────────────────────────────── -->
+    <!-- ── Filtres par type + favoris + batch ────────────────────────── -->
     <div class="docs-categories docs-type-filters">
       <button
         v-for="tf in TYPE_FILTERS"
@@ -226,10 +277,35 @@
       >
         {{ tf.label }}
       </button>
+      <span class="docs-filter-sep" />
+      <button
+        class="docs-cat-pill docs-fav-pill"
+        :class="{ active: showFavoritesOnly }"
+        @click="showFavoritesOnly = !showFavoritesOnly"
+      >
+        <Star :size="11" /> Favoris
+      </button>
+      <template v-if="appStore.isTeacher">
+        <span class="docs-filter-sep" />
+        <button
+          v-if="!selectionMode"
+          class="docs-cat-pill"
+          @click="selectionMode = true"
+        >
+          Sélectionner
+        </button>
+        <template v-else>
+          <button class="docs-cat-pill" @click="selectAll">Tout cocher</button>
+          <button v-if="selectedIds.size > 0" class="docs-cat-pill docs-batch-delete" @click="deleteSelected">
+            <Trash2 :size="11" /> Supprimer ({{ selectedIds.size }})
+          </button>
+          <button class="docs-cat-pill" @click="clearSelection">Annuler</button>
+        </template>
+      </template>
     </div>
 
-    <!-- ── Stats bar (prof only) ──────────────────────────────────────── -->
-    <div v-if="appStore.isTeacher && docStore.documents.length" class="docs-stats-bar">
+    <!-- ── Stats bar ──────────────────────────────────────────────────── -->
+    <div v-if="docStore.documents.length" class="docs-stats-bar">
       <div class="docs-stat">
         <span class="docs-stat-value">{{ docStore.documents.length }}</span>
         <span class="docs-stat-label">documents</span>
@@ -244,10 +320,15 @@
         <span class="docs-stat-value">{{ docStore.documents.filter(d => d.type === 'link').length }}</span>
         <span class="docs-stat-label">liens</span>
       </div>
-      <div class="docs-stat-sep" />
-      <div class="docs-stat">
-        <span class="docs-stat-value">{{ docStore.documents.filter(d => isRecent(d.created_at)).length }}</span>
+      <div v-if="recentCount > 0" class="docs-stat-sep" />
+      <div v-if="recentCount > 0" class="docs-stat">
+        <span class="docs-stat-value docs-stat-value--accent">{{ recentCount }}</span>
         <span class="docs-stat-label">cette semaine</span>
+      </div>
+      <div v-if="totalStorageBytes > 0" class="docs-stat-sep" />
+      <div v-if="totalStorageBytes > 0" class="docs-stat">
+        <span class="docs-stat-value">{{ formatStorage(totalStorageBytes) }}</span>
+        <span class="docs-stat-label">stockage</span>
       </div>
       <div class="docs-stat-sep" />
       <div class="docs-stat">
@@ -275,11 +356,19 @@
             v-for="doc in filtered"
             :key="doc.id"
             class="doc-card doc-card--dense"
-            :class="{ 'doc-card--fav': docStore.isFavorite(doc.id) }"
+            :class="{ 'doc-card--fav': docStore.isFavorite(doc.id), 'doc-card--selected': selectedIds.has(doc.id) }"
             :title="doc.description ?? doc.name"
-            @click="openDoc(doc)"
+            @click="selectionMode ? toggleSelection(doc.id) : openDoc(doc)"
           >
+            <input
+              v-if="selectionMode"
+              type="checkbox"
+              class="doc-select-cb"
+              :checked="selectedIds.has(doc.id)"
+              @click.stop="toggleSelection(doc.id)"
+            />
             <button
+              v-else
               class="doc-card-fav doc-card-fav--dense"
               :class="{ 'doc-card-fav--active': docStore.isFavorite(doc.id) }"
               :aria-label="docStore.isFavorite(doc.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'"
@@ -291,7 +380,10 @@
               <component :is="TYPE_ICON_MAP[docIconType(doc)] ?? File" :size="18" />
             </div>
             <p class="doc-dense-name">{{ doc.name }}</p>
-            <span class="doc-dense-meta">{{ formatDate(doc.created_at) }}</span>
+            <span class="doc-dense-meta">
+              {{ formatDate(doc.created_at) }}
+              <span v-if="doc.type === 'file' && formatFileSize(doc.file_size)" class="doc-dense-size">{{ formatFileSize(doc.file_size) }}</span>
+            </span>
 
             <div class="doc-card-actions" @click.stop>
               <button class="doc-card-action-btn" title="Copier le lien" aria-label="Copier le lien" @click="copyDocLink(doc)"><Copy :size="12" /></button>
@@ -328,12 +420,21 @@
               v-for="doc in docs"
               :key="doc.id"
               class="doc-card"
-              :class="{ 'doc-card--list': viewMode === 'list', 'doc-card--fav': docStore.isFavorite(doc.id) }"
+              :class="{ 'doc-card--list': viewMode === 'list', 'doc-card--fav': docStore.isFavorite(doc.id), 'doc-card--selected': selectedIds.has(doc.id) }"
               :title="doc.description ?? doc.name"
-              @click="openDoc(doc)"
+              @click="selectionMode ? toggleSelection(doc.id) : openDoc(doc)"
             >
+              <!-- Checkbox for batch selection -->
+              <input
+                v-if="selectionMode"
+                type="checkbox"
+                class="doc-select-cb"
+                :checked="selectedIds.has(doc.id)"
+                @click.stop="toggleSelection(doc.id)"
+              />
               <!-- Favorite star (always visible) -->
               <button
+                v-else
                 class="doc-card-fav"
                 :class="{ 'doc-card-fav--active': docStore.isFavorite(doc.id) }"
                 :title="docStore.isFavorite(doc.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'"
@@ -1334,4 +1435,28 @@
   opacity: .7;
   margin-top: 2px;
 }
+
+/* ── Favorites filter pill ── */
+.docs-fav-pill.active { background: rgba(245,158,11,.12); color: #f59e0b; border-color: rgba(245,158,11,.4); }
+.docs-filter-sep { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; opacity: .4; }
+
+/* ── Batch selection ── */
+.doc-select-cb {
+  position: absolute; top: 8px; left: 8px; z-index: 2;
+  width: 16px; height: 16px; cursor: pointer;
+  accent-color: var(--accent);
+}
+.doc-card--selected { border-color: var(--accent) !important; background: rgba(74,144,217,.06); }
+.docs-batch-delete { color: var(--color-danger) !important; border-color: rgba(231,76,60,.3) !important; }
+.docs-batch-delete:hover { background: rgba(231,76,60,.1) !important; }
+
+/* ── Dense size ── */
+.doc-dense-size {
+  display: inline-block; margin-left: 4px;
+  background: var(--bg-active); border-radius: 4px;
+  padding: 0 3px; font-size: 9px; font-weight: 600;
+}
+
+/* ── Stats accent ── */
+.docs-stat-value--accent { color: var(--accent); }
 </style>

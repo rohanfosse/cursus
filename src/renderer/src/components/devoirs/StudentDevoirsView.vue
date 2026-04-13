@@ -43,7 +43,7 @@ const props = defineProps<{
   nextSoutenances: Devoir[]
   studentCategories: string[]
   studentProjectTypeCounts: (cat: string) => { type: string; count: number }[]
-  studentProjectStats: (cat: string) => { submitted: number; total: number; pct: number; devoirCount: number; nextDeadline: string | null }
+  studentProjectStats: (cat: string) => { submitted: number; total: number; pct: number; devoirCount: number; nextDeadline: string | null; gradedCount: number; bestGrade: string | null }
   // search & sort
   studentSearch: string
   studentSort: 'deadline' | 'title' | 'type'

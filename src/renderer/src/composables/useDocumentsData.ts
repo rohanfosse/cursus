@@ -55,6 +55,7 @@ export const TYPE_FILTERS: { id: DocIconType | null; label: string }[] = [
   { id: 'image',  label: 'Images' },
   { id: 'video',  label: 'Vidéos' },
   { id: 'link',   label: 'Liens' },
+  { id: 'spreadsheet', label: 'Tableurs' },
   { id: 'file',   label: 'Autres' },
 ]
 
@@ -103,7 +104,8 @@ export function useDocumentsData() {
 
   // ── Filtering & Sorting ──────────────────────────────────────────────
   const activeTypeFilter = ref<DocIconType | null>(null)
-  const sortBy = ref<'date' | 'name' | 'type'>('date')
+  const sortBy = ref<'date' | 'name' | 'type' | 'size'>('date')
+  const showFavoritesOnly = ref(false)
 
   const filtered = computed(() => {
     const q = docStore.searchQuery.trim().toLowerCase()
@@ -112,12 +114,14 @@ export function useDocumentsData() {
         if (q && !d.name.toLowerCase().includes(q) && !(d.description ?? '').toLowerCase().includes(q)) return false
         if (docStore.activeCategory && d.category !== docStore.activeCategory) return false
         if (activeTypeFilter.value && docIconType(d) !== activeTypeFilter.value) return false
+        if (showFavoritesOnly.value && !docStore.favoriteIds.has(d.id)) return false
         return true
       })
 
     // Favoris en premier, puis tri choisi
     const favSet = docStore.favoriteIds
     const favSort = (a: typeof list[0], b: typeof list[0]) => {
+      if (showFavoritesOnly.value) return 0 // all are favorites already
       const af = favSet.has(a.id) ? 0 : 1
       const bf = favSet.has(b.id) ? 0 : 1
       if (af !== bf) return af - bf
@@ -126,7 +130,19 @@ export function useDocumentsData() {
 
     if (sortBy.value === 'name') return list.sort((a, b) => favSort(a, b) || a.name.localeCompare(b.name, 'fr'))
     if (sortBy.value === 'type') return list.sort((a, b) => favSort(a, b) || docIconType(a).localeCompare(docIconType(b)))
+    if (sortBy.value === 'size') return list.sort((a, b) => favSort(a, b) || (b.file_size ?? 0) - (a.file_size ?? 0))
     return list.sort((a, b) => favSort(a, b) || new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  })
+
+  /** Total storage used by all documents */
+  const totalStorageBytes = computed(() =>
+    docStore.documents.reduce((s, d) => s + (d.file_size ?? 0), 0),
+  )
+
+  /** Count of recent documents (last 7 days) */
+  const recentCount = computed(() => {
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    return docStore.documents.filter(d => new Date(d.created_at).getTime() > weekAgo).length
   })
 
   const categories = computed(() => {
@@ -166,9 +182,12 @@ export function useDocumentsData() {
   return {
     activeTypeFilter,
     sortBy,
+    showFavoritesOnly,
     filtered,
     categories,
     byCategory,
+    totalStorageBytes,
+    recentCount,
     openDoc,
     deleteDoc,
     loadDocuments,
