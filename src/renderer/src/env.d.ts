@@ -253,6 +253,35 @@ declare global {
       onLiveSessionEnded(cb: (data: { sessionId: number }) => void): () => void
       onLiveInvite(cb: (data: { sessionId: number; title: string; joinCode: string; teacherName: string }) => void): () => void
       onLiveScoresUpdate(cb: (data: { sessionId: number; activityId: number; leaderboard: unknown[] }) => void): () => void
+      // Live v2 (Spark + Pulse + Code + Board unifie)
+      createLiveV2Session(payload: unknown): Promise<IpcResponse<import('./types').LiveV2Session>>
+      getLiveV2Session(id: number): Promise<IpcResponse<import('./types').LiveV2Session>>
+      getLiveV2SessionByCode(code: string): Promise<IpcResponse<import('./types').LiveV2Session>>
+      getActiveLiveV2Session(promoId: number): Promise<IpcResponse<import('./types').LiveV2Session | null>>
+      getLiveV2SessionsForPromo(promoId: number): Promise<IpcResponse<import('./types').LiveV2Session[]>>
+      cloneLiveV2Session(id: number, payload: unknown): Promise<IpcResponse<import('./types').LiveV2Session>>
+      reorderLiveV2Activities(sessionId: number, order: number[]): Promise<IpcResponse<import('./types').LiveV2Session>>
+      updateLiveV2SessionStatus(id: number, status: string): Promise<IpcResponse<import('./types').LiveV2Session>>
+      deleteLiveV2Session(id: number): Promise<IpcResponse<null>>
+      addLiveV2Activity(sessionId: number, payload: unknown): Promise<IpcResponse<import('./types').LiveV2Activity>>
+      updateLiveV2Activity(id: number, payload: unknown): Promise<IpcResponse<import('./types').LiveV2Activity>>
+      deleteLiveV2Activity(id: number): Promise<IpcResponse<null>>
+      setLiveV2ActivityStatus(id: number, status: string, extra?: unknown): Promise<IpcResponse<import('./types').LiveV2Activity>>
+      submitLiveV2Response(activityId: number, payload: unknown): Promise<IpcResponse<{ id: number; answer: string; isCorrect?: boolean | null; points?: number; rank?: number | null; streak?: number }>>
+      getLiveV2ActivityResults(activityId: number): Promise<IpcResponse<unknown>>
+      getLiveV2Leaderboard(sessionId: number): Promise<IpcResponse<unknown[]>>
+      toggleLiveV2Pin(responseId: number, pinned: boolean): Promise<IpcResponse<unknown>>
+      saveLiveV2CodeSnapshot(activityId: number, content: string): Promise<IpcResponse<unknown>>
+      exportLiveV2SessionCsv(sessionId: number): Promise<IpcResponse<string>>
+      getLiveV2HistoryForPromo(promoId: number, params?: { search?: string; dateFrom?: string; dateTo?: string }): Promise<IpcResponse<LiveSessionWithStats[]>>
+      getLiveV2StatsForPromo(promoId: number): Promise<IpcResponse<LiveStats>>
+      getLiveV2BoardCards(activityId: number): Promise<IpcResponse<import('./types').BoardCard[]>>
+      addLiveV2BoardCard(activityId: number, payload: unknown): Promise<IpcResponse<import('./types').BoardCard>>
+      deleteLiveV2BoardCard(cardId: number): Promise<IpcResponse<null>>
+      voteLiveV2BoardCard(cardId: number, vote: boolean): Promise<IpcResponse<{ voted: boolean }>>
+      emitLiveCodeUpdate(activityId: number, promoId: number, content: string, language: string | null): void
+      onLiveCodeUpdate(cb: (data: { activityId: number; content: string; language: string | null }) => void): () => void
+      onLiveBoardUpdate(cb: (data: { activityId: number; action: 'add' | 'delete' | 'vote'; card?: unknown; cardId?: number; votes?: number }) => void): () => void
       getLiveSessionsForPromo(promoId: number): Promise<IpcResponse<LiveSession[]>>
       cloneLiveSession(id: number, payload: unknown): Promise<IpcResponse<LiveSession>>
       reorderLiveActivities(sessionId: number, order: number[]): Promise<IpcResponse<LiveSession>>

@@ -1,18 +1,19 @@
 <!-- ActivityForm.vue - Formulaire de création/édition d'activité Live (QCM / Sondage / Nuage) -->
 <script setup lang="ts">
   import { ref } from 'vue'
-  import { ListChecks, ToggleLeft, Type, Link2, Hash, Plus, X } from 'lucide-vue-next'
+  import { ListChecks, ToggleLeft, Type, Link2, Hash, Plus, X, Code2, StickyNote } from 'lucide-vue-next'
   import type { LiveActivity } from '@/types'
 
   const props = defineProps<{ initialData?: LiveActivity | null }>()
 
-  type ActivityType = 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation'
+  type ActivityType = 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation' | 'live_code' | 'board'
 
   const emit = defineEmits<{
     save: [payload: {
       type: ActivityType; title: string
-      options?: string[]; max_words?: number
+      options?: string[] | string; max_words?: number
       timer_seconds?: number; correct_answers?: number[] | string[]
+      language?: string
     }]
     cancel: []
   }>()
@@ -57,12 +58,30 @@
   const timerOptions = [10, 15, 20, 30, 45, 60, 90, 120]
 
   const typeCards = [
-    { id: 'qcm' as const,             label: 'QCM',             icon: ListChecks,   desc: 'Choix multiple' },
-    { id: 'vrai_faux' as const,        label: 'Vrai / Faux',     icon: ToggleLeft,   desc: 'Question binaire' },
-    { id: 'reponse_courte' as const,   label: 'Réponse courte',  icon: Type,         desc: 'Texte libre noté' },
-    { id: 'association' as const,      label: 'Association',      icon: Link2,        desc: 'Relier les paires' },
-    { id: 'estimation' as const,       label: 'Estimation',       icon: Hash,         desc: 'Réponse numérique' },
+    // Spark (quiz gamifie)
+    { id: 'qcm' as const,             label: 'QCM',             icon: ListChecks,   desc: 'Choix multiple', category: 'Spark' },
+    { id: 'vrai_faux' as const,        label: 'Vrai / Faux',     icon: ToggleLeft,   desc: 'Question binaire', category: 'Spark' },
+    { id: 'reponse_courte' as const,   label: 'Réponse courte',  icon: Type,         desc: 'Texte libre noté', category: 'Spark' },
+    { id: 'association' as const,      label: 'Association',      icon: Link2,        desc: 'Relier les paires', category: 'Spark' },
+    { id: 'estimation' as const,       label: 'Estimation',       icon: Hash,         desc: 'Réponse numérique', category: 'Spark' },
+    // Code
+    { id: 'live_code' as const,        label: 'Live Code',        icon: Code2,        desc: 'Coder en direct', category: 'Code' },
+    // Board
+    { id: 'board' as const,            label: 'Tableau',          icon: StickyNote,   desc: 'Post-its collaboratifs', category: 'Board' },
   ]
+
+  // Code activity
+  const codeLanguage = ref(props.initialData?.language ?? 'javascript')
+  // Board activity
+  const boardColumns = ref<string[]>(parseBoardColumns(props.initialData))
+
+  function parseBoardColumns(data?: LiveActivity | null): string[] {
+    if (!data || data.type !== 'board' || !data.options) return ['Idees', 'A approfondir', 'A ecarter']
+    try { const arr = JSON.parse(data.options as unknown as string); return Array.isArray(arr) ? arr : ['Idees', 'A approfondir', 'A ecarter'] } catch { return ['Idees', 'A approfondir', 'A ecarter'] }
+  }
+
+  function addBoardColumn() { if (boardColumns.value.length < 6) boardColumns.value.push('') }
+  function removeBoardColumn(i: number) { if (boardColumns.value.length > 1) boardColumns.value = boardColumns.value.filter((_, idx) => idx !== i) }
 
   function addOption() {
     if (options.value.length < 6) options.value.push('')
@@ -93,8 +112,9 @@
     if (!title.value.trim()) return
     const payload: {
       type: ActivityType; title: string
-      options?: string[]; max_words?: number
+      options?: string[] | string; max_words?: number
       timer_seconds?: number; correct_answers?: number[] | string[]
+      language?: string
     } = {
       type: activityType.value,
       title: title.value.trim(),
@@ -128,6 +148,14 @@
       const m = Math.max(0, Number(estimation.value.margin) || 0)
       payload.correct_answers = { target: t, margin: m } as unknown as string[]
     }
+    if (activityType.value === 'live_code') {
+      payload.language = codeLanguage.value
+    }
+    if (activityType.value === 'board') {
+      const cols = boardColumns.value.map(c => c.trim()).filter(Boolean)
+      if (cols.length === 0) return
+      payload.options = JSON.stringify(cols)
+    }
     emit('save', payload)
   }
 </script>
@@ -159,8 +187,8 @@
       maxlength="200"
     />
 
-    <!-- Timer selector -->
-    <div class="timer-section">
+    <!-- Timer selector (spark uniquement) -->
+    <div v-if="activityType !== 'live_code' && activityType !== 'board'" class="timer-section">
       <label class="timer-label">Chronometre</label>
       <div class="timer-btns">
         <button
@@ -242,6 +270,48 @@
       </button>
     </div>
 
+    <!-- Live Code : language selector -->
+    <div v-if="activityType === 'live_code'" class="code-section">
+      <label class="correct-label">Langage de programmation</label>
+      <select v-model="codeLanguage" class="form-input">
+        <option value="javascript">JavaScript</option>
+        <option value="python">Python</option>
+        <option value="html">HTML</option>
+        <option value="css">CSS</option>
+        <option value="sql">SQL</option>
+        <option value="plaintext">Texte brut</option>
+      </select>
+      <p class="code-hint">
+        Vous ecrirez du code en direct. Les etudiants verront votre ecran en lecture seule.
+      </p>
+    </div>
+
+    <!-- Board : colonnes -->
+    <div v-if="activityType === 'board'" class="board-section">
+      <label class="correct-label">Colonnes du tableau</label>
+      <div v-for="(col, i) in boardColumns" :key="i" class="option-row">
+        <input
+          v-model="boardColumns[i]"
+          class="form-input option-input"
+          :placeholder="`Colonne ${i + 1}`"
+          maxlength="50"
+        />
+        <button
+          v-if="boardColumns.length > 1"
+          class="option-remove"
+          @click="removeBoardColumn(i)"
+        >
+          <X :size="12" />
+        </button>
+      </div>
+      <button v-if="boardColumns.length < 6" class="add-option-btn" @click="addBoardColumn">
+        <Plus :size="13" /> Ajouter une colonne
+      </button>
+      <p class="code-hint">
+        Les etudiants pourront ajouter des post-its et voter pour les idees.
+      </p>
+    </div>
+
     <!-- Estimation target + margin -->
     <div v-if="activityType === 'estimation'" class="estimation-section">
       <label class="correct-label">Reponse attendue</label>
@@ -275,6 +345,17 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+/* Code + Board sections */
+.code-section, .board-section {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-elevated);
+}
+.code-hint {
+  font-size: 11px; color: var(--text-muted); font-style: italic;
+  margin-top: 4px;
 }
 .type-cards {
   display: flex;

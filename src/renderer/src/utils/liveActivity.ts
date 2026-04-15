@@ -1,33 +1,102 @@
-// Shared utilities for Spark (Live Quiz) components
-import { ListChecks, ToggleLeft, Type, Link2, Hash, Cloud, MessageSquare, Zap } from 'lucide-vue-next'
+// Shared utilities for Live activities (Spark + Pulse + Code + Board)
+import {
+  ListChecks, ToggleLeft, Type, Link2, Hash, Cloud, MessageSquare, Zap,
+  Star, FileText, BarChart, Smile, ArrowUpDown, Grid3X3, Code2, StickyNote,
+} from 'lucide-vue-next'
 import type { Component } from 'vue'
 
+export type ActivityCategory = 'spark' | 'pulse' | 'code' | 'board'
+
+export const ACTIVITY_CATEGORIES: Record<ActivityCategory, { label: string; description: string; types: string[]; color: string }> = {
+  spark: {
+    label: 'Spark',
+    description: 'Quiz gamifie (scoring, leaderboard)',
+    types: ['qcm', 'vrai_faux', 'reponse_courte', 'association', 'estimation'],
+    color: '#f59e0b',
+  },
+  pulse: {
+    label: 'Pulse',
+    description: 'Feedback anonyme (pas de scoring)',
+    types: ['sondage_libre', 'nuage', 'echelle', 'question_ouverte', 'sondage', 'humeur', 'priorite', 'matrice'],
+    color: '#10b981',
+  },
+  code: {
+    label: 'Code',
+    description: 'Live coding prof broadcast',
+    types: ['live_code'],
+    color: '#3b82f6',
+  },
+  board: {
+    label: 'Board',
+    description: 'Brainstorming post-its + votes',
+    types: ['board'],
+    color: '#a855f7',
+  },
+}
+
 export const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  // Spark
   qcm: 'QCM',
   vrai_faux: 'Vrai / Faux',
   reponse_courte: 'Reponse courte',
   association: 'Association',
   estimation: 'Estimation',
+  // Pulse
+  sondage_libre: 'Sondage libre',
   nuage: 'Nuage de mots',
+  echelle: 'Echelle',
+  question_ouverte: 'Question ouverte',
   sondage: 'Sondage',
+  humeur: 'Humeur',
+  priorite: 'Priorite',
+  matrice: 'Matrice',
+  // Code
+  live_code: 'Live Code',
+  // Board
+  board: 'Tableau',
 }
 
 const ACTIVITY_ICONS: Record<string, Component> = {
-  qcm: ListChecks,
-  vrai_faux: ToggleLeft,
-  reponse_courte: Type,
-  association: Link2,
-  estimation: Hash,
-  nuage: Cloud,
-  sondage: MessageSquare,
+  // Spark
+  qcm: ListChecks, vrai_faux: ToggleLeft, reponse_courte: Type,
+  association: Link2, estimation: Hash,
+  // Pulse
+  sondage_libre: MessageSquare, nuage: Cloud, echelle: Star,
+  question_ouverte: FileText, sondage: BarChart,
+  humeur: Smile, priorite: ArrowUpDown, matrice: Grid3X3,
+  // Code
+  live_code: Code2,
+  // Board
+  board: StickyNote,
 }
 
 export function activityTypeLabel(type: string): string {
-  return ACTIVITY_TYPE_LABELS[type] ?? 'Spark'
+  return ACTIVITY_TYPE_LABELS[type] ?? 'Activite'
 }
 
 export function activityIcon(type: string): Component {
   return ACTIVITY_ICONS[type] ?? Zap
+}
+
+/** Derive la categorie depuis le type d'activite (fonction pure) */
+export function getActivityCategory(type: string): ActivityCategory {
+  for (const [cat, cfg] of Object.entries(ACTIVITY_CATEGORIES)) {
+    if (cfg.types.includes(type)) return cat as ActivityCategory
+  }
+  return 'spark'
+}
+
+export function isSparkType(type: string): boolean {
+  return getActivityCategory(type) === 'spark'
+}
+export function isPulseType(type: string): boolean {
+  return getActivityCategory(type) === 'pulse'
+}
+export function isCodeType(type: string): boolean {
+  return type === 'live_code'
+}
+export function isBoardType(type: string): boolean {
+  return type === 'board'
 }
 
 export function medal(rank: number, fallback: string | ((r: number) => string) = ''): string {

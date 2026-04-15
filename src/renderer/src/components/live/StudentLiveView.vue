@@ -8,12 +8,21 @@
   import type { LiveScoreResult } from '@/types'
   import CountdownTimer from './CountdownTimer.vue'
   import QcmResults           from './QcmResults.vue'
+  import LiveCodeViewer       from './LiveCodeViewer.vue'
+  import LiveBoard            from './LiveBoard.vue'
   import PollResults          from './PollResults.vue'
   import AssociationResults   from './AssociationResults.vue'
   import EstimationResults    from './EstimationResults.vue'
 
   const appStore  = useAppStore()
   const liveStore = useLiveStore()
+
+  /** Parse les options JSON (string -> array) */
+  function parseOptions(opts: string | string[] | null | undefined): string[] {
+    if (!opts) return []
+    if (Array.isArray(opts)) return opts
+    try { const arr = JSON.parse(opts); return Array.isArray(arr) ? arr : [] } catch { return [] }
+  }
 
   const joinCode  = ref('')
   const joining   = ref(false)
@@ -272,6 +281,22 @@
             <Send :size="16" /> Envoyer
           </button>
         </div>
+
+        <!-- Live Code (read-only viewer) -->
+        <LiveCodeViewer
+          v-else-if="activity.type === 'live_code'"
+          :activity-id="activity.id"
+          :initial-content="activity.content ?? ''"
+          :initial-language="activity.language ?? 'javascript'"
+        />
+
+        <!-- Board (collaboratif) -->
+        <LiveBoard
+          v-else-if="activity.type === 'board'"
+          :activity-id="activity.id"
+          :is-teacher="false"
+          :columns="parseOptions(activity.options)"
+        />
 
       </div>
 

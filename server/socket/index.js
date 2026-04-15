@@ -87,6 +87,14 @@ module.exports = function setupSocket(io, queries, SECRET) {
       if (promoId) socket.leave(`live:${promoId}`)
     })
 
+    // Live code broadcast (prof seulement)
+    socket.on('live:code-update', ({ activityId, promoId, content, language }) => {
+      if (!checkTokenValid()) return
+      if (socket.user?.role !== 'teacher' && socket.user?.role !== 'admin') return
+      if (!activityId || !promoId) return
+      io.to(`live:${promoId}`).emit('live:code-update', { activityId, content, language })
+    })
+
     // REX
     socket.on('rex:join', ({ promoId }) => {
       if (promoId && checkTokenValid()) socket.join(`rex:${promoId}`)

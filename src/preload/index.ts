@@ -54,6 +54,12 @@ const liveSessionEndedCallbacks:   Array<(data: LiveSessionEndedPayload) => void
 const liveInviteCallbacks:         Array<(data: LiveInvitePayload) => void> = []
 const liveScoresUpdateCallbacks:   Array<(data: LiveScoresUpdatePayload) => void> = []
 
+// Live v2 : code + board
+type LiveCodeUpdatePayload = { activityId: number; content: string; language: string | null }
+type LiveBoardUpdatePayload = { activityId: number; action: 'add' | 'delete' | 'vote'; card?: unknown; cardId?: number; votes?: number }
+const liveCodeUpdateCallbacks:  Array<(data: LiveCodeUpdatePayload) => void> = []
+const liveBoardUpdateCallbacks: Array<(data: LiveBoardUpdatePayload) => void> = []
+
 // REX callbacks
 type RexActivityPushedPayload = { activity: unknown }
 type RexActivityClosedPayload = { activityId: number }
@@ -112,6 +118,8 @@ function connectSocket(token: string): void {
   socket.on('live:session-ended',   (data: LiveSessionEndedPayload) => liveSessionEndedCallbacks.forEach(cb => cb(data)))
   socket.on('live:invite',          (data: LiveInvitePayload) => liveInviteCallbacks.forEach(cb => cb(data)))
   socket.on('live:scores-update',   (data: LiveScoresUpdatePayload) => liveScoresUpdateCallbacks.forEach(cb => cb(data)))
+  socket.on('live:code-update',     (data: LiveCodeUpdatePayload) => liveCodeUpdateCallbacks.forEach(cb => cb(data)))
+  socket.on('live:board-update',    (data: LiveBoardUpdatePayload) => liveBoardUpdateCallbacks.forEach(cb => cb(data)))
   socket.on('rex:activity-pushed', (data: RexActivityPushedPayload) => rexActivityPushedCallbacks.forEach(cb => cb(data)))
   socket.on('rex:activity-closed', (data: RexActivityClosedPayload) => rexActivityClosedCallbacks.forEach(cb => cb(data)))
   socket.on('rex:results-update',  (data: RexResultsUpdatePayload) => rexResultsUpdateCallbacks.forEach(cb => cb(data)))
@@ -510,6 +518,53 @@ contextBridge.exposeInMainWorld('api', {
   onLiveScoresUpdate: (cb: (data: LiveScoresUpdatePayload) => void) => {
     liveScoresUpdateCallbacks.push(cb)
     return () => { const i = liveScoresUpdateCallbacks.indexOf(cb); if (i !== -1) liveScoresUpdateCallbacks.splice(i, 1) }
+  },
+
+  // ── Live v2 unifie (Spark + Pulse + Code + Board) ─────────────────────────
+  createLiveV2Session:       (payload: unknown) => post('/api/live-v2/sessions', payload),
+  getLiveV2Session:          (id: number) => get(`/api/live-v2/sessions/${id}`),
+  getLiveV2SessionByCode:    (code: string) => get(`/api/live-v2/sessions/code/${code}`),
+  getActiveLiveV2Session:    (promoId: number) => get(`/api/live-v2/sessions/promo/${promoId}/active`),
+  getLiveV2SessionsForPromo: (promoId: number) => get(`/api/live-v2/sessions/promo/${promoId}`),
+  cloneLiveV2Session:        (id: number, payload: unknown) => post(`/api/live-v2/sessions/${id}/clone`, payload),
+  reorderLiveV2Activities:   (sessionId: number, order: number[]) => patch(`/api/live-v2/sessions/${sessionId}/activities/reorder`, { order }),
+  updateLiveV2SessionStatus: (id: number, status: string) => patch(`/api/live-v2/sessions/${id}/status`, { status }),
+  deleteLiveV2Session:       (id: number) => del(`/api/live-v2/sessions/${id}`),
+  addLiveV2Activity:         (sessionId: number, payload: unknown) => post(`/api/live-v2/sessions/${sessionId}/activities`, payload),
+  updateLiveV2Activity:      (id: number, payload: unknown) => patch(`/api/live-v2/activities/${id}`, payload),
+  deleteLiveV2Activity:      (id: number) => del(`/api/live-v2/activities/${id}`),
+  setLiveV2ActivityStatus:   (id: number, status: string, extra?: unknown) => patch(`/api/live-v2/activities/${id}/status`, { status, ...(extra as object || {}) }),
+  submitLiveV2Response:      (activityId: number, payload: unknown) => post(`/api/live-v2/activities/${activityId}/respond`, payload),
+  getLiveV2ActivityResults:  (activityId: number) => get(`/api/live-v2/activities/${activityId}/results`),
+  getLiveV2Leaderboard:      (sessionId: number) => get(`/api/live-v2/sessions/${sessionId}/leaderboard`),
+  toggleLiveV2Pin:           (responseId: number, pinned: boolean) => post(`/api/live-v2/responses/${responseId}/pin`, { pinned }),
+  saveLiveV2CodeSnapshot:    (activityId: number, content: string) => patch(`/api/live-v2/activities/${activityId}/code-snapshot`, { content }),
+  exportLiveV2SessionCsv:    (sessionId: number) => get(`/api/live-v2/sessions/${sessionId}/export-csv`),
+  getLiveV2HistoryForPromo:  (promoId: number, params?: { search?: string; dateFrom?: string; dateTo?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.search)   qs.set('search', params.search)
+    if (params?.dateFrom) qs.set('dateFrom', params.dateFrom)
+    if (params?.dateTo)   qs.set('dateTo', params.dateTo)
+    const q = qs.toString()
+    return get(`/api/live-v2/sessions/promo/${promoId}/history${q ? '?' + q : ''}`)
+  },
+  getLiveV2StatsForPromo:    (promoId: number) => get(`/api/live-v2/sessions/promo/${promoId}/stats`),
+  // Board
+  getLiveV2BoardCards:  (activityId: number) => get(`/api/live-v2/activities/${activityId}/cards`),
+  addLiveV2BoardCard:   (activityId: number, payload: unknown) => post(`/api/live-v2/activities/${activityId}/cards`, payload),
+  deleteLiveV2BoardCard:(cardId: number) => del(`/api/live-v2/cards/${cardId}`),
+  voteLiveV2BoardCard:  (cardId: number, vote: boolean) => post(`/api/live-v2/cards/${cardId}/vote`, { vote }),
+
+  emitLiveCodeUpdate: (activityId: number, promoId: number, content: string, language: string | null) => {
+    socket?.emit('live:code-update', { activityId, promoId, content, language })
+  },
+  onLiveCodeUpdate: (cb: (data: LiveCodeUpdatePayload) => void) => {
+    liveCodeUpdateCallbacks.push(cb)
+    return () => { const i = liveCodeUpdateCallbacks.indexOf(cb); if (i !== -1) liveCodeUpdateCallbacks.splice(i, 1) }
+  },
+  onLiveBoardUpdate: (cb: (data: LiveBoardUpdatePayload) => void) => {
+    liveBoardUpdateCallbacks.push(cb)
+    return () => { const i = liveBoardUpdateCallbacks.indexOf(cb); if (i !== -1) liveBoardUpdateCallbacks.splice(i, 1) }
   },
 
   // ── REX (Retour d'Experience) ──────────────────────────────────────────────

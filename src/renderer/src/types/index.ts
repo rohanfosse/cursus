@@ -219,13 +219,22 @@ export interface LiveSession {
   id: number; teacher_id: number; promo_id: number; title: string
   join_code: string; status: 'waiting' | 'active' | 'ended'
   created_at: string; ended_at: string | null; activities?: LiveActivity[]
+  // V2 fields (Live unifie)
+  is_async?: number
+  open_until?: string | null
 }
 export interface LiveActivity {
-  id: number; session_id: number; type: 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation'
-  title: string; options: string[] | null; multi: number
+  id: number; session_id: number
+  type: 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation' | 'live_code' | 'board'
+  title: string; options: string[] | string | null; multi: number
   max_words: number; position: number; status: 'pending' | 'live' | 'closed'
   started_at: string | null; closed_at: string | null
   timer_seconds: number; correct_answers: string | null
+  // V2 fields
+  category?: 'spark' | 'pulse' | 'code' | 'board'
+  max_rating?: number
+  content?: string | null
+  language?: string | null
 }
 export interface LiveResults {
   activityId: number; type: string; totalResponses: number
@@ -259,6 +268,39 @@ export interface LiveStats {
   avgCorrectnessRate?: number
   activityTypeDistribution: { type: string; count: number }[]
   participationTrend: { sessionId: number; title: string; endedAt: string; participants: number; enrolled: number }[]
+}
+
+// ─── Live unifie v2 (Spark + Pulse + Code + Board) ─────────────────────────
+
+export type LiveV2Category = 'spark' | 'pulse' | 'code' | 'board'
+
+export type LiveV2ActivityType =
+  // Spark (quiz)
+  | 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation'
+  // Pulse (feedback)
+  | 'sondage_libre' | 'nuage' | 'echelle' | 'question_ouverte' | 'sondage' | 'humeur' | 'priorite' | 'matrice'
+  // Code
+  | 'live_code'
+  // Board
+  | 'board'
+
+/** Alias : LiveV2Session est compatible avec LiveSession (les champs V2 sont optionnels) */
+export type LiveV2Session = LiveSession
+
+/** Alias : LiveV2Activity est compatible avec LiveActivity */
+export type LiveV2Activity = LiveActivity
+
+export interface BoardCard {
+  id: number
+  activity_id: number
+  column_name: string
+  content: string
+  author_id: number
+  author_name: string
+  color: string
+  votes: number
+  created_at: string
+  voted_by_me?: boolean
 }
 
 // ─── REX (Retour d'Experience) ──────────────────────────────────────────────

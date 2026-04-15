@@ -38,7 +38,7 @@ export const useLiveStore = defineStore('live', () => {
     error.value = null
     try {
       const data = await api<LiveSession>(
-        () => window.api.createLiveSession({ title, promoId }),
+        () => window.api.createLiveV2Session({ title, promoId }),
       )
       if (data) {
         currentSession.value = data
@@ -57,7 +57,7 @@ export const useLiveStore = defineStore('live', () => {
     error.value = null
     try {
       const data = await api<LiveSession>(
-        () => window.api.getLiveSessionByCode(code),
+        () => window.api.getLiveV2SessionByCode(code),
       )
       if (data) {
         currentSession.value = data
@@ -91,7 +91,7 @@ export const useLiveStore = defineStore('live', () => {
     loading.value = true
     try {
       const data = await api<LiveSession>(
-        () => window.api.getLiveSession(id),
+        () => window.api.getLiveV2Session(id),
       )
       if (data) {
         currentSession.value = data
@@ -110,7 +110,7 @@ export const useLiveStore = defineStore('live', () => {
     loading.value = true
     try {
       const data = await api<LiveSession>(
-        () => window.api.getActiveLiveSession(promoId),
+        () => window.api.getActiveLiveV2Session(promoId),
       )
       if (data && data.id) {
         currentSession.value = data
@@ -126,12 +126,13 @@ export const useLiveStore = defineStore('live', () => {
   }
 
   async function pushActivity(sessionId: number, payload: {
-    type: 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation'; title: string
-    options?: string[] | null; multi?: number
+    type: 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation' | 'live_code' | 'board'; title: string
+    options?: string[] | string | null; multi?: number
     timer_seconds?: number; correct_answers?: number[] | string[]
+    language?: string
   }): Promise<boolean> {
     const data = await api<LiveActivity>(
-      () => window.api.addLiveActivity(sessionId, payload),
+      () => window.api.addLiveV2Activity(sessionId, payload),
     )
     if (data && currentSession.value) {
       const acts = currentSession.value.activities ?? []
@@ -143,7 +144,7 @@ export const useLiveStore = defineStore('live', () => {
 
   async function launchActivity(activityId: number): Promise<boolean> {
     const data = await api<LiveActivity>(
-      () => window.api.setLiveActivityStatus(activityId, 'live'),
+      () => window.api.setLiveV2ActivityStatus(activityId, 'live'),
     )
     if (data) {
       currentActivity.value = data
@@ -166,7 +167,7 @@ export const useLiveStore = defineStore('live', () => {
 
   async function closeActivity(activityId: number): Promise<boolean> {
     const data = await api<LiveActivity>(
-      () => window.api.setLiveActivityStatus(activityId, 'closed'),
+      () => window.api.setLiveV2ActivityStatus(activityId, 'closed'),
     )
     if (data) {
       currentActivity.value = null
@@ -185,7 +186,7 @@ export const useLiveStore = defineStore('live', () => {
 
   async function deleteActivity(activityId: number): Promise<boolean> {
     const data = await api(
-      () => window.api.deleteLiveActivity(activityId),
+      () => window.api.deleteLiveV2Activity(activityId),
     )
     if (data !== null && currentSession.value?.activities) {
       currentSession.value = {
@@ -199,7 +200,7 @@ export const useLiveStore = defineStore('live', () => {
 
   async function submitResponse(activityId: number, payload: { answers?: number[]; text?: string; words?: string[]; answer?: string }): Promise<LiveScoreResult | null> {
     const data = await api(
-      () => window.api.submitLiveResponse(activityId, payload),
+      () => window.api.submitLiveV2Response(activityId, payload),
     ) as { isCorrect: boolean | null; points: number; rank: number | null } | null
     if (data !== null) {
       hasResponded.value = true
@@ -213,7 +214,7 @@ export const useLiveStore = defineStore('live', () => {
 
   async function fetchLeaderboard(sessionId: number): Promise<void> {
     const data = await api(
-      () => window.api.getLiveLeaderboard(sessionId),
+      () => window.api.getLiveV2Leaderboard(sessionId),
     ) as LeaderboardEntry[] | null
     if (data && Array.isArray(data)) {
       leaderboard.value = data
@@ -222,14 +223,14 @@ export const useLiveStore = defineStore('live', () => {
 
   async function fetchResults(activityId: number): Promise<void> {
     const data = await api<LiveResults>(
-      () => window.api.getLiveActivityResults(activityId),
+      () => window.api.getLiveV2ActivityResults(activityId) as Promise<{ ok: boolean; data: LiveResults; error?: string }>,
     )
     if (data) results.value = data
   }
 
   async function endSession(sessionId: number): Promise<boolean> {
     const data = await api(
-      () => window.api.updateLiveSessionStatus(sessionId, 'ended'),
+      () => window.api.updateLiveV2SessionStatus(sessionId, 'ended'),
     )
     if (data !== null) {
       leaveSession()
@@ -240,7 +241,7 @@ export const useLiveStore = defineStore('live', () => {
 
   async function startSession(sessionId: number): Promise<boolean> {
     const data = await api<LiveSession>(
-      () => window.api.updateLiveSessionStatus(sessionId, 'active'),
+      () => window.api.updateLiveV2SessionStatus(sessionId, 'active'),
     )
     if (data) {
       currentSession.value = { ...currentSession.value!, status: 'active' }
@@ -251,14 +252,14 @@ export const useLiveStore = defineStore('live', () => {
 
   async function fetchDraftSessions(promoId: number): Promise<void> {
     const data = await api<LiveSession[]>(
-      () => window.api.getLiveSessionsForPromo(promoId),
+      () => window.api.getLiveV2SessionsForPromo(promoId),
     )
     if (data) draftSessions.value = data
   }
 
   async function updateActivity(activityId: number, payload: Partial<LiveActivity>): Promise<boolean> {
     const data = await api<LiveActivity>(
-      () => window.api.updateLiveActivity(activityId, payload),
+      () => window.api.updateLiveV2Activity(activityId, payload),
     )
     if (data && currentSession.value?.activities) {
       currentSession.value = {
@@ -279,7 +280,7 @@ export const useLiveStore = defineStore('live', () => {
     })
     currentSession.value = { ...currentSession.value, activities: ordered }
     const data = await api<LiveSession>(
-      () => window.api.reorderLiveActivities(currentSession.value!.id, orderedIds),
+      () => window.api.reorderLiveV2Activities(currentSession.value!.id, orderedIds),
     )
     if (data) currentSession.value = data
     return !!data
@@ -289,7 +290,7 @@ export const useLiveStore = defineStore('live', () => {
     loading.value = true
     try {
       const data = await api<LiveSession>(
-        () => window.api.cloneLiveSession(sourceId, { promoId, title }),
+        () => window.api.cloneLiveV2Session(sourceId, { promoId, title }),
       )
       if (data) {
         currentSession.value = data
@@ -304,7 +305,7 @@ export const useLiveStore = defineStore('live', () => {
 
   async function deleteSession(sessionId: number): Promise<boolean> {
     const data = await api(
-      () => window.api.deleteLiveSession(sessionId),
+      () => window.api.deleteLiveV2Session(sessionId),
     )
     if (data !== undefined) {
       draftSessions.value = draftSessions.value.filter(s => s.id !== sessionId)
@@ -317,7 +318,7 @@ export const useLiveStore = defineStore('live', () => {
   // ── Export CSV ──────────────────────────────────────────────────────────
   async function exportCsv(sessionId: number): Promise<string | null> {
     const data = await api<string>(
-      () => window.api.exportLiveSessionCsv(sessionId),
+      () => window.api.exportLiveV2SessionCsv(sessionId),
     )
     return data ?? null
   }
@@ -330,7 +331,7 @@ export const useLiveStore = defineStore('live', () => {
     loading.value = true
     try {
       const data = await api<LiveSessionWithStats[]>(
-        () => window.api.getLiveHistoryForPromo(promoId, filters),
+        () => window.api.getLiveV2HistoryForPromo(promoId, filters),
       )
       if (data) historySessions.value = data
     } finally {
@@ -342,7 +343,7 @@ export const useLiveStore = defineStore('live', () => {
     loading.value = true
     try {
       const data = await api<LiveStats>(
-        () => window.api.getLiveStatsForPromo(promoId),
+        () => window.api.getLiveV2StatsForPromo(promoId),
       )
       if (data) stats.value = data
     } finally {

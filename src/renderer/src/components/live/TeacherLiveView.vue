@@ -21,9 +21,18 @@
   import EstimationResults    from './EstimationResults.vue'
   import QuizHistoryView      from './QuizHistoryView.vue'
   import QuizStatsView        from './QuizStatsView.vue'
+  import LiveCodeEditor       from './LiveCodeEditor.vue'
+  import LiveBoard            from './LiveBoard.vue'
 
   const appStore  = useAppStore()
   const liveStore = useLiveStore()
+
+  /** Parse les options d'une activite (JSON string -> array). */
+  function parseOptions(opts: string | string[] | null | undefined): string[] {
+    if (!opts) return []
+    if (Array.isArray(opts)) return opts
+    try { const arr = JSON.parse(opts); return Array.isArray(arr) ? arr : [] } catch { return [] }
+  }
 
   const activeTab       = ref<'create' | 'history' | 'stats'>('create')
   const newTitle        = ref('')
@@ -98,8 +107,10 @@
 
   // ── Activity management ──────────────────────────────────────────────────
   async function onAddActivity(payload: {
-    type: 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation'; title: string; options?: string[]
+    type: 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation' | 'live_code' | 'board'
+    title: string; options?: string[] | string
     timer_seconds?: number; correct_answers?: number[] | string[]
+    language?: string
   }) {
     if (!liveStore.currentSession) return
     if (editingActivity.value) {
@@ -233,14 +244,16 @@
   async function duplicateActivity(activity: LiveActivity) {
     if (!liveStore.currentSession) return
     const payload: {
-      type: 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation'
-      title: string; options?: string[]
+      type: 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation' | 'live_code' | 'board'
+      title: string; options?: string[] | string
       timer_seconds?: number; correct_answers?: number[] | string[]
+      language?: string
     } = {
       type: activity.type,
       title: activity.title + ' (copie)',
       timer_seconds: activity.timer_seconds,
     }
+    if (activity.language) payload.language = activity.language
     if (activity.options) {
       try { payload.options = JSON.parse(activity.options as unknown as string) } catch { /* ignore */ }
     }
@@ -532,7 +545,23 @@
       </div>
 
       <div class="results-area">
-        <QcmResults v-if="(liveStore.currentActivity.type === 'qcm' || liveStore.currentActivity.type === 'vrai_faux') && liveStore.results" :results="liveStore.results" :activity="liveStore.currentActivity" />
+        <!-- Code : editeur en direct (prof) -->
+        <LiveCodeEditor
+          v-if="liveStore.currentActivity.type === 'live_code' && promoId"
+          :activity-id="liveStore.currentActivity.id"
+          :promo-id="promoId"
+          :initial-content="liveStore.currentActivity.content ?? ''"
+          :initial-language="liveStore.currentActivity.language ?? 'javascript'"
+        />
+        <!-- Board : tableau collaboratif -->
+        <LiveBoard
+          v-else-if="liveStore.currentActivity.type === 'board'"
+          :activity-id="liveStore.currentActivity.id"
+          :is-teacher="true"
+          :columns="parseOptions(liveStore.currentActivity.options)"
+        />
+        <!-- Spark : resultats classiques -->
+        <QcmResults v-else-if="(liveStore.currentActivity.type === 'qcm' || liveStore.currentActivity.type === 'vrai_faux') && liveStore.results" :results="liveStore.results" :activity="liveStore.currentActivity" />
         <PollResults v-else-if="liveStore.currentActivity.type === 'reponse_courte' && liveStore.results" :results="liveStore.results" />
         <AssociationResults v-else-if="liveStore.currentActivity.type === 'association' && liveStore.results" :results="liveStore.results" />
         <EstimationResults v-else-if="liveStore.currentActivity.type === 'estimation' && liveStore.results" :results="liveStore.results" />

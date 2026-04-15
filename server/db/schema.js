@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 60;
+const CURRENT_VERSION = 61;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -1266,6 +1266,79 @@ function runMigrations(db) {
         CREATE INDEX IF NOT EXISTS idx_cahiers_promo ON cahiers(promo_id);
         CREATE INDEX IF NOT EXISTS idx_cahiers_group ON cahiers(group_id);
         CREATE INDEX IF NOT EXISTS idx_cahiers_project ON cahiers(promo_id, project);
+      `);
+    },
+
+    // v61 : Live unifie (fusion Spark + Pulse + Code + Board)
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS live_sessions_v2 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          teacher_id INTEGER NOT NULL,
+          promo_id INTEGER NOT NULL REFERENCES promotions(id),
+          title TEXT NOT NULL,
+          join_code TEXT NOT NULL UNIQUE,
+          status TEXT DEFAULT 'waiting' CHECK(status IN ('waiting','active','ended')),
+          is_async INTEGER DEFAULT 0,
+          open_until TEXT DEFAULT NULL,
+          created_at TEXT DEFAULT (datetime('now')),
+          ended_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_live_v2_code ON live_sessions_v2(join_code);
+        CREATE INDEX IF NOT EXISTS idx_live_v2_promo ON live_sessions_v2(promo_id);
+        CREATE INDEX IF NOT EXISTS idx_live_v2_status ON live_sessions_v2(status);
+
+        CREATE TABLE IF NOT EXISTS live_activities_v2 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_id INTEGER NOT NULL REFERENCES live_sessions_v2(id) ON DELETE CASCADE,
+          category TEXT NOT NULL CHECK(category IN ('spark','pulse','code','board')),
+          type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          options TEXT DEFAULT NULL,
+          multi INTEGER DEFAULT 0,
+          max_words INTEGER DEFAULT 3,
+          max_rating INTEGER DEFAULT 5,
+          timer_seconds INTEGER DEFAULT 30,
+          correct_answers TEXT DEFAULT NULL,
+          content TEXT DEFAULT NULL,
+          language TEXT DEFAULT NULL,
+          position INTEGER DEFAULT 0,
+          status TEXT DEFAULT 'pending' CHECK(status IN ('pending','live','closed')),
+          started_at TEXT,
+          closed_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_live_act_v2_session ON live_activities_v2(session_id);
+
+        CREATE TABLE IF NOT EXISTS live_responses_v2 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          activity_id INTEGER NOT NULL REFERENCES live_activities_v2(id) ON DELETE CASCADE,
+          student_id INTEGER NOT NULL,
+          answer TEXT NOT NULL,
+          pinned INTEGER DEFAULT 0,
+          created_at TEXT DEFAULT (datetime('now')),
+          UNIQUE(activity_id, student_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_live_resp_v2_activity ON live_responses_v2(activity_id);
+
+        CREATE TABLE IF NOT EXISTS live_board_cards (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          activity_id INTEGER NOT NULL REFERENCES live_activities_v2(id) ON DELETE CASCADE,
+          column_name TEXT NOT NULL DEFAULT 'Idees',
+          content TEXT NOT NULL,
+          author_id INTEGER NOT NULL,
+          author_name TEXT NOT NULL,
+          color TEXT DEFAULT '#3b82f6',
+          votes INTEGER DEFAULT 0,
+          created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_live_board_activity ON live_board_cards(activity_id);
+
+        CREATE TABLE IF NOT EXISTS live_board_votes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          card_id INTEGER NOT NULL REFERENCES live_board_cards(id) ON DELETE CASCADE,
+          student_id INTEGER NOT NULL,
+          UNIQUE(card_id, student_id)
+        );
       `);
     },
   ];
