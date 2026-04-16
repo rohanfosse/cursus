@@ -538,17 +538,22 @@
 }
 .type-card {
   flex: 1;
+  min-width: 90px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 16px 12px;
-  border-radius: 12px;
+  padding: 12px 8px;
+  border-radius: 10px;
   background: var(--bg-elevated);
   border: 2px solid var(--border);
   color: var(--text-secondary, #aaa);
   cursor: pointer;
   transition: all .15s;
+}
+@media (max-width: 500px) {
+  .type-card { min-width: 70px; padding: 10px 6px; }
+  .type-category-header { flex-wrap: wrap; }
 }
 .type-card:hover {
   background: var(--bg-hover);

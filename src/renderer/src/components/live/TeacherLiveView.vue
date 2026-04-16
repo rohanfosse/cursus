@@ -6,7 +6,7 @@
     LogOut, Pencil, GripVertical, Copy, Download,
     History, BarChart3,
   } from 'lucide-vue-next'
-  import { activityIcon, activityTypeLabel, getActivityCategory } from '@/utils/liveActivity'
+  import { activityIcon, activityTypeLabel, getActivityCategory, isSparkType } from '@/utils/liveActivity'
   import { useAppStore }  from '@/stores/app'
   import { useLiveStore } from '@/stores/live'
   import type { LiveActivity, LiveSession } from '@/types'
@@ -171,10 +171,21 @@
 
   async function closeCurrentActivity() {
     if (!liveStore.currentActivity) return
-    await liveStore.closeActivity(liveStore.currentActivity.id)
+    const activity = liveStore.currentActivity
+    // Save code snapshot before closing
+    if (activity.type === 'live_code') {
+      const editor = document.querySelector('.lce-editor .cm-content')
+      const content = editor?.textContent ?? ''
+      if (content) await window.api.saveLiveV2CodeSnapshot(activity.id, content)
+    }
+    await liveStore.closeActivity(activity.id)
     if (liveStore.currentSession) {
-      await liveStore.fetchLeaderboard(liveStore.currentSession.id)
-      showLeaderboard.value = true
+      // Only show leaderboard if session has Spark activities
+      const hasSpark = liveStore.sessionActivities.some(a => isSparkType(a.type))
+      if (hasSpark) {
+        await liveStore.fetchLeaderboard(liveStore.currentSession.id)
+        showLeaderboard.value = true
+      }
     }
   }
 
@@ -250,7 +261,7 @@
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `spark-${liveStore.currentSession.title.replace(/\s+/g, '-')}.csv`
+        a.download = `live-${liveStore.currentSession.title.replace(/\s+/g, '-')}.csv`
         a.click()
         setTimeout(() => URL.revokeObjectURL(url), 5000)
       }
@@ -292,7 +303,7 @@
     <div v-if="!liveStore.currentSession" class="live-empty">
       <div class="live-hero">
         <Zap :size="48" class="hero-icon" />
-        <h1 class="hero-title">Spark</h1>
+        <h1 class="hero-title">Live</h1>
       </div>
 
       <!-- Onglets -->

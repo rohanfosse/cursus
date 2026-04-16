@@ -4,7 +4,7 @@
   import { Search, Calendar, ChevronDown, ChevronUp, Users, BarChart2 } from 'lucide-vue-next'
   import { useLiveStore } from '@/stores/live'
   import { useDebounce } from '@/composables/useDebounce'
-  import { activityIcon, activityTypeLabel } from '@/utils/liveActivity'
+  import { activityIcon, activityTypeLabel, getActivityCategory } from '@/utils/liveActivity'
   import type { LiveSessionWithStats, LiveSession, LiveResults } from '@/types'
 
   import QcmResults          from './QcmResults.vue'
@@ -117,6 +117,9 @@
                 <component :is="activityIcon(act.type)" :size="14" class="qh-act-icon" />
                 <span class="qh-act-title">{{ act.title }}</span>
                 <span class="qh-act-type">{{ activityTypeLabel(act.type) }}</span>
+                <span class="qh-act-cat" :class="`qh-cat--${act.category ?? getActivityCategory(act.type)}`">
+                  {{ (act.category ?? getActivityCategory(act.type)) }}
+                </span>
               </div>
               <div v-if="expandedResults[act.id]" class="qh-act-results">
                 <QcmResults
@@ -197,6 +200,11 @@
 .qh-act-icon { color: var(--color-danger, #e74c3c); flex-shrink: 0; }
 .qh-act-title { font-size: 13px; font-weight: 600; color: var(--text-primary); flex: 1; }
 .qh-act-type { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(231, 76, 60, 0.1); color: var(--color-danger, #e74c3c); }
+.qh-act-cat { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; padding: 1px 6px; border-radius: 8px; }
+.qh-cat--spark  { background: rgba(245,158,11,.12); color: #f59e0b; }
+.qh-cat--pulse  { background: rgba(16,185,129,.12); color: #10b981; }
+.qh-cat--code   { background: rgba(59,130,246,.12); color: #3b82f6; }
+.qh-cat--board  { background: rgba(168,85,247,.12); color: #a855f7; }
 .qh-act-results { min-height: 40px; }
 .qh-no-results { text-align: center; color: var(--text-muted); font-size: 12px; padding: 8px 0; }
 </style>

@@ -4,7 +4,7 @@
   import { Zap, CheckCircle2, Send, LogOut, XCircle, Trophy } from 'lucide-vue-next'
   import { useAppStore }  from '@/stores/app'
   import { useLiveStore } from '@/stores/live'
-  import { shuffleArray, KAHOOT_COLORS, KAHOOT_SHAPES } from '@/utils/liveActivity'
+  import { shuffleArray, KAHOOT_COLORS, KAHOOT_SHAPES, isSparkType } from '@/utils/liveActivity'
   import type { LiveScoreResult } from '@/types'
   import CountdownTimer from './CountdownTimer.vue'
   import QcmResults           from './QcmResults.vue'
@@ -25,6 +25,12 @@
 
   const appStore  = useAppStore()
   const liveStore = useLiveStore()
+
+  /** Current activity is Spark (scored) */
+  const isSparkActivity = computed(() => {
+    const act = liveStore.currentActivity ?? liveStore.liveActivity
+    return act ? isSparkType(act.type) : false
+  })
 
   /** Normalise counts Pulse en array */
   const pulseSondageCounts = computed<{ text: string; count: number }[]>(() => {
@@ -326,7 +332,8 @@
 
       <!-- Responded - waiting for results -->
       <div v-else-if="liveStore.hasResponded && activity.status === 'live'" class="responded-state">
-        <div v-if="scoreResult && scoreResult.isCorrect !== null" class="score-feedback">
+        <!-- Spark : score feedback (correct/incorrect) -->
+        <div v-if="isSparkActivity && scoreResult && scoreResult.isCorrect !== null" class="score-feedback">
           <div v-if="scoreResult.isCorrect" class="feedback-correct">
             <CheckCircle2 :size="56" />
             <span class="feedback-label">Correct !</span>
@@ -342,17 +349,18 @@
             <span class="feedback-points">+0 pts</span>
           </div>
         </div>
+        <!-- Pulse : simple confirmation anonyme -->
         <div v-else class="waiting-response">
           <CheckCircle2 :size="48" class="responded-icon" />
-          <span class="responded-text">Reponse envoyee</span>
-          <span class="responded-sub">Les resultats apparaitront bientot</span>
+          <span class="responded-text">{{ isSparkActivity ? 'Reponse envoyee' : 'Merci pour votre retour' }}</span>
+          <span class="responded-sub">{{ isSparkActivity ? 'Les resultats apparaitront bientot' : 'Votre reponse est anonyme' }}</span>
         </div>
       </div>
 
       <!-- Activity closed - show results + score -->
       <div v-else-if="activity.status === 'closed'" class="results-student">
-        <!-- Score feedback for this activity -->
-        <div v-if="scoreResult && scoreResult.isCorrect !== null" class="score-feedback-closed">
+        <!-- Score feedback for this activity (Spark only) -->
+        <div v-if="isSparkActivity && scoreResult && scoreResult.isCorrect !== null" class="score-feedback-closed">
           <div class="feedback-inline" :class="scoreResult.isCorrect ? 'correct' : 'wrong'">
             <component :is="scoreResult.isCorrect ? CheckCircle2 : XCircle" :size="24" />
             <span>{{ scoreResult.isCorrect ? 'Correct' : 'Incorrect' }}</span>
@@ -381,7 +389,7 @@
     </div>
 
     <!-- ══════════ Score cumule flottant ══════════ -->
-    <div v-if="session && cumulativePoints > 0" class="cumulative-score">
+    <div v-if="session && cumulativePoints > 0 && isSparkActivity" class="cumulative-score">
       <Trophy :size="14" />
       <span>{{ cumulativePoints.toLocaleString() }} pts</span>
     </div>
