@@ -54,7 +54,7 @@
     "@marp-team/marp-core": "^4.3.0",
     "@octokit/rest": "^22.0.1",
     "@tiptap/extension-collaboration": "^3.22.3",
-    "@tiptap/extension-collaboration-cursor": "^2.26.2",
+    "@tiptap/extension-collaboration-caret": "^3.22.3",
     "@tiptap/extension-placeholder": "^3.22.3",
     "@tiptap/starter-kit": "^3.22.3",
     "@tiptap/vue-3": "^3.22.3",

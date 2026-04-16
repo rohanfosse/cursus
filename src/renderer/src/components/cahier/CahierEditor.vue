@@ -7,7 +7,7 @@ import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
+import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import Placeholder from '@tiptap/extension-placeholder'
 import { ArrowLeft, Save, Users, Pencil } from 'lucide-vue-next'
 import { useCahierCollab } from '@/composables/useCahierCollab'
@@ -32,7 +32,7 @@ const editor = useEditor({
     Placeholder.configure({ placeholder: 'Commencez a ecrire...' }),
     ...(ydoc.value ? [
       Collaboration.configure({ document: ydoc.value }),
-      CollaborationCursor.configure({
+      CollaborationCaret.configure({
         provider: provider.value,
         user: {
           name: appStore.currentUser?.name ?? 'Anonyme',
