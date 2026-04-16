@@ -221,7 +221,7 @@
   const totalUnreadBadge = computed(() => {
     const dmCount = Object.values(appStore.unreadDms ?? {}).reduce((a: number, b) => a + (b as number), 0)
     const mentionCount = Object.values(appStore.mentionChannels ?? {}).reduce((a: number, b) => a + (b as number), 0)
-    const notifUnread = appStore.notificationHistory.filter(n => !n.read && ['grade', 'deadline', 'assignment', 'spark', 'pulse'].includes(n.category)).length
+    const notifUnread = appStore.notificationHistory.filter(n => !n.read && ['grade', 'deadline', 'assignment', 'spark', 'pulse', 'live'].includes(n.category)).length
     return dmCount + mentionCount + notifUnread
   })
 

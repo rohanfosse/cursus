@@ -214,7 +214,7 @@ function setTab(tab: DashTabType) {
         <Activity :size="13" /> Engagement
       </button>
       <button v-if="isEnabled('live')" class="db-tab db-tab-live" :class="{ active: dashTab === 'live' }" @click="setTab('live')">
-        <Zap :size="13" /> Spark
+        <Zap :size="13" /> Live
         <span
           v-if="liveStore.currentSession && liveStore.currentSession.status !== 'ended'"
           class="db-tab-live-dot"
