@@ -16,6 +16,7 @@ const log     = require('../utils/logger')
 const graph   = require('../services/microsoftGraph')
 const email   = require('../services/email')
 const { encrypt, decrypt } = require('../utils/crypto')
+const { getValidMsToken } = require('../utils/msToken')
 const { generateSlots }    = require('../utils/slots')
 const { cancelConfirmationPage } = require('../utils/htmlTemplates')
 const { generateIcs }      = require('../utils/icsGenerator')
@@ -55,29 +56,6 @@ function validateOAuthState(nonce) {
 
 const { escHtml } = require('../utils/escHtml')
 
-/** Decrypt Microsoft token before Graph API use, with expiry check + refresh */
-async function getValidMsToken(teacherId) {
-  const msToken = queries.getMicrosoftToken(teacherId)
-  if (!msToken) return null
-  const accessToken = decrypt(msToken.access_token_enc)
-  // Check expiry
-  if (msToken.expires_at && new Date(msToken.expires_at).getTime() < Date.now()) {
-    try {
-      const account = JSON.parse(decrypt(msToken.refresh_token_enc))
-      const newAccessToken = await graph.acquireTokenSilent(account)
-      queries.saveMicrosoftToken(teacherId, {
-        accessTokenEnc: encrypt(newAccessToken),
-        refreshTokenEnc: msToken.refresh_token_enc, // keep encrypted account
-        expiresAt: new Date(Date.now() + 3600000).toISOString(),
-      })
-      return newAccessToken
-    } catch (err) {
-      log.warn('Token refresh failed', { error: err.message, teacherId })
-      return null
-    }
-  }
-  return accessToken
-}
 
 /** Middleware: resolve booking token and attach data to req */
 function requireBookingToken(req, res, next) {

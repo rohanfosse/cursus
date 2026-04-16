@@ -87,6 +87,41 @@ function getGraphClient(accessToken) {
 }
 
 /**
+ * Get full calendar events (with id, subject, location, body, organizer) for display.
+ * Returns richer data than getCalendarBusy.
+ */
+async function getCalendarEvents(accessToken, startDateTime, endDateTime) {
+  const client = getGraphClient(accessToken);
+  try {
+    const result = await client.api('/me/calendarView')
+      .query({
+        startDateTime, endDateTime,
+        $select: 'id,subject,start,end,showAs,location,bodyPreview,onlineMeeting,organizer,isAllDay,categories',
+        $orderby: 'start/dateTime',
+        $top: 200,
+      })
+      .get();
+    return (result.value || []).map(e => ({
+      id: e.id,
+      subject: e.subject || '(sans titre)',
+      start: e.start.dateTime,
+      end: e.end.dateTime,
+      timezone: e.start.timeZone || 'UTC',
+      isAllDay: !!e.isAllDay,
+      location: e.location?.displayName || null,
+      bodyPreview: e.bodyPreview || null,
+      teamsJoinUrl: e.onlineMeeting?.joinUrl || null,
+      organizer: e.organizer?.emailAddress?.address || null,
+      showAs: e.showAs || 'busy',
+      categories: e.categories || [],
+    }));
+  } catch (err) {
+    log.warn('getCalendarEvents error', { error: err.message });
+    return [];
+  }
+}
+
+/**
  * Get busy times from Outlook calendar.
  * Returns an array of { start, end } busy slots.
  */
@@ -164,6 +199,7 @@ module.exports = {
   acquireTokenSilent,
   getGraphClient,
   getCalendarBusy,
+  getCalendarEvents,
   createEventWithTeams,
   deleteEvent,
   REDIRECT_URI,

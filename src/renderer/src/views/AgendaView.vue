@@ -4,11 +4,12 @@
 <script setup lang="ts">
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
 import AgendaDayNotes from '@/components/agenda/AgendaDayNotes.vue'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import VueCal from 'vue-cal'
 import 'vue-cal/dist/vuecal.css'
-import { Plus, Trash2, RefreshCw, X, Clock, Tag, ExternalLink, ChevronLeft, ChevronRight, Check, AlertCircle, Download, Filter } from 'lucide-vue-next'
+import { Plus, Trash2, RefreshCw, X, Clock, Tag, ExternalLink, ChevronLeft, ChevronRight, Check, AlertCircle, Download, Filter, Copy, Edit3, Calendar as CalIcon, Video } from 'lucide-vue-next'
 import { useAppStore }   from '@/stores/app'
 import { useAgendaStore } from '@/stores/agenda'
 import { useToast } from '@/composables/useToast'
@@ -33,11 +34,14 @@ const showStartDates = ref(true)
 const showReminders  = ref(true)
 const hiddenPromos   = ref(new Set<number>())
 
+const showOutlook = ref(true)
+
 const filteredEvents = computed(() =>
   agenda.events.filter(e => {
     if (e.eventType === 'deadline'   && !showDeadlines.value)  return false
     if (e.eventType === 'start_date' && !showStartDates.value) return false
     if (e.eventType === 'reminder'   && !showReminders.value)  return false
+    if (e.eventType === 'outlook'    && !showOutlook.value)    return false
     if (e.promoId && hiddenPromos.value.has(e.promoId))        return false
     return true
   }).map(e => ({
@@ -86,6 +90,137 @@ function onCellClick(date: Date) {
   activeView.value = 'day'
 }
 
+// P2 : double-clic = creer un evenement (pre-rempli avec la date/heure cliquee)
+function onCellDblClick(date: Date) {
+  if (!isTeacher.value) return
+  formDate.value = date.toISOString().slice(0, 10)
+  // Format HH:MM for time if we clicked on a time slot
+  const hours = date.getHours()
+  const minutes = date.getMinutes()
+  if (hours || minutes) {
+    formTime.value = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+  }
+  formTitle.value = ''
+  formDesc.value = ''
+  showForm.value = true
+}
+
+// ── Context menu (right-click) ─────────────────────────────────────────
+const ctxMenu = ref<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
+
+function closeCtxMenu() { ctxMenu.value = null }
+
+function onEventContextMenu(e: MouseEvent, event: { _meta?: CalendarEvent }) {
+  e.preventDefault()
+  e.stopPropagation()
+  const meta = event._meta
+  if (!meta) return
+
+  const items: ContextMenuItem[] = [
+    { label: 'Voir les details', icon: ExternalLink, action: () => { selectedEvent.value = meta; detailOpen.value = true } },
+    { label: 'Copier le titre',  icon: Copy,         action: () => { navigator.clipboard.writeText(meta.title); showToast('Titre copie', 'success') } },
+  ]
+
+  if (meta.teamsJoinUrl) {
+    items.push({ label: 'Rejoindre Teams', icon: Video, action: () => window.open(meta.teamsJoinUrl!, '_blank', 'noopener') })
+  }
+
+  if (meta.eventType === 'deadline' || meta.eventType === 'start_date') {
+    items.push({ label: 'Voir le devoir', icon: CalIcon, action: () => router.push({ name: 'devoirs' }) })
+  }
+
+  if (meta.eventType === 'outlook' && meta.outlookId) {
+    items.push(
+      { separator: true, label: '' },
+      { label: 'Supprimer de Outlook', icon: Trash2, danger: true, action: () => deleteOutlookEventAction(meta.outlookId!) },
+    )
+  }
+
+  if (isTeacher.value && meta.eventType === 'reminder') {
+    items.push(
+      { separator: true, label: '' },
+      { label: 'Modifier',   icon: Edit3,  action: () => startEditReminder(meta) },
+      { label: 'Dupliquer',  icon: Copy,   action: () => duplicateReminder(meta) },
+      { label: 'Supprimer',  icon: Trash2, danger: true, action: () => removeReminder(meta.sourceId) },
+    )
+  }
+
+  ctxMenu.value = { x: e.clientX, y: e.clientY, items }
+}
+
+function onCellContextMenu(e: MouseEvent, date: Date) {
+  if (!isTeacher.value) return
+  e.preventDefault()
+  e.stopPropagation()
+  const dateStr = date.toISOString().slice(0, 10)
+  const hours = date.getHours()
+  const minutes = date.getMinutes()
+  const timeStr = (hours || minutes) ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}` : ''
+
+  ctxMenu.value = {
+    x: e.clientX, y: e.clientY,
+    items: [
+      { label: 'Nouveau rappel ici', icon: Plus, action: () => {
+        formDate.value = dateStr
+        formTime.value = timeStr
+        formTitle.value = ''
+        formDesc.value = ''
+        showForm.value = true
+      } },
+      { label: 'Aller a cette date', icon: CalIcon, action: () => {
+        selectedDate.value = dateStr
+        activeView.value = 'day'
+      } },
+    ],
+  }
+}
+
+// ── Inline edit reminder ──────────────────────────────────────────────
+const editingId = ref<number | null>(null)
+
+function startEditReminder(meta: CalendarEvent) {
+  if (meta.eventType !== 'reminder') return
+  editingId.value = meta.sourceId
+  const startStr = meta.start
+  formDate.value = startStr.slice(0, 10)
+  // Extract time if present (format can be "YYYY-MM-DD HH:MM" or ISO)
+  const timeMatch = startStr.match(/(\d{2}):(\d{2})/)
+  formTime.value = timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : ''
+  formTitle.value = meta.title
+  formDesc.value = ''
+  showForm.value = true
+}
+
+async function duplicateReminder(meta: CalendarEvent) {
+  if (meta.eventType !== 'reminder') return
+  try {
+    await agenda.createReminder({ promo_tag: null, date: meta.start.slice(0, 10), title: `${meta.title} (copie)`, description: '', bloc: null })
+    showToast('Rappel duplique', 'success')
+  } catch { showToast('Impossible de dupliquer', 'error') }
+}
+
+// Context menu on calendar wrapper (empty cell)
+function onCalWrapContextMenu(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  // If we right-clicked on an event, let the event handler run
+  if (target.closest('.vuecal__event')) return
+  // Otherwise, resolve clicked cell date from data attributes
+  const cell = target.closest('.vuecal__cell') as HTMLElement | null
+  if (!cell) return
+  const splitDate = cell.getAttribute('data-date') || cell.querySelector('[data-date]')?.getAttribute('data-date')
+  if (splitDate) {
+    onCellContextMenu(e, new Date(splitDate))
+  } else {
+    // Fallback : use currently selected date
+    onCellContextMenu(e, new Date(selectedDate.value))
+  }
+}
+
+function formatEventTime(start: string): string {
+  const m = start.match(/(\d{2}):(\d{2})/)
+  return m ? `${m[1]}:${m[2]}` : ''
+}
+
 function goPrev() { (calRef.value as any)?.previous?.() }
 function goNext() { (calRef.value as any)?.next?.() }
 function goToday() { selectedDate.value = new Date().toISOString().slice(0, 10) }
@@ -102,19 +237,64 @@ function onEventClick(event: { _meta?: CalendarEvent }) {
 function closeDetail() { detailOpen.value = false; selectedEvent.value = null }
 
 // ── New reminder form ────────────────────────────────────────────────────
-const showForm   = ref(false)
-const formDate   = ref('')
-const formTitle  = ref('')
-const formDesc   = ref('')
-const saving     = ref(false)
+const showForm       = ref(false)
+const formDate       = ref('')
+const formTime       = ref('')
+const formTitle      = ref('')
+const formDesc       = ref('')
+const formCreateTeams = ref(false)
+const saving         = ref(false)
 
 async function submitReminder() {
   if (!formDate.value || !formTitle.value.trim()) return
   saving.value = true
   try {
-    await agenda.createReminder({ promo_tag: null, date: formDate.value, title: formTitle.value.trim(), description: formDesc.value.trim(), bloc: null })
-    formDate.value = ''; formTitle.value = ''; formDesc.value = ''; showForm.value = false
+    const dateVal = formTime.value ? `${formDate.value}T${formTime.value}:00` : formDate.value
+    if (editingId.value) {
+      await agenda.updateReminder(editingId.value, { date: dateVal, title: formTitle.value.trim(), description: formDesc.value.trim(), bloc: null })
+      showToast('Rappel modifie', 'success')
+    } else {
+      await agenda.createReminder({ promo_tag: null, date: dateVal, title: formTitle.value.trim(), description: formDesc.value.trim(), bloc: null })
+
+      // If Teams meeting requested, also create in Outlook with online meeting
+      if (formCreateTeams.value && isTeacher.value && formTime.value) {
+        const startIso = new Date(`${formDate.value}T${formTime.value}:00`).toISOString()
+        const endIso   = new Date(new Date(startIso).getTime() + 60 * 60 * 1000).toISOString()
+        try {
+          const res = await window.api.createOutlookEvent({
+            subject: formTitle.value.trim(),
+            startDateTime: startIso,
+            endDateTime: endIso,
+            body: formDesc.value.trim() || undefined,
+            createTeams: true,
+          })
+          if (res.ok && res.data?.teamsJoinUrl) {
+            showToast('Reunion Teams creee — lien dans Outlook', 'success')
+            // Refresh outlook to see the new event
+            await loadOutlook()
+          }
+        } catch { showToast('Teams non disponible (verifiez la connexion Microsoft)', 'error') }
+      }
+    }
+    editingId.value = null
+    formDate.value = ''; formTime.value = ''; formTitle.value = ''; formDesc.value = ''
+    formCreateTeams.value = false
+    showForm.value = false
   } finally { saving.value = false }
+}
+
+async function deleteOutlookEventAction(outlookId: string) {
+  if (!confirm('Supprimer cet evenement de votre Outlook ?')) return
+  try {
+    const res = await window.api.deleteOutlookEvent(outlookId)
+    if (res.ok) {
+      showToast('Evenement supprime de Outlook', 'success')
+      await loadOutlook()
+      closeDetail()
+    } else {
+      showToast(res.error || 'Erreur suppression', 'error')
+    }
+  } catch { showToast('Impossible de supprimer', 'error') }
 }
 
 async function removeReminder(id: number) {
@@ -231,10 +411,73 @@ let cleanupListener: (() => void) | null = null
 async function load() {
   const pid = fetchPromoId.value
   if (pid !== null) await agenda.fetchEvents(pid)
+  if (isTeacher.value && showOutlook.value) await loadOutlook()
+}
+
+async function loadOutlook() {
+  // Window = current month (generous : ±1 month from selected date)
+  const anchor = new Date(selectedDate.value)
+  const from = new Date(anchor); from.setDate(1); from.setMonth(from.getMonth() - 1)
+  const to = new Date(anchor); to.setDate(1); to.setMonth(to.getMonth() + 2)
+  await agenda.fetchOutlookEvents(from.toISOString(), to.toISOString())
+}
+
+// Auto-refresh Outlook every 5 minutes (live sync)
+let outlookPoll: ReturnType<typeof setInterval> | null = null
+function startOutlookPolling() {
+  stopOutlookPolling()
+  outlookPoll = setInterval(() => { if (showOutlook.value && isTeacher.value) loadOutlook() }, 5 * 60 * 1000)
+}
+function stopOutlookPolling() {
+  if (outlookPoll) { clearInterval(outlookPoll); outlookPoll = null }
+}
+
+watch(showOutlook, (v) => {
+  agenda.toggleOutlookSync(v)
+  if (v && isTeacher.value) loadOutlook()
+})
+watch(selectedDate, () => { if (isTeacher.value && showOutlook.value) loadOutlook() })
+
+// ── Keyboard shortcuts (Phase 5) ──────────────────────────────────────
+function onGlobalKeydown(e: KeyboardEvent) {
+  const target = e.target as HTMLElement
+  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+  if (e.ctrlKey || e.metaKey || e.altKey) return
+
+  switch (e.key.toLowerCase()) {
+    case 't':
+      goToday()
+      break
+    case 'm':
+      switchView('month')
+      break
+    case 's':
+      switchView('week')
+      break
+    case 'j':
+      switchView('day')
+      break
+    case 'n':
+      if (isTeacher.value) { showForm.value = true; e.preventDefault() }
+      break
+    case 'arrowleft':
+      if (!detailOpen.value) goPrev()
+      break
+    case 'arrowright':
+      if (!detailOpen.value) goNext()
+      break
+    case 'escape':
+      if (ctxMenu.value) closeCtxMenu()
+      else if (detailOpen.value) closeDetail()
+      else if (showForm.value) { showForm.value = false; editingId.value = null }
+      break
+  }
 }
 
 onMounted(() => {
   load()
+  startOutlookPolling()
+  window.addEventListener('keydown', onGlobalKeydown)
   if (route.query.action === 'new-reminder' && isTeacher.value) showForm.value = true
   // P0.3 : deep-link depuis sidebar mini-cal
   if (typeof route.query.date === 'string') {
@@ -243,7 +486,11 @@ onMounted(() => {
   }
   cleanupListener = window.api.onAssignmentNew?.(() => { load() }) ?? null
 })
-onBeforeUnmount(() => { cleanupListener?.() })
+onBeforeUnmount(() => {
+  cleanupListener?.()
+  stopOutlookPolling()
+  window.removeEventListener('keydown', onGlobalKeydown)
+})
 watch(() => promoId.value, load)
 watch(() => route.query, (q) => {
   if (typeof q.date === 'string' && q.date !== selectedDate.value) {
@@ -261,7 +508,7 @@ watch(() => route.query, (q) => {
     <!-- Toolbar -->
     <header class="agenda-toolbar">
       <div class="agenda-toolbar-left">
-        <button type="button" class="ag-today-btn" @click="goToday">Aujourd'hui</button>
+        <button type="button" class="ag-today-btn" @click="goToday" title="Aujourd'hui (T)">Aujourd'hui</button>
         <div class="ag-nav-arrows">
           <button type="button" class="ag-nav-btn" @click="goPrev"><ChevronLeft :size="16" /></button>
           <button type="button" class="ag-nav-btn" @click="goNext"><ChevronRight :size="16" /></button>
@@ -270,9 +517,9 @@ watch(() => route.query, (q) => {
       </div>
       <div class="agenda-toolbar-right">
         <div class="ag-view-switch">
-          <button type="button" class="ag-view-btn" :class="{ active: activeView === 'month' }" @click="switchView('month')">Mois</button>
-          <button type="button" class="ag-view-btn" :class="{ active: activeView === 'week' }" @click="switchView('week')">Semaine</button>
-          <button type="button" class="ag-view-btn" :class="{ active: activeView === 'day' }" @click="switchView('day')">Jour</button>
+          <button type="button" class="ag-view-btn" :class="{ active: activeView === 'month' }" @click="switchView('month')" title="Vue mois (M)">Mois</button>
+          <button type="button" class="ag-view-btn" :class="{ active: activeView === 'week' }" @click="switchView('week')" title="Vue semaine (S)">Semaine</button>
+          <button type="button" class="ag-view-btn" :class="{ active: activeView === 'day' }" @click="switchView('day')" title="Vue jour (J)">Jour</button>
         </div>
         <button class="ag-btn ag-btn--ghost" title="Filtres" :class="{ 'ag-btn--active': showFilters }" @click="showFilters = !showFilters">
           <Filter :size="14" />
@@ -280,7 +527,7 @@ watch(() => route.query, (q) => {
         <button class="ag-btn ag-btn--ghost" title="Exporter en ICS (Outlook, Google Calendar)" @click="exportIcs">
           <Download :size="14" />
         </button>
-        <button v-if="isTeacher" class="ag-btn ag-btn--accent" @click="showForm = !showForm">
+        <button v-if="isTeacher" class="ag-btn ag-btn--accent" @click="showForm = !showForm" title="Nouveau rappel (N)">
           <Plus :size="13" /> Rappel
         </button>
         <button class="ag-btn ag-btn--ghost" :disabled="agenda.loading" @click="load">
@@ -301,19 +548,28 @@ watch(() => route.query, (q) => {
         <label class="ag-filter-check">
           <input type="checkbox" v-model="showReminders" /> Rappels
         </label>
+        <label v-if="isTeacher" class="ag-filter-check">
+          <input type="checkbox" v-model="showOutlook" /> Outlook
+          <span v-if="agenda.outlookConnected" class="ag-sync-dot ag-sync-dot--live" title="Connecte" />
+          <span v-else class="ag-sync-dot" title="Non connecte" />
+        </label>
         <span class="ag-filter-count">{{ filteredEvents.length }} evenement{{ filteredEvents.length > 1 ? 's' : '' }}</span>
       </div>
     </Transition>
 
     <div class="agenda-body">
-      <div class="agenda-cal-wrap">
+      <div class="agenda-cal-wrap" @contextmenu="onCalWrapContextMenu">
         <VueCal
           ref="calRef"
           :active-view="activeView"
           :selected-date="selectedDate"
           :locale="locale"
           :events="filteredEvents"
-          :time="false"
+          :time="activeView !== 'month'"
+          :time-from="7 * 60"
+          :time-to="22 * 60"
+          :time-step="30"
+          :time-cell-height="28"
           :disable-views="['years', 'year']"
           :editable-events="isTeacher ? { drag: true } : false"
           hide-title-bar
@@ -322,9 +578,22 @@ watch(() => route.query, (q) => {
           @view-change="onViewChange"
           @event-click="onEventClick"
           @cell-click="onCellClick"
+          @cell-dblclick="onCellDblClick"
           @event-drop="onEventDrop"
-        />
+        >
+          <template #event="{ event }">
+            <div class="vuecal__event-title" @contextmenu="onEventContextMenu($event, event)">
+              <span v-if="event.startTimeMinutes !== undefined" class="vuecal__event-time">
+                {{ formatEventTime(event.start) }}
+              </span>
+              {{ event.title }}
+            </div>
+          </template>
+        </VueCal>
       </div>
+
+      <!-- Right-click context menu -->
+      <ContextMenu v-if="ctxMenu" :x="ctxMenu.x" :y="ctxMenu.y" :items="ctxMenu.items" @close="closeCtxMenu" />
 
       <!-- Detail panel -->
       <Transition name="detail-slide">
@@ -347,6 +616,19 @@ watch(() => route.query, (q) => {
             <Tag :size="12" />
             <span>{{ selectedEvent.category }}</span>
           </div>
+          <!-- Outlook-specific metadata -->
+          <div v-if="selectedEvent.location" class="agenda-detail-meta">
+            <span class="ag-icon-pin">📍</span>
+            <span>{{ selectedEvent.location }}</span>
+          </div>
+          <div v-if="selectedEvent.organizer" class="agenda-detail-meta">
+            <span class="ag-icon-org">👤</span>
+            <span>{{ selectedEvent.organizer }}</span>
+          </div>
+          <!-- Teams join button -->
+          <a v-if="selectedEvent.teamsJoinUrl" :href="selectedEvent.teamsJoinUrl" target="_blank" rel="noopener" class="ag-btn ag-btn--teams">
+            <Video :size="13" /> Rejoindre Teams
+          </a>
           <!-- Statut rendu -->
           <div v-if="selectedEvent.submissionStatus" class="agenda-detail-status" :class="`status--${selectedEvent.submissionStatus}`">
             <Check v-if="selectedEvent.submissionStatus === 'submitted'" :size="13" />
@@ -381,9 +663,17 @@ watch(() => route.query, (q) => {
             <button type="button" class="agenda-detail-close" @click="showForm = false"><X :size="14" /></button>
           </header>
           <div class="ag-form">
-            <label class="ag-label">Date<input v-model="formDate" type="date" class="ag-input" /></label>
+            <div class="ag-form-row">
+              <label class="ag-label" style="flex:1;">Date<input v-model="formDate" type="date" class="ag-input" /></label>
+              <label class="ag-label" style="width: 110px;">Heure<input v-model="formTime" type="time" class="ag-input" /></label>
+            </div>
             <label class="ag-label">Titre<input v-model="formTitle" type="text" class="ag-input" placeholder="Ex: Soutenance finale..." /></label>
             <label class="ag-label">Description<textarea v-model="formDesc" class="ag-input ag-textarea" rows="3" placeholder="Details..." /></label>
+            <label v-if="formTime && isTeacher && !editingId" class="ag-label ag-check-label">
+              <input type="checkbox" v-model="formCreateTeams" />
+              <Video :size="12" />
+              <span>Creer une reunion Teams + Outlook</span>
+            </label>
             <div class="ag-form-actions">
               <button class="ag-btn ag-btn--accent" :disabled="!formDate || !formTitle.trim() || saving" @click="submitReminder">{{ saving ? 'Enregistrement...' : 'Ajouter' }}</button>
               <button class="ag-btn ag-btn--ghost" @click="showForm = false">Annuler</button>
@@ -431,6 +721,20 @@ watch(() => route.query, (q) => {
 .ag-filter-count {
   margin-left: auto; font-size: 11px; color: var(--text-muted); font-weight: 600;
 }
+.ag-sync-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #94a3b8; margin-left: 4px;
+}
+.ag-sync-dot--live {
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34,197,94,0.6);
+  animation: ag-sync-pulse 2s infinite;
+}
+@keyframes ag-sync-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); }
+  70% { box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+  100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+}
 .ag-btn--active { color: var(--accent) !important; border-color: var(--accent) !important; }
 .filter-slide-enter-active, .filter-slide-leave-active { transition: all .2s ease; }
 .filter-slide-enter-from, .filter-slide-leave-to { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; overflow: hidden; }
@@ -465,50 +769,138 @@ watch(() => route.query, (q) => {
 .agenda-body { flex: 1; display: flex; overflow: hidden; position: relative; }
 .agenda-cal-wrap { flex: 1; overflow: auto; padding: 0; }
 
-/* Vue-cal overrides */
+/* ══════════════ Vue-cal overrides (Phase 1 - high contrast) ══════════════ */
 :deep(.vuecal__title-bar) { display: none !important; }
 :deep(.vuecal__header) {
-  background: var(--bg-main) !important; color: var(--text-primary) !important;
-  border-bottom: 1px solid var(--border) !important;
+  background: var(--bg-elevated) !important; color: var(--text-primary) !important;
+  border-bottom: 2px solid var(--border) !important;
 }
 :deep(.vuecal__heading) {
-  font-size: 11px !important; font-weight: 600 !important; color: var(--text-muted) !important;
-  padding: 8px 0 !important;
+  font-size: 12px !important; font-weight: 700 !important;
+  color: var(--text-primary) !important; padding: 10px 0 !important;
+  text-transform: uppercase; letter-spacing: 0.5px;
 }
 :deep(.vuecal__cell) {
-  background: var(--bg-main) !important; border-color: var(--border) !important; min-height: 90px;
-  cursor: pointer;
+  background: var(--bg-main) !important; border-color: var(--border) !important;
+  min-height: 100px; cursor: pointer;
+  transition: background 0.15s;
 }
 :deep(.vuecal__cell:hover) { background: var(--bg-hover) !important; }
 :deep(.vuecal__cell-date) {
-  font-size: 12px !important; font-weight: 500 !important; color: var(--text-secondary) !important; padding: 6px 8px !important;
+  font-size: 14px !important; font-weight: 600 !important;
+  color: var(--text-primary) !important; padding: 8px 10px !important;
 }
-:deep(.vuecal__cell--today) { background: rgba(var(--accent-rgb), 0.04) !important; }
-:deep(.vuecal__cell--today .vuecal__cell-date) { color: var(--accent) !important; font-weight: 700 !important; }
-:deep(.vuecal__cell--out-of-scope .vuecal__cell-date) { opacity: 0.3 !important; }
-:deep(.vuecal__cell--selected) { background: rgba(var(--accent-rgb), 0.08) !important; }
-/* Week numbers */
+
+/* Today : high visibility with border ring */
+:deep(.vuecal__cell--today) {
+  background: rgba(var(--accent-rgb), 0.08) !important;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+:deep(.vuecal__cell--today .vuecal__cell-date) {
+  color: var(--accent) !important; font-weight: 800 !important;
+}
+:deep(.vuecal__cell--out-of-scope) { opacity: 0.55; }
+:deep(.vuecal__cell--out-of-scope .vuecal__cell-date) { color: var(--text-muted) !important; }
+:deep(.vuecal__cell--selected) {
+  background: rgba(var(--accent-rgb), 0.12) !important;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* Weekend shading for better visual rhythm */
+:deep(.vuecal__cell--has-splits.vuecal__cell--day-6),
+:deep(.vuecal__cell--has-splits.vuecal__cell--day-7),
+:deep(.vuecal__flex.weekday-label:nth-child(6)),
+:deep(.vuecal__flex.weekday-label:nth-child(7)) {
+  background: var(--bg-elevated) !important;
+}
+
+/* Week numbers — more prominent */
 :deep(.vuecal__week-number) {
-  font-size: 10px !important; font-weight: 600 !important; color: var(--text-muted) !important;
-  opacity: 0.6; padding: 6px 4px !important;
+  font-size: 11px !important; font-weight: 700 !important;
+  color: var(--text-secondary) !important;
+  background: var(--bg-elevated) !important;
+  padding: 8px 4px !important;
+  border-right: 1px solid var(--border);
 }
 
-/* Events with dynamic colors */
+/* ══════════════ Hours grid (week/day view) ══════════════ */
+:deep(.vuecal__time-column) {
+  background: var(--bg-elevated) !important;
+  border-right: 2px solid var(--border) !important;
+}
+:deep(.vuecal__time-cell) {
+  color: var(--text-primary) !important;
+  font-size: 12px !important; font-weight: 600 !important;
+  text-align: right; padding-right: 8px;
+}
+:deep(.vuecal__time-cell-line) {
+  border-top: 1px solid var(--border) !important;
+}
+:deep(.vuecal__time-cell-line.hours::before) {
+  border-color: var(--border) !important;
+  opacity: 1;
+}
+/* Current-time red line */
+:deep(.vuecal__now-line) {
+  color: #ef4444 !important;
+  border-color: #ef4444 !important;
+  border-width: 2px !important;
+}
+:deep(.vuecal__now-line::before) {
+  background: #ef4444 !important;
+  width: 10px; height: 10px;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.2);
+}
+
+/* ══════════════ Events (larger, higher contrast) ══════════════ */
 :deep(.vuecal__event) {
-  border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 600;
-  cursor: pointer; margin: 1px 2px; transition: transform 0.1s, box-shadow 0.1s;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  margin: 2px 3px !important;
+  transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
+  line-height: 1.35 !important;
+  min-height: 22px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  /* Force higher contrast : darken text on light backgrounds */
+  -webkit-font-smoothing: antialiased;
 }
-:deep(.vuecal__event:hover) { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+:deep(.vuecal__event:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  filter: brightness(1.05);
+  z-index: 5;
+}
+:deep(.vuecal__event-title) {
+  font-weight: 700 !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.15);
+}
+:deep(.vuecal__event-time) {
+  font-size: 10px !important; font-weight: 600 !important;
+  opacity: 0.9;
+  display: flex; align-items: center; gap: 3px;
+  margin-bottom: 1px;
+}
 
-/* Status indicators on events */
-:deep(.ag-event--submitted) { opacity: 0.6; }
+/* Status indicators (more visible) */
+:deep(.ag-event--submitted) { opacity: 0.55; text-decoration: line-through; }
 :deep(.ag-event--submitted::after) {
-  content: '✓'; position: absolute; right: 4px; top: 1px;
-  font-size: 9px; color: #22c55e; font-weight: 700;
+  content: '✓'; position: absolute; right: 6px; top: 2px;
+  font-size: 11px; color: #22c55e; font-weight: 800;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.2);
+}
+:deep(.ag-event--late) {
+  animation: ag-pulse-late 2s infinite;
 }
 :deep(.ag-event--late::after) {
-  content: '!'; position: absolute; right: 4px; top: 1px;
-  font-size: 9px; color: #ef4444; font-weight: 700;
+  content: '⚠'; position: absolute; right: 6px; top: 2px;
+  font-size: 11px; color: #ef4444; font-weight: 800;
+}
+@keyframes ag-pulse-late {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(239,68,68,0); }
 }
 
 /* ── Detail panel ── */
@@ -542,6 +934,7 @@ watch(() => route.query, (q) => {
 
 /* Form */
 .ag-form { display: flex; flex-direction: column; gap: 12px; }
+.ag-form-row { display: flex; gap: 8px; }
 .ag-label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 600; color: var(--text-muted); }
 .ag-input {
   padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border);
@@ -565,10 +958,47 @@ watch(() => route.query, (q) => {
 .ag-btn--ghost:hover:not(:disabled) { background: var(--bg-hover); }
 .ag-btn--danger { background: rgba(239,68,68,0.1); color: #ef4444; border-color: transparent; margin-top: 8px; }
 .ag-btn--danger:hover { background: rgba(239,68,68,0.2); }
+.ag-btn--teams {
+  background: #6264a7; color: #fff; border-color: #6264a7; margin-top: 4px;
+  text-decoration: none;
+}
+.ag-btn--teams:hover { background: #4e5199; border-color: #4e5199; }
+.ag-check-label {
+  flex-direction: row !important; align-items: center; gap: 6px;
+  background: rgba(98, 100, 167, 0.08); padding: 8px 10px; border-radius: 6px;
+  color: var(--text-primary); cursor: pointer;
+  font-size: 12px !important; font-weight: 500 !important;
+}
+.ag-check-label input { accent-color: #6264a7; }
+.ag-icon-pin, .ag-icon-org { font-size: 12px; }
 
 .ag-spin { animation: ag-spin 1s linear infinite; }
 @keyframes ag-spin { to { transform: rotate(360deg); } }
 
 .detail-slide-enter-active, .detail-slide-leave-active { transition: transform 0.2s ease, opacity 0.2s ease; }
 .detail-slide-enter-from, .detail-slide-leave-to { transform: translateX(20px); opacity: 0; }
+
+/* ══════════════ Mobile responsive (Phase 5) ══════════════ */
+@media (max-width: 768px) {
+  .agenda-toolbar {
+    flex-wrap: wrap; gap: 8px; padding: 8px 12px;
+  }
+  .agenda-toolbar-left, .agenda-toolbar-right {
+    flex: 1 1 100%; justify-content: space-between;
+  }
+  .ag-current-title { font-size: 15px; }
+  .ag-view-btn { padding: 4px 10px; font-size: 11px; }
+  .ag-today-btn { padding: 5px 12px; font-size: 12px; }
+  .agenda-detail {
+    width: 100% !important;
+    box-shadow: none;
+  }
+  :deep(.vuecal__cell) { min-height: 70px; }
+  :deep(.vuecal__cell-date) { font-size: 13px !important; padding: 6px 8px !important; }
+  :deep(.vuecal__event) { font-size: 10px !important; padding: 2px 5px !important; }
+}
+
+/* Keyboard shortcut hints */
+.ag-today-btn[title]::after,
+.ag-view-btn[title]::after { content: ''; } /* rely on native tooltip */
 </style>

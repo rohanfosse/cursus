@@ -17,6 +17,17 @@ export const useAgendaStore = defineStore('agenda', () => {
   const ganttRows = ref<any[]>([])
   const loading   = ref(false)
 
+  // ── Outlook sync state ───────────────────────────────────────────────
+  interface OutlookEvent {
+    id: string; subject: string; start: string; end: string
+    isAllDay: boolean; location: string | null; bodyPreview: string | null
+    teamsJoinUrl: string | null; organizer: string | null
+    showAs: string; categories: string[]
+  }
+  const outlookEvents = ref<OutlookEvent[]>([])
+  const outlookConnected = ref(false)
+  const outlookEnabled = ref(true) // user toggle
+
   /** Promos uniques extraites des ganttRows (pour le mode multi-promo prof). */
   const promos = computed<PromoCalendar[]>(() => {
     const map = new Map<number, PromoCalendar>()
@@ -91,16 +102,51 @@ export const useAgendaStore = defineStore('agenda', () => {
     }
 
     for (const r of reminders.value) {
+      // Support both date-only (YYYY-MM-DD) and datetime (YYYY-MM-DDTHH:MM:SS)
+      const hasTime = typeof r.date === 'string' && r.date.length > 10 && r.date.includes('T')
+      const startStr = hasTime ? r.date.replace('T', ' ').slice(0, 16) : r.date.substring(0, 10)
+      // Default to 1h duration for timed events
+      let endStr = startStr
+      if (hasTime) {
+        const d = new Date(r.date)
+        d.setMinutes(d.getMinutes() + 60)
+        endStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+      }
       list.push({
         id: `reminder-${r.id}`,
-        start: r.date.substring(0, 10),
-        end: r.date.substring(0, 10),
+        start: startStr,
+        end: endStr,
         title: r.title,
         color: '#22c55e',
         eventType: 'reminder',
         sourceId: r.id,
         category: r.bloc ?? null,
       })
+    }
+
+    // Merge Outlook events if enabled
+    if (outlookEnabled.value) {
+      for (const ev of outlookEvents.value) {
+        // Format start/end for vue-cal
+        const toCalDate = (iso: string) => {
+          const d = new Date(iso)
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+        }
+        list.push({
+          id: `outlook-${ev.id}`,
+          start: toCalDate(ev.start),
+          end:   toCalDate(ev.end),
+          title: ev.subject,
+          color: '#0ea5e9', // outlook blue
+          eventType: 'outlook',
+          sourceId: 0,
+          category: ev.categories[0] ?? null,
+          outlookId: ev.id,
+          teamsJoinUrl: ev.teamsJoinUrl,
+          location: ev.location,
+          organizer: ev.organizer,
+        } as CalendarEvent)
+      }
     }
 
     return list.sort((a, b) => a.start.localeCompare(b.start))
@@ -121,6 +167,28 @@ export const useAgendaStore = defineStore('agenda', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  /**
+   * Fetch Outlook events for a window [from, to]. Only works for teachers
+   * with connected Microsoft account. Silently sets connected=false otherwise.
+   */
+  async function fetchOutlookEvents(fromIso: string, toIso: string): Promise<void> {
+    if (!outlookEnabled.value) return
+    try {
+      const res = await window.api.getOutlookEvents(fromIso, toIso)
+      if (res.ok && res.data) {
+        outlookEvents.value = res.data.events
+        outlookConnected.value = res.data.connected
+      }
+    } catch {
+      outlookConnected.value = false
+    }
+  }
+
+  function toggleOutlookSync(enabled: boolean): void {
+    outlookEnabled.value = enabled
+    if (!enabled) outlookEvents.value = []
   }
 
   async function createReminder(payload: Omit<Reminder, 'id' | 'created_at'>): Promise<boolean> {
@@ -153,5 +221,8 @@ export const useAgendaStore = defineStore('agenda', () => {
   return {
     reminders, ganttRows, events, promos, categories, loading,
     fetchEvents, createReminder, updateReminder, deleteReminder,
+    // Outlook sync
+    outlookEvents, outlookConnected, outlookEnabled,
+    fetchOutlookEvents, toggleOutlookSync,
   }
 })

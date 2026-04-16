@@ -396,6 +396,9 @@ contextBridge.exposeInMainWorld('api', {
 
   // ── Calendrier (iCal sync) ─────────────────────────────────────────────────
   getCalendarFeedUrl: ()                         => `${SERVER_URL}/api/calendar/feed.ics`,
+  getOutlookEvents: (from: string, to: string) => get(`/api/calendar/outlook/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  createOutlookEvent: (payload: { subject: string; startDateTime: string; endDateTime: string; body?: string; attendees?: Array<{ email: string; name?: string }>; createTeams?: boolean }) => post('/api/calendar/outlook/events', payload),
+  deleteOutlookEvent: (id: string) => del(`/api/calendar/outlook/events/${encodeURIComponent(id)}`),
 
   // ── Dépôts ──────────────────────────────────────────────────────────────────
   getDepots:   (travailId: number) => get(`/api/depots?travailId=${travailId}`),

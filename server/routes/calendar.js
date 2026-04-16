@@ -1,7 +1,10 @@
-// ─── Routes calendrier (iCal feed + sync) ────────────────────────────────────
+// ─── Routes calendrier (iCal feed + sync Outlook) ───────────────────────────
 const router  = require('express').Router()
 const queries = require('../db/index')
 const log     = require('../utils/logger')
+const graph   = require('../services/microsoftGraph')
+const { getValidMsToken } = require('../utils/msToken')
+const { requireRole }     = require('../middleware/authorize')
 
 /**
  * Genere un fichier iCalendar (.ics) a partir d'une liste d'evenements.
@@ -110,6 +113,67 @@ router.get('/export.ics', (req, res) => {
   } catch (err) {
     log.error('calendar_export_error', { error: err.message })
     res.status(500).json({ ok: false, error: 'Erreur export calendrier' })
+  }
+})
+
+// ══════════════════════════════════════════════════════════════════════════
+// Outlook live sync (teachers only)
+// ══════════════════════════════════════════════════════════════════════════
+
+/** GET /outlook/events?from=ISO&to=ISO — fetch teacher's Outlook events */
+router.get('/outlook/events', requireRole('teacher'), async (req, res) => {
+  try {
+    const from = req.query.from
+    const to   = req.query.to
+    if (!from || !to || isNaN(Date.parse(from)) || isNaN(Date.parse(to))) {
+      return res.status(400).json({ ok: false, error: 'from/to ISO requis' })
+    }
+
+    const token = await getValidMsToken(req.user.id)
+    if (!token) return res.json({ ok: true, data: { events: [], connected: false } })
+
+    const events = await graph.getCalendarEvents(token, from, to)
+    res.json({ ok: true, data: { events, connected: true } })
+  } catch (err) {
+    log.warn('outlook_events_error', { error: err.message })
+    res.status(500).json({ ok: false, error: 'Erreur chargement Outlook' })
+  }
+})
+
+/** POST /outlook/events — create an event in teacher's Outlook calendar */
+router.post('/outlook/events', requireRole('teacher'), async (req, res) => {
+  try {
+    const { subject, startDateTime, endDateTime, body, attendees, createTeams } = req.body || {}
+    if (!subject || !startDateTime || !endDateTime) {
+      return res.status(400).json({ ok: false, error: 'subject/startDateTime/endDateTime requis' })
+    }
+
+    const token = await getValidMsToken(req.user.id)
+    if (!token) return res.status(503).json({ ok: false, error: 'Microsoft non connecte' })
+
+    const result = await graph.createEventWithTeams(token, {
+      subject, startDateTime, endDateTime,
+      body: body || '',
+      attendees: attendees || [],
+    })
+    // If caller doesn't want Teams, still Graph creates one — we just return what we got
+    res.json({ ok: true, data: { ...result, createTeams: !!createTeams } })
+  } catch (err) {
+    log.warn('outlook_create_error', { error: err.message })
+    res.status(500).json({ ok: false, error: 'Erreur creation Outlook' })
+  }
+})
+
+/** DELETE /outlook/events/:id — delete an event from teacher's Outlook calendar */
+router.delete('/outlook/events/:id', requireRole('teacher'), async (req, res) => {
+  try {
+    const token = await getValidMsToken(req.user.id)
+    if (!token) return res.status(503).json({ ok: false, error: 'Microsoft non connecte' })
+    await graph.deleteEvent(token, req.params.id)
+    res.json({ ok: true, data: null })
+  } catch (err) {
+    log.warn('outlook_delete_error', { error: err.message })
+    res.status(500).json({ ok: false, error: 'Erreur suppression Outlook' })
   }
 })
 

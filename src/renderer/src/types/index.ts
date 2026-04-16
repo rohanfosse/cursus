@@ -529,7 +529,7 @@ export interface CalendarEvent {
   end: string
   title: string
   color: string
-  eventType: 'deadline' | 'start_date' | 'reminder'
+  eventType: 'deadline' | 'start_date' | 'reminder' | 'outlook'
   sourceId: number
   category?: string | null
   submissionStatus?: 'submitted' | 'pending' | 'late' | 'upcoming'
@@ -538,6 +538,11 @@ export interface CalendarEvent {
   promoId?: number
   promoName?: string
   promoColor?: string
+  // Outlook-specific (when eventType === 'outlook')
+  outlookId?: string
+  teamsJoinUrl?: string | null
+  location?: string | null
+  organizer?: string | null
 }
 
 // ─── Payloads IPC ────────────────────────────────────────────────────────────

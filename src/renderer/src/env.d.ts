@@ -436,6 +436,9 @@ declare global {
 
       // Calendrier (iCal sync)
       getCalendarFeedUrl(): string
+      getOutlookEvents(from: string, to: string): Promise<IpcResponse<{ events: Array<{ id: string; subject: string; start: string; end: string; timezone?: string; isAllDay: boolean; location: string | null; bodyPreview: string | null; teamsJoinUrl: string | null; organizer: string | null; showAs: string; categories: string[] }>; connected: boolean }>>
+      createOutlookEvent(payload: { subject: string; startDateTime: string; endDateTime: string; body?: string; attendees?: Array<{ email: string; name?: string }>; createTeams?: boolean }): Promise<IpcResponse<{ eventId: string; teamsJoinUrl: string | null }>>
+      deleteOutlookEvent(id: string): Promise<IpcResponse<null>>
 
       // Onboarding wizard
       getOnboardingStatus(studentId: number): Promise<boolean>
