@@ -43,9 +43,10 @@ function goToProject(key: string) {
 }
 
 // ── Tabs ────────────────────────────────────────────────────────────────────
-type DashTab = 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live' | 'rex' | 'suivi' | 'engagement' | 'projets' | 'notes' | 'planning' | 'quiz'
+type DashTab = 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages' | 'live' | 'rex' | 'suivi' | 'engagement' | 'projets' | 'notes' | 'planning' | 'quiz' | 'booking'
+const VALID_TABS: DashTab[] = ['accueil', 'promotions', 'frise', 'analytique', 'reglages', 'live', 'rex', 'suivi', 'engagement', 'projets', 'notes', 'planning', 'booking']
 const dashTab = ref<DashTab>(
-  route.query.tab === 'frise' ? 'frise' : route.query.tab === 'planning' ? 'planning' : route.query.tab === 'analytique' ? 'analytique' : route.query.tab === 'promotions' ? 'promotions' : route.query.tab === 'live' ? 'live' : route.query.tab === 'rex' ? 'rex' : route.query.tab === 'suivi' ? 'suivi' : route.query.tab === 'engagement' ? 'engagement' : route.query.tab === 'projets' ? 'projets' : route.query.tab === 'notes' ? 'notes' : 'accueil',
+  VALID_TABS.includes(route.query.tab as DashTab) ? (route.query.tab as DashTab) : 'accueil',
 )
 watch(() => route.query.tab, (tab) => {
   const valid = ['frise', 'planning', 'analytique', 'promotions', 'reglages', 'live', 'rex', 'projets', 'notes', 'suivi', 'engagement'] as const

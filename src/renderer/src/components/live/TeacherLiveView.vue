@@ -156,6 +156,7 @@
       if (showActivityForm.value) cancelActivityForm()
       else if (showLeaderboard.value) dismissLeaderboard()
       else if (showPodium.value) showPodium.value = false
+      else if (selectedCategory.value) selectedCategory.value = null
     }
   }
 
@@ -171,19 +172,29 @@
     window.api.emitLiveJoin(session.promo_id)
   }
 
-  /** Quick-create : cree une session depuis le nom saisi et ouvre le formulaire d'activite */
-  async function quickCreate(category: ActivityCategory) {
-    const cat = ACTIVITY_CATEGORIES[category]
-    const title = newTitle.value.trim() || `Session ${cat.label}`
-    if (!promoId.value) return
-    await liveStore.createSession(title, promoId.value)
-    newTitle.value = ''
-    // Pre-open activity form
-    showActivityForm.value = true
-    preSelectedCategory.value = category
+  /** Ouvre la sous-page categorie */
+  const selectedCategory = ref<ActivityCategory | null>(null)
+  const preSelectedCategory = ref<ActivityCategory | null>(null)
+
+  function openCategory(category: ActivityCategory) {
+    selectedCategory.value = category
   }
 
-  const preSelectedCategory = ref<ActivityCategory | null>(null)
+  function backToHome() {
+    selectedCategory.value = null
+  }
+
+  /** Cree la session et ouvre le formulaire d'activite avec la bonne categorie */
+  async function startFromCategory() {
+    if (!selectedCategory.value || !promoId.value) return
+    const cat = ACTIVITY_CATEGORIES[selectedCategory.value]
+    const title = newTitle.value.trim() || `Session ${cat.label}`
+    await liveStore.createSession(title, promoId.value)
+    newTitle.value = ''
+    showActivityForm.value = true
+    preSelectedCategory.value = selectedCategory.value
+    selectedCategory.value = null
+  }
 
   async function onCloneSession(session: LiveSession) {
     if (!promoId.value) return
@@ -394,22 +405,102 @@
         </div>
       </template>
 
+      <!-- Sub-page: detail categorie -->
+      <template v-else-if="selectedCategory">
+        <div class="live-cat-detail" :style="{ '--cat-color': ACTIVITY_CATEGORIES[selectedCategory].color }">
+          <button class="live-home-back" @click="backToHome">
+            <ArrowRight :size="14" style="transform: rotate(180deg)" /> Accueil Live
+          </button>
+
+          <div class="lcd-header">
+            <div class="lcd-icon">
+              <component :is="CATEGORY_ICONS[selectedCategory]" :size="32" />
+            </div>
+            <div>
+              <h2 class="lcd-title">{{ ACTIVITY_CATEGORIES[selectedCategory].label }}</h2>
+              <p class="lcd-desc">{{ ACTIVITY_CATEGORIES[selectedCategory].description }}</p>
+            </div>
+          </div>
+
+          <!-- Types d'activites disponibles -->
+          <div class="lcd-section">
+            <h3 class="lcd-section-title">Types d'activites disponibles</h3>
+            <div class="lcd-types-grid">
+              <div
+                v-for="t in ACTIVITY_CATEGORIES[selectedCategory].types"
+                :key="t"
+                class="lcd-type-card"
+              >
+                <component :is="activityIcon(t)" :size="20" class="lcd-type-icon" />
+                <div class="lcd-type-info">
+                  <span class="lcd-type-label">{{ activityTypeLabel(t) }}</span>
+                  <span class="lcd-type-id">{{ t }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Infos specifiques par categorie -->
+          <div class="lcd-section">
+            <h3 class="lcd-section-title">Fonctionnalites</h3>
+            <div class="lcd-features">
+              <template v-if="selectedCategory === 'spark'">
+                <div class="lcd-feat">Scoring et classement en temps reel</div>
+                <div class="lcd-feat">Timer par question (optionnel)</div>
+                <div class="lcd-feat">Leaderboard et podium final</div>
+                <div class="lcd-feat">Correction automatique</div>
+                <div class="lcd-feat">Export CSV des resultats</div>
+              </template>
+              <template v-else-if="selectedCategory === 'pulse'">
+                <div class="lcd-feat">Reponses anonymes</div>
+                <div class="lcd-feat">Nuage de mots, echelle, sondage, matrice</div>
+                <div class="lcd-feat">Resultats agreges en direct</div>
+                <div class="lcd-feat">Pas de scoring (feedback libre)</div>
+                <div class="lcd-feat">Vote et priorisation</div>
+              </template>
+              <template v-else-if="selectedCategory === 'code'">
+                <div class="lcd-feat">Editeur de code en direct</div>
+                <div class="lcd-feat">Coloration syntaxique (JS, Python, Java...)</div>
+                <div class="lcd-feat">Broadcast temps reel aux etudiants</div>
+                <div class="lcd-feat">Snapshot automatique a la fermeture</div>
+              </template>
+              <template v-else-if="selectedCategory === 'board'">
+                <div class="lcd-feat">Post-its collaboratifs par colonnes</div>
+                <div class="lcd-feat">Drag & drop entre colonnes</div>
+                <div class="lcd-feat">Votes (max configurable)</div>
+                <div class="lcd-feat">Choix de couleur et edition inline</div>
+                <div class="lcd-feat">Mode anonyme et export Markdown</div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Zone creation -->
+          <div class="lcd-create">
+            <input
+              v-model="newTitle"
+              class="live-home-input"
+              :placeholder="`Nom de la session ${ACTIVITY_CATEGORIES[selectedCategory].label} (optionnel)`"
+              maxlength="100"
+              @keydown.enter="startFromCategory"
+            />
+            <button
+              class="lcd-create-btn"
+              :disabled="liveStore.loading"
+              @click="startFromCategory"
+            >
+              <Plus :size="16" />
+              {{ liveStore.loading ? 'Creation...' : 'Creer et preparer' }}
+            </button>
+          </div>
+        </div>
+      </template>
+
       <!-- Tab: Accueil (default) -->
       <template v-else>
         <div class="live-hero">
           <Zap :size="40" class="hero-icon" />
           <h1 class="hero-title">Live</h1>
           <p class="hero-desc">Lancez une activite interactive avec vos etudiants</p>
-        </div>
-
-        <!-- Input titre (optionnel) -->
-        <div class="live-home-name">
-          <input
-            v-model="newTitle"
-            class="live-home-input"
-            placeholder="Nom de la session (optionnel)"
-            maxlength="100"
-          />
         </div>
 
         <!-- Grille des 4 categories -->
@@ -419,8 +510,7 @@
             :key="key"
             class="live-cat-card"
             :style="{ '--cat-color': cat.color }"
-            :disabled="liveStore.loading"
-            @click="quickCreate(key as ActivityCategory)"
+            @click="openCategory(key as ActivityCategory)"
           >
             <div class="live-cat-icon">
               <component :is="CATEGORY_ICONS[key]" :size="28" />
@@ -437,7 +527,7 @@
           </button>
         </div>
 
-        <!-- Lien brouillons existants (petit rappel si il y en a) -->
+        <!-- Lien brouillons existants -->
         <div v-if="liveStore.draftSessions.length > 0" class="live-home-drafts-hint">
           <span class="live-home-drafts-text">
             {{ liveStore.draftSessions.length }} brouillon(s) dans la sidebar
@@ -860,6 +950,85 @@
 .live-home-drafts-text {
   font-size: 12px; color: var(--text-muted);
 }
+
+/* ── Category detail sub-page ── */
+.live-cat-detail {
+  width: 100%; max-width: 640px;
+  display: flex; flex-direction: column; gap: 24px;
+}
+.lcd-header {
+  display: flex; align-items: center; gap: 16px;
+}
+.lcd-icon {
+  width: 56px; height: 56px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--cat-color) 12%, transparent);
+  color: var(--cat-color);
+  flex-shrink: 0;
+}
+.lcd-title {
+  font-size: 22px; font-weight: 700; color: var(--text-primary); margin: 0;
+}
+.lcd-desc {
+  font-size: 13px; color: var(--text-muted); margin: 2px 0 0;
+}
+.lcd-section {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.lcd-section-title {
+  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .04em; margin: 0;
+}
+.lcd-types-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+.lcd-type-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.lcd-type-icon { color: var(--cat-color); flex-shrink: 0; }
+.lcd-type-info { display: flex; flex-direction: column; gap: 1px; }
+.lcd-type-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.lcd-type-id { font-size: 10px; color: var(--text-muted); font-family: monospace; }
+
+.lcd-features {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.lcd-feat {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text-secondary);
+  padding: 6px 10px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.lcd-feat::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--cat-color);
+  flex-shrink: 0;
+}
+
+.lcd-create {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 20px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.lcd-create-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px; border-radius: 8px;
+  font-size: 15px; font-weight: 700;
+  background: var(--cat-color); color: #fff;
+  border: none; cursor: pointer;
+  transition: all .15s; font-family: inherit;
+}
+.lcd-create-btn:hover { filter: brightness(1.1); }
+.lcd-create-btn:disabled { opacity: .4; cursor: not-allowed; }
 
 /* Legacy create-input (still used in session view) */
 .create-input {
