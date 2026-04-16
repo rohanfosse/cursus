@@ -152,14 +152,14 @@ onBeforeUnmount(() => {
             placeholder="Votre idee..."
             rows="2"
             @keydown.enter.prevent="addCard(col)"
-            @blur="if (!newCardContent) newCardColumn = ''"
-            @keydown.escape="() => { newCardContent = ''; newCardColumn = '' }"
+            @blur="!newCardContent ? newCardColumn = '' : undefined"
+            @keydown.escape="newCardContent = ''; newCardColumn = ''"
           />
           <div v-if="newCardColumn === col" class="lb-add-actions">
             <button class="lb-add-confirm" @click="addCard(col)">
               Ajouter
             </button>
-            <button class="lb-add-cancel" @click="() => { newCardContent = ''; newCardColumn = '' }">
+            <button class="lb-add-cancel" @click="newCardContent = ''; newCardColumn = ''">
               Annuler
             </button>
           </div>
