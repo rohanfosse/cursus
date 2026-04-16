@@ -18,7 +18,7 @@ const { showToast } = useToast()
 // ── Props ────────────────────────────────────────────────────────────────────
 
 const props = defineProps<{
-  allStudents: Array<{ id: number; name: string; email?: string; promo_id?: number }>
+  allStudents: Array<{ id: number; name?: string; email?: string; promo_id?: number }>
 }>()
 
 // ── Types ────────────────────────────────────────────────────────────────────

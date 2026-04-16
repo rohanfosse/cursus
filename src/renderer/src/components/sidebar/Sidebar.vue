@@ -75,6 +75,11 @@
   const route      = useRoute()
   const router     = useRouter()
 
+  function onSelectLiveSession(s: { id: number; promo_id: number }) {
+    liveStore.fetchSession(s.id)
+    window.api.emitLiveJoin(s.promo_id)
+  }
+
   // ── Composables ───────────────────────────────────────────────────────────
   const {
     promotions, channels, students, loading, user, activePromoName,
@@ -364,7 +369,7 @@
       <!-- Live (sidebar brouillons + navigation) -->
       <template v-else-if="route.name === 'live' && appStore.isStaff">
         <SidebarLive
-          @select-session="(s) => { liveStore.fetchSession(s.id); window.api.emitLiveJoin(s.promo_id) }"
+          @select-session="onSelectLiveSession"
           @tab="(t) => router.push({ name: 'live', query: { tab: t } })"
         />
       </template>
