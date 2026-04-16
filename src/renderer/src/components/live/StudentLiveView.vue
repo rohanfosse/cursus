@@ -383,7 +383,7 @@
         <!-- Code : snapshot final -->
         <LiveCodeViewer v-else-if="activity.type === 'live_code'" :activity-id="activity.id" :initial-content="activity.content ?? ''" :initial-language="activity.language ?? 'javascript'" />
         <!-- Board : vue finale -->
-        <LiveBoard v-else-if="activity.type === 'board'" :activity-id="activity.id" :is-teacher="false" :columns="parseOptions(activity.options)" />
+        <LiveBoard v-else-if="activity.type === 'board'" :activity-id="activity.id" :is-teacher="false" :columns="parseOptions(activity.options)" :max-votes="activity.max_rating ?? 3" />
       </div>
     </div>
 

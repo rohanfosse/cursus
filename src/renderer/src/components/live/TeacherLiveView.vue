@@ -643,6 +643,7 @@
           :activity-id="liveStore.currentActivity.id"
           :is-teacher="true"
           :columns="parseOptions(liveStore.currentActivity.options)"
+          :max-votes="liveStore.currentActivity.max_rating ?? 3"
         />
         <!-- Spark : resultats classiques -->
         <QcmResults v-else-if="(liveStore.currentActivity.type === 'qcm' || liveStore.currentActivity.type === 'vrai_faux') && liveStore.results" :results="liveStore.results" :activity="liveStore.currentActivity" />

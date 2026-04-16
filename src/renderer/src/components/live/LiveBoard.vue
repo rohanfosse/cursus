@@ -5,17 +5,20 @@
  */
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
-import { Plus, ThumbsUp, Trash2, StickyNote } from 'lucide-vue-next'
+import { Plus, ThumbsUp, Trash2, StickyNote, Crown } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast'
+import { useAppStore } from '@/stores/app'
 import type { BoardCard } from '@/types'
 
 const props = defineProps<{
   activityId: number
   isTeacher: boolean
   columns?: string[]
+  maxVotes?: number
 }>()
 
 const { showToast } = useToast()
+const appStore = useAppStore()
 const cards = ref<BoardCard[]>([])
 const newCardContent = ref('')
 const newCardColumn = ref('')
@@ -42,6 +45,16 @@ const cardsByColumn = computed(() => {
 })
 
 const totalVotes = computed(() => cards.value.reduce((s, c) => s + c.votes, 0))
+
+const myVotesUsed = computed(() => cards.value.filter(c => c.voted_by_me).length)
+const maxVotesPerPerson = computed(() => props.maxVotes ?? 3)
+const canVote = computed(() => myVotesUsed.value < maxVotesPerPerson.value)
+
+const topCardId = computed(() => {
+  if (cards.value.length === 0) return null
+  const sorted = [...cards.value].sort((a, b) => b.votes - a.votes)
+  return sorted[0]?.votes > 0 ? sorted[0].id : null
+})
 
 async function fetchCards() {
   loading.value = true
@@ -72,8 +85,15 @@ async function deleteCard(card: BoardCard) {
   await window.api.deleteLiveV2BoardCard(card.id)
 }
 
+function isOwnCard(card: BoardCard): boolean {
+  return card.author_id === (appStore.currentUser?.id ?? -1)
+}
+
 async function voteCard(card: BoardCard) {
   const currentlyVoted = card.voted_by_me ?? false
+  // Cannot vote own post-it or exceed max votes
+  if (!currentlyVoted && isOwnCard(card)) return
+  if (!currentlyVoted && !canVote.value) return
   await window.api.voteLiveV2BoardCard(card.id, !currentlyVoted)
   // Optimistic update
   card.voted_by_me = !currentlyVoted
@@ -109,6 +129,7 @@ onBeforeUnmount(() => {
       <span class="lb-title">Tableau collaboratif</span>
       <span class="lb-count">{{ cards.length }} post-it{{ cards.length > 1 ? 's' : '' }}</span>
       <span v-if="totalVotes > 0" class="lb-votes-total">{{ totalVotes }} vote{{ totalVotes > 1 ? 's' : '' }}</span>
+      <span class="lb-my-votes">{{ myVotesUsed }} / {{ maxVotesPerPerson }} votes utilises</span>
     </div>
 
     <div class="lb-columns">
@@ -123,15 +144,19 @@ onBeforeUnmount(() => {
             v-for="card in cardsByColumn[col] || []"
             :key="card.id"
             class="lb-card"
+            :class="{ 'lb-card--top': topCardId === card.id }"
             :style="{ background: card.color }"
           >
+            <Crown v-if="topCardId === card.id" :size="12" class="lb-top-badge" />
             <div class="lb-card-content">{{ card.content }}</div>
             <div class="lb-card-footer">
               <span class="lb-card-author">{{ card.author_name }}</span>
               <div class="lb-card-actions">
                 <button
                   class="lb-vote-btn"
-                  :class="{ 'lb-vote-btn--active': card.voted_by_me }"
+                  :class="{ 'lb-vote-btn--active': card.voted_by_me, 'lb-vote-btn--disabled': !card.voted_by_me && (isOwnCard(card) || !canVote) }"
+                  :disabled="!card.voted_by_me && (isOwnCard(card) || !canVote)"
+                  :title="isOwnCard(card) ? 'Vous ne pouvez pas voter pour votre propre idee' : !canVote && !card.voted_by_me ? 'Votes epuises' : ''"
                   @click="voteCard(card)"
                 >
                   <ThumbsUp :size="11" />
@@ -196,6 +221,16 @@ onBeforeUnmount(() => {
   font-size: 10px; font-weight: 600; padding: 1px 7px;
   border-radius: 10px; background: rgba(74,144,217,.12); color: var(--accent);
 }
+.lb-my-votes { font-size: 10px; color: var(--text-muted); margin-left: auto; }
+
+/* Top idea */
+.lb-card--top { box-shadow: 0 0 0 2px #f59e0b, 0 4px 12px rgba(245,158,11,.2); }
+.lb-top-badge {
+  position: absolute; top: -6px; right: -6px;
+  color: #f59e0b; background: #1e1e2e; border-radius: 50%;
+  padding: 2px;
+}
+.lb-card { position: relative; }
 
 .lb-columns {
   display: grid;
@@ -256,6 +291,7 @@ onBeforeUnmount(() => {
 .lb-vote-btn--active {
   background: var(--accent); color: #fff; border-color: var(--accent);
 }
+.lb-vote-btn--disabled { opacity: .35; cursor: not-allowed; }
 .lb-delete-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; border-radius: 6px;

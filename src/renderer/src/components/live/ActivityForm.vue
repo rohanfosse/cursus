@@ -132,6 +132,8 @@
   function addMatriceCrit() { if (matriceCriteria.value.length < 8) matriceCriteria.value.push('') }
   function removeMatriceCrit(i: number) { if (matriceCriteria.value.length > 2) matriceCriteria.value = matriceCriteria.value.filter((_, idx) => idx !== i) }
 
+  const boardMaxVotes = ref(props.initialData?.type === 'board' ? (props.initialData?.max_rating ?? 3) : 3)
+
   function parseBoardColumns(data?: LiveActivity | null): string[] {
     if (!data || data.type !== 'board' || !data.options) return ['Idees', 'A approfondir', 'A ecarter']
     try { const arr = JSON.parse(data.options as unknown as string); return Array.isArray(arr) ? arr : ['Idees', 'A approfondir', 'A ecarter'] } catch { return ['Idees', 'A approfondir', 'A ecarter'] }
@@ -212,6 +214,7 @@
       const cols = boardColumns.value.map(c => c.trim()).filter(Boolean)
       if (cols.length === 0) return
       payload.options = JSON.stringify(cols)
+      payload.max_rating = boardMaxVotes.value // reuse max_rating as max_votes
     }
     // ── Pulse types ────────────────────────────────────────────────────
     if (activityType.value === 'nuage') {
@@ -457,8 +460,12 @@
       <button v-if="boardColumns.length < 6" class="add-option-btn" @click="addBoardColumn">
         <Plus :size="13" /> Ajouter une colonne
       </button>
+      <label class="correct-label" style="margin-top:8px">Votes par personne</label>
+      <div class="timer-btns">
+        <button v-for="n in [1, 2, 3, 5]" :key="n" class="timer-btn" :class="{ active: boardMaxVotes === n }" @click="boardMaxVotes = n">{{ n }}</button>
+      </div>
       <p class="code-hint">
-        Les etudiants pourront ajouter des post-its et voter pour les idees.
+        Les etudiants pourront ajouter des post-its et voter pour les idees ({{ boardMaxVotes }} vote{{ boardMaxVotes > 1 ? 's' : '' }} chacun).
       </p>
     </div>
 
