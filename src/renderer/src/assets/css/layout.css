@@ -635,6 +635,37 @@ nav[aria-label="Messages directs"] {
   white-space: nowrap;
 }
 
+/* ── Filtres avances recherche ── */
+.btn-icon--active { color: var(--accent) !important; }
+.search-filters {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 6px 16px; background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.search-filter-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.search-filter-label {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+}
+.search-filter-date {
+  padding: 3px 8px; border: 1px solid var(--border-input); border-radius: 6px;
+  background: var(--bg-input); color: var(--text-primary); font-family: var(--font);
+  font-size: 12px; outline: none;
+}
+.search-filter-date:focus { border-color: var(--accent); }
+.search-filter-check {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text-secondary); cursor: pointer;
+  accent-color: var(--accent);
+}
+.search-filter-clear {
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  background: none; border: none; cursor: pointer; padding: 2px 8px;
+  border-radius: 4px; font-family: var(--font);
+}
+.search-filter-clear:hover { background: rgba(74,144,217,.08); }
+
 /* Bannière messages épinglés */
 .pinned-banner {
   display: flex;

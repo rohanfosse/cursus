@@ -244,17 +244,48 @@
 
   function onPinnedJump(id: number) { scrollToMessage(id) }
 
-  // ── Recherche ─────────────────────────────────────────────────────────────
+  // ── Recherche + filtres avances ─────────────────────────────────────────
+  const searchFilterOpen = ref(false)
+  const searchDateFrom   = ref('')
+  const searchDateTo     = ref('')
+  const searchHasFile    = ref(false)
+
   async function doSearch() {
     messagesStore.searchTerm = searchInput.value
     await messagesStore.fetchMessages()
+    // Client-side date filtering (backend search doesn't support date range)
+    if (searchDateFrom.value || searchDateTo.value || searchHasFile.value) {
+      applyClientFilters()
+    }
+  }
+
+  function applyClientFilters() {
+    let filtered = [...messagesStore.messages]
+    if (searchDateFrom.value) {
+      const from = new Date(searchDateFrom.value).getTime()
+      filtered = filtered.filter(m => new Date(m.created_at).getTime() >= from)
+    }
+    if (searchDateTo.value) {
+      const to = new Date(searchDateTo.value).getTime() + 86400000 // include end of day
+      filtered = filtered.filter(m => new Date(m.created_at).getTime() <= to)
+    }
+    if (searchHasFile.value) {
+      filtered = filtered.filter(m => (m as any).file_url || m.content?.includes('[fichier]') || m.content?.includes('**') )
+    }
+    messagesStore.messages = filtered
   }
 
   function clearSearch() {
     searchInput.value = ''
+    searchDateFrom.value = ''
+    searchDateTo.value = ''
+    searchHasFile.value = false
+    searchFilterOpen.value = false
     messagesStore.clearSearch()
     messagesStore.fetchMessages()
   }
+
+  const hasActiveFilters = computed(() => !!searchDateFrom.value || !!searchDateTo.value || searchHasFile.value)
 
   // ── Bannière travaux en attente ───────────────────────────────────────────
   const pendingForChannel = computed(() => {
@@ -349,6 +380,26 @@
           </button>
           <button id="btn-search" class="btn-icon" aria-label="Lancer la recherche" @click="doSearch">
             <Search :size="16" />
+          </button>
+          <button class="btn-icon" :class="{ 'btn-icon--active': hasActiveFilters || searchFilterOpen }" title="Filtres avances" @click="searchFilterOpen = !searchFilterOpen">
+            <CalendarRange :size="15" />
+          </button>
+        </div>
+
+        <!-- Filtres avances -->
+        <div v-if="searchFilterOpen" class="search-filters">
+          <div class="search-filter-row">
+            <label class="search-filter-label">Du</label>
+            <input v-model="searchDateFrom" type="date" class="search-filter-date" />
+            <label class="search-filter-label">au</label>
+            <input v-model="searchDateTo" type="date" class="search-filter-date" />
+          </div>
+          <label class="search-filter-check">
+            <input type="checkbox" v-model="searchHasFile" />
+            <Paperclip :size="12" /> Avec fichier
+          </label>
+          <button v-if="hasActiveFilters" class="search-filter-clear" @click="searchDateFrom = ''; searchDateTo = ''; searchHasFile = false">
+            Effacer les filtres
           </button>
         </div>
 
