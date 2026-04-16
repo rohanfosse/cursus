@@ -1,7 +1,8 @@
 /** QuizHistoryView — Historique des sessions Quiz terminees par promotion. */
 <script setup lang="ts">
   import { ref, watch } from 'vue'
-  import { Search, Calendar, ChevronDown, ChevronUp, Users, BarChart2 } from 'lucide-vue-next'
+  import { Search, Calendar, ChevronDown, ChevronUp, Users, BarChart2, Copy } from 'lucide-vue-next'
+  import { useToast } from '@/composables/useToast'
   import { useLiveStore } from '@/stores/live'
   import { useDebounce } from '@/composables/useDebounce'
   import { activityIcon, activityTypeLabel, getActivityCategory } from '@/utils/liveActivity'
@@ -14,7 +15,9 @@
   import EstimationResults   from './EstimationResults.vue'
 
   const props = defineProps<{ promoId: number }>()
+  const emit = defineEmits<{ (e: 'cloned'): void }>()
   const liveStore = useLiveStore()
+  const { showToast } = useToast()
 
   const search   = ref('')
   const dateFrom = ref('')
@@ -63,6 +66,14 @@
     }
   }
 
+  async function cloneFromHistory(s: LiveSessionWithStats) {
+    const ok = await liveStore.cloneSession(s.id, props.promoId)
+    if (ok) {
+      showToast('Session dupliquee dans vos brouillons.', 'success')
+      emit('cloned')
+    }
+  }
+
   function formatDate(dt: string | null) {
     if (!dt) return ''
     const d = new Date(dt)
@@ -106,6 +117,9 @@
             <span class="qh-stat"><BarChart2 :size="12" /> {{ s.activity_count }} activite{{ s.activity_count > 1 ? 's' : '' }}</span>
             <span class="qh-stat"><Users :size="12" /> {{ s.participant_count }} participant{{ s.participant_count > 1 ? 's' : '' }}</span>
           </div>
+          <button class="qh-clone-btn" title="Dupliquer cette session" @click.stop="cloneFromHistory(s)">
+            <Copy :size="13" />
+          </button>
           <component :is="expandedId === s.id ? ChevronUp : ChevronDown" :size="16" class="qh-chevron" />
         </div>
 
@@ -200,6 +214,13 @@
 .qh-act-icon { color: var(--color-danger, #e74c3c); flex-shrink: 0; }
 .qh-act-title { font-size: 13px; font-weight: 600; color: var(--text-primary); flex: 1; }
 .qh-act-type { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(231, 76, 60, 0.1); color: var(--color-danger, #e74c3c); }
+.qh-clone-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 6px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-muted); cursor: pointer; transition: all .15s; flex-shrink: 0;
+}
+.qh-clone-btn:hover { color: var(--accent); border-color: var(--accent); background: rgba(74,144,217,.06); }
 .qh-act-cat { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; padding: 1px 6px; border-radius: 8px; }
 .qh-cat--spark  { background: rgba(245,158,11,.12); color: #f59e0b; }
 .qh-cat--pulse  { background: rgba(16,185,129,.12); color: #10b981; }
