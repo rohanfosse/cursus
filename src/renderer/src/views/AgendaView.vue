@@ -8,7 +8,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import VueCal from 'vue-cal'
 import 'vue-cal/dist/vuecal.css'
-import { Plus, Trash2, RefreshCw, X, Clock, Tag, ExternalLink, ChevronLeft, ChevronRight, Check, AlertCircle } from 'lucide-vue-next'
+import { Plus, Trash2, RefreshCw, X, Clock, Tag, ExternalLink, ChevronLeft, ChevronRight, Check, AlertCircle, Download, Filter } from 'lucide-vue-next'
 import { useAppStore }   from '@/stores/app'
 import { useAgendaStore } from '@/stores/agenda'
 import { useToast } from '@/composables/useToast'
@@ -134,6 +134,69 @@ async function onEventDrop(event: { event: { _meta?: CalendarEvent }; newDate: D
   } catch { showToast('Impossible de deplacer l\'echeance', 'error') }
 }
 
+// ── Export ICS (iCalendar) ───────────────────────────────────────────────
+function formatIcsDate(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`
+}
+
+function exportIcs() {
+  const events = filteredEvents.value
+  if (events.length === 0) {
+    showToast('Aucun evenement a exporter.', 'error')
+    return
+  }
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Cursus//Agenda//FR',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:Cursus - Agenda',
+  ]
+
+  for (const ev of events) {
+    const meta = ev._meta as CalendarEvent
+    const uid = `cursus-${meta.id}@cursus.school`
+    const summary = meta.title.replace(/[,;\\]/g, ' ')
+    const category = meta.category ? meta.category.replace(/[,;\\]/g, ' ') : ''
+    const status = meta.submissionStatus === 'submitted' ? 'COMPLETED' : 'NEEDS-ACTION'
+    const description = [
+      meta.eventType === 'deadline' ? 'Echeance' : meta.eventType === 'start_date' ? 'Demarrage' : 'Rappel',
+      category ? `Projet: ${category}` : '',
+      meta.promoName ? `Promo: ${meta.promoName}` : '',
+      meta.submissionStatus ? `Statut: ${statusLabel(meta.submissionStatus)}` : '',
+    ].filter(Boolean).join(' | ')
+
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTART:${formatIcsDate(meta.start)}`,
+      `DTEND:${formatIcsDate(meta.end)}`,
+      `SUMMARY:${summary}`,
+      `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+      `STATUS:${status}`,
+    )
+    if (category) lines.push(`CATEGORIES:${category}`)
+    lines.push('END:VEVENT')
+  }
+  lines.push('END:VCALENDAR')
+
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `cursus-agenda-${new Date().toISOString().slice(0, 10)}.ics`
+  a.click()
+  URL.revokeObjectURL(url)
+  showToast(`${events.length} evenement${events.length > 1 ? 's' : ''} exporte${events.length > 1 ? 's' : ''} en ICS.`, 'success')
+}
+
+// ── Filter panel toggle ─────────────────────────────────────────────────
+const showFilters = ref(false)
+
 // ── Locale ───────────────────────────────────────────────────────────────
 const locale = {
   months: ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'],
@@ -206,6 +269,12 @@ watch(() => route.query, (q) => {
           <button type="button" class="ag-view-btn" :class="{ active: activeView === 'week' }" @click="switchView('week')">Semaine</button>
           <button type="button" class="ag-view-btn" :class="{ active: activeView === 'day' }" @click="switchView('day')">Jour</button>
         </div>
+        <button class="ag-btn ag-btn--ghost" title="Filtres" :class="{ 'ag-btn--active': showFilters }" @click="showFilters = !showFilters">
+          <Filter :size="14" />
+        </button>
+        <button class="ag-btn ag-btn--ghost" title="Exporter en ICS (Outlook, Google Calendar)" @click="exportIcs">
+          <Download :size="14" />
+        </button>
         <button v-if="isTeacher" class="ag-btn ag-btn--accent" @click="showForm = !showForm">
           <Plus :size="13" /> Rappel
         </button>
@@ -214,6 +283,22 @@ watch(() => route.query, (q) => {
         </button>
       </div>
     </header>
+
+    <!-- Filter bar -->
+    <Transition name="filter-slide">
+      <div v-if="showFilters" class="ag-filter-bar">
+        <label class="ag-filter-check">
+          <input type="checkbox" v-model="showDeadlines" /> Echeances
+        </label>
+        <label class="ag-filter-check">
+          <input type="checkbox" v-model="showStartDates" /> Demarrages
+        </label>
+        <label class="ag-filter-check">
+          <input type="checkbox" v-model="showReminders" /> Rappels
+        </label>
+        <span class="ag-filter-count">{{ filteredEvents.length }} evenement{{ filteredEvents.length > 1 ? 's' : '' }}</span>
+      </div>
+    </Transition>
 
     <div class="agenda-body">
       <div class="agenda-cal-wrap">
@@ -326,6 +411,25 @@ watch(() => route.query, (q) => {
   font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.12s;
 }
 .ag-today-btn:hover { background: var(--bg-hover); border-color: var(--accent); color: var(--accent); }
+
+/* Filter bar */
+.ag-filter-bar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 8px 20px; background: var(--bg-sidebar); border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ag-filter-check {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--text-secondary); cursor: pointer;
+  accent-color: var(--accent);
+}
+.ag-filter-count {
+  margin-left: auto; font-size: 11px; color: var(--text-muted); font-weight: 600;
+}
+.ag-btn--active { color: var(--accent) !important; border-color: var(--accent) !important; }
+.filter-slide-enter-active, .filter-slide-leave-active { transition: all .2s ease; }
+.filter-slide-enter-from, .filter-slide-leave-to { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; overflow: hidden; }
+.filter-slide-enter-to, .filter-slide-leave-from { max-height: 50px; }
 
 .ag-nav-arrows { display: flex; gap: 2px; }
 .ag-nav-btn {

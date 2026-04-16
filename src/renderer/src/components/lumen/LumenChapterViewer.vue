@@ -13,7 +13,7 @@
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Copy, Check, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2, Link2, Printer, Sun, Moon } from 'lucide-vue-next'
+import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Copy, Check, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2, Link2, Printer, Sun, Moon, Search } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
 import { renderTex } from '@/utils/texRenderer'
 import { renderIpynb } from '@/utils/ipynbRenderer'
@@ -142,6 +142,107 @@ function onLumenKeyboard(ev: KeyboardEvent): void {
       enterEditMode()
     }
     return
+  }
+}
+
+// ── Recherche dans le chapitre (Ctrl+F) ─────────────────────────────────
+const chapterSearchOpen = ref(false)
+const chapterSearchQuery = ref('')
+const chapterSearchCount = ref(0)
+const chapterSearchCurrent = ref(0)
+
+function openChapterSearch() {
+  chapterSearchOpen.value = true
+  nextTick(() => {
+    const input = document.querySelector('.lumen-find-input') as HTMLInputElement
+    input?.focus()
+    input?.select()
+  })
+}
+
+function closeChapterSearch() {
+  chapterSearchOpen.value = false
+  chapterSearchQuery.value = ''
+  clearHighlights()
+}
+
+function clearHighlights() {
+  if (!bodyRef.value) return
+  const marks = bodyRef.value.querySelectorAll('mark.lumen-find-hl')
+  marks.forEach(m => {
+    const parent = m.parentNode
+    if (parent) {
+      parent.replaceChild(document.createTextNode(m.textContent ?? ''), m)
+      parent.normalize()
+    }
+  })
+  chapterSearchCount.value = 0
+  chapterSearchCurrent.value = 0
+}
+
+function highlightMatches() {
+  clearHighlights()
+  const q = chapterSearchQuery.value.trim().toLowerCase()
+  if (!q || !bodyRef.value) return
+  const walker = document.createTreeWalker(bodyRef.value, NodeFilter.SHOW_TEXT)
+  const nodes: { node: Text; index: number }[] = []
+  let textNode: Text | null
+  while ((textNode = walker.nextNode() as Text | null)) {
+    const text = textNode.textContent ?? ''
+    let idx = text.toLowerCase().indexOf(q)
+    while (idx !== -1) {
+      nodes.push({ node: textNode, index: idx })
+      idx = text.toLowerCase().indexOf(q, idx + q.length)
+    }
+  }
+  // Apply highlights in reverse to avoid index shifts
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const { node, index } = nodes[i]
+    const range = document.createRange()
+    range.setStart(node, index)
+    range.setEnd(node, index + q.length)
+    const mark = document.createElement('mark')
+    mark.className = 'lumen-find-hl'
+    range.surroundContents(mark)
+  }
+  chapterSearchCount.value = nodes.length
+  chapterSearchCurrent.value = nodes.length > 0 ? 1 : 0
+  scrollToCurrentMatch()
+}
+
+function scrollToCurrentMatch() {
+  if (!bodyRef.value || chapterSearchCount.value === 0) return
+  const marks = bodyRef.value.querySelectorAll('mark.lumen-find-hl')
+  marks.forEach(m => m.classList.remove('lumen-find-hl--active'))
+  const idx = chapterSearchCurrent.value - 1
+  if (idx >= 0 && idx < marks.length) {
+    marks[idx].classList.add('lumen-find-hl--active')
+    marks[idx].scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+}
+
+function findNext() {
+  if (chapterSearchCount.value === 0) return
+  chapterSearchCurrent.value = chapterSearchCurrent.value >= chapterSearchCount.value ? 1 : chapterSearchCurrent.value + 1
+  scrollToCurrentMatch()
+}
+
+function findPrev() {
+  if (chapterSearchCount.value === 0) return
+  chapterSearchCurrent.value = chapterSearchCurrent.value <= 1 ? chapterSearchCount.value : chapterSearchCurrent.value - 1
+  scrollToCurrentMatch()
+}
+
+watch(chapterSearchQuery, () => highlightMatches())
+
+// Intercept Ctrl+F to open chapter search
+function onGlobalKeydown(ev: KeyboardEvent) {
+  if ((ev.ctrlKey || ev.metaKey) && ev.key === 'f') {
+    ev.preventDefault()
+    openChapterSearch()
+  }
+  if (ev.key === 'Escape' && chapterSearchOpen.value) {
+    closeChapterSearch()
   }
 }
 
@@ -729,12 +830,15 @@ onMounted(() => {
   document.addEventListener('mousedown', onDocumentClick)
   document.addEventListener('keydown', onDocumentKey)
   document.addEventListener('keydown', onLumenKeyboard)
+  document.addEventListener('keydown', onGlobalKeydown)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', onDocumentClick)
   document.removeEventListener('keydown', onDocumentKey)
   document.removeEventListener('keydown', onLumenKeyboard)
+  document.removeEventListener('keydown', onGlobalKeydown)
+  closeChapterSearch()
   outlineObserver?.disconnect()
   outlineObserver = null
 })
@@ -997,6 +1101,30 @@ watch(() => [props.content, props.chapter?.path], () => {
 
       <!-- Rendu Markdown standard sinon -->
       <div v-else class="lumen-viewer-main">
+        <!-- Barre de recherche Ctrl+F -->
+        <Transition name="find-slide">
+          <div v-if="chapterSearchOpen" class="lumen-find-bar">
+            <Search :size="14" class="lumen-find-icon" />
+            <input
+              v-model="chapterSearchQuery"
+              type="text"
+              class="lumen-find-input"
+              placeholder="Rechercher dans le chapitre..."
+              @keydown.enter.prevent="findNext"
+              @keydown.escape.prevent="closeChapterSearch"
+            />
+            <span v-if="chapterSearchCount > 0" class="lumen-find-count">
+              {{ chapterSearchCurrent }} / {{ chapterSearchCount }}
+            </span>
+            <span v-else-if="chapterSearchQuery.trim()" class="lumen-find-count lumen-find-count--zero">
+              0 resultat
+            </span>
+            <button class="lumen-find-nav" title="Precedent" @click="findPrev"><ChevronLeft :size="14" /></button>
+            <button class="lumen-find-nav" title="Suivant" @click="findNext"><ChevronRight :size="14" /></button>
+            <button class="lumen-find-close" @click="closeChapterSearch"><X :size="14" /></button>
+          </div>
+        </Transition>
+
         <div
           ref="bodyRef"
           class="lumen-viewer-body markdown-body"
@@ -1982,6 +2110,44 @@ button.lumen-viewer-chip:focus-visible {
   outline: none;
   box-shadow: var(--elevation-2), var(--focus-ring);
 }
+
+/* ── Recherche dans le chapitre (Ctrl+F) ── */
+.lumen-find-bar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.lumen-find-icon { color: var(--text-muted); flex-shrink: 0; }
+.lumen-find-input {
+  flex: 1; border: 1px solid var(--border-input); border-radius: 6px;
+  background: var(--bg-input); color: var(--text-primary);
+  font-family: var(--font); font-size: 13px; padding: 5px 10px;
+  outline: none; min-width: 120px;
+}
+.lumen-find-input:focus { border-color: var(--accent); }
+.lumen-find-count {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.lumen-find-count--zero { color: var(--color-danger); }
+.lumen-find-nav {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 6px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-secondary); cursor: pointer; transition: all .12s;
+}
+.lumen-find-nav:hover { background: var(--bg-hover); color: var(--accent); }
+.lumen-find-close {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 6px;
+  border: none; background: transparent;
+  color: var(--text-muted); cursor: pointer;
+}
+.lumen-find-close:hover { color: var(--color-danger); }
+.find-slide-enter-active, .find-slide-leave-active { transition: all .2s ease; }
+.find-slide-enter-from, .find-slide-leave-to { opacity: 0; transform: translateY(-100%); }
 </style>
 
 <!-- Styles globaux pour le body markdown : pedagogique, hierarchique, copy button.
@@ -2490,5 +2656,18 @@ button.lumen-viewer-chip:focus-visible {
     margin: 1.5cm 2cm 2cm 2cm;
     size: A4;
   }
+}
+
+/* ── Highlights de recherche in-page ── */
+mark.lumen-find-hl {
+  background: rgba(245,158,11,.3);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+mark.lumen-find-hl.lumen-find-hl--active {
+  background: #f59e0b;
+  color: #000;
+  box-shadow: 0 0 0 2px rgba(245,158,11,.4);
 }
 </style>
