@@ -9,8 +9,9 @@ const SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ['?'],              label: 'Afficher / fermer ce panneau' },
   { keys: ['Esc'],            label: 'Annuler ou fermer la vue courante' },
   { keys: ['Espace', 'Entrée'], label: 'Fermer l\'activité en cours / lancer la suivante' },
-  { keys: ['↑', '↓'],         label: 'Naviguer entre les activités (liste)' },
-  { keys: ['T'],              label: 'Basculer le mode aperçu' },
+  { keys: ['→'],              label: 'Activité suivante (ferme + lance la suivante)' },
+  { keys: ['P'],              label: 'Mode projection plein écran' },
+  { keys: ['T'],              label: 'Basculer le mode aperçu étudiant' },
   { keys: ['N'],              label: 'Ajouter une nouvelle activité' },
 ]
 </script>

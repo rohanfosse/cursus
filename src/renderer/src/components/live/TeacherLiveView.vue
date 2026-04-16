@@ -5,14 +5,15 @@
   import {
     Plus, Play, Square, ChevronRight, Trash2, Users, Zap, Clock,
     LogOut, Pencil, GripVertical, Copy, Download,
-    ArrowRight, Eye, EyeOff, Bookmark, BookmarkPlus, Upload,
+    ArrowRight, Eye, EyeOff, Bookmark, BookmarkPlus, Upload, Presentation,
+    FileDown, HelpCircle,
   } from 'lucide-vue-next'
   import { ACTIVITY_CATEGORIES, activityIcon, activityTypeLabel, getActivityCategory, isSparkType, parseJsonArray } from '@/utils/liveActivity'
   import { useResponseTimer } from '@/composables/useResponseTimer'
   import { useLiveTemplates } from '@/composables/useLiveTemplates'
   import { useToast } from '@/composables/useToast'
   import { useConfirm } from '@/composables/useConfirm'
-  import { parseKahootCsv } from '@/composables/useKahootCsv'
+  import { parseLiveCsv, csvActivityToPayload } from '@/composables/useLiveCsv'
   import type { ActivityCategory } from '@/utils/liveActivity'
   import { useAppStore }  from '@/stores/app'
   import { useLiveStore } from '@/stores/live'
@@ -22,24 +23,14 @@
   import CountdownTimer  from './CountdownTimer.vue'
   import Leaderboard     from './Leaderboard.vue'
   import Podium          from './Podium.vue'
-  import QcmResults           from './QcmResults.vue'
-  import PollResults          from './PollResults.vue'
-  import AssociationResults   from './AssociationResults.vue'
-  import EstimationResults    from './EstimationResults.vue'
   import QuizHistoryView      from './QuizHistoryView.vue'
   import QuizStatsView        from './QuizStatsView.vue'
   import LiveCodeEditor       from './LiveCodeEditor.vue'
   import LiveBoard            from './LiveBoard.vue'
   import LiveTestPreview      from './LiveTestPreview.vue'
   import LiveShortcutsOverlay from './LiveShortcutsOverlay.vue'
-  // Pulse results (composants Rex reutilises)
-  import RexQuestionOuverteResults from '@/components/rex/RexQuestionOuverteResults.vue'
-  import RexSondageResults        from '@/components/rex/RexSondageResults.vue'
-  import RexEchelleResults        from '@/components/rex/RexEchelleResults.vue'
-  import RexWordCloud             from '@/components/rex/RexWordCloud.vue'
-  import RexHumeurResults         from '@/components/rex/RexHumeurResults.vue'
-  import RexPrioriteResults       from '@/components/rex/RexPrioriteResults.vue'
-  import RexMatriceResults        from '@/components/rex/RexMatriceResults.vue'
+  import LivePresentationMode from './LivePresentationMode.vue'
+  import LiveActivityResults  from './LiveActivityResults.vue'
 
   const appStore  = useAppStore()
   const liveStore = useLiveStore()
@@ -65,16 +56,27 @@
   }, { immediate: true })
   onUnmounted(stopElapsedTimer)
 
-  const elapsedTime = computed(() => {
-    elapsedTick.value // trigger reactivity
+  /** Secondes ecoulees depuis le lancement de l'activite courante (null si aucune).
+   *  Source unique pour la pill .activity-elapsed ET le mode projection.
+   *  Normalise started_at : SQLite renvoie sans 'Z' (interprete UTC naif),
+   *  Socket peut renvoyer deja avec 'Z'. On ajoute 'Z' seulement si absent. */
+  const elapsedSeconds = computed<number | null>(() => {
+    elapsedTick.value
     const started = liveStore.currentActivity?.started_at
-    if (!started) return '0:00'
-    const ms = Math.max(0, Date.now() - new Date(started + 'Z').getTime())
-    const sec = Math.floor(ms / 1000)
-    const m = Math.floor(sec / 60)
-    const s = sec % 60
-    return `${m}:${s.toString().padStart(2, '0')}`
+    if (!started) return null
+    const iso = started.endsWith('Z') ? started : started + 'Z'
+    return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000))
   })
+
+  function formatMMSS(s: number): string {
+    const m = Math.floor(s / 60)
+    const sec = s % 60
+    return `${m}:${sec.toString().padStart(2, '0')}`
+  }
+
+  const elapsedTime = computed(() =>
+    elapsedSeconds.value === null ? '0:00' : formatMMSS(elapsedSeconds.value),
+  )
 
   /** Filtre categorie dans la vue session (null = toutes) */
   const activeCategoryFilter = ref<ActivityCategory | null>(null)
@@ -114,6 +116,14 @@
 
   /** Raccourcis clavier : overlay d'aide (?) */
   const shortcutsOpen = ref(false)
+
+  /** Mode projection plein ecran pour l'activite en cours */
+  const presentationOpen = ref(false)
+  function openPresentation() {
+    if (!liveStore.currentActivity) return
+    presentationOpen.value = true
+  }
+  function closePresentation() { presentationOpen.value = false }
 
   /** Modeles de session (localStorage) */
   const { templates, save: saveTemplate, remove: removeTemplate } = useLiveTemplates()
@@ -166,11 +176,35 @@
     showToast('Modele supprime', 'info')
   }
 
-  /** Import CSV Kahoot-style : cree un QCM par ligne dans la session courante. */
+  /** Import CSV (Kahoot-style ou universel) : cree les activites dans la session. */
   const csvInputRef = ref<HTMLInputElement | null>(null)
   const csvImporting = ref(false)
+  const csvHelpOpen = ref(false)
 
   function openCsvPicker() { csvInputRef.value?.click() }
+
+  /** Telecharge un CSV d'exemple universel pour montrer le format. */
+  function downloadCsvTemplate() {
+    const example = [
+      'Type;Question;Options;Extra;Temps',
+      'sondage;Quelle couleur preferez-vous ?;Bleu|Rouge|Vert|Jaune;;30',
+      'qcm;Capitale de la France ?;Paris|Londres|Rome|Berlin;1;20',
+      'vrai_faux;La Terre est ronde;;1;15',
+      'nuage;Un mot pour decrire la session ?;;2;45',
+      'echelle;Notez la session sur 5;;5;30',
+      'question_ouverte;Qu\'avez-vous retenu ?;;;60',
+      'humeur;Votre ressenti ?;;;30',
+      'priorite;Classez ces themes par interet;Securite|Performance|UX|Innovation;;45',
+      'matrice;Evaluez ces criteres sur 5;Clarte|Utilite|Originalite;5;60',
+    ].join('\n')
+    const blob = new Blob(['\uFEFF' + example], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'cursus-live-modele.csv'
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
+  }
 
   async function onCsvSelected(e: Event) {
     const input = e.target as HTMLInputElement
@@ -184,16 +218,16 @@
     csvImporting.value = true
     try {
       const text = await file.text()
-      const { rows, errors } = parseKahootCsv(text)
-      if (!rows.length) {
+      const { activities, errors, format } = parseLiveCsv(text)
+      if (!activities.length) {
         showToast('Aucune question valide trouvee dans le CSV', 'error',
           errors.length ? `${errors.length} ligne(s) en erreur — voir la console.` : undefined)
-        if (errors.length) console.warn('[CSV Kahoot] erreurs :', errors)
+        if (errors.length) console.warn('[CSV Live] erreurs :', errors)
         return
       }
       if (errors.length) {
         const proceed = await confirm(
-          `${rows.length} question(s) a importer, ${errors.length} ligne(s) ignoree(s). Continuer ?`,
+          `${activities.length} question(s) a importer (format ${format}), ${errors.length} ligne(s) ignoree(s). Continuer ?`,
           'warning',
           'Importer',
         )
@@ -201,22 +235,17 @@
       }
       const sessionId = liveStore.currentSession.id
       let imported = 0
-      for (const row of rows) {
-        const ok = await liveStore.pushActivity(sessionId, {
-          type: 'qcm',
-          title: row.question,
-          options: row.answers,
-          timer_seconds: row.timerSeconds,
-          correct_answers: row.correctIndices,
-        })
+      for (const a of activities) {
+        const payload = csvActivityToPayload(a)
+        const ok = await liveStore.pushActivity(sessionId, payload as Parameters<typeof liveStore.pushActivity>[1])
         if (ok) imported++
       }
       showToast(
-        `${imported} question${imported > 1 ? 's' : ''} importee${imported > 1 ? 's' : ''} depuis le CSV`,
+        `${imported} question${imported > 1 ? 's' : ''} importee${imported > 1 ? 's' : ''} (${format})`,
         'success',
       )
     } catch (err) {
-      console.error('[CSV Kahoot] import error', err)
+      console.error('[CSV Live] import error', err)
       showToast('Erreur lors de la lecture du CSV', 'error')
     } finally {
       csvImporting.value = false
@@ -332,6 +361,22 @@
         && liveStore.currentSession && !liveStore.currentActivity && !showActivityForm.value) {
       e.preventDefault()
       addActivityInCategory(activeCategoryFilter.value)
+    }
+
+    // P : mode projection (plein ecran) pendant qu'une activite est en direct
+    if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.metaKey
+        && liveStore.currentActivity) {
+      e.preventDefault()
+      if (presentationOpen.value) closePresentation()
+      else openPresentation()
+    }
+
+    // Fleche droite : activite suivante (ferme + lance la suivante pending)
+    if (e.code === 'ArrowRight' && liveStore.currentSession
+        && (liveStore.currentActivity || showLeaderboard.value)
+        && nextPendingActivity.value) {
+      e.preventDefault()
+      goNext()
     }
   }
 
@@ -538,10 +583,28 @@
   const hasLiveActivity = computed(() => liveStore.sessionActivities.some(a => a.status === 'live'))
   const nextPendingActivity = computed(() => liveStore.sessionActivities.find(a => a.status === 'pending') ?? null)
 
+  /** Position de l'activite en cours dans la session (1-based, 0 si aucune). */
+  const currentActivityIndex = computed(() => {
+    if (!liveStore.currentActivity) return 0
+    return liveStore.sessionActivities.findIndex(a => a.id === liveStore.currentActivity?.id) + 1
+  })
+  const totalActivities = computed(() => liveStore.sessionActivities.length)
+
   async function launchNext() {
     if (!nextPendingActivity.value) return
     showLeaderboard.value = false
     await launch(nextPendingActivity.value)
+  }
+
+  /** Ferme l'activite courante si live puis lance la suivante. Core du flow Wooclap. */
+  async function goNext() {
+    if (liveStore.currentActivity && liveStore.currentActivity.status === 'live') {
+      await closeCurrentActivity()
+    }
+    if (nextPendingActivity.value) {
+      showLeaderboard.value = false
+      await launch(nextPendingActivity.value)
+    }
   }
 
   // ── Activity progress ────────────────────────────────────────────────────
@@ -869,22 +932,53 @@
         <div class="activities-header">
           <h2 class="activities-title">Activités</h2>
           <div class="activities-header-actions">
-            <button
-              class="btn-import-csv"
-              :disabled="csvImporting"
-              :title="`Importer un CSV Kahoot-style (Question; Rep1..Rep4; Temps; Bonne reponse)`"
-              @click="openCsvPicker"
-            >
-              <Upload :size="14" />
-              {{ csvImporting ? 'Import...' : 'Importer CSV' }}
-            </button>
-            <input
-              ref="csvInputRef"
-              type="file"
-              accept=".csv,text/csv,.txt,text/plain"
-              style="display:none"
-              @change="onCsvSelected"
-            />
+            <div class="csv-group">
+              <button
+                class="btn-import-csv"
+                :disabled="csvImporting"
+                title="Importer un CSV (Kahoot ou universel Type;Question;Options;Extra)"
+                @click="openCsvPicker"
+              >
+                <Upload :size="14" />
+                {{ csvImporting ? 'Import...' : 'Importer CSV' }}
+              </button>
+              <button
+                class="btn-csv-help"
+                :class="{ active: csvHelpOpen }"
+                title="Aide format CSV"
+                aria-label="Afficher l'aide du format CSV"
+                @click="csvHelpOpen = !csvHelpOpen"
+              >
+                <HelpCircle :size="14" />
+              </button>
+              <input
+                ref="csvInputRef"
+                type="file"
+                accept=".csv,text/csv,.txt,text/plain"
+                style="display:none"
+                @change="onCsvSelected"
+              />
+
+              <div v-if="csvHelpOpen" class="csv-help" role="region" aria-label="Formats CSV supportes">
+                <button class="csv-help-close" aria-label="Fermer" @click="csvHelpOpen = false">&times;</button>
+                <h4 class="csv-help-title">Formats CSV supportes</h4>
+                <div class="csv-help-section">
+                  <span class="csv-help-section-title">Format universel (Wooclap-like)</span>
+                  <code class="csv-help-code">Type;Question;Options;Extra;Temps</code>
+                  <p class="csv-help-text">
+                    Types : <code>sondage, qcm, vrai_faux, nuage, echelle, question_ouverte, sondage_libre, humeur, priorite, matrice</code>.<br>
+                    Options separees par <code>|</code>. Extra = bonne reponse (qcm), max_rating (echelle/matrice), max_words (nuage).
+                  </p>
+                </div>
+                <div class="csv-help-section">
+                  <span class="csv-help-section-title">Format Kahoot (retro-compat)</span>
+                  <code class="csv-help-code">Question;Rep1;Rep2;Rep3;Rep4;Temps;Bonne</code>
+                </div>
+                <button class="csv-help-download" @click="downloadCsvTemplate">
+                  <FileDown :size="13" /> Telecharger un modele
+                </button>
+              </div>
+            </div>
             <button class="btn-add-activity" @click="addActivityInCategory(activeCategoryFilter)">
               <Plus :size="16" />
               Ajouter {{ activeCategoryFilter ? ACTIVITY_CATEGORIES[activeCategoryFilter].label : '' }}
@@ -1037,9 +1131,16 @@
         <div class="activity-topbar-info">
           <component :is="activityIcon(liveStore.currentActivity.type)" :size="20" />
           <span class="activity-topbar-type">{{ activityTypeLabel(liveStore.currentActivity.type) }}</span>
+          <span v-if="totalActivities > 1" class="activity-topbar-pos" :title="`Activite ${currentActivityIndex} sur ${totalActivities}`">
+            {{ currentActivityIndex }}<span class="pos-sep">/</span>{{ totalActivities }}
+          </span>
         </div>
         <h2 class="activity-topbar-title">{{ liveStore.currentActivity.title }}</h2>
         <div class="activity-topbar-actions">
+          <button class="btn-project" @click="openPresentation" title="Afficher sur videoprojecteur (plein ecran)">
+            <Presentation :size="16" />
+            Projection
+          </button>
           <button class="btn-close-activity" @click="closeCurrentActivity">
             <Square :size="16" />
             Fermer l'activite
@@ -1068,10 +1169,16 @@
         <span class="activity-topbar-cat" :class="`cat--${getActivityCategory(liveStore.currentActivity.type)}`">
           {{ getActivityCategory(liveStore.currentActivity.type) }}
         </span>
-        <!-- Compteur reponses (Spark/Pulse) -->
+        <!-- Compteur reponses (Spark/Pulse) + barre de progression vs participants -->
         <div v-if="liveStore.results && (liveStore.results.totalResponses || liveStore.results.total)" class="response-count">
           <Users :size="18" />
-          <span>{{ liveStore.results.totalResponses ?? liveStore.results.total ?? 0 }} reponse{{ (liveStore.results.totalResponses ?? liveStore.results.total ?? 0) > 1 ? 's' : '' }}</span>
+          <span>{{ liveStore.results.totalResponses ?? liveStore.results.total ?? 0 }}<template v-if="liveStore.participantCount">/{{ liveStore.participantCount }}</template> reponse{{ (liveStore.results.totalResponses ?? liveStore.results.total ?? 0) > 1 ? 's' : '' }}</span>
+          <div v-if="liveStore.participantCount > 0" class="response-progress" aria-hidden="true">
+            <div
+              class="response-progress-fill"
+              :style="{ width: Math.min(100, ((liveStore.results.totalResponses ?? liveStore.results.total ?? 0) / liveStore.participantCount) * 100) + '%' }"
+            />
+          </div>
         </div>
         <!-- Temps median de reponse -->
         <div v-if="responseTimerLabel" class="response-median" :title="`Temps median sur ${responseTimer.sampleSize.value} reponses`">
@@ -1103,53 +1210,19 @@
           :columns="parseJsonArray<string>(liveStore.currentActivity.options as string | string[] | null)"
           :max-votes="liveStore.currentActivity.max_rating ?? 3"
         />
-        <!-- Spark : resultats classiques -->
-        <QcmResults v-else-if="(liveStore.currentActivity.type === 'qcm' || liveStore.currentActivity.type === 'vrai_faux') && liveStore.results" :results="liveStore.results" :activity="liveStore.currentActivity" />
-        <PollResults v-else-if="liveStore.currentActivity.type === 'reponse_courte' && liveStore.results" :results="liveStore.results" />
-        <AssociationResults v-else-if="liveStore.currentActivity.type === 'association' && liveStore.results" :results="liveStore.results" />
-        <EstimationResults v-else-if="liveStore.currentActivity.type === 'estimation' && liveStore.results" :results="liveStore.results" />
-        <!-- Pulse : resultats anonymes (composants Rex reutilises) -->
-        <RexQuestionOuverteResults
-          v-else-if="liveStore.currentActivity.type === 'question_ouverte' && liveStore.results?.answers"
-          :answers="liveStore.results.answers"
-          :is-teacher="true"
-        />
-        <RexSondageResults
-          v-else-if="(liveStore.currentActivity.type === 'sondage' || liveStore.currentActivity.type === 'sondage_libre') && pulseSondageCounts.length"
-          :results="pulseSondageCounts"
-          :total="liveStore.results?.total ?? 0"
-        />
-        <RexEchelleResults
-          v-else-if="liveStore.currentActivity.type === 'echelle' && liveStore.results?.average !== undefined"
-          :average="liveStore.results.average"
-          :max-rating="liveStore.currentActivity.max_rating ?? 5"
-          :distribution="liveStore.results.distribution ?? []"
-          :total="liveStore.results.total ?? 0"
-        />
-        <RexWordCloud
-          v-else-if="liveStore.currentActivity.type === 'nuage' && liveStore.results?.freq"
-          :words="liveStore.results.freq"
-        />
-        <RexHumeurResults
-          v-else-if="liveStore.currentActivity.type === 'humeur' && liveStore.results?.emojis"
-          :emojis="liveStore.results.emojis"
-          :total="liveStore.results.total ?? 0"
-        />
-        <RexPrioriteResults
-          v-else-if="liveStore.currentActivity.type === 'priorite' && liveStore.results?.rankings"
-          :rankings="liveStore.results.rankings"
-          :total="liveStore.results.total ?? 0"
-        />
-        <RexMatriceResults
-          v-else-if="liveStore.currentActivity.type === 'matrice' && liveStore.results?.criteria"
-          :criteria="liveStore.results.criteria"
-          :max-rating="liveStore.currentActivity.max_rating ?? 5"
-          :total="liveStore.results.total ?? 0"
-        />
-        <div v-else class="results-waiting">
-          <Zap :size="32" class="results-waiting-icon" />
-          <span>En attente des reponses...</span>
-        </div>
+        <LiveActivityResults
+          v-else
+          :activity="liveStore.currentActivity"
+          :results="liveStore.results"
+          :pulse-sondage-counts="pulseSondageCounts"
+        >
+          <template #empty>
+            <div class="results-waiting">
+              <Zap :size="32" class="results-waiting-icon" />
+              <span>En attente des reponses...</span>
+            </div>
+          </template>
+        </LiveActivityResults>
       </div>
     </div>
 
@@ -1162,6 +1235,35 @@
     >?</button>
 
     <LiveShortcutsOverlay :open="shortcutsOpen" @close="shortcutsOpen = false" />
+
+    <!-- Mode projection (teleporte via position:fixed dans le composant) -->
+    <LivePresentationMode
+      v-if="presentationOpen && liveStore.currentActivity"
+      :activity="liveStore.currentActivity"
+      :join-code="liveStore.currentSession?.join_code"
+      :response-count="liveStore.results?.totalResponses ?? liveStore.results?.total ?? 0"
+      :elapsed-seconds="elapsedSeconds"
+      :median-response-seconds="responseTimer.medianSeconds.value"
+      :position-index="currentActivityIndex"
+      :total-count="totalActivities"
+      :has-next="!!nextPendingActivity"
+      @close="closePresentation"
+      @close-activity="closeCurrentActivity(); closePresentation()"
+      @next="goNext"
+    >
+      <LiveActivityResults
+        :activity="liveStore.currentActivity"
+        :results="liveStore.results"
+        :pulse-sondage-counts="pulseSondageCounts"
+      >
+        <template #empty>
+          <div class="projection-waiting">
+            <Zap :size="48" />
+            <span>En attente des reponses...</span>
+          </div>
+        </template>
+      </LiveActivityResults>
+    </LivePresentationMode>
   </div>
 </template>
 
@@ -1689,6 +1791,103 @@
   background: var(--bg-hover);
 }
 .btn-import-csv:disabled { opacity: .5; cursor: wait; }
+
+.csv-group { position: relative; display: inline-flex; gap: 4px; }
+.btn-csv-help {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: transparent; color: var(--text-muted);
+  border: 1px solid var(--border); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+  align-self: center;
+}
+.btn-csv-help:hover,
+.btn-csv-help.active {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--accent-subtle);
+}
+
+.csv-help {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 340px;
+  padding: 14px 16px;
+  background: var(--bg-modal);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--elevation-2);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: csv-help-in .16s var(--ease-out);
+}
+@keyframes csv-help-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.csv-help-close {
+  position: absolute; top: 6px; right: 6px;
+  width: 22px; height: 22px;
+  border-radius: 5px;
+  background: none; border: none;
+  color: var(--text-muted); cursor: pointer;
+  font-size: 18px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.csv-help-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+.csv-help-title {
+  margin: 0; font-size: 12px; font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.csv-help-section {
+  display: flex; flex-direction: column; gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.csv-help-section:first-of-type { border-top: none; padding-top: 0; }
+.csv-help-section-title {
+  font-size: 11px; font-weight: 700; color: var(--accent);
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.csv-help-code {
+  display: block;
+  padding: 6px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 10px;
+  color: var(--text-primary);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.csv-help-text {
+  font-size: 11px; line-height: 1.5; margin: 0;
+  color: var(--text-secondary);
+}
+.csv-help-text code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 1px 4px;
+  background: var(--bg-input);
+  border-radius: 3px;
+  color: var(--text-primary);
+}
+.csv-help-download {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  background: var(--accent-subtle); color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 6px; cursor: pointer;
+  align-self: flex-start;
+  transition: background .15s;
+}
+.csv-help-download:hover { background: rgba(74,144,217,.2); }
 .activity-form-wrapper {
   padding: 20px;
   background: var(--bg-elevated);
@@ -1923,6 +2122,20 @@
 .activity-topbar-type {
   font-size: 13px; font-weight: 700;
 }
+.activity-topbar-pos {
+  font-size: 12px; font-weight: 700;
+  padding: 3px 9px; border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+  margin-left: 4px;
+}
+.activity-topbar-pos .pos-sep {
+  color: var(--text-muted);
+  opacity: .5;
+  margin: 0 2px;
+}
 .activity-topbar-title {
   flex: 1;
   font-size: 28px;
@@ -1932,6 +2145,16 @@
 .activity-topbar-actions {
   display: flex; gap: 8px; flex-shrink: 0;
 }
+.btn-project {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #000));
+  color: #fff; border: none; cursor: pointer;
+  transition: all .15s, transform .1s;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.btn-project:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.btn-project:active { transform: translateY(0); }
 .btn-close-activity {
   display: flex; align-items: center; gap: 6px;
   padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
@@ -1963,6 +2186,23 @@
   font-size: 18px;
   font-weight: 600;
 }
+.projection-waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  color: rgba(255,255,255,.45);
+  font-size: 22px;
+  font-weight: 500;
+  animation: proj-pulse 2.2s ease-in-out infinite;
+}
+@keyframes proj-pulse {
+  0%, 100% { opacity: .5 }
+  50% { opacity: 1 }
+}
+@media (prefers-reduced-motion: reduce) {
+  .projection-waiting { animation: none; }
+}
 .results-waiting-icon {
   opacity: .4;
   animation: pulse-dot 2s infinite;
@@ -1979,10 +2219,23 @@
 .response-count {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 16px;
   font-weight: 600;
   color: var(--text-secondary, #aaa);
+}
+.response-progress {
+  width: 80px;
+  height: 6px;
+  background: rgba(255,255,255,.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.response-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #fff));
+  border-radius: 3px;
+  transition: width .5s cubic-bezier(.25,.8,.25,1);
 }
 .response-median {
   display: inline-flex;

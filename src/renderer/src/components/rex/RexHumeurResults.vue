@@ -12,6 +12,10 @@
   )
 
   const MOOD_COLORS = ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444']
+
+  function pct(count: number): number {
+    return props.total > 0 ? Math.round(count / props.total * 100) : 0
+  }
 </script>
 
 <template>
@@ -29,12 +33,12 @@
             class="rex-humeur-bar-fill"
             :style="{
               width: (e.count / maxCount * 100) + '%',
-              background: MOOD_COLORS[i % MOOD_COLORS.length],
+              background: `linear-gradient(90deg, ${MOOD_COLORS[i % MOOD_COLORS.length]}, color-mix(in srgb, ${MOOD_COLORS[i % MOOD_COLORS.length]} 70%, #fff))`,
             }"
           />
         </div>
         <span class="rex-humeur-count">{{ e.count }}</span>
-        <span class="rex-humeur-pct">{{ total > 0 ? Math.round(e.count / total * 100) : 0 }}%</span>
+        <span class="rex-humeur-pct">{{ pct(e.count) }}%</span>
       </div>
     </div>
   </div>
@@ -52,6 +56,8 @@
   color: var(--text-muted);
   font-weight: 600;
   text-align: center;
+  text-transform: uppercase;
+  letter-spacing: .5px;
 }
 .rex-humeur-bars {
   display: flex;
@@ -61,39 +67,63 @@
 .rex-humeur-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background .15s;
 }
+.rex-humeur-row:hover { background: rgba(255,255,255,.03); }
 .rex-humeur-emoji {
-  font-size: 28px;
+  font-size: 32px;
   flex-shrink: 0;
-  width: 40px;
+  width: 44px;
   text-align: center;
+  filter: grayscale(0);
+  transition: transform .2s;
+}
+.rex-humeur-row:hover .rex-humeur-emoji {
+  transform: scale(1.12);
 }
 .rex-humeur-bar-track {
   flex: 1;
-  height: 28px;
+  height: 30px;
   background: rgba(255,255,255,.04);
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
 }
 .rex-humeur-bar-fill {
   height: 100%;
-  border-radius: 8px;
-  transition: width .6s cubic-bezier(.25,.8,.25,1);
+  border-radius: 10px;
+  transition: width .7s cubic-bezier(.16,1,.3,1);
   min-width: 2px;
+  position: relative;
+  overflow: hidden;
 }
+.rex-humeur-bar-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.15), transparent);
+  transform: translateX(-100%);
+  animation: humeur-shine 2.8s ease-in-out infinite;
+}
+@keyframes humeur-shine { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .rex-humeur-bar-fill::after { animation: none; } }
+
 .rex-humeur-count {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 800;
   color: var(--text-primary);
-  min-width: 28px;
+  min-width: 30px;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .rex-humeur-pct {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
-  min-width: 36px;
+  min-width: 38px;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 </style>
