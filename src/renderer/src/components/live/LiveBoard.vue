@@ -70,9 +70,13 @@ const maxVotesPerPerson = computed(() => props.maxVotes ?? 3)
 const canVote = computed(() => myVotesUsed.value < maxVotesPerPerson.value)
 
 const topCardId = computed(() => {
-  if (cards.value.length === 0) return null
-  const sorted = [...cards.value].sort((a, b) => b.votes - a.votes)
-  return sorted[0]?.votes > 0 ? sorted[0].id : null
+  let best: BoardCard | null = null
+  for (const col of Object.values(cardsByColumn.value)) {
+    if (col.length > 0 && col[0].votes > 0) {
+      if (!best || col[0].votes > best.votes) best = col[0]
+    }
+  }
+  return best?.id ?? null
 })
 
 // ── CRUD ────────────────────────────────────────────────────────────────

@@ -9,10 +9,22 @@ const queries = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap    = require('../utils/wrap')
 const { requireRole } = require('../middleware/authorize')
+const { ForbiddenError, NotFoundError, ConflictError, ValidationError } = require('../utils/errors')
+const log     = require('../utils/logger')
 const graph   = require('../services/microsoftGraph')
 const email   = require('../services/email')
 
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3001'
+
+/** Middleware: resolve booking token and attach data to req */
+function requireBookingToken(req, res, next) {
+  const data = queries.getTokenData(req.params.token)
+  if (!data || !data.event_type_active) {
+    return res.status(404).json({ ok: false, error: 'Lien de reservation invalide ou desactive' })
+  }
+  req.bookingData = data
+  next()
+}
 
 // ── Schemas ────────────────────────────────────────────────────────────
 
@@ -51,13 +63,13 @@ router.post('/event-types', requireRole('teacher'), validate(createEventTypeSche
 
 router.patch('/event-types/:id', requireRole('teacher'), wrap((req) => {
   const et = queries.getEventTypeById(Number(req.params.id))
-  if (!et || et.teacher_id !== req.user.id) throw new Error('Non autorise')
+  if (!et || et.teacher_id !== req.user.id) throw new ForbiddenError()
   return queries.updateEventType(Number(req.params.id), req.body)
 }))
 
 router.delete('/event-types/:id', requireRole('teacher'), wrap((req) => {
   const et = queries.getEventTypeById(Number(req.params.id))
-  if (!et || et.teacher_id !== req.user.id) throw new Error('Non autorise')
+  if (!et || et.teacher_id !== req.user.id) throw new ForbiddenError()
   queries.deleteEventType(Number(req.params.id))
   return null
 }))
@@ -76,9 +88,9 @@ router.put('/availability', requireRole('teacher'), validate(availabilitySchema)
 
 router.post('/tokens', requireRole('teacher'), wrap((req) => {
   const { eventTypeId, studentId } = req.body
-  if (!eventTypeId || !studentId) throw new Error('eventTypeId et studentId requis')
+  if (!eventTypeId || !studentId) throw new ValidationError('eventTypeId et studentId requis')
   const et = queries.getEventTypeById(eventTypeId)
-  if (!et || et.teacher_id !== req.user.id) throw new Error('Non autorise')
+  if (!et || et.teacher_id !== req.user.id) throw new ForbiddenError()
   const tokenData = queries.getOrCreateToken(eventTypeId, studentId)
   return {
     ...tokenData,
@@ -120,7 +132,7 @@ router.get('/oauth/callback', async (req, res) => {
     // Redirect back to Cursus settings
     res.redirect(`${SERVER_URL}/#/settings?oauth=success`)
   } catch (err) {
-    console.warn('[Booking OAuth] Callback error:', err.message)
+    log.warn('Booking OAuth callback error', { error: err.message })
     res.redirect(`${SERVER_URL}/#/settings?oauth=error`)
   }
 })
@@ -140,36 +152,22 @@ router.delete('/oauth/disconnect', requireRole('teacher'), wrap((req) => {
 // ══════════════════════════════════════════════════════════════════════════
 
 /** Get booking page data (public) */
-router.get('/public/:token', async (req, res) => {
-  try {
-    const data = queries.getTokenData(req.params.token)
-    if (!data || !data.is_active) {
-      return res.status(404).json({ ok: false, error: 'Lien de reservation invalide ou desactive' })
-    }
-    // Don't expose teacher's internal IDs
-    res.json({
-      ok: true,
-      data: {
-        eventTitle: data.event_title,
-        description: data.description,
-        durationMinutes: data.duration_minutes,
-        teacherName: data.teacher_name,
-        studentName: data.student_name,
-        color: data.color,
-      },
-    })
-  } catch (err) {
-    res.status(400).json({ ok: false, error: err.message })
+router.get('/public/:token', requireBookingToken, wrap((req) => {
+  const data = req.bookingData
+  return {
+    eventTitle: data.event_title,
+    description: data.description,
+    durationMinutes: data.duration_minutes,
+    teacherName: data.teacher_name,
+    studentName: data.student_name,
+    color: data.color,
   }
-})
+}))
 
 /** Get available slots for a week (public) */
-router.get('/public/:token/slots', async (req, res) => {
+router.get('/public/:token/slots', requireBookingToken, async (req, res) => {
   try {
-    const data = queries.getTokenData(req.params.token)
-    if (!data || !data.is_active) {
-      return res.status(404).json({ ok: false, error: 'Lien invalide' })
-    }
+    const data = req.bookingData
 
     const weekOffset = Number(req.query.weekOffset || 0)
     const now = new Date()
@@ -180,40 +178,46 @@ router.get('/public/:token/slots', async (req, res) => {
     endOfWeek.setDate(startOfWeek.getDate() + 5) // Friday end
     endOfWeek.setHours(23, 59, 59, 999)
 
-    // Get availability rules
     const rules = queries.getAvailabilityRules(data.teacher_id)
 
-    // Get existing bookings
     const existingBookings = queries.getBookingsForTeacher(
       data.teacher_id,
       { from: startOfWeek.toISOString(), to: endOfWeek.toISOString() },
     )
 
-    // Get Outlook busy times (if connected)
     let outlookBusy = []
     const msToken = queries.getMicrosoftToken(data.teacher_id)
     if (msToken) {
       try {
         outlookBusy = await graph.getCalendarBusy(
-          msToken.access_token_enc, // In production, decrypt first
+          msToken.access_token_enc,
           startOfWeek.toISOString(),
           endOfWeek.toISOString(),
         )
       } catch (err) {
-        console.warn('[Booking] Outlook busy fetch failed:', err.message)
+        log.warn('Outlook busy fetch failed', { error: err.message })
       }
     }
 
-    // Generate slots
-    const duration = data.duration_minutes
+    // Pre-parse busy interval timestamps (avoids re-parsing per slot)
+    const bookingIntervals = existingBookings.map(b => ({
+      start: new Date(b.start_datetime).getTime(),
+      end: new Date(b.end_datetime).getTime(),
+    }))
+    const outlookIntervals = outlookBusy.map(b => ({
+      start: new Date(b.start).getTime(),
+      end: new Date(b.end).getTime(),
+    }))
+
+    const durationMs = data.duration_minutes * 60000
+    const nowMs = now.getTime()
     const slots = []
 
     for (let day = 0; day < 5; day++) { // Mon-Fri
       const date = new Date(startOfWeek)
       date.setDate(startOfWeek.getDate() + day)
-      const dayOfWeek = date.getDay() // 0=Sun, 1=Mon, ...
+      const dayOfWeek = date.getDay()
 
-      // Find matching rules
       const dayRules = rules.filter(r => r.day_of_week === dayOfWeek)
 
       for (const rule of dayRules) {
@@ -224,38 +228,32 @@ router.get('/public/:token/slots', async (req, res) => {
         slotStart.setHours(sh, sm, 0, 0)
         const ruleEnd = new Date(date)
         ruleEnd.setHours(eh, em, 0, 0)
+        let slotStartMs = slotStart.getTime()
+        const ruleEndMs = ruleEnd.getTime()
 
-        while (slotStart.getTime() + duration * 60000 <= ruleEnd.getTime()) {
-          const slotEnd = new Date(slotStart.getTime() + duration * 60000)
+        while (slotStartMs + durationMs <= ruleEndMs) {
+          const slotEndMs = slotStartMs + durationMs
 
-          // Skip past slots
-          if (slotStart.getTime() <= now.getTime()) {
-            slotStart = new Date(slotEnd)
+          if (slotStartMs <= nowMs) {
+            slotStartMs = slotEndMs
             continue
           }
 
-          // Check conflicts with existing bookings
-          const hasBookingConflict = existingBookings.some(b =>
-            new Date(b.start_datetime).getTime() < slotEnd.getTime() &&
-            new Date(b.end_datetime).getTime() > slotStart.getTime(),
-          )
+          const hasConflict =
+            bookingIntervals.some(b => b.start < slotEndMs && b.end > slotStartMs) ||
+            outlookIntervals.some(b => b.start < slotEndMs && b.end > slotStartMs)
 
-          // Check conflicts with Outlook
-          const hasOutlookConflict = outlookBusy.some(b =>
-            new Date(b.start).getTime() < slotEnd.getTime() &&
-            new Date(b.end).getTime() > slotStart.getTime(),
-          )
-
-          if (!hasBookingConflict && !hasOutlookConflict) {
+          if (!hasConflict) {
+            const s = new Date(slotStartMs)
             slots.push({
-              start: slotStart.toISOString(),
-              end: slotEnd.toISOString(),
+              start: s.toISOString(),
+              end: new Date(slotEndMs).toISOString(),
               date: date.toISOString().slice(0, 10),
-              time: `${String(slotStart.getHours()).padStart(2, '0')}:${String(slotStart.getMinutes()).padStart(2, '0')}`,
+              time: `${String(s.getHours()).padStart(2, '0')}:${String(s.getMinutes()).padStart(2, '0')}`,
             })
           }
 
-          slotStart = new Date(slotEnd)
+          slotStartMs = slotEndMs
         }
       }
     }
@@ -267,18 +265,13 @@ router.get('/public/:token/slots', async (req, res) => {
 })
 
 /** Book a slot (public) */
-router.post('/public/:token/book', validate(bookSchema), async (req, res) => {
+router.post('/public/:token/book', requireBookingToken, validate(bookSchema), async (req, res) => {
   try {
-    const data = queries.getTokenData(req.params.token)
-    if (!data || !data.is_active) {
-      return res.status(404).json({ ok: false, error: 'Lien invalide' })
-    }
+    const data = req.bookingData
 
     const { tutorName, tutorEmail, startDatetime } = req.body
-    const duration = data.duration_minutes
-    const endDatetime = new Date(new Date(startDatetime).getTime() + duration * 60000).toISOString()
+    const endDatetime = new Date(new Date(startDatetime).getTime() + data.duration_minutes * 60000).toISOString()
 
-    // Verify slot is still available
     const conflicts = queries.getBookingsForSlot(data.teacher_id, startDatetime, endDatetime)
     if (conflicts.length > 0) {
       return res.status(409).json({ ok: false, error: 'Ce creneau vient d\'etre reserve. Veuillez en choisir un autre.' })
@@ -303,7 +296,7 @@ router.post('/public/:token/book', validate(bookSchema), async (req, res) => {
         teamsJoinUrl = result.teamsJoinUrl || teamsJoinUrl
         outlookEventId = result.eventId
       } catch (err) {
-        console.warn('[Booking] Teams/Outlook creation failed:', err.message)
+        log.warn('Teams/Outlook creation failed', { error: err.message })
       }
     }
 
@@ -366,7 +359,7 @@ router.get('/public/cancel/:cancelToken', async (req, res) => {
         try {
           await graph.deleteEvent(msToken.access_token_enc, booking.outlook_event_id)
         } catch (err) {
-          console.warn('[Booking] Outlook event deletion failed:', err.message)
+          log.warn('Outlook event deletion failed', { error: err.message })
         }
       }
     }

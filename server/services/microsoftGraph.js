@@ -5,6 +5,7 @@
  */
 const { ConfidentialClientApplication } = require('@azure/msal-node');
 const { Client } = require('@microsoft/microsoft-graph-client');
+const log = require('../utils/logger');
 
 // ── Config Azure AD (via env) ───────────────────────────────────────────
 const TENANT_ID     = process.env.AZURE_TENANT_ID || '';
@@ -24,7 +25,7 @@ let msalClient = null;
 function getMsalClient() {
   if (msalClient) return msalClient;
   if (!TENANT_ID || !CLIENT_ID || !CLIENT_SECRET) {
-    console.warn('[MicrosoftGraph] Azure AD credentials not configured. Set AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET.');
+    log.warn('Azure AD credentials not configured — set AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET');
     return null;
   }
   msalClient = new ConfidentialClientApplication({
@@ -108,7 +109,7 @@ async function getCalendarBusy(accessToken, startDateTime, endDateTime) {
         subject: e.subject,
       }));
   } catch (err) {
-    console.warn('[MicrosoftGraph] getCalendarBusy error:', err.message);
+    log.warn('getCalendarBusy error', { error: err.message });
     return [];
   }
 }

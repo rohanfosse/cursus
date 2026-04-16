@@ -193,7 +193,6 @@ async function apiFetch(path: string, options: RequestInit = {}, retries = MAX_R
 function get(path: string)                      { return apiFetch(path) }
 function post(path: string, body: unknown)      { return apiFetch(path, { method: 'POST',   body: JSON.stringify(body) }) }
 function put(path: string, body: unknown)       { return apiFetch(path, { method: 'PUT',    body: JSON.stringify(body) }) }
-function put(path: string, body: unknown)       { return apiFetch(path, { method: 'PUT',    body: JSON.stringify(body) }) }
 function patch(path: string, body: unknown)     { return apiFetch(path, { method: 'PATCH',  body: JSON.stringify(body) }) }
 function del(path: string, body?: unknown)      {
   return apiFetch(path, body !== undefined

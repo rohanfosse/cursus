@@ -341,17 +341,27 @@ router.post('/activities/:id/cards', requirePromo(promoFromActivityV2), validate
   } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
 })
 
-/** Promo check for board card routes */
+/** Promo check for board card routes — caches promoId on req to avoid redundant JOINs */
 function promoFromCardV2(req) {
   const cardId = Number(req.params.id)
   if (!cardId) return null
   const row = getDb().prepare(`
-    SELECT ls.promo_id FROM live_board_cards bc
+    SELECT ls.promo_id, bc.activity_id FROM live_board_cards bc
     JOIN live_activities_v2 la ON la.id = bc.activity_id
     JOIN live_sessions_v2 ls ON ls.id = la.session_id
     WHERE bc.id = ?
   `).get(cardId)
-  return row?.promo_id ?? null
+  if (!row) return null
+  req._cardPromoId = row.promo_id
+  req._cardActivityId = row.activity_id
+  return row.promo_id
+}
+
+function emitBoardUpdate(req, action, payload) {
+  const promoId = req._cardPromoId
+  if (promoId) {
+    req.app.get('io').to(`live:${promoId}`).emit('live:board-update', { ...payload, action })
+  }
 }
 
 // PATCH /cards/:id — update card content or column
@@ -360,12 +370,7 @@ router.patch('/cards/:id', requirePromo(promoFromCardV2), (req, res) => {
     const cardId = Number(req.params.id)
     const card = queries.updateBoardCard(cardId, { content: req.body.content, columnName: req.body.columnName })
     if (card) {
-      const act = getDb().prepare('SELECT ls.promo_id FROM live_activities_v2 la JOIN live_sessions_v2 ls ON ls.id = la.session_id WHERE la.id = ?').get(card.activity_id)
-      if (act) {
-        req.app.get('io').to(`live:${act.promo_id}`).emit('live:board-update', {
-          activityId: card.activity_id, action: 'update', card,
-        })
-      }
+      emitBoardUpdate(req, 'update', { activityId: card.activity_id, card })
     }
     res.json({ ok: true, data: card })
   } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
@@ -374,16 +379,9 @@ router.patch('/cards/:id', requirePromo(promoFromCardV2), (req, res) => {
 router.delete('/cards/:id', requireRole('teacher'), requirePromo(promoFromCardV2), (req, res) => {
   try {
     const cardId = Number(req.params.id)
-    const card = getDb().prepare('SELECT activity_id FROM live_board_cards WHERE id = ?').get(cardId)
+    const activityId = req._cardActivityId
     queries.deleteBoardCard(cardId)
-    if (card) {
-      const act = getDb().prepare('SELECT ls.promo_id FROM live_activities_v2 la JOIN live_sessions_v2 ls ON ls.id = la.session_id WHERE la.id = ?').get(card.activity_id)
-      if (act) {
-        req.app.get('io').to(`live:${act.promo_id}`).emit('live:board-update', {
-          activityId: card.activity_id, action: 'delete', cardId,
-        })
-      }
-    }
+    emitBoardUpdate(req, 'delete', { activityId, cardId })
     res.json({ ok: true })
   } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
 })
@@ -399,12 +397,7 @@ router.post('/cards/:id/vote', requirePromo(promoFromCardV2), (req, res) => {
       : queries.unvoteBoardCard(cardId, studentId)
     const card = getDb().prepare('SELECT activity_id, votes FROM live_board_cards WHERE id = ?').get(cardId)
     if (card) {
-      const act = getDb().prepare('SELECT ls.promo_id FROM live_activities_v2 la JOIN live_sessions_v2 ls ON ls.id = la.session_id WHERE la.id = ?').get(card.activity_id)
-      if (act) {
-        req.app.get('io').to(`live:${act.promo_id}`).emit('live:board-update', {
-          activityId: card.activity_id, action: 'vote', cardId, votes: card.votes,
-        })
-      }
+      emitBoardUpdate(req, 'vote', { activityId: card.activity_id, cardId, votes: card.votes })
     }
     res.json({ ok: true, data: { voted: ok } })
   } catch (err) { res.status(400).json({ ok: false, error: err.message }) }

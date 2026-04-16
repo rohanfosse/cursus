@@ -89,8 +89,10 @@ function getOrCreateToken(eventTypeId, studentId) {
 function getTokenData(token) {
   const db = getDb();
   const row = db.prepare(`
-    SELECT bt.*, bet.teacher_id, bet.title AS event_title, bet.slug, bet.description,
-           bet.duration_minutes, bet.color, bet.fallback_visio_url, bet.is_active,
+    SELECT bt.id, bt.event_type_id, bt.student_id, bt.token, bt.created_at,
+           bet.teacher_id, bet.title AS event_title, bet.slug, bet.description,
+           bet.duration_minutes, bet.color, bet.fallback_visio_url,
+           bet.is_active AS event_type_active,
            s.name AS student_name, s.email AS student_email, u.name AS teacher_name
     FROM booking_tokens bt
     JOIN booking_event_types bet ON bet.id = bt.event_type_id

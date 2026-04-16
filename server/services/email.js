@@ -3,6 +3,7 @@
  * Configure via env : SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.
  */
 const nodemailer = require('nodemailer');
+const log = require('../utils/logger');
 
 const SMTP_HOST = process.env.SMTP_HOST || '';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -15,7 +16,7 @@ let transporter = null;
 function getTransporter() {
   if (transporter) return transporter;
   if (!SMTP_HOST) {
-    console.warn('[Email] SMTP not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS.');
+    log.warn('SMTP not configured — set SMTP_HOST, SMTP_USER, SMTP_PASS');
     return null;
   }
   transporter = nodemailer.createTransport({
@@ -27,13 +28,10 @@ function getTransporter() {
   return transporter;
 }
 
-/**
- * Send booking confirmation email to the tutor.
- */
 async function sendBookingConfirmation({ to, tutorName, teacherName, studentName, eventTitle, startDatetime, endDatetime, teamsJoinUrl, cancelUrl }) {
   const t = getTransporter();
   if (!t) {
-    console.warn('[Email] Skipping confirmation email (SMTP not configured)');
+    log.warn('Skipping confirmation email (SMTP not configured)');
     return false;
   }
 
@@ -82,14 +80,11 @@ async function sendBookingConfirmation({ to, tutorName, teacherName, studentName
     });
     return true;
   } catch (err) {
-    console.warn('[Email] Send failed:', err.message);
+    log.warn('Email send failed', { error: err.message, to });
     return false;
   }
 }
 
-/**
- * Send cancellation email.
- */
 async function sendBookingCancellation({ to, tutorName, eventTitle, startDatetime, rebookUrl }) {
   const t = getTransporter();
   if (!t) return false;
@@ -120,7 +115,7 @@ async function sendBookingCancellation({ to, tutorName, eventTitle, startDatetim
     });
     return true;
   } catch (err) {
-    console.warn('[Email] Cancellation send failed:', err.message);
+    log.warn('Cancellation email failed', { error: err.message, to });
     return false;
   }
 }
