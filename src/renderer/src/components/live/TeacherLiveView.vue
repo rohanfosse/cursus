@@ -1,6 +1,6 @@
 <!-- TeacherLiveView.vue - Vue enseignant pour le Live Quiz interactif -->
 <script setup lang="ts">
-  import { ref, computed, onMounted, onUnmounted } from 'vue'
+  import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
   import {
     Plus, Play, Square, ChevronRight, Trash2, Users, Zap, Clock,
     LogOut, Pencil, GripVertical, Copy, Download,
@@ -35,13 +35,24 @@
   const appStore  = useAppStore()
   const liveStore = useLiveStore()
 
-  /** Elapsed time ticker for non-Spark activities */
+  /** Elapsed time ticker — starts only when a non-Spark activity is live */
   const elapsedTick = ref(0)
   let elapsedInterval: ReturnType<typeof setInterval> | null = null
-  onMounted(() => {
+
+  function startElapsedTimer() {
+    if (elapsedInterval) return
     elapsedInterval = setInterval(() => { elapsedTick.value++ }, 1000)
-  })
-  onUnmounted(() => { if (elapsedInterval) clearInterval(elapsedInterval) })
+  }
+  function stopElapsedTimer() {
+    if (elapsedInterval) { clearInterval(elapsedInterval); elapsedInterval = null }
+    elapsedTick.value = 0
+  }
+
+  watch(() => liveStore.currentActivity, (act: LiveActivity | null) => {
+    if (act && act.status === 'live' && !isSparkType(act.type)) startElapsedTimer()
+    else stopElapsedTimer()
+  }, { immediate: true })
+  onUnmounted(stopElapsedTimer)
 
   const elapsedTime = computed(() => {
     elapsedTick.value // trigger reactivity

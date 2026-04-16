@@ -15,6 +15,8 @@ const appStore = useAppStore()
 const hasLive = computed(() => !!liveStore.currentSession && liveStore.currentSession.status === 'active')
 
 onMounted(() => {
+  // Skip if already fetched (avoids double-fetch with StudentLiveTab)
+  if (liveStore.currentSession) return
   const pid = appStore.activePromoId
   if (pid) liveStore.fetchActiveForPromo(pid)
 })

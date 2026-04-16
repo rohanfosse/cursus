@@ -83,6 +83,7 @@ export function getActivityCategory(type: string): ActivityCategory {
   for (const [cat, cfg] of Object.entries(ACTIVITY_CATEGORIES)) {
     if (cfg.types.includes(type)) return cat as ActivityCategory
   }
+  console.warn(`[liveActivity] Unknown activity type "${type}", defaulting to spark`)
   return 'spark'
 }
 

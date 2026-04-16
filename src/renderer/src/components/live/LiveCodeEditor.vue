@@ -6,7 +6,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Code2, Copy, Check } from 'lucide-vue-next'
 import { EditorView } from '@codemirror/view'
-import { EditorState } from '@codemirror/state'
+import { EditorState, Compartment } from '@codemirror/state'
 import { basicSetup } from 'codemirror'
 import { useToast } from '@/composables/useToast'
 
@@ -39,6 +39,7 @@ const editorRef = ref<HTMLDivElement | null>(null)
 const copied = ref(false)
 let view: EditorView | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
+const langCompartment = new Compartment()
 
 /** Dynamic language pack loader */
 async function getLanguageExt(lang: string) {
@@ -72,7 +73,7 @@ async function initEditor() {
     doc: content.value,
     extensions: [
       basicSetup,
-      langExt,
+      langCompartment.of(langExt),
       EditorView.theme({
         '&': { fontSize: '14px', height: '100%', background: '#1e1e2e' },
         '.cm-scroller': { fontFamily: 'Menlo, Monaco, Consolas, monospace', overflow: 'auto' },
@@ -99,13 +100,11 @@ async function initEditor() {
 async function changeLanguage(newLang: string) {
   language.value = newLang
   emit('language-change', newLang)
-  // Recreate editor with new language pack
+  // Swap language via compartment (preserves cursor, undo history)
   if (view) {
-    view.destroy()
-    view = null
+    const langExt = await getLanguageExt(newLang)
+    view.dispatch({ effects: langCompartment.reconfigure(langExt) })
   }
-  await initEditor()
-  // Broadcast language change
   window.api.emitLiveCodeUpdate(props.activityId, props.promoId, content.value, newLang)
 }
 

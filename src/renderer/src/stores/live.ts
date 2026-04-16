@@ -247,7 +247,7 @@ export const useLiveStore = defineStore('live', () => {
       () => window.api.updateLiveV2SessionStatus(sessionId, 'active'),
     )
     if (data) {
-      currentSession.value = { ...currentSession.value!, status: 'active' }
+      currentSession.value = data
       return true
     }
     return false
@@ -276,14 +276,19 @@ export const useLiveStore = defineStore('live', () => {
 
   async function reorderActivities(orderedIds: number[]): Promise<boolean> {
     if (!currentSession.value) return false
-    // Optimistic update
-    const ordered = orderedIds.map((id, i) => {
-      const a = currentSession.value!.activities!.find(x => x.id === id)!
-      return { ...a, position: i }
-    })
+    const sessionId = currentSession.value.id
+    const activities = currentSession.value.activities ?? []
+    // Optimistic update (safe: filter out missing IDs)
+    const ordered = orderedIds
+      .map((id, i) => {
+        const a = activities.find(x => x.id === id)
+        return a ? { ...a, position: i } : null
+      })
+      .filter((a): a is NonNullable<typeof a> => a !== null)
     currentSession.value = { ...currentSession.value, activities: ordered }
+    // Persist (use captured sessionId to avoid stale ref after await)
     const data = await api<LiveSession>(
-      () => window.api.reorderLiveV2Activities(currentSession.value!.id, orderedIds),
+      () => window.api.reorderLiveV2Activities(sessionId, orderedIds),
     )
     if (data) currentSession.value = data
     return !!data

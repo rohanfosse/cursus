@@ -151,12 +151,13 @@ const chapterSearchQuery = ref('')
 const chapterSearchCount = ref(0)
 const chapterSearchCurrent = ref(0)
 
+const findInputRef = ref<HTMLInputElement | null>(null)
+
 function openChapterSearch() {
   chapterSearchOpen.value = true
   nextTick(() => {
-    const input = document.querySelector('.lumen-find-input') as HTMLInputElement
-    input?.focus()
-    input?.select()
+    findInputRef.value?.focus()
+    findInputRef.value?.select()
   })
 }
 
@@ -1110,6 +1111,7 @@ watch(() => [props.content, props.chapter?.path], () => {
           <div v-if="chapterSearchOpen" class="lumen-find-bar">
             <Search :size="14" class="lumen-find-icon" />
             <input
+              ref="findInputRef"
               v-model="chapterSearchQuery"
               type="text"
               class="lumen-find-input"

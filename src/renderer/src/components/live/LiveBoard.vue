@@ -146,9 +146,13 @@ function cancelEdit() {
 
 // ── Drag & drop ─────────────────────────────────────────────────────────
 
-function onDragStart(card: BoardCard) {
+function onDragStart(card: BoardCard, e?: DragEvent) {
   if (!isOwnCard(card) && !props.isTeacher) return
   dragCardId.value = card.id
+  if (e?.dataTransfer) {
+    e.dataTransfer.setData('text/plain', String(card.id))
+    e.dataTransfer.effectAllowed = 'move'
+  }
 }
 
 function onDragOverCol(col: string, e: DragEvent) {
@@ -286,7 +290,7 @@ onBeforeUnmount(() => { unsubscribe?.() })
             }"
             :style="{ background: card.color }"
             :draggable="isOwnCard(card) || isTeacher"
-            @dragstart="onDragStart(card)"
+            @dragstart="onDragStart(card, $event)"
             @dragend="onDragEnd"
           >
             <Crown v-if="topCardId === card.id" :size="12" class="lb-top-badge" />
