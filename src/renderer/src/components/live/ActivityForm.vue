@@ -1,14 +1,19 @@
 <!-- ActivityForm.vue - Formulaire de création/édition d'activité Live (QCM / Sondage / Nuage) -->
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref, computed, watchEffect } from 'vue'
   import {
     ListChecks, ToggleLeft, Type, Link2, Hash, Plus, X,
     Code2, StickyNote, MessageSquare, Cloud, Star, FileText,
     BarChart, Smile, ArrowUpDown, Grid3X3,
   } from 'lucide-vue-next'
   import type { LiveActivity, LiveV2ActivityType } from '@/types'
+  import { ACTIVITY_CATEGORIES, HUMEUR_EMOJIS, type ActivityCategory } from '@/utils/liveActivity'
 
-  const props = defineProps<{ initialData?: LiveActivity | null; defaultCategory?: string | null; lockedCategory?: string | null }>()
+  const props = defineProps<{
+    initialData?: LiveActivity | null
+    defaultCategory?: ActivityCategory | null
+    lockedCategory?: ActivityCategory | null
+  }>()
 
   type ActivityType = LiveV2ActivityType
 
@@ -21,8 +26,6 @@
     }]
     cancel: []
   }>()
-
-  const HUMEUR_EMOJIS = ['😊', '🙂', '😐', '😟', '🤯']
 
   const isEditing = !!props.initialData
 
@@ -85,19 +88,17 @@
     { id: 'board' as const,            label: 'Tableau',          icon: StickyNote,   desc: 'Post-its collaboratifs', category: 'Board' },
   ]
 
-  const CATEGORY_META: Record<string, { label: string; desc: string; color: string }> = {
-    Spark: { label: 'Spark', desc: 'Quiz gamifie avec scoring', color: '#f59e0b' },
-    Pulse: { label: 'Pulse', desc: 'Feedback anonyme', color: '#10b981' },
-    Code:  { label: 'Code',  desc: 'Live coding', color: '#3b82f6' },
-    Board: { label: 'Board', desc: 'Brainstorming', color: '#a855f7' },
+  // Mapping label affiche (Title Case) -> clef ACTIVITY_CATEGORIES (lower case)
+  const CATEGORY_KEY_BY_LABEL: Record<string, ActivityCategory> = {
+    Spark: 'spark', Pulse: 'pulse', Code: 'code', Board: 'board',
   }
 
-  const CATEGORY_KEY_MAP: Record<string, string> = { spark: 'Spark', pulse: 'Pulse', code: 'Code', board: 'Board' }
-
-  const lockedCategoryName = computed<string | null>(() => {
-    if (!props.lockedCategory) return null
-    return CATEGORY_KEY_MAP[props.lockedCategory] ?? props.lockedCategory
-  })
+  function metaFor(label: string): { label: string; desc: string; color: string } | undefined {
+    const key = CATEGORY_KEY_BY_LABEL[label]
+    if (!key) return undefined
+    const cat = ACTIVITY_CATEGORIES[key]
+    return { label: cat.label, desc: cat.description, color: cat.color }
+  }
 
   const categories = computed(() => {
     const grouped = new Map<string, typeof typeCards>()
@@ -107,17 +108,15 @@
     }
     let all = [...grouped.entries()].map(([name, cards]) => ({
       name,
-      meta: CATEGORY_META[name],
+      meta: metaFor(name),
       cards,
     }))
-    // Locked : only show the locked category (hide others) — only for creation, not edition
-    if (lockedCategoryName.value && !isEditing) {
-      all = all.filter(c => c.name === lockedCategoryName.value)
-      return all
+    if (props.lockedCategory && !isEditing) {
+      const target = ACTIVITY_CATEGORIES[props.lockedCategory].label
+      return all.filter(c => c.name === target)
     }
-    // If a default category is specified, put it first
     if (props.defaultCategory) {
-      const target = CATEGORY_KEY_MAP[props.defaultCategory] ?? props.defaultCategory
+      const target = ACTIVITY_CATEGORIES[props.defaultCategory].label
       const idx = all.findIndex(c => c.name === target)
       if (idx > 0) {
         const [cat] = all.splice(idx, 1)
@@ -127,13 +126,17 @@
     return all
   })
 
-  // Si la categorie est verrouillee et que le type courant n'y appartient pas, ajuster
-  if (lockedCategoryName.value && !isEditing) {
-    const allowed = typeCards.filter(c => c.category === lockedCategoryName.value).map(c => c.id)
-    if (!allowed.includes(activityType.value as typeof allowed[number])) {
+  // Reactif aux changements de prop : si le type courant n'appartient plus a la categorie verrouillee,
+  // reconduire vers le premier type autorise. Sans ca un parent qui reutilise le form avec une autre
+  // categorie laisserait une valeur stale.
+  watchEffect(() => {
+    if (!props.lockedCategory || isEditing) return
+    const target = ACTIVITY_CATEGORIES[props.lockedCategory].label
+    const allowed = typeCards.filter(c => c.category === target).map(c => c.id)
+    if (allowed.length && !allowed.includes(activityType.value as typeof allowed[number])) {
       activityType.value = allowed[0]
     }
-  }
+  })
 
   // Code activity
   const codeLanguage = ref(props.initialData?.language ?? 'javascript')
@@ -281,11 +284,11 @@
     <h3 class="form-title">
       {{ isEditing ? 'Modifier l\'activité' : 'Nouvelle activité' }}
       <span
-        v-if="lockedCategoryName && !isEditing"
+        v-if="lockedCategory && !isEditing"
         class="form-scope-badge"
-        :style="{ '--cat-color': CATEGORY_META[lockedCategoryName]?.color }"
+        :style="{ '--cat-color': ACTIVITY_CATEGORIES[lockedCategory].color }"
       >
-        {{ CATEGORY_META[lockedCategoryName]?.label }} uniquement
+        {{ ACTIVITY_CATEGORIES[lockedCategory].label }} uniquement
       </span>
     </h3>
 

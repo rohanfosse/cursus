@@ -5,8 +5,7 @@
   import {
     Plus, Play, Square, ChevronRight, Trash2, Users, Zap, Clock,
     LogOut, Pencil, GripVertical, Copy, Download,
-    History, BarChart3, Sparkles, Activity, Code2, StickyNote, ArrowRight,
-    Eye, EyeOff,
+    ArrowRight, Eye, EyeOff,
   } from 'lucide-vue-next'
   import { ACTIVITY_CATEGORIES, activityIcon, activityTypeLabel, getActivityCategory, isSparkType } from '@/utils/liveActivity'
   import type { ActivityCategory } from '@/utils/liveActivity'
@@ -71,17 +70,6 @@
     return `${m}:${s.toString().padStart(2, '0')}`
   })
 
-  /** Category counts for the current session */
-  const sessionCategoryCounts = computed(() => {
-    const acts = liveStore.sessionActivities
-    const map: Record<string, number> = {}
-    for (const a of acts) {
-      const cat = a.category ?? getActivityCategory(a.type)
-      map[cat] = (map[cat] ?? 0) + 1
-    }
-    return Object.entries(map).map(([name, count]) => ({ name, count }))
-  })
-
   /** Filtre categorie dans la vue session (null = toutes) */
   const activeCategoryFilter = ref<ActivityCategory | null>(null)
 
@@ -92,7 +80,7 @@
     return acts.filter(a => (a.category ?? getActivityCategory(a.type)) === activeCategoryFilter.value)
   })
 
-  /** Nombre d'activites par categorie (map complete pour la sidebar) */
+  /** Nombre d'activites par categorie (source unique pour sidebar + pills header) */
   const categoryCountsMap = computed<Record<ActivityCategory, number>>(() => {
     const map: Record<ActivityCategory, number> = { spark: 0, pulse: 0, code: 0, board: 0 }
     for (const a of liveStore.sessionActivities) {
@@ -101,6 +89,12 @@
     }
     return map
   })
+
+  const sessionCategoryCounts = computed(() =>
+    (Object.entries(categoryCountsMap.value) as [ActivityCategory, number][])
+      .filter(([, count]) => count > 0)
+      .map(([name, count]) => ({ name, count })),
+  )
 
   /** Ouvre le formulaire d'ajout scope sur la categorie active */
   function addActivityInCategory(cat: ActivityCategory | null) {
@@ -126,13 +120,6 @@
     if (Array.isArray(c)) return c as { text: string; count: number }[]
     return Object.entries(c).map(([text, count]) => ({ text, count: Number(count) }))
   })
-
-  const CATEGORY_ICONS: Record<string, typeof Zap> = {
-    spark: Sparkles,
-    pulse: Activity,
-    code: Code2,
-    board: StickyNote,
-  }
 
   const activeTab       = ref<'home' | 'history' | 'stats'>('home')
 
@@ -450,7 +437,7 @@
 
           <div class="lcd-header">
             <div class="lcd-icon">
-              <component :is="CATEGORY_ICONS[selectedCategory]" :size="32" />
+              <component :is="ACTIVITY_CATEGORIES[selectedCategory].icon" :size="32" />
             </div>
             <div>
               <h2 class="lcd-title">{{ ACTIVITY_CATEGORIES[selectedCategory].label }}</h2>
@@ -549,7 +536,7 @@
             @click="openCategory(key as ActivityCategory)"
           >
             <div class="live-cat-icon">
-              <component :is="CATEGORY_ICONS[key]" :size="28" />
+              <component :is="ACTIVITY_CATEGORIES[key as ActivityCategory].icon" :size="28" />
             </div>
             <div class="live-cat-info">
               <span class="live-cat-label">{{ cat.label }}</span>
@@ -669,7 +656,7 @@
             :style="{ '--cat-color': cat.color }"
             @click="activeCategoryFilter = (activeCategoryFilter === key ? null : key as ActivityCategory)"
           >
-            <component :is="CATEGORY_ICONS[key]" :size="14" />
+            <component :is="ACTIVITY_CATEGORIES[key as ActivityCategory].icon" :size="14" />
             <span class="cfp-label">{{ cat.label }}</span>
             <span class="cfp-count">{{ categoryCountsMap[key as ActivityCategory] }}</span>
           </button>
@@ -678,7 +665,6 @@
         <div v-if="showActivityForm" class="activity-form-wrapper">
           <ActivityForm
             :initial-data="editingActivity"
-            :default-category="preSelectedCategory"
             :locked-category="preSelectedCategory"
             @save="onAddActivity"
             @cancel="cancelActivityForm"
@@ -693,7 +679,7 @@
         </div>
 
         <div v-else-if="filteredActivities.length === 0 && !showActivityForm && activeCategoryFilter" class="no-activities no-activities-filtered">
-          <component :is="CATEGORY_ICONS[activeCategoryFilter]" :size="24" class="no-activities-icon" :style="{ color: ACTIVITY_CATEGORIES[activeCategoryFilter].color }" />
+          <component :is="ACTIVITY_CATEGORIES[activeCategoryFilter].icon" :size="24" class="no-activities-icon" :style="{ color: ACTIVITY_CATEGORIES[activeCategoryFilter].color }" />
           <span class="no-activities-title">Aucune activite {{ ACTIVITY_CATEGORIES[activeCategoryFilter].label }}</span>
           <span class="no-activities-desc">{{ ACTIVITY_CATEGORIES[activeCategoryFilter].description }}</span>
           <button class="btn-add-activity" style="margin-top: 8px" @click="addActivityInCategory(activeCategoryFilter)">

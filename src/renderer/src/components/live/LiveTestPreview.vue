@@ -5,7 +5,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Smartphone, Smile, Star } from 'lucide-vue-next'
-import { activityIcon, activityTypeLabel, getActivityCategory, ACTIVITY_CATEGORIES } from '@/utils/liveActivity'
+import {
+  activityIcon, activityTypeLabel, getActivityCategory,
+  ACTIVITY_CATEGORIES, HUMEUR_EMOJIS, parseJsonArray, parsePairs,
+} from '@/utils/liveActivity'
 import type { LiveActivity } from '@/types'
 import LiveCodeViewer from './LiveCodeViewer.vue'
 
@@ -23,24 +26,12 @@ const selected = computed<LiveActivity | null>(() => {
   return props.activities.find(a => a.id === selectedId.value) ?? null
 })
 
-function parseOptions(opts: unknown): string[] {
-  if (!opts) return []
-  if (Array.isArray(opts)) return opts as string[]
-  try {
-    const arr = JSON.parse(opts as string)
-    return Array.isArray(arr) ? arr : []
-  } catch { return [] }
-}
-
-function parsePairs(data: LiveActivity): { left: string; right: string }[] {
-  if (!data.correct_answers) return []
-  try {
-    const arr = JSON.parse(data.correct_answers as unknown as string)
-    return Array.isArray(arr) ? arr : []
-  } catch { return [] }
-}
-
-const HUMEUR_EMOJIS = ['\u{1F60A}', '\u{1F642}', '\u{1F610}', '\u{1F61F}', '\u{1F92F}']
+const selectedOptions = computed<string[]>(() =>
+  selected.value ? parseJsonArray<string>(selected.value.options as string | null) : [],
+)
+const selectedPairs = computed<{ left: string; right: string }[]>(() =>
+  selected.value ? parsePairs(selected.value.correct_answers as string | null) : [],
+)
 
 // Mock interactive state (purely visual feedback, not persisted)
 const mockSelected = ref<number | null>(null)
@@ -86,7 +77,7 @@ const mockEmoji = ref<string | null>(null)
           <!-- QCM / Sondage -->
           <div v-if="selected.type === 'qcm' || selected.type === 'sondage'" class="ltp-options">
             <button
-              v-for="(opt, i) in parseOptions(selected.options)"
+              v-for="(opt, i) in selectedOptions"
               :key="i"
               class="ltp-option-btn"
               :class="{ selected: mockSelected === i }"
@@ -123,12 +114,12 @@ const mockEmoji = ref<string | null>(null)
 
           <!-- Association -->
           <div v-else-if="selected.type === 'association'" class="ltp-pairs">
-            <div v-for="(p, i) in parsePairs(selected)" :key="i" class="ltp-pair-row">
+            <div v-for="(p, i) in selectedPairs" :key="i" class="ltp-pair-row">
               <span class="ltp-pair-left">{{ p.left }}</span>
               <span class="ltp-pair-arrow">&rarr;</span>
               <select class="ltp-pair-select">
                 <option>Choisir...</option>
-                <option v-for="pp in parsePairs(selected)" :key="pp.right" :value="pp.right">{{ pp.right }}</option>
+                <option v-for="pp in selectedPairs" :key="pp.right" :value="pp.right">{{ pp.right }}</option>
               </select>
             </div>
           </div>
@@ -165,7 +156,7 @@ const mockEmoji = ref<string | null>(null)
 
           <!-- Priorite -->
           <div v-else-if="selected.type === 'priorite'" class="ltp-priority">
-            <div v-for="(item, i) in parseOptions(selected.options)" :key="i" class="ltp-priority-item">
+            <div v-for="(item, i) in selectedOptions" :key="i" class="ltp-priority-item">
               <span class="ltp-priority-rank">{{ i + 1 }}</span>
               <span class="ltp-priority-text">{{ item }}</span>
             </div>
@@ -174,7 +165,7 @@ const mockEmoji = ref<string | null>(null)
 
           <!-- Matrice -->
           <div v-else-if="selected.type === 'matrice'" class="ltp-matrix">
-            <div v-for="(crit, i) in parseOptions(selected.options)" :key="i" class="ltp-matrix-row">
+            <div v-for="(crit, i) in selectedOptions" :key="i" class="ltp-matrix-row">
               <span class="ltp-matrix-label">{{ crit }}</span>
               <div class="ltp-matrix-stars">
                 <Star v-for="n in (selected.max_rating ?? 5)" :key="n" :size="14" class="ltp-matrix-star" />
@@ -188,12 +179,13 @@ const mockEmoji = ref<string | null>(null)
               :activity-id="selected.id"
               :initial-content="selected.content ?? `// Prof ecrira du ${selected.language ?? 'code'} en direct`"
               :initial-language="selected.language ?? 'javascript'"
+              :preview="true"
             />
           </div>
 
           <!-- Board -->
           <div v-else-if="selected.type === 'board'" class="ltp-board">
-            <div v-for="(col, i) in parseOptions(selected.options)" :key="i" class="ltp-board-col">
+            <div v-for="(col, i) in selectedOptions" :key="i" class="ltp-board-col">
               <span class="ltp-board-col-title">{{ col }}</span>
               <div class="ltp-board-postit">Idee exemple</div>
               <button class="ltp-board-add">+ Ajouter</button>

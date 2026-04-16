@@ -2,36 +2,64 @@
 import {
   ListChecks, ToggleLeft, Type, Link2, Hash, Cloud, MessageSquare, Zap,
   Star, FileText, BarChart, Smile, ArrowUpDown, Grid3X3, Code2, StickyNote,
+  Sparkles, Activity,
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
 
 export type ActivityCategory = 'spark' | 'pulse' | 'code' | 'board'
 
-export const ACTIVITY_CATEGORIES: Record<ActivityCategory, { label: string; description: string; types: string[]; color: string }> = {
+export const ACTIVITY_CATEGORIES: Record<ActivityCategory, { label: string; description: string; types: string[]; color: string; icon: Component }> = {
   spark: {
     label: 'Spark',
     description: 'Quiz gamifie (scoring, leaderboard)',
     types: ['qcm', 'vrai_faux', 'reponse_courte', 'association', 'estimation'],
     color: '#f59e0b',
+    icon: Sparkles,
   },
   pulse: {
     label: 'Pulse',
     description: 'Feedback anonyme (pas de scoring)',
     types: ['sondage_libre', 'nuage', 'echelle', 'question_ouverte', 'sondage', 'humeur', 'priorite', 'matrice'],
     color: '#10b981',
+    icon: Activity,
   },
   code: {
     label: 'Code',
     description: 'Live coding prof broadcast',
     types: ['live_code'],
     color: '#3b82f6',
+    icon: Code2,
   },
   board: {
     label: 'Board',
     description: 'Brainstorming post-its + votes',
     types: ['board'],
     color: '#a855f7',
+    icon: StickyNote,
   },
+}
+
+/** Emojis d'humeur — utilise dans ActivityForm, LivePulseInput, LiveTestPreview */
+export const HUMEUR_EMOJIS = ['\u{1F60A}', '\u{1F642}', '\u{1F610}', '\u{1F61F}', '\u{1F92F}'] as const
+
+/** Parse un champ JSON serialise (options, correct_answers) en tableau. */
+export function parseJsonArray<T>(raw: string | T[] | null | undefined, fallback: T[] = []): T[] {
+  if (!raw) return fallback
+  if (Array.isArray(raw)) return raw
+  try {
+    const arr = JSON.parse(raw as string)
+    return Array.isArray(arr) ? (arr as T[]) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+/** Parse les paires gauche/droite pour les activites d'association. */
+export function parsePairs(
+  correctAnswers: string | null | undefined,
+  fallback: { left: string; right: string }[] = [],
+): { left: string; right: string }[] {
+  return parseJsonArray<{ left: string; right: string }>(correctAnswers, fallback)
 }
 
 export const ACTIVITY_TYPE_LABELS: Record<string, string> = {

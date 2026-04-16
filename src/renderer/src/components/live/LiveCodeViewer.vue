@@ -41,6 +41,8 @@ const props = defineProps<{
   activityId: number
   initialContent?: string | null
   initialLanguage?: string | null
+  /** Preview mode : n'abonne pas aux updates socket (evite les mutations cross-pane). */
+  preview?: boolean
 }>()
 
 const { showToast } = useToast()
@@ -83,6 +85,7 @@ async function copyCode() {
 }
 
 onMounted(() => {
+  if (props.preview) return
   unsubscribe = window.api.onLiveCodeUpdate((data) => {
     if (data.activityId === props.activityId) {
       content.value = data.content
