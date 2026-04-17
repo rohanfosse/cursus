@@ -434,6 +434,68 @@ router.patch('/sessions/:id/self-paced', requireRole('teacher'), requireSessionO
   } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
 })
 
+// ─── Launch all pending activities (self-paced batch) ─────────────────────
+
+router.post('/sessions/:id/launch-all', requireRole('teacher'), requireSessionOwnerV2, (req, res) => {
+  try {
+    const sessionId = Number(req.params.id)
+    const db = getDb()
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19)
+    const result = db.prepare(
+      "UPDATE live_activities_v2 SET status = 'live', started_at = ? WHERE session_id = ? AND status = 'pending'"
+    ).run(now, sessionId)
+    const session = queries.getLiveSession(sessionId)
+    if (session) {
+      const io = req.app.get('io')
+      // Notify students that all activities are now available
+      for (const act of (session.activities || []).filter(a => a.status === 'live')) {
+        io.to(`live:${session.promo_id}`).emit('live:activity-pushed', {
+          activity: { ...act, started_at: act.started_at },
+        })
+      }
+    }
+    res.json({ ok: true, data: { launched: result.changes } })
+  } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
+})
+
+// ─── Progress per activity (self-paced dashboard) ─────────────────────────
+
+router.get('/sessions/:id/progress', requirePromo(promoFromSessionV2), wrap((req) => {
+  const sessionId = Number(req.params.id)
+  const db = getDb()
+  const activities = db.prepare(
+    'SELECT id, title, type, category, position FROM live_activities_v2 WHERE session_id = ? ORDER BY position ASC'
+  ).all(sessionId)
+  const counts = db.prepare(`
+    SELECT la.id as activity_id, COUNT(lr.id) as response_count
+    FROM live_activities_v2 la
+    LEFT JOIN live_responses_v2 lr ON lr.activity_id = la.id AND lr.mode = 'live'
+    WHERE la.session_id = ?
+    GROUP BY la.id
+  `).all(sessionId)
+  const countMap = new Map(counts.map(c => [c.activity_id, c.response_count]))
+  return activities.map(a => ({
+    id: a.id, title: a.title, type: a.type, category: a.category,
+    responseCount: countMap.get(a.id) || 0,
+  }))
+}))
+
+// ─── Student responded activities (for self-paced completion tracking) ────
+
+router.get('/sessions/:id/my-responses', requirePromo(promoFromSessionV2), wrap((req) => {
+  const sessionId = Number(req.params.id)
+  const studentId = req.user?.id
+  if (!studentId) throw new Error('studentId requis')
+  const db = getDb()
+  const rows = db.prepare(`
+    SELECT la.id as activity_id
+    FROM live_responses_v2 lr
+    JOIN live_activities_v2 la ON la.id = lr.activity_id
+    WHERE la.session_id = ? AND lr.student_id = ? AND lr.mode = 'live'
+  `).all(sessionId, studentId)
+  return rows.map(r => r.activity_id)
+}))
+
 // ─── Message Wall moderation ──────────────────────────────────────────────
 
 router.patch('/cards/:id/hide', requireRole('teacher'), requirePromo(promoFromCardV2), (req, res) => {

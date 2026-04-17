@@ -123,6 +123,54 @@
   const previewMode = ref(false)
   function togglePreview() { previewMode.value = !previewMode.value }
 
+  /** Self-paced : nombre d'activites pending */
+  const pendingCount = computed(() =>
+    liveStore.sessionActivities.filter(a => a.status === 'pending').length,
+  )
+
+  /** Self-paced : progression par activite (response counts) */
+  const activityProgress = ref<{ id: number; title: string; type: string; responseCount: number }[]>([])
+  let progressInterval: ReturnType<typeof setInterval> | null = null
+
+  async function fetchProgress() {
+    if (!liveStore.currentSession?.self_paced || !liveStore.currentSession?.id) return
+    try {
+      const res = await window.api.getLiveV2Progress(liveStore.currentSession.id)
+      if (res?.ok && Array.isArray(res.data)) {
+        activityProgress.value = res.data
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Poll progress every 3s when self-paced and active
+  watch(() => liveStore.currentSession?.self_paced && liveStore.currentSession?.status === 'active', (active) => {
+    if (progressInterval) { clearInterval(progressInterval); progressInterval = null }
+    if (active) {
+      fetchProgress()
+      progressInterval = setInterval(fetchProgress, 3000)
+    } else {
+      activityProgress.value = []
+    }
+  }, { immediate: true })
+
+  onUnmounted(() => { if (progressInterval) clearInterval(progressInterval) })
+
+  /** Lancer toutes les activites pending d'un coup */
+  async function launchAllActivities() {
+    if (!liveStore.currentSession) return
+    try {
+      const res = await window.api.launchAllLiveV2(liveStore.currentSession.id)
+      if (res?.ok) {
+        // Refresh session to update activity statuses
+        await liveStore.fetchSession(liveStore.currentSession.id)
+        showToast(`${res.data?.launched ?? 0} activite(s) lancee(s)`, 'success')
+        fetchProgress()
+      }
+    } catch {
+      showToast('Erreur lors du lancement', 'error')
+    }
+  }
+
   /** Toggle self-paced mode */
   async function toggleSelfPaced() {
     if (!liveStore.currentSession) return
@@ -1062,6 +1110,38 @@
             <span class="spm-toggle-desc">Les etudiants naviguent a leur propre rythme entre les activites</span>
           </div>
         </label>
+
+        <!-- Bouton "Lancer tout" quand self-paced et session active -->
+        <div v-if="liveStore.currentSession?.self_paced && liveStore.currentSession?.status === 'active'" class="sp-teacher-controls">
+          <button
+            v-if="pendingCount > 0"
+            class="btn-launch-all"
+            @click="launchAllActivities"
+          >
+            <Play :size="16" />
+            Lancer les {{ pendingCount }} activite{{ pendingCount > 1 ? 's' : '' }}
+          </button>
+          <span v-else class="sp-all-launched">Toutes les activites sont lancees</span>
+
+          <!-- Dashboard progression par activite -->
+          <div v-if="activityProgress.length > 0" class="sp-progress-dashboard">
+            <div
+              v-for="ap in activityProgress" :key="ap.id"
+              class="sp-progress-row"
+            >
+              <span class="sp-progress-title">{{ ap.title }}</span>
+              <div class="sp-progress-bar-wrap">
+                <div class="sp-progress-bar">
+                  <div
+                    class="sp-progress-bar-fill"
+                    :style="{ width: (liveStore.participantCount > 0 ? Math.min(100, ap.responseCount / liveStore.participantCount * 100) : 0) + '%' }"
+                  />
+                </div>
+                <span class="sp-progress-count">{{ ap.responseCount }}<template v-if="liveStore.participantCount">/{{ liveStore.participantCount }}</template></span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Activity list -->
@@ -1907,6 +1987,79 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sp-teacher-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.btn-launch-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3b82f6, #10b981);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-launch-all:hover { filter: brightness(1.08); }
+.sp-all-launched {
+  font-size: 12px;
+  color: #10b981;
+  font-weight: 600;
+}
+.sp-progress-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sp-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sp-progress-title {
+  flex: 0 0 140px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-progress-bar-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sp-progress-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+.sp-progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #3b82f6, #10b981);
+  transition: width .3s ease;
+}
+.sp-progress-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: right;
 }
 @keyframes pulse-warn {
   from { opacity: .7 }

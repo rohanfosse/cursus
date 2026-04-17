@@ -696,9 +696,22 @@ function exportLiveSessionCsv(sessionId) {
 
   const respMap = new Map();
   for (const r of responses) respMap.set(`${r.activity_id}-${r.student_id}`, r.answer);
+  // Collect all student IDs with responses
+  const allStudentIds = new Set();
+  for (const s of scores) allStudentIds.add(s.student_id);
+  for (const r of responses) allStudentIds.add(r.student_id);
+  // Resolve names from students table (covers Pulse-only sessions where live_scores is empty)
   const studentMap = new Map();
+  if (allStudentIds.size > 0) {
+    const studentRows = db.prepare(
+      `SELECT id, name FROM students WHERE id IN (${[...allStudentIds].map(() => '?').join(',')})`
+    ).all(...allStudentIds);
+    for (const s of studentRows) studentMap.set(s.id, s.name);
+  }
+  // Fallback from scores table (may have more accurate names)
   for (const s of scores) if (!studentMap.has(s.student_id)) studentMap.set(s.student_id, s.student_name);
-  for (const r of responses) if (!studentMap.has(r.student_id)) studentMap.set(r.student_id, `Etudiant ${r.student_id}`);
+  // Last resort fallback
+  for (const id of allStudentIds) if (!studentMap.has(id)) studentMap.set(id, `Etudiant ${id}`);
   const scoreMap = new Map();
   for (const s of scores) scoreMap.set(`${s.activity_id}-${s.student_id}`, s);
 

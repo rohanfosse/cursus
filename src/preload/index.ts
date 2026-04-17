@@ -575,6 +575,9 @@ contextBridge.exposeInMainWorld('api', {
   hideLiveV2BoardCard:  (cardId: number, hidden: boolean) => patch(`/api/live-v2/cards/${cardId}/hide`, { hidden }),
   // Self-paced
   toggleLiveV2SelfPaced: (sessionId: number, selfPaced: boolean) => patch(`/api/live-v2/sessions/${sessionId}/self-paced`, { selfPaced }),
+  launchAllLiveV2:       (sessionId: number) => post(`/api/live-v2/sessions/${sessionId}/launch-all`, {}),
+  getLiveV2Progress:     (sessionId: number) => get(`/api/live-v2/sessions/${sessionId}/progress`),
+  getLiveV2MyResponses:  (sessionId: number) => get(`/api/live-v2/sessions/${sessionId}/my-responses`),
   // Confusion signal
   sendConfusionSignal:   (sessionId: number, active: boolean) => post(`/api/live-v2/sessions/${sessionId}/confused`, { active }),
   getConfusionCount:     (sessionId: number) => get(`/api/live-v2/sessions/${sessionId}/confused`),

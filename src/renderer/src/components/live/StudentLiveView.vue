@@ -162,11 +162,19 @@
   const selfPacedActivity = computed(() =>
     selfPacedActivities.value[selfPacedIndex.value] ?? null,
   )
+  /** IDs des activites deja repondues par cet etudiant */
+  const respondedActivityIds = ref<Set<number>>(new Set())
+
+  const selfPacedCompleted = computed(() =>
+    selfPacedActivities.value.filter(a => respondedActivityIds.value.has(a.id)).length,
+  )
 
   // In self-paced mode, override the currentActivity with the student-selected one
   watch([isSelfPaced, selfPacedActivity], ([sp, act]) => {
     if (sp && act) {
       liveStore.currentActivity = act
+      // Reset response state when navigating
+      liveStore.hasResponded = respondedActivityIds.value.has(act.id)
     }
   }, { immediate: true })
 
@@ -175,6 +183,20 @@
   }
   function selfPacedNext() {
     if (selfPacedIndex.value < selfPacedActivities.value.length - 1) selfPacedIndex.value++
+  }
+  function selfPacedGoTo(index: number) {
+    selfPacedIndex.value = index
+  }
+
+  /** Fetch which activities the student has already responded to */
+  async function fetchMyResponses() {
+    if (!session.value) return
+    try {
+      const res = await window.api.getLiveV2MyResponses(session.value.id)
+      if (res?.ok && Array.isArray(res.data)) {
+        respondedActivityIds.value = new Set(res.data)
+      }
+    } catch { /* ignore */ }
   }
 
   // Listen for self-paced updates
@@ -187,6 +209,9 @@
     })
   })
   onUnmounted(() => { selfPacedUnsub?.() })
+
+  // Fetch responded activities when session loads in self-paced mode
+  watch(isSelfPaced, (sp) => { if (sp) fetchMyResponses() }, { immediate: true })
 
   // Shuffled QCM options (index mapping: display index → original index)
   const qcmShuffleMap = ref<number[]>([])
@@ -254,6 +279,13 @@
     scoreResult.value = result
     if (result.points > 0) cumulativePoints.value += result.points
   }
+
+  // Track responded activities in self-paced mode
+  watch(() => liveStore.hasResponded, (responded) => {
+    if (responded && isSelfPaced.value && activity.value) {
+      respondedActivityIds.value = new Set([...respondedActivityIds.value, activity.value.id])
+    }
+  })
 
   async function submitQcm() {
     if (!activity.value || selectedAnswers.value.length === 0) return
@@ -439,20 +471,30 @@
         </template>
       </div>
 
-      <!-- Self-paced navigation bar -->
-      <div v-else-if="isSelfPaced" class="sp-nav">
-        <div class="sp-nav-header">
+      <!-- Self-paced : barre de progression + navigation activites -->
+      <div v-if="isSelfPaced && !liveStore.hasResponded" class="sp-bar">
+        <div class="sp-bar-top">
           <span class="sp-badge">Auto-rythme</span>
-          <span class="sp-position">{{ selfPacedIndex + 1 }} / {{ selfPacedActivities.length }}</span>
+          <span class="sp-progress-label">{{ selfPacedCompleted }} / {{ selfPacedActivities.length }} complete{{ selfPacedCompleted > 1 ? 'es' : 'e' }}</span>
         </div>
-        <div class="sp-nav-btns">
-          <button class="sp-nav-btn" :disabled="selfPacedIndex === 0" @click="selfPacedPrev">Precedente</button>
-          <button class="sp-nav-btn sp-nav-btn--primary" :disabled="selfPacedIndex >= selfPacedActivities.length - 1" @click="selfPacedNext">Suivante</button>
+        <div class="sp-progress-track">
+          <div class="sp-progress-fill" :style="{ width: (selfPacedActivities.length > 0 ? selfPacedCompleted / selfPacedActivities.length * 100 : 0) + '%' }" />
+        </div>
+        <div class="sp-pills">
+          <button
+            v-for="(act, i) in selfPacedActivities" :key="act.id"
+            :class="['sp-pill', { active: i === selfPacedIndex, done: respondedActivityIds.has(act.id) }]"
+            @click="selfPacedGoTo(i)"
+            :title="act.title"
+          >
+            <span class="sp-pill-num">{{ i + 1 }}</span>
+            <span v-if="respondedActivityIds.has(act.id)" class="sp-pill-check">ok</span>
+          </button>
         </div>
       </div>
 
-      <!-- Waiting for activity (mode live uniquement) -->
-      <div v-else-if="!activity || activity.status === 'pending'" class="waiting-state">
+      <!-- Waiting for activity (mode live uniquement, PAS en self-paced) -->
+      <div v-else-if="!isSelfPaced && (!activity || activity.status === 'pending')" class="waiting-state">
         <div class="waiting-dots">
           <span class="dot" />
           <span class="dot" />
@@ -461,8 +503,8 @@
         <span class="waiting-text">En attente de la prochaine question...</span>
       </div>
 
-      <!-- Activity live + not responded yet -->
-      <div v-else-if="activity.status === 'live' && !liveStore.hasResponded" class="response-area">
+      <!-- Activity live (ou self-paced) + not responded yet -->
+      <div v-else-if="(activity.status === 'live' || isSelfPaced) && !liveStore.hasResponded" class="response-area">
         <!-- Countdown timer (Spark uniquement) -->
         <div v-if="isSparkActivity && liveStore.timerStartedAt" class="timer-bar">
           <CountdownTimer
@@ -594,7 +636,7 @@
       </div>
 
       <!-- Responded - waiting for results -->
-      <div v-else-if="liveStore.hasResponded && activity.status === 'live'" class="responded-state">
+      <div v-else-if="liveStore.hasResponded && (activity.status === 'live' || isSelfPaced)" class="responded-state">
         <!-- Spark : score feedback (correct/incorrect) -->
         <div v-if="isSparkActivity && scoreResult && scoreResult.isCorrect !== null" class="score-feedback">
           <div v-if="scoreResult.isCorrect" class="feedback-correct">
@@ -617,6 +659,19 @@
           <CheckCircle2 :size="48" class="responded-icon" />
           <span class="responded-text">{{ isSparkActivity ? 'Reponse envoyee' : 'Merci pour votre retour' }}</span>
           <span class="responded-sub">{{ isSparkActivity ? 'Les resultats apparaitront bientot' : 'Votre reponse est anonyme' }}</span>
+        </div>
+        <!-- Self-paced : bouton suivante apres reponse -->
+        <button
+          v-if="isSelfPaced && selfPacedIndex < selfPacedActivities.length - 1"
+          class="sp-next-btn"
+          @click="selfPacedNext"
+        >
+          <ChevronRight :size="16" />
+          Question suivante
+        </button>
+        <div v-else-if="isSelfPaced && selfPacedCompleted === selfPacedActivities.length" class="sp-done">
+          <CheckCircle2 :size="32" class="responded-icon" />
+          <span class="sp-done-text">Toutes les questions sont completees !</span>
         </div>
       </div>
 
@@ -1239,16 +1294,20 @@
 }
 
 /* ── Self-paced navigation ── */
-.sp-nav {
+.sp-bar {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 8px;
 }
-.sp-nav-header {
+.sp-bar-top {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
 }
 .sp-badge {
@@ -1261,35 +1320,76 @@
   background: #dbeafe;
   color: #1d4ed8;
 }
-.sp-position {
-  font-size: 13px;
-  font-weight: 600;
+.sp-progress-label {
+  font-size: 12px;
   color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
-.sp-nav-btns {
+.sp-progress-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+.sp-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #3b82f6, #10b981);
+  transition: width .4s ease;
+}
+.sp-pills {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
-.sp-nav-btn {
-  padding: 8px 18px;
+.sp-pill {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 10px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font-size: 13px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all .15s;
 }
-.sp-nav-btn:disabled { opacity: .4; cursor: not-allowed; }
-.sp-nav-btn:not(:disabled):hover { border-color: var(--accent); }
-.sp-nav-btn--primary {
+.sp-pill:hover { border-color: var(--accent); }
+.sp-pill.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+.sp-pill.done { border-color: #10b981; color: #10b981; }
+.sp-pill.done.active { background: color-mix(in srgb, #10b981 12%, transparent); }
+.sp-pill-num { min-width: 14px; text-align: center; }
+.sp-pill-check { font-size: 10px; font-weight: 700; }
+.sp-next-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 10px 22px;
+  border-radius: 10px;
+  border: none;
   background: var(--accent);
   color: white;
-  border-color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .15s;
 }
-.sp-nav-btn--primary:not(:disabled):hover { filter: brightness(1.08); }
+.sp-next-btn:hover { filter: brightness(1.08); }
+.sp-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.sp-done-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #10b981;
+}
 
 /* ── Texte a trous ── */
 .tat-response { display: flex; flex-direction: column; gap: 14px; }
