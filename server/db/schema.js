@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 65;
+const CURRENT_VERSION = 66;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -616,9 +616,11 @@ function runMigrations(db) {
           points INTEGER NOT NULL DEFAULT 0,
           answer_time_ms INTEGER NOT NULL DEFAULT 0,
           is_correct INTEGER NOT NULL DEFAULT 0,
-          UNIQUE(activity_id, student_id)
+          mode TEXT NOT NULL DEFAULT 'live' CHECK(mode IN ('live','replay')),
+          UNIQUE(activity_id, student_id, mode)
         );
         CREATE INDEX IF NOT EXISTS idx_live_scores_session ON live_scores(session_id);
+        CREATE INDEX IF NOT EXISTS idx_live_scores_mode ON live_scores(mode);
       `);
     },
 
@@ -1315,10 +1317,12 @@ function runMigrations(db) {
           student_id INTEGER NOT NULL,
           answer TEXT NOT NULL,
           pinned INTEGER DEFAULT 0,
+          mode TEXT NOT NULL DEFAULT 'live' CHECK(mode IN ('live','replay')),
           created_at TEXT DEFAULT (datetime('now')),
-          UNIQUE(activity_id, student_id)
+          UNIQUE(activity_id, student_id, mode)
         );
         CREATE INDEX IF NOT EXISTS idx_live_resp_v2_activity ON live_responses_v2(activity_id);
+        CREATE INDEX IF NOT EXISTS idx_live_resp_v2_mode ON live_responses_v2(mode);
 
         CREATE TABLE IF NOT EXISTS live_board_cards (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1441,6 +1445,51 @@ function runMigrations(db) {
           UNIQUE(event_type_id, override_date, start_time)
         );
         CREATE INDEX IF NOT EXISTS idx_booking_overrides_type ON booking_availability_overrides(event_type_id, override_date);
+      `);
+    },
+
+    // v66 : Spark replay — mode async apres fin de session
+    // Ajoute colonne `mode` (live|replay) aux responses+scores, change la contrainte UNIQUE pour autoriser
+    // un etudiant a refaire le quiz en mode entrainement sans ecraser son score live.
+    (db) => {
+      // Recreation de live_responses_v2 avec la contrainte UNIQUE etendue
+      // (SQLite ne permet pas DROP/ADD CONSTRAINT : on recreee la table).
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS live_responses_v2_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          activity_id INTEGER NOT NULL REFERENCES live_activities_v2(id) ON DELETE CASCADE,
+          student_id INTEGER NOT NULL,
+          answer TEXT NOT NULL,
+          pinned INTEGER DEFAULT 0,
+          mode TEXT NOT NULL DEFAULT 'live' CHECK(mode IN ('live','replay')),
+          created_at TEXT DEFAULT (datetime('now')),
+          UNIQUE(activity_id, student_id, mode)
+        );
+        INSERT INTO live_responses_v2_new (id, activity_id, student_id, answer, pinned, mode, created_at)
+          SELECT id, activity_id, student_id, answer, pinned, 'live', created_at FROM live_responses_v2;
+        DROP TABLE live_responses_v2;
+        ALTER TABLE live_responses_v2_new RENAME TO live_responses_v2;
+        CREATE INDEX IF NOT EXISTS idx_live_resp_v2_activity ON live_responses_v2(activity_id);
+        CREATE INDEX IF NOT EXISTS idx_live_resp_v2_mode ON live_responses_v2(mode);
+
+        CREATE TABLE IF NOT EXISTS live_scores_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_id INTEGER NOT NULL REFERENCES live_sessions(id) ON DELETE CASCADE,
+          student_id INTEGER NOT NULL,
+          student_name TEXT NOT NULL,
+          activity_id INTEGER NOT NULL REFERENCES live_activities(id) ON DELETE CASCADE,
+          points INTEGER NOT NULL DEFAULT 0,
+          answer_time_ms INTEGER NOT NULL DEFAULT 0,
+          is_correct INTEGER NOT NULL DEFAULT 0,
+          mode TEXT NOT NULL DEFAULT 'live' CHECK(mode IN ('live','replay')),
+          UNIQUE(activity_id, student_id, mode)
+        );
+        INSERT INTO live_scores_new (id, session_id, student_id, student_name, activity_id, points, answer_time_ms, is_correct, mode)
+          SELECT id, session_id, student_id, student_name, activity_id, points, answer_time_ms, is_correct, 'live' FROM live_scores;
+        DROP TABLE live_scores;
+        ALTER TABLE live_scores_new RENAME TO live_scores;
+        CREATE INDEX IF NOT EXISTS idx_live_scores_session ON live_scores(session_id);
+        CREATE INDEX IF NOT EXISTS idx_live_scores_mode ON live_scores(mode);
       `);
     },
   ];

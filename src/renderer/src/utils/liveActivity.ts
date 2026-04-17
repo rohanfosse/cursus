@@ -62,6 +62,33 @@ export function parsePairs(
   return parseJsonArray<{ left: string; right: string }>(correctAnswers, fallback)
 }
 
+/** Construit le payload de reponse selon le type d'activite et l'etat UI.
+ *  Renvoie null si les champs requis sont absents. Partage entre mode live et replay. */
+export function buildResponsePayload(
+  activityType: string,
+  state: {
+    selectedAnswers?: number[]
+    textInput?: string
+    associationMapping?: number[]
+  },
+): { answers?: number[]; text?: string; answer?: string } | null {
+  const { selectedAnswers = [], textInput = '', associationMapping = [] } = state
+  if (activityType === 'qcm' || activityType === 'vrai_faux') {
+    if (selectedAnswers.length === 0) return null
+    return { answers: selectedAnswers }
+  }
+  if (activityType === 'reponse_courte' || activityType === 'estimation') {
+    const t = textInput.trim()
+    if (!t) return null
+    return { text: t }
+  }
+  if (activityType === 'association') {
+    if (associationMapping.some(v => v === -1) || associationMapping.length === 0) return null
+    return { answer: associationMapping.join(',') }
+  }
+  return null
+}
+
 export const ACTIVITY_TYPE_LABELS: Record<string, string> = {
   // Spark
   qcm: 'QCM',

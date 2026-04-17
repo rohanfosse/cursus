@@ -43,6 +43,7 @@ const respondSchema = z.object({
   answers: z.array(z.any()).optional(),
   text:    z.string().optional(),
   words:   z.array(z.string()).optional(),
+  mode:    z.enum(['live', 'replay']).optional(),
 })
 const reorderSchema = z.object({ order: z.array(z.number().int()) })
 const boardCardSchema = z.object({
@@ -198,7 +199,8 @@ router.get('/sessions/:id/export-csv', requireRole('teacher'), requireSessionOwn
 })
 
 router.get('/sessions/:id/leaderboard', requirePromo(promoFromSessionV2), wrap((req) => {
-  return queries.getLiveLeaderboard(Number(req.params.id))
+  const mode = req.query?.mode === 'replay' ? 'replay' : 'live'
+  return queries.getLiveLeaderboard(Number(req.params.id), mode)
 }))
 
 // ─── Activities ────────────────────────────────────────────────────────────
@@ -272,40 +274,52 @@ router.post('/activities/:id/respond', requirePromo(promoFromActivityV2), valida
     if (answer === undefined && req.body.words) answer = req.body.words.join(',')
     if (!studentId || answer === undefined) throw new Error('studentId et answer requis')
     const activityId = Number(req.params.id)
-    const response = queries.submitLiveResponse({ activityId, studentId, answer: String(answer) })
-    const io = req.app.get('io')
     const db = getDb()
     const activityRow = db.prepare('SELECT * FROM live_activities_v2 WHERE id = ?').get(activityId)
-    let scoreResult = { isCorrect: null, points: 0, rank: null, streak: 0 }
-    if (activityRow) {
-      const session = queries.getLiveSession(activityRow.session_id)
-      // Scoring only for spark category
-      if (activityRow.category === 'spark') {
-        const isCorrect = queries.checkLiveCorrectness(activityId, answer)
-        if (isCorrect !== null) {
-          let answerTimeMs = 0
-          if (activityRow.started_at) {
-            answerTimeMs = Math.max(0, Date.now() - new Date(activityRow.started_at + 'Z').getTime())
-          }
-          const name = studentName || `Etudiant ${studentId}`
-          const { points, streak } = queries.calculateLiveScore(activityId, studentId, name, answerTimeMs, isCorrect)
-          const rank = queries.getLiveStudentRank(activityRow.session_id, studentId)
-          scoreResult = { isCorrect, points, rank, streak }
-        }
+    if (!activityRow) throw new Error('Activity not found')
+
+    // Determine mode : client envoie ?mode=replay OU le body {mode:'replay'}. Accepte uniquement si session ended.
+    const requestedMode = (req.query?.mode === 'replay' || req.body?.mode === 'replay') ? 'replay' : 'live'
+    const session = queries.getLiveSession(activityRow.session_id)
+    let mode = 'live'
+    if (requestedMode === 'replay') {
+      if (!session || session.status !== 'ended') {
+        throw new Error('Mode replay reserve aux sessions terminees')
       }
-      if (session) {
-        throttledResultsEmit(io, activityId, session.promo_id)
-        if (scoreResult.isCorrect !== null) {
-          throttledScoresEmit(io, session.id, activityId, session.promo_id)
+      mode = 'replay'
+    }
+    // Mode live : pas de guard supplementaire (comportement inchange pour compat)
+
+    const response = queries.submitLiveResponse({ activityId, studentId, answer: String(answer), mode })
+    const io = req.app.get('io')
+    let scoreResult = { isCorrect: null, points: 0, rank: null, streak: 0 }
+    if (activityRow.category === 'spark') {
+      const isCorrect = queries.checkLiveCorrectness(activityId, answer)
+      if (isCorrect !== null) {
+        let answerTimeMs = 0
+        if (activityRow.started_at) {
+          answerTimeMs = Math.max(0, Date.now() - new Date(activityRow.started_at + 'Z').getTime())
         }
+        const name = studentName || `Etudiant ${studentId}`
+        const { points, streak } = queries.calculateLiveScore(activityId, studentId, name, answerTimeMs, isCorrect, mode)
+        const rank = queries.getLiveStudentRank(activityRow.session_id, studentId, mode)
+        scoreResult = { isCorrect, points, rank, streak }
       }
     }
-    res.json({ ok: true, data: { ...response, ...scoreResult } })
+    // Broadcast socket uniquement en mode live
+    if (mode === 'live' && session) {
+      throttledResultsEmit(io, activityId, session.promo_id)
+      if (scoreResult.isCorrect !== null) {
+        throttledScoresEmit(io, session.id, activityId, session.promo_id)
+      }
+    }
+    res.json({ ok: true, data: { ...response, ...scoreResult, mode } })
   } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
 })
 
 router.get('/activities/:id/results', requirePromo(promoFromActivityV2), wrap((req) => {
-  return queries.getLiveActivityResultsAggregated(Number(req.params.id))
+  const mode = req.query?.mode === 'replay' ? 'replay' : 'live'
+  return queries.getLiveActivityResultsAggregated(Number(req.params.id), mode)
 }))
 
 // ─── Pin (pulse) ───────────────────────────────────────────────────────────

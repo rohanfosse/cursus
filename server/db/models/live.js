@@ -296,12 +296,14 @@ function calculateScore(activityId, studentId, studentName, answerTimeMs, isCorr
   const clampedTime = Math.max(0, Math.min(answerTimeMs, timerMs));
   let points = isCorrect ? Math.round(1000 * (1 - (clampedTime / timerMs) * 0.5)) : 0;
 
-  // Streak bonus: +10% per consecutive correct (max +50%)
+  // Streak bonus: +10% per consecutive correct (max +50%).
+  // Legacy Spark v1 scope uniquement les rows mode='live' (evite contamination par
+  // les attempts replay ajoutes en v66).
   let streak = 0;
   if (isCorrect) {
     const prevScores = db.prepare(`
       SELECT is_correct FROM live_scores
-      WHERE session_id = ? AND student_id = ? AND activity_id != ?
+      WHERE session_id = ? AND student_id = ? AND activity_id != ? AND mode = 'live'
       ORDER BY rowid DESC
     `).all(activity.session_id, studentId, activityId);
     streak = countStreak(prevScores);
@@ -309,10 +311,12 @@ function calculateScore(activityId, studentId, studentName, answerTimeMs, isCorr
     streak += 1; // include current correct answer
   }
 
+  // Legacy Spark v1 : mode='live' toujours (pas de replay sur l'ancien modele).
+  // La contrainte UNIQUE a ete etendue a (activity_id, student_id, mode) en v66.
   db.prepare(`
-    INSERT INTO live_scores (session_id, student_id, student_name, activity_id, points, answer_time_ms, is_correct)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(activity_id, student_id) DO UPDATE SET
+    INSERT INTO live_scores (session_id, student_id, student_name, activity_id, points, answer_time_ms, is_correct, mode)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'live')
+    ON CONFLICT(activity_id, student_id, mode) DO UPDATE SET
       points = excluded.points, answer_time_ms = excluded.answer_time_ms,
       is_correct = excluded.is_correct, student_name = excluded.student_name
   `).run(activity.session_id, studentId, studentName, activityId, points, answerTimeMs, isCorrect ? 1 : 0);
@@ -373,11 +377,12 @@ function checkCorrectness(activityId, answer) {
 }
 
 function getLeaderboard(sessionId) {
+  // Legacy Spark v1 : ignore les rows replay ajoutees en v66.
   const db = getDb();
   const rows = db.prepare(`
     SELECT student_id, student_name, SUM(points) as total_points
     FROM live_scores
-    WHERE session_id = ?
+    WHERE session_id = ? AND mode = 'live'
     GROUP BY student_id
     ORDER BY total_points DESC
   `).all(sessionId);
@@ -397,9 +402,9 @@ function getLeaderboardWithRound(sessionId, activityId) {
       s.student_id,
       s.student_name,
       SUM(s.points) as total_points,
-      COALESCE((SELECT points FROM live_scores WHERE activity_id = ? AND student_id = s.student_id), 0) as points_this_round
+      COALESCE((SELECT points FROM live_scores WHERE activity_id = ? AND student_id = s.student_id AND mode = 'live'), 0) as points_this_round
     FROM live_scores s
-    WHERE s.session_id = ?
+    WHERE s.session_id = ? AND s.mode = 'live'
     GROUP BY s.student_id
     ORDER BY total_points DESC
   `).all(activityId, sessionId);
@@ -415,7 +420,7 @@ function getLeaderboardWithRound(sessionId, activityId) {
 
 function getActivityScores(activityId) {
   return getDb().prepare(
-    'SELECT * FROM live_scores WHERE activity_id = ? ORDER BY points DESC'
+    "SELECT * FROM live_scores WHERE activity_id = ? AND mode = 'live' ORDER BY points DESC"
   ).all(activityId);
 }
 
@@ -491,7 +496,7 @@ function getLiveStatsForPromo(promoId) {
       COUNT(*) as total
     FROM live_scores ls2
     JOIN live_sessions sess ON sess.id = ls2.session_id
-    WHERE sess.promo_id = ? AND sess.status = 'ended'
+    WHERE sess.promo_id = ? AND sess.status = 'ended' AND ls2.mode = 'live'
   `).get(promoId);
 
   const avgResponseTimeMs = Math.round(scoreAgg?.avg_ms ?? 0);
@@ -520,7 +525,7 @@ function exportSessionCsv(sessionId) {
   const scores = db.prepare(`
     SELECT ls.student_id, ls.student_name, ls.activity_id, ls.points, ls.is_correct, ls.answer_time_ms
     FROM live_scores ls
-    WHERE ls.session_id = ?
+    WHERE ls.session_id = ? AND ls.mode = 'live'
     ORDER BY ls.student_name ASC, ls.activity_id ASC
   `).all(sessionId);
 

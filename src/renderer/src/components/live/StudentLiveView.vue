@@ -1,10 +1,10 @@
 <!-- StudentLiveView.vue - Vue étudiant pour le Live Quiz interactif -->
 <script setup lang="ts">
   import { ref, computed, onMounted, onUnmounted, watch, type ComputedRef } from 'vue'
-  import { Zap, CheckCircle2, Send, LogOut, XCircle, Trophy } from 'lucide-vue-next'
+  import { Zap, CheckCircle2, Send, LogOut, XCircle, Trophy, RotateCw, ChevronRight } from 'lucide-vue-next'
   import { useAppStore }  from '@/stores/app'
   import { useLiveStore } from '@/stores/live'
-  import { shuffleArray, KAHOOT_COLORS, KAHOOT_SHAPES, isSparkType } from '@/utils/liveActivity'
+  import { shuffleArray, KAHOOT_COLORS, KAHOOT_SHAPES, isSparkType, buildResponsePayload } from '@/utils/liveActivity'
   import type { LiveScoreResult } from '@/types'
   import CountdownTimer from './CountdownTimer.vue'
   import QcmResults           from './QcmResults.vue'
@@ -50,6 +50,46 @@
   const joinCode  = ref('')
   const joining   = ref(false)
   const textInput = ref('')
+
+  /** Mode entrainement asynchrone : apres la fin de la session, l'etudiant peut
+   *  refaire le quiz en solo. Les reponses vont dans live_responses_v2.mode='replay'
+   *  et n'impactent pas le leaderboard live. */
+  const replayMode = ref(false)
+  const replayIndex = ref(0)
+  const replayFeedback = ref<LiveScoreResult | null>(null)
+  const replayScore = ref(0)
+  const replaySparkActivities = computed(() =>
+    (liveStore.currentSession?.activities ?? []).filter(a => isSparkType(a.type)),
+  )
+  const replayCurrentActivity = computed(() =>
+    replaySparkActivities.value[replayIndex.value] ?? null,
+  )
+  const replayFinished = computed(() =>
+    replayMode.value && replayIndex.value >= replaySparkActivities.value.length,
+  )
+
+  function startReplay() {
+    replayMode.value = true
+    replayIndex.value = 0
+    replayFeedback.value = null
+    replayScore.value = 0
+    selectedAnswers.value = []
+    textInput.value = ''
+  }
+
+  function nextReplayQuestion() {
+    replayFeedback.value = null
+    replayIndex.value += 1
+    selectedAnswers.value = []
+    textInput.value = ''
+    associationMapping.value = []
+  }
+
+  function exitReplay() {
+    replayMode.value = false
+    replayIndex.value = 0
+    replayFeedback.value = null
+  }
 
   // Selected QCM answers (indices)
   const selectedAnswers = ref<number[]>([])
@@ -172,6 +212,25 @@
 
   function leave() {
     liveStore.leaveSession()
+    replayMode.value = false
+    replayIndex.value = 0
+  }
+
+  /** Submit en mode replay : pas d'impact sur le leaderboard live, mais scoring conserve. */
+  async function submitReplay() {
+    const act = replayCurrentActivity.value
+    if (!act) return
+    const basePayload = buildResponsePayload(act.type, {
+      selectedAnswers: selectedAnswers.value,
+      textInput: textInput.value,
+      associationMapping: associationMapping.value,
+    })
+    if (!basePayload) return
+    const result = await liveStore.submitResponse(act.id, { ...basePayload, mode: 'replay' })
+    if (result) {
+      replayFeedback.value = result
+      if (result.points > 0) replayScore.value += result.points
+    }
   }
 </script>
 
@@ -206,15 +265,106 @@
     <!-- ══════════ En session ══════════ -->
     <div v-else class="live-in-session">
       <div class="session-bar">
-        <span class="session-bar-title">{{ session.title }}</span>
+        <span class="session-bar-title">
+          {{ session.title }}
+          <span v-if="replayMode" class="session-bar-mode">Entrainement</span>
+        </span>
         <button class="btn-leave" @click="leave">
           <LogOut :size="14" />
           Quitter
         </button>
       </div>
 
-      <!-- Waiting for activity -->
-      <div v-if="!activity || activity.status === 'pending'" class="waiting-state">
+      <!-- ═════ Session terminee : proposer Mode entrainement (replay asynchrone) ═════ -->
+      <div v-if="session.status === 'ended' && !replayMode && replaySparkActivities.length > 0" class="replay-offer">
+        <div class="replay-offer-icon"><Trophy :size="32" /></div>
+        <h2 class="replay-offer-title">Cette session est terminee</h2>
+        <p class="replay-offer-desc">
+          Tu peux la refaire en mode entrainement a ton rythme. Les bonnes reponses sont
+          notees pour t'entrainer, mais ton score n'apparait pas sur le classement live.
+        </p>
+        <button class="replay-offer-btn" @click="startReplay">
+          <RotateCw :size="18" />
+          Demarrer l'entrainement ({{ replaySparkActivities.length }} question{{ replaySparkActivities.length > 1 ? 's' : '' }})
+        </button>
+      </div>
+
+      <!-- ═════ Mode replay : recap final quand toutes les questions sont faites ═════ -->
+      <div v-else-if="replayMode && replayFinished" class="replay-end">
+        <div class="replay-end-icon"><Trophy :size="40" /></div>
+        <h2 class="replay-end-title">Entrainement termine</h2>
+        <p class="replay-end-score">{{ replayScore.toLocaleString() }} <span class="rep-pts">points</span></p>
+        <div class="replay-end-actions">
+          <button class="replay-offer-btn" @click="startReplay">
+            <RotateCw :size="16" /> Recommencer
+          </button>
+          <button class="btn-leave" @click="exitReplay">
+            Sortir
+          </button>
+        </div>
+      </div>
+
+      <!-- ═════ Mode replay : question courante ═════ -->
+      <div v-else-if="replayMode && replayCurrentActivity" class="response-area replay-area">
+        <div class="replay-progress">
+          <span>Question {{ replayIndex + 1 }} / {{ replaySparkActivities.length }}</span>
+          <span class="replay-score-pill">{{ replayScore.toLocaleString() }} pts</span>
+        </div>
+        <h2 class="question-title">{{ replayCurrentActivity.title }}</h2>
+
+        <!-- Feedback apres reponse -->
+        <div v-if="replayFeedback" class="replay-feedback" :class="{ correct: replayFeedback.isCorrect, wrong: replayFeedback.isCorrect === false }">
+          <component :is="replayFeedback.isCorrect ? CheckCircle2 : XCircle" :size="32" />
+          <div class="rf-text">
+            <span class="rf-head">{{ replayFeedback.isCorrect ? 'Bonne reponse !' : 'Mauvaise reponse' }}</span>
+            <span v-if="replayFeedback.points > 0" class="rf-pts">+{{ replayFeedback.points }} pts</span>
+          </div>
+          <button class="submit-btn replay-next-btn" @click="nextReplayQuestion">
+            <ChevronRight :size="18" />
+            {{ replayIndex + 1 >= replaySparkActivities.length ? 'Voir le resultat' : 'Suivante' }}
+          </button>
+        </div>
+
+        <!-- Sinon : UI de reponse -->
+        <template v-else>
+          <!-- QCM -->
+          <div v-if="replayCurrentActivity.type === 'qcm' && replayCurrentActivity.options" class="kahoot-grid">
+            <button
+              v-for="(opt, i) in parseOptions(replayCurrentActivity.options as string | string[])"
+              :key="i"
+              class="kahoot-btn"
+              :class="{ selected: selectedAnswers.includes(i) }"
+              :style="{ '--kahoot-color': KAHOOT_COLORS[i % KAHOOT_COLORS.length] }"
+              @click="selectedAnswers = selectedAnswers.includes(i) ? selectedAnswers.filter(x => x !== i) : [...selectedAnswers, i]"
+            >
+              <span class="kahoot-shape">{{ KAHOOT_SHAPES[i % KAHOOT_SHAPES.length] }}</span>
+              <span class="kahoot-text">{{ opt }}</span>
+            </button>
+          </div>
+          <!-- V/F -->
+          <div v-else-if="replayCurrentActivity.type === 'vrai_faux'" class="vf-grid">
+            <button class="vf-btn vf-vrai" :class="{ selected: selectedAnswers.includes(0) }" @click="selectedAnswers = [0]">Vrai</button>
+            <button class="vf-btn vf-faux" :class="{ selected: selectedAnswers.includes(1) }" @click="selectedAnswers = [1]">Faux</button>
+          </div>
+          <!-- Reponse courte / Estimation -->
+          <input
+            v-else-if="replayCurrentActivity.type === 'reponse_courte' || replayCurrentActivity.type === 'estimation'"
+            v-model="textInput"
+            class="text-input"
+            :type="replayCurrentActivity.type === 'estimation' ? 'number' : 'text'"
+            placeholder="Ta reponse..."
+            @keydown.enter="submitReplay"
+          />
+          <p v-else class="waiting-text">Type d'activite non jouable en entrainement.</p>
+
+          <button class="submit-btn kahoot-submit" @click="submitReplay">
+            <Send :size="16" /> Envoyer
+          </button>
+        </template>
+      </div>
+
+      <!-- Waiting for activity (mode live uniquement) -->
+      <div v-else-if="!activity || activity.status === 'pending'" class="waiting-state">
         <div class="waiting-dots">
           <span class="dot" />
           <span class="dot" />
@@ -825,5 +975,139 @@
 @keyframes score-pop {
   from { transform: scale(.8); opacity: 0; }
   to   { transform: scale(1); opacity: 1; }
+}
+
+/* ── Mode entrainement (replay asynchrone) ── */
+.session-bar-mode {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--live-spark-soft);
+  color: var(--live-spark);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  vertical-align: middle;
+}
+
+.replay-offer, .replay-end {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 36px 24px;
+  text-align: center;
+  max-width: 480px;
+  margin: 32px auto 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--live-spark-border);
+  border-radius: 16px;
+  animation: replay-in .32s var(--ease-out);
+}
+@keyframes replay-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.replay-offer-icon, .replay-end-icon {
+  width: 64px; height: 64px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--live-spark-soft);
+  color: var(--live-spark);
+}
+.replay-offer-title, .replay-end-title {
+  font-size: 22px; font-weight: 800;
+  color: var(--text-primary); margin: 0;
+}
+.replay-offer-desc {
+  font-size: 14px; color: var(--text-secondary);
+  max-width: 360px; line-height: 1.5; margin: 0;
+}
+.replay-offer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  font-family: inherit; font-size: 14px; font-weight: 700;
+  background: var(--live-spark);
+  color: #1a1300;
+  border: none; border-radius: 10px;
+  cursor: pointer;
+  transition: all .15s;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--live-spark) 30%, transparent);
+}
+.replay-offer-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.replay-end-score {
+  font-size: 42px; font-weight: 900;
+  color: var(--live-spark);
+  margin: 4px 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+.rep-pts {
+  font-size: 14px; font-weight: 600;
+  color: var(--text-muted);
+  font-family: inherit;
+}
+.replay-end-actions {
+  display: flex; gap: 10px; margin-top: 6px;
+}
+
+/* Replay question area */
+.replay-area {
+  max-width: 560px;
+  margin: 24px auto 0;
+}
+.replay-progress {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  padding: 0 4px 12px;
+}
+.replay-score-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--live-spark-soft);
+  color: var(--live-spark);
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+.replay-feedback {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  margin-top: 18px;
+  animation: replay-in .3s var(--ease-out);
+}
+.replay-feedback.correct {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-success) 35%, transparent);
+  color: var(--color-success);
+}
+.replay-feedback.wrong {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 35%, transparent);
+  color: var(--color-danger);
+}
+.rf-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.rf-head { font-size: 15px; font-weight: 800; }
+.rf-pts {
+  font-size: 13px; font-weight: 700;
+  color: var(--live-spark);
+  font-family: 'JetBrains Mono', monospace;
+}
+.replay-next-btn {
+  margin: 0;
+  padding: 10px 18px;
+  background: var(--accent);
+  color: #fff;
 }
 </style>

@@ -201,7 +201,10 @@ export const useLiveStore = defineStore('live', () => {
     return false
   }
 
-  async function submitResponse(activityId: number, payload: { answers?: number[]; text?: string; words?: string[]; answer?: string }): Promise<LiveScoreResult | null> {
+  async function submitResponse(
+    activityId: number,
+    payload: { answers?: number[]; text?: string; words?: string[]; answer?: string; mode?: 'live' | 'replay' },
+  ): Promise<LiveScoreResult | null> {
     const data = await api(
       () => window.api.submitLiveV2Response(activityId, payload),
     ) as { isCorrect: boolean | null; points: number; rank: number | null } | null

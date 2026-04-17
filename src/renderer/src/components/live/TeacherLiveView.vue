@@ -88,6 +88,14 @@
     return acts.filter(a => (a.category ?? getActivityCategory(a.type)) === activeCategoryFilter.value)
   })
 
+  /** True si la session est majoritairement Spark (>= 80%) → propose mode Kahoot. */
+  const isSparkSession = computed(() => {
+    const acts = liveStore.sessionActivities
+    if (!acts.length) return false
+    const sparkCount = acts.filter(a => isSparkType(a.type)).length
+    return sparkCount / acts.length >= 0.8
+  })
+
   /** Nombre d'activites par categorie (source unique pour sidebar + pills header) */
   const categoryCountsMap = computed<Record<ActivityCategory, number>>(() => {
     const map: Record<ActivityCategory, number> = { spark: 0, pulse: 0, code: 0, board: 0 }
@@ -289,6 +297,35 @@
   const showActivityForm = ref(false)
   const showLeaderboard  = ref(false)
   const showPodium       = ref(false)
+
+  /** Mode Spark auto-chain (Kahoot-like) : apres fermeture, leaderboard + lancement auto de la suivante. */
+  const sparkAutoChain = ref(false)
+  const autoChainDelaySeconds = ref(5)
+  const autoChainCountdown = ref<number | null>(null)
+  let autoChainTimer: ReturnType<typeof setInterval> | null = null
+  let autoPodiumTimeout: ReturnType<typeof setTimeout> | null = null
+
+  function clearAutoChainTimer() {
+    if (autoChainTimer) { clearInterval(autoChainTimer); autoChainTimer = null }
+    if (autoPodiumTimeout) { clearTimeout(autoPodiumTimeout); autoPodiumTimeout = null }
+    autoChainCountdown.value = null
+  }
+
+  function startAutoChainCountdown() {
+    clearAutoChainTimer()
+    if (!sparkAutoChain.value || !nextPendingActivity.value) return
+    autoChainCountdown.value = autoChainDelaySeconds.value
+    autoChainTimer = setInterval(() => {
+      if (autoChainCountdown.value === null) return
+      autoChainCountdown.value -= 1
+      if (autoChainCountdown.value <= 0) {
+        clearAutoChainTimer()
+        launchNext()
+      }
+    }, 1000)
+  }
+
+  function cancelAutoChain() { clearAutoChainTimer() }
   const codeEditorRef    = ref<{ getContent: () => string } | null>(null)
   const editingActivity  = ref<LiveActivity | null>(null)
   const promoId          = computed(() => appStore.activePromoId ?? appStore.currentUser?.promo_id ?? 0)
@@ -304,6 +341,7 @@
   onUnmounted(() => {
     liveStore.disposeSocketListeners()
     window.removeEventListener('keydown', onKeydown)
+    clearAutoChainTimer()
   })
 
   // ── Keyboard shortcuts ───────────────────────────────────────────────────
@@ -490,17 +528,27 @@
     }
     await liveStore.closeActivity(activity.id)
     if (liveStore.currentSession) {
-      // Only show leaderboard if session has Spark activities
       const hasSpark = liveStore.sessionActivities.some(a => isSparkType(a.type))
       if (hasSpark) {
         await liveStore.fetchLeaderboard(liveStore.currentSession.id)
         showLeaderboard.value = true
+        // Kahoot mode : auto-enchainement si toggle active
+        if (sparkAutoChain.value && nextPendingActivity.value) {
+          startAutoChainCountdown()
+        } else if (sparkAutoChain.value && !nextPendingActivity.value) {
+          // Derniere question : podium final auto apres 2s. Handle timer pour pouvoir annuler
+          // si l'utilisateur interrompt le flow (toggle off, leave session, etc.).
+          if (autoPodiumTimeout) clearTimeout(autoPodiumTimeout)
+          autoPodiumTimeout = setTimeout(() => {
+            autoPodiumTimeout = null
+            if (!sparkAutoChain.value || !liveStore.currentSession) return
+            showPodium.value = true
+            showLeaderboard.value = false
+            liveStore.endSession(liveStore.currentSession.id)
+          }, 2000)
+        }
       }
     }
-  }
-
-  function dismissLeaderboard() {
-    showLeaderboard.value = false
   }
 
   async function removeActivity(activity: LiveActivity) {
@@ -592,12 +640,14 @@
 
   async function launchNext() {
     if (!nextPendingActivity.value) return
+    clearAutoChainTimer()
     showLeaderboard.value = false
     await launch(nextPendingActivity.value)
   }
 
   /** Ferme l'activite courante si live puis lance la suivante. Core du flow Wooclap. */
   async function goNext() {
+    clearAutoChainTimer()
     if (liveStore.currentActivity && liveStore.currentActivity.status === 'live') {
       await closeCurrentActivity()
     }
@@ -605,6 +655,11 @@
       showLeaderboard.value = false
       await launch(nextPendingActivity.value)
     }
+  }
+
+  function dismissLeaderboard() {
+    clearAutoChainTimer()
+    showLeaderboard.value = false
   }
 
   // ── Activity progress ────────────────────────────────────────────────────
@@ -927,6 +982,42 @@
         </div>
       </div>
 
+      <!-- Panneau Mode Spark (Kahoot) : visible si session majoritairement Spark -->
+      <div v-if="isSparkSession && liveStore.sessionActivities.length > 0" class="spark-mode-panel">
+        <div class="spm-toggle-wrap">
+          <label class="spm-toggle">
+            <input type="checkbox" v-model="sparkAutoChain" />
+            <span class="spm-toggle-track"><span class="spm-toggle-dot" /></span>
+            <div class="spm-toggle-meta">
+              <span class="spm-toggle-label">Mode Spark (enchainement auto)</span>
+              <span class="spm-toggle-desc">Questions enchainees + leaderboard entre chaque + podium final</span>
+            </div>
+          </label>
+          <div v-if="sparkAutoChain" class="spm-delay">
+            <span class="spm-delay-label">Pause entre questions</span>
+            <div class="spm-delay-btns">
+              <button
+                v-for="s in [3, 5, 8]" :key="s"
+                class="spm-delay-btn"
+                :class="{ active: autoChainDelaySeconds === s }"
+                @click="autoChainDelaySeconds = s"
+              >{{ s }}s</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gros bouton Demarrer quand une activite pending existe et aucune live -->
+        <button
+          v-if="liveStore.currentSession.status === 'active' && nextPendingActivity && !liveStore.currentActivity && !showLeaderboard"
+          class="btn-start-spark"
+          @click="launchNext"
+        >
+          <Play :size="22" />
+          <span class="bss-label">{{ sparkAutoChain ? 'Demarrer le Spark' : `Lancer : ${nextPendingActivity.title}` }}</span>
+          <span class="bss-sub">{{ liveStore.sessionActivities.length }} question{{ liveStore.sessionActivities.length > 1 ? 's' : '' }}</span>
+        </button>
+      </div>
+
       <!-- Activity list -->
       <div class="activities-section">
         <div class="activities-header">
@@ -1113,10 +1204,25 @@
     <!-- ══════════ Leaderboard apres fermeture activite ══════════ -->
     <div v-else-if="showLeaderboard && !liveStore.currentActivity" class="live-leaderboard-view">
       <Leaderboard :entries="liveStore.leaderboard" />
+
+      <!-- Countdown auto-chain Spark (Kahoot mode) -->
+      <div v-if="autoChainCountdown !== null && nextPendingActivity" class="auto-chain-countdown" role="status" aria-live="polite">
+        <div class="acc-ring" :style="{ '--progress': ((autoChainDelaySeconds - autoChainCountdown) / autoChainDelaySeconds * 100) + '%' }">
+          <span class="acc-number">{{ autoChainCountdown }}</span>
+        </div>
+        <div class="acc-text">
+          <span class="acc-label">Prochaine question dans</span>
+          <span class="acc-next">{{ nextPendingActivity.title }}</span>
+        </div>
+        <button class="acc-cancel" @click="cancelAutoChain" title="Annuler l'enchainement auto">
+          Mettre en pause
+        </button>
+      </div>
+
       <div class="lb-actions">
         <button v-if="nextPendingActivity" class="btn-launch-next" @click="launchNext">
           <Play :size="16" />
-          Lancer : {{ nextPendingActivity.title }}
+          {{ autoChainCountdown !== null ? 'Lancer maintenant' : `Lancer : ${nextPendingActivity.title}` }}
         </button>
         <button class="btn-dismiss-lb" @click="dismissLeaderboard">
           <ChevronRight :size="16" />
@@ -1750,6 +1856,206 @@
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 600; color: var(--text-secondary, #aaa);
 }
+
+/* ── Spark mode panel (Kahoot-like auto-chain) ── */
+.spark-mode-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px;
+  background:
+    linear-gradient(135deg, var(--live-spark-soft), transparent 80%),
+    var(--bg-elevated);
+  border: 1px solid var(--live-spark-border);
+  border-radius: 14px;
+  position: relative;
+}
+.spm-toggle-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.spm-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.spm-toggle input[type="checkbox"] {
+  position: absolute; opacity: 0; pointer-events: none;
+}
+.spm-toggle-track {
+  position: relative;
+  width: 40px; height: 22px;
+  background: rgba(245,158,11,.15);
+  border: 1px solid var(--live-spark-border);
+  border-radius: 999px;
+  transition: all .18s;
+  flex-shrink: 0;
+}
+.spm-toggle-dot {
+  position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  background: var(--live-spark);
+  border-radius: 50%;
+  transition: transform .18s var(--ease-out);
+}
+.spm-toggle input:checked + .spm-toggle-track {
+  background: var(--live-spark);
+  border-color: var(--live-spark);
+}
+.spm-toggle input:checked + .spm-toggle-track .spm-toggle-dot {
+  background: #fff;
+  transform: translateX(18px);
+}
+.spm-toggle-meta { display: flex; flex-direction: column; gap: 2px; }
+.spm-toggle-label {
+  font-size: 14px; font-weight: 700;
+  color: var(--text-primary);
+}
+.spm-toggle-desc {
+  font-size: 11px; color: var(--text-muted);
+}
+.spm-delay {
+  display: flex; align-items: center; gap: 8px;
+}
+.spm-delay-label {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.spm-delay-btns { display: flex; gap: 4px; }
+.spm-delay-btn {
+  min-width: 36px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: inherit; font-size: 12px; font-weight: 700;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all .12s;
+}
+.spm-delay-btn:hover { color: var(--text-primary); }
+.spm-delay-btn.active {
+  background: var(--live-spark);
+  border-color: var(--live-spark);
+  color: #fff;
+}
+
+/* Big Start Spark button */
+.btn-start-spark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px 28px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--live-spark), #fbbf24);
+  color: #1a1300;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--live-spark) 40%, transparent);
+  transition: all .18s var(--ease-out), transform .1s;
+  position: relative;
+  overflow: hidden;
+}
+.btn-start-spark::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.25), transparent);
+  transform: translateX(-100%);
+  animation: bss-shine 3s ease-in-out infinite;
+}
+@keyframes bss-shine { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .btn-start-spark::after { animation: none; } }
+.btn-start-spark:hover { transform: translateY(-2px); filter: brightness(1.05); }
+.btn-start-spark:active { transform: translateY(0); }
+.bss-label {
+  font-size: 18px; font-weight: 800;
+  letter-spacing: -.01em;
+}
+.bss-sub {
+  font-size: 11px; font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.15);
+  color: rgba(26,19,0,.7);
+}
+
+/* Countdown auto-chain en mode leaderboard */
+.auto-chain-countdown {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--live-spark-border);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 520px;
+  animation: acc-in .3s var(--ease-out);
+}
+@keyframes acc-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.acc-ring {
+  position: relative;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background:
+    conic-gradient(var(--live-spark) var(--progress, 0%), rgba(255,255,255,.08) var(--progress, 0%));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.acc-ring::before {
+  content: '';
+  position: absolute; inset: 3px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+}
+.acc-number {
+  position: relative;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--live-spark);
+  font-variant-numeric: tabular-nums;
+}
+.acc-text {
+  display: flex; flex-direction: column; gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.acc-label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.acc-next {
+  font-size: 13px; font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.acc-cancel {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all .15s;
+}
+.acc-cancel:hover { color: var(--text-primary); border-color: var(--border-input); }
 
 /* ── Activities ── */
 .activities-section {

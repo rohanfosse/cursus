@@ -183,16 +183,18 @@ function saveLiveCodeSnapshot(activityId, content) {
 
 // ─── Responses ──────────────────────────────────────────────────────────────
 
-function submitLiveResponse({ activityId, studentId, answer }) {
+function submitLiveResponse({ activityId, studentId, answer, mode = 'live' }) {
   const db = getDb();
+  const m = mode === 'replay' ? 'replay' : 'live';
   db.prepare(
-    "INSERT INTO live_responses_v2 (activity_id, student_id, answer) VALUES (?, ?, ?) ON CONFLICT(activity_id, student_id) DO UPDATE SET answer = excluded.answer, created_at = datetime('now')"
-  ).run(activityId, studentId, answer);
-  return db.prepare('SELECT * FROM live_responses_v2 WHERE activity_id = ? AND student_id = ?').get(activityId, studentId);
+    "INSERT INTO live_responses_v2 (activity_id, student_id, answer, mode) VALUES (?, ?, ?, ?) ON CONFLICT(activity_id, student_id, mode) DO UPDATE SET answer = excluded.answer, created_at = datetime('now')"
+  ).run(activityId, studentId, answer, m);
+  return db.prepare('SELECT * FROM live_responses_v2 WHERE activity_id = ? AND student_id = ? AND mode = ?').get(activityId, studentId, m);
 }
 
-function hasStudentRespondedLive(activityId, studentId) {
-  return !!getDb().prepare('SELECT 1 FROM live_responses_v2 WHERE activity_id = ? AND student_id = ?').get(activityId, studentId);
+function hasStudentRespondedLive(activityId, studentId, mode = 'live') {
+  const m = mode === 'replay' ? 'replay' : 'live';
+  return !!getDb().prepare('SELECT 1 FROM live_responses_v2 WHERE activity_id = ? AND student_id = ? AND mode = ?').get(activityId, studentId, m);
 }
 
 function toggleLivePin(responseId, pinned) {
@@ -233,36 +235,38 @@ function countStreak(rows) {
   return streak;
 }
 
-function calculateLiveScore(activityId, studentId, studentName, answerTimeMs, isCorrect) {
+function calculateLiveScore(activityId, studentId, studentName, answerTimeMs, isCorrect, mode = 'live') {
   const db = getDb();
   const activity = db.prepare('SELECT * FROM live_activities_v2 WHERE id = ?').get(activityId);
   if (!activity) return { points: 0, streak: 0 };
 
+  const m = mode === 'replay' ? 'replay' : 'live';
   const timerMs = Math.max(1000, (activity.timer_seconds || 30) * 1000);
   const clampedTime = Math.max(0, Math.min(answerTimeMs, timerMs));
   let points = isCorrect ? Math.round(1000 * (1 - (clampedTime / timerMs) * 0.5)) : 0;
 
   let streak = 0;
   if (isCorrect) {
-    // Only count streaks within the same session, only for spark activities
+    // Streak : meme session, meme mode, spark only
     const prevScores = db.prepare(`
       SELECT ls.is_correct FROM live_scores ls
       JOIN live_activities_v2 la ON la.id = ls.activity_id
-      WHERE ls.session_id = ? AND ls.student_id = ? AND ls.activity_id != ? AND la.category = 'spark'
+      WHERE ls.session_id = ? AND ls.student_id = ? AND ls.activity_id != ?
+        AND la.category = 'spark' AND ls.mode = ?
       ORDER BY ls.rowid DESC
-    `).all(activity.session_id, studentId, activityId);
+    `).all(activity.session_id, studentId, activityId, m);
     streak = countStreak(prevScores);
     points = Math.round(points * (1 + Math.min(streak * 0.1, 0.5)));
     streak += 1;
   }
 
   db.prepare(`
-    INSERT INTO live_scores (session_id, student_id, student_name, activity_id, points, answer_time_ms, is_correct)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(activity_id, student_id) DO UPDATE SET
+    INSERT INTO live_scores (session_id, student_id, student_name, activity_id, points, answer_time_ms, is_correct, mode)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(activity_id, student_id, mode) DO UPDATE SET
       points = excluded.points, answer_time_ms = excluded.answer_time_ms,
       is_correct = excluded.is_correct, student_name = excluded.student_name
-  `).run(activity.session_id, studentId, studentName, activityId, points, answerTimeMs, isCorrect ? 1 : 0);
+  `).run(activity.session_id, studentId, studentName, activityId, points, answerTimeMs, isCorrect ? 1 : 0, m);
 
   return { points, streak };
 }
@@ -313,51 +317,53 @@ function checkLiveCorrectness(activityId, answer) {
   return sc.every((v, i) => v === ss[i]);
 }
 
-function getLiveLeaderboard(sessionId) {
+function getLiveLeaderboard(sessionId, mode = 'live') {
   const db = getDb();
-  // Only count spark activities
+  const m = mode === 'replay' ? 'replay' : 'live';
   const rows = db.prepare(`
     SELECT ls.student_id, ls.student_name, SUM(ls.points) as total_points
     FROM live_scores ls
     JOIN live_activities_v2 la ON la.id = ls.activity_id
-    WHERE ls.session_id = ? AND la.category = 'spark'
+    WHERE ls.session_id = ? AND la.category = 'spark' AND ls.mode = ?
     GROUP BY ls.student_id
     ORDER BY total_points DESC
-  `).all(sessionId);
+  `).all(sessionId, m);
   return rows.map((r, i) => ({ rank: i + 1, studentId: r.student_id, name: r.student_name, points: r.total_points }));
 }
 
-function getLiveLeaderboardWithRound(sessionId, activityId) {
+function getLiveLeaderboardWithRound(sessionId, activityId, mode = 'live') {
   const db = getDb();
+  const m = mode === 'replay' ? 'replay' : 'live';
   const rows = db.prepare(`
     SELECT s.student_id, s.student_name, SUM(s.points) as total_points,
-      COALESCE((SELECT points FROM live_scores WHERE activity_id = ? AND student_id = s.student_id), 0) as points_this_round
+      COALESCE((SELECT points FROM live_scores WHERE activity_id = ? AND student_id = s.student_id AND mode = ?), 0) as points_this_round
     FROM live_scores s
     JOIN live_activities_v2 la ON la.id = s.activity_id
-    WHERE s.session_id = ? AND la.category = 'spark'
+    WHERE s.session_id = ? AND la.category = 'spark' AND s.mode = ?
     GROUP BY s.student_id
     ORDER BY total_points DESC
-  `).all(activityId, sessionId);
+  `).all(activityId, m, sessionId, m);
   return rows.map((r, i) => ({
     rank: i + 1, studentId: r.student_id, name: r.student_name,
     points: r.total_points, pointsThisRound: r.points_this_round,
   }));
 }
 
-function getLiveStudentRank(sessionId, studentId) {
-  const board = getLiveLeaderboard(sessionId);
+function getLiveStudentRank(sessionId, studentId, mode = 'live') {
+  const board = getLiveLeaderboard(sessionId, mode);
   const entry = board.find(e => e.studentId === studentId);
   return entry ? entry.rank : board.length + 1;
 }
 
 // ─── Aggregation (fusion live.js + rex.js) ─────────────────────────────────
 
-function getLiveActivityResultsAggregated(activityId) {
+function getLiveActivityResultsAggregated(activityId, mode = 'live') {
   const db = getDb();
   const activity = db.prepare('SELECT * FROM live_activities_v2 WHERE id = ?').get(activityId);
   if (!activity) return null;
 
-  const responses = db.prepare('SELECT * FROM live_responses_v2 WHERE activity_id = ?').all(activityId);
+  const m = mode === 'replay' ? 'replay' : 'live';
+  const responses = db.prepare('SELECT * FROM live_responses_v2 WHERE activity_id = ? AND mode = ?').all(activityId, m);
   const total = responses.length;
 
   // ── Spark types ─────────────────────────────────────────────────────
@@ -427,8 +433,8 @@ function getLiveActivityResultsAggregated(activityId) {
   }
   if (activity.type === 'question_ouverte') {
     const rows = db.prepare(
-      'SELECT id, answer, pinned, created_at FROM live_responses_v2 WHERE activity_id = ? ORDER BY pinned DESC, created_at DESC'
-    ).all(activityId);
+      'SELECT id, answer, pinned, created_at FROM live_responses_v2 WHERE activity_id = ? AND mode = ? ORDER BY pinned DESC, created_at DESC'
+    ).all(activityId, m);
     return { type: 'question_ouverte', total: rows.length, answers: rows.map(r => ({ id: r.id, answer: r.answer, pinned: !!r.pinned, created_at: r.created_at })) };
   }
   if (activity.type === 'sondage') {
@@ -563,7 +569,7 @@ function getEndedLiveSessionsForPromo(promoId, { search, dateFrom, dateTo } = {}
       (SELECT COUNT(DISTINCT lr.student_id)
        FROM live_responses_v2 lr
        JOIN live_activities_v2 la ON lr.activity_id = la.id
-       WHERE la.session_id = ls.id) AS participant_count
+       WHERE la.session_id = ls.id AND lr.mode = 'live') AS participant_count
     FROM live_sessions_v2 ls
     WHERE ${where}
     ORDER BY ls.ended_at DESC
