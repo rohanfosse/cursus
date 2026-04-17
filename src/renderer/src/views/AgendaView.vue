@@ -240,6 +240,23 @@ function formatEventTime(start: string | Date | null | undefined): string {
   return m ? `${m[1]}:${m[2]}` : ''
 }
 
+/** Vue-cal heading helpers (slot #weekday-heading). Heading a dayOfMonth + full/small
+ *  mais pas de Date directe. On retrouve la date via selectedDate + dayOfMonth. */
+function isHeadingToday(heading: { dayOfMonth?: number | string }): boolean {
+  if (!heading.dayOfMonth) return false
+  const today = new Date()
+  const d = Number(heading.dayOfMonth)
+  if (today.getDate() !== d) return false
+  // Compare mois/annee via selectedDate (fiable car pointe sur la semaine courante)
+  const sel = new Date(selectedDate.value)
+  return sel.getMonth() === today.getMonth() && sel.getFullYear() === today.getFullYear()
+}
+
+function isHeadingWeekend(heading: { full?: string; small?: string }): boolean {
+  const label = (heading.small || heading.full || '').toLowerCase()
+  return /^(sam|dim|sat|sun)/.test(label)
+}
+
 function goPrev() { (calRef.value as any)?.previous?.() }
 function goNext() { (calRef.value as any)?.next?.() }
 function goToday() { selectedDate.value = new Date().toISOString().slice(0, 10) }
@@ -600,12 +617,39 @@ watch(() => route.query, (q) => {
           @cell-dblclick="onCellDblClick"
           @event-drop="onEventDrop"
         >
+          <template #weekday-heading="{ heading, view }">
+            <div
+              class="ag-day-head"
+              :class="{
+                'ag-day-head--today': isHeadingToday(heading),
+                'ag-day-head--weekend': heading.dayOfMonth !== undefined && isHeadingWeekend(heading),
+                'ag-day-head--month': view === 'month',
+              }"
+            >
+              <template v-if="view !== 'month'">
+                <span class="ag-day-num">{{ heading.dayOfMonth }}</span>
+                <span class="ag-day-name">{{ heading.small || heading.full }}</span>
+              </template>
+              <template v-else>
+                <span class="ag-day-name-mo">{{ heading.full }}</span>
+              </template>
+            </div>
+          </template>
+
           <template #event="{ event }">
-            <div class="vuecal__event-title" @contextmenu="onEventContextMenu($event, event)">
+            <div class="ag-event-body" @contextmenu="onEventContextMenu($event, event)">
               <span v-if="!event.allDay && event.startTimeMinutes !== undefined" class="vuecal__event-time">
                 {{ formatEventTime(event.start) }}
               </span>
-              {{ event.title }}
+              <span class="ag-event-title">{{ event.title }}</span>
+              <span
+                v-if="!event.allDay && event._meta?.organizer"
+                class="ag-event-subtitle"
+              >{{ event._meta.organizer }}</span>
+              <span
+                v-else-if="!event.allDay && event._meta?.promoName"
+                class="ag-event-subtitle"
+              >{{ event._meta.promoName }}</span>
             </div>
           </template>
         </VueCal>
@@ -796,8 +840,70 @@ watch(() => route.query, (q) => {
 }
 :deep(.vuecal__heading) {
   font-size: 12px !important; font-weight: 700 !important;
-  color: var(--text-primary) !important; padding: 10px 0 !important;
+  color: var(--text-primary) !important; padding: 6px 0 !important;
   text-transform: uppercase; letter-spacing: 0.5px;
+  height: auto !important;
+  min-height: 3.4em;
+}
+
+/* ── Day heading custom slot (Outlook-like: big number + day name below) ── */
+.ag-day-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 4px;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+}
+.ag-day-head--month { padding: 8px 4px; }
+.ag-day-num {
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--text-primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+.ag-day-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: capitalize;
+  letter-spacing: 0;
+}
+.ag-day-name-mo {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.ag-day-head--weekend .ag-day-num,
+.ag-day-head--weekend .ag-day-name {
+  color: var(--text-muted);
+}
+/* Today : numero en accent comme Outlook ("17 Ven" en bleu) */
+.ag-day-head--today .ag-day-num {
+  color: var(--accent);
+  font-weight: 600;
+}
+.ag-day-head--today .ag-day-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+/* Trait coloré sous le nom du jour courant */
+.ag-day-head--today::after {
+  content: '';
+  position: absolute;
+  left: 30%; right: 30%;
+  bottom: 2px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
 }
 :deep(.vuecal__cell) {
   background: var(--bg-main) !important; border-color: var(--border) !important;
@@ -810,12 +916,18 @@ watch(() => route.query, (q) => {
   color: var(--text-primary) !important; padding: 8px 10px !important;
 }
 
-/* Today : high visibility with border ring */
+/* Today : tint subtil pour coller au style Outlook.
+ * Week/day view : tres legere coloration de la colonne ; le highlight principal
+ * est porte par le heading (ag-day-head--today).
+ * Month view : tint plus marque (sinon le jour n'est pas reperable). */
 :deep(.vuecal__cell--today) {
-  background: rgba(var(--accent-rgb), 0.08) !important;
-  box-shadow: inset 0 0 0 2px var(--accent);
+  background: rgba(var(--accent-rgb), 0.05) !important;
 }
-:deep(.vuecal__cell--today .vuecal__cell-date) {
+:deep(.vuecal--month-view .vuecal__cell--today) {
+  background: rgba(var(--accent-rgb), 0.10) !important;
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.4);
+}
+:deep(.vuecal--month-view .vuecal__cell--today .vuecal__cell-date) {
   color: var(--accent) !important; font-weight: 800 !important;
 }
 :deep(.vuecal__cell--out-of-scope) { opacity: 0.55; }
@@ -846,12 +958,14 @@ watch(() => route.query, (q) => {
 :deep(.vuecal__time-column) {
   background: transparent !important;
   border-right: 1px solid var(--border) !important;
+  width: 2.8em !important;
 }
 :deep(.vuecal__time-cell) {
   color: var(--text-muted) !important;
-  font-size: 11px !important; font-weight: 500 !important;
-  text-align: right; padding-right: 8px;
-  opacity: 0.75;
+  font-size: 10.5px !important; font-weight: 500 !important;
+  text-align: right; padding-right: 6px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
 }
 /* Demi-heures : tres discretes (presque invisibles) */
 :deep(.vuecal__time-cell-line) {
@@ -915,53 +1029,93 @@ watch(() => route.query, (q) => {
 }
 :deep(.vuecal__event-time) {
   font-size: 10px !important; font-weight: 600 !important;
-  opacity: 0.9;
-  display: flex; align-items: center; gap: 3px;
+  opacity: 0.85;
+  display: block;
   margin-bottom: 1px;
+}
+/* Event multi-ligne (timed events) : titre + sous-titre teacher/organizer */
+:deep(.ag-event-body) {
+  display: flex; flex-direction: column; gap: 1px;
+  width: 100%; min-width: 0;
+}
+:deep(.ag-event-title) {
+  font-weight: 700 !important;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:deep(.ag-event-subtitle) {
+  font-size: 9.5px;
+  font-weight: 500;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
 }
 
 /* ══════════════ All-day events (barre horizontale haut de journee, style Outlook) ══ */
 :deep(.vuecal__all-day) {
-  min-height: 2em !important;
-  background: var(--bg-elevated);
+  min-height: 2.2em !important;
+  max-height: 6em;
+  background: var(--bg-main);
   border-bottom: 1px solid var(--border);
-  padding: 2px 0;
+  padding: 3px 0 4px;
+  overflow-y: auto;
 }
 :deep(.vuecal__all-day-text) {
   color: var(--text-muted) !important;
   border-bottom: 1px solid var(--border) !important;
-  font-size: 10px;
+  font-size: 10px !important;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  width: 3em !important;
 }
 :deep(.vuecal__event--all-day) {
-  min-height: 22px !important;
-  border-radius: 4px !important;
+  min-height: 20px !important;
+  height: 20px !important;
+  border-radius: 3px !important;
   margin: 1px 2px !important;
-  padding: 3px 8px !important;
+  padding: 2px 8px !important;
   font-size: 11px !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   line-height: 1.3 !important;
   box-shadow: none !important;
   display: flex;
   align-items: center;
+  transition: filter 0.12s;
+}
+:deep(.vuecal__event--all-day:hover) {
+  filter: brightness(1.08);
+  transform: none !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15) !important;
 }
 :deep(.vuecal__event--all-day .vuecal__event-title) {
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   text-shadow: none !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  width: 100%;
 }
 /* Barre qui continue sur plusieurs jours : coins coupes cote jour non-bordure */
 :deep(.vuecal__event--all-day.vuecal__event--multiple-days:not(.vuecal__event--first-day)) {
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
   margin-left: 0 !important;
+  border-left-width: 0 !important;
 }
 :deep(.vuecal__event--all-day.vuecal__event--multiple-days:not(.vuecal__event--last-day)) {
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
   margin-right: 0 !important;
+}
+/* Titre visible seulement sur le premier jour d'un evenement multi-jours */
+:deep(.vuecal__event--all-day.vuecal__event--multiple-days:not(.vuecal__event--first-day) .vuecal__event-title) {
+  opacity: 0;
 }
 
 /* Status indicators (more visible) */
