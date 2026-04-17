@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useAppStore } from './app'
 import { useApi } from '@/composables/useApi'
-import type { LiveSession, LiveActivity, LiveResults, LeaderboardEntry, LiveScoreResult, LiveSessionWithStats, LiveStats } from '@/types'
+import type { LiveSession, LiveActivity, LiveResults, LeaderboardEntry, LiveScoreResult, LiveSessionWithStats, LiveStats, LiveV2ActivityType } from '@/types'
 
 export const useLiveStore = defineStore('live', () => {
   const appStore = useAppStore()
@@ -125,9 +125,7 @@ export const useLiveStore = defineStore('live', () => {
   }
 
   async function pushActivity(sessionId: number, payload: {
-    type: 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation'
-      | 'sondage_libre' | 'nuage' | 'echelle' | 'question_ouverte' | 'sondage' | 'humeur' | 'priorite' | 'matrice'
-      | 'live_code' | 'board'
+    type: LiveV2ActivityType
     title: string
     options?: string[] | string | null; multi?: number
     max_words?: number; max_rating?: number

@@ -178,10 +178,24 @@ function onCellContextMenu(e: MouseEvent, date: Date) {
 // ── Inline edit reminder ──────────────────────────────────────────────
 const editingId = ref<number | null>(null)
 
+function hhmm(d: Date): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function toIsoString(start: string | Date | null | undefined): string {
+  if (!start) return ''
+  if (start instanceof Date) {
+    const y = start.getFullYear(), m = String(start.getMonth() + 1).padStart(2, '0')
+    const d = String(start.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d} ${hhmm(start)}`
+  }
+  return typeof start === 'string' ? start : ''
+}
+
 function startEditReminder(meta: CalendarEvent) {
   if (meta.eventType !== 'reminder') return
   editingId.value = meta.sourceId
-  const startStr = meta.start
+  const startStr = toIsoString(meta.start)
   formDate.value = startStr.slice(0, 10)
   // Extract time if present (format can be "YYYY-MM-DD HH:MM" or ISO)
   const timeMatch = startStr.match(/(\d{2}):(\d{2})/)
@@ -194,7 +208,7 @@ function startEditReminder(meta: CalendarEvent) {
 async function duplicateReminder(meta: CalendarEvent) {
   if (meta.eventType !== 'reminder') return
   try {
-    await agenda.createReminder({ promo_tag: null, date: meta.start.slice(0, 10), title: `${meta.title} (copie)`, description: '', bloc: null })
+    await agenda.createReminder({ promo_tag: null, date: toIsoString(meta.start).slice(0, 10), title: `${meta.title} (copie)`, description: '', bloc: null })
     showToast('Rappel duplique', 'success')
   } catch { showToast('Impossible de dupliquer', 'error') }
 }
@@ -216,7 +230,11 @@ function onCalWrapContextMenu(e: MouseEvent) {
   }
 }
 
-function formatEventTime(start: string): string {
+function formatEventTime(start: string | Date | null | undefined): string {
+  if (!start) return ''
+  // VueCal peut passer une Date apres re-render (slot #event)
+  if (start instanceof Date) return hhmm(start)
+  if (typeof start !== 'string') return ''
   const m = start.match(/(\d{2}):(\d{2})/)
   return m ? `${m[1]}:${m[2]}` : ''
 }
@@ -823,22 +841,39 @@ watch(() => route.query, (q) => {
   border-right: 1px solid var(--border);
 }
 
-/* ══════════════ Hours grid (week/day view) ══════════════ */
+/* ══════════════ Hours grid (week/day view) — adoucie ══════════════ */
 :deep(.vuecal__time-column) {
-  background: var(--bg-elevated) !important;
-  border-right: 2px solid var(--border) !important;
+  background: transparent !important;
+  border-right: 1px solid var(--border) !important;
 }
 :deep(.vuecal__time-cell) {
-  color: var(--text-primary) !important;
-  font-size: 12px !important; font-weight: 600 !important;
+  color: var(--text-muted) !important;
+  font-size: 11px !important; font-weight: 500 !important;
   text-align: right; padding-right: 8px;
+  opacity: 0.75;
 }
+/* Demi-heures : tres discretes (presque invisibles) */
 :deep(.vuecal__time-cell-line) {
-  border-top: 1px solid var(--border) !important;
+  border-top: 1px dashed var(--border) !important;
+  opacity: 0.25;
 }
+/* Heures pleines : ligne pleine mais legere */
 :deep(.vuecal__time-cell-line.hours::before) {
+  border-top: 1px solid var(--border) !important;
+  opacity: 0.4;
+}
+/* Separateurs de colonnes (entre jours) adoucis */
+:deep(.vuecal__cell:before) {
   border-color: var(--border) !important;
-  opacity: 1;
+  opacity: 0.5;
+}
+
+/* Cacher toute navigation residuelle de VueCal (title-bar + fleches internes) */
+:deep(.vuecal__arrow),
+:deep(.vuecal__title-bar),
+:deep(.vuecal__title),
+:deep(.vuecal__today-btn) {
+  display: none !important;
 }
 /* Current-time red line */
 :deep(.vuecal__now-line) {

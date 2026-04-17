@@ -280,6 +280,17 @@ declare global {
       updateLiveV2BoardCard(cardId: number, payload: { content?: string; columnName?: string }): Promise<IpcResponse<import('./types').BoardCard>>
       deleteLiveV2BoardCard(cardId: number): Promise<IpcResponse<null>>
       voteLiveV2BoardCard(cardId: number, vote: boolean): Promise<IpcResponse<{ voted: boolean }>>
+      hideLiveV2BoardCard(cardId: number, hidden: boolean): Promise<IpcResponse<unknown>>
+      // Self-paced
+      toggleLiveV2SelfPaced(sessionId: number, selfPaced: boolean): Promise<IpcResponse<{ selfPaced: boolean }>>
+      launchAllLiveV2(sessionId: number): Promise<IpcResponse<{ launched: number }>>
+      getLiveV2Progress(sessionId: number): Promise<IpcResponse<{ id: number; title: string; type: string; category: string; responseCount: number }[]>>
+      getLiveV2MyResponses(sessionId: number): Promise<IpcResponse<number[]>>
+      // Confusion signal
+      sendConfusionSignal(sessionId: number, active: boolean): Promise<IpcResponse<{ active: boolean; count: number }>>
+      getConfusionCount(sessionId: number): Promise<IpcResponse<{ count: number }>>
+      onLiveConfusionUpdate(cb: (data: { sessionId: number; count: number }) => void): () => void
+      onLiveSelfPacedUpdate(cb: (data: { sessionId: number; selfPaced: boolean }) => void): () => void
       // Booking (mini-Calendly)
       getBookingEventTypes(): Promise<IpcResponse<{ id: number; title: string; slug: string; description?: string; duration_minutes: number; buffer_minutes: number; timezone: string; color: string; fallback_visio_url?: string; is_active: number; created_at: string }[]>>
       createBookingEventType(payload: unknown): Promise<IpcResponse<unknown>>

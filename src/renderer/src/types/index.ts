@@ -222,13 +222,14 @@ export interface LiveSession {
   // V2 fields (Live unifie)
   is_async?: number
   open_until?: string | null
+  self_paced?: number
 }
 export interface LiveActivity {
   id: number; session_id: number
   type:
-    | 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation'
+    | 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation' | 'texte_a_trous' | 'tri'
     | 'sondage_libre' | 'nuage' | 'echelle' | 'question_ouverte' | 'sondage' | 'humeur' | 'priorite' | 'matrice'
-    | 'live_code' | 'board'
+    | 'live_code' | 'board' | 'message_wall'
   title: string; options: string[] | string | null; multi: number
   max_words: number; position: number; status: 'pending' | 'live' | 'closed'
   started_at: string | null; closed_at: string | null
