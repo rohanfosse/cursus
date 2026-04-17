@@ -12,7 +12,7 @@ export const ACTIVITY_CATEGORIES: Record<ActivityCategory, { label: string; desc
   spark: {
     label: 'Spark',
     description: 'Quiz gamifie (scoring, leaderboard)',
-    types: ['qcm', 'vrai_faux', 'reponse_courte', 'association', 'estimation', 'texte_a_trous'],
+    types: ['qcm', 'vrai_faux', 'reponse_courte', 'association', 'estimation', 'texte_a_trous', 'tri'],
     color: '#f59e0b',
     icon: Sparkles,
   },
@@ -91,6 +91,12 @@ export function buildResponsePayload(
     if (!t) return null
     return { text: t }
   }
+  if (activityType === 'tri') {
+    if (associationMapping && associationMapping.length > 0) {
+      return { answer: associationMapping.join(',') }
+    }
+    return null
+  }
   return null
 }
 
@@ -102,6 +108,7 @@ export const ACTIVITY_TYPE_LABELS: Record<string, string> = {
   association: 'Association',
   estimation: 'Estimation',
   texte_a_trous: 'Texte a trous',
+  tri: 'Tri (ordre)',
   // Pulse
   sondage_libre: 'Sondage libre',
   nuage: 'Nuage de mots',
@@ -122,6 +129,7 @@ const ACTIVITY_ICONS: Record<string, Component> = {
   // Spark
   qcm: ListChecks, vrai_faux: ToggleLeft, reponse_courte: Type,
   association: Link2, estimation: Hash, texte_a_trous: TextCursorInput,
+  tri: ArrowUpDown,
   // Pulse
   sondage_libre: MessageSquare, nuage: Cloud, echelle: Star,
   question_ouverte: FileText, sondage: BarChart,

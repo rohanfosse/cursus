@@ -123,6 +123,17 @@
   const previewMode = ref(false)
   function togglePreview() { previewMode.value = !previewMode.value }
 
+  /** Pin/unpin reponse ouverte */
+  async function onTogglePin(responseId: number, pinned: boolean) {
+    try {
+      await window.api.toggleLiveV2Pin(responseId, pinned)
+      // Refresh results to reflect new pinned state
+      if (liveStore.currentActivity) {
+        await liveStore.fetchResults(liveStore.currentActivity.id)
+      }
+    } catch { /* ignore */ }
+  }
+
   /** Self-paced : nombre d'activites pending */
   const pendingCount = computed(() =>
     liveStore.sessionActivities.filter(a => a.status === 'pending').length,
@@ -1453,6 +1464,7 @@
           :activity="liveStore.currentActivity"
           :results="liveStore.results"
           :pulse-sondage-counts="pulseSondageCounts"
+          @toggle-pin="onTogglePin"
         >
           <template #empty>
             <div class="results-waiting">

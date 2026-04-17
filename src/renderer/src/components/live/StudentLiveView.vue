@@ -113,6 +113,44 @@
   // Reset cumulative score when session changes
   watch(session, () => { cumulativePoints.value = 0 })
 
+  // Tri (sorting) : items melanges a remettre en ordre
+  const triOrder = ref<number[]>([])
+  const triOptions = computed<string[]>(() => {
+    const act = activity.value
+    if (!act || act.type !== 'tri' || !act.options) return []
+    try {
+      const arr = Array.isArray(act.options) ? act.options : JSON.parse(act.options as string)
+      return Array.isArray(arr) ? arr : []
+    } catch { return [] }
+  })
+
+  watch(activity, (act) => {
+    if (act?.type === 'tri' && triOptions.value.length > 0) {
+      const studentId = appStore.currentUser?.id ?? 1
+      const seed = act.id * 1000 + studentId
+      triOrder.value = shuffleArray(triOptions.value.map((_, i) => i), seed)
+    }
+  }, { immediate: true })
+
+  function triMoveUp(i: number) {
+    if (i <= 0) return
+    const arr = [...triOrder.value];
+    [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]]
+    triOrder.value = arr
+  }
+  function triMoveDown(i: number) {
+    if (i >= triOrder.value.length - 1) return
+    const arr = [...triOrder.value];
+    [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]]
+    triOrder.value = arr
+  }
+
+  async function submitTri() {
+    if (!activity.value || triOrder.value.length === 0) return
+    const result = await liveStore.submitResponse(activity.value.id, { answer: triOrder.value.join(',') })
+    if (result?.data) accumulateScore(result.data)
+  }
+
   // Texte a trous: parse blanks from title and track student inputs
   const tatBlanksInputs = ref<string[]>([])
   const tatParts = computed(() => {
@@ -175,6 +213,12 @@
       liveStore.currentActivity = act
       // Reset response state when navigating
       liveStore.hasResponded = respondedActivityIds.value.has(act.id)
+      // Simulate timer start for self-paced (no socket push)
+      if (act.timer_seconds && !respondedActivityIds.value.has(act.id)) {
+        liveStore.timerStartedAt = new Date().toISOString()
+      } else {
+        liveStore.timerStartedAt = null
+      }
     }
   }, { immediate: true })
 
@@ -505,10 +549,10 @@
 
       <!-- Activity live (ou self-paced) + not responded yet -->
       <div v-else-if="(activity.status === 'live' || isSelfPaced) && !liveStore.hasResponded" class="response-area">
-        <!-- Countdown timer (Spark uniquement) -->
-        <div v-if="isSparkActivity && liveStore.timerStartedAt" class="timer-bar">
+        <!-- Countdown timer (Spark + Pulse avec timer configure) -->
+        <div v-if="liveStore.timerStartedAt && activity.timer_seconds" class="timer-bar">
           <CountdownTimer
-            :total-seconds="activity.timer_seconds ?? 30"
+            :total-seconds="activity.timer_seconds"
             :started-at="liveStore.timerStartedAt"
             @expired="onTimerExpired"
           />
@@ -580,6 +624,23 @@
         <div v-else-if="activity.type === 'estimation'" class="text-response">
           <input v-model="textInput" class="text-input short-input" type="number" step="any" placeholder="Votre estimation..." @keydown.enter="submitEstimation" />
           <button class="submit-btn" :disabled="!textInput.trim()" @click="submitEstimation">
+            <Send :size="16" /> Envoyer
+          </button>
+        </div>
+
+        <!-- Tri (Sorting) : remettre dans le bon ordre -->
+        <div v-else-if="activity.type === 'tri'" class="tri-response">
+          <div class="tri-list">
+            <div v-for="(origIdx, i) in triOrder" :key="origIdx" class="tri-item">
+              <span class="tri-rank">{{ i + 1 }}</span>
+              <span class="tri-label">{{ triOptions[origIdx] }}</span>
+              <div class="tri-arrows">
+                <button class="tri-arrow" :disabled="i === 0" @click="triMoveUp(i)">&#9650;</button>
+                <button class="tri-arrow" :disabled="i === triOrder.length - 1" @click="triMoveDown(i)">&#9660;</button>
+              </div>
+            </div>
+          </div>
+          <button class="submit-btn" @click="submitTri">
             <Send :size="16" /> Envoyer
           </button>
         </div>
@@ -1391,6 +1452,57 @@
   color: #10b981;
 }
 
+/* ── Tri (sorting) ── */
+.tri-response { display: flex; flex-direction: column; gap: 14px; }
+.tri-list { display: flex; flex-direction: column; gap: 6px; }
+.tri-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: all .2s;
+}
+.tri-rank {
+  flex: 0 0 28px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  padding: 2px 0;
+}
+.tri-label {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.tri-arrows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tri-arrow {
+  width: 28px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tri-arrow:disabled { opacity: .25; cursor: not-allowed; }
+.tri-arrow:not(:disabled):hover { background: var(--accent); color: white; border-color: var(--accent); }
+
 /* ── Texte a trous ── */
 .tat-response { display: flex; flex-direction: column; gap: 14px; }
 .tat-text {
@@ -1447,5 +1559,23 @@
   background: #fef3c7;
   border-color: #f59e0b;
   color: #d97706;
+}
+
+/* ── Mobile responsive ── */
+@media (max-width: 640px) {
+  .student-live { padding: 16px; }
+  .question-title { font-size: 18px; }
+  .kahoot-grid { grid-template-columns: 1fr; gap: 8px; }
+  .kahoot-btn { min-height: 56px; font-size: 15px; padding: 14px; }
+  .submit-btn { min-height: 46px; font-size: 14px; }
+  .qcm-row { grid-template-columns: 120px 1fr 36px 36px; gap: 6px; }
+  .qcm-label { font-size: 14px; }
+  .sp-pills { gap: 4px; }
+  .sp-pill { padding: 3px 8px; font-size: 11px; }
+  .tri-item { padding: 8px 10px; }
+  .tat-blank-input { width: 90px; font-size: 13px; }
+  .session-card { padding: 16px 14px; }
+  .cumulative-score { bottom: 12px; right: 12px; font-size: 12px; padding: 6px 12px; }
+  .confusion-btn { bottom: 12px; left: 12px; font-size: 11px; padding: 6px 12px; }
 }
 </style>

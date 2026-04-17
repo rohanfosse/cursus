@@ -10,7 +10,7 @@ const generateJoinCode = require('../../utils/joinCode');
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-const SPARK_TYPES = ['qcm', 'vrai_faux', 'reponse_courte', 'association', 'estimation', 'texte_a_trous'];
+const SPARK_TYPES = ['qcm', 'vrai_faux', 'reponse_courte', 'association', 'estimation', 'texte_a_trous', 'tri'];
 const PULSE_TYPES = ['sondage_libre', 'nuage', 'echelle', 'question_ouverte', 'sondage', 'humeur', 'priorite', 'matrice'];
 const CODE_TYPES = ['live_code'];
 const BOARD_TYPES = ['board', 'message_wall'];
@@ -324,6 +324,15 @@ function checkLiveCorrectness(activityId, answer) {
     });
   }
 
+  // Tri (sorting) : correct_answers = [0,1,2,3] (indices dans le bon ordre)
+  // Reponse etudiant = "2,0,1,3" — correct si identique a l'ordre attendu
+  if (activity.type === 'tri') {
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    const studentOrder = String(answer).split(',').map(s => Number(s.trim()));
+    if (studentOrder.length !== parsed.length) return false;
+    return studentOrder.every((v, i) => v === parsed[i]);
+  }
+
   const correct = parsed;
   const student = String(answer).split(',').map(s => Number(s.trim())).filter(n => !isNaN(n));
   if (student.length === 0) return false;
@@ -417,6 +426,17 @@ function getLiveActivityResultsAggregated(activityId, mode = 'live') {
     return { type: 'estimation', total, correctCount, average: Math.round(avg * 100) / 100, values };
   }
 
+  if (activity.type === 'tri') {
+    let parsed; try { parsed = JSON.parse(activity.correct_answers || '[]'); } catch { parsed = []; }
+    let correctCount = 0;
+    for (const r of responses) {
+      const order = String(r.answer).split(',').map(s => Number(s.trim()));
+      if (Array.isArray(parsed) && order.length === parsed.length && order.every((v, i) => v === parsed[i])) {
+        correctCount++;
+      }
+    }
+    return { type: 'tri', total, correctCount };
+  }
   if (activity.type === 'texte_a_trous') {
     let parsed; try { parsed = JSON.parse(activity.correct_answers || '[]'); } catch { parsed = []; }
     let correctCount = 0;

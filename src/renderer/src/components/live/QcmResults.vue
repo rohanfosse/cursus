@@ -38,7 +38,12 @@
 <template>
   <div class="qcm-results">
     <div class="qcm-total">{{ results.totalResponses ?? 0 }} reponse{{ (results.totalResponses ?? 0) > 1 ? 's' : '' }}</div>
-    <div v-for="(row, i) in (results.data ?? [])" :key="row.option ?? i" class="qcm-row" :class="{ 'qcm-correct': isCorrect(row.index ?? i) }">
+    <div
+      v-for="(row, i) in (results.data ?? [])" :key="row.option ?? i"
+      class="qcm-row"
+      :class="{ 'qcm-correct': isCorrect(row.index ?? i) }"
+      :style="{ animationDelay: `${i * 80}ms` }"
+    >
       <div class="qcm-label">
         <CheckCircle2 v-if="isCorrect(row.index ?? i)" :size="16" class="qcm-check" />
         {{ row.option ?? `Option ${(row.index ?? i) + 1}` }}
@@ -46,7 +51,7 @@
       <div class="qcm-bar-track">
         <div
           class="qcm-bar-fill"
-          :style="{ width: `${(row.count / maxCount) * 100}%`, background: barColor(row.index ?? i) }"
+          :style="{ width: `${(row.count / maxCount) * 100}%`, background: barColor(row.index ?? i), transitionDelay: `${i * 80}ms` }"
         />
       </div>
       <div class="qcm-count">{{ row.count }}</div>
@@ -76,6 +81,11 @@
   padding: 2px 0;
   border-radius: 6px;
   transition: background .2s;
+  animation: qcm-row-in .4s ease-out both;
+}
+@keyframes qcm-row-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 .qcm-row.qcm-correct {
   background: rgba(34,197,94,.06);

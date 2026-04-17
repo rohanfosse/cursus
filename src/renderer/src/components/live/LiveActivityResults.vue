@@ -24,6 +24,10 @@ defineProps<{
   /** Counts normalises pour RexSondageResults (deja calcules par le parent). */
   pulseSondageCounts: { text: string; count: number }[]
 }>()
+
+const emit = defineEmits<{
+  togglePin: [responseId: number, pinned: boolean]
+}>()
 </script>
 
 <template>
@@ -38,7 +42,7 @@ defineProps<{
     :results="results"
   />
   <AssociationResults
-    v-else-if="(activity.type === 'association' || activity.type === 'texte_a_trous') && results"
+    v-else-if="(activity.type === 'association' || activity.type === 'texte_a_trous' || activity.type === 'tri') && results"
     :results="results"
   />
   <EstimationResults
@@ -50,6 +54,7 @@ defineProps<{
     v-else-if="activity.type === 'question_ouverte' && results?.answers"
     :answers="results.answers"
     :is-teacher="true"
+    @toggle-pin="(id: number, pinned: boolean) => emit('togglePin', id, pinned)"
   />
   <RexSondageResults
     v-else-if="(activity.type === 'sondage' || activity.type === 'sondage_libre') && pulseSondageCounts.length"

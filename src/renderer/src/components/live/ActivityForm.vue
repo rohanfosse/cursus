@@ -92,6 +92,7 @@
     { id: 'association',      label: 'Association',      icon: Link2,         desc: 'Relier les paires',     category: 'spark' },
     { id: 'estimation',       label: 'Estimation',       icon: Hash,          desc: 'Réponse numérique',     category: 'spark' },
     { id: 'texte_a_trous',    label: 'Texte a trous',    icon: TextCursorInput, desc: 'Remplir les blancs',  category: 'spark' },
+    { id: 'tri',              label: 'Tri (ordre)',      icon: ArrowUpDown,     desc: 'Remettre dans l\'ordre', category: 'spark' },
     // Pulse
     { id: 'sondage_libre',    label: 'Sondage libre',    icon: MessageSquare, desc: 'Texte libre anonyme',   category: 'pulse' },
     { id: 'nuage',            label: 'Nuage de mots',    icon: Cloud,         desc: 'Mots-cles anonymes',    category: 'pulse' },
@@ -262,6 +263,15 @@
         // Le titre est le texte complet avec les {{...}} — il sert a la fois d'enonce et de source des trous
         payload.title = texteATrous.value.text || trimmedTitle
         payload.correct_answers = texteATrousBlanks.value as unknown as string[]
+        break
+      }
+      case 'tri': {
+        // Reuse prioriteItems for tri items (same UI)
+        const filtered = prioriteItems.value.map(o => o.trim()).filter(Boolean)
+        if (filtered.length < 2) { fail('Au moins deux items a ordonner sont requis.'); return }
+        payload.options = JSON.stringify(filtered)
+        // L'ordre correct est l'ordre dans lequel le prof les a saisis : [0,1,2,...]
+        payload.correct_answers = filtered.map((_, i) => i) as unknown as string[]
         break
       }
       case 'live_code':
@@ -460,6 +470,18 @@
         <button v-if="sondageOptions.length > 2" class="option-remove" @click="removeSondageOption(i)"><X :size="12" /></button>
       </div>
       <button v-if="sondageOptions.length < 8" class="add-option-btn" @click="addSondageOption"><Plus :size="13" /> Option</button>
+    </div>
+
+    <!-- ── Spark : Tri (sorting) items ──────────────────────────────── -->
+    <div v-if="activityType === 'tri'" class="code-section">
+      <label class="correct-label">Items dans le bon ordre</label>
+      <p class="form-hint">Saisissez les items dans l'ordre correct. Les etudiants les recevront melanges.</p>
+      <div v-for="(_, i) in prioriteItems" :key="i" class="option-row">
+        <span class="tatrous-blank-chip">{{ i + 1 }}</span>
+        <input v-model="prioriteItems[i]" class="form-input option-input" :placeholder="`Etape ${i + 1}`" maxlength="100" />
+        <button v-if="prioriteItems.length > 2" class="option-remove" @click="removePrioriteItem(i)"><X :size="12" /></button>
+      </div>
+      <button v-if="prioriteItems.length < 10" class="add-option-btn" @click="addPrioriteItem"><Plus :size="13" /> Item</button>
     </div>
 
     <!-- ── Pulse : Priorite items ──────────────────────────────────── -->

@@ -292,7 +292,7 @@ export type LiveV2Category = 'spark' | 'pulse' | 'code' | 'board'
 
 export type LiveV2ActivityType =
   // Spark (quiz)
-  | 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation' | 'texte_a_trous'
+  | 'qcm' | 'vrai_faux' | 'reponse_courte' | 'association' | 'estimation' | 'texte_a_trous' | 'tri'
   // Pulse (feedback)
   | 'sondage_libre' | 'nuage' | 'echelle' | 'question_ouverte' | 'sondage' | 'humeur' | 'priorite' | 'matrice'
   // Code

@@ -118,3 +118,45 @@ describe('self-paced mode', () => {
     expect(updated.self_paced).toBe(1)
   })
 })
+
+describe('tri (sorting) correctness', () => {
+  let session, activity
+
+  beforeAll(() => {
+    session = queries.createLiveSession({ teacherId: 1, promoId: 1, title: 'Tri Session' })
+    activity = queries.addLiveActivity({
+      sessionId: session.id, type: 'tri',
+      title: 'Remettre dans l\'ordre',
+      position: 0, timerSeconds: 30,
+      options: JSON.stringify(['Premier', 'Deuxieme', 'Troisieme']),
+      correctAnswers: JSON.stringify([0, 1, 2]),
+    })
+  })
+
+  it('recognizes tri as spark category', () => {
+    expect(activity.category).toBe('spark')
+  })
+
+  it('marks correct when order matches', () => {
+    expect(queries.checkLiveCorrectness(activity.id, '0,1,2')).toBe(true)
+  })
+
+  it('marks incorrect when order differs', () => {
+    expect(queries.checkLiveCorrectness(activity.id, '2,1,0')).toBe(false)
+  })
+
+  it('marks incorrect when count differs', () => {
+    expect(queries.checkLiveCorrectness(activity.id, '0,1')).toBe(false)
+  })
+
+  it('aggregates tri results', () => {
+    queries.setLiveActivityStatus(activity.id, 'live')
+    queries.submitLiveResponse({ activityId: activity.id, studentId: 1, answer: '0,1,2' })
+    queries.submitLiveResponse({ activityId: activity.id, studentId: 2, answer: '2,0,1' })
+
+    const results = queries.getLiveActivityResultsAggregated(activity.id)
+    expect(results.type).toBe('tri')
+    expect(results.total).toBe(2)
+    expect(results.correctCount).toBe(1)
+  })
+})

@@ -27,10 +27,11 @@
     <h3 class="lb-title">Classement</h3>
     <TransitionGroup name="lb-row" tag="div" class="lb-list">
       <div
-        v-for="entry in displayEntries"
+        v-for="(entry, i) in displayEntries"
         :key="entry.studentId"
         class="lb-row"
         :class="{ 'lb-top': entry.rank <= 3 }"
+        :style="{ animationDelay: `${i * 60}ms` }"
       >
         <span class="lb-rank" :style="entry.rank <= 3 ? { color: RANK_COLORS[entry.rank - 1] } : {}">
           {{ medal(entry.rank, String) }}
@@ -166,6 +167,11 @@
   font-weight: 700;
   color: #22c55e;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  animation: lb-pts-pop .4s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes lb-pts-pop {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
 }
 .lb-toggle {
   display: flex;

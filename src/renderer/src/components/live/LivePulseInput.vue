@@ -326,4 +326,15 @@ const wordCount = computed(() => props.activity.max_words ?? 3)
   color: var(--text-muted); font-size: 18px; cursor: pointer;
 }
 .lpi-matrice-star.active { color: #fbbf24; }
+
+/* ── Mobile responsive ── */
+@media (max-width: 640px) {
+  .lpi-humeur-btn { width: 52px; height: 52px; font-size: 28px; }
+  .lpi-star-btn { padding: 6px; }
+  .lpi-star-btn :deep(svg) { width: 28px; height: 28px; }
+  .lpi-slider-val-big { font-size: 28px; }
+  .lpi-opt { padding: 14px; font-size: 15px; }
+  .lpi-priorite-item { padding: 12px; }
+  .lpi-matrice-row { flex-wrap: wrap; }
+}
 </style>

@@ -40,6 +40,7 @@
         :key="item.text"
         class="rex-sondage-row"
         :class="{ 'rex-sondage-top': i < 3 }"
+        :style="{ animationDelay: `${i * 60}ms` }"
       >
         <span class="rex-sondage-rank" :class="{ 'rank-top': i < 3 }">{{ i + 1 }}</span>
         <span class="rex-sondage-label">{{ item.text }}</span>
@@ -167,4 +168,12 @@
 .rex-sondage-row-enter-from { opacity: 0; transform: translateX(-10px); }
 .rex-sondage-row-enter-active { transition: all .3s var(--ease-out); }
 .rex-sondage-row-move { transition: transform .4s var(--ease-out); }
+/* Stagger on initial mount */
+.rex-sondage-row {
+  animation: rex-row-in .35s ease-out both;
+}
+@keyframes rex-row-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 </style>
