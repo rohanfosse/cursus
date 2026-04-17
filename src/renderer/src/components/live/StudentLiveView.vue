@@ -148,7 +148,7 @@
   async function submitTri() {
     if (!activity.value || triOrder.value.length === 0) return
     const result = await liveStore.submitResponse(activity.value.id, { answer: triOrder.value.join(',') })
-    if (result?.data) accumulateScore(result.data)
+    if (result) accumulateScore(result)
   }
 
   // Texte a trous: parse blanks from title and track student inputs
@@ -174,7 +174,7 @@
     if (!activity.value || tatBlanksInputs.value.some(b => !b.trim())) return
     const answer = tatBlanksInputs.value.join(',')
     const result = await liveStore.submitResponse(activity.value.id, { text: answer })
-    if (result?.data) accumulateScore(result.data)
+    if (result) accumulateScore(result)
   }
 
   // Confusion signal (Wooclap "I'm confused" button)
@@ -548,7 +548,7 @@
       </div>
 
       <!-- Activity live (ou self-paced) + not responded yet -->
-      <div v-else-if="(activity.status === 'live' || isSelfPaced) && !liveStore.hasResponded" class="response-area">
+      <div v-else-if="activity && (activity.status === 'live' || isSelfPaced) && !liveStore.hasResponded" class="response-area">
         <!-- Countdown timer (Spark + Pulse avec timer configure) -->
         <div v-if="liveStore.timerStartedAt && activity.timer_seconds" class="timer-bar">
           <CountdownTimer
@@ -697,7 +697,7 @@
       </div>
 
       <!-- Responded - waiting for results -->
-      <div v-else-if="liveStore.hasResponded && (activity.status === 'live' || isSelfPaced)" class="responded-state">
+      <div v-else-if="activity && liveStore.hasResponded && (activity.status === 'live' || isSelfPaced)" class="responded-state">
         <!-- Spark : score feedback (correct/incorrect) -->
         <div v-if="isSparkActivity && scoreResult && scoreResult.isCorrect !== null" class="score-feedback">
           <div v-if="scoreResult.isCorrect" class="feedback-correct">
@@ -737,7 +737,7 @@
       </div>
 
       <!-- Activity closed - show results + score -->
-      <div v-else-if="activity.status === 'closed'" class="results-student">
+      <div v-else-if="activity && activity.status === 'closed'" class="results-student">
         <!-- Score feedback for this activity (Spark only) -->
         <div v-if="isSparkActivity && scoreResult && scoreResult.isCorrect !== null" class="score-feedback-closed">
           <div class="feedback-inline" :class="scoreResult.isCorrect ? 'correct' : 'wrong'">

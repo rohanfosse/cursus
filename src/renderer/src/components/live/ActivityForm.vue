@@ -568,7 +568,7 @@
     <!-- Texte a trous -->
     <div v-if="activityType === 'texte_a_trous'" class="accepted-section">
       <label class="correct-label">Texte avec trous</label>
-      <p class="form-hint">Utilisez <code>{{ '{{mot}}' }}</code> pour marquer les trous. Exemple : Le {{soleil}} brille dans le {{ciel}}.</p>
+      <p class="form-hint">Utilisez <code v-pre>{{mot}}</code> pour marquer les trous. Exemple : <span v-pre>Le {{soleil}} brille dans le {{ciel}}.</span></p>
       <textarea
         v-model="texteATrous.text"
         class="form-input"

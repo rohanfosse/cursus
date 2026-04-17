@@ -311,7 +311,7 @@ declare global {
 
       emitLiveCodeUpdate(activityId: number, promoId: number, content: string, language: string | null): void
       onLiveCodeUpdate(cb: (data: { activityId: number; content: string; language: string | null }) => void): () => void
-      onLiveBoardUpdate(cb: (data: { activityId: number; action: 'add' | 'delete' | 'vote' | 'update'; card?: unknown; cardId?: number; votes?: number }) => void): () => void
+      onLiveBoardUpdate(cb: (data: { activityId: number; action: 'add' | 'delete' | 'vote' | 'update' | 'hide'; card?: unknown; cardId?: number; votes?: number; hidden?: boolean }) => void): () => void
       getLiveSessionsForPromo(promoId: number): Promise<IpcResponse<LiveSession[]>>
       cloneLiveSession(id: number, payload: unknown): Promise<IpcResponse<LiveSession>>
       reorderLiveActivities(sessionId: number, order: number[]): Promise<IpcResponse<LiveSession>>
