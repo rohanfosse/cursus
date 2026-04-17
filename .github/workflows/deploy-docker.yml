@@ -52,22 +52,57 @@ jobs:
 
     steps:
       - name: Call /deploy webhook
+        env:
+          SERVER_URL:    ${{ secrets.VITE_SERVER_URL }}
+          DEPLOY_SECRET: ${{ secrets.DEPLOY_SECRET }}
         run: |
+          set +e  # On gere nous-memes les exit codes curl (bash -e sinon avale 28)
+
+          # 1) Attendre que le serveur soit up (max 12x5s = 60s)
+          HEALTH_OK=0
           for i in $(seq 1 12); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
               --max-time 10 --connect-timeout 5 \
-              "${{ secrets.VITE_SERVER_URL }}/health" 2>/dev/null || true)
-            [ "$STATUS" = "200" ] && break
+              "$SERVER_URL/health" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check OK (iteration $i)"
+              HEALTH_OK=1
+              break
+            fi
+            echo "Health check $i/12 -> HTTP $STATUS, retry dans 5s"
             sleep 5
           done
-          STATUS=$(curl -s -o /tmp/deploy_resp.json -w "%{http_code}" \
-            --max-time 60 --connect-timeout 30 \
-            --retry 3 --retry-delay 10 --retry-connrefused \
-            -X POST "${{ secrets.VITE_SERVER_URL }}/webhook/deploy" \
-            -H "x-deploy-secret: ${{ secrets.DEPLOY_SECRET }}" \
-            -H "Content-Type: application/json")
-          cat /tmp/deploy_resp.json
-          if [ "$STATUS" != "200" ]; then
-            echo "Deploy webhook returned HTTP $STATUS"
+
+          if [ "$HEALTH_OK" != "1" ]; then
+            echo "::error::Serveur injoignable apres 12 tentatives (60s). URL: $SERVER_URL/health"
             exit 1
           fi
+
+          # 2) Trigger deploy webhook. Le handler est instantane (ecrit un signal file),
+          # pas besoin de max-time eleve. On gere le timeout et le body de reponse proprement.
+          echo "Envoi du webhook deploy..."
+          STATUS=$(curl -s -o /tmp/deploy_resp.json -w "%{http_code}" \
+            --max-time 30 --connect-timeout 10 \
+            -X POST "$SERVER_URL/webhook/deploy" \
+            -H "x-deploy-secret: $DEPLOY_SECRET" \
+            -H "Content-Type: application/json")
+          CURL_EXIT=$?
+
+          echo "--- Reponse webhook (HTTP $STATUS, curl exit $CURL_EXIT) ---"
+          if [ -f /tmp/deploy_resp.json ]; then
+            cat /tmp/deploy_resp.json || true
+            echo ""
+          fi
+          echo "---"
+
+          if [ "$CURL_EXIT" != "0" ]; then
+            echo "::error::curl a echoue (exit $CURL_EXIT). Codes courants : 28=timeout, 7=connect refused, 6=DNS."
+            exit 1
+          fi
+
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Deploy webhook returned HTTP $STATUS"
+            exit 1
+          fi
+
+          echo "Deploy webhook OK"
