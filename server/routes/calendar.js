@@ -9,6 +9,7 @@ const { requireRole }     = require('../middleware/authorize')
 /**
  * Genere un fichier iCalendar (.ics) a partir d'une liste d'evenements.
  * Compatible Outlook, Google Calendar, Apple Calendar.
+ * Les evenements sans date valide sont ignores silencieusement.
  */
 function generateIcal(events, calendarName) {
   const lines = [
@@ -20,21 +21,24 @@ function generateIcal(events, calendarName) {
     'METHOD:PUBLISH',
   ]
 
+  const stamp = formatIcalTimestamp(new Date())
+
   for (const ev of events) {
-    const uid = `${ev.type}-${ev.id}@cursus.school`
     const dtstart = formatIcalDate(ev.date)
-    const summary = escapeIcal(ev.title)
+    if (!dtstart) continue // skip invalid dates plutot que d'emettre NaNNaNNaN
+    const uid = `${ev.type}-${ev.id}@cursus.school`
+    const summary = escapeIcal(ev.title || 'Sans titre')
     const description = escapeIcal(ev.description || '')
     const category = ev.category ? escapeIcal(ev.category) : ''
 
     lines.push('BEGIN:VEVENT')
-    lines.push(`UID:${uid}`)
+    lines.push(foldLine(`UID:${uid}`))
     lines.push(`DTSTART;VALUE=DATE:${dtstart}`)
     lines.push(`DTEND;VALUE=DATE:${dtstart}`)
-    lines.push(`SUMMARY:${summary}`)
-    if (description) lines.push(`DESCRIPTION:${description}`)
-    if (category) lines.push(`CATEGORIES:${category}`)
-    lines.push(`DTSTAMP:${formatIcalTimestamp(new Date())}`)
+    lines.push(foldLine(`SUMMARY:${summary}`))
+    if (description) lines.push(foldLine(`DESCRIPTION:${description}`))
+    if (category) lines.push(foldLine(`CATEGORIES:${category}`))
+    lines.push(`DTSTAMP:${stamp}`)
     lines.push('END:VEVENT')
   }
 
@@ -43,18 +47,37 @@ function generateIcal(events, calendarName) {
 }
 
 function escapeIcal(text) {
-  return (text || '')
+  return String(text || '')
     .replace(/\\/g, '\\\\')
+    .replace(/\r\n|\r|\n/g, '\\n')
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
-    .replace(/\n/g, '\\n')
+}
+
+/**
+ * RFC 5545 exige que les lignes ne depassent pas 75 octets, avec continuation
+ * par CRLF + espace. On se base sur la longueur UTF-8 pour etre sur.
+ */
+function foldLine(line, max = 75) {
+  const bytes = Buffer.from(line, 'utf8')
+  if (bytes.length <= max) return line
+  const chunks = []
+  let start = 0
+  while (start < bytes.length) {
+    const slice = bytes.subarray(start, Math.min(bytes.length, start + max))
+    chunks.push(slice.toString('utf8'))
+    start += max
+  }
+  return chunks.join('\r\n ')
 }
 
 function formatIcalDate(dateStr) {
+  if (!dateStr) return null
   const d = new Date(dateStr)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
+  if (isNaN(d.getTime())) return null
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
   return `${y}${m}${day}`
 }
 
@@ -65,25 +88,33 @@ function formatIcalTimestamp(date) {
 function collectEvents(user) {
   const events = []
 
-  if (user.type === 'student') {
-    const travaux = queries.getStudentTravaux(user.id)
-    for (const t of travaux) {
-      if (t.deadline) {
-        events.push({ type: 'deadline', id: t.id, date: t.deadline, title: `[Echeance] ${t.title}`, description: t.description || '', category: t.category })
+  try {
+    if (user?.type === 'student') {
+      const travaux = queries.getStudentTravaux(user.id) || []
+      for (const t of travaux) {
+        if (t.deadline) {
+          events.push({ type: 'deadline', id: t.id, date: t.deadline, title: `[Echeance] ${t.title}`, description: t.description || '', category: t.category })
+        }
+      }
+    } else {
+      const schedule = queries.getTeacherSchedule() || []
+      for (const t of schedule) {
+        if (t.deadline) {
+          events.push({ type: 'deadline', id: t.id, date: t.deadline, title: `[Echeance] ${t.title}`, description: '', category: t.category })
+        }
       }
     }
-  } else {
-    const schedule = queries.getTeacherSchedule()
-    for (const t of schedule) {
-      if (t.deadline) {
-        events.push({ type: 'deadline', id: t.id, date: t.deadline, title: `[Echeance] ${t.title}`, description: '', category: t.category })
-      }
-    }
+  } catch (err) {
+    log.warn('calendar_collect_events_error', { error: err.message })
   }
 
-  const reminders = queries.getReminders(null)
-  for (const r of reminders) {
-    events.push({ type: 'reminder', id: r.id, date: r.date, title: `[Rappel] ${r.title}`, description: r.description || '', category: r.bloc })
+  try {
+    const reminders = queries.getReminders(null) || []
+    for (const r of reminders) {
+      events.push({ type: 'reminder', id: r.id, date: r.date, title: `[Rappel] ${r.title}`, description: r.description || '', category: r.bloc })
+    }
+  } catch (err) {
+    log.warn('calendar_collect_reminders_error', { error: err.message })
   }
 
   return events
@@ -146,6 +177,20 @@ router.post('/outlook/events', requireRole('teacher'), async (req, res) => {
     const { subject, startDateTime, endDateTime, body, attendees, createTeams } = req.body || {}
     if (!subject || !startDateTime || !endDateTime) {
       return res.status(400).json({ ok: false, error: 'subject/startDateTime/endDateTime requis' })
+    }
+    if (typeof subject !== 'string' || subject.length > 500) {
+      return res.status(400).json({ ok: false, error: 'subject invalide (max 500 caracteres)' })
+    }
+    const startMs = Date.parse(startDateTime)
+    const endMs   = Date.parse(endDateTime)
+    if (isNaN(startMs) || isNaN(endMs)) {
+      return res.status(400).json({ ok: false, error: 'Dates invalides (ISO 8601 attendu)' })
+    }
+    if (endMs <= startMs) {
+      return res.status(400).json({ ok: false, error: 'endDateTime doit etre strictement apres startDateTime' })
+    }
+    if (attendees && !Array.isArray(attendees)) {
+      return res.status(400).json({ ok: false, error: 'attendees doit etre un tableau' })
     }
 
     const token = await getValidMsToken(req.user.id)
