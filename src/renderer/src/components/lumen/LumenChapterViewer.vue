@@ -26,6 +26,9 @@ import { useChapterLinkedTravaux } from '@/composables/useChapterLinkedTravaux'
 import { useChapterEdit } from '@/composables/useChapterEdit'
 import { useChapterKind } from '@/composables/useChapterKind'
 import { useChapterStaleStatus } from '@/composables/useChapterStaleStatus'
+import { useChapterOutline } from '@/composables/useChapterOutline'
+import { useChapterCompanion } from '@/composables/useChapterCompanion'
+import { useChapterAccueil } from '@/composables/useChapterAccueil'
 import LumenLinkDevoirModal from '@/components/lumen/LumenLinkDevoirModal.vue'
 import LumenOutline from '@/components/lumen/LumenOutline.vue'
 import LumenPdfViewer from '@/components/lumen/LumenPdfViewer.vue'
@@ -167,40 +170,8 @@ function openTravail(travail: LumenLinkedTravail) {
   router.push({ name: 'devoirs' })
 }
 
-/**
- * Detection chapitre "Accueil" (v2.66) : le README racine du repo, ou tout
- * chapitre marque comme presentation. Quand actif, on bascule sur un layout
- * "tableau de bord du bloc" : titre h1 enrichi + sommaire des autres
- * chapitres en bas.
- */
-const isAccueilChapter = computed(() => {
-  const path = props.chapter.path?.toLowerCase() ?? ''
-  return path === 'readme.md'
-    || path.endsWith('/readme.md')
-    || props.chapter.section === 'Presentation'
-    || props.chapter.title === 'Accueil'
-})
-
-/**
- * Sommaire du bloc affiche en bas de l'Accueil : liste de tous les autres
- * chapitres du repo, groupes par section dans l'ordre de declaration.
- */
-interface AccueilTocSection {
-  title: string
-  chapters: LumenChapter[]
-}
-const accueilToc = computed<AccueilTocSection[]>(() => {
-  if (!isAccueilChapter.value) return []
-  const all = props.repo.manifest?.chapters ?? []
-  const others = all.filter((c) => c.path !== props.chapter.path)
-  const map = new Map<string, LumenChapter[]>()
-  for (const c of others) {
-    const key = c.section?.trim() || 'Chapitres'
-    if (!map.has(key)) map.set(key, [])
-    map.get(key)!.push(c)
-  }
-  return Array.from(map.entries()).map(([title, chs]) => ({ title, chapters: chs }))
-})
+// ── Page d'accueil du repo (README racine) ────────────────────────────────
+const { isAccueil: isAccueilChapter, toc: accueilToc } = useChapterAccueil(repoRef, chapterRef)
 
 function openAccueilChapter(ch: LumenChapter) {
   emit('navigate-chapter', ch.path)
@@ -275,181 +246,24 @@ const texHtml = computed(() => {
 // ── Companion PDF/TeX toggle (v2.71) ──────────────────────────────────────
 // Un chapitre markdown peut avoir un companionPdf (ex: scrum.md + scrum.pdf)
 // et un chapitre PDF peut avoir un companionTex (ex: qcm.pdf + qcm.tex).
-// Quand companionMode est true, on affiche le compagnon au lieu du contenu
-// principal, en fetchant sa data a la demande (cache cote serveur).
-const companionMode = ref(false)
-const companionContent = ref<string | null>(null)
-const companionLoading = ref(false)
-const companionKind = ref<'pdf' | 'tex' | 'markdown' | null>(null)
+const {
+  mode: companionMode,
+  content: companionContent,
+  loading: companionLoading,
+  kind: companionKind,
+  has: hasCompanion,
+  toggleLabel: companionToggleLabel,
+  toggle: toggleCompanion,
+  texHtml: companionTexHtml,
+} = useChapterCompanion(repoRef, chapterRef, chapterKind, isMarp)
 
-const companionPath = computed<string | null>(() => {
-  return props.chapter.companionPdf ?? props.chapter.companionTex ?? null
-})
-const hasCompanion = computed<boolean>(() => Boolean(companionPath.value))
-
-/**
- * Bouton "Voir le PDF" / "Voir le source LaTeX" / "Voir le markdown".
- * Le label depend du format courant et du compagnon disponible.
- */
-const companionToggleLabel = computed<string>(() => {
-  if (companionMode.value) {
-    if (isMarp.value) return 'Voir les slides'
-    return chapterKind.value === 'markdown' ? 'Voir le markdown' : 'Voir le rendu'
-  }
-  if (props.chapter.companionPdf) return 'Voir le PDF'
-  if (props.chapter.companionTex) return 'Voir le source'
-  return ''
-})
-
-async function toggleCompanion(): Promise<void> {
-  if (!companionPath.value) return
-  if (companionMode.value) {
-    companionMode.value = false
-    return
-  }
-  companionLoading.value = true
-  try {
-    const resp = await window.api.getLumenChapterContent(props.repo.id, companionPath.value) as {
-      ok: boolean
-      data?: { content: string; sha: string; kind?: string }
-      error?: string
-    }
-    if (!resp?.ok || !resp.data) {
-      showToast(resp?.error || 'Impossible de charger le compagnon', 'error')
-      return
-    }
-    const { content, kind } = resp.data
-    companionContent.value = content
-    companionKind.value = (kind as 'pdf' | 'tex' | 'markdown' | undefined) ?? 'markdown'
-    companionMode.value = true
-  } catch (err) {
-    showToast((err as { message?: string })?.message || 'Erreur reseau', 'error')
-  } finally {
-    companionLoading.value = false
-  }
-}
-
-// Reset companion + edition a chaque changement de chapitre.
+// Reset edition au changement de chapitre (companion auto-reset par le composable).
 watch(() => props.chapter.path, () => {
-  companionMode.value = false
-  companionContent.value = null
-  companionKind.value = null
   if (editMode.value) editMode.value = false
 })
 
-// Auto-open PDF pour Marp : les etudiants preferent le PDF imprimable.
-watch(isMarp, (marp) => {
-  if (marp && props.chapter.companionPdf && !companionMode.value) {
-    toggleCompanion()
-  }
-})
-
-// HTML du compagnon si mode tex
-const companionTexHtml = computed<string>(() => {
-  if (!companionMode.value || companionKind.value !== 'tex' || !companionContent.value) return ''
-  const fenced = '```latex\n' + companionContent.value + '\n```'
-  return renderMarkdown(fenced, { chapterPath: companionPath.value ?? '' })
-})
-
-// ── Outline (plan du chapitre) + breadcrumbs + stale indicator ────────────
-
-interface HeadingEntry {
-  id: string
-  text: string
-  level: number
-}
-
-const headings = ref<HeadingEntry[]>([])
-const activeHeadingId = ref<string | null>(null)
-// v2.73 : l'etat ouvert/ferme de l'outline est persiste en localStorage
-// pour que le prof qui a masque l'outline ne doive pas le refermer a
-// chaque changement de chapitre. Cle globale (pas per-repo).
-const OUTLINE_STATE_KEY = 'lumen.outlineOpen'
-const outlineOpen = ref<boolean>((() => {
-  try {
-    const v = localStorage.getItem(OUTLINE_STATE_KEY)
-    if (v !== null) return v === '1'
-    // Auto-collapse sur ecrans etroits (< 1400px) pour ne pas ecraser le contenu
-    return typeof window !== 'undefined' ? window.innerWidth >= 1400 : true
-  } catch { return true }
-})())
-watch(outlineOpen, (v) => {
-  try { localStorage.setItem(OUTLINE_STATE_KEY, v ? '1' : '0') } catch { /* noop */ }
-})
-
-// Scroll spy (v2.77) : observe les headings du body pour highlighter
-// celui actuellement visible dans l'outline. On utilise IntersectionObserver
-// avec un rootMargin negatif en haut pour prendre le heading "en train
-// d'entrer" dans le tiers superieur du viewport.
-let outlineObserver: IntersectionObserver | null = null
-function setupScrollSpy() {
-  if (outlineObserver) {
-    outlineObserver.disconnect()
-    outlineObserver = null
-  }
-  if (!bodyRef.value || headings.value.length === 0) return
-  const nodes = bodyRef.value.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')
-  if (!nodes.length) return
-
-  // Map id -> heading index pour pouvoir resoudre le plus haut visible
-  const visible = new Set<string>()
-
-  outlineObserver = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        const id = entry.target.id
-        if (!id) continue
-        if (entry.isIntersecting) visible.add(id)
-        else visible.delete(id)
-      }
-      // Le heading actif = le premier visible dans l'ordre du document.
-      // On tombe dans ce cas sur tous les headings qui ont un rect dans
-      // la zone d'intersection (les 40% du haut).
-      for (const h of headings.value) {
-        if (visible.has(h.id)) {
-          activeHeadingId.value = h.id
-          return
-        }
-      }
-    },
-    {
-      root: bodyRef.value,
-      // On ne prend en compte que le tiers superieur du viewport : un
-      // heading devient "actif" quand il touche cette zone. Evite que
-      // tous les headings visibles clignotent en meme temps.
-      rootMargin: '0px 0px -60% 0px',
-      threshold: 0,
-    },
-  )
-  nodes.forEach((el) => outlineObserver?.observe(el))
-}
-
-/**
- * Extrait les headings du DOM rendu pour alimenter l'outline. Les ids sont
- * deja dedupliques par injectHeadingIds (markdown.ts). On exclut les
- * headings imbriques dans une admonition (.lumen-admonition) pour eviter
- * de polluer le plan avec les titres des callouts (Note / Warning / etc.).
- */
-function extractHeadings(root: HTMLElement): HeadingEntry[] {
-  const nodes = root.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')
-  const result: HeadingEntry[] = []
-  nodes.forEach((el) => {
-    if (!el.id) return
-    if (el.closest('.lumen-admonition')) return
-    result.push({
-      id: el.id,
-      text: el.textContent?.trim() ?? '',
-      level: Number(el.tagName.slice(1)),
-    })
-  })
-  return result
-}
-
-function scrollToHeading(id: string) {
-  const el = bodyRef.value?.querySelector<HTMLElement>(`#${CSS.escape(id)}`)
-  if (!el) return
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
+// ── Outline (plan du chapitre) ────────────────────────────────────────────
+const { headings, activeHeadingId, open: outlineOpen, rebuild: rebuildOutline, scrollToHeading } = useChapterOutline(bodyRef)
 
 // Banner stale : true si on lit du cache OU si le repo n'a pas ete sync
 // depuis plus d'une heure. Invite l'utilisateur a resync.
@@ -577,17 +391,12 @@ async function enrichRender() {
   // En mode Marp, le contenu est rendu par LumenSlideDeck — pas de bodyRef.
   // En mode TeX, on rend un seul fenced block, pas de headings ni d'ancres.
   if (isPdf.value || isMarp.value || isTex.value) {
-    headings.value = []
+    rebuildOutline(true)
     return
   }
   if (!bodyRef.value) return
   injectCopyButtons(bodyRef.value)
-  headings.value = extractHeadings(bodyRef.value)
-  // v2.77 : setup scroll spy apres l'extraction. On attend le prochain
-  // tick pour que le DOM soit stabilise avant de poser l'observer.
-  nextTick(() => setupScrollSpy())
-  // Scroll en premier pour eviter que l'utilisateur voie un saut de layout
-  // apres que mermaid remplace les <pre> par des SVG plus grands.
+  rebuildOutline()
   // Si une ancre est fournie via le deep-link (ex: ouverture depuis un
   // devoir avec ?anchor=section-machin), on scrolle directement a la
   // section correspondante au lieu du top du chapitre.
@@ -612,8 +421,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onLumenKeyboard)
-  outlineObserver?.disconnect()
-  outlineObserver = null
 })
 watch(() => [props.content, props.chapter?.path], () => {
   enrichRender()
