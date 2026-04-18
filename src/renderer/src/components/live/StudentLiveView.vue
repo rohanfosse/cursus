@@ -1,10 +1,16 @@
 <!-- StudentLiveView.vue - Vue étudiant pour le Live Quiz interactif -->
 <script setup lang="ts">
-  import { ref, computed, onMounted, onUnmounted, watch, type ComputedRef } from 'vue'
+  import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
   import { Zap, CheckCircle2, Send, LogOut, XCircle, Trophy, RotateCw, ChevronRight, HelpCircle } from 'lucide-vue-next'
   import { useAppStore }  from '@/stores/app'
   import { useLiveStore } from '@/stores/live'
-  import { shuffleArray, KAHOOT_COLORS, KAHOOT_SHAPES, isSparkType, buildResponsePayload } from '@/utils/liveActivity'
+  import { shuffleArray, KAHOOT_COLORS, KAHOOT_SHAPES, isSparkType } from '@/utils/liveActivity'
+  import { useLiveReplayMode } from '@/composables/useLiveReplayMode'
+  import { useLiveTriSort } from '@/composables/useLiveTriSort'
+  import { useLiveTexteATrous } from '@/composables/useLiveTexteATrous'
+  import { useLiveConfusionToggle } from '@/composables/useLiveConfusionToggle'
+  import { useLiveSelfPaced } from '@/composables/useLiveSelfPaced'
+  import { useLiveQcmShuffle } from '@/composables/useLiveQcmShuffle'
   import type { LiveScoreResult } from '@/types'
   import CountdownTimer from './CountdownTimer.vue'
   import QcmResults           from './QcmResults.vue'
@@ -52,52 +58,29 @@
   const joining   = ref(false)
   const textInput = ref('')
 
-  /** Mode entrainement asynchrone : apres la fin de la session, l'etudiant peut
-   *  refaire le quiz en solo. Les reponses vont dans live_responses_v2.mode='replay'
-   *  et n'impactent pas le leaderboard live. */
-  const replayMode = ref(false)
-  const replayIndex = ref(0)
-  const replayFeedback = ref<LiveScoreResult | null>(null)
-  const replayScore = ref(0)
-  const replaySparkActivities = computed(() =>
-    (liveStore.currentSession?.activities ?? []).filter(a => isSparkType(a.type)),
-  )
-  const replayCurrentActivity = computed(() =>
-    replaySparkActivities.value[replayIndex.value] ?? null,
-  )
-  const replayFinished = computed(() =>
-    replayMode.value && replayIndex.value >= replaySparkActivities.value.length,
-  )
-
-  function startReplay() {
-    replayMode.value = true
-    replayIndex.value = 0
-    replayFeedback.value = null
-    replayScore.value = 0
-    selectedAnswers.value = []
-    textInput.value = ''
-  }
-
-  function nextReplayQuestion() {
-    replayFeedback.value = null
-    replayIndex.value += 1
-    selectedAnswers.value = []
-    textInput.value = ''
-    associationMapping.value = []
-  }
-
-  function exitReplay() {
-    replayMode.value = false
-    replayIndex.value = 0
-    replayFeedback.value = null
-  }
-
   // Selected QCM answers (indices)
   const selectedAnswers = ref<number[]>([])
   // Association: student mapping (index of right item for each left item)
   const associationMapping = ref<number[]>([])
   // Shuffled right-column indices for association
   const shuffledRight = ref<number[]>([])
+
+  /** Mode entrainement asynchrone : apres la fin de la session, l'etudiant peut
+   *  refaire le quiz en solo. Les reponses vont dans live_responses_v2.mode='replay'
+   *  et n'impactent pas le leaderboard live. */
+  const {
+    active: replayMode,
+    index: replayIndex,
+    feedback: replayFeedback,
+    score: replayScore,
+    sparkActivities: replaySparkActivities,
+    currentActivity: replayCurrentActivity,
+    finished: replayFinished,
+    start: startReplay,
+    next: nextReplayQuestion,
+    exit: exitReplay,
+    submit: submitReplay,
+  } = useLiveReplayMode({ selectedAnswers, textInput, associationMapping })
 
   const parsedPairs = computed(() => {
     try { return JSON.parse(activity.value?.correct_answers as string ?? '[]') } catch { return [] }
@@ -113,170 +96,37 @@
   // Reset cumulative score when session changes
   watch(session, () => { cumulativePoints.value = 0 })
 
-  // Tri (sorting) : items melanges a remettre en ordre
-  const triOrder = ref<number[]>([])
-  const triOptions = computed<string[]>(() => {
-    const act = activity.value
-    if (!act || act.type !== 'tri' || !act.options) return []
-    try {
-      const arr = Array.isArray(act.options) ? act.options : JSON.parse(act.options as string)
-      return Array.isArray(arr) ? arr : []
-    } catch { return [] }
-  })
+  const studentIdRef = computed(() => appStore.currentUser?.id ?? 1)
 
-  watch(activity, (act) => {
-    if (act?.type === 'tri' && triOptions.value.length > 0) {
-      const studentId = appStore.currentUser?.id ?? 1
-      const seed = act.id * 1000 + studentId
-      triOrder.value = shuffleArray(triOptions.value.map((_, i) => i), seed)
-    }
-  }, { immediate: true })
+  // ── Activite "tri" (sorting) ────────────────────────────────────────────
+  const { order: triOrder, options: triOptions, moveUp: triMoveUp, moveDown: triMoveDown, submit: doSubmitTri } = useLiveTriSort(activity, studentIdRef)
+  async function submitTri() { await doSubmitTri(accumulateScore) }
 
-  function triMoveUp(i: number) {
-    if (i <= 0) return
-    const arr = [...triOrder.value];
-    [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]]
-    triOrder.value = arr
-  }
-  function triMoveDown(i: number) {
-    if (i >= triOrder.value.length - 1) return
-    const arr = [...triOrder.value];
-    [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]]
-    triOrder.value = arr
-  }
+  // ── Activite "texte a trous" ────────────────────────────────────────────
+  const { inputs: tatBlanksInputs, parts: tatParts, submit: doSubmitTat } = useLiveTexteATrous(activity)
+  async function submitTexteATrous() { await doSubmitTat(accumulateScore) }
 
-  async function submitTri() {
-    if (!activity.value || triOrder.value.length === 0) return
-    const result = await liveStore.submitResponse(activity.value.id, { answer: triOrder.value.join(',') })
-    if (result) accumulateScore(result)
-  }
+  // ── Confusion signal (Wooclap "I'm confused") ───────────────────────────
+  const { confused: isConfused, loading: confusionLoading, toggle: toggleConfusion } = useLiveConfusionToggle()
 
-  // Texte a trous: parse blanks from title and track student inputs
-  const tatBlanksInputs = ref<string[]>([])
-  const tatParts = computed(() => {
-    const act = activity.value
-    if (!act || act.type !== 'texte_a_trous') return { segments: [] as string[], blanksCount: 0 }
-    const title = act.title ?? ''
-    const segments = title.split(/\{\{[^}]+\}\}/)
-    const blanksCount = (title.match(/\{\{[^}]+\}\}/g) || []).length
-    return { segments, blanksCount }
-  })
+  // ── Self-paced mode ─────────────────────────────────────────────────────
+  const {
+    isActive: isSelfPaced,
+    index: selfPacedIndex,
+    activities: selfPacedActivities,
+    respondedIds: respondedActivityIds,
+    completed: selfPacedCompleted,
+    next: selfPacedNext,
+    goTo: selfPacedGoTo,
+  } = useLiveSelfPaced()
 
-  // Reinit blanks inputs on activity change (handled below)
-  watch(activity, (act) => {
-    if (act?.type === 'texte_a_trous') {
-      const count = (act.title?.match(/\{\{[^}]+\}\}/g) || []).length
-      tatBlanksInputs.value = Array(count).fill('')
-    }
-  })
+  // ── QCM shuffle (options melangees par etudiant) ────────────────────────
+  const { shuffleMap: qcmShuffleMap, shuffledOptions } = useLiveQcmShuffle(activity, studentIdRef)
 
-  async function submitTexteATrous() {
-    if (!activity.value || tatBlanksInputs.value.some(b => !b.trim())) return
-    const answer = tatBlanksInputs.value.join(',')
-    const result = await liveStore.submitResponse(activity.value.id, { text: answer })
-    if (result) accumulateScore(result)
-  }
-
-  // Confusion signal (Wooclap "I'm confused" button)
-  const isConfused = ref(false)
-  const confusionLoading = ref(false)
-
-  async function toggleConfusion() {
-    if (!session.value || confusionLoading.value) return
-    confusionLoading.value = true
-    try {
-      const res = await window.api.sendConfusionSignal(session.value.id, !isConfused.value)
-      if (res?.ok) isConfused.value = !isConfused.value
-    } catch { /* ignore */ }
-    confusionLoading.value = false
-  }
-
-  // Self-paced mode: student navigates activities independently
-  const isSelfPaced = computed(() => !!session.value?.self_paced && session.value?.status === 'active')
-  const selfPacedIndex = ref(0)
-  const selfPacedActivities = computed(() =>
-    (session.value?.activities ?? []).filter(a => a.type !== 'live_code'),
-  )
-  const selfPacedActivity = computed(() =>
-    selfPacedActivities.value[selfPacedIndex.value] ?? null,
-  )
-  /** IDs des activites deja repondues par cet etudiant */
-  const respondedActivityIds = ref<Set<number>>(new Set())
-
-  const selfPacedCompleted = computed(() =>
-    selfPacedActivities.value.filter(a => respondedActivityIds.value.has(a.id)).length,
-  )
-
-  // In self-paced mode, override the currentActivity with the student-selected one
-  watch([isSelfPaced, selfPacedActivity], ([sp, act]) => {
-    if (sp && act) {
-      liveStore.currentActivity = act
-      // Reset response state when navigating
-      liveStore.hasResponded = respondedActivityIds.value.has(act.id)
-      // Simulate timer start for self-paced (no socket push)
-      if (act.timer_seconds && !respondedActivityIds.value.has(act.id)) {
-        liveStore.timerStartedAt = new Date().toISOString()
-      } else {
-        liveStore.timerStartedAt = null
-      }
-    }
-  }, { immediate: true })
-
-  function selfPacedPrev() {
-    if (selfPacedIndex.value > 0) selfPacedIndex.value--
-  }
-  function selfPacedNext() {
-    if (selfPacedIndex.value < selfPacedActivities.value.length - 1) selfPacedIndex.value++
-  }
-  function selfPacedGoTo(index: number) {
-    selfPacedIndex.value = index
-  }
-
-  /** Fetch which activities the student has already responded to */
-  async function fetchMyResponses() {
-    if (!session.value) return
-    try {
-      const res = await window.api.getLiveV2MyResponses(session.value.id)
-      if (res?.ok && Array.isArray(res.data)) {
-        respondedActivityIds.value = new Set(res.data)
-      }
-    } catch { /* ignore */ }
-  }
-
-  // Listen for self-paced updates
-  let selfPacedUnsub: (() => void) | null = null
-  onMounted(() => {
-    selfPacedUnsub = window.api.onLiveSelfPacedUpdate?.((data) => {
-      if (session.value && data.sessionId === session.value.id) {
-        liveStore.currentSession = { ...session.value, self_paced: data.selfPaced ? 1 : 0 }
-      }
-    })
-  })
-  onUnmounted(() => { selfPacedUnsub?.() })
-
-  // Fetch responded activities when session loads in self-paced mode
-  watch(isSelfPaced, (sp) => { if (sp) fetchMyResponses() }, { immediate: true })
-
-  // Shuffled QCM options (index mapping: display index → original index)
-  const qcmShuffleMap = ref<number[]>([])
-  const shuffledOptions = computed(() => {
-    if (!activity.value?.options || activity.value.type !== 'qcm') return []
-    return qcmShuffleMap.value.map(origIdx => (activity.value!.options as string[])[origIdx])
-  })
-
+  // Reset student inputs + association shuffle + flags au changement d'activite
   watch(activity, (act) => {
     selectedAnswers.value = []
     textInput.value = ''
-
-    // Shuffle QCM options for this student
-    if (act?.type === 'qcm' && act.options) {
-      const opts = Array.isArray(act.options) ? act.options : JSON.parse(act.options as unknown as string)
-      const studentId = appStore.currentUser?.id ?? 1
-      const seed = act.id * 1000 + studentId
-      qcmShuffleMap.value = shuffleArray(opts.map((_: unknown, i: number) => i), seed)
-    } else {
-      qcmShuffleMap.value = []
-    }
 
     if (act?.type === 'association' && act.correct_answers) {
       try {
@@ -364,25 +214,7 @@
 
   function leave() {
     liveStore.leaveSession()
-    replayMode.value = false
-    replayIndex.value = 0
-  }
-
-  /** Submit en mode replay : pas d'impact sur le leaderboard live, mais scoring conserve. */
-  async function submitReplay() {
-    const act = replayCurrentActivity.value
-    if (!act) return
-    const basePayload = buildResponsePayload(act.type, {
-      selectedAnswers: selectedAnswers.value,
-      textInput: textInput.value,
-      associationMapping: associationMapping.value,
-    })
-    if (!basePayload) return
-    const result = await liveStore.submitResponse(act.id, { ...basePayload, mode: 'replay' })
-    if (result) {
-      replayFeedback.value = result
-      if (result.points > 0) replayScore.value += result.points
-    }
+    exitReplay()
   }
 </script>
 
