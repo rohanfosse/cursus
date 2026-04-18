@@ -1,6 +1,6 @@
 /** TeacherRexView — Vue principale enseignant pour les sessions REX. */
 <script setup lang="ts">
-  import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+  import { ref, computed, onMounted, onUnmounted } from 'vue'
   import {
     Plus, Play, Square, Trash2, Users,
     LogOut, ChevronDown, Download, Pencil, GripVertical, Copy, Clock,
@@ -9,7 +9,11 @@
   import { useAppStore }  from '@/stores/app'
   import { useRexStore }  from '@/stores/rex'
   import { rexActivityIcon, rexActivityTypeLabel } from '@/utils/rexActivity'
-  import type { RexActivity, RexSession } from '@/types'
+  import { useRexTeacherSession } from '@/composables/useRexTeacherSession'
+  import { useRexTeacherActivity } from '@/composables/useRexTeacherActivity'
+  import { useRexResultsPolling } from '@/composables/useRexResultsPolling'
+  import { useRexActivityDrag } from '@/composables/useRexActivityDrag'
+  import type { RexSession } from '@/types'
 
   import RexJoinCodeDisplay         from './RexJoinCodeDisplay.vue'
   import RexActivityForm            from './RexActivityForm.vue'
@@ -32,10 +36,7 @@
   const newTitle        = ref('')
   const isAsync         = ref(false)
   const openUntil       = ref('')
-  const showForm        = ref(false)
   const exportOpen      = ref(false)
-  const editingActivity = ref<RexActivity | null>(null)
-  const dragSrcId       = ref<number | null>(null)
   const selectedPromoId = ref<number | null>(appStore.activePromoId)
 
   const promoId  = computed(() => selectedPromoId.value ?? appStore.activePromoId ?? appStore.currentUser?.promo_id ?? 0)
@@ -52,31 +53,28 @@
     rex.disposeSocketListeners()
   })
 
-  // Refresh results when live activity changes
-  watch(activity, (act) => {
-    if (act) rex.fetchResults(act.id)
-  })
+  // ── Polling resultats tant que l'activite est live ──────────────────────
+  useRexResultsPolling()
 
-  // Poll results while activity is live
-  let pollTimer: ReturnType<typeof setInterval> | null = null
-  watch(activity, (act) => {
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
-    if (act && act.status === 'live') {
-      pollTimer = setInterval(() => rex.fetchResults(act.id), 3000)
-    }
-  }, { immediate: true })
-  onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
-
-  // ── Actions ──────────────────────────────────────────────────────────────
+  // ── Actions session (create/select/clone/delete/start/end/export) ───────
+  const sessionActions = useRexTeacherSession()
   async function createSession() {
-    if (!newTitle.value.trim() || !promoId.value) return
-    const opts = isAsync.value
-      ? { isAsync: true, openUntil: openUntil.value || undefined }
-      : undefined
-    await rex.createSession(newTitle.value.trim(), promoId.value, opts)
-    newTitle.value = ''
-    isAsync.value = false
-    openUntil.value = ''
+    const ok = await sessionActions.create({
+      newTitle: newTitle.value,
+      isAsync: isAsync.value,
+      openUntil: openUntil.value,
+      promoId: promoId.value,
+    })
+    if (ok) { newTitle.value = ''; isAsync.value = false; openUntil.value = '' }
+  }
+  const selectSession = sessionActions.select
+  const onCloneSession = (s: RexSession) => sessionActions.clone(s, promoId.value)
+  const onDeleteDraftSession = sessionActions.deleteDraft
+  const startSession = sessionActions.start
+  const endSession = sessionActions.end
+  async function doExport(format: string) {
+    await sessionActions.doExport(format)
+    exportOpen.value = false
   }
 
   function formatOpenUntil(dt: string | null) {
@@ -85,100 +83,23 @@
     return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
   }
 
-  async function selectSession(s: RexSession) {
-    await rex.fetchSession(s.id)
-    window.api.emitRexJoin(s.promo_id)
-  }
+  // ── Actions activite + form state ───────────────────────────────────────
+  const {
+    editing: editingActivity,
+    showForm,
+    addOrUpdate: onAddActivity,
+    startEdit: startEditActivity,
+    cancelForm,
+    launch,
+    closeCurrent,
+    remove: removeActivity,
+    viewResults,
+    togglePin: onTogglePin,
+    duplicate: duplicateActivity,
+  } = useRexTeacherActivity()
 
-  async function onCloneSession(s: RexSession) {
-    if (!promoId.value) return
-    await rex.cloneSession(s.id, promoId.value)
-  }
-
-  async function onDeleteDraftSession(s: RexSession) {
-    await rex.deleteSession(s.id)
-  }
-
-  async function onAddActivity(payload: {
-    type: RexActivity['type']
-    title: string; max_words?: number; max_rating?: number; options?: string[]
-  }) {
-    if (!session.value) return
-    // Serialize options array to JSON string for DB storage
-    const dbPayload = { ...payload, options: payload.options ? JSON.stringify(payload.options) : undefined }
-    if (editingActivity.value) {
-      await rex.updateActivity(editingActivity.value.id, dbPayload)
-      editingActivity.value = null
-    } else {
-      await rex.pushActivity(session.value.id, payload)
-    }
-    showForm.value = false
-  }
-
-  function startEditActivity(act: RexActivity) {
-    editingActivity.value = act
-    showForm.value = true
-  }
-
-  function cancelForm() {
-    editingActivity.value = null
-    showForm.value = false
-  }
-
-  // Drag & drop reorder
-  function onDragStart(actId: number) { dragSrcId.value = actId }
-  function onDragOver(e: DragEvent) { e.preventDefault() }
-  async function onDrop(targetId: number) {
-    if (dragSrcId.value === null || dragSrcId.value === targetId) return
-    const acts = rex.sessionActivities
-    const fromIdx = acts.findIndex(a => a.id === dragSrcId.value)
-    const toIdx   = acts.findIndex(a => a.id === targetId)
-    if (fromIdx === -1 || toIdx === -1) return
-    const reordered = [...acts]
-    const [moved] = reordered.splice(fromIdx, 1)
-    reordered.splice(toIdx, 0, moved)
-    await rex.reorderActivities(reordered.map(a => a.id))
-    dragSrcId.value = null
-  }
-
-  async function launch(act: RexActivity) {
-    await rex.launchActivity(act.id)
-  }
-
-  async function closeCurrent() {
-    if (!activity.value) return
-    await rex.closeActivity(activity.value.id)
-  }
-
-  async function removeActivity(act: RexActivity) {
-    await rex.deleteActivity(act.id)
-  }
-
-  async function startSession() {
-    if (!session.value) return
-    await rex.startSession(session.value.id)
-  }
-
-  async function endSession() {
-    if (!session.value) return
-    await rex.endSession(session.value.id)
-  }
-
-  async function doExport(format: string) {
-    if (!session.value) return
-    await rex.exportSession(session.value.id, format)
-    exportOpen.value = false
-  }
-
-  async function viewResults(act: RexActivity) {
-    rex.currentActivity = act
-    await rex.fetchResults(act.id)
-  }
-
-  async function onTogglePin(responseId: number, pinned: boolean) {
-    await rex.togglePin(responseId, pinned)
-    if (activity.value) await rex.fetchResults(activity.value.id)
-  }
+  // ── Drag & drop reorder ─────────────────────────────────────────────────
+  const { dragSrcId, onDragStart, onDragOver, onDrop } = useRexActivityDrag()
 
   const activityIcon = rexActivityIcon
   const activityTypeLabel = rexActivityTypeLabel
@@ -189,24 +110,6 @@
 
   // ── Response count from results ───────────────────────────────────────
   const responseCount = computed(() => results.value?.total ?? 0)
-
-  // ── Duplicate activity ────────────────────────────────────────────────
-  async function duplicateActivity(act: RexActivity) {
-    if (!session.value) return
-    const payload: {
-      type: RexActivity['type']; title: string
-      max_words?: number; max_rating?: number; options?: string[]
-    } = {
-      type: act.type,
-      title: act.title + ' (copie)',
-      max_words: act.max_words,
-      max_rating: act.max_rating,
-    }
-    if (act.options) {
-      try { payload.options = JSON.parse(act.options as string) } catch { /* ignore */ }
-    }
-    await rex.pushActivity(session.value.id, payload)
-  }
 </script>
 
 <template>
