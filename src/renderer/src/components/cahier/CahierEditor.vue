@@ -9,7 +9,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import Placeholder from '@tiptap/extension-placeholder'
-import { ArrowLeft, Save, Users, Pencil } from 'lucide-vue-next'
+import { ArrowLeft, Save, Users, Pencil, AlertTriangle } from 'lucide-vue-next'
 import { useCahierCollab } from '@/composables/useCahierCollab'
 import { useCahierStore } from '@/stores/cahier'
 import { useAppStore } from '@/stores/app'
@@ -18,7 +18,7 @@ const cahierStore = useCahierStore()
 const appStore = useAppStore()
 
 const cahierId = computed(() => cahierStore.activeCahierId)
-const { ydoc, provider, connected, saving, connectedUsers, init, destroy } = useCahierCollab(cahierId)
+const { ydoc, provider, connected, saving, saveError, connectedUsers, init, destroy } = useCahierCollab(cahierId)
 
 const editingTitle = ref(false)
 const titleInput = ref('')
@@ -121,7 +121,10 @@ async function saveTitle() {
             />
           </div>
         </div>
-        <span v-if="saving" class="cahier-saving">
+        <span v-if="saveError" class="cahier-save-error" :title="saveError">
+          <AlertTriangle :size="11" /> Echec sauvegarde
+        </span>
+        <span v-else-if="saving" class="cahier-saving">
           <Save :size="11" /> Sauvegarde...
         </span>
         <span v-else-if="connected" class="cahier-saved">Sauvegarde auto</span>
@@ -197,6 +200,11 @@ async function saveTitle() {
 }
 .cahier-saved {
   font-size: 11px; color: var(--text-muted); opacity: .6;
+}
+.cahier-save-error {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--danger, #ef4444); font-weight: 500;
+  cursor: help;
 }
 
 .cahier-editor-body {
