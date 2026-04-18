@@ -107,8 +107,8 @@ export const useAgendaStore = defineStore('agenda', () => {
       // Formats supportes : YYYY-MM-DD (date pure) ET YYYY-MM-DDTHH:MM:SS(Z) (date+heure).
       // Un T00:00:00 (minuit UTC) signifie "date sans heure choisie" (serialisation ISO cote serveur)
       // et non un rappel planifie pile a minuit — traite comme date pure.
-      const hasRealTime = typeof r.date === 'string'
-        && r.date.length > 10
+      if (typeof r.date !== 'string' || !r.date) continue
+      const hasRealTime = r.date.length > 10
         && r.date.includes('T')
         && !/T00:00:00(\.000)?Z?$/.test(r.date)
       const startStr = hasRealTime ? r.date.replace('T', ' ').slice(0, 16) : r.date.substring(0, 10)
@@ -117,6 +117,7 @@ export const useAgendaStore = defineStore('agenda', () => {
       let endStr = startStr
       if (hasTime) {
         const d = new Date(r.date)
+        if (isNaN(d.getTime())) continue // skip reminders aux dates invalides (evite NaN dans l'UI)
         d.setMinutes(d.getMinutes() + 60)
         endStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
       }
@@ -136,31 +137,32 @@ export const useAgendaStore = defineStore('agenda', () => {
     // Merge Outlook events if enabled
     if (outlookEnabled.value) {
       for (const ev of outlookEvents.value) {
+        // Skip events with invalid/missing dates (protection contre Graph qui peut renvoyer undefined)
+        const sd = new Date(ev.start)
+        const ed = new Date(ev.end)
+        if (isNaN(sd.getTime()) || isNaN(ed.getTime())) continue
+
         // Format pour vue-cal : date pure (YYYY-MM-DD) pour all-day, sinon date+heure.
         // Pour un all-day multi-jours, Outlook renvoie end = lendemain 00:00 UTC → on recule d'1 jour
         // pour que vue-cal l'affiche jusqu'a la derniere journee inclusivement.
-        const toDateOnly = (iso: string) => {
-          const d = new Date(iso)
-          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-        }
-        const toCalDateTime = (iso: string) => {
-          const d = new Date(iso)
-          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-        }
+        const fmtDateOnly = (d: Date) =>
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        const fmtDateTime = (d: Date) =>
+          `${fmtDateOnly(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 
         let startStr: string
         let endStr: string
         if (ev.isAllDay) {
-          startStr = toDateOnly(ev.start)
+          startStr = fmtDateOnly(sd)
           // Outlook semi-open : end exclusive (lendemain 00:00). Reculer d'1 jour pour l'inclusivite vue-cal.
-          const endDate = new Date(ev.end)
-          endDate.setUTCDate(endDate.getUTCDate() - 1)
-          endStr = toDateOnly(endDate.toISOString())
+          const adjusted = new Date(ed.getTime())
+          adjusted.setUTCDate(adjusted.getUTCDate() - 1)
+          endStr = fmtDateOnly(adjusted)
           // Safety : si le calcul donne une date < start (evenement 1 jour), on aligne
           if (endStr < startStr) endStr = startStr
         } else {
-          startStr = toCalDateTime(ev.start)
-          endStr = toCalDateTime(ev.end)
+          startStr = fmtDateTime(sd)
+          endStr = fmtDateTime(ed)
         }
 
         list.push({
@@ -207,14 +209,22 @@ export const useAgendaStore = defineStore('agenda', () => {
    */
   async function fetchOutlookEvents(fromIso: string, toIso: string): Promise<void> {
     if (!outlookEnabled.value) return
+    // Validation : eviter un appel reseau si ISO invalides
+    if (isNaN(Date.parse(fromIso)) || isNaN(Date.parse(toIso))) {
+      outlookConnected.value = false
+      return
+    }
     try {
       const res = await window.api.getOutlookEvents(fromIso, toIso)
-      if (res.ok && res.data) {
-        outlookEvents.value = res.data.events
-        outlookConnected.value = res.data.connected
+      if (res?.ok && res.data) {
+        outlookEvents.value = Array.isArray(res.data.events) ? res.data.events : []
+        outlookConnected.value = !!res.data.connected
+      } else {
+        outlookConnected.value = false
       }
     } catch {
       outlookConnected.value = false
+      outlookEvents.value = []
     }
   }
 
