@@ -1,23 +1,26 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { computed, toRef } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  FileText, Link2, Hash, Megaphone, ExternalLink,
+  Link2, Hash, Megaphone, ExternalLink,
   Award, Users, BookOpen,
-  Image, FileSpreadsheet, FileArchive, Film, FileCode, File,
 } from 'lucide-vue-next'
 import { useAppStore }          from '@/stores/app'
 import { useTravauxStore }      from '@/stores/travaux'
 import { useDocumentsStore }    from '@/stores/documents'
 import { useModalsStore }       from '@/stores/modals'
-import { useToast }             from '@/composables/useToast'
 import { avatarColor } from '@/utils/format'
 import { numericGradeClass } from '@/utils/grade'
+import { fileTypeIcon } from '@/utils/fileTypeIcon'
+import { useStudentProjetDevoirs } from '@/composables/useStudentProjetDevoirs'
+import { useStudentProjetGroup } from '@/composables/useStudentProjetGroup'
+import { useStudentProjetResources } from '@/composables/useStudentProjetResources'
+import { useStudentDepositInline } from '@/composables/useStudentDepositInline'
 import StudentProjetHeader      from './StudentProjetHeader.vue'
 import StudentProjetStats       from './StudentProjetStats.vue'
 import StudentProjetDevoirsList from './StudentProjetDevoirsList.vue'
 import LumenProjectSection      from '@/components/lumen/LumenProjectSection.vue'
-import type { AppDocument, Channel, Devoir } from '@/types'
+import type { AppDocument, Channel } from '@/types'
 import type { ProjectMeta } from '@/components/modals/NewProjectModal.vue'
 
 const props = defineProps<{ projectKey: string; promoId: number }>()
@@ -27,9 +30,8 @@ const appStore     = useAppStore()
 const travauxStore = useTravauxStore()
 const docStore     = useDocumentsStore()
 const modals       = useModalsStore()
-const { showToast } = useToast()
 
-// ── Métadonnées projet (localStorage) ────────────────────────────────────────
+// ── Metadonnees projet (localStorage) ────────────────────────────────────────
 const projectMeta = computed((): ProjectMeta | null => {
   try {
     const raw = localStorage.getItem(`cc_projects_${props.promoId}`)
@@ -38,180 +40,42 @@ const projectMeta = computed((): ProjectMeta | null => {
   } catch { return null }
 })
 
-// ── Devoirs de l'étudiant pour ce projet ─────────────────────────────────────
-const devoirs = computed((): Devoir[] =>
-  travauxStore.devoirs
-    .filter(t => t.category === props.projectKey)
-    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+// ── Documents + Canaux ────────────────────────────────────────────────────────
+const { documents, channels, loading } = useStudentProjetResources(
+  toRef(props, 'projectKey'),
+  toRef(props, 'promoId'),
 )
 
-const devoirsSubmitted = computed(() => devoirs.value.filter(t => t.depot_id != null))
-const devoirsPending   = computed(() => devoirs.value.filter(t => t.depot_id == null && !isEventType(t.type)))
-const devoirsEvent     = computed(() => devoirs.value.filter(t => isEventType(t.type)))
-
-// ── Horloge ───────────────────────────────────────────────────────────────────
-const now = ref(Date.now())
-let clockInterval: ReturnType<typeof setInterval> | null = null
-onMounted(() => { clockInterval = setInterval(() => { now.value = Date.now() }, 30_000) })
-import { onBeforeUnmount } from 'vue'
-onBeforeUnmount(() => { if (clockInterval) clearInterval(clockInterval) })
-
-function isExpired(deadline: string)       { return now.value >= new Date(deadline).getTime() }
-function isEventType(type: string)         { return type === 'soutenance' || type === 'cctl' }
-function isOverdue(t: Devoir)              { return t.depot_id == null && !isEventType(t.type) && isExpired(t.deadline) }
-// ── Stats ─────────────────────────────────────────────────────────────────────
-const stats = computed(() => {
-  const graded  = devoirs.value.filter(t => t.note != null)
-  const grades  = graded.map(t => parseFloat(t.note ?? '')).filter(n => !isNaN(n))
-  const avg     = grades.length ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length * 10) / 10 : null
-  const overdue = devoirs.value.filter(t => isOverdue(t)).length
-  const pct     = devoirs.value.length ? Math.round((devoirsSubmitted.value.length / devoirs.value.length) * 100) : 0
-  return {
-    total:     devoirs.value.length,
-    submitted: devoirsSubmitted.value.length,
-    pending:   devoirsPending.value.length,
-    overdue,
-    graded:    graded.length,
-    avg,
-    pct,
-    docs:      documents.value.length,
-    channels:  channels.value.length,
-  }
-})
+// ── Devoirs + stats + horloge + classification expired/overdue ───────────────
+const {
+  now, devoirs, devoirsSubmitted, devoirsPending, devoirsEvent,
+  stats, nextDeadlineSoon,
+  isExpired,
+} = useStudentProjetDevoirs(
+  toRef(props, 'projectKey'),
+  computed(() => documents.value.length),
+  computed(() => channels.value.length),
+)
 
 // ── Groupe (si devoir de groupe) ──────────────────────────────────────────────
-const groupName = computed(() => devoirs.value.find(t => t.group_name)?.group_name ?? null)
+const { name: groupName, members: groupMembers, loading: loadingGroup } = useStudentProjetGroup(devoirs)
 
-interface GroupMember {
-  student_id:      number
-  student_name:    string
-  avatar_initials: string
-  group_name:      string
-}
-const groupMembers  = ref<GroupMember[]>([])
-const loadingGroup  = ref(false)
-
-async function loadGroupMembers() {
-  const groupDevoir = devoirs.value.find(t => t.group_id != null)
-  if (!groupDevoir) { groupMembers.value = []; return }
-  loadingGroup.value = true
-  try {
-    const res = await window.api.getTravailGroupMembers(groupDevoir.id)
-    groupMembers.value = res?.ok ? (res.data as GroupMember[]) : []
-  } finally { loadingGroup.value = false }
-}
-
-watch(() => devoirs.value, () => { loadGroupMembers() }, { immediate: true })
-
-// ── Documents + Canaux ────────────────────────────────────────────────────────
-const documents = ref<AppDocument[]>([])
-const channels  = ref<Channel[]>([])
-const loading   = ref(false)
-
-async function loadData() {
-  loading.value = true
-  try {
-    const [docsRes, chRes] = await Promise.all([
-      window.api.getProjectDocuments(props.promoId, props.projectKey),
-      window.api.getChannels(props.promoId),
-    ])
-    documents.value = docsRes?.ok ? docsRes.data : []
-    const all = chRes?.ok ? chRes.data as Channel[] : []
-    channels.value = all.filter(c => c.category?.trim() === props.projectKey)
-  } finally { loading.value = false }
-}
-
-onMounted(loadData)
-watch(() => [props.projectKey, props.promoId] as const, loadData)
-
-// ── Dépôt inline ──────────────────────────────────────────────────────────────
-const depositingDevoirId = ref<number | null>(null)
-const depositMode        = ref<'file' | 'link'>('file')
-const depositLink        = ref('')
-const depositFile        = ref<string | null>(null)
-const depositFileName    = ref<string | null>(null)
-const depositing         = ref(false)
-const dragOver           = ref(false)
-
-function startDeposit(t: Devoir) {
-  depositingDevoirId.value = t.id
-  depositMode.value        = 'file'
-  depositLink.value        = ''
-  depositFile.value        = null
-  depositFileName.value    = null
-  dragOver.value           = false
-}
-function cancelDeposit() { depositingDevoirId.value = null; dragOver.value = false }
-
-function displayName(pathOrUrl: string): string {
-  if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://'))
-    return pathOrUrl.split('/').pop()?.replace(/^\d+_[a-f0-9]+_/, '') ?? pathOrUrl
-  return pathOrUrl.split(/[\\/]/).pop() ?? pathOrUrl
-}
-
-async function pickFile() {
-  const res = await window.api.openFileDialog()
-  if (!res?.ok || !res.data) return
-  const paths = res.data as string[]
-  const localPath = paths[0]
-  if (!localPath) return
-  const localName = displayName(localPath)
-  const uploadRes = await window.api.uploadFile(localPath)
-  if (uploadRes?.ok && uploadRes.data) {
-    depositFile.value     = uploadRes.data.url
-    depositFileName.value = localName
-  } else {
-    showToast('Erreur lors du chargement du fichier.', 'error')
-  }
-}
-function clearDepositFile() { depositFile.value = null; depositFileName.value = null }
-
-// ── Drag & drop ───────────────────────────────────────────────────────────────
-function onDragOver(e: DragEvent) {
-  e.preventDefault()
-  if (depositMode.value === 'file') dragOver.value = true
-}
-function onDragLeave() { dragOver.value = false }
-async function onDrop(e: DragEvent) {
-  e.preventDefault()
-  dragOver.value = false
-  if (depositMode.value !== 'file') return
-  const file = e.dataTransfer?.files?.[0]
-  if (!file) return
-  const filePath = (file as File & { path?: string }).path
-  if (!filePath) return  // web sans path natif → utiliser le sélecteur
-  const uploadRes = await window.api.uploadFile(filePath)
-  if (uploadRes?.ok && uploadRes.data) {
-    depositFile.value     = uploadRes.data.url
-    depositFileName.value = file.name
-  } else {
-    showToast('Erreur lors du chargement du fichier.', 'error')
-  }
-}
-
-async function submitDeposit(devoir: Devoir) {
-  if (depositing.value || !appStore.currentUser) return
-  if (depositMode.value === 'file' && !depositFile.value) return
-  if (depositMode.value === 'link' && !depositLink.value.trim()) return
-  if (isExpired(devoir.deadline)) return
-  depositing.value = true
-  try {
-    const ok = await travauxStore.addDepot({
-      travail_id: devoir.id,
-      student_id: appStore.currentUser.id,
-      type:       depositMode.value,
-      content:    depositMode.value === 'file' ? depositFile.value! : depositLink.value.trim(),
-      file_name:  depositMode.value === 'file' ? depositFileName.value : null,
-    })
-    if (ok) {
-      showToast('Dépôt enregistré.', 'success')
-      cancelDeposit()
-      await travauxStore.fetchStudentDevoirs()
-    } else {
-      showToast('Erreur lors du dépôt.', 'error')
-    }
-  } finally { depositing.value = false }
-}
+// ── Depot inline (fichier ou lien) avec drag & drop ──────────────────────────
+const {
+  depositingDevoirId,
+  mode: depositMode,
+  link: depositLink,
+  file: depositFile,
+  fileName: depositFileName,
+  depositing,
+  dragOver,
+  start: startDeposit,
+  cancel: cancelDeposit,
+  pickFile,
+  clearFile: clearDepositFile,
+  onDragOver, onDragLeave, onDrop,
+  submit: submitDeposit,
+} = useStudentDepositInline(isExpired)
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 function goToChannel(ch: Channel) {
@@ -228,33 +92,8 @@ function openDoc(doc: AppDocument) {
   }
 }
 
-// ── Prochaine échéance (< 3 jours) ───────────────────────────────────────────
-const nextDeadlineSoon = computed(() => {
-  const upcoming = devoirsPending.value.filter(t => !isExpired(t.deadline))
-    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
-  if (!upcoming.length) return null
-  const first = upcoming[0]
-  const diff = new Date(first.deadline).getTime() - now.value
-  if (diff > 3 * 86_400_000) return null
-  const days = Math.ceil(diff / 86_400_000)
-  const label = days <= 0 ? "aujourd'hui" : days === 1 ? 'demain' : `dans ${days} jours`
-  return { title: first.title, deadline: first.deadline, label }
-})
-
 function gradeColor(note: string | null | undefined): string {
   return numericGradeClass(note)
-}
-
-// ── File type icon helper ────────────────────────────────────────────────────
-function fileTypeIcon(name: string): typeof FileText {
-  const ext = name.split('.').pop()?.toLowerCase() ?? ''
-  if (['png','jpg','jpeg','gif','svg','webp','bmp'].includes(ext)) return Image
-  if (['xls','xlsx','csv','ods'].includes(ext)) return FileSpreadsheet
-  if (['zip','rar','7z','tar','gz'].includes(ext)) return FileArchive
-  if (['mp4','avi','mkv','mov','webm'].includes(ext)) return Film
-  if (['js','ts','py','java','html','css','json','xml','vue'].includes(ext)) return FileCode
-  if (['pdf','doc','docx','odt','txt','rtf','ppt','pptx'].includes(ext)) return FileText
-  return File
 }
 </script>
 
