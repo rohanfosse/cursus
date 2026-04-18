@@ -101,20 +101,23 @@ async function getCalendarEvents(accessToken, startDateTime, endDateTime) {
         $top: 200,
       })
       .get();
-    return (result.value || []).map(e => ({
-      id: e.id,
-      subject: e.subject || '(sans titre)',
-      start: e.start.dateTime,
-      end: e.end.dateTime,
-      timezone: e.start.timeZone || 'UTC',
-      isAllDay: !!e.isAllDay,
-      location: e.location?.displayName || null,
-      bodyPreview: e.bodyPreview || null,
-      teamsJoinUrl: e.onlineMeeting?.joinUrl || null,
-      organizer: e.organizer?.emailAddress?.address || null,
-      showAs: e.showAs || 'busy',
-      categories: e.categories || [],
-    }));
+    return (result.value || [])
+      // Skip events malformes (sans start ou end) plutot que crasher
+      .filter(e => e?.start?.dateTime && e?.end?.dateTime)
+      .map(e => ({
+        id: e.id,
+        subject: e.subject || '(sans titre)',
+        start: e.start.dateTime,
+        end: e.end.dateTime,
+        timezone: e.start.timeZone || 'UTC',
+        isAllDay: !!e.isAllDay,
+        location: e.location?.displayName || null,
+        bodyPreview: e.bodyPreview || null,
+        teamsJoinUrl: e.onlineMeeting?.joinUrl || null,
+        organizer: e.organizer?.emailAddress?.address || null,
+        showAs: e.showAs || 'busy',
+        categories: Array.isArray(e.categories) ? e.categories : [],
+      }));
   } catch (err) {
     log.warn('getCalendarEvents error', { error: err.message });
     return [];
@@ -137,7 +140,7 @@ async function getCalendarBusy(accessToken, startDateTime, endDateTime) {
       })
       .get();
     return (result.value || [])
-      .filter(e => e.showAs !== 'free' && e.showAs !== 'tentative')
+      .filter(e => e?.start?.dateTime && e?.end?.dateTime && e.showAs !== 'free' && e.showAs !== 'tentative')
       .map(e => ({
         start: e.start.dateTime,
         end: e.end.dateTime,
@@ -157,15 +160,18 @@ async function createEventWithTeams(accessToken, {
   subject, startDateTime, endDateTime, attendees, body, timeZone = 'Europe/Paris',
 }) {
   const client = getGraphClient(accessToken);
+  const safeAttendees = Array.isArray(attendees) ? attendees : [];
   const event = {
     subject,
     body: { contentType: 'HTML', content: body || '' },
     start: { dateTime: startDateTime, timeZone },
     end: { dateTime: endDateTime, timeZone },
-    attendees: attendees.map(a => ({
-      emailAddress: { address: a.email, name: a.name },
-      type: 'required',
-    })),
+    attendees: safeAttendees
+      .filter(a => a && typeof a.email === 'string' && a.email)
+      .map(a => ({
+        emailAddress: { address: a.email, name: a.name || a.email },
+        type: 'required',
+      })),
     isOnlineMeeting: true,
     onlineMeetingProvider: 'teamsForBusiness',
   };
