@@ -13,7 +13,11 @@ import { Plus, Trash2, RefreshCw, X, Clock, Tag, ExternalLink, ChevronLeft, Chev
 import { useAppStore }   from '@/stores/app'
 import { useAgendaStore } from '@/stores/agenda'
 import { useToast } from '@/composables/useToast'
-import { getCategoryBg } from '@/utils/categoryColor'
+import { useAgendaFilters } from '@/composables/useAgendaFilters'
+import { useAgendaViewNav } from '@/composables/useAgendaViewNav'
+import { useAgendaIcsExport } from '@/composables/useAgendaIcsExport'
+import { useAgendaOutlookPolling } from '@/composables/useAgendaOutlookPolling'
+import { useAgendaKeyboardShortcuts } from '@/composables/useAgendaKeyboardShortcuts'
 import type { CalendarEvent } from '@/types'
 
 const appStore  = useAppStore()
@@ -29,61 +33,13 @@ const isTeacher = computed(() => appStore.isTeacher)
 const fetchPromoId = computed(() => isTeacher.value ? 0 : promoId.value)
 
 // ── Filters ───────────────────────────────────────────────────────────────
-const showDeadlines  = ref(true)
-const showStartDates = ref(true)
-const showReminders  = ref(true)
-const hiddenPromos   = ref(new Set<number>())
-
-const showOutlook = ref(true)
-
-const filteredEvents = computed(() =>
-  agenda.events.filter(e => {
-    if (e.eventType === 'deadline'   && !showDeadlines.value)  return false
-    if (e.eventType === 'start_date' && !showStartDates.value) return false
-    if (e.eventType === 'reminder'   && !showReminders.value)  return false
-    if (e.eventType === 'outlook'    && !showOutlook.value)    return false
-    if (e.promoId && hiddenPromos.value.has(e.promoId))        return false
-    return true
-  }).map(e => ({
-    start: e.start,
-    end:   e.end,
-    title: e.title,
-    allDay: e.allDay === true,
-    class: (e.allDay ? 'ag-event--all-day ' : '') + statusClass(e),
-    style: `border-left: 3px solid ${e.color}; background: ${getCategoryBg(e.category)}; color: ${e.color};`,
-    _meta: e,
-  }))
-)
-
-function statusClass(e: CalendarEvent): string {
-  const classes = ['ag-event']
-  if (e.submissionStatus === 'submitted') classes.push('ag-event--submitted')
-  if (e.submissionStatus === 'late') classes.push('ag-event--late')
-  return classes.join(' ')
-}
+const {
+  showDeadlines, showStartDates, showReminders, showOutlook, showFilters,
+  filteredEvents,
+} = useAgendaFilters()
 
 // ── Calendar ref + view control ──────────────────────────────────────────
-const calRef = ref<InstanceType<typeof VueCal> | null>(null)
-const activeView = ref<'month' | 'week' | 'day'>('month')
-const currentTitle = ref('')
-const selectedDate = ref(new Date().toISOString().slice(0, 10))
-
-function onViewChange(event: { view: string; startDate: Date; endDate: Date }) {
-  const view = event.view as 'month' | 'week' | 'day'
-  if (view === 'month' || view === 'week' || view === 'day') activeView.value = view
-  const start = event.startDate
-  const end = event.endDate
-  if (view === 'month') {
-    currentTitle.value = start.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-  } else if (view === 'day') {
-    currentTitle.value = start.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-  } else {
-    const sameMonth = start.getMonth() === end.getMonth()
-    currentTitle.value = sameMonth
-      ? `${start.getDate()} - ${end.getDate()} ${start.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`
-      : `${start.getDate()} ${start.toLocaleDateString('fr-FR', { month: 'short' })} - ${end.getDate()} ${end.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}`
-  }
-}
+const { calRef, activeView, currentTitle, selectedDate, onViewChange, goPrev, goNext, goToday, switchView } = useAgendaViewNav()
 
 // P0.1 : clic sur un jour → vue jour
 function onCellClick(date: Date) {
@@ -257,11 +213,6 @@ function isHeadingWeekend(heading: { full?: string; small?: string }): boolean {
   return /^(sam|dim|sat|sun)/.test(label)
 }
 
-function goPrev() { (calRef.value as any)?.previous?.() }
-function goNext() { (calRef.value as any)?.next?.() }
-function goToday() { selectedDate.value = new Date().toISOString().slice(0, 10) }
-function switchView(view: 'month' | 'week' | 'day') { activeView.value = view }
-
 // ── Selected event ────────────────────────────────────────────────────────
 const selectedEvent = ref<CalendarEvent | null>(null)
 const detailOpen = ref(false)
@@ -356,72 +307,8 @@ async function onEventDrop(event: { event: { _meta?: CalendarEvent }; newDate: D
 }
 
 // ── Export ICS (iCalendar) ───────────────────────────────────────────────
-function formatIcsDate(iso: string): string {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`
-}
-
-/** Escape un champ texte selon RFC 5545 */
-function icsEscape(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n')
-}
-
-function exportIcs() {
-  const events = filteredEvents.value
-  if (events.length === 0) {
-    showToast('Aucun evenement a exporter.', 'error')
-    return
-  }
-
-  const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Cursus//Agenda//FR',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
-    'X-WR-CALNAME:Cursus - Agenda',
-  ]
-
-  for (const ev of events) {
-    const meta = ev._meta as CalendarEvent
-    const uid = `cursus-${meta.id}@cursus.school`
-    const summary = icsEscape(meta.title)
-    const category = meta.category ? meta.category.replace(/[,;\\]/g, ' ') : ''
-    const status = meta.submissionStatus === 'submitted' ? 'COMPLETED' : 'NEEDS-ACTION'
-    const description = [
-      meta.eventType === 'deadline' ? 'Echeance' : meta.eventType === 'start_date' ? 'Demarrage' : 'Rappel',
-      category ? `Projet: ${category}` : '',
-      meta.promoName ? `Promo: ${meta.promoName}` : '',
-      meta.submissionStatus ? `Statut: ${statusLabel(meta.submissionStatus)}` : '',
-    ].filter(Boolean).join(' | ')
-
-    lines.push(
-      'BEGIN:VEVENT',
-      `UID:${uid}`,
-      `DTSTART:${formatIcsDate(meta.start)}`,
-      `DTEND:${formatIcsDate(meta.end)}`,
-      `SUMMARY:${summary}`,
-      `DESCRIPTION:${icsEscape(description)}`,
-      `STATUS:${status}`,
-    )
-    if (category) lines.push(`CATEGORIES:${category}`)
-    lines.push('END:VEVENT')
-  }
-  lines.push('END:VCALENDAR')
-
-  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `cursus-agenda-${new Date().toISOString().slice(0, 10)}.ics`
-  a.click()
-  URL.revokeObjectURL(url)
-  showToast(`${events.length} evenement${events.length > 1 ? 's' : ''} exporte${events.length > 1 ? 's' : ''} en ICS.`, 'success')
-}
-
-// ── Filter panel toggle ─────────────────────────────────────────────────
-const showFilters = ref(false)
+const { exportIcs: exportIcsRaw } = useAgendaIcsExport()
+function exportIcs() { exportIcsRaw(filteredEvents.value) }
 
 // ── Locale ───────────────────────────────────────────────────────────────
 const locale = {
@@ -449,76 +336,32 @@ function statusLabel(s?: string): string {
 // ── Load ─────────────────────────────────────────────────────────────────
 let cleanupListener: (() => void) | null = null
 
+const { load: loadOutlook, start: startOutlookPolling } = useAgendaOutlookPolling(isTeacher, showOutlook, selectedDate)
+
 async function load() {
   const pid = fetchPromoId.value
   if (pid !== null) await agenda.fetchEvents(pid)
   if (isTeacher.value && showOutlook.value) await loadOutlook()
 }
 
-async function loadOutlook() {
-  // Window = current month (generous : ±1 month from selected date)
-  const anchor = new Date(selectedDate.value)
-  const from = new Date(anchor); from.setDate(1); from.setMonth(from.getMonth() - 1)
-  const to = new Date(anchor); to.setDate(1); to.setMonth(to.getMonth() + 2)
-  await agenda.fetchOutlookEvents(from.toISOString(), to.toISOString())
-}
-
-// Auto-refresh Outlook every 5 minutes (live sync)
-let outlookPoll: ReturnType<typeof setInterval> | null = null
-function startOutlookPolling() {
-  stopOutlookPolling()
-  outlookPoll = setInterval(() => { if (showOutlook.value && isTeacher.value) loadOutlook() }, 5 * 60 * 1000)
-}
-function stopOutlookPolling() {
-  if (outlookPoll) { clearInterval(outlookPoll); outlookPoll = null }
-}
-
-watch(showOutlook, (v) => {
-  agenda.toggleOutlookSync(v)
-  if (v && isTeacher.value) loadOutlook()
-})
-watch(selectedDate, () => { if (isTeacher.value && showOutlook.value) loadOutlook() })
-
 // ── Keyboard shortcuts (Phase 5) ──────────────────────────────────────
-function onGlobalKeydown(e: KeyboardEvent) {
-  const target = e.target as HTMLElement
-  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
-  if (e.ctrlKey || e.metaKey || e.altKey) return
-
-  switch (e.key.toLowerCase()) {
-    case 't':
-      goToday()
-      break
-    case 'm':
-      switchView('month')
-      break
-    case 's':
-      switchView('week')
-      break
-    case 'j':
-      switchView('day')
-      break
-    case 'n':
-      if (isTeacher.value) { showForm.value = true; e.preventDefault() }
-      break
-    case 'arrowleft':
-      if (!detailOpen.value) goPrev()
-      break
-    case 'arrowright':
-      if (!detailOpen.value) goNext()
-      break
-    case 'escape':
-      if (ctxMenu.value) closeCtxMenu()
-      else if (detailOpen.value) closeDetail()
-      else if (showForm.value) { showForm.value = false; editingId.value = null }
-      break
-  }
-}
+useAgendaKeyboardShortcuts({
+  isTeacher,
+  detailOpen,
+  showForm,
+  editingId,
+  ctxMenu,
+  goToday,
+  switchView,
+  goPrev,
+  goNext,
+  closeCtxMenu,
+  closeDetail,
+})
 
 onMounted(() => {
   load()
   startOutlookPolling()
-  window.addEventListener('keydown', onGlobalKeydown)
   if (route.query.action === 'new-reminder' && isTeacher.value) showForm.value = true
   // P0.3 : deep-link depuis sidebar mini-cal
   if (typeof route.query.date === 'string') {
@@ -529,8 +372,6 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   cleanupListener?.()
-  stopOutlookPolling()
-  window.removeEventListener('keydown', onGlobalKeydown)
 })
 watch(() => promoId.value, load)
 watch(() => route.query, (q) => {
