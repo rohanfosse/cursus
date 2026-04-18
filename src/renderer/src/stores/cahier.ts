@@ -53,16 +53,28 @@ export const useCahierStore = defineStore('cahier', () => {
     return null
   }
 
-  async function renameCahier(id: number, title: string) {
-    await api(() => window.api.renameCahier(id, title))
-    const c = cahiers.value.find(c => c.id === id)
-    if (c) c.title = title
+  async function renameCahier(id: number, title: string): Promise<boolean> {
+    const trimmed = title.trim()
+    if (!trimmed) return false
+    const data = await api(() => window.api.renameCahier(id, trimmed) as Promise<{ ok: boolean; data?: { id: number; title: string } | null; error?: string }>)
+    if (data !== null) {
+      // Immutable update (pas de mutation in-place)
+      cahiers.value = cahiers.value.map(c =>
+        c.id === id ? { ...c, title: trimmed, updated_at: new Date().toISOString() } : c,
+      )
+      return true
+    }
+    return false
   }
 
-  async function deleteCahier(id: number) {
-    await api(() => window.api.deleteCahier(id))
-    cahiers.value = cahiers.value.filter(c => c.id !== id)
-    if (activeCahierId.value === id) activeCahierId.value = null
+  async function deleteCahier(id: number): Promise<boolean> {
+    const data = await api(() => window.api.deleteCahier(id) as Promise<{ ok: boolean; data?: { id: number } | null; error?: string }>)
+    if (data !== null) {
+      cahiers.value = cahiers.value.filter(c => c.id !== id)
+      if (activeCahierId.value === id) activeCahierId.value = null
+      return true
+    }
+    return false
   }
 
   function openCahier(id: number) {
