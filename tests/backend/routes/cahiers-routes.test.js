@@ -87,3 +87,73 @@ describe('POST /api/cahiers', () => {
     expect(res.body.data.id).toBeDefined()
   })
 })
+
+describe('PATCH /api/cahiers/:id/state (hardening)', () => {
+  let cahierId
+
+  beforeAll(() => {
+    const db = getTestDb()
+    const { lastInsertRowid } = db.prepare(
+      'INSERT INTO cahiers (promo_id, project, title, created_by) VALUES (1, ?, ?, 1)'
+    ).run('hardening', 'State test cahier')
+    cahierId = lastInsertRowid
+  })
+
+  it('rejects base64 with invalid characters', async () => {
+    const res = await request(app)
+      .patch(`/api/cahiers/${cahierId}/state`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ state: '####not-base64####' })
+    expect(res.status).toBe(400)
+    expect(res.body.ok).toBe(false)
+    expect(res.body.error).toMatch(/base64/i)
+  })
+
+  it('rejects empty state', async () => {
+    const res = await request(app)
+      .patch(`/api/cahiers/${cahierId}/state`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ state: '' })
+    expect(res.status).toBe(400)
+    expect(res.body.ok).toBe(false)
+  })
+
+  it('returns 404 when cahier does not exist', async () => {
+    const validState = Buffer.from('hello yjs').toString('base64')
+    const res = await request(app)
+      .patch('/api/cahiers/99999/state')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ state: validState })
+    expect(res.status).toBe(404)
+    expect(res.body.ok).toBe(false)
+  })
+
+  it('accepts valid base64 state and returns size', async () => {
+    const validState = Buffer.from('hello yjs').toString('base64')
+    const res = await request(app)
+      .patch(`/api/cahiers/${cahierId}/state`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ state: validState })
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    expect(res.body.data.size).toBe(9)
+  })
+})
+
+describe('GET /api/cahiers/:id/state', () => {
+  it('returns 404 when cahier missing', async () => {
+    const res = await request(app)
+      .get('/api/cahiers/99998/state')
+      .set('Authorization', `Bearer ${teacherToken}`)
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('DELETE /api/cahiers/:id', () => {
+  it('returns 404 when cahier missing', async () => {
+    const res = await request(app)
+      .delete('/api/cahiers/99997')
+      .set('Authorization', `Bearer ${teacherToken}`)
+    expect(res.status).toBe(404)
+  })
+})
