@@ -13,7 +13,13 @@
   import { useLiveTemplates } from '@/composables/useLiveTemplates'
   import { useToast } from '@/composables/useToast'
   import { useConfirm } from '@/composables/useConfirm'
-  import { parseLiveCsv, csvActivityToPayload } from '@/composables/useLiveCsv'
+  import { useLiveElapsedTimer } from '@/composables/useLiveElapsedTimer'
+  import { useLiveCsvImport } from '@/composables/useLiveCsvImport'
+  import { useLiveAutoChain } from '@/composables/useLiveAutoChain'
+  import { useLiveConfusionSignal } from '@/composables/useLiveConfusionSignal'
+  import { useLiveSelfPacedProgress } from '@/composables/useLiveSelfPacedProgress'
+  import { useLiveSessionExport } from '@/composables/useLiveSessionExport'
+  import { useLiveKeyboardShortcuts } from '@/composables/useLiveKeyboardShortcuts'
   import type { ActivityCategory } from '@/utils/liveActivity'
   import { useAppStore }  from '@/stores/app'
   import { useLiveStore } from '@/stores/live'
@@ -38,45 +44,8 @@
   const route     = useRoute()
   const router    = useRouter()
 
-  /** Elapsed time ticker — starts only when a non-Spark activity is live */
-  const elapsedTick = ref(0)
-  let elapsedInterval: ReturnType<typeof setInterval> | null = null
-
-  function startElapsedTimer() {
-    if (elapsedInterval) return
-    elapsedInterval = setInterval(() => { elapsedTick.value++ }, 1000)
-  }
-  function stopElapsedTimer() {
-    if (elapsedInterval) { clearInterval(elapsedInterval); elapsedInterval = null }
-    elapsedTick.value = 0
-  }
-
-  watch(() => liveStore.currentActivity, (act: LiveActivity | null) => {
-    if (act && act.status === 'live' && !isSparkType(act.type)) startElapsedTimer()
-    else stopElapsedTimer()
-  }, { immediate: true })
-  onUnmounted(stopElapsedTimer)
-
-  /** Secondes ecoulees depuis le lancement de l'activite courante (null si aucune).
-   *  Source unique pour la pill .activity-elapsed ET le mode projection.
-   *  Normalise started_at : SQLite renvoie sans 'Z' (interprete UTC naif),
-   *  Socket peut renvoyer deja avec 'Z'. On ajoute 'Z' seulement si absent. */
-  const elapsedSeconds = computed<number | null>(() => {
-    elapsedTick.value
-    const started = liveStore.currentActivity?.started_at
-    if (!started) return null
-    const iso = started.endsWith('Z') ? started : started + 'Z'
-    return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000))
-  })
-
-  function formatMMSS(s: number): string {
-    const m = Math.floor(s / 60)
-    const sec = s % 60
-    return `${m}:${sec.toString().padStart(2, '0')}`
-  }
-
-  const elapsedTime = computed(() =>
-    elapsedSeconds.value === null ? '0:00' : formatMMSS(elapsedSeconds.value),
+  const { elapsedSeconds, elapsedTime } = useLiveElapsedTimer(
+    computed(() => liveStore.currentActivity),
   )
 
   /** Filtre categorie dans la vue session (null = toutes) */
@@ -139,77 +108,9 @@
     liveStore.sessionActivities.filter(a => a.status === 'pending').length,
   )
 
-  /** Self-paced : progression par activite (response counts) */
-  const activityProgress = ref<{ id: number; title: string; type: string; responseCount: number }[]>([])
-  let progressInterval: ReturnType<typeof setInterval> | null = null
+  const { activityProgress, launchAllActivities, toggleSelfPaced } = useLiveSelfPacedProgress()
 
-  async function fetchProgress() {
-    if (!liveStore.currentSession?.self_paced || !liveStore.currentSession?.id) return
-    try {
-      const res = await window.api.getLiveV2Progress(liveStore.currentSession.id)
-      if (res?.ok && Array.isArray(res.data)) {
-        activityProgress.value = res.data
-      }
-    } catch { /* ignore */ }
-  }
-
-  // Poll progress every 3s when self-paced and active
-  watch(() => liveStore.currentSession?.self_paced && liveStore.currentSession?.status === 'active', (active) => {
-    if (progressInterval) { clearInterval(progressInterval); progressInterval = null }
-    if (active) {
-      fetchProgress()
-      progressInterval = setInterval(fetchProgress, 3000)
-    } else {
-      activityProgress.value = []
-    }
-  }, { immediate: true })
-
-  onUnmounted(() => { if (progressInterval) clearInterval(progressInterval) })
-
-  /** Lancer toutes les activites pending d'un coup */
-  async function launchAllActivities() {
-    if (!liveStore.currentSession) return
-    try {
-      const res = await window.api.launchAllLiveV2(liveStore.currentSession.id)
-      if (res?.ok) {
-        // Refresh session to update activity statuses
-        await liveStore.fetchSession(liveStore.currentSession.id)
-        showToast(`${res.data?.launched ?? 0} activite(s) lancee(s)`, 'success')
-        fetchProgress()
-      }
-    } catch {
-      showToast('Erreur lors du lancement', 'error')
-    }
-  }
-
-  /** Toggle self-paced mode */
-  async function toggleSelfPaced() {
-    if (!liveStore.currentSession) return
-    const newVal = !liveStore.currentSession.self_paced
-    try {
-      const res = await window.api.toggleLiveV2SelfPaced(liveStore.currentSession.id, newVal)
-      if (res?.ok && liveStore.currentSession) {
-        liveStore.currentSession = { ...liveStore.currentSession, self_paced: newVal ? 1 : 0 }
-      }
-    } catch { /* ignore */ }
-  }
-
-  /** Confusion signal counter (Wooclap "I'm confused") */
-  const confusionCount = ref(0)
-  let confusionUnsub: (() => void) | null = null
-
-  watch(() => liveStore.currentSession?.id, async (sessionId) => {
-    confusionCount.value = 0
-    confusionUnsub?.()
-    if (!sessionId) return
-    try {
-      const res = await window.api.getConfusionCount(sessionId)
-      if (res?.ok) confusionCount.value = res.data?.count ?? 0
-    } catch { /* ignore */ }
-    confusionUnsub = window.api.onLiveConfusionUpdate((data) => {
-      if (data.sessionId === sessionId) confusionCount.value = data.count
-    })
-  }, { immediate: true })
+  const { count: confusionCount } = useLiveConfusionSignal()
 
   /** Raccourcis clavier : overlay d'aide (?) */
   const shortcutsOpen = ref(false)
@@ -273,81 +174,14 @@
     showToast('Modele supprime', 'info')
   }
 
-  /** Import CSV (Kahoot-style ou universel) : cree les activites dans la session. */
-  const csvInputRef = ref<HTMLInputElement | null>(null)
-  const csvImporting = ref(false)
-  const csvHelpOpen = ref(false)
-
-  function openCsvPicker() { csvInputRef.value?.click() }
-
-  /** Telecharge un CSV d'exemple universel pour montrer le format. */
-  function downloadCsvTemplate() {
-    const example = [
-      'Type;Question;Options;Extra;Temps',
-      'sondage;Quelle couleur preferez-vous ?;Bleu|Rouge|Vert|Jaune;;30',
-      'qcm;Capitale de la France ?;Paris|Londres|Rome|Berlin;1;20',
-      'vrai_faux;La Terre est ronde;;1;15',
-      'nuage;Un mot pour decrire la session ?;;2;45',
-      'echelle;Notez la session sur 5;;5;30',
-      'question_ouverte;Qu\'avez-vous retenu ?;;;60',
-      'humeur;Votre ressenti ?;;;30',
-      'priorite;Classez ces themes par interet;Securite|Performance|UX|Innovation;;45',
-      'matrice;Evaluez ces criteres sur 5;Clarte|Utilite|Originalite;5;60',
-    ].join('\n')
-    const blob = new Blob(['\uFEFF' + example], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'cursus-live-modele.csv'
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
-  }
-
-  async function onCsvSelected(e: Event) {
-    const input = e.target as HTMLInputElement
-    const file = input.files?.[0]
-    input.value = '' // reset pour pouvoir re-importer le meme fichier
-    if (!file || !liveStore.currentSession) return
-    if (file.size > 2 * 1024 * 1024) {
-      showToast('Fichier trop volumineux (max 2 Mo)', 'error')
-      return
-    }
-    csvImporting.value = true
-    try {
-      const text = await file.text()
-      const { activities, errors, format } = parseLiveCsv(text)
-      if (!activities.length) {
-        showToast('Aucune question valide trouvee dans le CSV', 'error',
-          errors.length ? `${errors.length} ligne(s) en erreur — voir la console.` : undefined)
-        if (errors.length) console.warn('[CSV Live] erreurs :', errors)
-        return
-      }
-      if (errors.length) {
-        const proceed = await confirm(
-          `${activities.length} question(s) a importer (format ${format}), ${errors.length} ligne(s) ignoree(s). Continuer ?`,
-          'warning',
-          'Importer',
-        )
-        if (!proceed) return
-      }
-      const sessionId = liveStore.currentSession.id
-      let imported = 0
-      for (const a of activities) {
-        const payload = csvActivityToPayload(a)
-        const ok = await liveStore.pushActivity(sessionId, payload as Parameters<typeof liveStore.pushActivity>[1])
-        if (ok) imported++
-      }
-      showToast(
-        `${imported} question${imported > 1 ? 's' : ''} importee${imported > 1 ? 's' : ''} (${format})`,
-        'success',
-      )
-    } catch (err) {
-      console.error('[CSV Live] import error', err)
-      showToast('Erreur lors de la lecture du CSV', 'error')
-    } finally {
-      csvImporting.value = false
-    }
-  }
+  const {
+    inputRef: csvInputRef,
+    importing: csvImporting,
+    helpOpen: csvHelpOpen,
+    openPicker: openCsvPicker,
+    downloadTemplate: downloadCsvTemplate,
+    onFileSelected: onCsvSelected,
+  } = useLiveCsvImport()
 
   /** Temps moyen de reponse pour l'activite en cours */
   const currentResponseCount = computed(() => {
@@ -388,33 +222,12 @@
   const showPodium       = ref(false)
 
   /** Mode Spark auto-chain (Kahoot-like) : apres fermeture, leaderboard + lancement auto de la suivante. */
-  const sparkAutoChain = ref(false)
-  const autoChainDelaySeconds = ref(5)
-  const autoChainCountdown = ref<number | null>(null)
-  let autoChainTimer: ReturnType<typeof setInterval> | null = null
-  let autoPodiumTimeout: ReturnType<typeof setTimeout> | null = null
+  const autoChain = useLiveAutoChain(() => launchNext())
+  const sparkAutoChain = autoChain.enabled
+  const autoChainDelaySeconds = autoChain.delaySeconds
+  const autoChainCountdown = autoChain.countdown
+  const cancelAutoChain = autoChain.cancel
 
-  function clearAutoChainTimer() {
-    if (autoChainTimer) { clearInterval(autoChainTimer); autoChainTimer = null }
-    if (autoPodiumTimeout) { clearTimeout(autoPodiumTimeout); autoPodiumTimeout = null }
-    autoChainCountdown.value = null
-  }
-
-  function startAutoChainCountdown() {
-    clearAutoChainTimer()
-    if (!sparkAutoChain.value || !nextPendingActivity.value) return
-    autoChainCountdown.value = autoChainDelaySeconds.value
-    autoChainTimer = setInterval(() => {
-      if (autoChainCountdown.value === null) return
-      autoChainCountdown.value -= 1
-      if (autoChainCountdown.value <= 0) {
-        clearAutoChainTimer()
-        launchNext()
-      }
-    }, 1000)
-  }
-
-  function cancelAutoChain() { clearAutoChainTimer() }
   const codeEditorRef    = ref<{ getContent: () => string } | null>(null)
   const editingActivity  = ref<LiveActivity | null>(null)
   const promoId          = computed(() => appStore.activePromoId ?? appStore.currentUser?.promo_id ?? 0)
@@ -425,89 +238,10 @@
   onMounted(async () => {
     liveStore.initSocketListeners()
     if (promoId.value) await liveStore.fetchDraftSessions(promoId.value)
-    window.addEventListener('keydown', onKeydown)
   })
   onUnmounted(() => {
     liveStore.disposeSocketListeners()
-    window.removeEventListener('keydown', onKeydown)
-    clearAutoChainTimer()
-    confusionUnsub?.()
-    confusionUnsub = null
   })
-
-  // ── Keyboard shortcuts ───────────────────────────────────────────────────
-  function onKeydown(e: KeyboardEvent) {
-    // Skip if typing in an input
-    const target = e.target as HTMLElement
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
-
-    // ? : afficher/fermer overlay raccourcis (prioritaire)
-    if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
-      e.preventDefault()
-      shortcutsOpen.value = !shortcutsOpen.value
-      return
-    }
-
-    // Escape ferme l'overlay shortcuts en priorite
-    if (e.code === 'Escape' && shortcutsOpen.value) {
-      shortcutsOpen.value = false
-      return
-    }
-
-    // Space or Enter: close current activity / launch next / dismiss leaderboard
-    if (e.code === 'Space' || e.code === 'Enter') {
-      e.preventDefault()
-      if (liveStore.currentActivity && liveStore.currentActivity.status === 'live') {
-        closeCurrentActivity()
-      } else if (showLeaderboard.value) {
-        if (nextPendingActivity.value) {
-          launchNext()
-        } else {
-          dismissLeaderboard()
-        }
-      } else if (showPodium.value) {
-        showPodium.value = false
-      }
-    }
-
-    // Escape: cancel activity form, dismiss leaderboard
-    if (e.code === 'Escape') {
-      if (showActivityForm.value) cancelActivityForm()
-      else if (showLeaderboard.value) dismissLeaderboard()
-      else if (showPodium.value) showPodium.value = false
-      else if (selectedCategory.value) selectedCategory.value = null
-      else if (previewMode.value) previewMode.value = false
-    }
-
-    // T : toggle mode apercu (dans une session)
-    if ((e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.metaKey && liveStore.currentSession) {
-      e.preventDefault()
-      togglePreview()
-    }
-
-    // N : ajouter une activite (dans une session waiting)
-    if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey
-        && liveStore.currentSession && !liveStore.currentActivity && !showActivityForm.value) {
-      e.preventDefault()
-      addActivityInCategory(activeCategoryFilter.value)
-    }
-
-    // P : mode projection (plein ecran) pendant qu'une activite est en direct
-    if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.metaKey
-        && liveStore.currentActivity) {
-      e.preventDefault()
-      if (presentationOpen.value) closePresentation()
-      else openPresentation()
-    }
-
-    // Fleche droite : activite suivante (ferme + lance la suivante pending)
-    if (e.code === 'ArrowRight' && liveStore.currentSession
-        && (liveStore.currentActivity || showLeaderboard.value)
-        && nextPendingActivity.value) {
-      e.preventDefault()
-      goNext()
-    }
-  }
 
   // ── Create / select session ──────────────────────────────────────────────
   async function createSession() {
@@ -623,16 +357,11 @@
       if (hasSpark) {
         await liveStore.fetchLeaderboard(liveStore.currentSession.id)
         showLeaderboard.value = true
-        // Kahoot mode : auto-enchainement si toggle active
         if (sparkAutoChain.value && nextPendingActivity.value) {
-          startAutoChainCountdown()
+          autoChain.startCountdown()
         } else if (sparkAutoChain.value && !nextPendingActivity.value) {
-          // Derniere question : podium final auto apres 2s. Handle timer pour pouvoir annuler
-          // si l'utilisateur interrompt le flow (toggle off, leave session, etc.).
-          if (autoPodiumTimeout) clearTimeout(autoPodiumTimeout)
-          autoPodiumTimeout = setTimeout(() => {
-            autoPodiumTimeout = null
-            if (!sparkAutoChain.value || !liveStore.currentSession) return
+          autoChain.schedulePodium(() => {
+            if (!liveStore.currentSession) return
             showPodium.value = true
             showLeaderboard.value = false
             liveStore.endSession(liveStore.currentSession.id)
@@ -731,14 +460,14 @@
 
   async function launchNext() {
     if (!nextPendingActivity.value) return
-    clearAutoChainTimer()
+    autoChain.cancel()
     showLeaderboard.value = false
     await launch(nextPendingActivity.value)
   }
 
   /** Ferme l'activite courante si live puis lance la suivante. Core du flow Wooclap. */
   async function goNext() {
-    clearAutoChainTimer()
+    autoChain.cancel()
     if (liveStore.currentActivity && liveStore.currentActivity.status === 'live') {
       await closeCurrentActivity()
     }
@@ -749,7 +478,7 @@
   }
 
   function dismissLeaderboard() {
-    clearAutoChainTimer()
+    autoChain.cancel()
     showLeaderboard.value = false
   }
 
@@ -757,26 +486,7 @@
   const closedCount = computed(() => liveStore.sessionActivities.filter(a => a.status === 'closed').length)
   const totalCount  = computed(() => liveStore.sessionActivities.length)
 
-  // ── Export CSV ───────────────────────────────────────────────────────────
-  const exporting = ref(false)
-  async function exportCsv() {
-    if (!liveStore.currentSession) return
-    exporting.value = true
-    try {
-      const csv = await liveStore.exportCsv(liveStore.currentSession.id)
-      if (csv) {
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `live-${liveStore.currentSession.title.replace(/\s+/g, '-')}.csv`
-        a.click()
-        setTimeout(() => URL.revokeObjectURL(url), 5000)
-      }
-    } finally {
-      exporting.value = false
-    }
-  }
+  const { exporting, exportCsv } = useLiveSessionExport()
 
   // ── Duplicate activity ───────────────────────────────────────────────────
   async function duplicateActivity(activity: LiveActivity) {
@@ -803,6 +513,30 @@
     }
     await liveStore.pushActivity(liveStore.currentSession.id, payload)
   }
+
+  // ── Keyboard shortcuts (installation a la fin pour avoir acces aux refs/fns) ─
+  useLiveKeyboardShortcuts({
+    shortcutsOpen,
+    showActivityForm,
+    showLeaderboard,
+    showPodium,
+    selectedCategory,
+    previewMode,
+    presentationOpen,
+    hasCurrentActivity: computed(() => !!liveStore.currentActivity),
+    hasCurrentSession: computed(() => !!liveStore.currentSession),
+    currentActivityIsLive: computed(() => liveStore.currentActivity?.status === 'live'),
+    hasNextPending: computed(() => nextPendingActivity.value !== null),
+    closeCurrentActivity,
+    launchNext,
+    dismissLeaderboard,
+    cancelActivityForm,
+    togglePreview,
+    addActivity: () => addActivityInCategory(activeCategoryFilter.value),
+    openPresentation,
+    closePresentation,
+    goNext,
+  })
 </script>
 
 <template>
