@@ -2,6 +2,7 @@
 import { FileText } from 'lucide-vue-next'
 import { deadlineLabel, deadlineClass } from '@/utils/date'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 export interface LivrableAction {
   id: number; title: string; deadline?: string; category?: string | null
@@ -33,15 +34,6 @@ const emit = defineEmits<{ goToProject: [key: string] }>()
         <span v-if="l.deadline" class="deadline-badge" :class="deadlineClass(l.deadline)">{{ deadlineLabel(l.deadline) }}</span>
       </div>
     </div>
-    <p v-else class="wl-empty">Aucun livrable à venir</p>
+    <EmptyState v-else size="sm" tone="muted" title="Aucun livrable à venir" />
   </UiWidgetCard>
 </template>
-
-<style scoped>
-.wl-empty {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin: 0;
-  opacity: .6;
-}
-</style>

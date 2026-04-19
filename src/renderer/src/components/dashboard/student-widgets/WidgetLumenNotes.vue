@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { relativeTime } from '@/utils/date'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
 import UiWidgetHeaderLink from '@/components/ui/UiWidgetHeaderLink.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 interface NoteRow {
   owner: string
@@ -56,10 +57,8 @@ function openLumen() {
       <UiWidgetHeaderLink @click="openLumen" />
     </template>
 
-    <div v-if="loading" class="wln-empty">Chargement...</div>
-    <div v-else-if="recent.length === 0" class="wln-empty">
-      Aucune note encore prise.
-    </div>
+    <div v-if="loading" class="wln-loading">Chargement...</div>
+    <EmptyState v-else-if="recent.length === 0" size="sm" tone="muted" title="Aucune note encore prise" />
     <ul v-else class="wln-list">
       <li v-for="n in recent" :key="`${n.owner}/${n.repo}/${n.path}`">
         <button type="button" class="wln-item" @click="openLumen">
@@ -75,7 +74,7 @@ function openLumen() {
 </template>
 
 <style scoped>
-.wln-empty {
+.wln-loading {
   font-size: var(--text-sm);
   color: var(--text-muted);
   padding: var(--space-md) 0;

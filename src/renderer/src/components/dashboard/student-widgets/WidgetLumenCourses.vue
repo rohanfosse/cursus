@@ -6,6 +6,7 @@ import { useLumenStore } from '@/stores/lumen'
 import { useAppStore } from '@/stores/app'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
 import UiWidgetHeaderLink from '@/components/ui/UiWidgetHeaderLink.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const router = useRouter()
 const lumenStore = useLumenStore()
@@ -38,9 +39,7 @@ function openLumen() {
       <UiWidgetHeaderLink @click="openLumen" />
     </template>
 
-    <div v-if="recentRepos.length === 0" class="wlc-empty">
-      Aucun cours disponible.
-    </div>
+    <EmptyState v-if="recentRepos.length === 0" size="sm" tone="muted" title="Aucun cours disponible" />
     <ul v-else class="wlc-list">
       <li v-for="repo in recentRepos" :key="repo.id">
         <button type="button" class="wlc-item" @click="openLumen">
@@ -55,13 +54,6 @@ function openLumen() {
 </template>
 
 <style scoped>
-.wlc-empty {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  padding: var(--space-md) 0;
-  text-align: center;
-}
-
 .wlc-list {
   list-style: none;
   margin: 0;

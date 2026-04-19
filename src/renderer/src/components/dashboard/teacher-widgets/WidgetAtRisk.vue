@@ -5,6 +5,7 @@
   import { useAppStore } from '@/stores/app'
   import { avatarColor, initials } from '@/utils/format'
   import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+  import EmptyState from '@/components/ui/EmptyState.vue'
 
   const appStore = useAppStore()
   const { atRiskStudents, atRiskCount, loading, daysSinceActivity, load } =
@@ -28,9 +29,7 @@
 
     <div v-if="loading" class="war-loading">Chargement...</div>
 
-    <div v-else-if="atRiskStudents.length === 0" class="war-empty">
-      Aucun etudiant a risque
-    </div>
+    <EmptyState v-else-if="atRiskStudents.length === 0" size="sm" tone="muted" title="Aucun étudiant à risque" />
 
     <div v-else class="war-list">
       <button
@@ -70,7 +69,7 @@
   border-radius: var(--radius);
 }
 
-.war-loading, .war-empty {
+.war-loading {
   font-size: var(--text-sm);
   color: var(--text-muted);
   text-align: center;

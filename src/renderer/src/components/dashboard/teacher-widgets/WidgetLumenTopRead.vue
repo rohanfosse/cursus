@@ -4,6 +4,7 @@ import { TrendingUp } from 'lucide-vue-next'
 import { useLumenStore } from '@/stores/lumen'
 import { useAppStore } from '@/stores/app'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 interface CountRow { repo_id: number; path: string; readers: number }
 
@@ -39,9 +40,7 @@ const maxReaders = computed(() => top.value[0]?.readers ?? 1)
 
 <template>
   <UiWidgetCard :icon="TrendingUp" label="Top chapitres lus">
-    <div v-if="top.length === 0" class="wltr-empty">
-      Aucune lecture enregistrée.
-    </div>
+    <EmptyState v-if="top.length === 0" size="sm" tone="muted" title="Aucune lecture enregistrée" />
     <ul v-else class="wltr-list">
       <li v-for="(item, i) in top" :key="`${item.repo_id}::${item.path}`">
         <div class="wltr-item">
@@ -61,13 +60,6 @@ const maxReaders = computed(() => top.value[0]?.readers ?? 1)
 </template>
 
 <style scoped>
-.wltr-empty {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  text-align: center;
-  padding: var(--space-lg) 0;
-}
-
 .wltr-list {
   list-style: none;
   margin: 0;

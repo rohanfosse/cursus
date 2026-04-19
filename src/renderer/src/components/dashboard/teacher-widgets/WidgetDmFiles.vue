@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { FileBox, ChevronRight } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 interface DmFile {
   message_id: number
@@ -51,7 +52,7 @@ function goToFiles() { router.push('/files') }
         <span class="wdf-date">{{ relativeDate(f.created_at) }}</span>
       </div>
     </div>
-    <p v-else class="wdf-empty">Aucun fichier reçu</p>
+    <EmptyState v-else size="sm" tone="muted" title="Aucun fichier reçu" />
   </UiWidgetCard>
 </template>
 
@@ -103,11 +104,5 @@ function goToFiles() { router.push('/files') }
   font-size: var(--text-xs);
   color: var(--text-muted);
   flex-shrink: 0;
-}
-.wdf-empty {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin: 0;
-  opacity: .6;
 }
 </style>

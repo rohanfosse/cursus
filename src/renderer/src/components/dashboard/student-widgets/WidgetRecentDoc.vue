@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/app'
 import { useDocumentsStore } from '@/stores/documents'
 import { relativeTime } from '@/utils/date'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -71,7 +72,7 @@ function navigateToDocuments() {
     :icon="FileText"
     label="Document récent"
   >
-    <p class="wrd-empty">Aucun document partagé</p>
+    <EmptyState size="sm" tone="muted" title="Aucun document partagé" />
   </UiWidgetCard>
 </template>
 
@@ -113,10 +114,4 @@ function navigateToDocuments() {
   flex-shrink: 0;
 }
 
-.wrd-empty {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin: 0;
-  opacity: .6;
-}
 </style>

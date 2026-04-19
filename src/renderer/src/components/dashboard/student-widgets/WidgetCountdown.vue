@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Hourglass } from 'lucide-vue-next'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 export interface NextDeadline {
   title: string
@@ -60,7 +61,7 @@ const colorClass = computed(() => {
       </div>
       <p class="wcd-title">{{ nextDeadline.title }}</p>
     </template>
-    <p v-else class="wcd-empty">Aucune échéance à venir</p>
+    <EmptyState v-else size="sm" tone="muted" title="Aucune échéance à venir" />
   </UiWidgetCard>
 </template>
 
@@ -86,10 +87,4 @@ const colorClass = computed(() => {
   text-overflow: ellipsis;
 }
 
-.wcd-empty {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin: 0;
-  opacity: .6;
-}
 </style>

@@ -2,6 +2,7 @@
 import { Mic } from 'lucide-vue-next'
 import { deadlineLabel, deadlineClass } from '@/utils/date'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 export interface SoutenanceAction {
   id: number; title: string; deadline?: string; category?: string | null
@@ -33,15 +34,6 @@ const emit = defineEmits<{ goToProject: [key: string] }>()
         <span v-if="s.deadline" class="deadline-badge" :class="deadlineClass(s.deadline)">{{ deadlineLabel(s.deadline) }}</span>
       </div>
     </div>
-    <p v-else class="ws-empty">Aucune soutenance à venir</p>
+    <EmptyState v-else size="sm" tone="muted" title="Aucune soutenance à venir" />
   </UiWidgetCard>
 </template>
-
-<style scoped>
-.ws-empty {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin: 0;
-  opacity: .6;
-}
-</style>

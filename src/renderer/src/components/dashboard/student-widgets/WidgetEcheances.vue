@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { Award, FileText, Mic, ListChecks } from 'lucide-vue-next'
 import { relativeTime } from '@/utils/date'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 interface Action {
   id: number
@@ -70,9 +71,7 @@ function handleClick(action: Action) {
       </button>
     </nav>
 
-    <div v-if="activeItems.length === 0" class="we-empty">
-      Aucune échéance à venir
-    </div>
+    <EmptyState v-if="activeItems.length === 0" size="sm" tone="muted" title="Aucune échéance à venir" />
     <ul v-else class="we-list">
       <li
         v-for="item in activeItems"
@@ -137,15 +136,6 @@ function handleClick(action: Action) {
   background: var(--bg-hover);
   padding: 0 var(--space-xs);
   border-radius: 8px;
-}
-
-.we-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  padding: var(--space-lg);
 }
 
 .we-list {

@@ -3,6 +3,7 @@ import { Award } from 'lucide-vue-next'
 import { deadlineLabel, deadlineClass } from '@/utils/date'
 import { typeLabel } from '@/utils/devoir'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 export interface ExamAction {
   id: number; title: string; deadline?: string; type?: string; category?: string | null
@@ -35,15 +36,6 @@ const emit = defineEmits<{ goToProject: [key: string] }>()
         <span v-if="e.deadline" class="deadline-badge" :class="deadlineClass(e.deadline)">{{ deadlineLabel(e.deadline) }}</span>
       </div>
     </div>
-    <p v-else class="we-empty">Aucun CCTL ou étude de cas à venir</p>
+    <EmptyState v-else size="sm" tone="muted" title="Aucun CCTL ou étude de cas à venir" />
   </UiWidgetCard>
 </template>
-
-<style scoped>
-.we-empty {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin: 0;
-  opacity: .6;
-}
-</style>

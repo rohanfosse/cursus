@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { Bookmark } from 'lucide-vue-next'
 import { STORAGE_KEYS } from '@/constants'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 interface BookmarkEntry {
   id: string | number
@@ -56,7 +57,7 @@ function goToMessages() {
         <span class="wb-channel">#{{ b.channelName }}</span>
       </div>
     </div>
-    <p v-else class="wb-empty">Aucun message sauvegarde</p>
+    <EmptyState v-else size="sm" tone="muted" title="Aucun message sauvegardé" />
   </UiWidgetCard>
 </template>
 
@@ -100,12 +101,5 @@ function goToMessages() {
   color: var(--text-muted);
   opacity: .7;
   flex-shrink: 0;
-}
-
-.wb-empty {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin: 0;
-  opacity: .6;
 }
 </style>

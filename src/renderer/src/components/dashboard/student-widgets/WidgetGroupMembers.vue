@@ -4,6 +4,7 @@ import { Users } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { initials, avatarColor } from '@/utils/format'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 interface Member {
   id: number
@@ -82,9 +83,9 @@ onMounted(fetchGroup)
         <span class="wgm-mname">{{ m.name }}</span>
       </div>
     </div>
-    <p v-else-if="loading" class="wgm-empty">Chargement...</p>
-    <p v-else-if="error" class="wgm-empty wgm-empty--error">{{ error }}</p>
-    <p v-else class="wgm-empty">Aucun groupe assigné</p>
+    <div v-else-if="loading" class="wgm-loading">Chargement...</div>
+    <EmptyState v-else-if="error" size="sm" tone="danger" :title="error" />
+    <EmptyState v-else size="sm" tone="muted" title="Aucun groupe assigné" />
   </UiWidgetCard>
 </template>
 
@@ -124,11 +125,10 @@ onMounted(fetchGroup)
   text-overflow: ellipsis;
 }
 
-.wgm-empty {
+.wgm-loading {
   font-size: var(--text-sm);
   color: var(--text-muted);
-  margin: 0;
-  opacity: .6;
+  text-align: center;
+  padding: var(--space-md) 0;
 }
-.wgm-empty--error { color: var(--color-danger); opacity: .8; }
 </style>

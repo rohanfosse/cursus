@@ -6,6 +6,7 @@ import { useLumenStore } from '@/stores/lumen'
 import { useAppStore } from '@/stores/app'
 import { useLumenLastChapter } from '@/composables/useLumenLastChapter'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const router = useRouter()
 const lumenStore = useLumenStore()
@@ -65,12 +66,11 @@ function openLumen() {
       </span>
     </button>
 
-    <div v-else class="wlp-empty">
-      <p>Aucun cours ouvert récemment.</p>
+    <EmptyState v-else size="sm" tone="muted" title="Aucun cours ouvert récemment">
       <button type="button" class="wlp-open-btn" @click="openLumen">
         Ouvrir Lumen
       </button>
-    </div>
+    </EmptyState>
   </UiWidgetCard>
 </template>
 
@@ -147,18 +147,6 @@ function openLumen() {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-.wlp-empty {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  padding: var(--space-md) 0;
-}
-.wlp-empty p { margin: 0; }
 
 .wlp-open-btn {
   padding: 6px var(--space-md);

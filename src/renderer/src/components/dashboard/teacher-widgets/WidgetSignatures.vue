@@ -7,6 +7,7 @@ import { relativeTime } from '@/utils/date'
 import { initials, avatarColor } from '@/utils/format'
 import type { SignatureRequest } from '@/types'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const { requests, loading, loadRequests } = useSignature()
 const modals = useModalsStore()
@@ -29,8 +30,8 @@ function openSignature(req: SignatureRequest) {
       <span class="wsig-badge">{{ requests.length }}</span>
     </template>
 
-    <div v-if="loading" class="wsig-empty">Chargement...</div>
-    <div v-else-if="!requests.length" class="wsig-empty">Aucune signature en attente</div>
+    <div v-if="loading" class="wsig-loading">Chargement...</div>
+    <EmptyState v-else-if="!requests.length" size="sm" tone="muted" title="Aucune signature en attente" />
 
     <div v-else class="wsig-list">
       <button
@@ -63,10 +64,11 @@ function openSignature(req: SignatureRequest) {
   padding: 1px 6px;
 }
 
-.wsig-empty {
+.wsig-loading {
   font-size: var(--text-sm);
   color: var(--text-muted);
   padding: var(--space-sm) 0;
+  text-align: center;
 }
 
 .wsig-list { display: flex; flex-direction: column; gap: var(--space-xs); }

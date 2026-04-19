@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Activity } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const appStore = useAppStore()
 const stats = ref<{ repos: number; reads: number } | null>(null)
@@ -17,7 +18,7 @@ onMounted(async () => {
 
 <template>
   <UiWidgetCard :icon="Activity" label="Engagement Lumen">
-    <div v-if="!stats" class="wle-empty">Aucune donnée.</div>
+    <EmptyState v-if="!stats" size="sm" tone="muted" title="Aucune donnée" />
     <div v-else class="wle-metrics">
       <div class="wle-metric">
         <span class="wle-value">{{ stats.repos }}</span>
@@ -32,13 +33,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.wle-empty {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  text-align: center;
-  padding: var(--space-lg) 0;
-}
-
 .wle-metrics {
   display: flex;
   gap: var(--space-lg);

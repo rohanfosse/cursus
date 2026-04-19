@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { MessageSquare, ChevronRight } from 'lucide-vue-next'
 import { gradeColor as getGradeColor } from '@/utils/grade'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 interface Feedback {
   title: string
@@ -58,7 +59,7 @@ function handleClick() {
     :icon="MessageSquare"
     label="Dernier retour"
   >
-    <p class="wlf-empty">Aucun retour pour le moment</p>
+    <EmptyState size="sm" tone="muted" title="Aucun retour pour le moment" />
   </UiWidgetCard>
 </template>
 
@@ -102,10 +103,4 @@ function handleClick() {
   margin: 0;
 }
 
-.wlf-empty {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin: 0;
-  opacity: .6;
-}
 </style>
