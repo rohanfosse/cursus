@@ -27,5 +27,7 @@ logs/
 
 *.pdf
 .claude/.mcp.json
+.claude/projects/
 coverage/
 tests/uploads/
+tmp/
