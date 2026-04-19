@@ -131,16 +131,24 @@ function getTokenData(token) {
 
 // ── Bookings ────────────────────────────────────────────────────────────
 
-/** Atomic check-then-insert in a transaction (TOCTOU-safe) */
-function createBookingAtomic({ eventTypeId, studentId, teacherId, tutorName, tutorEmail, startDatetime, endDatetime }) {
+/**
+ * Atomic check-then-insert in a transaction (TOCTOU-safe).
+ * `bufferMinutes` etend la fenetre de conflit : on bloque si un autre booking
+ * (confirme) tombe dans [start - buffer, end + buffer]. Le buffer vient du
+ * booking_event_types et traduit le temps de repos voulu entre 2 RDV.
+ */
+function createBookingAtomic({ eventTypeId, studentId, teacherId, tutorName, tutorEmail, startDatetime, endDatetime, bufferMinutes = 0 }) {
   const db = getDb();
   const cancelToken = secureToken();
+  const bufferMs = Math.max(0, Number(bufferMinutes) || 0) * 60000;
+  const windowStart = new Date(new Date(startDatetime).getTime() - bufferMs).toISOString();
+  const windowEnd   = new Date(new Date(endDatetime).getTime() + bufferMs).toISOString();
   const tx = db.transaction(() => {
     const conflicts = db.prepare(`
       SELECT id FROM bookings
       WHERE teacher_id = ? AND status = 'confirmed'
       AND start_datetime < ? AND end_datetime > ?
-    `).all(teacherId, endDatetime, startDatetime);
+    `).all(teacherId, windowEnd, windowStart);
     if (conflicts.length > 0) return null;
     const res = db.prepare(`
       INSERT INTO bookings (event_type_id, student_id, teacher_id, tutor_name, tutor_email, start_datetime, end_datetime, cancel_token)
@@ -190,6 +198,18 @@ function getBookingsForSlot(teacherId, startDatetime, endDatetime) {
     WHERE teacher_id = ? AND status = 'confirmed'
     AND start_datetime < ? AND end_datetime > ?
   `).all(teacherId, endDatetime, startDatetime);
+}
+
+/** Load a booking limited to a booking token's scope (event_type + student). Retourne null si mismatch. */
+function getBookingForToken(bookingId, token) {
+  return getDb().prepare(`
+    SELECT b.*, bet.title AS event_title, bet.duration_minutes, u.name AS teacher_name
+    FROM bookings b
+    JOIN booking_tokens bt       ON bt.event_type_id = b.event_type_id AND bt.student_id = b.student_id
+    JOIN booking_event_types bet ON bet.id = b.event_type_id
+    JOIN users u                 ON u.id = b.teacher_id
+    WHERE b.id = ? AND bt.token = ?
+  `).get(bookingId, token) || null;
 }
 
 // ── Microsoft Tokens ────────────────────────────────────────────────────
@@ -294,7 +314,7 @@ module.exports = {
   getAvailabilityOverrides, setAvailabilityOverrides,
   getOrCreateToken, getTokenData,
   createBookingAtomic, updateBookingTeamsInfo,
-  getBookingByCancelToken, getBookingById, cancelBooking, rescheduleBooking,
+  getBookingByCancelToken, getBookingById, getBookingForToken, cancelBooking, rescheduleBooking,
   getBookingsForTeacher, getBookingsForSlot,
   getMicrosoftToken, saveMicrosoftToken, deleteMicrosoftToken,
   saveOAuthState, consumeOAuthState, pruneExpiredOAuthStates,

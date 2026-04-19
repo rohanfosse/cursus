@@ -23,13 +23,46 @@ const { secureToken } = require('../utils/secureToken')
 
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3001'
 
-// ── Rate limiter pour les routes publiques (anti-abus) ────────────────────
+// ── Rate limiters pour les routes publiques (anti-abus) ──────────────────
+// IP-level : garde globale anti-scan large
 const publicBookingLimiter = rateLimit({
   windowMs: 60_000,
   max: 20,
   keyGenerator: (req) => req.ip,
   message: { ok: false, error: 'Trop de tentatives. Reessayez dans une minute.' },
 })
+// Token-level : empeche un attaquant de bruteforcer un token depuis plusieurs IP
+const publicBookingPerTokenLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  keyGenerator: (req) => `token:${req.params.token || req.params.cancelToken || req.ip}`,
+  message: { ok: false, error: 'Trop de tentatives sur ce lien.' },
+})
+
+// Timeout utilitaire pour les appels Microsoft Graph (evite requetes pendues).
+const GRAPH_TIMEOUT_MS = 8_000
+function withTimeout(promise, ms = GRAPH_TIMEOUT_MS, label = 'graph') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label}_timeout`)), ms)),
+  ])
+}
+
+// Validation format Outlook eventId (accepte base64url + padding) - reutilise partout.
+const OUTLOOK_EVENT_ID_RE = /^[A-Za-z0-9_+/=-]{10,200}$/
+function isValidOutlookEventId(id) { return typeof id === 'string' && OUTLOOK_EVENT_ID_RE.test(id) }
+
+/** Supprime l'evenement Outlook si token valide + eventId valide. Best-effort. */
+async function tryDeleteOutlookEvent(teacherId, eventId) {
+  if (!isValidOutlookEventId(eventId)) return
+  const msAccessToken = await getValidMsToken(teacherId)
+  if (!msAccessToken) return
+  try {
+    await withTimeout(graph.deleteEvent(msAccessToken, eventId), GRAPH_TIMEOUT_MS, 'deleteEvent')
+  } catch (err) {
+    log.warn('outlook_event_delete_failed', { error: err.message, eventId })
+  }
+}
 
 // ── OAuth state CSRF protection (DB-backed pour survivre au redemarrage) ──
 function generateOAuthState(teacherId) {
@@ -224,7 +257,7 @@ router.delete('/oauth/disconnect', requireRole('teacher'), wrap((req) => {
 // ══════════════════════════════════════════════════════════════════════════
 
 /** Get booking page data (public) */
-router.get('/public/:token', publicBookingLimiter, requireBookingToken, wrap((req) => {
+router.get('/public/:token', publicBookingLimiter, publicBookingPerTokenLimiter, requireBookingToken, wrap((req) => {
   const data = req.bookingData
   return {
     eventTitle: data.event_title,
@@ -238,18 +271,21 @@ router.get('/public/:token', publicBookingLimiter, requireBookingToken, wrap((re
 }))
 
 /** Get available slots for a week (public) */
-router.get('/public/:token/slots', publicBookingLimiter, requireBookingToken, async (req, res) => {
+router.get('/public/:token/slots', publicBookingLimiter, publicBookingPerTokenLimiter, requireBookingToken, async (req, res) => {
   try {
     const data = req.bookingData
 
     const rawOffset = Number(req.query.weekOffset || 0)
     const weekOffset = isNaN(rawOffset) ? 0 : Math.max(0, Math.min(52, Math.round(rawOffset)))
     const now = new Date()
+    // Lundi de la semaine courante (dimanche=0 -> reculer de 6 jours, sinon day-1)
+    const dow = now.getDay()
+    const daysSinceMonday = dow === 0 ? 6 : dow - 1
     const startOfWeek = new Date(now)
-    startOfWeek.setDate(now.getDate() - now.getDay() + 1 + weekOffset * 7) // Monday
+    startOfWeek.setDate(now.getDate() - daysSinceMonday + weekOffset * 7)
     startOfWeek.setHours(0, 0, 0, 0)
     const endOfWeek = new Date(startOfWeek)
-    endOfWeek.setDate(startOfWeek.getDate() + 7) // Full week (Sun end)
+    endOfWeek.setDate(startOfWeek.getDate() + 6)
     endOfWeek.setHours(23, 59, 59, 999)
 
     const rules = queries.getAvailabilityRules(data.teacher_id)
@@ -263,10 +299,10 @@ router.get('/public/:token/slots', publicBookingLimiter, requireBookingToken, as
     const msAccessToken = await getValidMsToken(data.teacher_id)
     if (msAccessToken) {
       try {
-        outlookBusy = await graph.getCalendarBusy(
-          msAccessToken,
-          startOfWeek.toISOString(),
-          endOfWeek.toISOString(),
+        outlookBusy = await withTimeout(
+          graph.getCalendarBusy(msAccessToken, startOfWeek.toISOString(), endOfWeek.toISOString()),
+          GRAPH_TIMEOUT_MS,
+          'getCalendarBusy',
         )
       } catch (err) {
         log.warn('Outlook busy fetch failed', { error: err.message })
@@ -298,7 +334,7 @@ router.get('/public/:token/slots', publicBookingLimiter, requireBookingToken, as
 })
 
 /** Book a slot (public) */
-router.post('/public/:token/book', publicBookingLimiter, requireBookingToken, validate(bookSchema), async (req, res) => {
+router.post('/public/:token/book', publicBookingLimiter, publicBookingPerTokenLimiter, requireBookingToken, validate(bookSchema), async (req, res) => {
   try {
     const data = req.bookingData
 
@@ -320,6 +356,7 @@ router.post('/public/:token/book', publicBookingLimiter, requireBookingToken, va
       tutorEmail,
       startDatetime,
       endDatetime,
+      bufferMinutes: data.buffer_minutes || 0,
     })
     if (!booking) {
       return res.status(409).json({ ok: false, error: 'Ce creneau vient d\'etre reserve. Veuillez en choisir un autre.' })
@@ -331,7 +368,7 @@ router.post('/public/:token/book', publicBookingLimiter, requireBookingToken, va
     const msAccessToken = await getValidMsToken(data.teacher_id)
     if (msAccessToken) {
       try {
-        const result = await graph.createEventWithTeams(msAccessToken, {
+        const result = await withTimeout(graph.createEventWithTeams(msAccessToken, {
           subject: `${escHtml(data.event_title)} - ${escHtml(data.student_name)} / ${escHtml(tutorName)}`,
           startDateTime: startDatetime,
           endDateTime: endDatetime,
@@ -340,7 +377,7 @@ router.post('/public/:token/book', publicBookingLimiter, requireBookingToken, va
             { email: data.student_email, name: data.student_name },
           ],
           body: `<p>Rendez-vous ${escHtml(data.event_title)}</p><p>Etudiant : ${escHtml(data.student_name)}</p><p>Tuteur entreprise : ${escHtml(tutorName)}</p>`,
-        })
+        }), GRAPH_TIMEOUT_MS, 'createEventWithTeams')
         teamsJoinUrl = result.teamsJoinUrl || teamsJoinUrl
         outlookEventId = result.eventId
         // Update booking with Teams info
@@ -364,11 +401,18 @@ router.post('/public/:token/book', publicBookingLimiter, requireBookingToken, va
       })
     }
 
-    // Schedule reminder 24h before
+    // Schedule reminders 24h before (transaction atomique : 2 inserts ensemble)
     const reminderAt = new Date(new Date(startDatetime).getTime() - 24 * 3600000).toISOString()
     if (new Date(reminderAt) > new Date()) {
-      queries.createBookingReminder(booking.id, 'email_tutor_24h', reminderAt)
-      queries.createBookingReminder(booking.id, 'email_teacher_24h', reminderAt)
+      try {
+        const { getDb } = require('../db/connection')
+        getDb().transaction(() => {
+          queries.createBookingReminder(booking.id, 'email_tutor_24h', reminderAt)
+          queries.createBookingReminder(booking.id, 'email_teacher_24h', reminderAt)
+        })()
+      } catch (err) {
+        log.warn('booking_reminder_insert_failed', { bookingId: booking.id, error: err.message })
+      }
     }
 
     // Send confirmation email (echec = log, booking reste confirmee)
@@ -408,19 +452,17 @@ router.post('/public/:token/book', publicBookingLimiter, requireBookingToken, va
   }
 })
 
-/** Download .ics file for a booking (public) */
-router.get('/public/:token/booking/:bookingId/ics', publicBookingLimiter, requireBookingToken, (req, res) => {
+/** Download .ics file for a booking (public) — scope par token pour eviter fuite. */
+router.get('/public/:token/booking/:bookingId/ics', publicBookingLimiter, publicBookingPerTokenLimiter, requireBookingToken, (req, res) => {
   try {
     const bookingId = Number(req.params.bookingId)
-    const data = req.bookingData
-    const allBookings = queries.getBookingsForTeacher(data.teacher_id, {})
-    const booking = allBookings.find(b => b.id === bookingId)
+    const booking = queries.getBookingForToken(bookingId, req.params.token)
     if (!booking) return res.status(404).json({ ok: false, error: 'Reservation introuvable' })
     const ics = generateIcs({
-      title: `${data.event_title} - ${data.teacher_name}`,
+      title: `${booking.event_title} - ${booking.teacher_name}`,
       startDatetime: booking.start_datetime,
       endDatetime: booking.end_datetime,
-      description: `Rendez-vous ${data.event_title} avec ${data.teacher_name}`,
+      description: `Rendez-vous ${booking.event_title} avec ${booking.teacher_name}`,
       location: booking.teams_join_url || undefined,
     })
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
@@ -470,16 +512,7 @@ router.post('/public/cancel/:cancelToken', publicBookingLimiter, async (req, res
       })
     }
 
-    if (booking.outlook_event_id && /^[A-Za-z0-9_=-]{10,200}$/.test(booking.outlook_event_id)) {
-      const msAccessToken = await getValidMsToken(booking.teacher_id)
-      if (msAccessToken) {
-        try {
-          await graph.deleteEvent(msAccessToken, booking.outlook_event_id)
-        } catch (err) {
-          log.warn('Outlook event deletion failed', { error: err.message })
-        }
-      }
-    }
+    await tryDeleteOutlookEvent(booking.teacher_id, booking.outlook_event_id)
 
     const tokenRow = queries.getOrCreateToken(booking.event_type_id, booking.student_id)
     const rebookUrl = `${SERVER_URL}/#/book/${tokenRow.token}`
@@ -514,26 +547,25 @@ router.post('/public/reschedule/:cancelToken', publicBookingLimiter, async (req,
     // Cancel old booking (status = rescheduled)
     queries.rescheduleBooking(booking.id)
 
-    // Delete Outlook event if exists
-    if (booking.outlook_event_id && /^[A-Za-z0-9_+/=-]{10,200}$/.test(booking.outlook_event_id)) {
-      const msAccessToken = await getValidMsToken(booking.teacher_id)
-      if (msAccessToken) {
-        try { await graph.deleteEvent(msAccessToken, booking.outlook_event_id) } catch { /* ignore */ }
-      }
-    }
+    // Delete Outlook event if exists (best-effort, log si echec)
+    await tryDeleteOutlookEvent(booking.teacher_id, booking.outlook_event_id)
 
     // Get rebook token
     const tokenRow = queries.getOrCreateToken(booking.event_type_id, booking.student_id)
     const rebookUrl = `${SERVER_URL}/#/book/${tokenRow.token}`
 
-    // Send reschedule email
-    await email.sendBookingReschedule({
-      to: booking.tutor_email,
-      tutorName: booking.tutor_name,
-      eventTitle: booking.event_title,
-      oldDatetime: booking.start_datetime,
-      rebookUrl,
-    })
+    // Send reschedule email (echec = log, booking deja repliee)
+    try {
+      await email.sendBookingReschedule({
+        to: booking.tutor_email,
+        tutorName: booking.tutor_name,
+        eventTitle: booking.event_title,
+        oldDatetime: booking.start_datetime,
+        rebookUrl,
+      })
+    } catch (err) {
+      log.warn('booking_reschedule_email_failed', { bookingId: booking.id, error: err.message })
+    }
 
     // Notify teacher
     const io = req.app.get('io')
@@ -560,7 +592,7 @@ const bookRecurringSchema = z.object({
   recurrenceWeeks: z.number().int().min(2).max(12),
 })
 
-router.post('/public/:token/book-recurring', publicBookingLimiter, requireBookingToken, validate(bookRecurringSchema), async (req, res) => {
+router.post('/public/:token/book-recurring', publicBookingLimiter, publicBookingPerTokenLimiter, requireBookingToken, validate(bookRecurringSchema), async (req, res) => {
   try {
     const data = req.bookingData
     const { tutorName, tutorEmail, startDatetime, recurrenceWeeks } = req.body
@@ -569,6 +601,8 @@ router.post('/public/:token/book-recurring', publicBookingLimiter, requireBookin
     const { getDb } = require('../db/connection')
     const db = getDb()
 
+    const bufferMs = Math.max(0, Number(data.buffer_minutes) || 0) * 60000
+
     // Build et atomic insert : la liste est construite a l'interieur de la tx
     // et retournee uniquement si la tx reussit (evite un array partiel en cas de rollback).
     const tx = db.transaction(() => {
@@ -576,11 +610,13 @@ router.post('/public/:token/book-recurring', publicBookingLimiter, requireBookin
       for (let w = 0; w < recurrenceWeeks; w++) {
         const start = new Date(new Date(startDatetime).getTime() + w * 7 * 24 * 3600000)
         const end = new Date(start.getTime() + durationMs)
+        const winStart = new Date(start.getTime() - bufferMs).toISOString()
+        const winEnd   = new Date(end.getTime() + bufferMs).toISOString()
 
         const conflicts = db.prepare(`
           SELECT id FROM bookings WHERE teacher_id = ? AND status = 'confirmed'
           AND start_datetime < ? AND end_datetime > ?
-        `).all(data.teacher_id, end.toISOString(), start.toISOString())
+        `).all(data.teacher_id, winEnd, winStart)
 
         if (conflicts.length > 0) {
           throw Object.assign(new Error(`Conflit semaine ${w + 1} : creneau deja pris`), { statusCode: 409 })
