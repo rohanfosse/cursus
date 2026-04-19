@@ -12,11 +12,11 @@ const GRAPH_TIMEOUT_MS = 8_000
 
 // ── Rate limiters publics ────────────────────────────────────────────────
 
-// IP-level : garde globale anti-scan large
+// IP-level : garde globale anti-scan large (keyGenerator defaut = IPv6-safe)
 const publicBookingLimiter = rateLimit({
   windowMs: 60_000,
   max: 20,
-  keyGenerator: (req) => req.ip,
+  standardHeaders: true, legacyHeaders: false,
   message: { ok: false, error: 'Trop de tentatives. Reessayez dans une minute.' },
 })
 
@@ -24,7 +24,8 @@ const publicBookingLimiter = rateLimit({
 const publicBookingPerTokenLimiter = rateLimit({
   windowMs: 60_000,
   max: 10,
-  keyGenerator: (req) => `token:${req.params.token || req.params.cancelToken || req.ip}`,
+  standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req) => `token:${req.params.token || req.params.cancelToken || 'none'}`,
   message: { ok: false, error: 'Trop de tentatives sur ce lien.' },
 })
 
