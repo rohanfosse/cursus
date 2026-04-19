@@ -639,25 +639,37 @@
   margin-bottom: 4px;
 }
 
-/* ── Carte ── */
+/* ── Carte flat minimaliste (Notion-like) ── */
 .doc-card {
-  background: var(--bg-sidebar);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius);
-  padding: 16px 14px 12px;
+  padding: 10px 12px 10px;
   cursor: pointer;
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 0;
-  transition: border-color .15s, box-shadow .15s, transform .15s;
+  transition: background-color .12s var(--ease-out),
+              border-color .12s var(--ease-out);
   overflow: hidden;
 }
 
 .doc-card:hover {
-  border-color: rgba(var(--accent-rgb),.3);
-  box-shadow: 0 2px 12px rgba(0,0,0,.15);
-  background: rgba(var(--accent-rgb),.07);
+  background: var(--bg-hover);
+  border-color: var(--border);
+}
+
+.doc-card--selected {
+  background: rgba(var(--accent-rgb), .1);
+  border-color: rgba(var(--accent-rgb), .35);
+}
+
+.doc-card--fav {
+  background: rgba(var(--color-warning-rgb), .06);
+}
+.doc-card--fav:hover {
+  background: rgba(var(--color-warning-rgb), .12);
 }
 
 .doc-card--skel {
@@ -671,20 +683,20 @@
 }
 
 .doc-card-icon-skel {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
 }
 
 .doc-card-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 /* Favorite star (always visible) */
@@ -709,17 +721,22 @@
   -webkit-box-orient: vertical; overflow: hidden;
 }
 
-/* Fav border accent */
-.doc-card--fav { border-color: rgba(245,158,11,.2); }
-
 /* Type chip : inline dans le meta (v2.166.3 — top-right libere pour le menu "...") */
-.doc-card-type-chip {
-  display: inline-flex;
-  align-items: center;
-  font-size: 10px;
+.doc-card-type {
+  font-size: 11px;
   font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 10px;
+  letter-spacing: .1px;
+  flex-shrink: 0;
+}
+
+.doc-card-meta-sep {
+  color: var(--text-muted);
+  opacity: .5;
+  flex-shrink: 0;
+}
+
+.doc-card-channel {
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -740,20 +757,30 @@
   color: var(--text-muted);
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-wrap: nowrap;
+  gap: 5px;
   margin-top: auto;
+  padding-top: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.doc-card-meta .doc-card-date,
+.doc-card-meta .doc-card-date {
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
 .doc-card-meta .doc-card-size {
   flex-shrink: 0;
+  margin-left: auto;
 }
 
-/* Bouton menu "..." top-right (v2.166.3 — remplace l'overlay actions complet) */
+/* Bouton menu — opacity .45 → 1 au hover pour signaler l'affordance sans surcharger */
 .doc-card-menu-btn {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 8px;
+  right: 8px;
   z-index: 2;
   display: inline-flex;
   align-items: center;
@@ -765,7 +792,7 @@
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  opacity: 0;
+  opacity: .45;
   transition: opacity var(--motion-fast) var(--ease-out),
               background var(--motion-fast) var(--ease-out),
               color var(--motion-fast) var(--ease-out);
@@ -1207,6 +1234,10 @@
   margin-top: 0;
   flex-shrink: 0;
   order: 3;
+  flex-wrap: wrap;
+  white-space: normal;
+  overflow: visible;
+  padding-top: 0;
 }
 
 /* List mode : menu "..." reste top-right comme en grid */
@@ -1283,7 +1314,6 @@
   width: 16px; height: 16px; cursor: pointer;
   accent-color: var(--accent);
 }
-.doc-card--selected { border-color: var(--accent) !important; background: rgba(var(--accent-rgb),.06); }
 .docs-batch-delete { color: var(--color-danger) !important; border-color: rgba(var(--color-danger-rgb),.3) !important; }
 .docs-batch-delete:hover { background: rgba(var(--color-danger-rgb),.1) !important; }
 

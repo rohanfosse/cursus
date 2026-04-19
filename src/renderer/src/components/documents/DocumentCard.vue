@@ -11,7 +11,7 @@
  */
 import { ref, computed, type Component } from 'vue'
 import {
-  Star, Copy, Eye, ExternalLink, Download, Pencil, Trash2, File, BookMarked, MoreHorizontal,
+  Star, Copy, Eye, ExternalLink, Download, Pencil, Trash2, File, BookMarked, MoreVertical,
 } from 'lucide-vue-next'
 import { formatDate } from '@/utils/date'
 import { useAppStore } from '@/stores/app'
@@ -51,9 +51,8 @@ const docStore = useDocumentsStore()
 
 const isDense = props.viewMode === 'dense'
 const isList = props.viewMode === 'list'
-const iconSize = isDense ? 18 : (isList ? 20 : 28)
+const iconSize = isDense ? 18 : (isList ? 20 : 24)
 const iconBg = props.iconColor + '1A'
-const typeBadgeBg = props.iconColor + '22'
 
 function onCardClick() {
   if (props.selectionMode) emit('toggle-select')
@@ -170,7 +169,7 @@ const menuItems = computed<ContextMenuItem[]>(() => {
       aria-label="Plus d'actions"
       @click.stop="openMenu"
     >
-      <MoreHorizontal :size="isDense ? 12 : 14" />
+      <MoreVertical :size="isDense ? 14 : 16" />
     </button>
 
     <div
@@ -194,12 +193,11 @@ const menuItems = computed<ContextMenuItem[]>(() => {
       </span>
 
       <p class="doc-card-meta">
-        <span class="doc-card-type-chip" :style="{ background: typeBadgeBg, color: iconColor }">
-          {{ iconLabel }}
-        </span>
-        <span v-if="!appStore.activeChannelId && doc.channel_name">#{{ doc.channel_name }}</span>
+        <span class="doc-card-type" :style="{ color: iconColor }">{{ iconLabel }}</span>
+        <span class="doc-card-meta-sep" aria-hidden="true">·</span>
         <span class="doc-card-date">{{ formatDate(doc.created_at) }}</span>
-        <span v-if="fileSize" class="doc-card-size">{{ fileSize }}</span>
+        <span v-if="isList && fileSize" class="doc-card-size">{{ fileSize }}</span>
+        <span v-if="isList && !appStore.activeChannelId && doc.channel_name" class="doc-card-channel">#{{ doc.channel_name }}</span>
       </p>
     </template>
 

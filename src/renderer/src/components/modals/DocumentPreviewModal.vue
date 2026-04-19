@@ -4,6 +4,7 @@ import { Download, ExternalLink, FileText, Image, Video, File, Table2, BookOpen,
 import { useDocumentsStore } from '@/stores/documents'
 import { useOpenExternal }   from '@/composables/useOpenExternal'
 import Modal from '@/components/ui/Modal.vue'
+import LumenPdfViewer from '@/components/lumen/LumenPdfViewer.vue'
 import * as mammoth from 'mammoth'
 import ExcelJS from 'exceljs'
 import DOMPurify from 'dompurify'
@@ -16,6 +17,7 @@ const emit  = defineEmits<{ 'update:modelValue': [v: boolean] }>()
 
 const docStore   = useDocumentsStore()
 const blobUrl    = ref<string | null>(null)
+const pdfBytes   = ref<Uint8Array | null>(null)
 const wordHtml   = ref<string>('')
 const excelHtml  = ref<string>('')
 const textContent = ref('')
@@ -87,6 +89,7 @@ function isExcelMime(m: string) {
 // ── Chargement selon le type ──────────────────────────────────────────────────
 watch(() => props.modelValue, async (open) => {
   revokeBlob()
+  pdfBytes.value = null
   mime.value     = ''
   wordHtml.value = ''
   excelHtml.value = ''
@@ -122,10 +125,9 @@ watch(() => props.modelValue, async (open) => {
       blobUrl.value = URL.createObjectURL(blob)
 
     } else if (mime.value === 'application/pdf') {
-      // Blob URL pour PDF - les data: URI sont bloqués par le CSP dans les iframes
-      const buf  = b64ToBuffer(b64)
-      const blob = new Blob([buf], { type: 'application/pdf' })
-      blobUrl.value = URL.createObjectURL(blob)
+      // pdf.js via LumenPdfViewer : on passe les bytes bruts, pas un data URL
+      // (evite un 3x du pic memoire sur gros PDFs).
+      pdfBytes.value = new Uint8Array(b64ToBuffer(b64))
 
     } else if (mime.value.startsWith('text/')) {
       textContent.value = atob(b64)
@@ -229,13 +231,12 @@ function openWith() {
         </div>
       </div>
 
-      <!-- PDF → embed (fonctionne dans Electron Windows contrairement à iframe) -->
-      <embed
+      <!-- PDF → pdf.js via LumenPdfViewer (fix Electron 35+ sandbox) -->
+      <LumenPdfViewer
         v-else-if="previewType === 'pdf'"
-        :src="blobUrl!"
-        type="application/pdf"
+        :content="pdfBytes"
+        :title="doc?.name"
         class="preview-pdf"
-        title="Aperçu PDF"
       />
 
       <!-- Vidéo -->

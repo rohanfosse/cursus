@@ -18,7 +18,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 ).toString()
 
 interface Props {
-  content: string | null
+  /**
+   * PDF source : data URL base64 (`data:application/pdf;base64,...`) ou
+   * `Uint8Array` brut. Le bytes path evite un round-trip encode/decode
+   * qui doublerait la RAM sur un PDF de plusieurs Mo.
+   */
+  content: string | Uint8Array | null
   title?: string
 }
 
@@ -180,7 +185,9 @@ watch(searchQuery, () => {
 
 function downloadPdf() {
   if (!props.content) return
-  const data = decodeBase64Content(props.content)
+  const data = props.content instanceof Uint8Array
+    ? props.content
+    : decodeBase64Content(props.content)
   if (!data) return
   const blob = new Blob([data as BlobPart], { type: 'application/pdf' })
   const url = URL.createObjectURL(blob)
@@ -272,14 +279,14 @@ async function loadPdf(data: Uint8Array, gen: number) {
   }
 }
 
-// Content change: decode + load new PDF document
+// Content change: decode (if string) + load new PDF document
 watch(() => props.content, (content) => {
   renderGeneration++
   const gen = renderGeneration
   if (currentPdf) { currentPdf.destroy(); currentPdf = null }
   pageCount.value = 0
   if (!content) { error.value = 'Aucun contenu PDF'; return }
-  const data = decodeBase64Content(content)
+  const data = content instanceof Uint8Array ? content : decodeBase64Content(content)
   if (!data) { error.value = 'Format de donnees PDF invalide'; return }
   loadPdf(data, gen)
 }, { immediate: true })
