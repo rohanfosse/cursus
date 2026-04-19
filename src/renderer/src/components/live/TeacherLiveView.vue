@@ -1584,11 +1584,11 @@
 .btn-export {
   display: flex; align-items: center; gap: 6px;
   padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
-  background: rgba(74,144,217,.08); color: var(--accent);
-  border: 1px solid rgba(74,144,217,.2); cursor: pointer;
+  background: rgba(var(--accent-rgb),.08); color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb),.2); cursor: pointer;
   transition: all .15s;
 }
-.btn-export:hover { background: rgba(74,144,217,.15); }
+.btn-export:hover { background: rgba(var(--accent-rgb),.15); }
 .btn-export:disabled { opacity: .4; cursor: not-allowed; }
 .btn-preview {
   display: flex; align-items: center; gap: 6px;
@@ -1648,11 +1648,11 @@
   display: inline-flex; align-items: center; gap: 4px;
   padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
   background: var(--accent-subtle); color: var(--accent);
-  border: 1px solid rgba(74,144,217,.25); cursor: pointer;
+  border: 1px solid rgba(var(--accent-rgb),.25); cursor: pointer;
   font-family: inherit;
   transition: all .15s;
 }
-.ltc-load:hover { background: rgba(74,144,217,.22); }
+.ltc-load:hover { background: rgba(var(--accent-rgb),.22); }
 .ltc-del {
   width: 26px; height: 26px; border-radius: 6px;
   background: rgba(239,68,68,.08); color: #f87171;
@@ -1825,7 +1825,7 @@
 .progress-text {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600; color: var(--text-secondary, #aaa);
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
 }
 
 /* ── Spark mode panel (Kahoot-like auto-chain) ── */
@@ -2050,11 +2050,11 @@
 .btn-add-activity {
   display: flex; align-items: center; gap: 6px;
   padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
-  background: var(--accent-subtle, rgba(74,144,217,.12));
-  color: var(--accent); border: 1px solid rgba(74,144,217,.2);
+  background: var(--accent-subtle, rgba(var(--accent-rgb),.12));
+  color: var(--accent); border: 1px solid rgba(var(--accent-rgb),.2);
   cursor: pointer; transition: all .15s;
 }
-.btn-add-activity:hover { background: rgba(74,144,217,.2); }
+.btn-add-activity:hover { background: rgba(var(--accent-rgb),.2); }
 .btn-import-csv {
   display: flex; align-items: center; gap: 5px;
   padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
@@ -2164,7 +2164,7 @@
   align-self: flex-start;
   transition: background .15s;
 }
-.csv-help-download:hover { background: rgba(74,144,217,.2); }
+.csv-help-download:hover { background: rgba(var(--accent-rgb),.2); }
 .activity-form-wrapper {
   padding: 20px;
   background: var(--bg-elevated);
@@ -2190,7 +2190,7 @@
 .no-activities-title {
   font-size: 16px;
   font-weight: 700;
-  color: var(--text-secondary, #aaa);
+  color: var(--text-secondary);
 }
 .no-activities-desc {
   font-size: 13px;
@@ -2293,7 +2293,7 @@
 }
 .activity-card-icon {
   width: 36px; height: 36px; border-radius: 8px;
-  background: rgba(74,144,217,.12); color: var(--accent);
+  background: rgba(var(--accent-rgb),.12); color: var(--accent);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   transition: background .15s, color .15s;
@@ -2356,12 +2356,12 @@
 .btn-launch:hover { filter: brightness(1.1); }
 .btn-edit-activity {
   width: 28px; height: 28px; border-radius: 6px;
-  background: rgba(74,144,217,.08); color: var(--accent);
+  background: rgba(var(--accent-rgb),.08); color: var(--accent);
   border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: all .15s;
 }
-.btn-edit-activity:hover { background: rgba(74,144,217,.18); }
+.btn-edit-activity:hover { background: rgba(var(--accent-rgb),.18); }
 .btn-delete-activity {
   width: 28px; height: 28px; border-radius: 6px;
   background: rgba(239,68,68,.08); color: #f87171;
@@ -2499,7 +2499,7 @@
   gap: 10px;
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-secondary, #aaa);
+  color: var(--text-secondary);
 }
 .response-progress {
   width: 80px;

@@ -324,10 +324,10 @@ function isLate(r: any, group: { devoir: Partial<GanttRow> }): boolean {
   font-size: 10px; font-weight: 700; padding: 1px 6px;
   border-radius: 8px; white-space: nowrap;
 }
-.grade-dist--a { background: rgba(39,174,96,.15); color: var(--color-success); }
-.grade-dist--b { background: rgba(74,144,217,.15); color: var(--accent); }
-.grade-dist--c { background: rgba(243,156,18,.15); color: var(--color-warning); }
-.grade-dist--d { background: rgba(231,76,60,.15); color: var(--color-danger); }
+.grade-dist--a { background: rgba(var(--color-success-rgb),.15); color: var(--color-success); }
+.grade-dist--b { background: rgba(var(--accent-rgb),.15); color: var(--accent); }
+.grade-dist--c { background: rgba(var(--color-warning-rgb),.15); color: var(--color-warning); }
+.grade-dist--d { background: rgba(var(--color-danger-rgb),.15); color: var(--color-danger); }
 .grade-dist--none { background: var(--bg-active); color: var(--text-muted); }
 
 /* ── Late badge ──────────────────────────────────────────────────────────── */
@@ -335,7 +335,7 @@ function isLate(r: any, group: { devoir: Partial<GanttRow> }): boolean {
   display: inline-flex; align-items: center; gap: 3px;
   font-size: 9px; font-weight: 700; padding: 1px 6px;
   border-radius: 8px; white-space: nowrap;
-  background: rgba(231,76,60,.12); color: var(--color-danger);
+  background: rgba(var(--color-danger-rgb),.12); color: var(--color-danger);
 }
 
 /* ── Liste commune ────────────────────────────────────────────────────────── */
@@ -390,7 +390,7 @@ function isLate(r: any, group: { devoir: Partial<GanttRow> }): boolean {
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 20px;
-  background: rgba(74, 144, 217, 0.2);
+  background: rgba(var(--accent-rgb), 0.2);
   color: var(--accent);
 }
 
@@ -399,11 +399,11 @@ function isLate(r: any, group: { devoir: Partial<GanttRow> }): boolean {
 }
 .rendus-graded-count {
   font-size: 10px; font-weight: 600; padding: 2px 6px;
-  border-radius: 8px; background: rgba(39,174,96,.12); color: var(--color-success);
+  border-radius: 8px; background: rgba(var(--color-success-rgb),.12); color: var(--color-success);
 }
 .rendus-late-count {
   font-size: 10px; font-weight: 600; padding: 2px 6px;
-  border-radius: 8px; background: rgba(231,76,60,.12); color: var(--color-danger);
+  border-radius: 8px; background: rgba(var(--color-danger-rgb),.12); color: var(--color-danger);
 }
 .btn-ouvrir {
   flex-shrink: 0;
@@ -483,7 +483,7 @@ function isLate(r: any, group: { devoir: Partial<GanttRow> }): boolean {
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 20px;
-  background: rgba(74, 144, 217, 0.15);
+  background: rgba(var(--accent-rgb), 0.15);
   color: var(--accent-light);
 }
 
@@ -540,9 +540,9 @@ function isLate(r: any, group: { devoir: Partial<GanttRow> }): boolean {
 }
 
 /* ── Grade validation ────────────────────────────────────────────────────── */
-.grade-input--invalid { border-color: var(--color-error, #f38ba8) !important; }
+.grade-input--invalid { border-color: var(--color-error) !important; }
 .grade-hint {
-  font-size: 9px; color: var(--color-error, #f38ba8); margin-top: -2px;
+  font-size: 9px; color: var(--color-error); margin-top: -2px;
 }
 
 /* ── Notation inline ─────────────────────────────────────────────────────── */
@@ -569,11 +569,11 @@ function isLate(r: any, group: { devoir: Partial<GanttRow> }): boolean {
   border-radius: 4px;
 }
 
-.type-livrable     { background: rgba(74,144,217,.2);   color: var(--accent); }
-.type-soutenance   { background: rgba(243,156,18,.2);   color: var(--color-warning); }
+.type-livrable     { background: rgba(var(--accent-rgb),.2);   color: var(--accent); }
+.type-soutenance   { background: rgba(var(--color-warning-rgb),.2);   color: var(--color-warning); }
 .type-cctl         { background: rgba(123,104,238,.2);  color: var(--color-cctl); }
-.type-etude_de_cas { background: rgba(39,174,96,.2);    color: var(--color-success); }
-.type-memoire      { background: rgba(231,76,60,.2);    color: var(--color-danger); }
+.type-etude_de_cas { background: rgba(var(--color-success-rgb),.2);    color: var(--color-success); }
+.type-memoire      { background: rgba(var(--color-danger-rgb),.2);    color: var(--color-danger); }
 .type-autre        { background: rgba(127,140,141,.2);  color: var(--color-autre); }
 
 /* ── Shared ──────────────────────────────────────────────────────────────── */

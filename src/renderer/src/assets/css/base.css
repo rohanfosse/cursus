@@ -103,6 +103,12 @@ body.theme-transitioning *::after {
   --color-danger:  #E74C3C;
   --color-warning: #E8891A;
   --color-success: #2ECC71;
+  /* RGB triplets pour rgba(var(--*-rgb), X) dans les composants */
+  --color-danger-rgb:  231,76,60;
+  --color-warning-rgb: 232,137,26;
+  --color-success-rgb: 46,204,113;
+  --color-info-rgb:    59,130,246;
+  --color-cctl-rgb:    155,135,245;
 
   /* Live : couleurs par categorie (Spark, Pulse, Code, Board) */
   --live-spark:        #F59E0B;  /* Ambre : quiz gamifie */
@@ -273,6 +279,11 @@ body.light {
   --color-danger:  #c0392b;
   --color-warning: #d4850a;
   --color-success: #27ae60;
+  --color-danger-rgb:  192,57,43;
+  --color-warning-rgb: 212,133,10;
+  --color-success-rgb: 39,174,96;
+  --color-info-rgb:    59,130,246;
+  --color-cctl-rgb:    155,135,245;
 
   /* Deadlines */
   --deadline-ok-bg:     rgba(39, 174, 96, .14);
@@ -414,6 +425,11 @@ body.cursus {
   --color-danger:  #dc2626;
   --color-warning: #d97706;
   --color-success: #059669;
+  --color-danger-rgb:  220,38,38;
+  --color-warning-rgb: 217,119,6;
+  --color-success-rgb: 5,150,105;
+  --color-info-rgb:    59,130,246;
+  --color-cctl-rgb:    155,135,245;
 
   /* Typo - Inter comme la landing */
   --font:      'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

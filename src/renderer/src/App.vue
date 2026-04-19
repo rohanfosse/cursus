@@ -677,7 +677,7 @@
     z-index: var(--z-modal-bg);
     display: flex; align-items: center; gap: 12px;
     padding: 10px 16px; border-radius: var(--radius);
-    background: var(--bg-elevated, #272829);
+    background: var(--bg-elevated);
     border: 1px solid var(--border, rgba(255,255,255,.06));
     box-shadow: 0 8px 30px rgba(0,0,0,.4);
     font-size: 13px; color: var(--text-primary);
@@ -711,7 +711,7 @@
     border: 1px solid transparent;
   }
   .update-banner--downloading {
-    background: var(--bg-elevated, #272829);
+    background: var(--bg-elevated);
     border-color: var(--border, rgba(255,255,255,.08));
     color: var(--text-primary);
   }
@@ -963,7 +963,7 @@
     width: 40px;
     height: 40px;
     border-radius: var(--radius-full);
-    background: var(--accent, #4A90D9);
+    background: var(--accent);
     color: #fff;
     border: none;
     font-size: 18px;
@@ -985,7 +985,7 @@
     right: 20px;
     z-index: var(--z-sticky);
     width: 300px;
-    background: var(--bg-modal, #1e1f21);
+    background: var(--bg-modal);
     border: 1px solid var(--border, rgba(255,255,255,.08));
     border-radius: var(--radius-lg);
     padding: 14px;
@@ -1027,11 +1027,11 @@
     max-width: calc(100vw - 32px);
   }
   .live-invite-content {
-    background: var(--bg-modal, #1e1f21);
-    border: 2px solid var(--accent, #4a90d9);
+    background: var(--bg-modal);
+    border: 2px solid var(--accent);
     border-radius: var(--radius-lg);
     padding: 16px;
-    box-shadow: 0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(74,144,217,.15);
+    box-shadow: 0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(var(--accent-rgb),.15);
   }
   .live-invite-header {
     display: flex;
@@ -1055,7 +1055,7 @@
     50% { opacity: .7; box-shadow: 0 0 0 4px rgba(239,68,68,0); }
   }
   .live-invite-icon {
-    color: var(--accent, #4a90d9);
+    color: var(--accent);
     flex-shrink: 0;
   }
   .live-invite-title {
@@ -1074,7 +1074,7 @@
     letter-spacing: 1px;
   }
   .live-invite-code strong {
-    color: var(--accent, #4a90d9);
+    color: var(--accent);
   }
   .live-invite-actions {
     display: flex;
@@ -1092,7 +1092,7 @@
     font-family: var(--font);
   }
   .live-invite-join {
-    background: var(--accent, #4a90d9);
+    background: var(--accent);
     color: #fff;
   }
   .live-invite-join:hover {

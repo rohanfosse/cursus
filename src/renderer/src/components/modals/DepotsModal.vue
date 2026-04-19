@@ -497,7 +497,7 @@
   background: var(--bg-elevated);
   transition: border-color .12s;
 }
-.depot-card.has-note { border-color: rgba(74,144,217,.25); }
+.depot-card.has-note { border-color: rgba(var(--accent-rgb),.25); }
 
 .depot-card-body {
   flex: 1;
@@ -594,9 +594,9 @@
   white-space: nowrap;
 }
 .feedback-bank-pill:hover {
-  background: rgba(74,144,217,.1);
+  background: rgba(var(--accent-rgb),.1);
   color: var(--accent);
-  border-color: rgba(74,144,217,.4);
+  border-color: rgba(var(--accent-rgb),.4);
 }
 .feedback-custom { border-style: dashed; }
 .feedback-add-btn { border-style: dashed; opacity: .6; }
@@ -676,11 +676,11 @@
   padding: 2px 7px;
   border-radius: 4px;
 }
-.type-livrable     { background: rgba(74,144,217,.2);   color: var(--accent); }
-.type-soutenance   { background: rgba(243,156,18,.2);   color: var(--color-warning); }
+.type-livrable     { background: rgba(var(--accent-rgb),.2);   color: var(--accent); }
+.type-soutenance   { background: rgba(var(--color-warning-rgb),.2);   color: var(--color-warning); }
 .type-cctl         { background: rgba(123,104,238,.2);  color: var(--color-cctl); }
-.type-etude_de_cas { background: rgba(39,174,96,.2);    color: var(--color-success); }
-.type-memoire      { background: rgba(231,76,60,.2);    color: var(--color-danger); }
+.type-etude_de_cas { background: rgba(var(--color-success-rgb),.2);    color: var(--color-success); }
+.type-memoire      { background: rgba(var(--color-danger-rgb),.2);    color: var(--color-danger); }
 .type-autre        { background: rgba(127,140,141,.2);  color: var(--color-autre); }
 
 /* Distribution des notes (#3) */
@@ -701,10 +701,10 @@
   font-weight: 600;
   border: 1px solid transparent;
 }
-.grade-dist-pill.grade-a  { background: rgba(39,174,96,.12);   color: var(--color-success); border-color: rgba(39,174,96,.25); }
-.grade-dist-pill.grade-b  { background: rgba(39,174,96,.07);   color: #27ae60;              border-color: rgba(39,174,96,.15); }
-.grade-dist-pill.grade-c  { background: rgba(243,156,18,.12);  color: var(--color-warning); border-color: rgba(243,156,18,.25); }
-.grade-dist-pill.grade-d  { background: rgba(231,76,60,.12);   color: var(--color-danger);  border-color: rgba(231,76,60,.25); }
+.grade-dist-pill.grade-a  { background: rgba(var(--color-success-rgb),.12);   color: var(--color-success); border-color: rgba(var(--color-success-rgb),.25); }
+.grade-dist-pill.grade-b  { background: rgba(var(--color-success-rgb),.07);   color: #27ae60;              border-color: rgba(var(--color-success-rgb),.15); }
+.grade-dist-pill.grade-c  { background: rgba(var(--color-warning-rgb),.12);  color: var(--color-warning); border-color: rgba(var(--color-warning-rgb),.25); }
+.grade-dist-pill.grade-d  { background: rgba(var(--color-danger-rgb),.12);   color: var(--color-danger);  border-color: rgba(var(--color-danger-rgb),.25); }
 .grade-dist-pill.grade-na { background: var(--bg-hover); color: var(--text-muted);    border-color: var(--border); }
 .grade-dist-pill strong { font-weight: 800; }
 
@@ -716,9 +716,9 @@
   font-size: 11px; font-weight: 600; padding: 2px 8px;
   border-radius: 12px; border: 1px solid transparent;
 }
-.stat-total   { background: rgba(74,144,217,.12); color: var(--accent); border-color: rgba(74,144,217,.25); }
-.stat-noted   { background: rgba(39,174,96,.12);  color: var(--color-success); border-color: rgba(39,174,96,.25); }
-.stat-waiting { background: rgba(243,156,18,.12); color: var(--color-warning); border-color: rgba(243,156,18,.25); }
+.stat-total   { background: rgba(var(--accent-rgb),.12); color: var(--accent); border-color: rgba(var(--accent-rgb),.25); }
+.stat-noted   { background: rgba(var(--color-success-rgb),.12);  color: var(--color-success); border-color: rgba(var(--color-success-rgb),.25); }
+.stat-waiting { background: rgba(var(--color-warning-rgb),.12); color: var(--color-warning); border-color: rgba(var(--color-warning-rgb),.25); }
 .stat-submitted { background: var(--bg-hover); color: var(--text-muted); border-color: var(--border); }
 .stat-mode    { background: rgba(123,104,238,.12); color: var(--color-cctl); border-color: rgba(123,104,238,.25); }
 .stat-badge strong { font-weight: 800; }
@@ -746,7 +746,7 @@
 .depots-bulk-hint {
   font-size: 11.5px; color: var(--color-warning); font-weight: 600;
   padding: 4px 10px; border-radius: 6px;
-  background: rgba(243,156,18,.08); border: 1px solid rgba(243,156,18,.2);
+  background: rgba(var(--color-warning-rgb),.08); border: 1px solid rgba(var(--color-warning-rgb),.2);
 }
 
 /* Badge retard (#7) */
@@ -758,9 +758,9 @@
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 10px;
-  background: rgba(231,76,60,.15);
+  background: rgba(var(--color-danger-rgb),.15);
   color: var(--color-danger);
-  border: 1px solid rgba(231,76,60,.3);
+  border: 1px solid rgba(var(--color-danger-rgb),.3);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -924,7 +924,7 @@
 }
 
 @keyframes flashGreen {
-  0% { background: rgba(46,204,113,0.15); }
+  0% { background: rgba(var(--color-success-rgb),0.15); }
   100% { background: transparent; }
 }
 
@@ -942,10 +942,10 @@
 }
 
 .batch-grade-btn:hover { border-color: currentColor; transform: translateY(-2px); }
-.batch-grade-btn.active.grade-a { background: var(--color-grade-a, #2ECC71); color: #fff; border-color: transparent; }
-.batch-grade-btn.active.grade-b { background: var(--color-grade-b, #4A90D9); color: #fff; border-color: transparent; }
-.batch-grade-btn.active.grade-c { background: var(--color-grade-c, #F39C12); color: #fff; border-color: transparent; }
-.batch-grade-btn.active.grade-d { background: var(--color-grade-d, #E74C3C); color: #fff; border-color: transparent; }
+.batch-grade-btn.active.grade-a { background: var(--color-grade-a); color: #fff; border-color: transparent; }
+.batch-grade-btn.active.grade-b { background: var(--color-grade-b); color: #fff; border-color: transparent; }
+.batch-grade-btn.active.grade-c { background: var(--color-grade-c); color: #fff; border-color: transparent; }
+.batch-grade-btn.active.grade-d { background: var(--color-grade-d); color: #fff; border-color: transparent; }
 
 .batch-feedback-section { display: flex; flex-direction: column; }
 

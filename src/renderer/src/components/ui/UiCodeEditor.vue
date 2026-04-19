@@ -49,36 +49,36 @@
   // que d'importer @codemirror/theme-one-dark (~30KB de plus).
   const cursusTheme = EditorView.theme({
     '&': {
-      backgroundColor: 'var(--bg-input, #1a1b1d)',
-      color: 'var(--text-primary, #E8E9EA)',
+      backgroundColor: 'var(--bg-input)',
+      color: 'var(--text-primary)',
       fontFamily: "'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace",
       fontSize: '13px',
       height: '100%',
     },
     '.cm-content': {
-      caretColor: 'var(--accent, #4A90D9)',
+      caretColor: 'var(--accent)',
       padding: '12px 0',
     },
     '.cm-cursor': {
-      borderLeftColor: 'var(--accent, #4A90D9)',
+      borderLeftColor: 'var(--accent)',
     },
     '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-      backgroundColor: 'rgba(74,144,217,.25)',
+      backgroundColor: 'rgba(var(--accent-rgb),.25)',
     },
     '.cm-gutters': {
       backgroundColor: 'transparent',
-      color: 'var(--text-muted, #808488)',
+      color: 'var(--text-muted)',
       borderRight: '1px solid var(--border, rgba(255,255,255,.1))',
     },
     '.cm-activeLineGutter': {
-      backgroundColor: 'rgba(74,144,217,.08)',
-      color: 'var(--accent, #4A90D9)',
+      backgroundColor: 'rgba(var(--accent-rgb),.08)',
+      color: 'var(--accent)',
     },
     '.cm-activeLine': {
       backgroundColor: 'rgba(255,255,255,.025)',
     },
     '.cm-selectionMatch': {
-      backgroundColor: 'rgba(74,144,217,.18)',
+      backgroundColor: 'rgba(var(--accent-rgb),.18)',
     },
     '&.cm-focused': {
       outline: 'none',

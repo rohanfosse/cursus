@@ -167,7 +167,7 @@ function formatDesc(text: string): string {
   padding: 16px;
   transition: border-color var(--t-base);
 }
-.devoir-card:hover { border-color: rgba(74, 144, 217, 0.3); }
+.devoir-card:hover { border-color: rgba(var(--accent-rgb), 0.3); }
 
 .devoir-card--overdue   { border-left-color: var(--color-danger); }
 .devoir-card--overdue:hover   { border-left-color: var(--color-danger); }
@@ -176,9 +176,9 @@ function formatDesc(text: string): string {
 .devoir-card--pending   { border-left-color: var(--accent); }
 .devoir-card--pending:hover   { border-left-color: var(--accent); }
 .devoir-card--submitted { border-left-color: var(--color-success); }
-.devoir-card--submitted:hover { border-left-color: var(--color-success); border-color: rgba(39, 174, 96, 0.3); }
+.devoir-card--submitted:hover { border-left-color: var(--color-success); border-color: rgba(var(--color-success-rgb), 0.3); }
 .devoir-card--event     { border-left-color: var(--color-cctl); }
-.devoir-card--event:hover     { border-left-color: var(--color-cctl); border-color: rgba(155, 135, 245, 0.3); }
+.devoir-card--event:hover     { border-left-color: var(--color-cctl); border-color: rgba(var(--color-cctl-rgb), 0.3); }
 
 .devoir-card-header {
   display: flex;
@@ -205,7 +205,7 @@ function formatDesc(text: string): string {
   transition: all .15s; flex-shrink: 0;
 }
 .devoir-reminder-btn:hover { background: var(--bg-hover); color: var(--accent); border-color: var(--accent); }
-.devoir-reminder-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(74,144,217,.08); }
+.devoir-reminder-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(var(--accent-rgb),.08); }
 
 .devoir-card-title {
   font-size: 15px;
@@ -236,7 +236,7 @@ function formatDesc(text: string): string {
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 12px;
-  background: rgba(74,144,217,.12);
+  background: rgba(var(--accent-rgb),.12);
   color: var(--accent);
   white-space: nowrap;
 }
@@ -249,8 +249,8 @@ function formatDesc(text: string): string {
   font-size: 12.5px;
   font-weight: 600;
   color: var(--color-cctl);
-  background: rgba(155, 135, 245, 0.1);
-  border: 1px solid rgba(155, 135, 245, 0.25);
+  background: rgba(var(--color-cctl-rgb), 0.1);
+  border: 1px solid rgba(var(--color-cctl-rgb), 0.25);
   padding: 6px 12px;
   border-radius: 6px;
   margin-top: 8px;
@@ -273,7 +273,7 @@ function formatDesc(text: string): string {
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 10px;
-  background: rgba(46,204,113,.15);
+  background: rgba(var(--color-success-rgb),.15);
   color: var(--color-success);
   margin-left: 4px;
 }
@@ -297,10 +297,10 @@ function formatDesc(text: string): string {
 }
 .devoir-grade-icon { color: var(--accent-light); flex-shrink: 0; }
 .devoir-grade-value { font-weight: 700; color: var(--accent-light); padding: 1px 8px; border-radius: 8px; font-size: 13px; }
-.grade--a { background: rgba(39,174,96,.15); color: var(--color-success); }
-.grade--b { background: rgba(74,144,217,.15); color: var(--accent); }
-.grade--c { background: rgba(243,156,18,.15); color: var(--color-warning); }
-.grade--d { background: rgba(231,76,60,.15); color: var(--color-danger); }
+.grade--a { background: rgba(var(--color-success-rgb),.15); color: var(--color-success); }
+.grade--b { background: rgba(var(--accent-rgb),.15); color: var(--accent); }
+.grade--c { background: rgba(var(--color-warning-rgb),.15); color: var(--color-warning); }
+.grade--d { background: rgba(var(--color-danger-rgb),.15); color: var(--color-danger); }
 .devoir-grade-feedback { color: var(--text-secondary); font-style: italic; flex: 1; line-height: 1.4; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin .8s linear infinite; }
@@ -321,9 +321,9 @@ function formatDesc(text: string): string {
   align-items: center;
   gap: 6px;
   padding: 5px 12px;
-  border: 1px solid rgba(231, 76, 60, 0.3);
+  border: 1px solid rgba(var(--color-danger-rgb), 0.3);
   border-radius: var(--radius-sm);
-  background: rgba(231, 76, 60, 0.08);
+  background: rgba(var(--color-danger-rgb), 0.08);
   color: var(--color-danger);
   font-size: 12px;
   font-weight: 600;
@@ -342,8 +342,8 @@ function formatDesc(text: string): string {
   border-radius: 10px;
   white-space: nowrap;
 }
-.countdown--urgent { background: rgba(243,156,18,.12); color: var(--color-warning); }
-.countdown--pending { background: rgba(74,144,217,.1); color: var(--accent-light); }
+.countdown--urgent { background: rgba(var(--color-warning-rgb),.12); color: var(--color-warning); }
+.countdown--pending { background: rgba(var(--accent-rgb),.1); color: var(--accent-light); }
 
 .btn-deposit {
   display: inline-flex;
@@ -421,7 +421,7 @@ function formatDesc(text: string): string {
   padding: 10px 12px;
   border: 1.5px solid var(--color-success);
   border-radius: 8px;
-  background: rgba(39, 174, 96, 0.08);
+  background: rgba(var(--color-success-rgb), 0.08);
 }
 
 .deposit-file-selected-icon { color: var(--color-success); flex-shrink: 0; }
@@ -447,7 +447,7 @@ function formatDesc(text: string): string {
   flex-shrink: 0;
   transition: color var(--t-fast), background var(--t-fast);
 }
-.deposit-file-selected-clear:hover { color: #ff6b6b; background: rgba(231, 76, 60, 0.12); }
+.deposit-file-selected-clear:hover { color: #ff6b6b; background: rgba(var(--color-danger-rgb), 0.12); }
 
 .deposit-actions {
   display: flex;
@@ -518,11 +518,11 @@ function formatDesc(text: string): string {
   border-radius: 4px;
 }
 
-.type-livrable     { background: rgba(74,144,217,.2);   color: var(--accent); }
-.type-soutenance   { background: rgba(243,156,18,.2);   color: var(--color-warning); }
+.type-livrable     { background: rgba(var(--accent-rgb),.2);   color: var(--accent); }
+.type-soutenance   { background: rgba(var(--color-warning-rgb),.2);   color: var(--color-warning); }
 .type-cctl         { background: rgba(123,104,238,.2);  color: var(--color-cctl); }
-.type-etude_de_cas { background: rgba(39,174,96,.2);    color: var(--color-success); }
-.type-memoire      { background: rgba(231,76,60,.2);    color: var(--color-danger); }
+.type-etude_de_cas { background: rgba(var(--color-success-rgb),.2);    color: var(--color-success); }
+.type-memoire      { background: rgba(var(--color-danger-rgb),.2);    color: var(--color-danger); }
 .type-autre        { background: rgba(127,140,141,.2);  color: var(--color-autre); }
 
 @media (max-width: 500px) {

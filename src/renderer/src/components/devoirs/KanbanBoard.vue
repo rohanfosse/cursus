@@ -167,17 +167,17 @@
   padding: 10px 12px 8px;
   border-top: 3px solid;
   border-radius: 8px 8px 0 0;
-  background: var(--bg-elevated, #1e1f21);
+  background: var(--bg-elevated);
 }
 .kb-col-title {
   font-size: 12px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.5px; color: var(--text-primary, #fff);
+  letter-spacing: 0.5px; color: var(--text-primary);
 }
 .kb-col-count {
   font-size: 11px; font-weight: 700;
   background: rgba(255,255,255,.08);
   padding: 1px 6px; border-radius: 10px;
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
 }
 
 .kb-cards {
@@ -195,7 +195,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px 34px 10px 30px;
-  background: var(--bg-elevated, #1e1f21);
+  background: var(--bg-elevated);
   border: 1px solid var(--border, rgba(255,255,255,.08));
   border-radius: 8px;
   cursor: grab;
@@ -206,23 +206,23 @@
 .kb-card-readonly { cursor: default; padding: 10px 12px; }
 .kb-grip {
   position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
-  color: var(--text-muted, #888); flex-shrink: 0;
+  color: var(--text-muted); flex-shrink: 0;
 }
 .kb-card-title {
-  font-size: 13px; font-weight: 500; color: var(--text-primary, #fff);
+  font-size: 13px; font-weight: 500; color: var(--text-primary);
   word-break: break-word;
 }
 .kb-card-desc {
-  font-size: 11px; color: var(--text-muted, #888);
+  font-size: 11px; color: var(--text-muted);
   margin: 0; word-break: break-word;
 }
 .kb-card-author {
-  font-size: 10px; color: var(--text-muted, #888); font-style: italic;
+  font-size: 10px; color: var(--text-muted); font-style: italic;
 }
 .kb-card-del {
   position: absolute; right: 8px; top: 8px;
   background: transparent; border: none; cursor: pointer;
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
   opacity: 0; transition: opacity .15s, color .15s;
   padding: 2px;
 }
@@ -231,7 +231,7 @@
 
 .kb-empty {
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--text-muted, #888);
+  font-size: 12px; color: var(--text-muted);
   padding: 12px; justify-content: center;
   border: 1px dashed rgba(255,255,255,.08);
   border-radius: 8px;
@@ -246,8 +246,8 @@
   padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid rgba(255,255,255,.12);
-  background: var(--bg-elevated, #1e1f21);
-  color: var(--text-primary, #fff);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
   font-size: 13px; font-family: var(--font, inherit);
   outline: none; box-sizing: border-box;
   transition: border-color .15s;
@@ -264,7 +264,7 @@
 .kb-btn-cancel {
   padding: 6px 10px; border-radius: 6px;
   border: 1px solid var(--border, rgba(255,255,255,.08));
-  background: transparent; color: var(--text-secondary, #aaa);
+  background: transparent; color: var(--text-secondary);
   font-size: 12px; font-weight: 600; cursor: pointer;
   font-family: var(--font, inherit);
 }
@@ -273,7 +273,7 @@
   display: inline-flex; align-items: center; gap: 5px;
   padding: 7px 12px; border-radius: 6px;
   border: 1px dashed rgba(255,255,255,.1);
-  background: transparent; color: var(--text-muted, #888);
+  background: transparent; color: var(--text-muted);
   font-size: 12px; font-weight: 600; cursor: pointer;
   font-family: var(--font, inherit); transition: all .15s;
   align-self: flex-start;

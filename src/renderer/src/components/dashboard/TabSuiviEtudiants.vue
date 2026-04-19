@@ -447,8 +447,8 @@ function selectStudent(s: typeof studentList.value[number]) {
 }
 .ts-student-card:hover { background: var(--bg-hover); }
 .ts-student-card.active {
-  background: rgba(74,144,217,.08);
-  border-left-color: var(--accent, #4a90d9);
+  background: rgba(var(--accent-rgb),.08);
+  border-left-color: var(--accent);
 }
 
 .ts-avatar {
@@ -464,10 +464,10 @@ function selectStudent(s: typeof studentList.value[number]) {
 .ts-student-meta { font-size: 10.5px; color: var(--text-muted); }
 .ts-note-badge {
   font-size: 10px; font-weight: 700;
-  background: rgba(74,144,217,.15); color: var(--accent, #4a90d9);
+  background: rgba(var(--accent-rgb),.15); color: var(--accent);
   border-radius: 10px; padding: 1px 7px; flex-shrink: 0;
 }
-.ts-card-chevron { color: var(--accent, #4a90d9); flex-shrink: 0; }
+.ts-card-chevron { color: var(--accent); flex-shrink: 0; }
 
 /* ── Panneau droit ── */
 .ts-right {
@@ -524,12 +524,12 @@ function selectStudent(s: typeof studentList.value[number]) {
 }
 .ts-cat-tab:hover { color: var(--text-primary); }
 .ts-cat-tab.active {
-  color: var(--accent, #4a90d9);
-  border-bottom-color: var(--accent, #4a90d9);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 .ts-cat-count {
   font-size: 10px; font-weight: 700;
-  background: rgba(74,144,217,.15); color: var(--accent, #4a90d9);
+  background: rgba(var(--accent-rgb),.15); color: var(--accent);
   border-radius: 10px; padding: 1px 6px;
 }
 
@@ -554,9 +554,9 @@ function selectStudent(s: typeof studentList.value[number]) {
   transition: all .12s;
 }
 .ts-cat-pill.active {
-  border-color: var(--accent, #4a90d9);
-  color: var(--accent, #4a90d9);
-  background: rgba(74,144,217,.1);
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb),.1);
 }
 .ts-tag-row { display: flex; gap: 5px; flex-wrap: wrap; }
 .ts-tag-btn {
@@ -576,7 +576,7 @@ function selectStudent(s: typeof studentList.value[number]) {
   font-size: 13px; font-family: var(--font); resize: vertical; outline: none;
   transition: border-color .15s;
 }
-.ts-textarea:focus { border-color: var(--accent, #4a90d9); }
+.ts-textarea:focus { border-color: var(--accent); }
 .ts-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 /* ── Liste notes ── */
@@ -602,7 +602,7 @@ function selectStudent(s: typeof studentList.value[number]) {
   background: var(--bg-primary); border: 1px solid var(--border);
   transition: border-color .15s;
 }
-.ts-note-card:hover { border-color: rgba(74,144,217,.25); }
+.ts-note-card:hover { border-color: rgba(var(--accent-rgb),.25); }
 .ts-note-meta {
   display: flex; align-items: center; gap: 8px;
   margin-bottom: 7px; flex-wrap: wrap;

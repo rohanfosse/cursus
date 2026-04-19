@@ -342,7 +342,7 @@ function gradeColor(note: string | null | undefined): string {
   width: 42px;
   height: 42px;
   border-radius: 10px;
-  background: rgba(155,135,245,.12);
+  background: rgba(var(--color-cctl-rgb),.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -384,7 +384,7 @@ function gradeColor(note: string | null | undefined): string {
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 12px;
-  background: rgba(155,135,245,.12);
+  background: rgba(var(--color-cctl-rgb),.12);
   color: var(--color-cctl);
 }
 
@@ -404,10 +404,10 @@ function gradeColor(note: string | null | undefined): string {
   border-radius: 20px;
   border: 1px solid transparent;
 }
-.spf-chip-green  { background: rgba(39,174,96,.12);   color: var(--color-success); border-color: rgba(39,174,96,.25); }
-.spf-chip-orange { background: rgba(243,156,18,.12);  color: var(--color-warning); border-color: rgba(243,156,18,.25); }
-.spf-chip-red    { background: rgba(231,76,60,.12);   color: var(--color-danger);  border-color: rgba(231,76,60,.25); }
-.spf-chip-blue   { background: rgba(74,144,217,.12);  color: var(--accent);        border-color: rgba(74,144,217,.25); }
+.spf-chip-green  { background: rgba(var(--color-success-rgb),.12);   color: var(--color-success); border-color: rgba(var(--color-success-rgb),.25); }
+.spf-chip-orange { background: rgba(var(--color-warning-rgb),.12);  color: var(--color-warning); border-color: rgba(var(--color-warning-rgb),.25); }
+.spf-chip-red    { background: rgba(var(--color-danger-rgb),.12);   color: var(--color-danger);  border-color: rgba(var(--color-danger-rgb),.25); }
+.spf-chip-blue   { background: rgba(var(--accent-rgb),.12);  color: var(--accent);        border-color: rgba(var(--accent-rgb),.25); }
 .spf-chip-muted  { background: var(--bg-elevated); color: var(--text-muted);    border-color: var(--border); }
 .spf-chip-pct    { font-size: 10px; opacity: .7; }
 
@@ -436,8 +436,8 @@ function gradeColor(note: string | null | undefined): string {
   gap: 8px;
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(243,156,18,.1);
-  border: 1px solid rgba(243,156,18,.25);
+  background: rgba(var(--color-warning-rgb),.1);
+  border: 1px solid rgba(var(--color-warning-rgb),.25);
   color: var(--color-warning);
   font-size: 12px;
   font-weight: 500;
@@ -507,9 +507,9 @@ function gradeColor(note: string | null | undefined): string {
   gap: 6px;
   transition: background var(--t-fast);
 }
-.spf-card--overdue { border-color: rgba(231,76,60,.3); background: rgba(231,76,60,.04); }
-.spf-card--urgent  { border-color: rgba(243,156,18,.3); background: rgba(243,156,18,.04); }
-.spf-card--event   { border-color: rgba(155,135,245,.25); background: rgba(155,135,245,.04); }
+.spf-card--overdue { border-color: rgba(var(--color-danger-rgb),.3); background: rgba(var(--color-danger-rgb),.04); }
+.spf-card--urgent  { border-color: rgba(var(--color-warning-rgb),.3); background: rgba(var(--color-warning-rgb),.04); }
+.spf-card--event   { border-color: rgba(var(--color-cctl-rgb),.25); background: rgba(var(--color-cctl-rgb),.04); }
 .spf-card--done    { opacity: .75; }
 
 .spf-card-top {
@@ -525,11 +525,11 @@ function gradeColor(note: string | null | undefined): string {
   border-radius: 4px;
   flex-shrink: 0;
 }
-.type-livrable     { background: rgba(74,144,217,.2);   color: var(--accent); }
-.type-soutenance   { background: rgba(243,156,18,.2);   color: var(--color-warning); }
+.type-livrable     { background: rgba(var(--accent-rgb),.2);   color: var(--accent); }
+.type-soutenance   { background: rgba(var(--color-warning-rgb),.2);   color: var(--color-warning); }
 .type-cctl         { background: rgba(123,104,238,.2);  color: var(--color-cctl); }
-.type-etude_de_cas { background: rgba(39,174,96,.2);    color: var(--color-success); }
-.type-memoire      { background: rgba(231,76,60,.2);    color: var(--color-danger); }
+.type-etude_de_cas { background: rgba(var(--color-success-rgb),.2);    color: var(--color-success); }
+.type-memoire      { background: rgba(var(--color-danger-rgb),.2);    color: var(--color-danger); }
 .type-autre        { background: rgba(127,140,141,.2);  color: var(--color-autre); }
 
 .spf-card-title {
@@ -549,11 +549,11 @@ function gradeColor(note: string | null | undefined): string {
   border-radius: 8px;
   flex-shrink: 0;
 }
-.deadline-ok       { background: rgba(39,174,96,.1);  color: var(--color-success); }
-.deadline-warning  { background: rgba(243,156,18,.1); color: #F39C12; }
-.deadline-soon     { background: rgba(243,156,18,.12); color: var(--color-warning); }
+.deadline-ok       { background: rgba(var(--color-success-rgb),.1);  color: var(--color-success); }
+.deadline-warning  { background: rgba(var(--color-warning-rgb),.1); color: #F39C12; }
+.deadline-soon     { background: rgba(var(--color-warning-rgb),.12); color: var(--color-warning); }
 .deadline-critical,
-.deadline-passed   { background: rgba(231,76,60,.12); color: #ff7b6b; }
+.deadline-passed   { background: rgba(var(--color-danger-rgb),.12); color: #ff7b6b; }
 
 .spf-card-sub {
   display: flex;
@@ -580,11 +580,11 @@ function gradeColor(note: string | null | undefined): string {
   border-radius: 6px;
   flex-shrink: 0;
 }
-.grade-a { background: rgba(39,174,96,.15);   color: var(--color-success); }
-.grade-b { background: rgba(74,144,217,.15);  color: var(--accent); }
-.grade-c { background: rgba(243,156,18,.15);  color: var(--color-warning); }
-.grade-d { background: rgba(231,76,60,.15);   color: var(--color-danger); }
-.grade-letter { background: rgba(155,135,245,.15); color: var(--color-cctl); }
+.grade-a { background: rgba(var(--color-success-rgb),.15);   color: var(--color-success); }
+.grade-b { background: rgba(var(--accent-rgb),.15);  color: var(--accent); }
+.grade-c { background: rgba(var(--color-warning-rgb),.15);  color: var(--color-warning); }
+.grade-d { background: rgba(var(--color-danger-rgb),.15);   color: var(--color-danger); }
+.grade-letter { background: rgba(var(--color-cctl-rgb),.15); color: var(--color-cctl); }
 
 .spf-feedback-text {
   font-size: 11.5px;
@@ -608,7 +608,7 @@ function gradeColor(note: string | null | undefined): string {
   gap: 5px;
   font-size: 11px;
   color: var(--color-cctl);
-  background: rgba(155,135,245,.08);
+  background: rgba(var(--color-cctl-rgb),.08);
   padding: 4px 10px;
   border-radius: 6px;
   width: fit-content;
@@ -655,7 +655,7 @@ function gradeColor(note: string | null | undefined): string {
   cursor: pointer;
   transition: all .15s;
 }
-.spf-toggle-btn.active { border-color: var(--color-cctl); background: rgba(155,135,245,.12); color: var(--color-cctl); }
+.spf-toggle-btn.active { border-color: var(--color-cctl); background: rgba(var(--color-cctl-rgb),.12); color: var(--color-cctl); }
 
 .spf-file-zone {
   border: 2px dashed var(--border-input);
@@ -670,8 +670,8 @@ function gradeColor(note: string | null | undefined): string {
   font-size: 12px;
   transition: border-color var(--t-fast), background var(--t-fast);
 }
-.spf-file-zone:hover   { border-color: var(--color-cctl); background: rgba(155,135,245,.05); }
-.spf-file-zone--drag   { border-color: var(--color-cctl); background: rgba(155,135,245,.10); border-style: solid; }
+.spf-file-zone:hover   { border-color: var(--color-cctl); background: rgba(var(--color-cctl-rgb),.05); }
+.spf-file-zone--drag   { border-color: var(--color-cctl); background: rgba(var(--color-cctl-rgb),.10); border-style: solid; }
 .spf-file-zone--drag span { color: var(--color-cctl); font-weight: 600; }
 .spf-file-zone-icon { opacity: .5; }
 
@@ -680,8 +680,8 @@ function gradeColor(note: string | null | undefined): string {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: rgba(39,174,96,.06);
-  border: 1px solid rgba(39,174,96,.2);
+  background: rgba(var(--color-success-rgb),.06);
+  border: 1px solid rgba(var(--color-success-rgb),.2);
   border-radius: 6px;
 }
 .spf-file-ok   { color: var(--color-success); flex-shrink: 0; }
@@ -774,7 +774,7 @@ function gradeColor(note: string | null | undefined): string {
   transition: background var(--t-fast);
 }
 .spf-member-item:hover { background: var(--bg-hover); }
-.spf-member-me { background: rgba(155,135,245,.06); }
+.spf-member-me { background: rgba(var(--color-cctl-rgb),.06); }
 .spf-member-avatar {
   width: 24px;
   height: 24px;
@@ -794,7 +794,7 @@ function gradeColor(note: string | null | undefined): string {
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 8px;
-  background: rgba(155,135,245,.15);
+  background: rgba(var(--color-cctl-rgb),.15);
   color: var(--color-cctl);
   flex-shrink: 0;
 }

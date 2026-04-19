@@ -375,11 +375,11 @@
   border-radius: 4px;
   flex-shrink: 0;
 }
-.type-livrable     { background: rgba(74,144,217,.2);   color: var(--accent); }
-.type-soutenance   { background: rgba(243,156,18,.2);   color: var(--color-warning); }
+.type-livrable     { background: rgba(var(--accent-rgb),.2);   color: var(--accent); }
+.type-soutenance   { background: rgba(var(--color-warning-rgb),.2);   color: var(--color-warning); }
 .type-cctl         { background: rgba(123,104,238,.2);  color: var(--color-cctl); }
-.type-etude_de_cas { background: rgba(39,174,96,.2);    color: var(--color-success); }
-.type-memoire      { background: rgba(231,76,60,.2);    color: var(--color-danger); }
+.type-etude_de_cas { background: rgba(var(--color-success-rgb),.2);    color: var(--color-success); }
+.type-memoire      { background: rgba(var(--color-danger-rgb),.2);    color: var(--color-danger); }
 .type-autre        { background: rgba(127,140,141,.2);  color: var(--color-autre); }
 
 .tl-item-title {
@@ -419,10 +419,10 @@
   border-radius: 8px;
 }
 .tl-deadline-badge.deadline-passed,
-.tl-deadline-badge.deadline-critical { background: rgba(231,76,60,.12); color: #ff7b6b; }
-.tl-deadline-badge.deadline-soon     { background: rgba(243,156,18,.12); color: var(--color-warning); }
-.tl-deadline-badge.deadline-warning  { background: rgba(243,156,18,.08); color: #F39C12; }
-.tl-deadline-badge.deadline-ok       { background: rgba(39,174,96,.1);  color: var(--color-success); }
+.tl-deadline-badge.deadline-critical { background: rgba(var(--color-danger-rgb),.12); color: #ff7b6b; }
+.tl-deadline-badge.deadline-soon     { background: rgba(var(--color-warning-rgb),.12); color: var(--color-warning); }
+.tl-deadline-badge.deadline-warning  { background: rgba(var(--color-warning-rgb),.08); color: #F39C12; }
+.tl-deadline-badge.deadline-ok       { background: rgba(var(--color-success-rgb),.1);  color: var(--color-success); }
 
 .tl-rendus-count {
   display: inline-flex;
@@ -458,7 +458,7 @@
   font-weight: 600;
   padding: 1px 7px;
   border-radius: 10px;
-  background: rgba(74,144,217,.12);
+  background: rgba(var(--accent-rgb),.12);
   color: var(--accent);
 }
 

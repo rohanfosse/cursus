@@ -322,7 +322,7 @@
   position: absolute;
   border-radius: 50%;
   opacity: .06;
-  background: var(--accent, #4A90D9);
+  background: var(--accent);
 }
 .auth-brand::before {
   width: 340px; height: 340px;
@@ -388,7 +388,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--accent, #4A90D9);
+  background: var(--accent);
   flex-shrink: 0;
   opacity: .9;
 }
@@ -400,7 +400,7 @@
   align-items: center;
   justify-content: center;
   padding: 40px 32px;
-  background: var(--bg-main, #111214);
+  background: var(--bg-main);
   overflow-y: auto;
 }
 
@@ -465,9 +465,9 @@
 }
 .auth-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .auth-input:focus {
-  border-color: var(--accent, #4A90D9);
-  box-shadow: 0 0 0 3.5px rgba(74,144,217,.12);
-  background: rgba(74,144,217,.04);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3.5px rgba(var(--accent-rgb),.12);
+  background: rgba(var(--accent-rgb),.04);
 }
 .auth-input::placeholder { color: var(--text-muted); opacity: .6; }
 
@@ -507,32 +507,32 @@
 .auth-remember-check {
   width: 15px;
   height: 15px;
-  accent-color: var(--accent, #4A90D9);
+  accent-color: var(--accent);
   cursor: pointer;
 }
 
 /* ── Erreur ── */
 .auth-forgot {
-  text-align: center; font-size: 12px; color: var(--text-muted, #999);
+  text-align: center; font-size: 12px; color: var(--text-muted);
   margin-top: 8px;
 }
 .auth-error {
-  background: rgba(231,76,60,.1);
-  border: 1px solid rgba(231,76,60,.3);
+  background: rgba(var(--color-danger-rgb),.1);
+  border: 1px solid rgba(var(--color-danger-rgb),.3);
   border-radius: 8px;
   padding: 9px 12px;
   font-size: 13px;
-  color: var(--color-danger, #e74c3c);
+  color: var(--color-danger);
   text-align: center;
 }
 .auth-field-error {
   font-size: 12px;
-  color: var(--color-danger, #e74c3c);
+  color: var(--color-danger);
   margin-top: 2px;
 }
 .auth-field-hint {
   font-size: 12px;
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -542,7 +542,7 @@
   padding: 11px;
   border-radius: 8px;
   border: none;
-  background: var(--accent, #4A90D9);
+  background: var(--accent);
   color: #fff;
   font-size: 14px;
   font-weight: 700;
@@ -556,7 +556,7 @@
   margin-top: 2px;
 }
 .auth-submit:hover:not(:disabled) {
-  box-shadow: 0 4px 14px rgba(74,144,217,.35);
+  box-shadow: 0 4px 14px rgba(var(--accent-rgb),.35);
   opacity: .95;
 }
 .auth-submit:disabled { opacity: .5; cursor: default; }
@@ -659,7 +659,7 @@
 .auth-link-btn {
   background: transparent;
   border: none;
-  color: var(--color-danger, #e74c3c);
+  color: var(--color-danger);
   font-size: 12px;
   font-family: var(--font);
   cursor: pointer;
@@ -679,12 +679,12 @@
   font-size: 11px;
   padding: 2px 7px;
   border-radius: 4px;
-  background: rgba(231,76,60,.1);
-  color: var(--color-danger, #e74c3c);
+  background: rgba(var(--color-danger-rgb),.1);
+  color: var(--color-danger);
   transition: background .2s, color .2s;
 }
 .auth-pwd-criteria span.valid {
-  background: rgba(46,204,113,.12);
+  background: rgba(var(--color-success-rgb),.12);
   color: #2ecc71;
 }
 
@@ -729,7 +729,7 @@
 .auth-forgot-link {
   background: none;
   border: none;
-  color: var(--accent, #4A90D9);
+  color: var(--accent);
   font-size: 12px;
   font-family: var(--font);
   cursor: pointer;

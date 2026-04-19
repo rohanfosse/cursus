@@ -299,8 +299,8 @@ function gradeColor(note: string | null | undefined): string {
 .stl-frise-btn:hover { background: var(--bg-active); }
 .stl-frise-today {
   font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
-  background: rgba(74,144,217,.12); color: var(--accent);
-  border: 1px solid rgba(74,144,217,.25); cursor: pointer; font-family: var(--font);
+  background: rgba(var(--accent-rgb),.12); color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb),.25); cursor: pointer; font-family: var(--font);
 }
 
 /* Filter bar */
@@ -371,10 +371,10 @@ function gradeColor(note: string | null | undefined): string {
   transition: opacity .15s;
 }
 .stl-leg-off { opacity: .35; text-decoration: line-through; }
-.stl-leg-done    { background: rgba(39,174,96,.1);   color: var(--color-success); }
-.stl-leg-urgent  { background: rgba(243,156,18,.1);  color: var(--color-warning); }
-.stl-leg-overdue { background: rgba(231,76,60,.1);   color: var(--color-danger);  }
-.stl-leg-event   { background: rgba(155,135,245,.1); color: var(--color-cctl); }
+.stl-leg-done    { background: rgba(var(--color-success-rgb),.1);   color: var(--color-success); }
+.stl-leg-urgent  { background: rgba(var(--color-warning-rgb),.1);  color: var(--color-warning); }
+.stl-leg-overdue { background: rgba(var(--color-danger-rgb),.1);   color: var(--color-danger);  }
+.stl-leg-event   { background: rgba(var(--color-cctl-rgb),.1); color: var(--color-cctl); }
 .stl-leg-pending { background: var(--bg-elevated); color: var(--text-muted); border: 1px solid var(--border); }
 
 /* Groupes mois */
@@ -445,9 +445,9 @@ function gradeColor(note: string | null | undefined): string {
   gap: 5px;
 }
 .stl-row--done    .stl-card { opacity: .7; }
-.stl-row--overdue .stl-card { border-color: rgba(231,76,60,.3);   background: rgba(231,76,60,.04); }
-.stl-row--urgent  .stl-card { border-color: rgba(243,156,18,.3);  background: rgba(243,156,18,.04); }
-.stl-row--event   .stl-card { border-color: rgba(155,135,245,.25); }
+.stl-row--overdue .stl-card { border-color: rgba(var(--color-danger-rgb),.3);   background: rgba(var(--color-danger-rgb),.04); }
+.stl-row--urgent  .stl-card { border-color: rgba(var(--color-warning-rgb),.3);  background: rgba(var(--color-warning-rgb),.04); }
+.stl-row--event   .stl-card { border-color: rgba(var(--color-cctl-rgb),.25); }
 
 .stl-card-top {
   display: flex;
@@ -462,11 +462,11 @@ function gradeColor(note: string | null | undefined): string {
   border-radius: 4px;
   flex-shrink: 0;
 }
-.type-livrable     { background: rgba(74,144,217,.2);   color: var(--accent); }
-.type-soutenance   { background: rgba(243,156,18,.2);   color: var(--color-warning); }
+.type-livrable     { background: rgba(var(--accent-rgb),.2);   color: var(--accent); }
+.type-soutenance   { background: rgba(var(--color-warning-rgb),.2);   color: var(--color-warning); }
 .type-cctl         { background: rgba(123,104,238,.2);  color: var(--color-cctl); }
-.type-etude_de_cas { background: rgba(39,174,96,.2);    color: var(--color-success); }
-.type-memoire      { background: rgba(231,76,60,.2);    color: var(--color-danger); }
+.type-etude_de_cas { background: rgba(var(--color-success-rgb),.2);    color: var(--color-success); }
+.type-memoire      { background: rgba(var(--color-danger-rgb),.2);    color: var(--color-danger); }
 .type-autre        { background: rgba(127,140,141,.2);  color: var(--color-autre); }
 
 .stl-card-title {
@@ -490,8 +490,8 @@ function gradeColor(note: string | null | undefined): string {
   flex-shrink: 0;
   margin-left: auto;
 }
-.stl-badge-overdue { background: rgba(231,76,60,.12);  color: var(--color-danger);  }
-.stl-badge-urgent  { background: rgba(243,156,18,.12); color: var(--color-warning); }
+.stl-badge-overdue { background: rgba(var(--color-danger-rgb),.12);  color: var(--color-danger);  }
+.stl-badge-urgent  { background: rgba(var(--color-warning-rgb),.12); color: var(--color-warning); }
 
 .stl-card-meta {
   display: flex;
@@ -507,7 +507,7 @@ function gradeColor(note: string | null | undefined): string {
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 10px;
-  background: rgba(155,135,245,.1);
+  background: rgba(var(--color-cctl-rgb),.1);
   color: var(--color-cctl);
 }
 .stl-date { font-size: 11px; color: var(--text-muted); }
@@ -521,11 +521,11 @@ function gradeColor(note: string | null | undefined): string {
   padding: 2px 8px;
   border-radius: 6px;
 }
-.grade-a { background: rgba(39,174,96,.15);  color: var(--color-success); }
-.grade-b { background: rgba(74,144,217,.15); color: var(--accent); }
-.grade-c { background: rgba(243,156,18,.15); color: var(--color-warning); }
-.grade-d { background: rgba(231,76,60,.15);  color: var(--color-danger); }
-.grade-letter { background: rgba(155,135,245,.15); color: var(--color-cctl); }
+.grade-a { background: rgba(var(--color-success-rgb),.15);  color: var(--color-success); }
+.grade-b { background: rgba(var(--accent-rgb),.15); color: var(--accent); }
+.grade-c { background: rgba(var(--color-warning-rgb),.15); color: var(--color-warning); }
+.grade-d { background: rgba(var(--color-danger-rgb),.15);  color: var(--color-danger); }
+.grade-letter { background: rgba(var(--color-cctl-rgb),.15); color: var(--color-cctl); }
 
 .stl-feedback {
   font-size: 11.5px;

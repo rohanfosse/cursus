@@ -624,7 +624,7 @@
   border-radius: 10px;
   background: var(--bg-elevated);
   border: 2px solid var(--border);
-  color: var(--text-secondary, #aaa);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all .15s;
 }
@@ -675,7 +675,7 @@
 }
 .timer-label {
   font-size: 13px;
-  color: var(--text-secondary, #aaa);
+  color: var(--text-secondary);
   font-weight: 600;
 }
 .timer-btns {
@@ -690,18 +690,18 @@
   font-weight: 700;
   background: var(--bg-hover);
   border: 2px solid var(--border);
-  color: var(--text-secondary, #aaa);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all .15s;
 }
 .timer-btn.active {
-  background: var(--accent-subtle, rgba(74,144,217,.12));
+  background: var(--accent-subtle, rgba(var(--accent-rgb),.12));
   border-color: var(--accent);
   color: var(--accent);
 }
 .correct-label {
   font-size: 13px;
-  color: var(--text-secondary, #aaa);
+  color: var(--text-secondary);
   font-weight: 600;
   margin-bottom: 2px;
 }
@@ -777,7 +777,7 @@
 }
 .add-option-btn:hover {
   background: var(--bg-hover);
-  color: var(--text-secondary, #aaa);
+  color: var(--text-secondary);
 }
 .max-words-section {
   display: flex;
@@ -786,7 +786,7 @@
 }
 .max-words-label {
   font-size: 13px;
-  color: var(--text-secondary, #aaa);
+  color: var(--text-secondary);
   font-weight: 600;
 }
 .max-words-btns {
@@ -801,12 +801,12 @@
   font-weight: 700;
   background: var(--bg-hover);
   border: 2px solid var(--border);
-  color: var(--text-secondary, #aaa);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all .15s;
 }
 .max-words-btn.active {
-  background: var(--accent-subtle, rgba(74,144,217,.12));
+  background: var(--accent-subtle, rgba(var(--accent-rgb),.12));
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -822,7 +822,7 @@
   font-weight: 600;
   background: var(--bg-hover);
   border: 1px solid var(--border);
-  color: var(--text-secondary, #aaa);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all .15s;
 }

@@ -311,9 +311,9 @@
   background: var(--bg-elevated);
   color: var(--text-secondary);
 }
-.badge-aNoter   { background: rgba(74,144,217,.2);  color: var(--accent-light); }
-.badge-urgents  { background: rgba(231,76,60,.2);    color: #ff7b6b; }
-.badge-jalons   { background: rgba(243,156,18,.2);   color: var(--color-warning); }
+.badge-aNoter   { background: rgba(var(--accent-rgb),.2);  color: var(--accent-light); }
+.badge-urgents  { background: rgba(var(--color-danger-rgb),.2);    color: #ff7b6b; }
+.badge-jalons   { background: rgba(var(--color-warning-rgb),.2);   color: var(--color-warning); }
 .badge-brouillons { background: var(--bg-elevated); }
 
 /* ── Contenu ── */
@@ -390,11 +390,11 @@
   border-radius: 4px;
   flex-shrink: 0;
 }
-.type-livrable     { background: rgba(74,144,217,.2);   color: var(--accent); }
-.type-soutenance   { background: rgba(243,156,18,.2);   color: var(--color-warning); }
+.type-livrable     { background: rgba(var(--accent-rgb),.2);   color: var(--accent); }
+.type-soutenance   { background: rgba(var(--color-warning-rgb),.2);   color: var(--color-warning); }
 .type-cctl         { background: rgba(123,104,238,.2);  color: var(--color-cctl); }
-.type-etude_de_cas { background: rgba(39,174,96,.2);    color: var(--color-success); }
-.type-memoire      { background: rgba(231,76,60,.2);    color: var(--color-danger); }
+.type-etude_de_cas { background: rgba(var(--color-success-rgb),.2);    color: var(--color-success); }
+.type-memoire      { background: rgba(var(--color-danger-rgb),.2);    color: var(--color-danger); }
 .type-autre        { background: rgba(127,140,141,.2);  color: var(--color-autre); }
 
 .ech-row-info {
@@ -454,19 +454,19 @@
 }
 .ech-deadline-badge.deadline-passed,
 .ech-deadline-badge.deadline-critical {
-  background: rgba(231,76,60,.15);
+  background: rgba(var(--color-danger-rgb),.15);
   color: #ff7b6b;
 }
 .ech-deadline-badge.deadline-soon {
-  background: rgba(243,156,18,.15);
+  background: rgba(var(--color-warning-rgb),.15);
   color: var(--color-warning);
 }
 .ech-deadline-badge.deadline-warning {
-  background: rgba(243,156,18,.1);
+  background: rgba(var(--color-warning-rgb),.1);
   color: #F39C12;
 }
 .ech-deadline-badge.deadline-ok {
-  background: rgba(39,174,96,.1);
+  background: rgba(var(--color-success-rgb),.1);
   color: var(--color-success);
 }
 

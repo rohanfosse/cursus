@@ -498,7 +498,7 @@
 
 .docs-search-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(74,144,217,.15);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb),.15);
 }
 
 .docs-search-input::placeholder { color: var(--text-muted); }
@@ -575,7 +575,7 @@
 }
 
 .docs-cat-pill.active .docs-cat-count {
-  background: rgba(74,144,217,.2);
+  background: rgba(var(--accent-rgb),.2);
 }
 
 /* ── Corps ── */
@@ -655,9 +655,9 @@
 }
 
 .doc-card:hover {
-  border-color: rgba(74,144,217,.3);
+  border-color: rgba(var(--accent-rgb),.3);
   box-shadow: 0 2px 12px rgba(0,0,0,.15);
-  background: rgba(74,144,217,.07);
+  background: rgba(var(--accent-rgb),.07);
 }
 
 .doc-card--skel {
@@ -778,7 +778,7 @@
 }
 
 .doc-card-action-btn:hover { background: var(--bg-elevated); }
-.doc-card-action-btn--danger:hover { background: rgba(231,76,60,.3); color: #ff6b6b; }
+.doc-card-action-btn--danger:hover { background: rgba(var(--color-danger-rgb),.3); color: #ff6b6b; }
 .doc-fav--active { color: #f59e0b !important; background: rgba(245,158,11,.15); }
 
 /* ── Empty state ── */
@@ -815,7 +815,7 @@
   border: 1px solid var(--border-input); background: var(--bg-input);
   color: var(--text-primary); font-family: var(--font); transition: border-color .15s;
 }
-.da-input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(74,144,217,.12); }
+.da-input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(var(--accent-rgb),.12); }
 .da-textarea { resize: vertical; min-height: 50px; }
 .da-row { display: flex; gap: 10px; }
 .da-flex1 { flex: 1; }
@@ -832,14 +832,14 @@
 .da-type-btn.active { background: var(--accent); color: #fff; }
 
 .da-drop-zone { margin: 0; transition: border-color .2s, background .2s; border-radius: 12px; }
-.da-drop-zone--active { border-color: var(--accent) !important; background: rgba(74,144,217,.08) !important; }
+.da-drop-zone--active { border-color: var(--accent) !important; background: rgba(var(--accent-rgb),.08) !important; }
 .da-file-picker {
   width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;
   padding: 28px 16px; border: 2px dashed var(--border-input); border-radius: 12px;
   background: var(--bg-elevated); color: var(--text-muted);
   font-family: var(--font); cursor: pointer; transition: all .2s; text-align: center;
 }
-.da-file-picker:hover { border-color: var(--accent); color: var(--accent); background: rgba(74,144,217,.04); }
+.da-file-picker:hover { border-color: var(--accent); color: var(--accent); background: rgba(var(--accent-rgb),.04); }
 .da-picker-icon { opacity: .5; margin-bottom: 2px; }
 .da-picker-label { font-size: 13px; font-weight: 600; }
 .da-picker-hint { font-size: 11px; opacity: .5; }
@@ -852,7 +852,7 @@
 .da-file-selected {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 10px; border: 1px solid var(--color-success); border-radius: 8px;
-  background: rgba(39,174,96,.06);
+  background: rgba(var(--color-success-rgb),.06);
 }
 .da-file-icon { color: var(--color-success); flex-shrink: 0; }
 .da-file-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -863,14 +863,14 @@
   border-radius: 6px; background: transparent; border: none; color: var(--text-muted);
   cursor: pointer; transition: all .15s; flex-shrink: 0;
 }
-.da-file-clear:hover { background: rgba(231,76,60,.1); color: var(--color-danger); }
+.da-file-clear:hover { background: rgba(var(--color-danger-rgb),.1); color: var(--color-danger); }
 .da-add-more {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 6px 10px; border: 1px dashed var(--border-input); border-radius: 8px;
   background: transparent; color: var(--text-muted);
   font-family: var(--font); font-size: 12px; cursor: pointer; transition: all .15s;
 }
-.da-add-more:hover { border-color: var(--accent); color: var(--accent); background: rgba(74,144,217,.04); }
+.da-add-more:hover { border-color: var(--accent); color: var(--accent); background: rgba(var(--accent-rgb),.04); }
 
 /* ── Barre de progression upload ── */
 .da-progress { margin-top: 4px; }
@@ -1040,7 +1040,7 @@
   padding: 10px 12px;
   border: 1.5px solid var(--color-success);
   border-radius: var(--radius-sm);
-  background: rgba(39,174,96,.08);
+  background: rgba(var(--color-success-rgb),.08);
 }
 
 .docs-file-selected-icon {
@@ -1072,7 +1072,7 @@
 
 .docs-file-selected-clear:hover {
   color: #ff6b6b;
-  background: rgba(231,76,60,.12);
+  background: rgba(var(--color-danger-rgb),.12);
 }
 
 /* Footer modal */
@@ -1238,7 +1238,7 @@
   letter-spacing: .4px;
   padding: 1px 6px;
   border-radius: 8px;
-  background: rgba(39, 174, 96, .18);
+  background: rgba(var(--color-success-rgb), .18);
   color: var(--color-success);
   vertical-align: middle;
   margin-left: 4px;
@@ -1298,9 +1298,9 @@
   width: 16px; height: 16px; cursor: pointer;
   accent-color: var(--accent);
 }
-.doc-card--selected { border-color: var(--accent) !important; background: rgba(74,144,217,.06); }
-.docs-batch-delete { color: var(--color-danger) !important; border-color: rgba(231,76,60,.3) !important; }
-.docs-batch-delete:hover { background: rgba(231,76,60,.1) !important; }
+.doc-card--selected { border-color: var(--accent) !important; background: rgba(var(--accent-rgb),.06); }
+.docs-batch-delete { color: var(--color-danger) !important; border-color: rgba(var(--color-danger-rgb),.3) !important; }
+.docs-batch-delete:hover { background: rgba(var(--color-danger-rgb),.1) !important; }
 
 /* ── Dense size ── */
 .doc-dense-size {

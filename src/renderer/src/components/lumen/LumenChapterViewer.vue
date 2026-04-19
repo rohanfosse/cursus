@@ -864,8 +864,8 @@ watch(() => [props.content, props.chapter?.path], () => {
   color: var(--text-muted);
 }
 .lumen-viewer-chip.read {
-  color: var(--success, #4caf50);
-  border-color: var(--success, #4caf50);
+  color: var(--success);
+  border-color: var(--success);
 }
 
 button.lumen-viewer-chip {
@@ -952,8 +952,8 @@ button.lumen-viewer-chip:focus-visible {
 }
 .lumen-viewer-chip--link-copy.copied {
   color: var(--color-success);
-  border-color: rgba(46, 204, 113, .4);
-  background: rgba(46, 204, 113, .1);
+  border-color: rgba(var(--color-success-rgb), .4);
+  background: rgba(var(--color-success-rgb), .1);
 }
 .lumen-viewer-chip--print {
   color: var(--text-muted);
@@ -1039,9 +1039,9 @@ button.lumen-viewer-chip:focus-visible {
 }
 .lumen-edit-btn--ghost:hover:not(:disabled) { background: var(--bg-hover); }
 .lumen-edit-btn--primary {
-  background: var(--color-success, #2ea043);
+  background: var(--color-success);
   color: white;
-  border-color: var(--color-success, #2ea043);
+  border-color: var(--color-success);
 }
 .lumen-edit-btn--primary:hover:not(:disabled) { opacity: 0.9; }
 
@@ -1246,8 +1246,8 @@ button.lumen-viewer-chip:focus-visible {
   margin: 0;
   font-size: 12px;
   white-space: pre-wrap;
-  color: var(--danger, #e74c3c);
-  background: rgba(231, 76, 60, 0.08);
+  color: var(--danger);
+  background: rgba(var(--color-danger-rgb), 0.08);
   padding: 8px;
   border-radius: 4px;
 }
@@ -1469,7 +1469,7 @@ button.lumen-viewer-chip:focus-visible {
   border: 1px solid rgba(217, 138, 0, 0.35);
   border-radius: 8px;
   font-size: 13px;
-  color: var(--warning, #d98a00);
+  color: var(--warning);
   flex-shrink: 0;
 }
 .lumen-stale-banner svg { flex-shrink: 0; }
@@ -1483,9 +1483,9 @@ button.lumen-viewer-chip:focus-visible {
   padding: 16px;
   margin: 24px 48px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--success, #4caf50) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--success, #4caf50) 25%, transparent);
-  color: var(--success, #4caf50);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
+  color: var(--success);
   font-size: 14px;
   font-weight: 600;
 }
@@ -1947,7 +1947,7 @@ button.lumen-viewer-chip:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  background: var(--code-bg, #1a1d23);
+  background: var(--code-bg);
   box-shadow: var(--elevation-1);
 }
 .lumen-viewer .markdown-body .lumen-codeblock-header {
@@ -1984,7 +1984,7 @@ button.lumen-viewer-chip:focus-visible {
   background: transparent;
   border: none;
   padding: 0;
-  color: var(--code-text, #e8e9ea);
+  color: var(--code-text);
   font-weight: 400;
 }
 
@@ -2012,9 +2012,9 @@ button.lumen-viewer-chip:focus-visible {
   border-color: rgba(var(--accent-rgb), .5);
 }
 .lumen-viewer .markdown-body .lumen-copy-btn.copied {
-  background: rgba(46, 204, 113, .18);
+  background: rgba(var(--color-success-rgb), .18);
   color: #6FCF97;
-  border-color: rgba(46, 204, 113, .45);
+  border-color: rgba(var(--color-success-rgb), .45);
 }
 .lumen-viewer .markdown-body .lumen-copy-btn:focus-visible {
   outline: none;
@@ -2043,8 +2043,8 @@ button.lumen-viewer-chip:focus-visible {
 .lumen-viewer .markdown-body .lumen-mermaid-error {
   padding: var(--space-md) var(--space-lg);
   margin: var(--space-lg) 0;
-  background: rgba(231, 76, 60, .08);
-  border: 1px solid rgba(231, 76, 60, .3);
+  background: rgba(var(--color-danger-rgb), .08);
+  border: 1px solid rgba(var(--color-danger-rgb), .3);
   border-radius: var(--radius-sm);
   color: var(--color-danger);
   font-size: 12px;
@@ -2064,7 +2064,7 @@ button.lumen-viewer-chip:focus-visible {
 }
 .lumen-viewer .markdown-body .lumen-math-error {
   color: var(--color-danger);
-  background: rgba(231, 76, 60, .1);
+  background: rgba(var(--color-danger-rgb), .1);
   padding: 1px 5px;
   border-radius: 3px;
 }
@@ -2085,7 +2085,7 @@ button.lumen-viewer-chip:focus-visible {
 .lumen-viewer .markdown-body .lumen-admonition--tip,
 .lumen-viewer .markdown-body .lumen-admonition--success {
   border-left-color: var(--color-success);
-  background: rgba(46, 204, 113, .06);
+  background: rgba(var(--color-success-rgb), .06);
 }
 .lumen-viewer .markdown-body .lumen-admonition--warning,
 .lumen-viewer .markdown-body .lumen-admonition--caution {
@@ -2095,7 +2095,7 @@ button.lumen-viewer-chip:focus-visible {
 .lumen-viewer .markdown-body .lumen-admonition--danger,
 .lumen-viewer .markdown-body .lumen-admonition--important {
   border-left-color: var(--color-danger);
-  background: rgba(231, 76, 60, .06);
+  background: rgba(var(--color-danger-rgb), .06);
 }
 
 /* Premier element d'une admonition : pas de margin top */
