@@ -35,6 +35,7 @@ import AccueilFocusTile from './accueil/AccueilFocusTile.vue'
 import AccueilScheduleTile from './accueil/AccueilScheduleTile.vue'
 import AccueilMessagesTile from './accueil/AccueilMessagesTile.vue'
 import AccueilActivityTile from './accueil/AccueilActivityTile.vue'
+import AccueilStatTile    from './accueil/AccueilStatTile.vue'
 import { useTeacherBento } from '@/composables/useTeacherBento'
 import { useAccueilFocusTile } from '@/composables/useAccueilFocusTile'
 import { useAccueilSchedule } from '@/composables/useAccueilSchedule'
@@ -188,71 +189,52 @@ function smartReorganize() {
           @remove="bento.toggleTile('focus')"
         />
 
-        <!-- Stat: Soumissions (1x1) -->
-        <div
+        <!-- Stats 1x1 — factorises via AccueilStatTile -->
+        <AccueilStatTile
           v-else-if="w.id === 'stat-soumis'"
-          class="dashboard-card bento-tile bento-stat"
-          :class="{ 'bento-tile--editing': editMode }"
+          label="soumis"
+          :value="Math.round(submissionRate) + '%'"
+          :icon="Percent"
+          variant="ring"
+          :ring-pct="submissionRate"
+          :edit-mode="editMode"
+          :aria-label="`Masquer ${w.label}`"
           :style="spanStyle(w.id)"
-        >
-          <button v-if="editMode" class="bento-tile-remove" :aria-label="`Masquer ${w.label}`" @click="bento.toggleTile(w.id)"><X :size="14" /></button>
-          <div class="stat-ring">
-            <svg viewBox="0 0 36 36" class="stat-ring-svg">
-              <circle cx="18" cy="18" r="15" fill="none" stroke="var(--bg-active)" stroke-width="3" />
-              <circle
-                cx="18" cy="18" r="15" fill="none"
-                stroke="var(--accent)" stroke-width="3"
-                stroke-linecap="round"
-                :stroke-dasharray="`${submissionRate * 0.942} 94.2`"
-                transform="rotate(-90 18 18)"
-                style="transition: stroke-dasharray .6s ease"
-              />
-            </svg>
-          </div>
-          <span class="stat-number">{{ Math.round(submissionRate) }}%</span>
-          <span class="stat-label">soumis</span>
-          <Percent :size="14" class="stat-icon" />
-        </div>
-
-        <!-- Stat: A noter (1x1) -->
-        <div
+          @remove="bento.toggleTile(w.id)"
+        />
+        <AccueilStatTile
           v-else-if="w.id === 'stat-noter'"
-          class="dashboard-card bento-tile bento-stat"
-          :class="{ 'stat--alert': aNoterCount > 0, 'bento-tile--editing': editMode }"
+          label="a noter"
+          :value="aNoterCount"
+          :icon="Edit3"
+          :alert="aNoterCount > 0"
+          :edit-mode="editMode"
+          :aria-label="`Masquer ${w.label}`"
           :style="spanStyle(w.id)"
-        >
-          <button v-if="editMode" class="bento-tile-remove" :aria-label="`Masquer ${w.label}`" @click="bento.toggleTile(w.id)"><X :size="14" /></button>
-          <span class="stat-number">{{ aNoterCount }}</span>
-          <span class="stat-label">a noter</span>
-          <Edit3 :size="14" class="stat-icon" />
-        </div>
-
-        <!-- Stat: Moyenne (1x1) -->
-        <div
+          @remove="bento.toggleTile(w.id)"
+        />
+        <AccueilStatTile
           v-else-if="w.id === 'stat-moyenne'"
-          class="dashboard-card bento-tile bento-stat"
-          :class="{ 'bento-tile--editing': editMode }"
+          label="moyenne"
+          :value="averageGrade"
+          :icon="Award"
+          variant="grade"
+          :edit-mode="editMode"
+          :aria-label="`Masquer ${w.label}`"
           :style="spanStyle(w.id)"
-        >
-          <button v-if="editMode" class="bento-tile-remove" :aria-label="`Masquer ${w.label}`" @click="bento.toggleTile(w.id)"><X :size="14" /></button>
-          <span class="stat-number stat-grade" :class="gradeClass(averageGrade)">{{ averageGrade }}</span>
-          <span class="stat-label">moyenne</span>
-          <Award :size="14" class="stat-icon" />
-        </div>
-
-        <!-- Stat: En ligne (1x1) -->
-        <div
+          @remove="bento.toggleTile(w.id)"
+        />
+        <AccueilStatTile
           v-else-if="w.id === 'stat-online'"
-          class="dashboard-card bento-tile bento-stat"
-          :class="{ 'bento-tile--editing': editMode }"
+          label="en ligne"
+          :value="onlineStudents"
+          :icon="Wifi"
+          variant="online-dot"
+          :edit-mode="editMode"
+          :aria-label="`Masquer ${w.label}`"
           :style="spanStyle(w.id)"
-        >
-          <button v-if="editMode" class="bento-tile-remove" :aria-label="`Masquer ${w.label}`" @click="bento.toggleTile(w.id)"><X :size="14" /></button>
-          <span class="stat-online-dot" />
-          <span class="stat-number">{{ onlineStudents }}</span>
-          <span class="stat-label">en ligne</span>
-          <Wifi :size="14" class="stat-icon" />
-        </div>
+          @remove="bento.toggleTile(w.id)"
+        />
 
         <!-- Schedule (2x1 / 4x1) -->
         <AccueilScheduleTile

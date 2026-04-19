@@ -18,6 +18,7 @@
   import SidebarLive        from './SidebarLive.vue'
   import SidebarDmList      from './SidebarDmList.vue'
   import SidebarArchivedChannels from './SidebarArchivedChannels.vue'
+  import SidebarGames       from './SidebarGames.vue'
   import LumenRepoSidebar   from '@/components/lumen/LumenRepoSidebar.vue'
   import SkeletonLoader     from '@/components/ui/SkeletonLoader.vue'
   import { useLumenStore }  from '@/stores/lumen'
@@ -280,6 +281,11 @@
           @select-date="(d: string) => router.push({ name: 'agenda', query: { date: d } })"
           @new-reminder="router.push({ name: 'agenda', query: { action: 'new-reminder' } })"
         />
+      </template>
+
+      <!-- Jeux (hub + vues des jeux) : sidebar dediee, pas de canaux. -->
+      <template v-else-if="['jeux', 'typerace', 'snake', 'space-invaders'].includes(route.name as string)">
+        <SidebarGames />
       </template>
 
       <!-- Cours Lumen (sidebar unifiee v2.101) -->
