@@ -160,7 +160,12 @@ describe('useDashboardTeacher', () => {
 
   it('thisWeekReminders sorts done after undone', () => {
     const dashboard = useDashboardTeacher()
-    const today = new Date().toISOString().slice(0, 10)
+    // Utilise la date locale du midi (12:00) pour eviter les bugs de
+    // boundary lorsque le test tourne a minuit (toISOString = UTC, local
+    // peut etre la veille ou le lendemain).
+    const now = new Date()
+    const localNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0)
+    const today = localNoon.toISOString().slice(0, 10)
     dashboard.allReminders.value = [
       makeReminder({ id: 1, date: today, done: 1 }),
       makeReminder({ id: 2, date: today, done: 0 }),

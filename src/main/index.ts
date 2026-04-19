@@ -71,7 +71,16 @@ function createWindow(splash: BrowserWindow | null): void {
       sandbox: true,
       plugins: true, // Active le viewer PDF Chromium intégré
       devTools: !app.isPackaged,
+      // Caches V8 le bytecode compile → startup plus rapide apres 1re run.
+      v8CacheOptions: 'bypassHeatCheck',
+      // spellcheck desactive : on est une app FR avec editeurs qui ont leur
+      // propre logique. L engine spell par defaut alloue ~20-40 MB.
+      spellcheck: false,
+      // Limite le background throttling pour ne PAS ralentir les sockets
+      // quand la fenetre est cachee (false = pas de throttle).
+      backgroundThrottling: true,
     },
+    autoHideMenuBar: true,
   })
 
   // Afficher la fenêtre seulement quand le renderer est chargé

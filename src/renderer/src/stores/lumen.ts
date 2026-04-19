@@ -277,6 +277,23 @@ export const useLumenStore = defineStore('lumen', () => {
 
   // ── Actions : chapitres ───────────────────────────────────────────────────
 
+  // Cap LRU : un prof qui ouvre 50 chapitres dans la journee ne doit pas
+  // garder 50 blobs markdown (50-200 KB chacun) en memoire. Au-dela, on
+  // drop le plus ancien (Map insertion-ordered).
+  const CHAPTER_CONTENT_MAX = 20
+
+  function setChapterContent(key: string, data: LumenChapterContent) {
+    const m = chapterContents.value
+    if (m.has(key)) m.delete(key)
+    m.set(key, data)
+    while (m.size > CHAPTER_CONTENT_MAX) {
+      const first = m.keys().next().value
+      if (first === undefined) break
+      m.delete(first)
+    }
+    chapterContents.value = new Map(m)
+  }
+
   async function fetchChapterContent(repoId: number, path: string): Promise<LumenChapterContent | null> {
     loading.value = true
     try {
@@ -285,8 +302,7 @@ export const useLumenStore = defineStore('lumen', () => {
       )
       if (data) {
         const key = chapterKey(repoId, path)
-        chapterContents.value.set(key, data)
-        chapterContents.value = new Map(chapterContents.value)
+        setChapterContent(key, data)
         // Detection Marp paresseuse : on parse la frontmatter une seule fois
         // au moment du fetch. La sidebar peut ensuite afficher un badge.
         if (parseChapterContent(data.content).isMarp) {
