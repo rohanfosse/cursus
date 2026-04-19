@@ -4,7 +4,7 @@ const { z }   = require('zod')
 const queries = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap    = require('../utils/wrap')
-const { requireRole, requirePromo, promoFromTravail, requireTravailOwner } = require('../middleware/authorize')
+const { requireRole, requirePromo, promoFromTravail, requireTravailOwner, requireDepotOwner } = require('../middleware/authorize')
 
 const upsertRubricSchema = z.object({
   travailId: z.number().int().positive('Devoir invalide'),
@@ -15,11 +15,22 @@ const upsertRubricSchema = z.object({
     max_pts:  z.number().int().min(1).max(100).optional().default(4),
     weight:   z.number().min(0.1).max(10).optional().default(1),
     position: z.number().int().min(0).optional().default(0),
-  })).optional().default([]),
+  })).max(30, 'Maximum 30 critères par grille').optional().default([]),
 }).passthrough()
 
-router.get('/scores/:depotId', requireRole('teacher'), wrap((req) => queries.getDepotScores(Number(req.params.depotId))))
-router.post('/scores',         requireRole('teacher'), wrap((req) => queries.setDepotScores(req.body)))
+// Validation des scores : depotId + tableau de { criterion_id, points } avec
+// bornes explicites (avant : points pouvait etre NaN, negatif, ou une string
+// que SQLite type-coerce en 0 silencieusement).
+const setScoresSchema = z.object({
+  depotId: z.number().int().positive('Dépôt invalide'),
+  scores:  z.array(z.object({
+    criterion_id: z.number().int().positive(),
+    points:       z.number().min(0).max(100).finite(),
+  })).max(30, 'Maximum 30 scores par grille'),
+})
+
+router.get('/scores/:depotId', requireRole('teacher'), requireDepotOwner, wrap((req) => queries.getDepotScores(Number(req.params.depotId))))
+router.post('/scores',         requireRole('teacher'), validate(setScoresSchema), requireDepotOwner, wrap((req) => queries.setDepotScores(req.body)))
 router.get('/:travailId',      requirePromo(promoFromTravail), wrap((req) => queries.getRubric(Number(req.params.travailId))))
 router.post('/',               requireRole('teacher'), requireTravailOwner, validate(upsertRubricSchema), wrap((req) => queries.upsertRubric(req.body)))
 router.delete('/:travailId',   requireRole('teacher'), requireTravailOwner, wrap((req) => queries.deleteRubric(Number(req.params.travailId))))

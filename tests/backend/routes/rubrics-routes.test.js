@@ -199,4 +199,46 @@ describe('Rubric scores', () => {
       .send({ depotId: 1, scores: [] })
     expect(res.status).toBe(403)
   })
+
+  // v2.183 : validation Zod + cross-promo checks
+  it('rejette points > 100 (Zod)', async () => {
+    const res = await request(app)
+      .post('/api/rubrics/scores')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ depotId: 1, scores: [{ criterion_id: 1, points: 99999 }] })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+  })
+
+  it('rejette points negatifs', async () => {
+    const res = await request(app)
+      .post('/api/rubrics/scores')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ depotId: 1, scores: [{ criterion_id: 1, points: -5 }] })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+  })
+
+  it('rejette points NaN / non-numerique', async () => {
+    const res = await request(app)
+      .post('/api/rubrics/scores')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ depotId: 1, scores: [{ criterion_id: 1, points: 'cheater' }] })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+  })
+
+  it('rejette un tableau > 30 scores', async () => {
+    const scores = Array.from({ length: 50 }, (_, i) => ({ criterion_id: i + 1, points: 1 }))
+    const res = await request(app)
+      .post('/api/rubrics/scores')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ depotId: 1, scores })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+  })
+
+  it('rejette criterion_id manquant', async () => {
+    const res = await request(app)
+      .post('/api/rubrics/scores')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ depotId: 1, scores: [{ points: 10 }] })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+  })
 })

@@ -351,16 +351,28 @@ function getRecentDmContacts(studentId, limit = 15) {
     LIMIT ?
   `).all(studentId, studentId, studentId, studentId, limit);
 
-  // Fusionner : boîtes partagées → récupérer le nom du contact (le box owner)
-  const peerContacts = peerBoxRows.map(r => {
-    const peer = getDb().prepare('SELECT id, name, avatar_initials, photo_data FROM students WHERE id = ?').get(r.box_id)
-    return {
-      author_id: peer?.id ?? r.box_id,
-      name: peer?.name ?? 'Inconnu',
-      last_message_at: r.last_message_at,
-      last_message_preview: r.last_message_preview,
-    }
-  })
+  // Resolution des owners des boxes partagees : batch IN () plutot que
+  // N+1 SELECT. A 60 contacts, l ancien pattern declenchait 60 roundtrips
+  // DB par ouverture de chat — hot path perf.
+  const peerContacts = (() => {
+    if (!peerBoxRows.length) return []
+    const boxIds = peerBoxRows.map(r => r.box_id).filter(Boolean)
+    if (!boxIds.length) return []
+    const placeholders = boxIds.map(() => '?').join(',')
+    const peers = getDb().prepare(
+      `SELECT id, name, avatar_initials, photo_data FROM students WHERE id IN (${placeholders})`
+    ).all(...boxIds)
+    const peerMap = new Map(peers.map(p => [p.id, p]))
+    return peerBoxRows.map(r => {
+      const peer = peerMap.get(r.box_id)
+      return {
+        author_id: peer?.id ?? r.box_id,
+        name: peer?.name ?? 'Inconnu',
+        last_message_at: r.last_message_at,
+        last_message_preview: r.last_message_preview,
+      }
+    })
+  })()
 
   const allContacts = [...ownBoxRows, ...peerContacts]
     .sort((a, b) => (b.last_message_at ?? '').localeCompare(a.last_message_at ?? ''))

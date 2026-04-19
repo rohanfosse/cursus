@@ -288,6 +288,12 @@ router.post(
   }),
 )
 
+// Cooldown + mutex par promo pour eviter qu une classe entiere qui ouvre
+// Cursus en meme temps ne declenche 30 syncs paralleles sur la meme org
+// GitHub (brule le rate limit 5000/h et sature le pool Express).
+const syncCooldowns = new Map()  // promoId -> { lastAt: epoch, inflight: Promise|null }
+const SYNC_COOLDOWN_MS = 60_000  // 1 min entre 2 syncs du meme promo
+
 router.post(
   '/repos/sync/promo/:promoId',
   requirePromoMember(promoFromParam),
@@ -295,15 +301,40 @@ router.post(
     const promoId = Number(req.params.promoId)
     const org = getPromoGithubOrg(promoId)
     if (!org) throw new AppError('Aucune organisation GitHub configuree pour cette promo', 400)
-    const octokit = await requireGithubClient(req)
-    let result
-    try {
-      result = await syncPromoRepos(octokit, { promoId, org })
-    } catch (err) {
-      throw await handleOctokit(err)
+
+    const state = syncCooldowns.get(promoId) ?? { lastAt: 0, inflight: null }
+
+    // Si un sync est deja en cours pour cette promo, on attend son resultat
+    // plutot que d en declencher un second. Serialise sans stampede.
+    if (state.inflight) {
+      await state.inflight.catch(() => {})
+      const repos = getLumenReposForPromo(promoId, { visibleOnly: isStudent(req) }).map(serializeRepo)
+      return { synced: 0, errors: [], repos, cached: true }
     }
-    const repos = getLumenReposForPromo(promoId, { visibleOnly: isStudent(req) }).map(serializeRepo)
-    return { synced: result.synced, errors: result.errors, repos }
+
+    // Cooldown : si le dernier sync a termine il y a < 1 min, on skip le
+    // refetch GitHub et on renvoie la snapshot locale.
+    if (Date.now() - state.lastAt < SYNC_COOLDOWN_MS) {
+      const repos = getLumenReposForPromo(promoId, { visibleOnly: isStudent(req) }).map(serializeRepo)
+      return { synced: 0, errors: [], repos, cached: true }
+    }
+
+    const octokit = await requireGithubClient(req)
+    const run = (async () => {
+      try { return await syncPromoRepos(octokit, { promoId, org }) }
+      catch (err) { throw await handleOctokit(err) }
+    })()
+    syncCooldowns.set(promoId, { lastAt: state.lastAt, inflight: run })
+
+    try {
+      const result = await run
+      syncCooldowns.set(promoId, { lastAt: Date.now(), inflight: null })
+      const repos = getLumenReposForPromo(promoId, { visibleOnly: isStudent(req) }).map(serializeRepo)
+      return { synced: result.synced, errors: result.errors, repos }
+    } catch (err) {
+      syncCooldowns.set(promoId, { lastAt: Date.now(), inflight: null })
+      throw err
+    }
   }),
 )
 

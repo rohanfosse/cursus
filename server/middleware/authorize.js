@@ -269,7 +269,9 @@ function requireTravailOwner(req, res, next) {
  */
 function requireDepotOwner(req, res, next) {
   if (isAdmin(req)) return next()
-  const depotId = Number(req.body?.depotId ?? req.body?.depot_id)
+  const depotId = Number(
+    req.body?.depotId ?? req.body?.depot_id ?? req.params?.depotId ?? req.params?.id,
+  )
   if (!depotId) return res.status(400).json({ ok: false, error: 'ID dépôt manquant.' })
   const row = getDb().prepare(
     'SELECT t.promo_id FROM depots d JOIN travaux t ON t.id = d.travail_id WHERE d.id = ?'
