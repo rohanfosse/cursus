@@ -25,6 +25,10 @@ import WidgetQuickCreate from './teacher-widgets/WidgetQuickCreate.vue'
 import WidgetNotationPending from './teacher-widgets/WidgetNotationPending.vue'
 import WidgetStickyNote from './teacher-widgets/WidgetStickyNote.vue'
 import WidgetPromoVelocity from './teacher-widgets/WidgetPromoVelocity.vue'
+import WidgetFeedbackTemplates from './teacher-widgets/WidgetFeedbackTemplates.vue'
+import WidgetAgendaJour from './teacher-widgets/WidgetAgendaJour.vue'
+import WidgetCahier from './student-widgets/WidgetCahier.vue'
+import WidgetActuCursus from './student-widgets/WidgetActuCursus.vue'
 import MultiPromoCard from './MultiPromoCard.vue'
 import AccueilFocusTile from './accueil/AccueilFocusTile.vue'
 import AccueilScheduleTile from './accueil/AccueilScheduleTile.vue'
@@ -126,10 +130,15 @@ const optWidgetComponents: Record<string, Component> = {
   'notation-pending': WidgetNotationPending,
   'sticky-note': WidgetStickyNote,
   'promo-velocity': WidgetPromoVelocity,
+  'feedback-templates': WidgetFeedbackTemplates,
+  'agenda-jour': WidgetAgendaJour,
+  'cahier': WidgetCahier,
+  'actu': WidgetActuCursus,
 }
 const wideWidgets = new Set([
   'quote', 'quicklinks', 'dm-files', 'week-cal', 'signatures',
   'lumen-engagement', 'lumen-my-courses', 'lumen-top-read',
+  'feedback-templates', 'agenda-jour', 'cahier',
 ])
 
 const draggableOpt = ref([...bento.visibleOptionalTiles.value])

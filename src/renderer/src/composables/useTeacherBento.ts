@@ -8,6 +8,7 @@ import {
   PlusCircle, Activity, CheckSquare,
   Quote, Timer, Bookmark, CalendarDays, FileBox, Pen,
   Lightbulb, FileText, BarChart3, TrendingUp, StickyNote,
+  ClipboardList, CalendarClock, Notebook, Sparkles,
 } from 'lucide-vue-next'
 import type { WidgetDef, WidgetSize } from '@/types/widgets'
 
@@ -43,6 +44,11 @@ export const TEACHER_TILES: WidgetDef[] = [
   { id: 'notation-pending', label: 'A noter (top)',    icon: Edit3,       description: 'Devoirs avec le plus de rendus en attente de note', category: 'essential', sizes: ['1x1', '2x1'],     defaultSize: '1x1', defaultEnabled: false, role: 'teacher' },
   { id: 'sticky-note',      label: 'Bloc-notes',       icon: StickyNote,  description: 'Note personnelle rapide (sauvegarde auto locale)',  category: 'productivity', sizes: ['1x1', '2x1'],      defaultSize: '1x1', defaultEnabled: false, role: 'teacher' },
   { id: 'promo-velocity',   label: 'Activite 7j',      icon: Activity,    description: 'Courbe des rendus soumis sur les 7 derniers jours', category: 'tracking', sizes: ['1x1', '2x1'],      defaultSize: '1x1', defaultEnabled: false, role: 'teacher' },
+  // ── Nouveaux widgets v2.165 ──
+  { id: 'feedback-templates', label: 'Templates feedback', icon: ClipboardList, description: 'Retours frequents copiables en 1 clic',         category: 'productivity', sizes: ['2x1', '2x2'],         defaultSize: '2x1', defaultEnabled: true,  role: 'teacher' },
+  { id: 'agenda-jour',        label: 'Agenda du jour',     icon: CalendarClock, description: 'Cours, RDV et lives de la journee',              category: 'essential',    sizes: ['2x1', '2x2', '4x1'],  defaultSize: '2x2', defaultEnabled: true,  role: 'teacher' },
+  { id: 'cahier',             label: 'Cahiers collab',     icon: Notebook,      description: 'Cahiers collaboratifs recents de la promo',      category: 'productivity', sizes: ['1x1', '2x1', '2x2'],  defaultSize: '2x1', defaultEnabled: false, role: 'teacher' },
+  { id: 'actu',               label: 'Quoi de neuf',       icon: Sparkles,      description: 'Nouveautes Cursus',                               category: 'fun',          sizes: ['1x1', '2x1'],         defaultSize: '2x1', defaultEnabled: false, role: 'both' },
 ]
 
 const STORAGE_KEY = 'teacher_bento_hidden'
