@@ -1,140 +1,46 @@
 /**
  * Editeur collaboratif TipTap WYSIWYG avec Yjs CRDT.
- * Affiche les curseurs des collaborateurs et sauvegarde automatiquement.
+ * Delegue la config TipTap a useCahierEditor et le header a CahierEditorHeader.
  */
 <script setup lang="ts">
-import { ref, shallowRef, watch, onMounted, onBeforeUnmount, computed } from 'vue'
-import { EditorContent, Editor } from '@tiptap/vue-3'
-import StarterKit from '@tiptap/starter-kit'
-import Collaboration from '@tiptap/extension-collaboration'
-import CollaborationCaret from '@tiptap/extension-collaboration-caret'
-import Placeholder from '@tiptap/extension-placeholder'
-import { ArrowLeft, Save, Users, Pencil, AlertTriangle } from 'lucide-vue-next'
-import { useCahierCollab, colorForUser } from '@/composables/useCahierCollab'
+import { computed, watch } from 'vue'
+import { EditorContent } from '@tiptap/vue-3'
+import { useCahierCollab } from '@/composables/useCahierCollab'
+import { useCahierEditor } from '@/composables/useCahierEditor'
 import { useCahierStore } from '@/stores/cahier'
-import { useAppStore } from '@/stores/app'
+import CahierEditorHeader from './CahierEditorHeader.vue'
 
 const cahierStore = useCahierStore()
-const appStore = useAppStore()
-
 const cahierId = computed(() => cahierStore.activeCahierId)
 const { ydoc, provider, connected, saving, saveError, connectedUsers, init, destroy } = useCahierCollab(cahierId)
+const { editor } = useCahierEditor({ ydoc, provider })
 
-const editingTitle = ref(false)
-const titleInput = ref('')
 const currentCahier = computed(() =>
   cahierStore.cahiers.find(c => c.id === cahierId.value),
 )
 
-// Editor reactif (shallowRef pour eviter proxification profonde par Vue)
-const editor = shallowRef<Editor | null>(null)
-
-function buildEditor() {
-  editor.value?.destroy()
-  editor.value = null
-  if (!ydoc.value) return
-  const user = appStore.currentUser
-  editor.value = new Editor({
-    extensions: [
-      StarterKit.configure({ undoRedo: false }), // undo/redo gere par Collaboration (Yjs history)
-      Placeholder.configure({ placeholder: 'Commencez a ecrire...' }),
-      Collaboration.configure({ document: ydoc.value }),
-      CollaborationCaret.configure({
-        provider: provider.value,
-        user: {
-          name: user?.name ?? 'Anonyme',
-          color: user ? colorForUser(user.id) : '#3b82f6',
-        },
-      }),
-    ],
-    editable: true,
-  })
-}
-
-// Reinit Yjs + rebuild editor a chaque changement de cahier
 watch(cahierId, async (id) => {
-  if (!id) { destroy(); editor.value?.destroy(); editor.value = null; return }
+  if (!id) { destroy(); return }
   await init(id)
-  buildEditor()
 }, { immediate: true })
 
-onMounted(async () => {
-  // Si cahierId etait deja set au mount, watch(immediate:true) l'aura traite.
-  // Sinon rien a faire ici.
-})
-
-onBeforeUnmount(() => {
-  editor.value?.destroy()
-  editor.value = null
-  destroy()
-})
-
-function goBack() {
-  cahierStore.closeCahier()
-}
-
-function startRenaming() {
-  editingTitle.value = true
-  titleInput.value = currentCahier.value?.title ?? ''
-}
-
-async function saveTitle() {
-  if (cahierId.value && titleInput.value.trim()) {
-    await cahierStore.renameCahier(cahierId.value, titleInput.value.trim())
-  }
-  editingTitle.value = false
+function onRename(newTitle: string) {
+  if (cahierId.value) cahierStore.renameCahier(cahierId.value, newTitle)
 }
 </script>
 
 <template>
   <div class="cahier-editor-wrap">
-    <!-- Header -->
-    <div class="cahier-editor-header">
-      <button class="cahier-back-btn" @click="goBack">
-        <ArrowLeft :size="16" />
-      </button>
-      <div class="cahier-title-area">
-        <template v-if="editingTitle">
-          <input
-            v-model="titleInput"
-            class="cahier-title-input"
-            @keydown.enter="saveTitle"
-            @keydown.escape="editingTitle = false"
-            @blur="saveTitle"
-          />
-        </template>
-        <template v-else>
-          <h2 class="cahier-title" @click="startRenaming">
-            {{ currentCahier?.title ?? 'Sans titre' }}
-            <Pencil :size="12" class="cahier-title-edit" />
-          </h2>
-        </template>
-      </div>
-      <div class="cahier-header-right">
-        <div v-if="connectedUsers.length > 1" class="cahier-users">
-          <Users :size="13" />
-          <span>{{ connectedUsers.length }}</span>
-          <div class="cahier-user-dots">
-            <span
-              v-for="u in connectedUsers.slice(0, 5)"
-              :key="u.userId"
-              class="cahier-user-dot"
-              :style="{ background: u.color }"
-              :title="u.name"
-            />
-          </div>
-        </div>
-        <span v-if="saveError" class="cahier-save-error" :title="saveError">
-          <AlertTriangle :size="11" /> Echec sauvegarde
-        </span>
-        <span v-else-if="saving" class="cahier-saving">
-          <Save :size="11" /> Sauvegarde...
-        </span>
-        <span v-else-if="connected" class="cahier-saved">Sauvegarde auto</span>
-      </div>
-    </div>
+    <CahierEditorHeader
+      :title="currentCahier?.title ?? ''"
+      :connected-users="connectedUsers"
+      :connected="connected"
+      :saving="saving"
+      :save-error="saveError"
+      @back="cahierStore.closeCahier()"
+      @rename="onRename"
+    />
 
-    <!-- Editor -->
     <div class="cahier-editor-body">
       <EditorContent v-if="editor" :editor="editor" class="cahier-tiptap" />
       <div v-else class="cahier-loading">
@@ -150,64 +56,6 @@ async function saveTitle() {
 .cahier-editor-wrap {
   display: flex; flex-direction: column; height: 100%;
   background: var(--bg-main);
-}
-
-.cahier-editor-header {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 16px; border-bottom: 1px solid var(--border);
-  background: var(--bg-sidebar); flex-shrink: 0;
-}
-
-.cahier-back-btn {
-  display: flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border-radius: 8px;
-  border: 1px solid var(--border); background: transparent;
-  color: var(--text-secondary); cursor: pointer;
-  transition: all .15s;
-}
-.cahier-back-btn:hover { background: var(--bg-hover); color: var(--accent); border-color: var(--accent); }
-
-.cahier-title-area { flex: 1; min-width: 0; }
-.cahier-title {
-  font-size: 16px; font-weight: 700; color: var(--text-primary);
-  cursor: pointer; display: flex; align-items: center; gap: 6px;
-  margin: 0;
-}
-.cahier-title-edit { opacity: 0; transition: opacity .15s; color: var(--text-muted); }
-.cahier-title:hover .cahier-title-edit { opacity: 1; }
-
-.cahier-title-input {
-  font-size: 16px; font-weight: 700; color: var(--text-primary);
-  background: transparent; border: none; border-bottom: 2px solid var(--accent);
-  outline: none; font-family: var(--font); width: 100%; padding: 2px 0;
-}
-
-.cahier-header-right {
-  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
-}
-
-.cahier-users {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 12px; color: var(--text-muted);
-}
-
-.cahier-user-dots { display: flex; gap: 2px; }
-.cahier-user-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  border: 1px solid var(--bg-sidebar);
-}
-
-.cahier-saving {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 11px; color: var(--text-muted); font-style: italic;
-}
-.cahier-saved {
-  font-size: 11px; color: var(--text-muted); opacity: .6;
-}
-.cahier-save-error {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 11px; color: var(--danger, #ef4444); font-weight: 500;
-  cursor: help;
 }
 
 .cahier-editor-body {
@@ -244,7 +92,6 @@ async function saveTitle() {
   border-radius: 8px; overflow-x: auto; font-size: 13px;
 }
 
-/* Placeholder */
 .cahier-tiptap :deep(.tiptap p.is-editor-empty:first-child::before) {
   content: attr(data-placeholder);
   float: left; height: 0;
@@ -252,7 +99,6 @@ async function saveTitle() {
   pointer-events: none;
 }
 
-/* Collaboration cursors */
 .cahier-tiptap :deep(.collaboration-cursor__caret) {
   position: relative; border-left: 2px solid;
   margin-left: -1px; margin-right: -1px;
