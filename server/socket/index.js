@@ -117,14 +117,22 @@ module.exports = function setupSocket(io, queries, SECRET) {
       io.to(`live:${promoId}`).emit('live:code-update', { activityId, content, language: language ?? null })
     })
 
-    // Indicateur de frappe — pas de fan-out brut, on tronque le nom
+    // Indicateur de frappe — diffuse UNIQUEMENT a la room concernee pour
+    // eviter la fuite cross-promo. Pour un channel, on resout sa promo et
+    // on emet vers `promo:${promoId}` au lieu de la room 'all' globale.
     socket.on('typing', (payload) => {
       if (!checkTokenValid()) return
       if (!payload || typeof payload !== 'object') return
       const { channelId, dmStudentId, dmPeerId } = payload
       const userName = (socket.user?.name ?? '').toString().slice(0, MAX_TYPING_NAME_LEN)
       if (Number.isInteger(channelId)) {
-        socket.to('all').emit('typing', { channelId, userName })
+        try {
+          const { getDb } = require('../db/connection')
+          const ch = getDb().prepare('SELECT promo_id FROM channels WHERE id = ?').get(channelId)
+          if (ch?.promo_id) {
+            socket.to(`promo:${ch.promo_id}`).emit('typing', { channelId, userName })
+          }
+        } catch { /* resolution failure : on ne diffuse pas plutot que de leaker */ }
       } else if (Number.isInteger(dmStudentId)) {
         socket.to(userRoom(dmStudentId)).emit('typing', { dmStudentId, userName })
         const peer = Number.isInteger(dmPeerId) ? dmPeerId : socket.user?.id

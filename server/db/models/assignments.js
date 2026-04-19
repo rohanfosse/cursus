@@ -274,18 +274,23 @@ function markNonSubmittedAsD(travailId) {
   // Ne pas marquer les événements sans soumission requise
   if (!travail.requires_submission) return 0;
 
-  const students = db.prepare(`
+  // SELECT + INSERT doivent etre atomiques : sans transaction globale, un
+  // etudiant qui submit entre les deux echapperait au D (ou pire,
+  // son vrai depot serait ecrase par un INSERT OR IGNORE qui succede).
+  const selectMissing = db.prepare(`
     SELECT s.id FROM students s
     LEFT JOIN depots d ON d.travail_id = ? AND d.student_id = s.id
     WHERE s.promo_id = ? AND d.id IS NULL
-  `).all(travailId, travail.promo_id);
-
-  if (!students.length) return 0;
+  `);
   const ins = db.prepare(
     `INSERT OR IGNORE INTO depots (travail_id, student_id, file_name, file_path, note) VALUES (?, ?, '-', '', 'D')`
   );
-  db.transaction(() => { for (const s of students) ins.run(travailId, s.id); })();
-  return students.length;
+  return db.transaction(() => {
+    const students = selectMissing.all(travailId, travail.promo_id);
+    if (!students.length) return 0;
+    for (const s of students) ins.run(travailId, s.id);
+    return students.length;
+  })();
 }
 
 // ─── Projets (catégories distinctes) ─────────────────────────────────────────

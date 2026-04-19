@@ -523,6 +523,11 @@ router.get(
     }
     const path = String(req.query.path ?? '').trim()
     if (!path) throw new AppError('Parametre path requis', 400)
+    // Normalisation defensive avant le check manifest (un manifest malveillant
+    // pourrait contenir `../` — on refuse au niveau route).
+    if (path.includes('\0') || path.includes('..') || path.startsWith('/')) {
+      throw new AppError('Chemin de chapitre invalide', 400)
+    }
 
     // Securite : empeche de fetcher un fichier arbitraire du repo via
     // Lumen — seuls les chapitres declares dans le manifest sont servis,
@@ -565,14 +570,13 @@ router.get(
 // sont rejetees pour eviter d'utiliser Lumen comme un client git generique.
 
 const writeFileBodySchema = z.object({
-  path: z.string().min(1).max(500).regex(
-    /\.(md|pdf|tex)$/i,
-    'Extension doit etre .md, .pdf ou .tex',
-  ),
+  path: z.string().min(1).max(500)
+    .regex(/\.(md|pdf|tex)$/i, 'Extension doit etre .md, .pdf ou .tex')
+    .refine(p => !p.includes('..') && !p.startsWith('/') && !p.includes('\0'), 'Chemin invalide'),
   content: z.string().max(2_000_000),  // 2 MB raw, garde-fou anti-bourrage
   message: z.string().max(200).optional(),
   sha: z.string().max(80).optional(),  // omit pour create, requis pour update
-})
+}).strict()
 
 async function writeFileWithAuth(req, expectedSha) {
   const repo = repoOrThrow(Number(req.params.id))
@@ -625,8 +629,19 @@ router.post(
   validate(chapterPathSchema),
   wrap(async (req) => {
     const repoId = Number(req.params.id)
+    const path = String(req.body.path ?? '').trim()
+    // Valide le path contre le manifest — sinon un etudiant peut polluer
+    // lumen_chapter_reads avec des paths arbitraires ("secret-admin", etc.)
+    // et fausser les stats de lecture.
+    const repo = repoOrThrow(repoId)
+    if (path.includes('..') || path.includes('\0') || path.startsWith('/')) {
+      throw new AppError('Chemin de chapitre invalide', 400)
+    }
+    const manifest = parseManifestField(repo)
+    const inManifest = manifest?.chapters?.some((c) => c.path === path)
+    if (!inManifest) throw new NotFoundError('Chapitre non declare dans le manifest')
     try {
-      markLumenChapterRead(req.user.id, repoId, req.body.path)
+      markLumenChapterRead(req.user.id, repoId, path)
     } catch {
       // Echec du tracking silencieux — ne pas bloquer l'UX
     }

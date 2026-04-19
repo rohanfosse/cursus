@@ -114,11 +114,21 @@ describe('Lumen visibility filtering — student vs teacher', () => {
       expect(res.status).toBe(404)
     })
 
-    it('refuse un path non declare dans le manifest (security)', async () => {
+    it('refuse un path contenant .. (security, v2.181 : 400 avant manifest check)', async () => {
       const res = await request(app)
         .get(`/api/lumen/repos/${visibleRepoId}/content?path=evil/../etc/passwd`)
         .set('Authorization', `Bearer ${studentToken}`)
-      expect(res.status).toBe(404)
+      // Normalisation defensive avant manifest : refuse traversal
+      expect(res.status).toBeGreaterThanOrEqual(400)
+      expect(res.status).toBeLessThan(500)
+    })
+
+    it('refuse un path absolu (security, v2.181)', async () => {
+      const res = await request(app)
+        .get(`/api/lumen/repos/${visibleRepoId}/content?path=/etc/passwd`)
+        .set('Authorization', `Bearer ${studentToken}`)
+      expect(res.status).toBeGreaterThanOrEqual(400)
+      expect(res.status).toBeLessThan(500)
     })
 
     it('refuse un path absent du manifest', async () => {
