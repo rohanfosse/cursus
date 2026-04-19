@@ -464,6 +464,20 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
   rotateCalendarFeedToken:    ()                      => post('/api/calendar/feed-token', {}),
   revokeCalendarFeedToken:    ()                      => del('/api/calendar/feed-token'),
 
+  // TypeRace (mini-jeu typing speed)
+  typeRaceRandomPhrase:       (excludeIds: number[] = []) => {
+    const q = excludeIds.length ? `?exclude=${excludeIds.join(',')}` : ''
+    return get(`/api/typerace/phrases/random${q}`)
+  },
+  typeRaceSubmitScore:        (payload: { phraseId: number; wpm: number; accuracy: number; durationMs: number }) =>
+    post('/api/typerace/scores', payload),
+  typeRaceLeaderboard:        (scope: 'day' | 'week' | 'all' = 'day', promoId?: number | null) => {
+    const params = new URLSearchParams({ scope })
+    if (promoId != null) params.set('promoId', String(promoId))
+    return get(`/api/typerace/leaderboard?${params.toString()}`)
+  },
+  typeRaceMyStats:            ()                      => get('/api/typerace/me'),
+
   // Lumen (liseuse GitHub)
   getLumenGithubStatus:       ()                      => get('/api/lumen/github/me'),
   connectLumenGithub:         (token: string)         => post('/api/lumen/github/connect', { token }),

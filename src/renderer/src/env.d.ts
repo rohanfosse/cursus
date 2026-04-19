@@ -310,6 +310,17 @@ declare global {
       rotateCalendarFeedToken(): Promise<IpcResponse<{ token: string; url: string }>>
       revokeCalendarFeedToken(): Promise<IpcResponse<{ revoked: boolean }>>
 
+      // TypeRace (mini-jeu typing speed)
+      typeRaceRandomPhrase(excludeIds?: number[]): Promise<IpcResponse<{ id: number; text: string }>>
+      typeRaceSubmitScore(payload: { phraseId: number; wpm: number; accuracy: number; durationMs: number }): Promise<IpcResponse<{ id: number; score: number }>>
+      typeRaceLeaderboard(scope?: 'day' | 'week' | 'all', promoId?: number | null): Promise<IpcResponse<Array<{ rank: number; userId: number; name: string; bestScore: number; bestWpm: number; plays: number }>>>
+      typeRaceMyStats(): Promise<IpcResponse<{
+        allTime: { plays: number; bestScore: number; bestWpm: number; avgWpm: number; avgAccuracy: number }
+        today: { bestScore: number; bestWpm: number; plays: number }
+        week: { bestScore: number }
+        history: Array<{ id: number; score: number; wpm: number; accuracy: number; durationMs: number; createdAt: string }>
+      }>>
+
       // Booking real-time
       onBookingNew(cb: (data: { bookingId: number; tutorName: string; studentName: string; eventTitle: string; startDatetime: string }) => void): () => void
       onBookingCancelled(cb: (data: { bookingId: number; tutorName: string; eventTitle: string }) => void): () => void

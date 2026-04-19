@@ -173,6 +173,7 @@ app.use('/api/cahiers',         require('./routes/cahiers'))
 app.use('/api/live-v2',         require('./routes/live-unified'))
 app.use('/api/bookings',        require('./routes/bookings'))
 app.use('/api/calendar',        require('./routes/calendar'))
+app.use('/api/typerace',        require('./routes/typerace'))
 
 // ── Fichiers statiques & SPA ──────────────────────────────────────────────────
 const path = require('path')

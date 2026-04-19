@@ -34,6 +34,7 @@ import WidgetDailyGoal from './student-widgets/WidgetDailyGoal.vue'
 import WidgetPromoActivity from './student-widgets/WidgetPromoActivity.vue'
 import WidgetClock from './student-widgets/WidgetClock.vue'
 import WidgetQuote from './student-widgets/WidgetQuote.vue'
+import WidgetTypeRace from './student-widgets/WidgetTypeRace.vue'
 import WidgetCalendar from './student-widgets/WidgetCalendar.vue'
 import WidgetProgress from './student-widgets/WidgetProgress.vue'
 import WidgetQuickLinks from './student-widgets/WidgetQuickLinks.vue'
@@ -116,6 +117,7 @@ const widgetComponents: Record<string, Component> = {
   grades: WidgetGrades, bookmarks: WidgetBookmarks, countdown: WidgetCountdown, group: WidgetGroupMembers,
   streak: WidgetStreak, weekplanner: WidgetWeekPlanner,
   messages: WidgetMessages, rendus: WidgetRendus, cahier: WidgetCahier, actu: WidgetActuCursus,
+  typerace: WidgetTypeRace,
 }
 
 const latestFeedback = computed(() => props.recentFeedback?.[0] ?? null)
@@ -140,6 +142,7 @@ const widgetProps = computed<Record<string, Record<string, unknown>>>(() => ({
   countdown: { nextDeadline: props.urgentActions.filter(a => a.deadline && !a.isOverdue).sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())[0] ?? null },
   group: {},
   messages: {}, rendus: {}, cahier: {}, actu: {},
+  typerace: {},
 }))
 
 const widgetEvents: Record<string, Record<string, (...args: unknown[]) => void>> = {

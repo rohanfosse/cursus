@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 72;
+const CURRENT_VERSION = 73;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -1649,6 +1649,30 @@ function runMigrations(db) {
           PRIMARY KEY (user_type, user_id)
         );
         CREATE INDEX IF NOT EXISTS idx_calendar_feed_token ON calendar_feed_tokens(token);
+      `);
+    },
+
+    // v73 : TypeRace — mini-jeu typing speed FR avec leaderboard par promo.
+    // Chaque partie (re-jouable illimitee) est enregistree ; le leaderboard
+    // aggrege le meilleur score par user sur une fenetre (jour/semaine/all).
+    // promo_id nullable : les teachers jouent mais sont filtres de la vue
+    // etudiante. Anti-triche : coherence wpm/durationMs verifiee au POST.
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS typerace_scores (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_type   TEXT NOT NULL CHECK(user_type IN ('student','teacher')),
+          user_id     INTEGER NOT NULL,
+          promo_id    INTEGER,
+          phrase_id   INTEGER NOT NULL,
+          wpm         REAL NOT NULL,
+          accuracy    REAL NOT NULL,
+          score       INTEGER NOT NULL,
+          duration_ms INTEGER NOT NULL,
+          created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_typerace_user_day ON typerace_scores(user_type, user_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_typerace_promo_day ON typerace_scores(promo_id, created_at);
       `);
     },
   ];
