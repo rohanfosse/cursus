@@ -16,6 +16,13 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR
   ? path.join(process.env.UPLOAD_DIR, 'uploads')
   : path.join(__dirname, '../../uploads')
 
+// Limites defensives pour le PDF source + la signature. Au-dela : rejet
+// explicite avec un message utile plutot qu une boucle pdf-lib hung ou une
+// erreur cryptique "invalid PNG".
+const MAX_PDF_SIZE_BYTES      = 20 * 1024 * 1024  // 20 MB
+const MAX_SIG_IMAGE_BYTES     = 500 * 1024        // 500 KB base64 decode -> ~375 KB PNG
+const MAX_SIG_DIMENSIONS_PX   = 2000              // largeur/hauteur max du PNG signature
+
 // ── Rate limiters spécifiques ────────────────────────────────────────────────
 const createLimiter = rateLimit({
   windowMs: 60_000, max: 10,
@@ -53,6 +60,36 @@ function hashFile(filePath) {
   if (!fs.existsSync(filePath)) return null
   const buf = fs.readFileSync(filePath)
   return crypto.createHash('sha256').update(buf).digest('hex')
+}
+
+/**
+ * Valide un PNG base64 : taille, decodable, dimensions raisonnables.
+ * Retourne { buffer, width, height } ou throw une AppError.
+ */
+function validateSignaturePng(base64Str) {
+  const mimeMatch = base64Str.match(/^data:image\/(png);base64,/)
+  if (!mimeMatch) {
+    throw Object.assign(new Error('Format de signature invalide. Seul PNG est accepte.'), { statusCode: 400 })
+  }
+  const b64 = base64Str.slice(mimeMatch[0].length)
+  const buf = Buffer.from(b64, 'base64')
+  if (buf.length > MAX_SIG_IMAGE_BYTES) {
+    throw Object.assign(new Error('Image signature trop lourde.'), { statusCode: 400 })
+  }
+  // PNG magic bytes : 89 50 4E 47 0D 0A 1A 0A
+  if (buf.length < 24 || buf[0] !== 0x89 || buf[1] !== 0x50 || buf[2] !== 0x4E || buf[3] !== 0x47) {
+    throw Object.assign(new Error('Image signature corrompue (entete PNG invalide).'), { statusCode: 400 })
+  }
+  // Les 4 octets apres "IHDR" (bytes 16-19 = width BE, 20-23 = height BE) donnent les dimensions.
+  const width  = buf.readUInt32BE(16)
+  const height = buf.readUInt32BE(20)
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) {
+    throw Object.assign(new Error('Dimensions de signature invalides.'), { statusCode: 400 })
+  }
+  if (width > MAX_SIG_DIMENSIONS_PX || height > MAX_SIG_DIMENSIONS_PX) {
+    throw Object.assign(new Error(`Signature trop grande (max ${MAX_SIG_DIMENSIONS_PX}x${MAX_SIG_DIMENSIONS_PX}).`), { statusCode: 400 })
+  }
+  return { buffer: buf, width, height }
 }
 
 /** Résout un chemin de fichier uploadé de manière sécurisée (anti path-traversal). */
@@ -160,11 +197,10 @@ router.post('/:id/sign', requireRole('teacher'), signLimiter, validate(signSchem
 
     const { signature_image } = req.body
 
-    // ── Sécurité : valider le format de l'image signature
-    const mimeMatch = signature_image.match(/^data:(image\/png);base64,/)
-    if (!mimeMatch) {
-      return res.status(400).json({ ok: false, error: 'Format de signature invalide. Seul PNG est accepté.' })
-    }
+    // Valide format + dimensions PNG (throw AppError avec statusCode).
+    let sigPng
+    try { sigPng = validateSignaturePng(signature_image) }
+    catch (err) { return res.status(err.statusCode ?? 400).json({ ok: false, error: err.message }) }
 
     const signerName = req.user?.name || 'Professeur'
 
@@ -172,6 +208,13 @@ router.post('/:id/sign', requireRole('teacher'), signLimiter, validate(signSchem
     const filePath = resolveUploadPath(sigReq.file_url)
     if (!filePath || !fs.existsSync(filePath)) {
       return res.status(404).json({ ok: false, error: 'Fichier PDF introuvable' })
+    }
+
+    // Cap taille PDF : pdf-lib peut exploser en RAM sur un gros PDF,
+    // bloquant toutes les autres signatures concurrentes.
+    const stat = fs.statSync(filePath)
+    if (stat.size > MAX_PDF_SIZE_BYTES) {
+      return res.status(413).json({ ok: false, error: 'PDF trop volumineux (max 20 Mo).' })
     }
 
     // ── Sécurité : vérifier l'intégrité du document (hash)
@@ -184,8 +227,14 @@ router.post('/:id/sign', requireRole('teacher'), signLimiter, validate(signSchem
 
     const pdfBytes = fs.readFileSync(filePath)
 
-    // Tamponner la signature sur le PDF
-    const signedPdfBytes = await stampSignature(pdfBytes, signature_image, signerName, sigReq.id)
+    // Tamponner la signature sur le PDF — passe le buffer PNG deja valide
+    // pour eviter de re-decoder le base64.
+    let signedPdfBytes
+    try {
+      signedPdfBytes = await stampSignature(pdfBytes, sigPng.buffer, signerName, sigReq.id)
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: 'Echec du tamponnage PDF. Le fichier est peut-etre corrompu ou chiffre.' })
+    }
 
     // Nom de fichier sécurisé (16 bytes aléatoires, pas de nom original pour éviter path traversal)
     const signedFileName = `signed_${crypto.randomBytes(16).toString('hex')}.pdf`
@@ -255,14 +304,17 @@ router.get('/by-message/:messageId', wrap((req) => {
 }))
 
 // ── PDF stamping ────────────────────────────────────────────────────────────
-async function stampSignature(pdfBytes, signatureBase64, signerName, refId) {
+// Accepte soit un Buffer PNG deja decode (chemin nominal v2.182+), soit
+// une string base64 (chemin legacy). Le Buffer evite de re-decoder le base64
+// et permet la validation des dimensions en amont.
+async function stampSignature(pdfBytes, signatureData, signerName, refId) {
   const doc = await PDFDocument.load(pdfBytes)
   const lastPage = doc.getPages()[doc.getPageCount() - 1]
   const { width } = lastPage.getSize()
 
-  // Extraire les données base64 (retirer le prefix data:image/png;base64,)
-  const base64Data = signatureBase64.replace(/^data:image\/\w+;base64,/, '')
-  const sigImgBytes = Buffer.from(base64Data, 'base64')
+  const sigImgBytes = Buffer.isBuffer(signatureData)
+    ? signatureData
+    : Buffer.from(String(signatureData).replace(/^data:image\/\w+;base64,/, ''), 'base64')
 
   const sigImg = await doc.embedPng(sigImgBytes)
   const sigDims = sigImg.scale(0.25)

@@ -63,16 +63,32 @@ describe('useSignature', () => {
       expect(savedSignature.value).toBeDefined()
     })
 
-    it('saveSignature persists to localStorage', () => {
+    it('saveSignature persists to localStorage si data URL PNG valide', () => {
       const { saveSignature, savedSignature } = useSignature()
-      saveSignature('newbase64')
-      expect(savedSignature.value).toBe('newbase64')
-      expect(localStorageMock.setItem).toHaveBeenCalledWith('cc_teacher_signature', 'newbase64')
+      const valid = 'data:image/png;base64,iVBORw0KGgo='
+      const ok = saveSignature(valid)
+      expect(ok).toBe(true)
+      expect(savedSignature.value).toBe(valid)
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('cc_teacher_signature', valid)
+    })
+
+    it('saveSignature rejette une string qui n est pas un data URL PNG', () => {
+      const { saveSignature, savedSignature } = useSignature()
+      const ok = saveSignature('plain-text-not-a-png')
+      expect(ok).toBe(false)
+      expect(savedSignature.value).not.toBe('plain-text-not-a-png')
+    })
+
+    it('saveSignature rejette une signature > 500_000 chars (cap LS quota)', () => {
+      const { saveSignature } = useSignature()
+      const huge = 'data:image/png;base64,' + 'A'.repeat(600_000)
+      const ok = saveSignature(huge)
+      expect(ok).toBe(false)
     })
 
     it('clearSavedSignature removes from localStorage', () => {
       const { saveSignature, clearSavedSignature, savedSignature } = useSignature()
-      saveSignature('data')
+      saveSignature('data:image/png;base64,iVBORw0KGgo=')
       clearSavedSignature()
       expect(savedSignature.value).toBeNull()
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('cc_teacher_signature')

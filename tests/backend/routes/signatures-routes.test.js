@@ -197,3 +197,41 @@ describe('POST /api/signatures — creation security', () => {
     expect(res.status).toBe(403)
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  POST /api/signatures/:id/sign — v2.182 validation PNG + taille PDF
+// ═══════════════════════════════════════════════════════════════════════════
+describe('POST /api/signatures/:id/sign — validation image', () => {
+  it('rejette une signature non-PNG (JPEG data URI)', async () => {
+    const res = await request(app)
+      .post('/api/signatures/1/sign')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ signature_image: 'data:image/jpeg;base64,' + 'A'.repeat(200) })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+  })
+
+  it('rejette une signature base64 sans header PNG', async () => {
+    // 200 chars base64 random -> passe le min:100 Zod mais pas le magic byte check.
+    const res = await request(app)
+      .post('/api/signatures/1/sign')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ signature_image: 'data:image/png;base64,' + 'A'.repeat(200) })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+  })
+
+  it('rejette un payload sans le prefix data:image/png', async () => {
+    const res = await request(app)
+      .post('/api/signatures/1/sign')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ signature_image: 'X'.repeat(200) })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+  })
+
+  it('rejette une signature tres courte (< 100 chars Zod)', async () => {
+    const res = await request(app)
+      .post('/api/signatures/1/sign')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ signature_image: 'data:image/png;base64,ABCD' })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+  })
+})

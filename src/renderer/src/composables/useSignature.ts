@@ -4,6 +4,10 @@ import { useToast } from '@/composables/useToast'
 import type { SignatureRequest } from '@/types'
 
 const STORAGE_KEY = 'cc_teacher_signature'
+// Cap dur sur la signature stockee localement : localStorage a une quota
+// ~5MB globale, une signature PNG raisonnable fait <100KB. Au-dela le
+// setItem throw QuotaExceededError silencieusement.
+const MAX_SAVED_SIG_CHARS = 500_000
 
 const requests = ref<SignatureRequest[]>([])
 const loading  = ref(false)
@@ -12,12 +16,24 @@ export function useSignature() {
   const { api } = useApi()
   const { showToast } = useToast()
 
-  // Signature sauvegardée du prof (base64 PNG)
-  const savedSignature = ref<string | null>(localStorage.getItem(STORAGE_KEY))
+  // Signature sauvegardée du prof (base64 PNG). Si la valeur en LS est
+  // corrompue (pas PNG), on la drop au premier load plutot que de cracher.
+  const saved = (() => {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw && raw.startsWith('data:image/png;base64,') && raw.length <= MAX_SAVED_SIG_CHARS) return raw
+    if (raw) localStorage.removeItem(STORAGE_KEY)  // cleanup silencieux
+    return null
+  })()
+  const savedSignature = ref<string | null>(saved)
 
-  function saveSignature(base64: string) {
-    savedSignature.value = base64
-    localStorage.setItem(STORAGE_KEY, base64)
+  function saveSignature(base64: string): boolean {
+    if (!base64.startsWith('data:image/png;base64,')) return false
+    if (base64.length > MAX_SAVED_SIG_CHARS) return false
+    try {
+      localStorage.setItem(STORAGE_KEY, base64)
+      savedSignature.value = base64
+      return true
+    } catch { return false }  // QuotaExceededError en mode prive par ex.
   }
 
   function clearSavedSignature() {
@@ -64,6 +80,10 @@ export function useSignature() {
       }
       return res
     }
+    // Echec (rejet, 409 deja traite, reseau...) — on recharge la liste
+    // pour que l UI reflete l etat serveur plutot que de garder un
+    // "pending" obsolete qui donnera le meme 409 au prochain clic.
+    await loadRequests()
     return null
   }
 

@@ -68,6 +68,21 @@
   const promoCreatedKey = ref(0)
   function onPromoCreated() { promoCreatedKey.value++ }
 
+  // "Signer + suivant" : apres une signature, on ouvre la prochaine demande
+  // en attente (hors courante). Evite au prof de re-cliquer dans la sidebar.
+  async function openNextPendingSignature() {
+    try {
+      const { useSignature } = await import('@/composables/useSignature')
+      const sig = useSignature()
+      await sig.loadRequests()
+      const next = sig.requests.value.find((r) => r.status === 'pending')
+      if (next) {
+        // Petit delai pour laisser la fermeture precedente se terminer visuellement.
+        setTimeout(() => { modals.signatureRequest = next }, 150)
+      }
+    } catch { /* non bloquant */ }
+  }
+
   // Bandeau demande de notifications (extrait dans useNotificationBanner).
   const { visible: showNotifBanner, accept: acceptNotifs, dismiss: dismissNotifs } = useNotificationBanner()
 
@@ -459,6 +474,7 @@
       :request="modals.signatureRequest"
       @close="modals.signatureRequest = null"
       @signed="modals.signatureRequest = null"
+      @next-request="openNextPendingSignature"
     />
 
     <!-- Changement de mot de passe forcé (première connexion) -->
