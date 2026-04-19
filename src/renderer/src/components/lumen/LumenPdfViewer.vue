@@ -11,6 +11,7 @@ import { ref, watch, onBeforeUnmount, nextTick, computed } from 'vue'
 import { ZoomIn, ZoomOut, Maximize, FileText, Download, Search, X } from 'lucide-vue-next'
 // Legacy build : evite Uint8Array.toHex() absent dans Electron 35 sandbox
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
+import { dataUrlToUint8Array } from '@/utils/base64'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
@@ -185,9 +186,7 @@ watch(searchQuery, () => {
 
 function downloadPdf() {
   if (!props.content) return
-  const data = props.content instanceof Uint8Array
-    ? props.content
-    : decodeBase64Content(props.content)
+  const data = resolveContent(props.content)
   if (!data) return
   const blob = new Blob([data as BlobPart], { type: 'application/pdf' })
   const url = URL.createObjectURL(blob)
@@ -200,20 +199,8 @@ function downloadPdf() {
   URL.revokeObjectURL(url)
 }
 
-/**
- * Decode le data URL base64 en Uint8Array.
- */
-function decodeBase64Content(content: string): Uint8Array | null {
-  const m = content.match(/^data:application\/pdf;base64,(.+)$/)
-  if (!m) return null
-  try {
-    const binary = atob(m[1])
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-    return bytes
-  } catch {
-    return null
-  }
+function resolveContent(content: string | Uint8Array): Uint8Array | null {
+  return content instanceof Uint8Array ? content : dataUrlToUint8Array(content)
 }
 
 /** Release GPU memory from canvas elements before removing them. */
@@ -286,7 +273,7 @@ watch(() => props.content, (content) => {
   if (currentPdf) { currentPdf.destroy(); currentPdf = null }
   pageCount.value = 0
   if (!content) { error.value = 'Aucun contenu PDF'; return }
-  const data = content instanceof Uint8Array ? content : decodeBase64Content(content)
+  const data = resolveContent(content)
   if (!data) { error.value = 'Format de donnees PDF invalide'; return }
   loadPdf(data, gen)
 }, { immediate: true })

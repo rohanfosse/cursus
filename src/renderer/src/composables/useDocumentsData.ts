@@ -1,6 +1,7 @@
 /**
- * Documents data: loading, filtering, categories, icon mapping, and actions.
- * Used by DocumentsView.vue
+ * Documents data : loading, filtering, sorting, actions CRUD.
+ * La logique de mapping "document -> icone/couleur/label" vit dans
+ * @/utils/documentIcons.
  */
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAppStore }       from '@/stores/app'
@@ -10,78 +11,7 @@ import { useToast }          from '@/composables/useToast'
 import { useConfirm }        from '@/composables/useConfirm'
 import { useOpenExternal }   from '@/composables/useOpenExternal'
 import type { AppDocument }  from '@/types'
-
-export type DocIconType = 'image' | 'pdf' | 'video' | 'link' | 'file' | 'spreadsheet'
-  | 'moodle' | 'github' | 'linkedin' | 'web' | 'package' | 'grille'
-  | 'note-peda' | 'fiche-validation'
-
-export const iconColors: Record<DocIconType, string> = {
-  pdf:         '#E74C3C',
-  image:       '#3498DB',
-  video:       '#9B59B6',
-  link:        '#27AE60',
-  file:        '#4A90D9',
-  spreadsheet: '#059669',
-  moodle:      '#f59e0b',
-  github:      '#6e7681',
-  linkedin:    '#0a66c2',
-  web:         '#22c55e',
-  package:     '#8b5cf6',
-  grille:             '#ef4444',
-  'note-peda':        '#06b6d4',
-  'fiche-validation': '#10b981',
-}
-
-export const iconLabels: Record<DocIconType, string> = {
-  pdf:         'PDF',
-  image:       'Image',
-  video:       'Vidéo',
-  link:        'Lien',
-  file:        'Fichier',
-  spreadsheet: 'Tableur',
-  moodle:      'Moodle',
-  github:      'GitHub',
-  linkedin:    'LinkedIn',
-  web:         'Site Web',
-  package:     'Package',
-  grille:             'Grille',
-  'note-peda':        'Note Péda',
-  'fiche-validation': 'Fiche de validation',
-}
-
-export const TYPE_FILTERS: { id: DocIconType | null; label: string }[] = [
-  { id: null,     label: 'Tous' },
-  { id: 'pdf',    label: 'PDF' },
-  { id: 'image',  label: 'Images' },
-  { id: 'video',  label: 'Vidéos' },
-  { id: 'link',   label: 'Liens' },
-  { id: 'spreadsheet', label: 'Tableurs' },
-  { id: 'file',   label: 'Autres' },
-]
-
-const CAT_TO_TYPE: Record<string, DocIconType> = {
-  'Moodle':   'moodle',
-  'GitHub':   'github',
-  'LinkedIn': 'linkedin',
-  'Site Web': 'web',
-  'Package':  'package',
-  'Grille':              'grille',
-  'Note Péda':           'note-peda',
-  'Fiche de validation': 'fiche-validation',
-}
-
-export function docIconType(doc: AppDocument): DocIconType {
-  if (doc.type === 'link') {
-    if (doc.category && CAT_TO_TYPE[doc.category]) return CAT_TO_TYPE[doc.category]
-    return 'link'
-  }
-  const ext = doc.content?.split('.').pop()?.toLowerCase() ?? ''
-  if (['jpg','jpeg','png','gif','svg','webp','bmp'].includes(ext)) return 'image'
-  if (ext === 'pdf') return 'pdf'
-  if (['mp4','mov','avi','mkv','webm'].includes(ext)) return 'video'
-  if (['xlsx','xls','csv','ods'].includes(ext)) return 'spreadsheet'
-  return 'file'
-}
+import { docIconType, type DocIconType } from '@/utils/documentIcons'
 
 export function useDocumentsData() {
   const appStore = useAppStore()

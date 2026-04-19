@@ -49,10 +49,10 @@ const emit = defineEmits<Emits>()
 const appStore = useAppStore()
 const docStore = useDocumentsStore()
 
-const isDense = props.viewMode === 'dense'
-const isList = props.viewMode === 'list'
-const iconSize = isDense ? 18 : (isList ? 20 : 24)
-const iconBg = props.iconColor + '1A'
+const isDense = computed(() => props.viewMode === 'dense')
+const isList  = computed(() => props.viewMode === 'list')
+const iconSize = computed(() => isDense.value ? 18 : (isList.value ? 20 : 24))
+const iconBg   = computed(() => props.iconColor + '1A')
 
 function onCardClick() {
   if (props.selectionMode) emit('toggle-select')
@@ -101,7 +101,7 @@ const menuItems = computed<ContextMenuItem[]>(() => {
     })
   }
   if (appStore.isTeacher) {
-    if (!isDense) {
+    if (!isDense.value) {
       items.push({
         label: 'Modifier',
         icon: Pencil,

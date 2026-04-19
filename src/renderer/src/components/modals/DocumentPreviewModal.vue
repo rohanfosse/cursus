@@ -9,6 +9,8 @@ import * as mammoth from 'mammoth'
 import ExcelJS from 'exceljs'
 import DOMPurify from 'dompurify'
 import { escapeHtml } from '@/utils/html'
+import { base64ToUint8Array, base64ToArrayBuffer, base64ToBlobUrl } from '@/utils/base64'
+import { isImage, isVideo, isPdf, isText, isWord, isExcel } from '@/utils/mimeTypes'
 
 const api   = window.api
 const { openExternal } = useOpenExternal()
@@ -52,14 +54,6 @@ function revokeBlob() {
 }
 onBeforeUnmount(revokeBlob)
 
-// ── Utilitaire : base64 → ArrayBuffer ────────────────────────────────────────
-function b64ToBuffer(b64: string): ArrayBuffer {
-  const bin = atob(b64)
-  const buf = new ArrayBuffer(bin.length)
-  const arr = new Uint8Array(buf)
-  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
-  return buf
-}
 
 // ── Catégorie de type à afficher ─────────────────────────────────────────────
 const previewType = computed(() => {
@@ -68,23 +62,14 @@ const previewType = computed(() => {
   if (loading.value)              return 'loading'
   if (error.value)                return 'error'
   if (!mime.value)                return 'none'
-  if (mime.value.startsWith('image/'))  return 'image'
-  if (mime.value === 'application/pdf') return 'pdf'
-  if (mime.value.startsWith('video/'))  return 'video'
-  if (mime.value.startsWith('text/'))   return 'text'
-  if (isWordMime(mime.value))           return 'word'
-  if (isExcelMime(mime.value))          return 'excel'
+  if (isImage(mime.value)) return 'image'
+  if (isPdf(mime.value))   return 'pdf'
+  if (isVideo(mime.value)) return 'video'
+  if (isText(mime.value))  return 'text'
+  if (isWord(mime.value))  return 'word'
+  if (isExcel(mime.value)) return 'excel'
   return 'unsupported'
 })
-
-function isWordMime(m: string) {
-  return m === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      || m === 'application/msword'
-}
-function isExcelMime(m: string) {
-  return m === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      || m === 'application/vnd.ms-excel'
-}
 
 // ── Chargement selon le type ──────────────────────────────────────────────────
 watch(() => props.modelValue, async (open) => {
@@ -118,27 +103,23 @@ watch(() => props.modelValue, async (open) => {
     mime.value = res.data.mime ?? ''
     const b64: string = res.data.b64
 
-    if (mime.value.startsWith('image/') || mime.value.startsWith('video/')) {
-      // Blob URL pour images et vidéos
-      const buf  = b64ToBuffer(b64)
-      const blob = new Blob([buf], { type: mime.value })
-      blobUrl.value = URL.createObjectURL(blob)
+    if (isImage(mime.value) || isVideo(mime.value)) {
+      blobUrl.value = base64ToBlobUrl(b64, mime.value)
 
-    } else if (mime.value === 'application/pdf') {
-      // pdf.js via LumenPdfViewer : on passe les bytes bruts, pas un data URL
-      // (evite un 3x du pic memoire sur gros PDFs).
-      pdfBytes.value = new Uint8Array(b64ToBuffer(b64))
+    } else if (isPdf(mime.value)) {
+      // pdf.js via LumenPdfViewer : bytes bruts (evite 3x pic RAM vs data URL)
+      pdfBytes.value = base64ToUint8Array(b64)
 
-    } else if (mime.value.startsWith('text/')) {
+    } else if (isText(mime.value)) {
       textContent.value = atob(b64)
 
-    } else if (isWordMime(mime.value)) {
-      const result = await mammoth.convertToHtml({ arrayBuffer: b64ToBuffer(b64) })
+    } else if (isWord(mime.value)) {
+      const result = await mammoth.convertToHtml({ arrayBuffer: base64ToArrayBuffer(b64) })
       wordHtml.value = DOMPurify.sanitize(result.value)
 
-    } else if (isExcelMime(mime.value)) {
+    } else if (isExcel(mime.value)) {
       const wb = new ExcelJS.Workbook()
-      await wb.xlsx.load(b64ToBuffer(b64))
+      await wb.xlsx.load(base64ToArrayBuffer(b64))
       const ws = wb.worksheets[0]
       if (ws) {
         const rows: string[] = ['<table>']

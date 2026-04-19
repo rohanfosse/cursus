@@ -1,26 +1,20 @@
 /**
- * Add-document modal: form state, multi-file picker, drag & drop,
- * upload progress, and submit logic.
- * Used by DocumentsView.vue
+ * Add-document modal : form state + submit (fichier ou lien).
+ *
+ * La partie file handling (picker, drag-drop, progression, validation
+ * extensions) vit dans useDocumentsFileUpload. Ce composable se concentre
+ * sur les champs du formulaire (nom, categorie, description, lien, projet,
+ * devoir associe) et l'orchestration submit -> upload -> addDocument.
  */
 import { ref, computed } from 'vue'
 import { useAppStore }       from '@/stores/app'
 import { useDocumentsStore } from '@/stores/documents'
 import { useTravauxStore }   from '@/stores/travaux'
 import { useToast }          from '@/composables/useToast'
-import { getAuthToken }      from '@/utils/auth'
-
-// Extensions bloquées (même liste que le serveur - voir server/routes/documents.js)
-const BLOCKED_EXTENSIONS = new Set([
-  '.exe', '.bat', '.cmd', '.com', '.msi', '.dll', '.scr', '.pif', '.vbs', '.wsf',
-  '.jar', '.apk', '.ps1', '.sh', '.ps2', '.psm1', '.hta', '.reg', '.lnk', '.js',
-  '.wsh', '.cpl', '.gadget', '.inf',
-])
+import { useDocumentsFileUpload } from '@/composables/useDocumentsFileUpload'
 
 const ALLOWED_LINK_PROTOCOLS = new Set(['http:', 'https:'])
-const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 Mo
 
-/** Retourne true si l'URL est http(s) et bien formee. */
 function isValidLink(url: string): boolean {
   try {
     const u = new URL(url.trim())
@@ -30,12 +24,8 @@ function isValidLink(url: string): boolean {
   }
 }
 
-export interface PendingFile {
-  /** Chemin local (Electron) ou URL serveur (Web, déjà uploadé via openFileDialog) */
-  path: string
-  /** Nom affiché */
-  name: string
-}
+// Re-export pour retrocompat des imports consommateurs
+export type { PendingFile } from '@/composables/useDocumentsFileUpload'
 
 export function useDocumentsAdd() {
   const api      = window.api
@@ -44,6 +34,13 @@ export function useDocumentsAdd() {
   const travauxStore = useTravauxStore()
   const { showToast } = useToast()
 
+  const fileUpload = useDocumentsFileUpload()
+  const {
+    addFiles, uploadProgress, uploadCurrentIndex, uploadTotal,
+    resetFiles, onModalDrop,
+  } = fileUpload
+
+  // ── Form state ──────────────────────────────────────────────────────────
   const showAddModal   = ref(false)
   const addName        = ref('')
   const addCategory    = ref('')
@@ -55,22 +52,7 @@ export function useDocumentsAdd() {
   const newCatName     = ref('')
   const adding         = ref(false)
 
-  // ── Multi-fichiers ──────────────────────────────────────────────────────
-  const addFiles = ref<PendingFile[]>([])
-
-  // Progression de l'upload (0–100, par fichier)
-  const uploadProgress     = ref(0)
-  const uploadCurrentIndex = ref(0)
-  const uploadTotal        = ref(0)
-
-  // Compat : getter simple pour le premier fichier
-  const addFile     = computed(() => addFiles.value.length ? addFiles.value[0].path : null)
-  const addFileName = computed(() => addFiles.value.length ? addFiles.value[0].name : null)
-
-  // Nombre de fichiers en attente (pour affichage)
-  const pendingFileCount = computed(() => addFiles.value.length)
-
-  // Liste des projets disponibles (depuis les devoirs)
+  // Liste des projets disponibles (derives des devoirs)
   const projectList = computed(() => {
     const cats = new Set<string>()
     for (const t of travauxStore.ganttData) {
@@ -87,7 +69,7 @@ export function useDocumentsAdd() {
       .sort((a, b) => a.title.localeCompare(b.title, 'fr'))
   )
 
-  // ── Détection automatique de catégorie depuis une URL ───────────────────
+  // Detection automatique de categorie depuis une URL
   function detectCategory(url: string) {
     if (!url) return
     const lower = url.toLowerCase()
@@ -98,157 +80,58 @@ export function useDocumentsAdd() {
     addCategory.value = 'Site Web'
   }
 
-  /** Vérifie que l'extension n'est pas bloquée. */
-  function isExtensionAllowed(fileName: string): boolean {
-    const match = fileName.toLowerCase().match(/\.[^./\\]+$/)
-    if (!match) return true // fichiers sans extension : autorises
-    return !BLOCKED_EXTENSIONS.has(match[0])
-  }
-
   function openAddModal() {
     addName.value        = ''
     addCategory.value    = 'Autre'
     addDescription.value = ''
     addType.value        = 'file'
     addLink.value        = ''
-    addFiles.value       = []
     addProject.value     = appStore.activeProject ?? ''
     addTravailId.value   = null
     newCatName.value     = ''
-    uploadProgress.value     = 0
-    uploadCurrentIndex.value = 0
-    uploadTotal.value        = 0
+    resetFiles()
     showAddModal.value   = true
-    // Charger les devoirs si pas encore fait
+
+    // Charger les devoirs a la demande
     const promoId = appStore.activePromoId ?? appStore.currentUser?.promo_id
     if (promoId && travauxStore.ganttData.length === 0) {
       travauxStore.fetchGantt(promoId)
     }
   }
 
-  async function pickFile() {
-    const res = await api.openFileDialog()
-    if (res?.ok && res.data) {
-      const paths = res.data as string[]
-      for (const p of paths) {
-        const name = p.split(/[\\/]/).pop()?.replace(/^__web__\S+/, '') || p.split(/[\\/]/).pop() || p
-        if (!isExtensionAllowed(name)) {
-          showToast(`Type non autorisé : ${name}`, 'error')
-          continue
-        }
-        // Éviter les doublons
-        if (addFiles.value.some(f => f.path === p)) continue
-        addFiles.value.push({ path: p, name })
-      }
-      // Pré-remplir le nom si c'est le premier fichier et que le champ est vide
-      if (!addName.value && addFiles.value.length === 1) {
-        addName.value = addFiles.value[0].name
-      }
-    }
-  }
-
-  function removeFile(index: number) {
-    addFiles.value.splice(index, 1)
-  }
-
-  function clearFile() {
-    addFiles.value = []
-  }
-
-  // ── Drag & drop dans la modale ──────────────────────────────────────────
-  const modalDragOver = ref(false)
-  let modalDragCounter = 0
-
-  function onModalDragEnter(e: DragEvent) {
-    if (!e.dataTransfer?.types.includes('Files')) return
-    modalDragCounter++
-    modalDragOver.value = true
-  }
-
-  function onModalDragLeave() {
-    modalDragCounter--
-    if (modalDragCounter <= 0) { modalDragCounter = 0; modalDragOver.value = false }
-  }
-
-  function onModalDragOver(e: DragEvent) {
-    e.preventDefault()
-    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
-  }
-
-  async function onModalDrop(e: DragEvent) {
-    e.preventDefault()
-    modalDragCounter = 0
-    modalDragOver.value = false
-    const files = e.dataTransfer?.files
-    if (!files?.length) return
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      if (!isExtensionAllowed(file.name)) {
-        showToast(`Type non autorisé : ${file.name}`, 'error')
-        continue
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        showToast(`Fichier trop volumineux : ${file.name} (max 50 Mo)`, 'error')
-        continue
-      }
-
-      // Electron : file.path disponible
-      const electronPath = (file as unknown as { path?: string }).path
-      if (electronPath) {
-        if (!addFiles.value.some(f => f.path === electronPath)) {
-          addFiles.value.push({ path: electronPath, name: file.name })
-        }
-        continue
-      }
-
-      // Web : upload immédiat via FormData
-      const formData = new FormData()
-      formData.append('file', file, file.name)
-      const SERVER_URL = window.location.origin
-      const token = getAuthToken()
-      try {
-        const response = await fetch(`${SERVER_URL}/api/files/upload`, {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          body: formData,
-        })
-        const json = await response.json() as { ok: boolean; data?: string; error?: string }
-        if (json.ok && json.data) {
-          const url = `${SERVER_URL}${json.data}`
-          if (!addFiles.value.some(f => f.path === url)) {
-            addFiles.value.push({ path: url, name: file.name })
-          }
-        } else {
-          showToast(json.error ?? `Erreur upload : ${file.name}`, 'error')
-        }
-      } catch {
-        showToast(`Erreur upload : ${file.name}`, 'error')
-      }
-    }
-
-    // Pré-remplir le nom si c'est le premier fichier
+  // ── Drop enrichi : pre-remplit le nom + force le mode fichier ───────────
+  async function onDropInModal(e: DragEvent) {
+    const hasFiles = await onModalDrop(e)
+    if (!hasFiles) return
     if (!addName.value && addFiles.value.length === 1) {
       addName.value = addFiles.value[0].name
     }
-    // Forcer le mode fichier si on drop des fichiers
     addType.value = 'file'
   }
 
-  // ── Soumission ──────────────────────────────────────────────────────────
+  // ── Pick enrichi : pre-remplit le nom apres selection ───────────────────
+  async function pickFile() {
+    await fileUpload.pickFile()
+    if (!addName.value && addFiles.value.length === 1) {
+      addName.value = addFiles.value[0].name
+    }
+  }
+
+  // ── Submit ──────────────────────────────────────────────────────────────
   async function submitAdd() {
     if (addType.value === 'link') {
       if (!addName.value.trim() || !addLink.value.trim()) return
       return submitLink()
     }
-    // Mode fichier
     if (!addFiles.value.length) return
     if (addFiles.value.length === 1 && !addName.value.trim()) return
+
     adding.value = true
     uploadTotal.value = addFiles.value.length
     uploadCurrentIndex.value = 0
     uploadProgress.value = 0
     let successCount = 0
+
     try {
       for (let i = 0; i < addFiles.value.length; i++) {
         uploadCurrentIndex.value = i + 1
@@ -259,16 +142,14 @@ export function useDocumentsAdd() {
           showToast(`Erreur upload : ${file.name}`, 'error')
           continue
         }
-        const docName = addFiles.value.length === 1
-          ? addName.value.trim()
-          : file.name
+        const docName = addFiles.value.length === 1 ? addName.value.trim() : file.name
         const ok = await docStore.addDocument({
           promoId:     appStore.activePromoId ?? appStore.currentUser?.promo_id,
           project:     addProject.value.trim() || appStore.activeProject || null,
           name:        docName,
           type:        'file',
           pathOrUrl:   uploadRes.data.url,
-          category:    (addCategory.value === '__new__' ? newCatName.value.trim() : addCategory.value.trim()) || null,
+          category:    resolveCategoryName(),
           description: addDescription.value.trim() || null,
           travailId:   addTravailId.value ?? null,
           fileSize:    uploadRes.data.file_size ?? null,
@@ -278,6 +159,7 @@ export function useDocumentsAdd() {
         if (ok) successCount++
       }
       uploadProgress.value = 100
+
       if (successCount > 0) {
         const msg = successCount === 1
           ? `"${addFiles.value[0]?.name ?? 'Document'}" ajouté avec succès`
@@ -296,7 +178,6 @@ export function useDocumentsAdd() {
   }
 
   async function submitLink() {
-    // Validation cote client (miroir serveur : http/https only)
     if (!isValidLink(addLink.value)) {
       showToast('URL invalide : seuls les liens http:// et https:// sont autorises.', 'error')
       return
@@ -309,7 +190,7 @@ export function useDocumentsAdd() {
         name:        addName.value.trim(),
         type:        'link',
         pathOrUrl:   addLink.value.trim(),
-        category:    (addCategory.value === '__new__' ? newCatName.value.trim() : addCategory.value.trim()) || null,
+        category:    resolveCategoryName(),
         description: addDescription.value.trim() || null,
         travailId:   addTravailId.value ?? null,
         authorName:  appStore.currentUser?.name ?? 'Système',
@@ -326,35 +207,43 @@ export function useDocumentsAdd() {
     }
   }
 
+  function resolveCategoryName(): string | null {
+    const raw = addCategory.value === '__new__' ? newCatName.value.trim() : addCategory.value.trim()
+    return raw || null
+  }
+
   return {
+    // Form state
     showAddModal,
     addName,
     addCategory,
     addDescription,
     addType,
     addLink,
-    addFile,
-    addFileName,
-    addFiles,
     addProject,
     addTravailId,
     newCatName,
     projectList,
     travailList,
     adding,
-    uploadProgress,
-    uploadCurrentIndex,
-    uploadTotal,
-    modalDragOver,
+    // File state (re-exposition retrocompat) + actions renvoyees directement
+    addFiles: fileUpload.addFiles,
+    addFile: fileUpload.addFile,
+    addFileName: fileUpload.addFileName,
+    uploadProgress: fileUpload.uploadProgress,
+    uploadCurrentIndex: fileUpload.uploadCurrentIndex,
+    uploadTotal: fileUpload.uploadTotal,
+    modalDragOver: fileUpload.modalDragOver,
+    removeFile: fileUpload.removeFile,
+    clearFile: fileUpload.clearFile,
+    onModalDragEnter: fileUpload.onModalDragEnter,
+    onModalDragLeave: fileUpload.onModalDragLeave,
+    onModalDragOver: fileUpload.onModalDragOver,
+    // Actions
     openAddModal,
     pickFile,
-    removeFile,
-    clearFile,
     submitAdd,
     detectCategory,
-    onModalDragEnter,
-    onModalDragLeave,
-    onModalDragOver,
-    onModalDrop,
+    onModalDrop: onDropInModal,
   }
 }
