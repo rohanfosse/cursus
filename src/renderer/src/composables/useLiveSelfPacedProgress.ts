@@ -22,11 +22,16 @@ export function useLiveSelfPacedProgress() {
 
   const activityProgress = ref<ActivityProgress[]>([])
   let interval: ReturnType<typeof setInterval> | null = null
+  let disposed = false
 
   async function fetchProgress() {
+    if (disposed) return
     if (!liveStore.currentSession?.self_paced || !liveStore.currentSession?.id) return
     try {
       const res = await window.api.getLiveV2Progress(liveStore.currentSession.id)
+      // Un composant peut etre unmount pendant l await — on evite le
+      // stale write qui reveillerait une ref apres destruction.
+      if (disposed) return
       if (res?.ok && Array.isArray(res.data)) activityProgress.value = res.data
     } catch { /* ignore */ }
   }
@@ -45,7 +50,10 @@ export function useLiveSelfPacedProgress() {
     { immediate: true },
   )
 
-  onUnmounted(() => { if (interval) clearInterval(interval) })
+  onUnmounted(() => {
+    disposed = true
+    if (interval) { clearInterval(interval); interval = null }
+  })
 
   async function launchAllActivities() {
     if (!liveStore.currentSession) return

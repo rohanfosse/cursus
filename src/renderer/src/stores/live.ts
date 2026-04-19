@@ -373,7 +373,11 @@ export const useLiveStore = defineStore('live', () => {
 
     _cleanups.push(
       window.api.onLiveActivityPushed(({ activity }) => {
+        // Garde runtime : un payload malforme (socket MITM ou bug serveur) ne
+        // doit pas crasher le store entier. On ignore plutot que throw.
+        if (!activity || typeof activity !== 'object') return
         const act = activity as LiveActivity
+        if (!Number.isInteger(act.id) || !Number.isInteger(act.session_id)) return
         if (currentSession.value && act.session_id === currentSession.value.id) {
           const acts = currentSession.value.activities ?? []
           // Upsert : remplace si l'activite existe deja (evite doublons), sinon append
@@ -395,6 +399,7 @@ export const useLiveStore = defineStore('live', () => {
 
     _cleanups.push(
       window.api.onLiveActivityClosed(({ activityId, leaderboard: lb }: { activityId: number; leaderboard?: unknown[] }) => {
+        if (!Number.isInteger(activityId)) return
         if (currentActivity.value && currentActivity.value.id === activityId) {
           currentActivity.value = Object.assign({}, currentActivity.value, { status: 'closed' as const })
           fetchResults(activityId)
@@ -415,6 +420,7 @@ export const useLiveStore = defineStore('live', () => {
 
     _cleanups.push(
       window.api.onLiveResultsUpdate(({ activityId, data }: { activityId: number; data: unknown }) => {
+        if (!Number.isInteger(activityId) || !data || typeof data !== 'object') return
         if (results.value?.activityId === activityId || currentActivity.value?.id === activityId) {
           results.value = data as LiveResults
         }

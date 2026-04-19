@@ -135,10 +135,18 @@ router.post('/note', validate(noteSchema), (req, res) => {
   }
   try {
     const depotId = normalizeDepotId(req.body)
-    const result = queries.setNote({ depotId, note: req.body.note })
-    if (result.changes === 0) {
+    const { getDb } = require('../db/connection')
+    // Idempotence : si la note est deja identique (double-click prof), on
+    // court-circuite la notif socket (evite spam 2x student) mais on renvoie
+    // 200 pour que le client traite comme un succes.
+    const existing = getDb().prepare('SELECT note FROM depots WHERE id = ?').get(depotId)
+    if (!existing) {
       return res.status(404).json({ ok: false, error: 'Dépôt introuvable.' })
     }
+    if (existing.note === req.body.note) {
+      return res.json({ ok: true, data: { changes: 0, unchanged: true } })
+    }
+    const result = queries.setNote({ depotId, note: req.body.note })
     emitGradeNotification(req, { note: req.body.note })
     res.json({ ok: true, data: result })
   }
@@ -150,10 +158,15 @@ router.post('/feedback', validate(feedbackSchema), (req, res) => {
   }
   try {
     const depotId = normalizeDepotId(req.body)
-    const result = queries.setFeedback({ depotId, feedback: req.body.feedback })
-    if (result.changes === 0) {
+    const { getDb } = require('../db/connection')
+    const existing = getDb().prepare('SELECT feedback FROM depots WHERE id = ?').get(depotId)
+    if (!existing) {
       return res.status(404).json({ ok: false, error: 'Dépôt introuvable.' })
     }
+    if (existing.feedback === req.body.feedback) {
+      return res.json({ ok: true, data: { changes: 0, unchanged: true } })
+    }
+    const result = queries.setFeedback({ depotId, feedback: req.body.feedback })
     emitGradeNotification(req, { feedback: req.body.feedback })
     res.json({ ok: true, data: result })
   }

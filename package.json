@@ -1,6 +1,6 @@
 {
   "name": "cursus",
-  "version": "2.175.0",
+  "version": "2.176.0",
   "description": "Cursus - Suivez votre parcours de formation",
   "main": "out/main/index.js",
   "scripts": {

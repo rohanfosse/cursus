@@ -282,6 +282,15 @@ describe('POST /api/depots/note — persistence et compat camelCase', () => {
     const row = getTestDb().prepare('SELECT note FROM depots WHERE id = 200').get()
     expect(row?.note).toBe('C')
   })
+
+  // Idempotence : un double-click prof ne doit pas spammer l etudiant d une
+  // 2e notification grade:new.
+  it('renvoie unchanged:true sur une note identique (idempotence)', async () => {
+    await request(app).post('/api/depots/note').send({ depotId: 200, note: 'B' })
+    const res = await request(app).post('/api/depots/note').send({ depotId: 200, note: 'B' })
+    expect(res.status).toBe(200)
+    expect(res.body.data?.unchanged).toBe(true)
+  })
 })
 
 describe('POST /api/depots — validation securite du contenu', () => {
