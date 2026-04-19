@@ -6,8 +6,16 @@
 const express = require('express')
 const request = require('supertest')
 const jwt     = require('jsonwebtoken')
+const Y       = require('yjs')
 const { setupTestDb, teardownTestDb, getTestDb } = require('../helpers/setup')
 const { JWT_SECRET } = require('../helpers/fixtures')
+
+/** Build a valid Yjs update of arbitrary text for tests */
+function buildYjsUpdate(text = 'hello') {
+  const doc = new Y.Doc()
+  doc.getText('content').insert(0, text)
+  return Buffer.from(Y.encodeStateAsUpdate(doc))
+}
 
 let app
 let teacherToken
@@ -119,7 +127,7 @@ describe('PATCH /api/cahiers/:id/state (hardening)', () => {
   })
 
   it('returns 404 when cahier does not exist', async () => {
-    const validState = Buffer.from('hello yjs').toString('base64')
+    const validState = buildYjsUpdate('hello').toString('base64')
     const res = await request(app)
       .patch('/api/cahiers/99999/state')
       .set('Authorization', `Bearer ${teacherToken}`)
@@ -128,15 +136,26 @@ describe('PATCH /api/cahiers/:id/state (hardening)', () => {
     expect(res.body.ok).toBe(false)
   })
 
-  it('accepts valid base64 state and returns size', async () => {
-    const validState = Buffer.from('hello yjs').toString('base64')
+  it('accepts valid Yjs update and returns size', async () => {
+    const buf = buildYjsUpdate('hello')
     const res = await request(app)
       .patch(`/api/cahiers/${cahierId}/state`)
       .set('Authorization', `Bearer ${teacherToken}`)
-      .send({ state: validState })
+      .send({ state: buf.toString('base64') })
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
-    expect(res.body.data.size).toBe(9)
+    expect(res.body.data.size).toBe(buf.length)
+  })
+
+  it('rejects valid base64 that is not a Yjs update (junk)', async () => {
+    const junk = Buffer.from('hello yjs').toString('base64')
+    const res = await request(app)
+      .patch(`/api/cahiers/${cahierId}/state`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ state: junk })
+    expect(res.status).toBe(400)
+    expect(res.body.ok).toBe(false)
+    expect(res.body.error).toMatch(/yjs/i)
   })
 })
 

@@ -282,6 +282,40 @@ function requireResourceOwner(req, res, next) {
 }
 
 /**
+ * Vérifie que l'utilisateur a acces au cahier (via promo_id, optionnellement group_id).
+ * - Admin : bypass
+ * - Teacher : doit enseigner la promo du cahier
+ * - Student : doit appartenir a la promo du cahier (et au groupe si le cahier est group-scope)
+ */
+function requireCahierAccess(req, res, next) {
+  if (isAdmin(req)) return next()
+  const cahierId = Number(req.params.id)
+  if (!cahierId) return res.status(400).json({ ok: false, error: 'ID cahier manquant.' })
+  const cahier = getDb().prepare('SELECT promo_id, group_id FROM cahiers WHERE id = ?').get(cahierId)
+  if (!cahier) return res.status(404).json({ ok: false, error: 'Cahier introuvable.' })
+
+  if (req.user?.type === 'student') {
+    if (req.user.promo_id !== cahier.promo_id) {
+      return res.status(403).json({ ok: false, error: 'Ce cahier n\'appartient pas a votre promotion.' })
+    }
+    if (cahier.group_id != null) {
+      const inGroup = getDb().prepare(
+        'SELECT 1 FROM group_members WHERE group_id = ? AND student_id = ? LIMIT 1'
+      ).get(cahier.group_id, req.user.id)
+      if (!inGroup) {
+        return res.status(403).json({ ok: false, error: 'Ce cahier est reserve aux membres du groupe.' })
+      }
+    }
+  } else {
+    // teacher / ta : doit enseigner la promo
+    if (!teacherOwnsPromo(getTeacherId(req), cahier.promo_id)) {
+      return res.status(403).json({ ok: false, error: 'Ce cahier n\'appartient pas a vos promotions.' })
+    }
+  }
+  next()
+}
+
+/**
  * Vérifie que le rappel appartient à une promo gérée par l'enseignant (via promo_tag).
  * Les admins passent toujours.
  */
@@ -318,4 +352,5 @@ module.exports = {
   requireGroupOwner,
   requireResourceOwner,
   requireReminderOwner,
+  requireCahierAccess,
 }
