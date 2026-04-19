@@ -21,10 +21,15 @@ function insertScore({ userType, userId, promoId, phraseId, wpm, accuracy, score
 
 /**
  * Top N de la fenetre (par defaut 10) agregee par user : on garde le
- * meilleur score de chaque user dans la periode. Teachers filtres.
+ * meilleur score de chaque user dans la periode. Profs ET etudiants sont
+ * melanges (choix v2.172 : "team spirit" — un prof qui joue apparait).
+ *
+ * Agrege par (user_type, user_id) pour eviter toute collision d'id entre
+ * les deux tables. Le JOIN passe par la VIEW `users` (v70 schema) qui
+ * unifie teachers + students sur role + id.
  *
  * @param {object} opts
- * @param {number|null} opts.promoId — null = toutes promos confondues
+ * @param {number|null} opts.promoId — null = toutes promos (inclut les teachers dont promo_id est null)
  * @param {'day'|'week'|'all'} opts.scope
  * @param {number} [opts.limit=10]
  */
@@ -33,36 +38,37 @@ function getLeaderboard({ promoId, scope = 'day', limit = 10 }) {
   const params = []
   let promoClause = ''
   if (promoId != null) {
-    promoClause = 'AND ts.promo_id = ?'
+    // Inclut (promo_id = X) OR (user_type = 'teacher') : un prof joue
+    // sans promo et doit etre visible dans toutes les vues filtrees par promo.
+    promoClause = "AND (ts.promo_id = ? OR ts.user_type = 'teacher')"
     params.push(promoId)
   }
 
-  // On utilise une sous-requete qui prend le meilleur score par user, puis
-  // on JOIN sur students pour recuperer le nom. Les teachers sont exclus
-  // via `ts.user_type = 'student'`.
   const rows = getDb().prepare(`
     SELECT
-      ts.user_id AS userId,
-      s.name     AS name,
+      ts.user_type  AS userType,
+      ts.user_id    AS userId,
+      u.name        AS name,
       MAX(ts.score) AS bestScore,
       MAX(ts.wpm)   AS bestWpm,
       COUNT(*)      AS plays
     FROM typerace_scores ts
-    JOIN students s ON s.id = ts.user_id
-    WHERE ts.user_type = 'student'
+    JOIN users u ON u.id = ts.user_id AND u.role = ts.user_type
+    WHERE 1=1
       ${windowClause}
       ${promoClause}
-    GROUP BY ts.user_id
+    GROUP BY ts.user_type, ts.user_id
     ORDER BY bestScore DESC, bestWpm DESC
     LIMIT ?
   `).all(...params, limit)
 
   return rows.map((r, i) => ({
     rank: i + 1,
+    userType: r.userType,
     userId: r.userId,
     name: r.name,
     bestScore: Math.round(r.bestScore),
-    bestWpm: Math.round(r.bestWpm * 10) / 10, // 1 decimale
+    bestWpm: Math.round(r.bestWpm * 10) / 10,
     plays: r.plays,
   }))
 }

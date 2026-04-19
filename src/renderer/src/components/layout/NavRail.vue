@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
-  import { MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame, Search, Shield, Bug, Zap, Paperclip, Lightbulb, Calendar, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next'
+  import { MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame, Search, Shield, Bug, Zap, Paperclip, Lightbulb, Calendar, Gamepad2, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next'
   import logoUrl from '@/assets/logo.png'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
@@ -261,6 +261,19 @@
       <Zap :size="20" />
       <span class="nav-label">Live</span>
       <span v-if="!appStore.isStaff && liveStore.currentSession" class="nav-live-dot" />
+    </button>
+
+    <!-- Jeux : mini-jeux avec leaderboard, opt-in par l'admin -->
+    <button
+      v-if="isEnabled('games')"
+      class="nav-btn"
+      :class="{ active: route.name === 'jeux' || route.name === 'typerace' }"
+      title="Jeux (TypeRace, ...)"
+      aria-label="Section Jeux"
+      @click="router.push('/jeux')"
+    >
+      <Gamepad2 :size="20" />
+      <span class="nav-label">Jeux</span>
     </button>
 
     <!-- ── Cloche de notifications ── -->

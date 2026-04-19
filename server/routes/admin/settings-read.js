@@ -6,6 +6,13 @@
 const queries = require('../../db/index')
 const { MODULE_KEYS, MODULE_META } = require('../../constants/modules')
 
+/**
+ * Modules opt-in : DESACTIVES tant que l'admin n'a pas explicitement mis
+ * '1'. Par defaut on ne les affiche pas (gestion prudente des nouvelles
+ * features a rollout optionnel par promo CESI).
+ */
+const OPT_IN_MODULES = new Set(['games'])
+
 /** GET /api/admin/config — lecture du mode lecture seule */
 function settingsRead(req, res) {
   try {
@@ -21,13 +28,15 @@ function modulesRead(req, res) {
   try {
     const result = {}
     for (const m of MODULE_KEYS) {
-      result[m] = queries.getAppConfig(`module_${m}`) !== '0' // default enabled
+      const raw = queries.getAppConfig(`module_${m}`)
+      result[m] = OPT_IN_MODULES.has(m)
+        ? raw === '1'    // opt-in : desactive tant que pas '1'
+        : raw !== '0'    // default : active sauf si '0' explicite
     }
     res.json({ ok: true, data: result })
   } catch {
-    // Par defaut tous actifs
     const fallback = {}
-    for (const m of MODULE_KEYS) fallback[m] = true
+    for (const m of MODULE_KEYS) fallback[m] = !OPT_IN_MODULES.has(m)
     res.json({ ok: true, data: fallback })
   }
 }

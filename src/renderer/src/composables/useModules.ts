@@ -7,9 +7,9 @@
  */
 import { ref, readonly } from 'vue'
 
-export type ModuleName = 'kanban' | 'frise' | 'live' | 'signatures' | 'lumen'
+export type ModuleName = 'kanban' | 'frise' | 'live' | 'signatures' | 'lumen' | 'games'
 
-const MODULES: ModuleName[] = ['kanban', 'frise', 'live', 'signatures', 'lumen']
+const MODULES: ModuleName[] = ['kanban', 'frise', 'live', 'signatures', 'lumen', 'games']
 
 const MODULE_LABELS: Record<ModuleName, string> = {
   kanban: 'Kanban projet',
@@ -17,10 +17,11 @@ const MODULE_LABELS: Record<ModuleName, string> = {
   live: 'Live',
   signatures: 'Signature PDF',
   lumen: 'Lumen',
+  games: 'Jeux',
 }
 
 const state = ref<Record<ModuleName, boolean>>({
-  kanban: true, frise: true, live: true, signatures: true, lumen: true,
+  kanban: true, frise: true, live: true, signatures: true, lumen: true, games: false,
 })
 
 let loaded = false
@@ -51,7 +52,7 @@ export function useModules() {
   /** Force un rechargement (utile apres modification admin) */
   function resetLoaded() {
     loaded = false
-    state.value = { kanban: true, frise: true, live: true, signatures: true, lumen: true }
+    state.value = { kanban: true, frise: true, live: true, signatures: true, lumen: true, games: false }
   }
 
   return { modules: readonly(state), MODULES, MODULE_LABELS, isEnabled, setEnabled, loadModules, resetLoaded }

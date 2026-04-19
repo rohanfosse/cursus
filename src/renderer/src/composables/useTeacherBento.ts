@@ -8,7 +8,7 @@ import {
   PlusCircle, Activity, CheckSquare,
   Quote, Timer, Bookmark, CalendarDays, FileBox, Pen,
   Lightbulb, FileText, BarChart3, TrendingUp, StickyNote,
-  ClipboardList, CalendarClock, Notebook, Sparkles,
+  ClipboardList, CalendarClock, Notebook, Sparkles, Keyboard,
 } from 'lucide-vue-next'
 import type { WidgetDef, WidgetSize } from '@/types/widgets'
 
@@ -49,6 +49,8 @@ export const TEACHER_TILES: WidgetDef[] = [
   { id: 'agenda-jour',        label: 'Agenda du jour',     icon: CalendarClock, description: 'Cours, RDV et lives de la journee',              category: 'essential',    sizes: ['2x1', '2x2', '4x1'],  defaultSize: '2x2', defaultEnabled: true,  role: 'teacher' },
   { id: 'cahier',             label: 'Cahiers collab',     icon: Notebook,      description: 'Cahiers collaboratifs recents de la promo',      category: 'productivity', sizes: ['1x1', '2x1', '2x2'],  defaultSize: '2x1', defaultEnabled: false, role: 'teacher' },
   { id: 'actu',               label: 'Quoi de neuf',       icon: Sparkles,      description: 'Nouveautes Cursus',                               category: 'fun',          sizes: ['1x1', '2x1'],         defaultSize: '2x1', defaultEnabled: false, role: 'both' },
+  // ── Jeux (v2.172 — opt-in, module 'games') ──
+  { id: 'typerace',           label: 'TypeRace',           icon: Keyboard,      description: 'Mini-jeu typing speed + classement du jour',     category: 'fun',          sizes: ['2x1', '2x2'],         defaultSize: '2x1', defaultEnabled: false, role: 'both' },
 ]
 
 const STORAGE_KEY = 'teacher_bento_hidden'

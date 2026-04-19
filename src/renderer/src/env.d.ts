@@ -313,7 +313,7 @@ declare global {
       // TypeRace (mini-jeu typing speed)
       typeRaceRandomPhrase(excludeIds?: number[]): Promise<IpcResponse<{ id: number; text: string }>>
       typeRaceSubmitScore(payload: { phraseId: number; wpm: number; accuracy: number; durationMs: number }): Promise<IpcResponse<{ id: number; score: number }>>
-      typeRaceLeaderboard(scope?: 'day' | 'week' | 'all', promoId?: number | null): Promise<IpcResponse<Array<{ rank: number; userId: number; name: string; bestScore: number; bestWpm: number; plays: number }>>>
+      typeRaceLeaderboard(scope?: 'day' | 'week' | 'all', promoId?: number | null): Promise<IpcResponse<Array<{ rank: number; userType: 'student' | 'teacher'; userId: number; name: string; bestScore: number; bestWpm: number; plays: number }>>>
       typeRaceMyStats(): Promise<IpcResponse<{
         allTime: { plays: number; bestScore: number; bestWpm: number; avgWpm: number; avgAccuracy: number }
         today: { bestScore: number; bestWpm: number; plays: number }

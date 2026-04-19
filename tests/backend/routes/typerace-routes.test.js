@@ -178,19 +178,27 @@ describe('GET /api/typerace/leaderboard', () => {
       .send({ phraseId: 1, wpm: 100, accuracy: 1.0, durationMs: 10000 })
   })
 
-  it('retourne le top etudiants de la promo (teacher exclu)', async () => {
+  it('melange etudiants ET teachers dans le leaderboard (v2.172 : mix)', async () => {
     const res = await request(app)
       .get('/api/typerace/leaderboard?scope=day')
       .set('Authorization', `Bearer ${studentToken}`)
     expect(res.status).toBe(200)
-    expect(res.body.data).toHaveLength(2)
-    expect(res.body.data[0].name).toBe('Alice Martin') // score 80 > 50
-    expect(res.body.data[0].rank).toBe(1)
-    expect(res.body.data[0].bestScore).toBe(80)
-    expect(res.body.data[1].name).toBe('Jean Dupont')
-    expect(res.body.data[1].rank).toBe(2)
-    // Teacher absent
-    expect(res.body.data.find((e) => e.name === 'Prof Test')).toBeUndefined()
+    expect(res.body.data).toHaveLength(3)
+    // Ordre attendu : Prof (100) > Alice (80) > Jean (50)
+    expect(res.body.data[0].name).toBe('Prof Test')
+    expect(res.body.data[0].userType).toBe('teacher')
+    expect(res.body.data[0].bestScore).toBe(100)
+    expect(res.body.data[1].name).toBe('Alice Martin')
+    expect(res.body.data[1].userType).toBe('student')
+    expect(res.body.data[2].name).toBe('Jean Dupont')
+  })
+
+  it('le prof apparait dans toutes les promos (pas de filtrage promo pour teachers)', async () => {
+    // Scope day, promo 1 explicite : le prof sans promo doit quand meme apparaitre
+    const res = await request(app)
+      .get('/api/typerace/leaderboard?scope=day&promoId=1')
+      .set('Authorization', `Bearer ${studentToken}`)
+    expect(res.body.data.find((e) => e.userType === 'teacher')).toBeDefined()
   })
 
   it('aggrege le meilleur score par user (pas la somme)', async () => {

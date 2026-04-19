@@ -29,6 +29,7 @@ import WidgetFeedbackTemplates from './teacher-widgets/WidgetFeedbackTemplates.v
 import WidgetAgendaJour from './teacher-widgets/WidgetAgendaJour.vue'
 import WidgetCahier from './student-widgets/WidgetCahier.vue'
 import WidgetActuCursus from './student-widgets/WidgetActuCursus.vue'
+import WidgetTypeRace from './student-widgets/WidgetTypeRace.vue'
 import MultiPromoCard from './MultiPromoCard.vue'
 import AccueilFocusTile from './accueil/AccueilFocusTile.vue'
 import AccueilScheduleTile from './accueil/AccueilScheduleTile.vue'
@@ -134,11 +135,12 @@ const optWidgetComponents: Record<string, Component> = {
   'agenda-jour': WidgetAgendaJour,
   'cahier': WidgetCahier,
   'actu': WidgetActuCursus,
+  'typerace': WidgetTypeRace,
 }
 const wideWidgets = new Set([
   'quote', 'quicklinks', 'dm-files', 'week-cal', 'signatures',
   'lumen-engagement', 'lumen-my-courses', 'lumen-top-read',
-  'feedback-templates', 'agenda-jour', 'cahier',
+  'feedback-templates', 'agenda-jour', 'cahier', 'typerace',
 ])
 
 const draggableOpt = ref([...bento.visibleOptionalTiles.value])
