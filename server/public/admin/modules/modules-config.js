@@ -1,12 +1,5 @@
 import { apiFetch, toast } from '../app.js'
 
-const MODULES = [
-  { key: 'kanban', label: 'Kanban projet', desc: 'Tableau kanban pour la gestion de projet en groupe' },
-  { key: 'frise', label: 'Frise chronologique', desc: 'Vue timeline des evenements et jalons' },
-  { key: 'live', label: 'Quiz interactif', desc: 'Quiz en direct type Kahoot pour les cours' },
-  { key: 'signatures', label: 'Signature PDF', desc: 'Demandes de signature electronique de documents' },
-]
-
 export async function loadModulesConfig() {
   const container = document.getElementById('modules-config-content')
   if (!container) return
@@ -18,11 +11,16 @@ export async function loadModulesConfig() {
     isAdmin = me?.ok && me.data?.type === 'admin'
   } catch { /* non-admin par defaut */ }
 
-  const res = await apiFetch('/api/admin/modules')
-  if (!res?.ok) {
+  const [states, meta] = await Promise.all([
+    apiFetch('/api/admin/modules'),
+    apiFetch('/api/admin/modules/meta'),
+  ])
+  if (!states?.ok || !meta?.ok) {
     container.innerHTML = '<p style="color:var(--red)">Erreur chargement modules</p>'
     return
   }
+
+  const modules = Object.entries(meta.data).map(([key, m]) => ({ key, ...m }))
 
   container.innerHTML = `
     <p class="modules-intro">
@@ -31,14 +29,14 @@ export async function loadModulesConfig() {
         : 'Etat des modules enrichissement. Seul l\'administrateur systeme peut les activer ou desactiver.'}
       Les fonctions responsable (chat, devoirs, documents, tableau de bord) restent toujours actives.
     </p>
-    ${MODULES.map(m => `
+    ${modules.map(m => `
       <div class="module-row">
         <div class="module-info">
           <strong>${m.label}</strong>
           <span class="module-desc">${m.desc}</span>
         </div>
         <label class="toggle">
-          <input type="checkbox" ${res.data[m.key] ? 'checked' : ''}
+          <input type="checkbox" ${states.data[m.key] ? 'checked' : ''}
                  ${!isAdmin ? 'disabled' : ''}
                  data-module="${m.key}"
                  onchange="window.toggleModule('${m.key}', this.checked)" />

@@ -4,6 +4,7 @@
  * pour afficher le bandeau mode lecture seule.
  */
 const queries = require('../../db/index')
+const { MODULE_KEYS, MODULE_META } = require('../../constants/modules')
 
 /** GET /api/admin/config — lecture du mode lecture seule */
 function settingsRead(req, res) {
@@ -16,21 +17,24 @@ function settingsRead(req, res) {
 }
 
 /** GET /api/admin/modules — liste des modules et leur etat */
-const MODULES = ['kanban', 'frise', 'live', 'signatures', 'lumen']
-
 function modulesRead(req, res) {
   try {
     const result = {}
-    for (const m of MODULES) {
+    for (const m of MODULE_KEYS) {
       result[m] = queries.getAppConfig(`module_${m}`) !== '0' // default enabled
     }
     res.json({ ok: true, data: result })
   } catch {
     // Par defaut tous actifs
     const fallback = {}
-    for (const m of MODULES) fallback[m] = true
+    for (const m of MODULE_KEYS) fallback[m] = true
     res.json({ ok: true, data: fallback })
   }
 }
 
-module.exports = { settingsRead, modulesRead }
+/** GET /api/admin/modules/meta — labels + descriptions pour l'UI admin */
+function modulesMetaRead(req, res) {
+  res.json({ ok: true, data: MODULE_META })
+}
+
+module.exports = { settingsRead, modulesRead, modulesMetaRead }

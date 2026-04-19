@@ -4,6 +4,7 @@
  */
 const router  = require('express').Router()
 const queries = require('../../db/index')
+const { MODULE_KEYS } = require('../../constants/modules')
 
 router.post('/config', (req, res) => {
   try {
@@ -21,8 +22,7 @@ router.post('/config', (req, res) => {
 router.post('/modules', (req, res) => {
   try {
     const { module: moduleName, enabled } = req.body
-    const allowed = ['kanban', 'frise', 'live', 'signatures', 'lumen']
-    if (!allowed.includes(moduleName)) {
+    if (!MODULE_KEYS.includes(moduleName)) {
       return res.status(400).json({ ok: false, error: 'Module inconnu.' })
     }
     queries.setAppConfig(`module_${moduleName}`, enabled ? '1' : '0')
