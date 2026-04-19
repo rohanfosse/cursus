@@ -1,19 +1,23 @@
 /**
- * Collaboration composable: Yjs CRDT + TipTap integration.
- * Manages the collaborative document state, awareness (cursors),
- * and persistence to the server.
+ * Collaboration composable : Yjs CRDT + Hocuspocus WebSocket.
  *
- * Resilience :
- *  - encodage base64 par chunks (evite RangeError sur > ~100KB avec spread)
- *  - serialisation des saves (evite resultats divergents)
- *  - retry avec backoff exponentiel en cas d'echec
- *  - clean-up strict des timers a destroy() (pas de save apres unmount)
- *  - generation numero pour ignorer les inits concurrentes
- *  - flush on tab hide + best-effort on unload (anti perte de donnees)
+ * Client attache un HocuspocusProvider par cahier. Le serveur :
+ *   - verifie le JWT + ownership (canAccessCahier, source partagee avec HTTP)
+ *   - charge le yjs_state BLOB au premier connect
+ *   - persiste sur chaque update (debounce 2s cote Hocuspocus)
+ *   - broadcast les updates a tous les clients du room
+ *
+ * Etats exposes au UI :
+ *   connected  : socket ouvert
+ *   saving     : updates locales en cours de sync
+ *   kicked     : auth refusee -> l'editeur doit passer en read-only
+ *   saveError  : message d'erreur derniere operation
  */
-import { ref, onBeforeUnmount, type Ref } from 'vue'
+import { ref, shallowRef, onBeforeUnmount, type Ref } from 'vue'
+import { HocuspocusProvider, type HocuspocusProviderConfiguration } from '@hocuspocus/provider'
 import * as Y from 'yjs'
 import { useAppStore } from '@/stores/app'
+import { getAuthToken } from '@/utils/auth'
 
 // Palette curseurs collaborateurs - stable par user id
 const CURSOR_COLORS = [
@@ -26,190 +30,147 @@ export function colorForUser(userId: number): string {
   return CURSOR_COLORS[idx]
 }
 
-const MAX_YJS_STATE_BYTES = 5 * 1024 * 1024 // mirror serveur
-const DEBOUNCE_MS = 2_000   // flush rapide apres une edition
-const MAX_RETRIES = 3
-
 export interface CollabUser {
   name: string
   color: string
   userId: number
 }
 
-/** Encode a Uint8Array en base64 sans depasser la call stack (chunked). */
-function uint8ToBase64(bytes: Uint8Array): string {
-  let binary = ''
-  const chunkSize = 0x8000 // 32KB chunks
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize)
-    binary += String.fromCharCode.apply(null, chunk as unknown as number[])
-  }
-  return btoa(binary)
+/** Convert http(s) -> ws(s) en utilisant l'API URL (robuste aux paths contenant "http"). */
+function toWsUrl(httpUrl: string): string {
+  const u = new URL(httpUrl)
+  u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
+  return u.toString().replace(/\/$/, '')
 }
 
-/** Decode base64 vers Uint8Array ; retourne null si invalide. */
-function base64ToUint8(b64: string): Uint8Array | null {
-  try {
-    const bin = atob(b64)
-    const out = new Uint8Array(bin.length)
-    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
-    return out
-  } catch {
-    return null
-  }
+function getServerUrl(): string {
+  const envUrl = import.meta.env?.VITE_SERVER_URL as string | undefined
+  return envUrl || 'http://localhost:3001'
 }
 
-export function useCahierCollab(cahierId: Ref<number | null>) {
+export function useCahierCollab(_cahierId: Ref<number | null>) {
   const appStore = useAppStore()
 
-  const ydoc = ref<Y.Doc | null>(null)
-  const provider = ref<{ awareness: unknown; destroy: () => void } | null>(null)
+  const ydoc = shallowRef<Y.Doc | null>(null)
+  const provider = shallowRef<HocuspocusProvider | null>(null)
   const connected = ref(false)
   const saving = ref(false)
   const saveError = ref<string | null>(null)
+  const kicked = ref(false)
   const connectedUsers = ref<CollabUser[]>([])
 
-  let saveTimeout: ReturnType<typeof setTimeout> | null = null
-  let retryTimeout: ReturnType<typeof setTimeout> | null = null
-  let pendingSave = false   // une sauvegarde a ete demandee pendant que saving=true
-  let initGeneration = 0    // invalide les callbacks async des inits precedents
+  let initGeneration = 0
+  let awarenessHandler: (() => void) | null = null
 
-  /** Initialize Yjs document and load state from server */
+  /** Connect to the Hocuspocus server for the given cahier. */
   async function init(id: number) {
     destroy()
     const myGen = ++initGeneration
 
+    const token = getAuthToken()
+    if (!token) {
+      saveError.value = 'Non authentifie'
+      kicked.value = true
+      return
+    }
+
     const doc = new Y.Doc()
     ydoc.value = doc
 
-    // Load persisted state from server
-    try {
-      const res = await window.api.getCahierYjsState(id)
-      if (myGen !== initGeneration) { doc.destroy(); return }
-      if (res?.ok && res.data) {
-        const uint8 = base64ToUint8(res.data as string)
-        if (uint8) {
-          Y.applyUpdate(doc, uint8)
-        } else {
-          console.warn('[CahierCollab] Invalid base64 state from server')
-        }
-      }
-    } catch (e) {
-      console.warn('[CahierCollab] Failed to load Yjs state:', e)
+    const config: HocuspocusProviderConfiguration = {
+      url: `${toWsUrl(getServerUrl())}/collaboration`,
+      name: `cahier-${id}`,
+      document: doc,
+      token,
+      onStatus({ status }) {
+        if (myGen !== initGeneration) return
+        connected.value = status === 'connected'
+      },
+      onSynced({ state }) {
+        if (myGen !== initGeneration) return
+        if (state) saving.value = false
+      },
+      onAuthenticationFailed({ reason }) {
+        if (myGen !== initGeneration) return
+        saveError.value = reason || 'Authentification refusee'
+        kicked.value = true
+        connected.value = false
+      },
+      onDisconnect() {
+        if (myGen !== initGeneration) return
+        connected.value = false
+      },
     }
+    const hp = new HocuspocusProvider(config)
 
-    if (myGen !== initGeneration) { doc.destroy(); return }
+    if (myGen !== initGeneration) { hp.destroy(); doc.destroy(); return }
+    provider.value = hp
 
-    // Setup awareness (cursor positions)
-    const { Awareness } = await import('y-protocols/awareness')
-    if (myGen !== initGeneration) { doc.destroy(); return }
-    const awareness = new Awareness(doc)
-
+    // Awareness : expose l'utilisateur courant + observe les autres
     const user = appStore.currentUser
     if (user) {
-      awareness.setLocalStateField('user', {
+      hp.awareness?.setLocalStateField('user', {
         name: user.name,
         color: colorForUser(user.id),
         userId: user.id,
       })
     }
 
-    // Track connected users
-    awareness.on('change', () => {
-      const states = awareness.getStates()
+    const handler = () => {
+      if (myGen !== initGeneration) return
+      const states = hp.awareness?.getStates()
       const users: CollabUser[] = []
-      states.forEach((state: Record<string, unknown>) => {
-        if (state.user) users.push(state.user as CollabUser)
+      states?.forEach((state) => {
+        const maybe = (state as Record<string, unknown>).user
+        if (maybe && typeof maybe === 'object') {
+          const u = maybe as Partial<CollabUser>
+          if (typeof u.name === 'string' && typeof u.color === 'string' && typeof u.userId === 'number') {
+            users.push({ name: u.name, color: u.color, userId: u.userId })
+          }
+        }
       })
       connectedUsers.value = users
-    })
+    }
+    awarenessHandler = handler
+    hp.awareness?.on('change', handler)
 
-    provider.value = { awareness, destroy: () => awareness.destroy() }
-    connected.value = true
-
-    // Save on document update (debounced, flush rapide 2s)
-    doc.on('update', () => {
-      if (saveTimeout) clearTimeout(saveTimeout)
-      saveTimeout = setTimeout(() => { void save(id) }, DEBOUNCE_MS)
+    // Indicateur passif : doc.update local -> saving=true, reset par onSynced
+    doc.on('update', (_update, origin) => {
+      if (origin !== hp) saving.value = true
     })
   }
 
-  /** Save current Yjs state to server, with retry backoff. */
-  async function save(id: number, attempt = 0): Promise<void> {
-    if (!ydoc.value) return
-    if (saving.value) {
-      pendingSave = true
-      return
-    }
-    saving.value = true
-    saveError.value = null
-    try {
-      const state = Y.encodeStateAsUpdate(ydoc.value)
-      if (state.length > MAX_YJS_STATE_BYTES) {
-        saveError.value = 'Document trop volumineux (> 5 Mo)'
-        console.error('[CahierCollab] State too large:', state.length)
-        return
-      }
-      const base64 = uint8ToBase64(state)
-      const res = await window.api.saveCahierYjsState(id, base64)
-      if (res && res.ok === false) {
-        throw new Error(res.error || 'Erreur sauvegarde')
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      console.warn('[CahierCollab] Save failed:', msg)
-      saveError.value = msg
-      if (attempt < MAX_RETRIES) {
-        const delay = Math.min(30_000, 1_000 * Math.pow(2, attempt))
-        if (retryTimeout) clearTimeout(retryTimeout)
-        retryTimeout = setTimeout(() => {
-          // Ne pas retry si destroy() entretemps (ydoc null)
-          if (ydoc.value) void save(id, attempt + 1)
-        }, delay)
-      }
-    } finally {
-      saving.value = false
-      if (pendingSave) {
-        pendingSave = false
-        // Une autre sauvegarde a ete demandee pendant celle-ci : replanifie proche
-        if (saveTimeout) clearTimeout(saveTimeout)
-        saveTimeout = setTimeout(() => { void save(id) }, 500)
-      }
-    }
+  /** Flush avant fermeture : HocuspocusProvider envoie ses updates queued sur disconnect. */
+  function flush() {
+    const hp = provider.value
+    if (!hp) return
+    try { hp.disconnect() } catch { /* ignore */ }
   }
 
-  /** Flush synchrone sur fermeture/passage en background (anti perte). */
-  function flush(): Promise<void> | void {
-    if (!ydoc.value || !cahierId.value) return
-    if (saveTimeout) { clearTimeout(saveTimeout); saveTimeout = null }
-    return save(cahierId.value)
-  }
-
-  // Handlers globaux — enregistres une seule fois
+  function onBeforeUnload() { flush() }
   function onVisibilityChange() {
-    if (document.visibilityState === 'hidden') void flush()
+    if (document.visibilityState === 'hidden') flush()
   }
-  function onBeforeUnload() { void flush() }
   document.addEventListener('visibilitychange', onVisibilityChange)
   window.addEventListener('beforeunload', onBeforeUnload)
 
-  /** Cleanup */
+  /** Cleanup idempotent */
   function destroy() {
-    initGeneration++ // invalide toute init async en cours
-    if (saveTimeout)  { clearTimeout(saveTimeout); saveTimeout = null }
-    if (retryTimeout) { clearTimeout(retryTimeout); retryTimeout = null }
-
-    // Tentative de sauvegarde finale (best effort, sans await pour ne pas bloquer unmount)
-    if (ydoc.value && cahierId.value) {
-      void save(cahierId.value)
+    initGeneration++
+    const hp = provider.value
+    if (hp && awarenessHandler) {
+      try { hp.awareness?.off('change', awarenessHandler) } catch { /* ignore */ }
     }
-    provider.value?.destroy()
+    awarenessHandler = null
+    hp?.destroy()
     provider.value = null
     ydoc.value?.destroy()
     ydoc.value = null
     connected.value = false
     connectedUsers.value = []
-    pendingSave = false
+    saving.value = false
+    saveError.value = null
+    kicked.value = false
   }
 
   onBeforeUnmount(() => {
@@ -224,9 +185,9 @@ export function useCahierCollab(cahierId: Ref<number | null>) {
     connected,
     saving,
     saveError,
+    kicked,
     connectedUsers,
     init,
-    save,
     flush,
     destroy,
   }

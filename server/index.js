@@ -331,18 +331,32 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ ok: false, error: message })
 })
 
+// ── Hocuspocus (Yjs) pour cahiers collaboratifs temps reel ──────────────────
+const { attachHocuspocus } = require('./yjs/hocuspocus')
+const hocuspocus = attachHocuspocus(server, { jwtSecret: SECRET })
+
 // ── Démarrage ─────────────────────────────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
   log.info('server_started', { port: PORT, env: process.env.NODE_ENV || 'development' })
 })
 
 // ── Arrêt gracieux ────────────────────────────────────────────────────────────
-function shutdown() {
+async function shutdown() {
   log.info('shutdown_initiated')
   clearInterval(_scheduledTimer)
   _backup.stop()
   // Notifier les clients WebSocket avant l'arret
   io.emit('server:maintenance', { message: 'Le serveur redémarre, reconnexion automatique dans quelques secondes.' })
+
+  // Flush Hocuspocus (force onStoreDocument pour tous les docs ouverts)
+  try {
+    await Promise.race([
+      hocuspocus.destroy(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('hocuspocus_destroy_timeout')), 5_000)),
+    ])
+  } catch (err) {
+    log.warn('hocuspocus_destroy_failed', { error: err.message })
+  }
 
   // Drain period : laisser les requetes en cours se terminer (max 10s)
   server.close(() => {

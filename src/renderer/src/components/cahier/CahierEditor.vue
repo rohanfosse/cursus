@@ -9,11 +9,15 @@ import { useCahierCollab } from '@/composables/useCahierCollab'
 import { useCahierEditor } from '@/composables/useCahierEditor'
 import { useCahierStore } from '@/stores/cahier'
 import CahierEditorHeader from './CahierEditorHeader.vue'
+import { AlertTriangle } from 'lucide-vue-next'
 
 const cahierStore = useCahierStore()
 const cahierId = computed(() => cahierStore.activeCahierId)
-const { ydoc, provider, connected, saving, saveError, connectedUsers, init, destroy } = useCahierCollab(cahierId)
-const { editor } = useCahierEditor({ ydoc, provider })
+const { ydoc, provider, connected, saving, saveError, kicked, connectedUsers, init, destroy } = useCahierCollab(cahierId)
+
+// Editable uniquement quand l'auth est OK
+const editable = computed(() => !kicked.value)
+const { editor } = useCahierEditor({ ydoc, provider, editable })
 
 const currentCahier = computed(() =>
   cahierStore.cahiers.find(c => c.id === cahierId.value),
@@ -41,8 +45,13 @@ function onRename(newTitle: string) {
       @rename="onRename"
     />
 
+    <div v-if="kicked" class="cahier-kicked-banner">
+      <AlertTriangle :size="14" />
+      <span>Session expiree ou acces refuse. L'edition est desactivee, reconnectez-vous.</span>
+    </div>
+
     <div class="cahier-editor-body">
-      <EditorContent v-if="editor" :editor="editor" class="cahier-tiptap" />
+      <EditorContent v-if="editor" :editor="editor" class="cahier-tiptap" :class="{ 'cahier-tiptap--readonly': kicked }" />
       <div v-else class="cahier-loading">
         <div class="skel skel-line" style="width:60%;height:20px" />
         <div class="skel skel-line" style="width:80%;height:14px;margin-top:12px" />
@@ -58,6 +67,15 @@ function onRename(newTitle: string) {
   background: var(--bg-main);
 }
 
+.cahier-kicked-banner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px;
+  background: rgba(239, 68, 68, .08);
+  border-bottom: 1px solid rgba(239, 68, 68, .3);
+  color: var(--danger, #ef4444);
+  font-size: 13px; font-weight: 500;
+}
+
 .cahier-editor-body {
   flex: 1; overflow-y: auto; padding: 24px 32px;
 }
@@ -65,6 +83,7 @@ function onRename(newTitle: string) {
 .cahier-tiptap {
   max-width: 700px; margin: 0 auto;
 }
+.cahier-tiptap--readonly { opacity: 0.6; }
 
 .cahier-tiptap :deep(.tiptap) {
   outline: none; min-height: 300px;
