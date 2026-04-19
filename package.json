@@ -1,6 +1,6 @@
 {
   "name": "cursus",
-  "version": "2.163.0",
+  "version": "2.163.1",
   "description": "Cursus - Suivez votre parcours de formation",
   "main": "out/main/index.js",
   "scripts": {
@@ -12,6 +12,9 @@
     "build:linux": "npm run build && electron-builder --linux",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint src --fix",
+    "check:design": "node scripts/check-design-tokens.js",
+    "check:design:snapshot": "node scripts/check-design-tokens.js --snapshot",
+    "check:design:full": "node scripts/check-design-tokens.js --full",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "node scripts/postinstall.js",
     "server": "node server/index.js",

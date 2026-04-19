@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import {
-  Check, Reply, AlertTriangle, Flame, Pin, GraduationCap,
+  Check, Reply, AlertTriangle, Flame, Pin,
 } from 'lucide-vue-next'
+import UiRoleBadge from '@/components/ui/UiRoleBadge.vue'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
 import Avatar       from '@/components/ui/Avatar.vue'
@@ -118,10 +119,7 @@ function onTextClick(e: MouseEvent) {
             @click="openDmWithAuthor"
             @keydown.enter="openDmWithAuthor"
           >{{ msg.author_name }}</span>
-          <span v-if="msg.author_type === 'teacher'" class="msg-role-badge" title="Enseignant">
-            <GraduationCap :size="9" aria-hidden="true" />
-            Enseignant
-          </span>
+          <UiRoleBadge v-if="msg.author_type === 'teacher'" role="teacher" size="xs" />
           <span class="msg-time" :title="new Date(msg.created_at).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })">{{ formatTime(msg.created_at) }}</span>
           <span v-if="isEdited" class="msg-edited-tag">(modifié)</span>
           <span v-if="isPinned" class="msg-pin-badge" title="Message épinglé" aria-label="Message épinglé">
@@ -301,24 +299,6 @@ function onTextClick(e: MouseEvent) {
 }
 .msg-author.clickable { cursor: pointer; }
 .msg-author.clickable:hover { color: var(--accent); text-decoration: underline; }
-
-/* Badge "Enseignant" : pill subtile, pas de teinte sur le nom lui-meme
-   (evite la confusion nom-teinte/lien clickable). */
-.msg-role-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 9.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-  color: var(--accent);
-  background: var(--accent-subtle);
-  padding: 2px 7px;
-  border-radius: 999px;
-  line-height: 1;
-}
-.msg-role-badge svg { opacity: .85; }
 
 /* Pin badge (remplace l'emoji 📌) */
 .msg-pin-badge {

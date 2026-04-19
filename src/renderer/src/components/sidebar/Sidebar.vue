@@ -921,25 +921,7 @@
   white-space: nowrap;
   line-height: 1.3;
 }
-.dm-avatar-teacher {
-  box-shadow: 0 0 0 2px var(--accent-subtle);
-}
-.dm-teacher-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-  color: var(--accent);
-  background: var(--accent-subtle);
-  padding: 1px 6px;
-  border-radius: 999px;
-  margin-left: 4px;
-  vertical-align: middle;
-  line-height: 1;
-}
+/* Note : le pattern "teacher tag" DM a ete extrait vers <UiRoleBadge role="teacher"> */
 .presence-dot {
   position: absolute;
   bottom: -2px;

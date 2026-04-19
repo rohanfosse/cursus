@@ -291,7 +291,94 @@ A bannir activement :
 
 ---
 
-## 10. Verification avant livraison
+## 10. Patterns cristallises (v2.163.0)
+
+Ces patterns se repetent a 3+ endroits de l'app et sont donc extraits comme
+composants ou conventions canoniques. **Ne jamais reinventer.**
+
+### Palette promo fermee (8 couleurs)
+
+Source : `src/renderer/src/utils/promoPalette.ts`.
+
+| Slug | Label FR | Hex | Usage |
+|---|---|---|---|
+| `sky` | Ciel | `#4A90D9` | defaut |
+| `violet` | Violet | `#8E5FC5` | |
+| `rose` | Rose | `#D65B8F` | |
+| `orange` | Orange | `#E8891A` | |
+| `amber` | Ambre | `#E5B84A` | |
+| `green` | Vert | `#2EB871` | |
+| `teal` | Sarcelle | `#14B8A6` | |
+| `slate` | Ardoise | `#64748B` | |
+
+**Regles** :
+- Une promo qui sort de ces 8 couleurs est normalisee au load via `normalizePromoColor(hex, name)` → fallback sur l'auto-assignee deterministe par hash du nom.
+- UI picker unique : `<PromoColorPicker v-model="color" size="md|sm" />`.
+- Pas de nouveau color picker dans d'autres contextes — etendre l'existant ou justifier dans une page override.
+
+### Badge de role utilisateur
+
+Source : `src/renderer/src/components/ui/UiRoleBadge.vue`.
+
+```vue
+<UiRoleBadge role="teacher" size="sm" />  <!-- Enseignant -->
+<UiRoleBadge role="ta" size="xs" />        <!-- Intervenant -->
+<UiRoleBadge role="admin" size="sm" />     <!-- Admin -->
+```
+
+**Regle** : ne PAS teinter le nom de l'utilisateur lui-meme (`color: var(--accent)`
+sur un `msg-author`) — cela cree une confusion avec les liens cliquables. Le
+badge porte l'information de role, le nom reste sur `var(--text-primary)`.
+
+### Pinned messages — bandeau lateral
+
+Pattern : `box-shadow: inset 2px 0 0 var(--color-warning)` + fond 5% mixe.
+
+Ne PAS utiliser :
+- `background: rgba(243,156,18,.04)` seul (trop pale, illisible)
+- `border-left: 2px solid` (decale la largeur contenu)
+
+### Icon scale canonique
+
+| Taille | Usage |
+|---|---|
+| 12 | Meta inline dans du texte (horodatage, tag chip) |
+| 14 | Boutons standard, actions dans une toolbar |
+| 16 | Bouton primaire, titre de panel, hero section |
+
+**Regle** : eviter 10/11/13/15 sauf cas tres specifique documente.
+
+### Reduced-motion par composant
+
+Tout composant qui definit `animation:` ou `transition:` non-trivial DOIT inclure :
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  .mon-element { animation: none !important; transition: none !important; }
+  /* ... transform hover, etc. */
+}
+```
+
+**Verifie par** : aucun outil (pas de lint), responsabilite du reviewer. A faire
+avant de passer en revue `/code-review`.
+
+### Tokens couleurs sous-jacents (repetition a eviter)
+
+Ne jamais ecrire directement :
+- `rgba(74,144,217, X)` → `rgba(var(--accent-rgb), X)`
+- `rgba(243,156,18, X)` → `color-mix(in srgb, var(--color-warning) X%, transparent)`
+- `rgba(231,76,60, X)` → idem avec `--color-danger`
+- `rgba(39,174,96, X)` → idem avec `--color-success`
+- `rgba(155,135,245, X)` → idem avec `--color-cctl`
+
+**Garde-fou automatique** : `npm run check:design` detecte ces anti-patterns.
+Fonctionne avec un baseline (`scripts/design-tokens-baseline.json`) — seules les
+**nouvelles** violations echouent le build. Le baseline est regenerable via
+`npm run check:design:snapshot` apres migration progressive.
+
+---
+
+## 11. Verification avant livraison
 
 - [ ] Pas de hex hardcode dans le diff
 - [ ] Tous les paddings/gaps sur tokens `--space-*`
