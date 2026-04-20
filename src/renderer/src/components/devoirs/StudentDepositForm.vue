@@ -1,5 +1,6 @@
 /** StudentDepositForm.vue - Inline deposit form: file/link toggle, picker, submit */
 <script setup lang="ts">
+import { onMounted, onBeforeUnmount } from 'vue'
 import {
   CheckCircle2, Upload, Link2, X, FileText, LayoutList, Loader2,
 } from 'lucide-vue-next'
@@ -16,7 +17,7 @@ defineProps<{
   rubricPreview: Rubric | null
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'update:depositMode': [v: 'file' | 'link']
   'update:depositLink': [v: string]
   pickFile: []
@@ -24,6 +25,15 @@ defineEmits<{
   cancel: []
   submit: []
 }>()
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    emit('cancel')
+  }
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>

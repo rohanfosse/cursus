@@ -2,20 +2,28 @@
  * Groupes de devoirs côté étudiant : en retard, urgents, à venir, événements, rendus.
  * Used by DevoirsView.vue
  */
-import { computed, ref, type Ref } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
 import { useAppStore }     from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { needsSubmission, isExpired, isEventType } from '@/utils/devoir'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
 import { nextUpcoming } from '@/utils/devoirFilters'
 import { groupByCategory } from '@/utils/projectGrouping'
+import { safeGetJSON, safeSetJSON } from '@/utils/safeStorage'
 import type { Devoir } from '@/types'
+
+type StudentSort = 'deadline' | 'title' | 'type'
+const SEARCH_KEY = 'cc_student_devoirs_search'
+const SORT_KEY   = 'cc_student_devoirs_sort'
 
 export function useDevoirsStudent(now: Ref<number>) {
   const appStore     = useAppStore()
   const travauxStore = useTravauxStore()
-  const studentSearch = ref('')
-  const studentSort = ref<'deadline' | 'title' | 'type'>('deadline')
+  const studentSearch = ref<string>(safeGetJSON<string>(SEARCH_KEY, ''))
+  const studentSort = ref<StudentSort>(safeGetJSON<StudentSort>(SORT_KEY, 'deadline'))
+
+  watch(studentSearch, v => safeSetJSON(SEARCH_KEY, v))
+  watch(studentSort,   v => safeSetJSON(SORT_KEY, v))
 
   // ── Groupes urgence étudiant (single-pass) ────────────────────────────────────
   const studentGroups = computed(() => {
