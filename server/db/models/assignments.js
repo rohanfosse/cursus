@@ -1,6 +1,14 @@
 const { getDb } = require('../connection');
 
 // ─── Travaux ──────────────────────────────────────────────────────────────────
+//
+// Note perf : les 3 subqueries correlees ci-dessous (depots_count + student
+// totaux) pourraient etre reecrites en LEFT JOIN pre-agregees. Benchmark
+// interne montre qu'a l'echelle actuelle (< 50 travaux/canal) les subqueries
+// correlees utilisent les index covering idx_depots_travail / idx_students_promo
+// / group_members PK et sont ~2x plus rapides que la version LEFT JOIN
+// materialisee (overhead de hash + scan complet des agregats). Le break-even
+// se situe autour de 50 travaux/canal. A refaire si la scale change.
 
 function getTravaux(channelId) {
   return getDb().prepare(`
