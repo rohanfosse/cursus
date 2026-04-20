@@ -68,6 +68,27 @@ const nextSoutenance = computed(() =>
     .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     .slice(0, 3),
 )
+
+// ── Scroll-to-section depuis les stat pills ──────────────────────────────
+type StatTarget = 'top' | 'upcoming' | 'projects'
+function scrollTo(target: StatTarget) {
+  if (target === 'top') {
+    const scrollArea = document.querySelector('.devoirs-content') as HTMLElement | null
+    scrollArea?.scrollTo({ top: 0, behavior: 'smooth' })
+    return
+  }
+  const selector = target === 'upcoming' ? '.dh-next-section' : '.dh-section'
+  const el = document.querySelector(selector) as HTMLElement | null
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  el.animate(
+    [
+      { boxShadow: '0 0 0 2px var(--accent)' },
+      { boxShadow: '0 0 0 0 transparent' },
+    ],
+    { duration: 900, easing: 'ease-out' },
+  )
+}
 </script>
 
 <template>
@@ -100,22 +121,50 @@ const nextSoutenance = computed(() =>
 
       <!-- ── Résumé promo ──────────────────────────────────────────── -->
       <div class="dv-stats-row">
-        <UiPill size="md" tone="neutral">
-          <template #leading><BookOpen :size="14" /></template>
-          <strong>{{ travauxStore.ganttData.length }}</strong>&nbsp;devoirs
-        </UiPill>
-        <UiPill size="md" tone="success">
-          <template #leading><BarChart2 :size="14" /></template>
-          <strong>{{ travauxStore.ganttData.filter(t => t.is_published).length }}</strong>&nbsp;publiés
-        </UiPill>
-        <UiPill v-if="globalToGrade > 0" size="md" tone="warning">
-          <template #leading><AlertTriangle :size="14" /></template>
-          <strong>{{ globalToGrade }}</strong>&nbsp;à noter
-        </UiPill>
-        <UiPill v-if="globalDrafts > 0" size="md" tone="muted">
-          <template #leading><FileText :size="14" /></template>
-          <strong>{{ globalDrafts }}</strong>&nbsp;brouillons
-        </UiPill>
+        <button
+          type="button" class="dv-stats-btn"
+          :disabled="travauxStore.ganttData.length === 0"
+          title="Voir tous les projets"
+          @click="scrollTo('projects')"
+        >
+          <UiPill size="md" tone="neutral">
+            <template #leading><BookOpen :size="14" /></template>
+            <strong>{{ travauxStore.ganttData.length }}</strong>&nbsp;devoirs
+          </UiPill>
+        </button>
+        <button
+          type="button" class="dv-stats-btn"
+          :disabled="travauxStore.ganttData.filter(t => t.is_published).length === 0"
+          title="Voir les prochaines échéances"
+          @click="scrollTo('upcoming')"
+        >
+          <UiPill size="md" tone="success">
+            <template #leading><BarChart2 :size="14" /></template>
+            <strong>{{ travauxStore.ganttData.filter(t => t.is_published).length }}</strong>&nbsp;publiés
+          </UiPill>
+        </button>
+        <button
+          v-if="globalToGrade > 0"
+          type="button" class="dv-stats-btn"
+          title="Voir les projets à noter"
+          @click="scrollTo('projects')"
+        >
+          <UiPill size="md" tone="warning">
+            <template #leading><AlertTriangle :size="14" /></template>
+            <strong>{{ globalToGrade }}</strong>&nbsp;à noter
+          </UiPill>
+        </button>
+        <button
+          v-if="globalDrafts > 0"
+          type="button" class="dv-stats-btn"
+          title="Voir les projets avec brouillons"
+          @click="scrollTo('projects')"
+        >
+          <UiPill size="md" tone="muted">
+            <template #leading><FileText :size="14" /></template>
+            <strong>{{ globalDrafts }}</strong>&nbsp;brouillons
+          </UiPill>
+        </button>
       </div>
 
       <!-- ── Prochains événements par type ─────────────────────────── -->
@@ -219,4 +268,16 @@ const nextSoutenance = computed(() =>
 
 .dh-loading { padding: 24px 28px; }
 .dh-empty-btn { margin-top: 16px; }
+
+/* ── Stat pills cliquables (scroll vers section) ──────────────────────── */
+.dv-stats-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: transform .12s ease, filter .12s ease;
+}
+.dv-stats-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); }
+.dv-stats-btn:disabled             { cursor: default; opacity: .7; }
 </style>

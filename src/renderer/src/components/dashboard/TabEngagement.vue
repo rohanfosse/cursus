@@ -5,6 +5,9 @@ import { Activity, AlertTriangle, TrendingUp, MessageSquare, BookOpen, Clock, Se
 import { useAppStore } from '@/stores/app'
 import { useApi }      from '@/composables/useApi'
 import { relativeTime } from '@/utils/date'
+import { safeGetJSON, safeSetJSON } from '@/utils/safeStorage'
+import { useSlashFocusSearch } from '@/composables/useSlashFocusSearch'
+import { useDebounce } from '@/composables/useDebounce'
 
 const appStore = useAppStore()
 const { api }  = useApi()
@@ -16,10 +19,20 @@ interface EngagementScore {
   lastActivity: string | null; atRisk: boolean
 }
 
+const SEARCH_KEY   = 'cc_teacher_engagement_search'
+const AT_RISK_KEY  = 'cc_teacher_engagement_at_risk'
+
 const scores    = ref<EngagementScore[]>([])
 const loading   = ref(false)
-const search    = ref('')
-const showAtRiskOnly = ref(false)
+const search    = ref<string>(safeGetJSON<string>(SEARCH_KEY, ''))
+const showAtRiskOnly = ref<boolean>(safeGetJSON<boolean>(AT_RISK_KEY, false))
+
+// Persistance : search debouncee, filtre immediat
+const debouncedSearch = useDebounce(search, 400)
+watch(debouncedSearch, v => safeSetJSON(SEARCH_KEY, v))
+watch(showAtRiskOnly,  v => safeSetJSON(AT_RISK_KEY, v))
+
+useSlashFocusSearch('.te-search-input')
 
 const promoId = computed(() => appStore.activePromoId ?? 0)
 
@@ -84,7 +97,7 @@ function scoreLabel(score: number): string {
         <span class="te-card-value">{{ stats.avg }}%</span>
         <span class="te-card-label">Score moyen</span>
       </div>
-      <div class="te-card te-card--danger" v-if="stats.atRisk > 0">
+      <div v-if="stats.atRisk > 0" class="te-card te-card--danger">
         <AlertTriangle :size="16" />
         <span class="te-card-value">{{ stats.atRisk }}</span>
         <span class="te-card-label">A risque</span>
@@ -100,7 +113,7 @@ function scoreLabel(score: number): string {
     <div class="te-filters">
       <div class="te-search">
         <Search :size="13" />
-        <input v-model="search" type="text" placeholder="Rechercher un etudiant..." />
+        <input v-model="search" type="text" class="te-search-input" placeholder="Rechercher un etudiant..." />
       </div>
       <button class="te-filter-btn" :class="{ active: showAtRiskOnly }" @click="showAtRiskOnly = !showAtRiskOnly">
         <Filter :size="13" /> A risque uniquement

@@ -150,9 +150,11 @@ describe('useDashboardWidgets', () => {
     })
 
     it('returns empty on corrupt data', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
       localStorageMock.store['cesia:bookmarks'] = '{broken'
       const { result } = setup()
       expect(result.savedMessages.value).toEqual([])
+      warnSpy.mockRestore()
     })
 
     it('returns empty if data is old format (array of numbers)', () => {

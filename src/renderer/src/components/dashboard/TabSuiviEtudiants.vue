@@ -10,6 +10,9 @@ import { useApi }       from '@/composables/useApi'
 import { useToast }     from '@/composables/useToast'
 import { useConfirm }   from '@/composables/useConfirm'
 import { relativeTime } from '@/utils/date'
+import { safeGetJSON, safeSetJSON } from '@/utils/safeStorage'
+import { useSlashFocusSearch } from '@/composables/useSlashFocusSearch'
+import { useDebounce } from '@/composables/useDebounce'
 
 const appStore      = useAppStore()
 const { api }       = useApi()
@@ -52,7 +55,11 @@ const allStudents      = ref<StudentItem[]>([])
 const notes            = ref<TeacherNote[]>([])
 const summaries        = ref<NoteSummary[]>([])
 const loading          = ref(false)
-const search           = ref('')
+const SEARCH_KEY       = 'cc_teacher_suivi_search'
+const search           = ref<string>(safeGetJSON<string>(SEARCH_KEY, ''))
+const debouncedSearch  = useDebounce(search, 400)
+watch(debouncedSearch, v => safeSetJSON(SEARCH_KEY, v))
+useSlashFocusSearch('.ts-search-input')
 const selectedStudent  = ref<StudentItem | null>(null)
 const activeCategory   = ref('generale')
 

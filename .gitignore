@@ -26,8 +26,10 @@ server/.env
 logs/
 
 *.pdf
+.mcp.json
 .claude/.mcp.json
 .claude/projects/
+.claude/scheduled_tasks.lock
 coverage/
 tests/uploads/
 tmp/

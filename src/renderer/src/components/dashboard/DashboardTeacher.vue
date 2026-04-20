@@ -5,7 +5,7 @@
  * Delegates rendering to focused sub-components and forwards all props/events.
  */
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import {
   PlusCircle, CalendarDays, Settings,
   LayoutDashboard, Users, BarChart2, TrendingUp, Zap,
@@ -14,6 +14,8 @@ import {
 import { useLiveStore } from '@/stores/live'
 import { useTeacherBento } from '@/composables/useTeacherBento'
 import { useModules }      from '@/composables/useModules'
+import { useToast }        from '@/composables/useToast'
+import { isEditableTarget } from '@/composables/useSlashFocusSearch'
 
 const bento = useTeacherBento()
 const tabAccueilRef = ref<InstanceType<typeof TabAccueil> | null>(null)
@@ -25,6 +27,7 @@ import TabEngagement      from './TabEngagement.vue'
 
 const liveStore = useLiveStore()
 const { isEnabled } = useModules()
+const { showToast } = useToast()
 import type { Promotion, Depot } from '@/types'
 import type { GanttRow, ProjectCard, Reminder } from '@/composables/useDashboardTeacher'
 import type { SavedMessage, AgendaItem } from '@/composables/useDashboardWidgets'
@@ -170,6 +173,33 @@ type DashTabType = 'accueil' | 'promotions' | 'frise' | 'analytique' | 'reglages
 function setTab(tab: DashTabType) {
   emit('update:dashTab', tab)
 }
+
+// ── Raccourcis clavier dashboard prof ──────────────────────────────────────
+// 1: accueil | 2: promotions | 3: suivi | 4: analytique | 5: frise (si activee) | ?: aide
+function onDashKeydown(e: KeyboardEvent) {
+  if (e.isComposing || e.keyCode === 229) return
+  if (isEditableTarget(e.target)) return
+  if (e.ctrlKey || e.metaKey || e.altKey) return
+  const map: Record<string, DashTabType | 'help'> = {
+    '1': 'accueil',
+    '2': 'promotions',
+    '3': 'suivi',
+    '4': 'analytique',
+    '5': 'frise',
+    '?': 'help',
+  }
+  const next = map[e.key]
+  if (!next) return
+  if (next === 'help') {
+    showToast('Raccourcis : 1 Accueil, 2 Promotions, 3 Suivi, 4 Analytique, 5 Frise', 'info')
+    return
+  }
+  if (next === 'frise' && !isEnabled('frise')) return
+  e.preventDefault()
+  setTab(next)
+}
+onMounted(() => window.addEventListener('keydown', onDashKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onDashKeydown))
 </script>
 
 <template>
@@ -270,8 +300,8 @@ function setTab(tab: DashTabType) {
     />
 
     <TabAccueil
-      ref="tabAccueilRef"
       v-else-if="dashTab === 'accueil'"
+      ref="tabAccueilRef"
       :a-noter-count="aNoterCount"
       :submission-rate="submissionRate"
       :online-students="onlineStudents"
