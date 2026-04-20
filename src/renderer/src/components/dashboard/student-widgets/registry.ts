@@ -9,7 +9,7 @@ import {
   MessageSquare, FileBox, Activity, ListChecks,
   Clock, Quote, CalendarDays, TrendingUp, Bookmark, Timer,
   Hourglass, Users, Flame, LayoutGrid, Lightbulb, NotebookPen, Target,
-  Inbox, Notebook, Sparkles, Keyboard,
+  Inbox, Sparkles, Keyboard,
 } from 'lucide-vue-next'
 
 // Re-export pour compatibilite (l'ancien WidgetDef venait d'ici)
@@ -47,7 +47,6 @@ export const STUDENT_WIDGETS: WidgetDef[] = [
   // ── Nouveaux widgets v2.165 ──
   { id: 'messages',      label: 'Messages',            icon: MessageSquare, description: 'DMs et mentions non lus',                  category: 'communication',  sizes: ['1x1', '2x1', '2x2'],         defaultSize: '2x1', defaultEnabled: true,  role: 'student' },
   { id: 'rendus',        label: 'Rendus en attente',   icon: Inbox,         description: 'Devoirs rendus en attente de note',         category: 'tracking',       sizes: ['1x1', '2x1', '2x2'],         defaultSize: '2x1', defaultEnabled: true,  role: 'student' },
-  { id: 'cahier',        label: 'Cahiers collab',      icon: Notebook,      description: 'Vos cahiers collaboratifs recents',         category: 'productivity',   sizes: ['1x1', '2x1', '2x2'],         defaultSize: '2x1', defaultEnabled: false, role: 'student' },
   { id: 'actu',          label: 'Quoi de neuf',        icon: Sparkles,      description: 'Nouveautes Cursus',                         category: 'fun',            sizes: ['1x1', '2x1'],                defaultSize: '2x1', defaultEnabled: false, role: 'both' },
   // ── TypeRace (v2.170 — mini-jeu typing speed avec leaderboard promo) ──
   { id: 'typerace',      label: 'TypeRace',            icon: Keyboard,      description: 'Mini-jeu typing speed + classement du jour', category: 'fun',           sizes: ['2x1', '2x2'],                defaultSize: '2x1', defaultEnabled: false, role: 'both' },

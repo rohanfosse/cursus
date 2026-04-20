@@ -27,7 +27,6 @@ import WidgetStickyNote from './teacher-widgets/WidgetStickyNote.vue'
 import WidgetPromoVelocity from './teacher-widgets/WidgetPromoVelocity.vue'
 import WidgetFeedbackTemplates from './teacher-widgets/WidgetFeedbackTemplates.vue'
 import WidgetAgendaJour from './teacher-widgets/WidgetAgendaJour.vue'
-import WidgetCahier from './student-widgets/WidgetCahier.vue'
 import WidgetActuCursus from './student-widgets/WidgetActuCursus.vue'
 import WidgetTypeRace from './student-widgets/WidgetTypeRace.vue'
 import MultiPromoCard from './MultiPromoCard.vue'
@@ -137,7 +136,6 @@ const optWidgetComponents: Record<string, Component> = {
   'promo-velocity': WidgetPromoVelocity,
   'feedback-templates': WidgetFeedbackTemplates,
   'agenda-jour': WidgetAgendaJour,
-  'cahier': WidgetCahier,
   'actu': WidgetActuCursus,
   'typerace': WidgetTypeRace,
 }

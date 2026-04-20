@@ -3,7 +3,11 @@
  *  les schemas (rendus cote viewer apres injection DOM). */
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import hljs from 'highlight.js'
+// hljs/lib/common : 36 langages (~600KB gzip) au lieu des 190 du paquet full
+// (~8.6MB raw). Subset couvre tous les langages usuels — js/ts/py/java/kotlin/
+// rust/go/sql/yaml/bash/css/html/json/md/etc. HLJS_AUTO_SUBSET ci-dessous
+// narrow plus encore pour la detection automatique.
+import hljs from 'highlight.js/lib/common'
 import katex from 'katex'
 
 // Configuration de marked : code highlighting + breaks + GFM

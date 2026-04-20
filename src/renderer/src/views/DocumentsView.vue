@@ -19,9 +19,10 @@
   import { useDocumentsBatchSelection } from '@/composables/useDocumentsBatchSelection'
   import { useDocumentsViewMode } from '@/composables/useDocumentsViewMode'
   import { useSlashFocusSearch } from '@/composables/useSlashFocusSearch'
-  import { useCahierStore } from '@/stores/cahier'
-  import CahierList from '@/components/cahier/CahierList.vue'
-  import CahierEditor from '@/components/cahier/CahierEditor.vue'
+  // Cahiers collaboratifs (TipTap + Yjs + Hocuspocus) : desactives pour le
+  // pilote CESI 2026 — feature non utilisee, economise ~800 Ko + dependances
+  // hocuspocus cote serveur. Les composants Vue et la table DB restent pour
+  // pouvoir reactiver sans migration.
   import DocumentAddModal from '@/components/documents/DocumentAddModal.vue'
   import DocumentEditModal from '@/components/documents/DocumentEditModal.vue'
   import DocumentCard from '@/components/documents/DocumentCard.vue'
@@ -35,7 +36,6 @@
   const api      = window.api
   const appStore = useAppStore()
   const docStore = useDocumentsStore()
-  const cahierStore = useCahierStore()
 
   // ── View mode: grid vs list (persiste en localStorage) ───────────────
   const { mode: viewMode } = useDocumentsViewMode()
@@ -137,11 +137,7 @@
 
 <template>
   <ErrorBoundary label="Ressources">
-  <!-- Cahier editor overlay (takes over the full view) -->
-  <CahierEditor v-if="cahierStore.activeCahierId" />
-
   <div
-    v-else
     id="documents-area" class="docs-layout"
     @dragenter="onDragEnter" @dragleave="onDragLeave"
     @dragover="onDragOver" @drop="onDrop"
@@ -290,11 +286,6 @@
         {{ cat }}
         <span class="docs-cat-count">{{ docStore.documents.filter((d) => (d.category ?? 'Général') === cat).length }}</span>
       </button>
-    </div>
-
-    <!-- ── Cahiers collaboratifs ─────────────────────────────────────── -->
-    <div class="docs-cahier-section">
-      <CahierList />
     </div>
 
     <!-- ── Contenu ─────────────────────────────────────────────────────── -->

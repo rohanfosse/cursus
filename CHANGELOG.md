@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.197.0 (2026-04-20)
+
+### Bundle + perf
+
+Suite de l'audit perf avec benchmark systematique avant shipping.
+
+- **Cahiers collaboratifs desactives** (non utilises pour le pilote CESI 2026) : entree UI retiree de DocumentsView et des widgets dashboard (student + teacher). Composants, store et deps restent en place pour pouvoir reactiver sans migration. **DocumentsView : 1237 Ko -> 86 Ko** (-93%, TipTap + Yjs + Hocuspocus tree-shake).
+- **highlight.js -> /lib/common** (36 langages courants au lieu de 190). HLJS_AUTO_SUBSET (shipped en v2.195.1) narrow deja a 11 langages, aucune regression fonctionnelle. **LumenView : 2134 Ko -> 945 Ko** (-55%). La fast path Lumen (lire un chapitre) est dramatiquement plus legere.
+- **`loadReminders` dans `Promise.all`** (useDashboardTeacher) : fusionne l'IPC des rappels avec les 4 autres appels du batch initial du dashboard teacher. Economise 1 IPC round-trip sequentiel (~5-20 ms).
+
+### Bundle total : 25 Mo -> 24 Mo
+
+### Faux positifs confirmes par benchmark
+
+- **Prepared statements caches au module-level** : mesure 3x plus rapide sur `.prepare()` (8.2us -> 2.7us) mais un dashboard complet n'execute que ~8 queries = 40us total, pas assez de ROI pour un refactor de 50+ fonctions.
+
 ## v2.196.1 (2026-04-20)
 
 ### Performance DB

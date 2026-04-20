@@ -234,11 +234,14 @@ export function useDashboardTeacher() {
   async function loadTeacherData(checkDevoirsResources: () => void) {
     try {
       type Schedule = { aNoter: unknown[]; brouillons: unknown[] }
-      const [schedData, promosData, studData, ganttData] = await Promise.all([
+      // Rappels inclus dans Promise.all : evite un IPC round-trip sequentiel
+      // supplementaire apres le batch (~5-20 ms selon la latence du main).
+      const [schedData, promosData, studData, ganttData, remindersData] = await Promise.all([
         api<Schedule>(() => window.api.getTeacherSchedule() as Promise<{ ok: boolean; data?: Schedule }>),
         api<Promotion[]>(() => window.api.getPromotions()),
         api<typeof allStudents.value>(() => window.api.getAllStudents()),
         api<GanttRow[]>(() => window.api.getGanttData(0 as number) as Promise<{ ok: boolean; data?: GanttRow[] }>),
+        api<Reminder[]>(() => window.api.getTeacherReminders()),
       ])
       if (schedData) {
         aNoterCount.value     = schedData.aNoter?.length     ?? 0
@@ -254,7 +257,7 @@ export function useDashboardTeacher() {
       }
       allStudents.value = studData ?? []
       ganttAll.value    = ganttData ?? []
-      loadReminders()
+      allReminders.value = remindersData ?? []
       checkDevoirsResources()
       if (promos.value.length) {
         const pid = appStore.activePromoId ?? promos.value[0]?.id

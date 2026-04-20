@@ -10,7 +10,7 @@
 import { renderMarkdown } from '@/utils/markdown'
 import { escapeHtml } from '@/utils/html'
 import DOMPurify from 'dompurify'
-import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/common'
 
 interface NotebookCell {
   cell_type: 'code' | 'markdown' | 'raw'
