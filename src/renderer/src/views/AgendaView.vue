@@ -9,7 +9,7 @@ import AgendaMonthGrid from '@/components/agenda/AgendaMonthGrid.vue'
 import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Plus, Trash2, RefreshCw, X, Clock, Tag, ExternalLink, ChevronLeft, ChevronRight, Check, AlertCircle, Download, Filter, Copy, Edit3, Calendar as CalIcon, Video, MapPin, User } from 'lucide-vue-next'
+import { Plus, Trash2, RefreshCw, X, Clock, Tag, ExternalLink, ChevronLeft, ChevronRight, Check, AlertCircle, Download, Filter, Copy, Edit3, Calendar as CalIcon, Video, MapPin, User, Search } from 'lucide-vue-next'
 import { useAppStore }   from '@/stores/app'
 import { useAgendaStore } from '@/stores/agenda'
 import { useToast } from '@/composables/useToast'
@@ -38,8 +38,13 @@ const fetchPromoId = computed(() => isTeacher.value ? 0 : promoId.value)
 // ── Filters ───────────────────────────────────────────────────────────────
 const {
   showDeadlines, showStartDates, showReminders, showOutlook, showFilters,
+  searchQuery,
   filteredEvents,
 } = useAgendaFilters()
+
+const searchInputRef = ref<HTMLInputElement | null>(null)
+function focusSearch() { searchInputRef.value?.focus(); searchInputRef.value?.select() }
+function clearSearch() { searchQuery.value = ''; searchInputRef.value?.focus() }
 
 // ── Calendar ref + view control ──────────────────────────────────────────
 const { activeView, currentTitle, selectedDate, goPrev, goNext, goToday, switchView } = useAgendaViewNav()
@@ -391,6 +396,7 @@ useAgendaKeyboardShortcuts({
   goNext,
   closeCtxMenu,
   closeDetail,
+  focusSearch,
 })
 
 onMounted(() => {
@@ -431,6 +437,26 @@ watch(() => route.query, (q) => {
         <h1 class="ag-current-title" aria-live="polite">{{ currentTitle || 'Calendrier' }}</h1>
       </div>
       <div class="agenda-toolbar-right">
+        <div class="ag-search" :class="{ 'ag-search--filled': !!searchQuery }">
+          <Search :size="13" class="ag-search-icon" aria-hidden="true" />
+          <input
+            ref="searchInputRef"
+            type="search"
+            class="ag-search-input"
+            v-model="searchQuery"
+            placeholder="Rechercher... (/)"
+            aria-label="Rechercher dans le calendrier"
+            @keydown.esc.prevent="clearSearch"
+          />
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="ag-search-clear"
+            @click="clearSearch"
+            aria-label="Effacer la recherche"
+            title="Effacer"
+          ><X :size="12" aria-hidden="true" /></button>
+        </div>
         <div class="ag-view-switch" role="group" aria-label="Changer de vue">
           <button type="button" class="ag-view-btn" :class="{ active: activeView === 'month' }" @click="switchView('month')" title="Vue mois (M)" :aria-pressed="activeView === 'month'">Mois</button>
           <button type="button" class="ag-view-btn" :class="{ active: activeView === 'week' }" @click="switchView('week')" title="Vue semaine (S)" :aria-pressed="activeView === 'week'">Semaine</button>
@@ -560,11 +586,18 @@ watch(() => route.query, (q) => {
             <rect class="ag-empty-ev ag-empty-ev2" x="68" y="62" width="22" height="6" rx="2" fill="var(--color-success)" opacity="0.72" />
             <rect class="ag-empty-ev ag-empty-ev3" x="42" y="80" width="20" height="6" rx="2" fill="var(--color-info)" opacity="0.78" />
           </svg>
-          <p class="ag-empty-title">Rien de prévu pour cette période</p>
-          <p class="ag-empty-hint">
-            {{ isTeacher ? 'Créez un rappel avec la touche N, double-cliquez sur un jour, ou faites glisser un événement pour le replanifier.' : 'Vos échéances apparaîtront ici dès qu\'un devoir sera publié par votre enseignant.' }}
+          <p class="ag-empty-title">
+            {{ searchQuery ? `Aucun résultat pour "${searchQuery}"` : 'Rien de prévu pour cette période' }}
           </p>
-          <button v-if="isTeacher" class="ag-btn ag-btn--accent" @click="showForm = true">
+          <p class="ag-empty-hint">
+            {{ searchQuery
+              ? 'Essayez un autre mot-cle, ou effacez la recherche.'
+              : (isTeacher ? 'Créez un rappel avec la touche N, double-cliquez sur un jour, ou faites glisser un événement pour le replanifier.' : 'Vos échéances apparaîtront ici dès qu\'un devoir sera publié par votre enseignant.') }}
+          </p>
+          <button v-if="searchQuery" class="ag-btn ag-btn--accent" @click="clearSearch">
+            <X :size="14" aria-hidden="true" /> Effacer la recherche
+          </button>
+          <button v-else-if="isTeacher" class="ag-btn ag-btn--accent" @click="showForm = true">
             <Plus :size="14" aria-hidden="true" /> Nouveau rappel
           </button>
         </div>
@@ -778,6 +811,41 @@ watch(() => route.query, (q) => {
   letter-spacing: -0.015em;
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Search bar ── */
+.ag-search {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  min-width: 180px; max-width: 260px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
+}
+.ag-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
+  background: var(--bg-main);
+}
+.ag-search--filled { border-color: var(--accent); }
+.ag-search-icon { color: var(--text-muted); flex-shrink: 0; }
+.ag-search-input {
+  flex: 1; min-width: 0;
+  background: transparent; border: none; outline: none;
+  color: var(--text-primary);
+  font-size: 12px; font-family: inherit;
+  padding: 0;
+}
+.ag-search-input::placeholder { color: var(--text-muted); }
+.ag-search-input::-webkit-search-cancel-button { display: none; }
+.ag-search-clear {
+  display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--bg-hover); border: none;
+  color: var(--text-muted); cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.ag-search-clear:hover { background: var(--accent); color: #fff; }
 
 .ag-view-switch {
   display: flex; background: var(--bg-elevated); border: 1px solid var(--border);

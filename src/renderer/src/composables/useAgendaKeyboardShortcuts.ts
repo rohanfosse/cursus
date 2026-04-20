@@ -26,6 +26,7 @@ export interface AgendaShortcutHandlers {
   goNext: () => void
   closeCtxMenu: () => void
   closeDetail: () => void
+  focusSearch?: () => void
 }
 
 /** Détecte si l'évènement provient d'un champ éditable (ne déclenche pas de raccourci). */
@@ -71,6 +72,9 @@ export function useAgendaKeyboardShortcuts(h: AgendaShortcutHandlers) {
         break
       case 'arrowright':
         if (!h.detailOpen.value) h.goNext()
+        break
+      case '/':
+        if (h.focusSearch) { h.focusSearch(); e.preventDefault() }
         break
       case 'escape':
         if (h.ctxMenu.value) h.closeCtxMenu()
