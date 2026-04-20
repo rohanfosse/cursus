@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.196.1 (2026-04-20)
+
+### Performance DB
+
+Audit dedie de la base SQLite (better-sqlite3) — 2 safe wins de gros impact.
+
+- **PRAGMAs tunes** dans `connection.js#applyPragmas` :
+  - `synchronous = NORMAL` (combine avec WAL deja actif) : ~2-3x les writes. La DB reste coherente ; seul le tout-dernier commit peut etre perdu si l'OS crashe pendant un fsync — acceptable en Electron local.
+  - `cache_size = -10000` (10 MB au lieu des 2 MB default) : plus de page churn sur les jointures messages/depots/students dans le dashboard prof.
+  - `mmap_size = 30000000` (30 MB mappes) : evite les `read()` syscalls sur les hot tables.
+- **`seedIfEmpty()` en transaction** : les ~200 INSERTs du seed initial passent de 200 fsync a 1 seul (~100 ms -> ~10 ms sur premier lancement ou reset).
+
+### Notes d'audit
+
+L'audit a liste des gains plus importants mais plus risques, laisses pour une release dediee :
+- Subqueries correlees dans `getTravaux()` (3 `COUNT(*)` correles) — refactor en CTE (+40% dashboard prof).
+- `messages.reactions` en TEXT JSON -> table `message_reactions` normalisee (agregats DB).
+- `channels.members` JSON -> table `channel_members`.
+
 ## v2.196.0 (2026-04-20)
 
 ### Performance

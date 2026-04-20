@@ -65,6 +65,19 @@ function applyPragmas(instance) {
   instance.pragma('journal_mode = WAL')
   instance.pragma('foreign_keys = ON')
   instance.pragma('busy_timeout = 5000')
+  // synchronous=NORMAL est le combo recommande avec WAL : on troque un tiny
+  // risque de perte de derniere transaction (en cas de crash OS en pleine
+  // ecriture) contre ~2-3x les writes. Safe : la DB reste cohérente, seules
+  // les ecritures des dernieres millisecondes sont perdues. WAL garantit
+  // l'atomicite.
+  instance.pragma('synchronous = NORMAL')
+  // cache_size negatif = Ko (here 10 MB). Default = 2 MB, trop petit pour
+  // 90j de messages + dashboards prof : on evite le page churn sur les
+  // jointures messages/depots/students.
+  instance.pragma('cache_size = -10000')
+  // mmap_size : 30 MB de pages mappees directement en memoire, evite les
+  // read() syscalls pour les hot tables. Safe sur Electron (single process).
+  instance.pragma('mmap_size = 30000000')
 }
 
 /**
