@@ -119,7 +119,7 @@ describe('ctxItems', () => {
     const { result } = setup()
     const labels = result.ctxItems.value.map(i => i.label)
     expect(labels).toContain('Répondre')
-    expect(labels).toContain('Copier')
+    expect(labels).toContain('Copier le texte')
   })
 
   it('includes Modifier when canEdit is true', () => {
