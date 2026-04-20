@@ -1,6 +1,6 @@
 {
   "name": "cursus",
-  "version": "2.203.0",
+  "version": "2.203.1",
   "description": "Cursus - Suivez votre parcours de formation",
   "main": "out/main/index.js",
   "scripts": {
@@ -165,8 +165,10 @@
       "icon": "resources/icon.ico",
       "artifactName": "Cursus-${version}-win.${ext}",
       "signAndEditExecutable": true,
-      "signingHashAlgorithms": ["sha256"],
-      "rfc3161TimeStampServer": "http://timestamp.digicert.com"
+      "signtoolOptions": {
+        "signingHashAlgorithms": ["sha256"],
+        "rfc3161TimeStampServer": "http://timestamp.digicert.com"
+      }
     },
     "mac": {
       "target": "dmg",
@@ -184,7 +186,6 @@
       "repo": "cursus"
     },
     "compression": "maximum",
-    "differentialPackage": true,
     "nsis": {
       "oneClick": true,
       "installerIcon": "resources/icon.ico",
