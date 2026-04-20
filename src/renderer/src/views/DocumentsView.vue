@@ -1,11 +1,12 @@
 <script setup lang="ts">
   import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
   import UiPageHeader from '@/components/ui/UiPageHeader.vue'
-  import { computed } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import {
     Plus, Trash2, Search, X, FolderOpen, Menu,
-    LayoutGrid, List, Grid3x3, Star,
+    LayoutGrid, List, Grid3x3, Star, SlidersHorizontal,
   } from 'lucide-vue-next'
+  import { safeGetJSON, safeSetJSON } from '@/utils/safeStorage'
 
   import { useAppStore }       from '@/stores/app'
   import { useDocumentsStore } from '@/stores/documents'
@@ -126,6 +127,12 @@
     await navigator.clipboard.writeText(doc.content)
     showToast('Lien copié !', 'success')
   }
+
+  // ── Bandeau d'options repliable (style Word) ─────────────────────────────
+  // Par defaut ferme pour alleger le header ; persiste le choix utilisateur.
+  const OPTIONS_KEY = 'cc_docs_show_options'
+  const showOptions = ref<boolean>(safeGetJSON<boolean>(OPTIONS_KEY, false))
+  watch(showOptions, v => safeSetJSON(OPTIONS_KEY, v))
 </script>
 
 <template>
@@ -158,70 +165,113 @@
 
       <template #actions>
         <div class="docs-header-actions">
-        <!-- Recherche -->
-        <div class="docs-search">
-          <Search :size="14" class="docs-search-icon" />
-          <input
-            v-model="docStore.searchQuery"
-            type="text"
-            class="docs-search-input"
-            placeholder="Rechercher…"
-          />
-          <button v-if="docStore.searchQuery" class="docs-search-clear" aria-label="Effacer la recherche" @click="docStore.searchQuery = ''">
-            <X :size="12" />
-          </button>
-        </div>
-        <span v-if="searchResultsCount !== null" class="docs-results-count">{{ searchResultsCount }} résultat{{ searchResultsCount !== 1 ? 's' : '' }}</span>
+          <!-- Recherche (toujours visible, element principal) -->
+          <div class="docs-search">
+            <Search :size="14" class="docs-search-icon" />
+            <input
+              v-model="docStore.searchQuery"
+              type="text"
+              class="docs-search-input"
+              placeholder="Rechercher…  ( / )"
+            />
+            <button v-if="docStore.searchQuery" class="docs-search-clear" aria-label="Effacer la recherche" @click="docStore.searchQuery = ''">
+              <X :size="12" />
+            </button>
+          </div>
+          <span v-if="searchResultsCount !== null" class="docs-results-count">{{ searchResultsCount }} résultat{{ searchResultsCount !== 1 ? 's' : '' }}</span>
 
-        <!-- Toggle grille / dense / liste -->
-        <div class="docs-view-toggle">
+          <!-- Bouton Options (ouvre/ferme le bandeau) -->
           <button
-            class="docs-view-btn"
-            :class="{ active: viewMode === 'grid' }"
-            title="Grille"
-            aria-label="Vue grille"
-            @click="viewMode = 'grid'"
+            class="docs-options-toggle"
+            :class="{ active: showOptions }"
+            :title="showOptions ? 'Masquer les options' : 'Afficher les options'"
+            :aria-expanded="showOptions"
+            aria-controls="docs-options-bar"
+            @click="showOptions = !showOptions"
           >
-            <LayoutGrid :size="15" />
+            <SlidersHorizontal :size="14" />
+            <span class="docs-options-label">Options</span>
           </button>
-          <button
-            class="docs-view-btn"
-            :class="{ active: viewMode === 'dense' }"
-            title="Dense"
-            aria-label="Vue dense"
-            @click="viewMode = 'dense'"
-          >
-            <Grid3x3 :size="15" />
-          </button>
-          <button
-            class="docs-view-btn"
-            :class="{ active: viewMode === 'list' }"
-            title="Liste"
-            aria-label="Vue liste"
-            @click="viewMode = 'list'"
-          >
-            <List :size="15" />
-          </button>
-        </div>
 
-        <!-- Tri -->
-        <select v-model="sortBy" class="docs-sort-select" aria-label="Trier les documents">
-          <option value="date">Plus récents</option>
-          <option value="name">Nom A-Z</option>
-          <option value="type">Par type</option>
-          <option value="size">Par taille</option>
-        </select>
-
-        <!-- Ajouter (prof) -->
-        <button v-if="appStore.isTeacher" class="btn-primary docs-add-btn" @click="openAddModal">
-          <Plus :size="14" />
-          Ajouter
-        </button>
+          <!-- Ajouter (prof) — action principale, reste visible -->
+          <button v-if="appStore.isTeacher" class="btn-primary docs-add-btn" @click="openAddModal">
+            <Plus :size="14" />
+            Ajouter
+          </button>
         </div>
       </template>
     </UiPageHeader>
 
-    <!-- ── Filtres catégories ──────────────────────────────────────────── -->
+    <!-- ── Bandeau d'options repliable (style Word) ─────────────────────── -->
+    <Transition name="docs-options-slide">
+      <div v-if="showOptions" id="docs-options-bar" class="docs-options-bar" role="region" aria-label="Options d'affichage">
+        <!-- Vue -->
+        <div class="docs-options-group">
+          <span class="docs-options-group-label">Vue</span>
+          <div class="docs-view-toggle">
+            <button class="docs-view-btn" :class="{ active: viewMode === 'grid' }" title="Grille" aria-label="Vue grille" @click="viewMode = 'grid'"><LayoutGrid :size="14" /></button>
+            <button class="docs-view-btn" :class="{ active: viewMode === 'dense' }" title="Dense" aria-label="Vue dense" @click="viewMode = 'dense'"><Grid3x3 :size="14" /></button>
+            <button class="docs-view-btn" :class="{ active: viewMode === 'list' }" title="Liste" aria-label="Vue liste" @click="viewMode = 'list'"><List :size="14" /></button>
+          </div>
+        </div>
+
+        <!-- Tri -->
+        <div class="docs-options-group">
+          <span class="docs-options-group-label">Trier</span>
+          <select v-model="sortBy" class="docs-sort-select" aria-label="Trier les documents">
+            <option value="date">Plus récents</option>
+            <option value="name">Nom A-Z</option>
+            <option value="type">Par type</option>
+            <option value="size">Par taille</option>
+          </select>
+        </div>
+
+        <!-- Type -->
+        <div class="docs-options-group docs-options-group--type">
+          <span class="docs-options-group-label">Type</span>
+          <button
+            v-for="tf in TYPE_FILTERS"
+            :key="tf.id ?? 'all'"
+            class="docs-cat-pill"
+            :class="{ active: activeTypeFilter === tf.id }"
+            @click="activeTypeFilter = activeTypeFilter === tf.id ? null : tf.id"
+          >
+            {{ tf.label }}
+          </button>
+        </div>
+
+        <!-- Favoris + actions (teacher) -->
+        <div class="docs-options-group">
+          <button
+            class="docs-cat-pill docs-fav-pill"
+            :class="{ active: showFavoritesOnly }"
+            @click="showFavoritesOnly = !showFavoritesOnly"
+          >
+            <Star :size="11" /> Favoris
+          </button>
+          <template v-if="appStore.isTeacher">
+            <button v-if="!selectionMode" class="docs-cat-pill" @click="selectionMode = true">Sélectionner</button>
+            <template v-else>
+              <button class="docs-cat-pill" @click="selectAll">Tout cocher</button>
+              <button v-if="selectedIds.size > 0" class="docs-cat-pill docs-batch-delete" @click="deleteSelected">
+                <Trash2 :size="11" /> Supprimer ({{ selectedIds.size }})
+              </button>
+              <button class="docs-cat-pill" @click="clearSelection">Annuler</button>
+            </template>
+          </template>
+        </div>
+
+        <!-- Stats compactees : infos secondaires -->
+        <div v-if="docStore.documents.length" class="docs-options-stats">
+          <span>{{ docStore.documents.length }} docs</span>
+          <span v-if="recentCount > 0" class="docs-stat-value--accent">· {{ recentCount }} cette semaine</span>
+          <span v-if="totalStorageBytes > 0">· {{ formatStorage(totalStorageBytes) }}</span>
+          <span>· {{ categories.length }} catégorie{{ categories.length > 1 ? 's' : '' }}</span>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ── Filtres catégories (reste visible, principal filtre) ─────────── -->
     <div v-if="categories.length > 1" class="docs-categories">
       <button
         class="docs-cat-pill"
@@ -240,77 +290,6 @@
         {{ cat }}
         <span class="docs-cat-count">{{ docStore.documents.filter((d) => (d.category ?? 'Général') === cat).length }}</span>
       </button>
-    </div>
-
-    <!-- ── Filtres par type + favoris + batch ────────────────────────── -->
-    <div class="docs-categories docs-type-filters">
-      <button
-        v-for="tf in TYPE_FILTERS"
-        :key="tf.id ?? 'all'"
-        class="docs-cat-pill"
-        :class="{ active: activeTypeFilter === tf.id }"
-        @click="activeTypeFilter = activeTypeFilter === tf.id ? null : tf.id"
-      >
-        {{ tf.label }}
-      </button>
-      <span class="docs-filter-sep" />
-      <button
-        class="docs-cat-pill docs-fav-pill"
-        :class="{ active: showFavoritesOnly }"
-        @click="showFavoritesOnly = !showFavoritesOnly"
-      >
-        <Star :size="11" /> Favoris
-      </button>
-      <template v-if="appStore.isTeacher">
-        <span class="docs-filter-sep" />
-        <button
-          v-if="!selectionMode"
-          class="docs-cat-pill"
-          @click="selectionMode = true"
-        >
-          Sélectionner
-        </button>
-        <template v-else>
-          <button class="docs-cat-pill" @click="selectAll">Tout cocher</button>
-          <button v-if="selectedIds.size > 0" class="docs-cat-pill docs-batch-delete" @click="deleteSelected">
-            <Trash2 :size="11" /> Supprimer ({{ selectedIds.size }})
-          </button>
-          <button class="docs-cat-pill" @click="clearSelection">Annuler</button>
-        </template>
-      </template>
-    </div>
-
-    <!-- ── Stats bar ──────────────────────────────────────────────────── -->
-    <div v-if="docStore.documents.length" class="docs-stats-bar">
-      <div class="docs-stat">
-        <span class="docs-stat-value">{{ docStore.documents.length }}</span>
-        <span class="docs-stat-label">documents</span>
-      </div>
-      <div class="docs-stat-sep" />
-      <div class="docs-stat">
-        <span class="docs-stat-value">{{ docStore.documents.filter(d => d.type === 'file').length }}</span>
-        <span class="docs-stat-label">fichiers</span>
-      </div>
-      <div class="docs-stat-sep" />
-      <div class="docs-stat">
-        <span class="docs-stat-value">{{ docStore.documents.filter(d => d.type === 'link').length }}</span>
-        <span class="docs-stat-label">liens</span>
-      </div>
-      <div v-if="recentCount > 0" class="docs-stat-sep" />
-      <div v-if="recentCount > 0" class="docs-stat">
-        <span class="docs-stat-value docs-stat-value--accent">{{ recentCount }}</span>
-        <span class="docs-stat-label">cette semaine</span>
-      </div>
-      <div v-if="totalStorageBytes > 0" class="docs-stat-sep" />
-      <div v-if="totalStorageBytes > 0" class="docs-stat">
-        <span class="docs-stat-value">{{ formatStorage(totalStorageBytes) }}</span>
-        <span class="docs-stat-label">stockage</span>
-      </div>
-      <div class="docs-stat-sep" />
-      <div class="docs-stat">
-        <span class="docs-stat-value">{{ categories.length }}</span>
-        <span class="docs-stat-label">catégories</span>
-      </div>
     </div>
 
     <!-- ── Cahiers collaboratifs ─────────────────────────────────────── -->

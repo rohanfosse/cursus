@@ -109,6 +109,86 @@
   white-space: nowrap;
 }
 
+/* ── Toggle "Options" (ouvre/ferme le bandeau de reglages) ── */
+.docs-options-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.docs-options-toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
+.docs-options-toggle.active { background: rgba(var(--accent-rgb), .1); color: var(--accent); border-color: var(--accent); }
+.docs-options-label { font-weight: 600; }
+@media (max-width: 640px) {
+  .docs-options-label { display: none; }
+}
+
+/* ── Bandeau d'options repliable (style Word) ── */
+.docs-options-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px 20px;
+  padding: 10px 16px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+.docs-options-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.docs-options-group-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+.docs-options-group--type { flex: 1 1 auto; min-width: 0; }
+.docs-options-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.docs-options-stats .docs-stat-value--accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Transition slide du bandeau */
+.docs-options-slide-enter-active,
+.docs-options-slide-leave-active {
+  transition: opacity .18s ease, max-height .22s cubic-bezier(.4,0,.2,1), padding .22s cubic-bezier(.4,0,.2,1);
+}
+.docs-options-slide-enter-from,
+.docs-options-slide-leave-to {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.docs-options-slide-enter-to,
+.docs-options-slide-leave-from {
+  max-height: 180px;
+}
+
 /* ── Catégories ── */
 .docs-categories {
   display: flex;
