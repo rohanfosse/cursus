@@ -44,6 +44,40 @@ const {
 // ── Calendar ref + view control ──────────────────────────────────────────
 const { calRef, activeView, currentTitle, selectedDate, onViewChange, goPrev, goNext, goToday, switchView } = useAgendaViewNav()
 
+// ── Fenêtre de vue (week/day) pour détection all-day ─────────────────────
+function getWeekBounds(iso: string): [string, string] {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return [iso, iso]
+  const day = d.getDay()
+  const mondayOffset = day === 0 ? -6 : 1 - day
+  const monday = new Date(d)
+  monday.setDate(d.getDate() + mondayOffset)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  return [monday.toISOString().slice(0, 10), sunday.toISOString().slice(0, 10)]
+}
+
+// Masque la bande all-day quand aucun event all-day dans la fenêtre visible.
+// Evite la "bande noire" qui cramait 40px en permanence.
+const hasAllDayInView = computed(() => {
+  if (activeView.value === 'month') return false
+  if (activeView.value === 'day') {
+    return filteredEvents.value.some(ev => {
+      if (!ev.allDay || typeof ev.start !== 'string') return false
+      const s = ev.start.slice(0, 10)
+      const e = typeof ev.end === 'string' ? ev.end.slice(0, 10) : s
+      return selectedDate.value >= s && selectedDate.value <= e
+    })
+  }
+  const [ws, we] = getWeekBounds(selectedDate.value)
+  return filteredEvents.value.some(ev => {
+    if (!ev.allDay || typeof ev.start !== 'string') return false
+    const s = ev.start.slice(0, 10)
+    const e = typeof ev.end === 'string' ? ev.end.slice(0, 10) : s
+    return !(e < ws || s > we)
+  })
+})
+
 // ── Day view hero : résumé du jour sélectionné ───────────────────────────
 const dayHero = computed(() => {
   if (activeView.value !== 'day') return null
@@ -561,7 +595,14 @@ watch(() => route.query, (q) => {
     </Transition>
 
     <div class="agenda-body">
-      <div class="agenda-cal-wrap" @contextmenu="onCalWrapContextMenu">
+      <div
+        class="agenda-cal-wrap"
+        :class="{
+          'agenda-cal-wrap--no-allday': !hasAllDayInView,
+          [`agenda-cal-wrap--${activeView}`]: true,
+        }"
+        @contextmenu="onCalWrapContextMenu"
+      >
         <!-- Skeleton overlay : affiche pendant le premier load (pas de spam pendant refresh) -->
         <div v-if="agenda.loading && !filteredEvents.length" class="ag-skeleton" aria-hidden="true">
           <div v-for="i in 12" :key="i" class="ag-skel-event" :style="{
@@ -892,14 +933,21 @@ watch(() => route.query, (q) => {
 :deep(.vuecal__title-bar) { display: none !important; }
 :deep(.vuecal__header) {
   background: var(--bg-elevated) !important; color: var(--text-primary) !important;
-  border-bottom: 2px solid var(--border) !important;
+  border-bottom: 1px solid var(--border) !important;
+  position: sticky; top: 0; z-index: 3;
 }
+/* Heading compact et identique Jour/Semaine (~56px) */
 :deep(.vuecal__heading) {
   font-size: 12px !important; font-weight: 600 !important;
-  color: var(--text-primary) !important; padding: 4px 0 !important;
-  height: auto !important;
-  min-height: 3.4em;
+  color: var(--text-primary) !important;
+  padding: 0 !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  max-height: 56px !important;
+  display: flex; align-items: stretch; justify-content: stretch;
 }
+:deep(.vuecal--day-view .vuecal__heading),
+:deep(.vuecal--week-view .vuecal__heading) { flex: 1 1 0; }
 
 /* ── Day heading custom slot — name top, number bottom (style Apple Calendar) ── */
 .ag-day-head {
@@ -907,25 +955,26 @@ watch(() => route.query, (q) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 10px 4px 8px;
+  gap: 2px;
+  padding: 8px 4px;
   width: 100%;
   box-sizing: border-box;
   position: relative;
 }
-.ag-day-head--month { padding: 8px 4px; }
+.ag-day-head--month { padding: 6px 4px; gap: 0; }
 .ag-day-name {
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
-  text-transform: capitalize;
-  letter-spacing: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
   order: -1;
+  line-height: 1.2;
 }
 .ag-day-num {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1;
@@ -948,10 +997,10 @@ watch(() => route.query, (q) => {
   background: var(--accent);
   color: #fff;
   border-radius: 50%;
-  width: 32px; height: 32px;
+  width: 30px; height: 30px;
   display: inline-flex; align-items: center; justify-content: center;
   font-weight: 700;
-  font-size: 17px;
+  font-size: 15px;
   letter-spacing: -0.01em;
   box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.35);
 }
@@ -1017,32 +1066,40 @@ watch(() => route.query, (q) => {
 }
 
 /* ══════════════ Hours grid (week/day view) — adoucie ══════════════ */
+/* Largeur identique Jour/Semaine pour alignement visuel parfait au switch */
 :deep(.vuecal__time-column) {
   background: transparent !important;
   border-right: 1px solid var(--border) !important;
-  width: 2.8em !important;
+  width: 56px !important;
+  flex: 0 0 56px !important;
 }
 :deep(.vuecal__time-cell) {
   color: var(--text-muted) !important;
   font-size: 10.5px !important; font-weight: 500 !important;
-  text-align: right; padding-right: 6px;
+  text-align: right; padding-right: 8px;
   opacity: 0.7;
   font-variant-numeric: tabular-nums;
 }
 /* Demi-heures : tres discretes (presque invisibles) */
 :deep(.vuecal__time-cell-line) {
   border-top: 1px dashed var(--border) !important;
-  opacity: 0.25;
+  opacity: 0.2;
 }
 /* Heures pleines : ligne pleine mais legere */
 :deep(.vuecal__time-cell-line.hours::before) {
   border-top: 1px solid var(--border) !important;
-  opacity: 0.4;
+  opacity: 0.35;
 }
 /* Separateurs de colonnes (entre jours) adoucis */
-:deep(.vuecal__cell:before) {
+:deep(.vuecal__cell:before),
+:deep(.vuecal__cells.week-view .vuecal__cell:not(:last-child)) {
   border-color: var(--border) !important;
-  opacity: 0.5;
+  opacity: 0.4;
+}
+/* Entete : separation fine entre colonnes de jours */
+:deep(.vuecal--week-view .vuecal__heading:not(:last-child)) {
+  border-right: 1px solid var(--border);
+  opacity: 1;
 }
 
 /* Cacher toute navigation residuelle de VueCal (title-bar + fleches internes) */
@@ -1158,21 +1215,39 @@ watch(() => route.query, (q) => {
   font-style: italic;
 }
 
-/* ══════════════ All-day events (barre horizontale haut de journee, style Outlook) ══ */
+/* ══════════════ All-day events (strip fine, style Fantastical) ══════════════ */
+/* Masque quand aucun event all-day dans la fenêtre (règle la "bande noire"). */
+.agenda-cal-wrap--no-allday :deep(.vuecal__all-day) {
+  display: none !important;
+}
 :deep(.vuecal__all-day) {
-  min-height: 2.2em !important;
-  max-height: 6em;
+  min-height: 30px !important;
+  max-height: 96px;
   background: var(--bg-main);
   border-bottom: 1px solid var(--border);
   padding: 3px 0 4px;
   overflow-y: auto;
+  position: sticky;
+  top: 56px;
+  z-index: 2;
 }
+/* Label latéral "All day" : aligné sur largeur time-column (56px) */
 :deep(.vuecal__all-day-text) {
   color: var(--text-muted) !important;
-  border-bottom: 1px solid var(--border) !important;
+  border-bottom: none !important;
+  border-right: 1px solid var(--border) !important;
   font-size: 10px !important;
   font-weight: 600;
-  width: 3em !important;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  width: 56px !important;
+  flex: 0 0 56px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  box-sizing: border-box;
+  opacity: 0.7;
 }
 :deep(.vuecal__event--all-day) {
   min-height: 22px !important;
