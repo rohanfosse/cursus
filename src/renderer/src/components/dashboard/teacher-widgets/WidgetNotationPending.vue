@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { Edit3, ChevronRight } from 'lucide-vue-next'
+import { Edit3, ChevronRight, FileText, Copy, ListChecks } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useTravauxStore } from '@/stores/travaux'
 import { useAppStore } from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
+import { useToast } from '@/composables/useToast'
+import { useContextMenu } from '@/composables/useContextMenu'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 
 const router = useRouter()
 const travauxStore = useTravauxStore()
@@ -52,6 +55,24 @@ async function openDevoir(travailId: number) {
 }
 
 function goToDevoirs() { router.push('/assignments') }
+
+const { showToast } = useToast()
+const { ctx, open: openCtx, close: closeCtx } = useContextMenu<Pending>()
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const p = ctx.value?.target
+  if (!p) return []
+  return [
+    { label: 'Ouvrir les rendus', icon: ListChecks, action: () => openDevoir(p.travailId) },
+    { label: 'Ouvrir le devoir', icon: FileText, action: async () => {
+      await travauxStore.openTravail(p.travailId)
+      modals.gestionDevoir = true
+    } },
+    { label: 'Copier le titre', icon: Copy, separator: true, action: async () => {
+      await navigator.clipboard.writeText(p.title)
+      showToast('Titre copié.', 'success')
+    } },
+  ]
+})
 </script>
 
 <template>
@@ -78,6 +99,7 @@ function goToDevoirs() { router.push('/assignments') }
         @click.stop="openDevoir(p.travailId)"
         @keydown.enter.stop="openDevoir(p.travailId)"
         @keydown.space.prevent.stop="openDevoir(p.travailId)"
+        @contextmenu="openCtx($event, p, true)"
       >
         <span class="wnp-title">{{ p.title }}</span>
         <span class="wnp-ratio">
@@ -85,6 +107,13 @@ function goToDevoirs() { router.push('/assignments') }
         </span>
       </li>
     </ul>
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </UiWidgetCard>
 </template>
 

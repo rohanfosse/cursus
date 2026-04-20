@@ -1,5 +1,30 @@
 # Changelog
 
+## v2.188.0 (2026-04-20)
+
+### Nouvelles fonctionnalites
+
+- **Menus contextuels (clic droit)** sur 17 nouvelles zones + enrichissement du menu message :
+  - Nouveau composable `useContextMenu<T>()` pour factoriser le pattern
+  - `CahierList` : ouvrir, copier titre, renommer, supprimer
+  - `AgendaDayNotes` : copier texte, supprimer
+  - `ProjectListPanel` : copier nom, renommer, supprimer
+  - `LumenOutline` : aller a la section, copier titre/ancre
+  - `PinnedBanner` : aller au message, copier contenu, desepingler
+  - `LumenChapterPickerModal` : lier, copier titre/chemin/repo
+  - `IntervenantsModal` : gerer canaux, copier email/nom, mailto, supprimer
+  - `ClasseModal` : profil, DM, copier nom/note
+  - `WidgetNotationPending` : ouvrir rendus/devoir, copier titre
+  - `WidgetAtRisk` : profil, DM, copier nom/score
+  - `LumenRepoSidebar` : ouvrir chapitre, copier titre/chemin/lumen://, marquer lu
+  - `SidebarFichiers` : voir fichiers, DM, filtrer images/docs, copier nom
+  - `Leaderboard` : copier nom/score, DM, encourager
+  - `MessageWall` : copier, aimer, masquer, supprimer, signaler
+  - `LumenAnnotations` : copier passage/commentaire, modifier, supprimer
+  - `BookingPage` : reserver, copier date/lien, ajouter a Google Calendar
+  - `AccueilActivityTile` : ouvrir rendus/devoir, copier libelle
+  - `MessageBubble` enrichi : copier lien/ID/auteur, mettre en signet, DM a l'auteur
+
 ## v2.2.3 (2026-03-29)
 
 ### Nouvelles fonctionnalites

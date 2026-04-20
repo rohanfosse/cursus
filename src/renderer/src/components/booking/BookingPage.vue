@@ -5,9 +5,11 @@
  * Step 3: Confirmation (Teams link, .ics download, cancel link)
  */
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
-import { Calendar, Clock, User, Mail, ChevronLeft, ChevronRight, Check, Video, Download, ArrowLeft } from 'lucide-vue-next'
-import { usePublicBooking } from '@/composables/usePublicBooking'
+import { onMounted, onBeforeUnmount, ref, computed } from 'vue'
+import { Calendar, Clock, User, Mail, ChevronLeft, ChevronRight, Check, Video, Download, ArrowLeft, Copy, CalendarPlus } from 'lucide-vue-next'
+import { usePublicBooking, type BookingSlot } from '@/composables/usePublicBooking'
+import { useContextMenu } from '@/composables/useContextMenu'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 
 const props = defineProps<{ token: string }>()
 
@@ -82,6 +84,44 @@ onMounted(async () => {
   await fetchEventInfo()
   if (eventInfo.value) await fetchSlots(0)
 })
+
+// Toast local car useToast n'est pas dispo dans la vue publique (hors du shell app).
+const toastMsg = ref<string | null>(null)
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+function toast(msg: string) {
+  toastMsg.value = msg
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toastMsg.value = null }, 2500)
+}
+onBeforeUnmount(() => {
+  if (toastTimer) clearTimeout(toastTimer)
+})
+
+const { ctx, open: openCtx, close: closeCtx } = useContextMenu<BookingSlot>()
+function buildGoogleCalUrl(s: BookingSlot): string {
+  const start = s.start.replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  const end = s.end.replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  const title = encodeURIComponent(eventInfo.value?.eventTitle ?? 'Rendez-vous')
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}`
+}
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const s = ctx.value?.target
+  if (!s) return []
+  return [
+    { label: 'Réserver ce créneau', icon: Check, action: () => selectSlot(s) },
+    { label: 'Copier la date/heure', icon: Copy, separator: true, action: async () => {
+      await navigator.clipboard.writeText(`${formatFullDate(s.start)} ${formatTime(s.start)}-${formatTime(s.end)}`)
+      toast('Créneau copié.')
+    } },
+    { label: 'Copier le lien de la page', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(window.location.href)
+      toast('Lien copié.')
+    } },
+    { label: 'Ajouter à Google Calendar', icon: CalendarPlus, separator: true, action: () => {
+      window.open(buildGoogleCalUrl(s), '_blank', 'noopener')
+    } },
+  ]
+})
 </script>
 
 <template>
@@ -137,6 +177,7 @@ onMounted(async () => {
                 :key="s.start"
                 class="bp-slot"
                 @click="selectSlot(s)"
+                @contextmenu="openCtx($event, s)"
               >
                 {{ s.time }}
               </button>
@@ -204,10 +245,29 @@ onMounted(async () => {
         </div>
       </div>
     </template>
+
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
+    <div v-if="toastMsg" class="bp-toast">{{ toastMsg }}</div>
   </div>
 </template>
 
 <style scoped>
+.bp-toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,.85); color: #fff;
+  padding: 10px 16px; border-radius: 8px; font-size: 13px;
+  z-index: 10000; animation: bp-toast-in .2s ease-out;
+}
+@keyframes bp-toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
 .bp {
   --accent: #6366f1;
   max-width: 520px; width: 100%;

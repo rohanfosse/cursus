@@ -14,13 +14,16 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import { X, Search, FileText, Loader2, FolderGit2 } from 'lucide-vue-next'
+import { X, Search, FileText, Loader2, FolderGit2, Link2, Copy, FolderOpen } from 'lucide-vue-next'
 import { useLumenStore } from '@/stores/lumen'
+import { useToast } from '@/composables/useToast'
+import { useContextMenu } from '@/composables/useContextMenu'
 import {
   buildPickerEntries,
   filterPickerEntries,
   type PickerEntry,
 } from '@/utils/lumenDevoirLinks'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 
 interface Props {
   promoId: number
@@ -63,6 +66,30 @@ function pick(entry: PickerEntry): void {
   if (entry.alreadyLinked) return
   emit('link', entry.repoId, entry.chapter.path)
 }
+
+const { showToast } = useToast()
+const { ctx, open: openCtx, close: closeCtx } = useContextMenu<PickerEntry>()
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const en = ctx.value?.target
+  if (!en) return []
+  const items: ContextMenuItem[] = []
+  if (!en.alreadyLinked) {
+    items.push({ label: 'Lier à ce devoir', icon: Link2, action: () => pick(en) })
+  }
+  items.push({ label: 'Copier le titre', icon: Copy, separator: items.length > 0, action: async () => {
+    await navigator.clipboard.writeText(en.chapter.title)
+    showToast('Titre copié.', 'success')
+  } })
+  items.push({ label: 'Copier le chemin', icon: Copy, action: async () => {
+    await navigator.clipboard.writeText(en.chapter.path)
+    showToast('Chemin copié.', 'success')
+  } })
+  items.push({ label: 'Copier le repo', icon: FolderOpen, action: async () => {
+    await navigator.clipboard.writeText(en.repoLabel)
+    showToast('Repo copié.', 'success')
+  } })
+  return items
+})
 </script>
 
 <template>
@@ -106,6 +133,7 @@ function pick(entry: PickerEntry): void {
             :disabled="entry.alreadyLinked"
             :title="entry.alreadyLinked ? 'Deja lie a ce devoir' : 'Lier ce chapitre'"
             @click="pick(entry)"
+            @contextmenu="openCtx($event, entry)"
           >
             <div class="lcpm-item-main">
               <span class="lcpm-item-title">{{ entry.chapter.title }}</span>
@@ -119,6 +147,14 @@ function pick(entry: PickerEntry): void {
           </button>
         </li>
       </ul>
+
+      <ContextMenu
+        v-if="ctx"
+        :x="ctx.x"
+        :y="ctx.y"
+        :items="ctxItems"
+        @close="closeCtx"
+      />
     </div>
   </div>
 </template>

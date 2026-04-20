@@ -3,8 +3,9 @@
  * Used by ChatBubble.vue
  */
 import { ref, computed } from 'vue'
-import { Pin, PinOff, Copy, Trash2, Pencil, Reply, AlertTriangle } from 'lucide-vue-next'
+import { Pin, PinOff, Copy, Trash2, Pencil, Reply, AlertTriangle, Bookmark, BookmarkCheck, Link2, MessageCircle, Hash } from 'lucide-vue-next'
 import { useAppStore }      from '@/stores/app'
+import { useToast }         from '@/composables/useToast'
 import { avatarColor }      from '@/utils/format'
 import { renderMessageContent } from '@/utils/html'
 import type { ContextMenuItem } from '@/components/ui/ContextMenu.vue'
@@ -21,6 +22,10 @@ interface MenuDeps {
   togglePin:    () => void
   deleteMessage: () => void
   reportingMsg: { value: boolean }
+  bookmark?: {
+    isBookmarked: () => boolean
+    toggle:       () => void
+  }
 }
 
 /**
@@ -32,6 +37,7 @@ export function useBubbleMenu(
   deps: MenuDeps,
 ) {
   const appStore = useAppStore()
+  const { showToast } = useToast()
 
   // ── Lightbox
   const lightboxUrl = ref<string | null>(null)
@@ -51,16 +57,75 @@ export function useBubbleMenu(
     ctxVisible.value = true
   }
 
-  const ctxItems = computed<ContextMenuItem[]>(() => [
-    { label: 'Répondre',  icon: Reply,  action: () => { deps.onReply(); showMenu.value = false } },
-    { label: 'Copier',    icon: Copy,   action: () => { deps.copyMessage(); showMenu.value = false } },
-    ...(deps.canEdit()    ? [{ label: 'Modifier',   icon: Pencil, action: () => { deps.startEdit(); showMenu.value = false } }] : []),
-    ...(appStore.isTeacher
-      ? [{ label: deps.isPinned() ? 'Désépingler' : 'Épingler', icon: deps.isPinned() ? PinOff : Pin, action: () => { deps.togglePin(); showMenu.value = false } }]
-      : []),
-    ...(!deps.isMine() ? [{ label: 'Signaler', icon: AlertTriangle, separator: true, action: () => { deps.reportingMsg.value = true } }] : []),
-    ...(deps.canDelete()  ? [{ label: 'Supprimer',  icon: Trash2, danger: true, separator: !deps.isMine() ? false : true, action: () => { deps.deleteMessage(); showMenu.value = false } }] : []),
-  ])
+  async function copyPermalink() {
+    const m = msg()
+    const href = m.channel_id
+      ? `cursus://channel/${m.channel_id}/message/${m.id}`
+      : `cursus://dm/${m.dm_student_id ?? 0}/message/${m.id}`
+    await navigator.clipboard.writeText(href)
+    showToast('Lien du message copié.', 'success')
+  }
+  async function copyId() {
+    await navigator.clipboard.writeText(String(msg().id))
+    showToast('ID copié.', 'success')
+  }
+  async function copyAuthor() {
+    await navigator.clipboard.writeText(msg().author_name)
+    showToast('Nom copié.', 'success')
+  }
+  function openDmWithAuthor() {
+    const authorId = msg().author_id
+    const pid = appStore.activePromoId ?? appStore.currentUser?.promo_id
+    if (authorId == null || !pid) return
+    appStore.openDm(authorId, pid, msg().author_name)
+  }
+
+  const ctxItems = computed<ContextMenuItem[]>(() => {
+    const bookmark = deps.bookmark
+    const isBookmarked = bookmark?.isBookmarked() ?? false
+    const mine = deps.isMine()
+    const items: ContextMenuItem[] = [
+      { label: 'Répondre',         icon: Reply, action: () => { deps.onReply(); showMenu.value = false } },
+      { label: 'Copier le texte',  icon: Copy,  action: () => { deps.copyMessage(); showMenu.value = false } },
+      { label: 'Copier le lien',   icon: Link2, action: () => copyPermalink() },
+      { label: 'Copier l\'ID',     icon: Hash,  action: () => copyId() },
+      { label: 'Copier l\'auteur', icon: Copy,  action: () => copyAuthor() },
+    ]
+    if (bookmark) {
+      items.push({
+        label: isBookmarked ? 'Retirer le signet' : 'Mettre en signet',
+        icon: isBookmarked ? BookmarkCheck : Bookmark,
+        separator: true,
+        action: () => { bookmark.toggle(); showMenu.value = false },
+      })
+    }
+    if (!mine && msg().author_id != null) {
+      items.push({
+        label: 'Envoyer un message à l\'auteur',
+        icon: MessageCircle,
+        separator: true,
+        action: () => { openDmWithAuthor(); showMenu.value = false },
+      })
+    }
+    if (deps.canEdit()) {
+      items.push({ label: 'Modifier', icon: Pencil, separator: true, action: () => { deps.startEdit(); showMenu.value = false } })
+    }
+    if (appStore.isTeacher) {
+      items.push({
+        label: deps.isPinned() ? 'Désépingler' : 'Épingler',
+        icon: deps.isPinned() ? PinOff : Pin,
+        separator: true,
+        action: () => { deps.togglePin(); showMenu.value = false },
+      })
+    }
+    if (!mine) {
+      items.push({ label: 'Signaler', icon: AlertTriangle, separator: true, action: () => { deps.reportingMsg.value = true } })
+    }
+    if (deps.canDelete()) {
+      items.push({ label: 'Supprimer', icon: Trash2, danger: true, separator: mine, action: () => { deps.deleteMessage(); showMenu.value = false } })
+    }
+    return items
+  })
 
   // ── Computed: contenu rendu + couleur avatar
   const content = computed(() =>

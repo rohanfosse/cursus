@@ -1,13 +1,20 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue'
-  import { Pin, ChevronDown, X } from 'lucide-vue-next'
+  import { Pin, PinOff, ChevronDown, Copy, CornerDownRight } from 'lucide-vue-next'
   import { useMessagesStore } from '@/stores/messages'
+  import { useAppStore } from '@/stores/app'
+  import { useToast } from '@/composables/useToast'
+  import { useContextMenu } from '@/composables/useContextMenu'
   import { renderMessageContent } from '@/utils/html'
   import { formatTime } from '@/utils/date'
+  import type { Message } from '@/types'
+  import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 
   const emit = defineEmits<{ (e: 'jump-to', id: number): void }>()
 
   const store    = useMessagesStore()
+  const appStore = useAppStore()
+  const { showToast } = useToast()
   const expanded = ref(false)
 
   const hasPinned = computed(() => store.pinned.length > 0)
@@ -19,6 +26,26 @@
     emit('jump-to', id)
     expanded.value = false
   }
+
+  const { ctx, open: openCtx, close: closeCtx } = useContextMenu<Message>()
+  const ctxItems = computed<ContextMenuItem[]>(() => {
+    const m = ctx.value?.target
+    if (!m) return []
+    const items: ContextMenuItem[] = [
+      { label: 'Aller au message', icon: CornerDownRight, action: () => jump(m.id) },
+      { label: 'Copier le contenu', icon: Copy, action: async () => {
+        await navigator.clipboard.writeText(m.content)
+        showToast('Message copié.', 'success')
+      } },
+    ]
+    if (appStore.isTeacher) {
+      items.push({ label: 'Désépingler', icon: PinOff, danger: true, separator: true, action: async () => {
+        await store.togglePin(m.id, false)
+        showToast('Message désépinglé.', 'success')
+      } })
+    }
+    return items
+  })
 </script>
 
 <template>
@@ -34,6 +61,7 @@
         class="pinned-bar-preview"
         :title="`Aller au message de ${preview.author_name}`"
         @click="jump(preview.id)"
+        @contextmenu="openCtx($event, preview, true)"
       >
         <span class="pinned-bar-author">{{ preview.author_name }}</span>
         <span class="pinned-bar-sep">·</span>
@@ -61,7 +89,7 @@
           :key="m.id"
           class="pinned-item"
         >
-          <button class="pinned-item-btn" @click="jump(m.id)">
+          <button class="pinned-item-btn" @click="jump(m.id)" @contextmenu="openCtx($event, m, true)">
             <Pin :size="10" class="pinned-item-icon" />
             <div class="pinned-item-body">
               <span class="pinned-item-author">{{ m.author_name }}</span>
@@ -73,6 +101,14 @@
         </li>
       </ul>
     </Transition>
+
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </div>
 </template>
 

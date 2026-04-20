@@ -5,8 +5,12 @@
  * recherche, et stats globales. Prof uniquement.
  */
 import { ref, computed } from 'vue'
-import { Search, X, Image, FileText, Paperclip, Users, ChevronRight } from 'lucide-vue-next'
+import { Search, X, Image, FileText, Paperclip, Users, ChevronRight, MessageSquare, Copy } from 'lucide-vue-next'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
+import { useAppStore } from '@/stores/app'
+import { useToast } from '@/composables/useToast'
+import { useContextMenu } from '@/composables/useContextMenu'
 
 interface DmFile {
   message_id: number
@@ -100,6 +104,33 @@ function avatarColor(name: string): string {
   const hue = ((hash % 360) + 360) % 360
   return `hsl(${hue}, 45%, 45%)`
 }
+
+const appStore = useAppStore()
+const { showToast } = useToast()
+const { ctx, open: openCtx, close: closeCtx } = useContextMenu<StudentGroup>()
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const s = ctx.value?.target
+  if (!s) return []
+  const items: ContextMenuItem[] = [
+    { label: 'Voir ses fichiers', icon: Paperclip, action: () => selectStudent(s.id) },
+    { label: 'Envoyer un message', icon: MessageSquare, action: () => {
+      const pid = appStore.activePromoId
+      if (!pid) return
+      appStore.openDm(s.id, pid, s.name)
+    } },
+  ]
+  if (s.imageCount > 0) {
+    items.push({ label: 'Filtrer sur les images', icon: Image, separator: true, action: () => { selectStudent(s.id); setType('images') } })
+  }
+  if (s.fileCount - s.imageCount > 0) {
+    items.push({ label: 'Filtrer sur les documents', icon: FileText, action: () => { selectStudent(s.id); setType('docs') } })
+  }
+  items.push({ label: 'Copier le nom', icon: Copy, separator: true, action: async () => {
+    await navigator.clipboard.writeText(s.name)
+    showToast('Nom copié.', 'success')
+  } })
+  return items
+})
 </script>
 
 <template>
@@ -185,6 +216,7 @@ function avatarColor(name: string): string {
         class="sb-fich-student"
         :class="{ 'is-active': selectedStudentId === s.id }"
         @click="selectStudent(s.id)"
+        @contextmenu="openCtx($event, s, true)"
       >
         <div class="sb-fich-avatar" :style="{ background: avatarColor(s.name) }">
           {{ initials(s.name) }}
@@ -199,6 +231,14 @@ function avatarColor(name: string): string {
         <ChevronRight v-if="selectedStudentId === s.id" :size="12" class="sb-fich-chevron" />
       </button>
     </div>
+
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </div>
 </template>
 

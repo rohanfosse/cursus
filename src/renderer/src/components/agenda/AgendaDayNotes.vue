@@ -4,7 +4,10 @@
  * Stockage localStorage, pattern identique a LumenAnnotations.
  */
 import { ref, computed, watch } from 'vue'
-import { Plus, Trash2, StickyNote } from 'lucide-vue-next'
+import { Plus, Trash2, StickyNote, Copy } from 'lucide-vue-next'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
+import { useContextMenu } from '@/composables/useContextMenu'
+import { useToast } from '@/composables/useToast'
 
 interface DayNote {
   id: string
@@ -46,6 +49,20 @@ function removeNote(id: string) {
 }
 
 watch(() => props.date, () => { load() }, { immediate: true })
+
+const { showToast } = useToast()
+const { ctx, open: openCtx, close: closeCtx } = useContextMenu<DayNote>()
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const n = ctx.value?.target
+  if (!n) return []
+  return [
+    { label: 'Copier le texte', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(n.text)
+      showToast('Note copiée.', 'success')
+    } },
+    { label: 'Supprimer', icon: Trash2, danger: true, separator: true, action: () => removeNote(n.id) },
+  ]
+})
 </script>
 
 <template>
@@ -66,13 +83,20 @@ watch(() => props.date, () => { load() }, { immediate: true })
       </button>
     </div>
     <ul v-if="notes.length" class="day-notes-list">
-      <li v-for="n in notes" :key="n.id" class="day-notes-item">
+      <li v-for="n in notes" :key="n.id" class="day-notes-item" @contextmenu="openCtx($event, n)">
         <span class="day-notes-text">{{ n.text }}</span>
         <button type="button" class="day-notes-del" @click="removeNote(n.id)">
           <Trash2 :size="10" />
         </button>
       </li>
     </ul>
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </div>
 </template>
 

@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import { useProjects, type CreateProjectPayload } from '@/composables/useProjects'
+import { ref, computed, onMounted, watch } from 'vue'
+import { Pencil, Copy, Trash2 } from 'lucide-vue-next'
+import { useProjects, type CreateProjectPayload, type Project } from '@/composables/useProjects'
 import { useAppStore } from '@/stores/app'
+import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
+import { useContextMenu } from '@/composables/useContextMenu'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 
 const appStore = useAppStore()
-const { projects, loading, loadProjects, createProject, deleteProject } = useProjects()
+const { projects, loading, loadProjects, createProject, updateProject, deleteProject } = useProjects()
+const { showToast } = useToast()
+const { confirm } = useConfirm()
 
 const showCreate = ref(false)
 const newName = ref('')
@@ -44,6 +51,32 @@ function formatDate(iso: string): string {
     year: 'numeric',
   })
 }
+
+const { ctx, open: openCtx, close: closeCtx } = useContextMenu<Project>()
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const p = ctx.value?.target
+  if (!p) return []
+  const items: ContextMenuItem[] = [
+    { label: 'Copier le nom', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(p.name)
+      showToast('Nom copié.', 'success')
+    } },
+  ]
+  if (appStore.isTeacher) {
+    items.push({ label: 'Renommer', icon: Pencil, separator: true, action: async () => {
+      const next = window.prompt('Nouveau nom du projet', p.name)?.trim()
+      if (!next || next === p.name) return
+      const ok = await updateProject(p.id, { name: next })
+      if (ok) showToast('Projet renommé.', 'success')
+    } })
+    items.push({ label: 'Supprimer', icon: Trash2, danger: true, action: async () => {
+      if (!await confirm(`Supprimer le projet "${p.name}" ? Cette action est irréversible.`, 'danger', 'Supprimer')) return
+      const ok = await deleteProject(p.id)
+      if (ok) showToast('Projet supprimé.', 'success')
+    } })
+  }
+  return items
+})
 </script>
 
 <template>
@@ -94,6 +127,7 @@ function formatDate(iso: string): string {
       v-for="project in projects"
       :key="project.id"
       class="project-card"
+      @contextmenu="openCtx($event, project)"
     >
       <div class="project-name">{{ project.name }}</div>
       <div v-if="project.description" class="project-desc">
@@ -117,6 +151,14 @@ function formatDate(iso: string): string {
     <div v-if="!loading && projects.length === 0" class="empty">
       Aucun projet dans cette promotion.
     </div>
+
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </div>
 </template>
 

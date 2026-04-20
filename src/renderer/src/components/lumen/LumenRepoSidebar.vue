@@ -16,10 +16,13 @@
  */
 import { ref, computed, watch, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
-import { FileText, FileDown, FileCode, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, BookOpen, Presentation, Lightbulb, Wrench, Hammer, Folder, ChevronsDown, ChevronsUp, ChevronRight, Check } from 'lucide-vue-next'
+import { FileText, FileDown, FileCode, AlertTriangle, StickyNote, Search, X, Eye, EyeOff, BookOpen, Presentation, Lightbulb, Wrench, Hammer, Folder, ChevronsDown, ChevronsUp, ChevronRight, Check, Copy, CornerDownRight } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import { useLumenStore } from '@/stores/lumen'
+import { useToast } from '@/composables/useToast'
+import { useContextMenu } from '@/composables/useContextMenu'
 import { chapterKey } from '@/utils/lumenDevoirLinks'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 import {
   extractRepoNumericPrefix, displayRepoName,
   splitSectionTitle, groupBySection, formatDuration,
@@ -28,7 +31,7 @@ import {
 import { useLumenCollapsedState } from '@/composables/useLumenCollapsedState'
 import { useLumenNewChapter } from '@/composables/useLumenNewChapter'
 import LumenNewChapterModal from '@/components/lumen/LumenNewChapterModal.vue'
-import type { LumenRepo, LumenSearchResult, LumenRepoKind } from '@/types'
+import type { LumenRepo, LumenChapter, LumenSearchResult, LumenRepoKind } from '@/types'
 
 interface Props {
   repos: LumenRepo[]
@@ -283,6 +286,37 @@ const {
   onFilenameInput,
   save: saveNewChapter,
 } = useLumenNewChapter((payload) => emit('select', payload))
+
+const { showToast } = useToast()
+const { ctx, open: openChapterCtx, close: closeChapterCtx } = useContextMenu<{ repo: LumenRepo; chapter: LumenChapter }>()
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const t = ctx.value?.target
+  if (!t) return []
+  const { repo, chapter } = t
+  const isRead = myReads.value.has(`${repo.id}::${chapter.path}`)
+  const items: ContextMenuItem[] = [
+    { label: 'Ouvrir', icon: CornerDownRight, action: () => emit('select', { repoId: repo.id, path: chapter.path }) },
+    { label: 'Copier le titre', icon: Copy, separator: true, action: async () => {
+      await navigator.clipboard.writeText(chapter.title)
+      showToast('Titre copié.', 'success')
+    } },
+    { label: 'Copier le chemin', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(chapter.path)
+      showToast('Chemin copié.', 'success')
+    } },
+    { label: 'Copier le lien lumen://', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(`lumen://${displayRepoName(repo)}/${chapter.path}`)
+      showToast('Lien copié.', 'success')
+    } },
+  ]
+  if (!isRead) {
+    items.push({ label: 'Marquer comme lu', icon: Check, separator: true, action: async () => {
+      await lumenStore.markChapterRead(repo.id, chapter.path)
+      showToast('Chapitre marqué lu.', 'success')
+    } })
+  }
+  return items
+})
 </script>
 
 <template>
@@ -476,6 +510,7 @@ const {
                       'is-read': myReads.has(`${repo.id}::${ch.path}`),
                     }"
                     @click="emit('select', { repoId: repo.id, path: ch.path })"
+                    @contextmenu="openChapterCtx($event, { repo, chapter: ch }, true)"
                   >
                     <!-- Icone selon le format du chapitre (v2.64). Marp prime
                          sur tout : un .md detecte avec frontmatter `marp: true`
@@ -514,6 +549,14 @@ const {
         </section>
       </div>
     </nav>
+
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeChapterCtx"
+    />
 
     <!-- Modale "Nouveau chapitre" (v2.68) — teacher only, via le + de section -->
     <LumenNewChapterModal

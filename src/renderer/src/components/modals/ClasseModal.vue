@@ -1,10 +1,13 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
-  import { Users, Search, TrendingUp, Clock, CheckCircle2, Award, X, ChevronLeft, BarChart2, AlertTriangle, MinusCircle, Upload } from 'lucide-vue-next'
+  import { Users, Search, TrendingUp, Clock, CheckCircle2, Award, X, ChevronLeft, BarChart2, AlertTriangle, MinusCircle, Upload, MessageSquare, Copy, User } from 'lucide-vue-next'
   import { useAppStore }    from '@/stores/app'
+  import { useToast }       from '@/composables/useToast'
+  import { useContextMenu } from '@/composables/useContextMenu'
   import { avatarColor }    from '@/utils/format'
   import { formatDate }     from '@/utils/date'
   import GradeChart         from '@/components/ui/GradeChart.vue'
+  import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 
   const props = defineProps<{ modelValue: boolean }>()
   const emit  = defineEmits<{ (e: 'update:modelValue', v: boolean): void }>()
@@ -178,6 +181,34 @@
     if (s === 'retard') return 'En retard'
     return 'Non rendu'
   }
+
+  const { showToast } = useToast()
+  const { ctx, open: openCtx, close: closeCtx } = useContextMenu<StudentStat>()
+  const ctxItems = computed<ContextMenuItem[]>(() => {
+    const s = ctx.value?.target
+    if (!s) return []
+    return [
+      { label: 'Voir le profil', icon: User, action: () => selectStudent(s.id) },
+      { label: 'Envoyer un message', icon: MessageSquare, action: () => {
+        const pid = appStore.activePromoId
+        if (!pid) return
+        appStore.openDm(s.id, pid, s.name)
+        emit('update:modelValue', false)
+      } },
+      { label: 'Copier le nom', icon: Copy, separator: true, action: async () => {
+        await navigator.clipboard.writeText(s.name)
+        showToast('Nom copié.', 'success')
+      } },
+      ...(s.avg_grade !== null ? [{
+        label: `Copier la note (${s.avg_grade}/20)`,
+        icon: Copy,
+        action: async () => {
+          await navigator.clipboard.writeText(String(s.avg_grade))
+          showToast('Note copiée.', 'success')
+        },
+      }] : []),
+    ]
+  })
 </script>
 
 <template>
@@ -278,6 +309,7 @@
                   @click="selectStudent(s.id)"
                   @keydown.enter="selectStudent(s.id)"
                   @keydown.space.prevent="selectStudent(s.id)"
+                  @contextmenu="openCtx($event, s)"
                 >
                   <!-- Avatar -->
                   <div
@@ -391,6 +423,13 @@
         </div>
       </div>
     </Transition>
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </Teleport>
 </template>
 

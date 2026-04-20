@@ -1,9 +1,13 @@
 /** Leaderboard.vue - Classement en direct style Kahoot (complet avec barres de progression) */
 <script setup lang="ts">
   import { ref, computed } from 'vue'
-  import { ChevronDown, ChevronUp } from 'lucide-vue-next'
+  import { ChevronDown, ChevronUp, MessageSquare, Copy, PartyPopper } from 'lucide-vue-next'
   import { medal } from '@/utils/liveActivity'
   import type { LeaderboardEntry } from '@/types'
+  import { useAppStore } from '@/stores/app'
+  import { useToast } from '@/composables/useToast'
+  import { useContextMenu } from '@/composables/useContextMenu'
+  import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 
   const props = defineProps<{
     entries: LeaderboardEntry[]
@@ -20,6 +24,38 @@
   )
 
   const RANK_COLORS = ['#eab308', '#94a3b8', '#c2884d']
+
+  const appStore = useAppStore()
+  const { showToast } = useToast()
+  const { ctx, open: openCtx, close: closeCtx } = useContextMenu<LeaderboardEntry>()
+  const ctxItems = computed<ContextMenuItem[]>(() => {
+    const en = ctx.value?.target
+    if (!en) return []
+    const items: ContextMenuItem[] = [
+      { label: 'Copier le nom', icon: Copy, action: async () => {
+        await navigator.clipboard.writeText(en.name)
+        showToast('Nom copié.', 'success')
+      } },
+      { label: `Copier le score (${en.points})`, icon: Copy, action: async () => {
+        await navigator.clipboard.writeText(String(en.points))
+        showToast('Score copié.', 'success')
+      } },
+    ]
+    if (appStore.isTeacher) {
+      items.push({ label: 'Envoyer un message', icon: MessageSquare, separator: true, action: () => {
+        const pid = appStore.activePromoId
+        if (!pid) return
+        appStore.openDm(en.studentId, pid, en.name)
+      } })
+      items.push({ label: 'Encourager', icon: PartyPopper, action: () => {
+        const pid = appStore.activePromoId
+        if (!pid) return
+        appStore.openDm(en.studentId, pid, en.name)
+        showToast(`Conversation ouverte avec ${en.name}.`, 'info')
+      } })
+    }
+    return items
+  })
 </script>
 
 <template>
@@ -32,6 +68,7 @@
         class="lb-row"
         :class="{ 'lb-top': entry.rank <= 3 }"
         :style="{ animationDelay: `${i * 60}ms` }"
+        @contextmenu="openCtx($event, entry)"
       >
         <span class="lb-rank" :style="entry.rank <= 3 ? { color: RANK_COLORS[entry.rank - 1] } : {}">
           {{ medal(entry.rank, String) }}
@@ -65,6 +102,14 @@
       <component :is="showAll ? ChevronUp : ChevronDown" :size="14" />
       {{ showAll ? 'Voir moins' : `Voir les ${entries.length} participants` }}
     </button>
+
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </div>
 </template>
 

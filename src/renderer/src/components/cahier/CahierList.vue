@@ -3,13 +3,15 @@
  * Affiche les cahiers existants avec un bouton de creation.
  */
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
-import { BookOpen, Plus, Trash2, Clock } from 'lucide-vue-next'
-import { useCahierStore } from '@/stores/cahier'
+import { computed, onMounted, watch } from 'vue'
+import { BookOpen, Plus, Trash2, Clock, Pencil, Copy, ExternalLink } from 'lucide-vue-next'
+import { useCahierStore, type Cahier } from '@/stores/cahier'
 import { useAppStore } from '@/stores/app'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { useContextMenu } from '@/composables/useContextMenu'
 import { relativeTime } from '@/utils/date'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 
 const cahierStore = useCahierStore()
 const appStore = useAppStore()
@@ -39,6 +41,33 @@ async function handleDelete(id: number, e: Event) {
   }
   // En cas d'echec, useApi a deja affiche un toast d'erreur — on n'en rajoute pas un second.
 }
+
+const { ctx, open: openCtx, close: closeCtx } = useContextMenu<Cahier>()
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const c = ctx.value?.target
+  if (!c) return []
+  const items: ContextMenuItem[] = [
+    { label: 'Ouvrir', icon: ExternalLink, action: () => cahierStore.openCahier(c.id) },
+    { label: 'Copier le titre', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(c.title)
+      showToast('Titre copié.', 'success')
+    } },
+  ]
+  if (appStore.isTeacher) {
+    items.push({ label: 'Renommer', icon: Pencil, separator: true, action: async () => {
+      const next = window.prompt('Nouveau titre du cahier', c.title)?.trim()
+      if (!next || next === c.title) return
+      const ok = await cahierStore.renameCahier(c.id, next)
+      if (ok) showToast('Cahier renommé.', 'success')
+    } })
+    items.push({ label: 'Supprimer', icon: Trash2, danger: true, action: async () => {
+      if (!await confirm(`Supprimer le cahier "${c.title}" ?`, 'danger', 'Supprimer')) return
+      const ok = await cahierStore.deleteCahier(c.id)
+      if (ok) showToast('Cahier supprimé.', 'success')
+    } })
+  }
+  return items
+})
 </script>
 
 <template>
@@ -69,6 +98,7 @@ async function handleDelete(id: number, e: Event) {
         :key="c.id"
         class="cahier-item"
         @click="cahierStore.openCahier(c.id)"
+        @contextmenu="openCtx($event, c)"
       >
         <BookOpen :size="16" class="cahier-item-icon" />
         <div class="cahier-item-info">
@@ -88,6 +118,14 @@ async function handleDelete(id: number, e: Event) {
         </button>
       </div>
     </div>
+
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </div>
 </template>
 

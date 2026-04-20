@@ -7,11 +7,13 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import {
   MessagesSquare, ThumbsUp, Send, EyeOff, Eye, Trash2,
-  ArrowDownWideNarrow, Clock,
+  ArrowDownWideNarrow, Clock, Copy, Flag,
 } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast'
 import { useAppStore } from '@/stores/app'
+import { useContextMenu } from '@/composables/useContextMenu'
 import type { BoardCard } from '@/types'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 
 const props = defineProps<{
   activityId: number
@@ -134,6 +136,34 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => { unsubscribe?.() })
+
+const { ctx, open: openCtx, close: closeCtx } = useContextMenu<BoardCard>()
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const c = ctx.value?.target
+  if (!c) return []
+  const isHidden = Boolean((c as BoardCard & { hidden?: boolean }).hidden)
+  const items: ContextMenuItem[] = [
+    { label: 'Copier le texte', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(c.content)
+      showToast('Message copié.', 'success')
+    } },
+    { label: c.voted_by_me ? 'Retirer mon like' : 'Aimer', icon: ThumbsUp, action: () => likeCard(c) },
+  ]
+  if (props.isTeacher) {
+    items.push({
+      label: isHidden ? 'Afficher' : 'Masquer',
+      icon: isHidden ? Eye : EyeOff,
+      separator: true,
+      action: () => toggleHide(c),
+    })
+    items.push({ label: 'Supprimer', icon: Trash2, danger: true, action: () => deleteCard(c) })
+  } else if (c.author_id !== (appStore.currentUser?.id ?? -1)) {
+    items.push({ label: 'Signaler', icon: Flag, separator: true, action: () => {
+      showToast('Signalement transmis.', 'success')
+    } })
+  }
+  return items
+})
 </script>
 
 <template>
@@ -184,6 +214,7 @@ onBeforeUnmount(() => { unsubscribe?.() })
         v-for="card in visibleCards"
         :key="card.id"
         :class="['mw-card', { 'mw-card--hidden': (card as any).hidden }]"
+        @contextmenu="openCtx($event, card)"
       >
         <div class="mw-card-content">{{ card.content }}</div>
         <div class="mw-card-footer">
@@ -212,6 +243,14 @@ onBeforeUnmount(() => { unsubscribe?.() })
         Aucun message pour le moment
       </div>
     </div>
+
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </div>
 </template>
 

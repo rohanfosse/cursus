@@ -5,7 +5,10 @@
  * Stockage localStorage en v1 (migration backend prevue pour la collab).
  */
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { MessageSquare, Trash2, Plus, X } from 'lucide-vue-next'
+import { MessageSquare, Trash2, Plus, X, Copy, Pencil } from 'lucide-vue-next'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
+import { useContextMenu } from '@/composables/useContextMenu'
+import { useToast } from '@/composables/useToast'
 
 interface Annotation {
   id: string
@@ -86,6 +89,35 @@ function formatDate(iso: string): string {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   })
 }
+
+const { showToast } = useToast()
+const { ctx, open: openCtx, close: closeCtx } = useContextMenu<Annotation>()
+function editAnnotation(a: Annotation) {
+  const next = window.prompt('Modifier le commentaire', a.comment)
+  if (next === null) return
+  annotations.value = annotations.value.map(x => x.id === a.id ? { ...x, comment: next.trim() } : x)
+  save()
+  showToast('Annotation modifiée.', 'success')
+}
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const a = ctx.value?.target
+  if (!a) return []
+  const items: ContextMenuItem[] = [
+    { label: 'Copier le passage', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(a.text)
+      showToast('Passage copié.', 'success')
+    } },
+  ]
+  if (a.comment) {
+    items.push({ label: 'Copier le commentaire', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(a.comment)
+      showToast('Commentaire copié.', 'success')
+    } })
+  }
+  items.push({ label: a.comment ? 'Modifier le commentaire' : 'Ajouter un commentaire', icon: Pencil, separator: true, action: () => editAnnotation(a) })
+  items.push({ label: 'Supprimer', icon: Trash2, danger: true, action: () => removeAnnotation(a.id) })
+  return items
+})
 </script>
 
 <template>
@@ -130,7 +162,7 @@ function formatDate(iso: string): string {
 
         <!-- Liste des annotations -->
         <ul v-if="annotations.length" class="lumen-annot-list">
-          <li v-for="a in annotations" :key="a.id" class="lumen-annot-item">
+          <li v-for="a in annotations" :key="a.id" class="lumen-annot-item" @contextmenu="openCtx($event, a)">
             <div class="lumen-annot-item-text">"{{ a.text.slice(0, 80) }}{{ a.text.length > 80 ? '...' : '' }}"</div>
             <div v-if="a.comment" class="lumen-annot-item-comment">{{ a.comment }}</div>
             <div class="lumen-annot-item-meta">
@@ -144,6 +176,14 @@ function formatDate(iso: string): string {
         <p v-else class="lumen-annot-empty">Aucune annotation pour ce chapitre.</p>
       </div>
     </Transition>
+
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </div>
 </template>
 

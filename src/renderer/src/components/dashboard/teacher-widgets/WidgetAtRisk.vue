@@ -1,11 +1,14 @@
 <script setup lang="ts">
-  import { onMounted, toRef } from 'vue'
-  import { AlertTriangle, Clock } from 'lucide-vue-next'
-  import { useAtRiskStudents } from '@/composables/useAtRiskStudents'
+  import { computed, onMounted, toRef } from 'vue'
+  import { AlertTriangle, Clock, User, MessageSquare, Copy } from 'lucide-vue-next'
+  import { useAtRiskStudents, type EngagementScore } from '@/composables/useAtRiskStudents'
   import { useAppStore } from '@/stores/app'
+  import { useToast } from '@/composables/useToast'
+  import { useContextMenu } from '@/composables/useContextMenu'
   import { avatarColor, initials } from '@/utils/format'
   import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
   import EmptyState from '@/components/ui/EmptyState.vue'
+  import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 
   const appStore = useAppStore()
   const { atRiskStudents, atRiskCount, loading, daysSinceActivity, load } =
@@ -14,6 +17,29 @@
   const emit = defineEmits<{ openStudent: [studentId: number] }>()
 
   onMounted(() => load())
+
+  const { showToast } = useToast()
+  const { ctx, open: openCtx, close: closeCtx } = useContextMenu<EngagementScore>()
+  const ctxItems = computed<ContextMenuItem[]>(() => {
+    const s = ctx.value?.target
+    if (!s) return []
+    return [
+      { label: 'Voir le profil', icon: User, action: () => emit('openStudent', s.studentId) },
+      { label: 'Envoyer un message', icon: MessageSquare, action: () => {
+        const pid = appStore.activePromoId
+        if (!pid) return
+        appStore.openDm(s.studentId, pid, s.name)
+      } },
+      { label: 'Copier le nom', icon: Copy, separator: true, action: async () => {
+        await navigator.clipboard.writeText(s.name)
+        showToast('Nom copié.', 'success')
+      } },
+      { label: `Copier le score (${s.score})`, icon: Copy, action: async () => {
+        await navigator.clipboard.writeText(String(s.score))
+        showToast('Score copié.', 'success')
+      } },
+    ]
+  })
 </script>
 
 <template>
@@ -37,6 +63,7 @@
         :key="s.studentId"
         class="war-student"
         @click="emit('openStudent', s.studentId)"
+        @contextmenu="openCtx($event, s, true)"
       >
         <div class="avatar" :style="{ background: avatarColor(s.name), width: '28px', height: '28px', fontSize: '10px', borderRadius: '50%' }">
           {{ initials(s.name) }}
@@ -56,6 +83,14 @@
         </span>
       </button>
     </div>
+
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </UiWidgetCard>
 </template>
 

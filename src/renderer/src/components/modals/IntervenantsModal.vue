@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Plus, Trash2, ChevronDown, ChevronRight, Check, X as XIcon, Search, Users } from 'lucide-vue-next'
+import { Plus, Trash2, ChevronDown, ChevronRight, Check, X as XIcon, Search, Users, Copy, Settings2, Mail } from 'lucide-vue-next'
 import Modal from '@/components/ui/Modal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import { useAppStore }  from '@/stores/app'
 import { useToast }     from '@/composables/useToast'
 import { useConfirm }   from '@/composables/useConfirm'
+import { useContextMenu } from '@/composables/useContextMenu'
 import type { Channel, Promotion } from '@/types'
 import { ROLE_LABELS } from '@/constants'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit  = defineEmits<{ 'update:modelValue': [boolean] }>()
@@ -145,6 +147,27 @@ function assignedSummary(taId: number): string {
   if (!ids.length) return 'Tous les canaux (aucune restriction)'
   return `${ids.length} canal${ids.length > 1 ? 'x' : ''} assigné${ids.length > 1 ? 's' : ''}`
 }
+
+const { ctx, open: openCtx, close: closeCtx } = useContextMenu<Intervenant>()
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const ta = ctx.value?.target
+  if (!ta) return []
+  return [
+    { label: expandedTaId.value === ta.id ? 'Fermer les canaux' : 'Gérer les canaux', icon: Settings2, action: () => toggleExpand(ta.id) },
+    { label: 'Copier l\'email', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(ta.email)
+      showToast('Email copié.', 'success')
+    } },
+    { label: 'Copier le nom', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(ta.name)
+      showToast('Nom copié.', 'success')
+    } },
+    { label: 'Envoyer un mail', icon: Mail, separator: true, action: () => {
+      window.open(`mailto:${ta.email}`)
+    } },
+    { label: 'Supprimer', icon: Trash2, danger: true, action: () => remove(ta) },
+  ]
+})
 </script>
 
 <template>
@@ -221,6 +244,7 @@ function assignedSummary(taId: number): string {
         v-for="ta in filteredIntervenants"
         :key="ta.id"
         class="iv-card"
+        @contextmenu="openCtx($event, ta)"
       >
         <!-- En-tête intervenant -->
         <div class="iv-card-header">
@@ -309,6 +333,14 @@ function assignedSummary(taId: number): string {
         </Transition>
       </div>
     </div>
+
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </Modal>
 </template>
 

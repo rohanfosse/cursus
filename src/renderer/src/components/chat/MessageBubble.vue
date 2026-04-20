@@ -63,6 +63,10 @@ const {
   togglePin:    () => { _togglePin(); showMenu.value = false },
   deleteMessage: () => { showMenu.value = false; _deleteMessage() },
   reportingMsg,
+  bookmark: {
+    isBookmarked: () => isBookmarked.value,
+    toggle:       () => { toggleBookmark(); showMenu.value = false },
+  },
 })
 
 // ── Wrappers that also close menu (used by inline template menu)

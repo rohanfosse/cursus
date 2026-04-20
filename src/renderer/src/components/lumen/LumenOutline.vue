@@ -7,7 +7,11 @@
  * cliquable, le parent se charge du scroll. C'est plus robuste que parser
  * le markdown brut ici — on utilise les memes slugs que le rendu.
  */
-import { ListTree, ChevronDown, ChevronRight } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { ListTree, ChevronDown, ChevronRight, Copy, CornerDownRight } from 'lucide-vue-next'
+import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
+import { useContextMenu } from '@/composables/useContextMenu'
+import { useToast } from '@/composables/useToast'
 
 interface HeadingEntry {
   id: string
@@ -27,7 +31,25 @@ interface Emits {
 }
 
 defineProps<Props>()
-defineEmits<Emits>()
+const emit = defineEmits<Emits>()
+
+const { showToast } = useToast()
+const { ctx, open: openCtx, close: closeCtx } = useContextMenu<HeadingEntry>()
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const h = ctx.value?.target
+  if (!h) return []
+  return [
+    { label: 'Aller à la section', icon: CornerDownRight, action: () => emit('navigate', h.id) },
+    { label: 'Copier le titre', icon: Copy, separator: true, action: async () => {
+      await navigator.clipboard.writeText(h.text)
+      showToast('Titre copié.', 'success')
+    } },
+    { label: 'Copier l\'ancre', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(`#${h.id}`)
+      showToast('Ancre copiée.', 'success')
+    } },
+  ]
+})
 </script>
 
 <template>
@@ -54,6 +76,7 @@ defineEmits<Emits>()
         ]"
         :title="h.text"
         @click="$emit('navigate', h.id)"
+        @contextmenu="openCtx($event, h)"
       >
         {{ h.text }}
       </button>
@@ -61,6 +84,13 @@ defineEmits<Emits>()
     <p v-else-if="!collapsed" class="lumen-outline-empty">
       Ajoute des titres (## Titre) pour générer le plan.
     </p>
+    <ContextMenu
+      v-if="ctx"
+      :x="ctx.x"
+      :y="ctx.y"
+      :items="ctxItems"
+      @close="closeCtx"
+    />
   </aside>
 </template>
 
