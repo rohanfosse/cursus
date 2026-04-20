@@ -84,6 +84,16 @@ export function relativeTime(input: number | string | Date): string {
   return `il y a ${Math.floor(days / 7)} sem.`
 }
 
+/** Lundi de la semaine ISO contenant `d` (hh:mm:ss remis a 0). */
+export function startOfISOWeek(d: Date): Date {
+  const day = d.getDay() // 0 = dimanche, 1..6 = lundi..samedi
+  const diff = day === 0 ? -6 : 1 - day
+  const r = new Date(d)
+  r.setDate(d.getDate() + diff)
+  r.setHours(0, 0, 0, 0)
+  return r
+}
+
 /** Numero de semaine ISO 8601 (lundi = debut de semaine). */
 export function getISOWeekNumber(date: Date): number {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))

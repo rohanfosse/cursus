@@ -25,30 +25,25 @@ export interface ContextMenuState {
 
 export interface UseContextMenuReturn {
   state: Ref<ContextMenuState | null>
-  open: (ev: MouseEvent, items: ContextMenuItem[] | (() => ContextMenuItem[])) => void
+  open: (ev: MouseEvent, items: ContextMenuItem[]) => void
   close: () => void
-  isOpen: Ref<boolean>
 }
 
 export function useContextMenu(): UseContextMenuReturn {
   const state = ref<ContextMenuState | null>(null)
-  const isOpen = ref(false)
 
-  function open(ev: MouseEvent, items: ContextMenuItem[] | (() => ContextMenuItem[])) {
+  function open(ev: MouseEvent, items: ContextMenuItem[]) {
+    if (!items.length) return
     ev.preventDefault()
     ev.stopPropagation()
-    const resolved = typeof items === 'function' ? items() : items
-    if (!resolved.length) return
-    state.value = { x: ev.clientX, y: ev.clientY, items: resolved }
-    isOpen.value = true
+    state.value = { x: ev.clientX, y: ev.clientY, items }
   }
 
   function close() {
     state.value = null
-    isOpen.value = false
   }
 
-  return { state, open, close, isOpen }
+  return { state, open, close }
 }
 
 export type { ContextMenuItem }

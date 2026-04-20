@@ -21,7 +21,7 @@ import { useAgendaOutlookPolling } from '@/composables/useAgendaOutlookPolling'
 import { useAgendaKeyboardShortcuts } from '@/composables/useAgendaKeyboardShortcuts'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFocusTrap } from '@/composables/useFocusTrap'
-import { getISOWeekNumber } from '@/utils/date'
+import { getISOWeekNumber, startOfISOWeek } from '@/utils/date'
 import type { CalendarEvent } from '@/types'
 
 const appStore  = useAppStore()
@@ -49,12 +49,6 @@ const { calRef, activeView, currentTitle, selectedDate, onViewChange, goPrev, go
 // On réutilise la même bannière pour les vues day et week afin d'uniformiser
 // le design. En week, la plage affichée va du lundi au dimanche de la semaine
 // contenant selectedDate.
-function startOfWeek(d: Date): Date {
-  const day = d.getDay() // 0=Dim .. 6=Sam
-  const diff = day === 0 ? -6 : 1 - day  // lundi debut de semaine
-  const r = new Date(d); r.setDate(d.getDate() + diff); r.setHours(0, 0, 0, 0); return r
-}
-
 const dayHero = computed(() => {
   if (activeView.value !== 'day' && activeView.value !== 'week') return null
   const d = new Date(selectedDate.value)
@@ -73,7 +67,6 @@ const dayHero = computed(() => {
       if (meta.teamsJoinUrl) teams++
     }
     return {
-      kind: 'day' as const,
       weekday: d.toLocaleDateString('fr-FR', { weekday: 'long' }),
       dateFull: d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
       weekNum: getISOWeekNumber(d),
@@ -83,7 +76,7 @@ const dayHero = computed(() => {
   }
 
   // Week
-  const start = startOfWeek(d)
+  const start = startOfISOWeek(d)
   const end = new Date(start); end.setDate(start.getDate() + 6)
   const startIso = start.toISOString().slice(0, 10)
   const endIso = end.toISOString().slice(0, 10)
@@ -103,7 +96,6 @@ const dayHero = computed(() => {
     : `${start.getDate()} ${start.toLocaleDateString('fr-FR', { month: 'short' })} - ${end.getDate()} ${end.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}`
   const isCurrentWeek = todayIso >= startIso && todayIso <= endIso
   return {
-    kind: 'week' as const,
     weekday: 'Semaine',
     dateFull,
     weekNum: getISOWeekNumber(start),
@@ -458,11 +450,19 @@ function statusLabel(s?: string): string {
 }
 
 // ── More menu (kebab) ───────────────────────────────────────────────────
+// Le listener document est strictement couple a l'etat ouvert : ajoute a
+// l'ouverture, retire a chaque fermeture (que la fermeture vienne d'un clic
+// exterieur, d'un clic sur un item, ou d'un toggle). Evite les listeners
+// orphelins si l'utilisateur re-toggle rapidement.
 const moreOpen = ref(false)
 function toggleMore(ev: MouseEvent) {
   ev.stopPropagation()
-  moreOpen.value = !moreOpen.value
-  if (moreOpen.value) document.addEventListener('click', closeMore)
+  if (moreOpen.value) {
+    closeMore()
+  } else {
+    moreOpen.value = true
+    document.addEventListener('click', closeMore)
+  }
 }
 function closeMore() {
   moreOpen.value = false
