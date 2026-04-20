@@ -2,7 +2,8 @@
   import { computed, ref, watch } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
   import { MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame, Search, Shield, Bug, Zap, Paperclip, Lightbulb, Calendar, Gamepad2, PanelLeftClose, PanelLeftOpen, EyeOff, Eye, ArrowUp, ArrowDown, RotateCcw } from 'lucide-vue-next'
-  import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
+  import ContextMenu from '@/components/ui/ContextMenu.vue'
+  import { useContextMenu, type ContextMenuItem } from '@/composables/useContextMenu'
   import logoUrl from '@/assets/logo.png'
   import { useAppStore }    from '@/stores/app'
   import { useModalsStore } from '@/stores/modals'
@@ -164,11 +165,9 @@
   }
 
   // ── Context menu (clic-droit) ──────────────────────────────────────────
-  const navCtx = ref<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
-  function closeNavCtx() { navCtx.value = null }
+  const { state: navCtx, open: openNavCtx, close: closeNavCtx } = useContextMenu()
 
   function openItemContextMenu(ev: MouseEvent, id: string) {
-    ev.preventDefault(); ev.stopPropagation()
     const items: ContextMenuItem[] = [
       { label: 'Masquer ' + navItemLabel(id), icon: EyeOff, action: () => hideNavItem(id) },
       { separator: true, label: '' },
@@ -177,13 +176,12 @@
       { separator: true, label: '' },
       { label: 'Reinitialiser l\'ordre', icon: RotateCcw, action: () => resetNavOrder() },
     ]
-    navCtx.value = { x: ev.clientX, y: ev.clientY, items }
+    openNavCtx(ev, items)
   }
 
   function openRailContextMenu(ev: MouseEvent) {
     // Si on a clique sur un bouton, le handler de l'item a deja gere
     if ((ev.target as HTMLElement)?.closest('.nav-btn')) return
-    ev.preventDefault(); ev.stopPropagation()
     const hidden = navHiddenIds.value.filter(id => isNavVisible(id))
     const items: ContextMenuItem[] = []
     if (hidden.length) {
@@ -196,7 +194,7 @@
       items.push({ separator: true, label: '' })
     }
     items.push({ label: 'Reinitialiser l\'ordre', icon: RotateCcw, action: () => resetNavOrder() })
-    navCtx.value = { x: ev.clientX, y: ev.clientY, items }
+    openNavCtx(ev, items)
   }
 
   // ── Drag & drop : l'utilisateur deplace les boutons ─────────────────────

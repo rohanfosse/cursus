@@ -4,7 +4,8 @@
 <script setup lang="ts">
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
 import AgendaDayNotes from '@/components/agenda/AgendaDayNotes.vue'
-import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
+import ContextMenu from '@/components/ui/ContextMenu.vue'
+import { useContextMenu, type ContextMenuItem } from '@/composables/useContextMenu'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import VueCal from 'vue-cal'
@@ -131,13 +132,9 @@ function onCellDblClick(date: Date) {
 }
 
 // ── Context menu (right-click) ─────────────────────────────────────────
-const ctxMenu = ref<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
-
-function closeCtxMenu() { ctxMenu.value = null }
+const { state: ctxMenu, open: openCtxMenu, close: closeCtxMenu } = useContextMenu()
 
 function onEventContextMenu(e: MouseEvent, event: { _meta?: CalendarEvent }) {
-  e.preventDefault()
-  e.stopPropagation()
   const meta = event._meta
   if (!meta) return
 
@@ -170,34 +167,29 @@ function onEventContextMenu(e: MouseEvent, event: { _meta?: CalendarEvent }) {
     )
   }
 
-  ctxMenu.value = { x: e.clientX, y: e.clientY, items }
+  openCtxMenu(e, items)
 }
 
 function onCellContextMenu(e: MouseEvent, date: Date) {
   if (!isTeacher.value) return
-  e.preventDefault()
-  e.stopPropagation()
   const dateStr = date.toISOString().slice(0, 10)
   const hours = date.getHours()
   const minutes = date.getMinutes()
   const timeStr = (hours || minutes) ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}` : ''
 
-  ctxMenu.value = {
-    x: e.clientX, y: e.clientY,
-    items: [
-      { label: 'Nouveau rappel ici', icon: Plus, action: () => {
-        formDate.value = dateStr
-        formTime.value = timeStr
-        formTitle.value = ''
-        formDesc.value = ''
-        showForm.value = true
-      } },
-      { label: 'Aller a cette date', icon: CalIcon, action: () => {
-        selectedDate.value = dateStr
-        activeView.value = 'day'
-      } },
-    ],
-  }
+  openCtxMenu(e, [
+    { label: 'Nouveau rappel ici', icon: Plus, action: () => {
+      formDate.value = dateStr
+      formTime.value = timeStr
+      formTitle.value = ''
+      formDesc.value = ''
+      showForm.value = true
+    } },
+    { label: 'Aller a cette date', icon: CalIcon, action: () => {
+      selectedDate.value = dateStr
+      activeView.value = 'day'
+    } },
+  ])
 }
 
 // ── Inline edit reminder ──────────────────────────────────────────────

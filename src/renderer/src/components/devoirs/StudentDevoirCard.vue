@@ -4,14 +4,19 @@
  */
 <script setup lang="ts">
 import { ref, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   CheckCircle2, Clock, Lock, Upload,
-  Calendar, Award, Bell, BellOff,
+  Calendar, Award, Bell, BellOff, Copy, FolderOpen, CalendarDays,
 } from 'lucide-vue-next'
 import { deadlineClass, deadlineLabel, formatDate, countdown } from '@/utils/date'
 import { parseCategoryIcon } from '@/utils/categoryIcon'
 import { typeLabel }         from '@/utils/devoir'
 import { useStudentReminders } from '@/composables/useStudentReminders'
+import { useToast } from '@/composables/useToast'
+import { useContextMenu, type ContextMenuItem } from '@/composables/useContextMenu'
+import { useAppStore } from '@/stores/app'
+import ContextMenu from '@/components/ui/ContextMenu.vue'
 import StudentDepositForm    from './StudentDepositForm.vue'
 import LumenDevoirChapterHints from '@/components/lumen/LumenDevoirChapterHints.vue'
 import type { Devoir, Rubric } from '@/types'
@@ -77,6 +82,40 @@ function pickReminder(hours: number) {
 
 onBeforeUnmount(() => document.removeEventListener('click', closeReminder))
 
+// ── Context menu (clic-droit) ───────────────────────────────────────────
+const router = useRouter()
+const { showToast } = useToast()
+const appStore = useAppStore()
+const { state: ctxMenu, open: openCtxMenu, close: closeCtxMenu } = useContextMenu()
+
+function openCardContextMenu(ev: MouseEvent) {
+  const d = props.devoir
+  const items: ContextMenuItem[] = [
+    { label: 'Copier le titre', icon: Copy, action: async () => {
+      await navigator.clipboard.writeText(d.title)
+      showToast('Titre copie', 'success')
+    } },
+  ]
+  if (props.variant === 'pending' || props.variant === 'urgent') {
+    if (hasReminder(d.id)) {
+      items.push({ label: 'Annuler le rappel', icon: BellOff, action: () => removeReminder(d.id) })
+    } else {
+      items.push({ label: 'Me rappeler 24h avant', icon: Bell, action: () => addReminder(d.id, d.title, d.deadline, 24) })
+    }
+  }
+  if (d.category) {
+    items.push({ separator: true, label: '' })
+    items.push({ label: 'Ouvrir le projet', icon: FolderOpen, action: () => {
+      appStore.activeProject = d.category ?? null
+      router.push('/devoirs')
+    } })
+  }
+  items.push({ label: 'Voir sur le calendrier', icon: CalendarDays, action: () => {
+    router.push({ name: 'agenda', query: { date: d.deadline.slice(0, 10) } })
+  } })
+  openCtxMenu(ev, items)
+}
+
 /** Minimal markdown : **bold**, newlines → <br> */
 function formatDesc(text: string): string {
   return text
@@ -87,7 +126,7 @@ function formatDesc(text: string): string {
 </script>
 
 <template>
-  <div class="devoir-card" :class="`devoir-card--${variant}`">
+  <div class="devoir-card" :class="`devoir-card--${variant}`" @contextmenu="openCardContextMenu">
     <!-- Header: type badge + deadline -->
     <div class="devoir-card-header">
       <div class="devoir-card-meta">
@@ -199,6 +238,8 @@ function formatDesc(text: string): string {
         </button>
       </div>
     </template>
+
+    <ContextMenu v-if="ctxMenu" :x="ctxMenu.x" :y="ctxMenu.y" :items="ctxMenu.items" @close="closeCtxMenu" />
   </div>
 </template>
 
