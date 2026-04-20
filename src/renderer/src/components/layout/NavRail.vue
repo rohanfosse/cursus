@@ -9,6 +9,7 @@
   import { useLiveStore }   from '@/stores/live'
   import { useToast }       from '@/composables/useToast'
   import { useModules }     from '@/composables/useModules'
+  import { useNavRailOrder } from '@/composables/useNavRailOrder'
   import { avatarColor }    from '@/utils/format'
   import { getAuthToken }   from '@/utils/auth'
   import NotificationPanel from './NotificationPanel.vue'
@@ -114,6 +115,61 @@
     Object.values(appStore.unread).reduce((a, b) => a + b, 0),
   )
 
+  // ── Ordre personnalise des boutons de navigation principale ─────────────
+  // Les ids doivent correspondre aux blocs de rendu dans le template. L'ordre
+  // canonique est celui d'origine ; l'utilisateur peut drag-and-drop pour
+  // reordonner, avec persistance locale.
+  const DEFAULT_ORDER = ['dashboard', 'messages', 'devoirs', 'lumen', 'documents', 'fichiers', 'agenda', 'live', 'jeux'] as const
+  const { effectiveOrder: navOrder, move: moveNavItem } = useNavRailOrder(DEFAULT_ORDER)
+
+  // Visibilite par id, evaluee de maniere reactive cote template
+  function isNavVisible(id: string): boolean {
+    switch (id) {
+      case 'dashboard': return true
+      case 'messages':  return true
+      case 'devoirs':   return true
+      case 'lumen':     return isEnabled('lumen')
+      case 'documents': return appStore.isStaff
+      case 'fichiers':  return appStore.isTeacher
+      case 'agenda':    return true
+      case 'live':      return isEnabled('live') && (appStore.isStaff || !!(liveStore.currentSession && liveStore.currentSession.status !== 'ended'))
+      case 'jeux':      return appStore.isTeacher || isEnabled('games')
+      default:          return false
+    }
+  }
+
+  // ── Drag & drop : l'utilisateur deplace les boutons ─────────────────────
+  const draggingId = ref<string | null>(null)
+  const dragOverId = ref<string | null>(null)
+
+  function onNavDragStart(ev: DragEvent, id: string) {
+    draggingId.value = id
+    if (ev.dataTransfer) {
+      ev.dataTransfer.effectAllowed = 'move'
+      ev.dataTransfer.setData('text/plain', id)
+    }
+  }
+  function onNavDragOver(ev: DragEvent, id: string) {
+    if (!draggingId.value || draggingId.value === id) return
+    ev.preventDefault()
+    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move'
+    dragOverId.value = id
+  }
+  function onNavDragLeave(id: string) {
+    if (dragOverId.value === id) dragOverId.value = null
+  }
+  function onNavDrop(ev: DragEvent, targetId: string) {
+    ev.preventDefault()
+    const dragged = draggingId.value ?? ev.dataTransfer?.getData('text/plain')
+    if (dragged && dragged !== targetId) moveNavItem(dragged, targetId)
+    draggingId.value = null
+    dragOverId.value = null
+  }
+  function onNavDragEnd() {
+    draggingId.value = null
+    dragOverId.value = null
+  }
+
 </script>
 
 <template>
@@ -148,135 +204,83 @@
       <span>Hors-ligne</span>
     </div>
 
-    <!-- ── Tableau de bord ── -->
-    <button
-      class="nav-btn"
-      :class="{ active: route.name === 'dashboard' }"
-      title="Tableau de bord"
-      aria-label="Tableau de bord"
-      @click="router.push('/dashboard')"
-    >
-      <LayoutDashboard :size="20" />
-      <span class="nav-label">Accueil</span>
-    </button>
-
-    <!-- ── Navigation principale ── -->
-    <button
-      class="nav-btn"
-      :class="{ active: route.name === 'messages' }"
-      title="Messages"
-      aria-label="Section Messages"
-      @click="router.push('/messages')"
-    >
-      <span class="nav-icon-wrap">
-        <MessageSquare :size="20" />
-        <span v-if="msgBadgeCount > 0" class="nav-msg-badge">{{ msgBadgeCount > 9 ? '9+' : msgBadgeCount }}</span>
-      </span>
-      <span class="nav-label">Messages</span>
-    </button>
-
-    <button
-      class="nav-btn"
-      :class="{ active: route.name === 'devoirs' }"
-      title="Devoirs"
-      aria-label="Section Devoirs"
-      @click="router.push('/devoirs')"
-    >
-      <BookOpen :size="20" />
-      <span class="nav-label">Devoirs</span>
-      <span
-        v-if="appStore.isStudent && pendingCount > 0"
-        id="nav-badge-devoirs"
-        class="nav-badge"
+    <!-- ── Navigation principale (ordre personnalisable via drag-and-drop) ── -->
+    <template v-for="id in navOrder" :key="id">
+      <button
+        v-if="isNavVisible(id)"
+        class="nav-btn"
+        :class="{
+          active: id === 'dashboard' ? route.name === 'dashboard'
+                : id === 'jeux' ? ['jeux', 'typerace', 'snake', 'space-invaders'].includes(route.name as string)
+                : route.name === (id === 'lumen' ? 'lumen' : id === 'agenda' ? 'agenda' : id),
+          'nav-btn--dragging': draggingId === id,
+          'nav-btn--drop-target': dragOverId === id && draggingId !== id,
+        }"
+        :title="id === 'dashboard' ? 'Tableau de bord'
+              : id === 'messages'  ? 'Messages'
+              : id === 'devoirs'   ? 'Devoirs'
+              : id === 'lumen'     ? 'Cours'
+              : id === 'documents' ? 'Documents'
+              : id === 'fichiers'  ? 'Fichiers partagés par les étudiants'
+              : id === 'agenda'    ? 'Calendrier'
+              : id === 'live'      ? 'Live (quiz, feedback, code, tableau)'
+              : id === 'jeux'      ? 'Jeux (TypeRace, Snake, Space Invaders, ...)'
+              : ''"
+        :aria-label="id === 'dashboard' ? 'Tableau de bord' : `Section ${id}`"
+        draggable="true"
+        @dragstart="onNavDragStart($event, id)"
+        @dragover="onNavDragOver($event, id)"
+        @dragleave="onNavDragLeave(id)"
+        @drop="onNavDrop($event, id)"
+        @dragend="onNavDragEnd"
+        @click="router.push(id === 'dashboard' ? '/dashboard' : id === 'jeux' ? '/jeux' : `/${id}`)"
       >
-        {{ pendingCount > 9 ? '9+' : pendingCount }}
-      </span>
-      <!-- Mini progress bar for students -->
-      <div v-if="appStore.isStudent && travauxStore.devoirs.length > 0" class="nav-progress">
-        <div class="nav-progress-fill" :style="{ width: devoirProgress + '%' }" />
-      </div>
-    </button>
+        <!-- Icones par id -->
+        <LayoutDashboard v-if="id === 'dashboard'" :size="20" />
+        <template v-else-if="id === 'messages'">
+          <span class="nav-icon-wrap">
+            <MessageSquare :size="20" />
+            <span v-if="msgBadgeCount > 0" class="nav-msg-badge">{{ msgBadgeCount > 9 ? '9+' : msgBadgeCount }}</span>
+          </span>
+        </template>
+        <BookOpen     v-else-if="id === 'devoirs'"   :size="20" />
+        <Lightbulb    v-else-if="id === 'lumen'"     :size="20" />
+        <FileText     v-else-if="id === 'documents'" :size="20" />
+        <Paperclip    v-else-if="id === 'fichiers'"  :size="20" />
+        <Calendar     v-else-if="id === 'agenda'"    :size="20" />
+        <Zap          v-else-if="id === 'live'"      :size="20" />
+        <Gamepad2     v-else-if="id === 'jeux'"      :size="20" />
 
-    <!-- Cours (ex-Lumen) : liseuse de cours GitHub -->
-    <button
-      v-if="isEnabled('lumen')"
-      class="nav-btn"
-      :class="{ active: route.name === 'lumen' }"
-      title="Cours"
-      aria-label="Section Cours"
-      @click="router.push('/lumen')"
-    >
-      <Lightbulb :size="20" />
-      <span class="nav-label">Cours</span>
-    </button>
+        <!-- Libelles par id -->
+        <span class="nav-label">
+          {{ id === 'dashboard' ? 'Accueil'
+             : id === 'messages' ? 'Messages'
+             : id === 'devoirs' ? 'Devoirs'
+             : id === 'lumen' ? 'Cours'
+             : id === 'documents' ? 'Documents'
+             : id === 'fichiers' ? 'Fichiers'
+             : id === 'agenda' ? 'Calendrier'
+             : id === 'live' ? 'Live'
+             : id === 'jeux' ? 'Jeux'
+             : '' }}
+        </span>
 
-    <!-- Ressources/Documents (staff uniquement — les etudiants accedent
-         aux documents via la recherche Ctrl+K ou les liens dans les devoirs) -->
-    <button
-      v-if="appStore.isStaff"
-      class="nav-btn"
-      :class="{ active: route.name === 'documents' }"
-      title="Documents"
-      aria-label="Section Documents"
-      @click="router.push('/documents')"
-    >
-      <FileText :size="20" />
-      <span class="nav-label">Documents</span>
-    </button>
-
-    <!-- Fichiers partagés (prof uniquement) -->
-    <button
-      v-if="appStore.isTeacher"
-      class="nav-btn"
-      :class="{ active: route.name === 'fichiers' }"
-      title="Fichiers partagés par les étudiants"
-      aria-label="Fichiers partagés"
-      @click="router.push('/fichiers')"
-    >
-      <Paperclip :size="20" />
-      <span class="nav-label">Fichiers</span>
-    </button>
-
-    <!-- Calendrier : acces direct aux deadlines et planning -->
-    <button
-      class="nav-btn"
-      :class="{ active: route.name === 'agenda' }"
-      title="Calendrier"
-      aria-label="Calendrier"
-      @click="router.push('/agenda')"
-    >
-      <Calendar :size="20" />
-      <span class="nav-label">Calendrier</span>
-    </button>
-
-    <!-- Live : profs ont toujours acces, etudiants seulement quand session active -->
-    <button
-      v-if="isEnabled('live') && (appStore.isStaff || (liveStore.currentSession && liveStore.currentSession.status !== 'ended'))"
-      class="nav-btn"
-      :class="{ active: route.name === 'live' }"
-      title="Live (quiz, feedback, code, tableau)"
-      aria-label="Live"
-      @click="router.push('/live')"
-    >
-      <Zap :size="20" />
-      <span class="nav-label">Live</span>
-      <span v-if="!appStore.isStaff && liveStore.currentSession" class="nav-live-dot" />
-    </button>
-
-    <!-- Jeux : toujours visible pour les profs (preview/admin), opt-in
-         module pour les etudiants. Routes couvertes : jeux, typerace,
-         snake, space-invaders (et futurs). -->
-    <button
-      v-if="appStore.isTeacher || isEnabled('games')"
-      class="nav-btn"
-      :class="{ active: ['jeux', 'typerace', 'snake', 'space-invaders'].includes(route.name as string) }"
-      title="Jeux (TypeRace, Snake, Space Invaders, ...)"
-      aria-label="Section Jeux"
-      @click="router.push('/jeux')"
-    >
-      <Gamepad2 :size="20" />
-      <span class="nav-label">Jeux</span>
-    </button>
+        <!-- Badge devoirs en attente (student) -->
+        <span
+          v-if="id === 'devoirs' && appStore.isStudent && pendingCount > 0"
+          id="nav-badge-devoirs"
+          class="nav-badge"
+        >
+          {{ pendingCount > 9 ? '9+' : pendingCount }}
+        </span>
+        <!-- Mini progress bar (student) -->
+        <div v-if="id === 'devoirs' && appStore.isStudent && travauxStore.devoirs.length > 0" class="nav-progress">
+          <div class="nav-progress-fill" :style="{ width: devoirProgress + '%' }" />
+        </div>
+        <!-- Dot live pour les etudiants avec session active -->
+        <span v-if="id === 'live' && !appStore.isStaff && liveStore.currentSession" class="nav-live-dot" />
+      </button>
+    </template>
 
     <!-- ── Cloche de notifications ── -->
     <div class="nav-notif-wrapper">
@@ -494,6 +498,27 @@
   background: var(--color-success);
   transition: width .5s ease;
   min-width: 1px;
+}
+
+/* ── Drag & drop : l'utilisateur peut reordonner les boutons ── */
+.nav-btn { cursor: grab; }
+.nav-btn:active { cursor: grabbing; }
+.nav-btn--dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  transition: opacity .12s ease, transform .12s ease;
+}
+.nav-btn--drop-target {
+  position: relative;
+}
+.nav-btn--drop-target::after {
+  content: '';
+  position: absolute;
+  left: 4px; right: 4px; top: -3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.6);
 }
 
 /* ── Active indicator (animated bar) ── */
