@@ -145,7 +145,9 @@ const allDayEvents = computed(() => {
       }
       rowIndex++
     }
-    const hideTitle = sIso < dayInfos.value[startIdx].iso
+    // En vue Jour : toujours afficher le titre (sinon l'event multi-jours est muet).
+    // En vue Semaine : masquer quand l'event a demarre avant la fenetre (continuation).
+    const hideTitle = props.view !== 'day' && sIso < dayInfos.value[startIdx].iso
     out.push({ ev, colStart: startIdx + 1, colSpan: endIdx - startIdx + 1, rowIndex, hideTitle })
   }
   return out

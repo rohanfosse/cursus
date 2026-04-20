@@ -29,7 +29,7 @@ function getWeekBounds(iso: string): [Date, Date] {
 
 export function useAgendaViewNav(initialDate?: string) {
   const calRef: Ref<VueCalInstance | null> = ref(null)
-  const activeView = ref<AgendaView>('month')
+  const activeView = ref<AgendaView>('week')
   const selectedDate = ref(initialDate ?? toIso(new Date()))
 
   const currentTitle = computed(() => {
