@@ -1,10 +1,10 @@
 /** StudentDepositForm.vue - Inline deposit form: file/link toggle, picker, submit */
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { onMounted, onBeforeUnmount } from 'vue'
 import {
   CheckCircle2, Upload, Link2, X, FileText, LayoutList, Loader2,
 } from 'lucide-vue-next'
-import { useToast } from '@/composables/useToast'
+import { useSimpleFileDrop } from '@/composables/useSimpleFileDrop'
 import type { Rubric } from '@/types'
 
 defineProps<{
@@ -28,10 +28,6 @@ const emit = defineEmits<{
   submit: []
 }>()
 
-const { showToast } = useToast()
-const isDragOver = ref(false)
-const MAX_BYTES = 50 * 1024 * 1024
-
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     e.preventDefault()
@@ -41,39 +37,18 @@ function onKeydown(e: KeyboardEvent) {
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
-// ── Drag & drop sur la zone fichier ───────────────────────────────────────
-// Electron : file.path expose le chemin filesystem absolu. On l'utilise
-// directement comme pickFile() pour qu'addDepot recoive un path valide.
-function onDragEnter(e: DragEvent) {
-  if (!e.dataTransfer?.types.includes('Files')) return
-  e.preventDefault()
-  isDragOver.value = true
-}
-function onDragOver(e: DragEvent) {
-  if (!e.dataTransfer?.types.includes('Files')) return
-  e.preventDefault()
-  e.dataTransfer.dropEffect = 'copy'
-}
-function onDragLeave(e: DragEvent) {
-  // Reset seulement quand on quitte vraiment la zone (pas un enfant)
-  if (e.currentTarget === e.target) isDragOver.value = false
-}
-function onDrop(e: DragEvent) {
-  e.preventDefault()
-  isDragOver.value = false
-  const file = e.dataTransfer?.files[0]
-  if (!file) return
-  if (file.size > MAX_BYTES) {
-    showToast('Fichier trop volumineux (max 50 Mo).', 'error')
-    return
-  }
-  const electronPath = (file as unknown as { path?: string }).path
-  if (!electronPath) {
-    showToast('Glisser-deposer indisponible - utilisez le bouton Choisir.', 'error')
-    return
-  }
-  emit('dropFile', { path: electronPath, name: file.name })
-}
+const {
+  isDragOver,
+  onDragEnter: onDropZoneDragEnter,
+  onDragOver: onDropZoneDragOver,
+  onDragLeave: onDropZoneDragLeave,
+  onDrop: onDropZoneDrop,
+} = useSimpleFileDrop({
+  onDrop: ([item]) => {
+    if (!item?.path) return
+    emit('dropFile', { path: item.path, name: item.name })
+  },
+})
 </script>
 
 <template>
@@ -99,10 +74,10 @@ function onDrop(e: DragEvent) {
         class="deposit-file-zone"
         :class="{ 'deposit-file-zone--drag-over': isDragOver }"
         @click="$emit('pickFile')"
-        @dragenter="onDragEnter"
-        @dragover="onDragOver"
-        @dragleave="onDragLeave"
-        @drop="onDrop"
+        @dragenter="onDropZoneDragEnter"
+        @dragover="onDropZoneDragOver"
+        @dragleave="onDropZoneDragLeave"
+        @drop="onDropZoneDrop"
       >
         <Upload :size="20" class="deposit-file-zone-icon" />
         <span class="deposit-file-zone-label">

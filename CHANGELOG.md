@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.201.0 (2026-04-20)
+
+### Drag-and-drop partout + composable moderne
+
+Audit UX/UI : apres le drag-drop du depot etudiant (v2.200), scan complet des surfaces d'upload (etudiant + prof) pour combler les trous. Extraction d'un composable centralise et modernise.
+
+**Composable `useSimpleFileDrop`** modernise :
+
+- API unifiee a base d'array `FileDropItem[]` (single ou multi-file).
+- Chaque item expose `path` (Electron), `file` (objet File brut pour FileReader / FormData), `name`, `size`, `type` (MIME).
+- Validation declarative : `maxBytes`, `allowedExtensions`, `accept` MIME pattern (`'image/*'`, `'application/pdf'`, etc.).
+- Support `multiple: true` pour le multi-file.
+- Fallback propre si `file.path` Electron indispo (toast d'erreur clair).
+
+**Surfaces equipees** :
+
+- **`RessourcesModal`** (prof ajoute ressource a un travail) : zone cliquable + drop. Pre-remplit le nom si vide.
+- **`ImportStudentsModal`** mode CSV : zone drop visible dans le body + validation extension `.csv`/`.txt`. Skip le dialog natif.
+- **Preload `importStudents(promoId, path?)`** : accepte path optionnel pour drag-drop, backward-compat avec les callers existants.
+- **Photo de profil** (`SettingsAccount` + `LoginOverlay` register form) : l'avatar lui-meme devient drop-zone. Accept `image/*`, max 5 Mo. Lit via `FileReader` et set le data URI. Badge "Deposer ici" + halo accent au drag-over.
+- **`StudentDepositForm`** refactore pour utiliser le composable (supprime ~30 lignes dupliquees).
+
 ## v2.200.0 (2026-04-20)
 
 ### UX depot etudiant

@@ -30,6 +30,23 @@ export function useSettingsAccount(emit: (evt: 'update:modelValue', v: boolean) 
     }
   }
 
+  /**
+   * Charge une photo depuis un objet File (drag-and-drop). Convertit en
+   * data URI base64 via FileReader, alignant le format avec ce que renvoie
+   * `openImageDialog` cote main (image/*;base64).
+   */
+  function loadPhotoFromFile(file: File): void {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        pendingPhoto.value = reader.result
+        photoChanged.value = true
+      }
+    }
+    reader.onerror = () => { /* silencieux — le toast du composable a deja signale */ }
+    reader.readAsDataURL(file)
+  }
+
   function removePhoto() {
     pendingPhoto.value = null
     photoChanged.value = true
@@ -136,6 +153,7 @@ export function useSettingsAccount(emit: (evt: 'update:modelValue', v: boolean) 
     pendingPhoto,
     photoChanged,
     pickPhoto,
+    loadPhotoFromFile,
     removePhoto,
     savePhoto,
     resetPhoto,

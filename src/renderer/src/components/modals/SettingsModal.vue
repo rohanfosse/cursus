@@ -447,9 +447,26 @@
   width: 64px; height: 64px; border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  transition: box-shadow .15s, transform .15s;
+}
+.stg-avatar:hover { box-shadow: 0 0 0 2px rgba(var(--accent-rgb), .3); }
+.stg-avatar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stg-avatar--drag-over {
+  box-shadow: 0 0 0 3px var(--accent), 0 0 0 6px rgba(var(--accent-rgb), .25);
+  transform: scale(1.04);
 }
 .stg-avatar-img { width: 100%; height: 100%; object-fit: cover; }
 .stg-avatar-initials { font-size: 22px; font-weight: 700; color: #fff; }
+.stg-avatar-drop-hint {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(var(--accent-rgb), .75);
+  color: #fff; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px;
+  pointer-events: none;
+}
 
 .stg-profile-info { display: flex; flex-direction: column; gap: 4px; }
 .stg-profile-name { font-size: 16px; font-weight: 700; color: var(--text-primary); }

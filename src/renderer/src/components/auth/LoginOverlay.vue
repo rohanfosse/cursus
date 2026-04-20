@@ -3,6 +3,7 @@
   import { Eye, EyeOff } from 'lucide-vue-next'
   import { useLoginForm } from '@/composables/useLoginForm'
   import { useRegisterForm } from '@/composables/useRegisterForm'
+  import { useSimpleFileDrop } from '@/composables/useSimpleFileDrop'
   import { useForgotPassword } from '@/composables/useForgotPassword'
   import logoUrl from '@/assets/logo.png'
 
@@ -30,9 +31,23 @@
   const regPwdValid    = registerForm.pwdValid
   const isCesiEmail    = registerForm.isCesiEmail
   const regEmailHint   = registerForm.emailHint
+  const loadPhotoFromFile = registerForm.loadPhotoFromFile
   const pickPhoto       = registerForm.pickPhoto
   const previewInitials = registerForm.previewInitials
   const previewColor    = registerForm.previewColor
+
+  // Drag-and-drop sur la preview avatar du register form.
+  const {
+    isDragOver: isAuthPhotoDragOver,
+    onDragEnter: onAuthPhotoDragEnter,
+    onDragOver: onAuthPhotoDragOver,
+    onDragLeave: onAuthPhotoDragLeave,
+    onDrop: onAuthPhotoDrop,
+  } = useSimpleFileDrop({
+    accept: 'image/*',
+    maxBytes: 5 * 1024 * 1024,
+    onDrop: ([item]) => { if (item) loadPhotoFromFile(item.file) },
+  })
 
   async function goRegister() {
     await registerForm.loadPromotions()
@@ -161,10 +176,22 @@
             <div class="auth-avatar-row">
               <div
                 class="auth-avatar-preview"
+                :class="{ 'auth-avatar-preview--drag-over': isAuthPhotoDragOver }"
                 :style="{ background: pendingPhoto ? 'transparent' : previewColor() }"
+                role="button"
+                tabindex="0"
+                :title="isAuthPhotoDragOver ? 'Relacher pour charger la photo' : 'Glisser une image ou cliquer'"
+                @click="pickPhoto"
+                @keydown.enter.prevent="pickPhoto"
+                @keydown.space.prevent="pickPhoto"
+                @dragenter="onAuthPhotoDragEnter"
+                @dragover="onAuthPhotoDragOver"
+                @dragleave="onAuthPhotoDragLeave"
+                @drop="onAuthPhotoDrop"
               >
                 <img v-if="pendingPhoto" :src="pendingPhoto" alt="Photo de profil" class="auth-avatar-img" />
                 <span v-else>{{ previewInitials() }}</span>
+                <span v-if="isAuthPhotoDragOver" class="auth-avatar-drop-hint">Deposer ici</span>
               </div>
               <div class="auth-avatar-actions">
                 <button type="button" class="auth-outline-btn" @click="pickPhoto">
@@ -632,6 +659,23 @@
   color: #fff;
   flex-shrink: 0;
   overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  transition: box-shadow .15s, transform .15s;
+}
+.auth-avatar-preview:hover { box-shadow: 0 0 0 2px rgba(var(--accent-rgb), .3); }
+.auth-avatar-preview:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.auth-avatar-preview--drag-over {
+  box-shadow: 0 0 0 3px var(--accent), 0 0 0 6px rgba(var(--accent-rgb), .25);
+  transform: scale(1.04);
+}
+.auth-avatar-drop-hint {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(var(--accent-rgb), .75);
+  color: #fff; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .4px;
+  pointer-events: none;
 }
 .auth-avatar-img {
   width: 100%;

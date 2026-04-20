@@ -33,6 +33,15 @@ export function useRegisterForm() {
     if (res?.ok && res.data) pendingPhoto.value = res.data
   }
 
+  /** Charge une photo depuis un objet File (drag-and-drop) en data URI base64. */
+  function loadPhotoFromFile(file: File): void {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') pendingPhoto.value = reader.result
+    }
+    reader.readAsDataURL(file)
+  }
+
   function previewInitials(): string {
     const n = `${firstName.value} ${lastName.value}`.trim()
     return n.split(/\s+/).map((w) => w[0]).join('').toUpperCase().slice(0, 2) || '?'
@@ -105,6 +114,6 @@ export function useRegisterForm() {
     firstName, lastName, email, password, promoId, emailErr,
     submitting, pendingPhoto, promotions,
     pwdCriteria, pwdValid, isCesiEmail, emailHint,
-    loadPromotions, pickPhoto, previewInitials, previewColor, submit,
+    loadPromotions, pickPhoto, loadPhotoFromFile, previewInitials, previewColor, submit,
   }
 }

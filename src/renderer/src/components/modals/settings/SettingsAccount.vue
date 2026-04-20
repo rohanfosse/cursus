@@ -4,6 +4,7 @@ import { ref, onMounted } from 'vue'
 import { User, Camera, X, Shield, KeyRound, Lock, Download, HardDrive } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useSettingsAccount } from '@/composables/useSettingsAccount'
+import { useSimpleFileDrop } from '@/composables/useSimpleFileDrop'
 
 const appStore = useAppStore()
 
@@ -25,10 +26,24 @@ onMounted(() => {
 const emit = defineEmits<{ 'update:modelValue': [v: boolean] }>()
 
 const {
-  pendingPhoto, photoChanged, pickPhoto, removePhoto, savePhoto,
+  pendingPhoto, photoChanged, pickPhoto, loadPhotoFromFile, removePhoto, savePhoto,
   avatarBg, roleLabel, roleIcon, showChangePwd, handleLogout,
   exporting, exportData, openPrivacyFromSettings,
 } = useSettingsAccount(emit)
+
+// Drag-and-drop sur l'avatar : accepte une image, limite 5 Mo (photo de profil,
+// pas besoin de plus). Lit via FileReader et convertit en data URI.
+const {
+  isDragOver: isPhotoDragOver,
+  onDragEnter: onPhotoDragEnter,
+  onDragOver: onPhotoDragOver,
+  onDragLeave: onPhotoDragLeave,
+  onDrop: onPhotoDrop,
+} = useSimpleFileDrop({
+  accept: 'image/*',
+  maxBytes: 5 * 1024 * 1024,
+  onDrop: ([item]) => { if (item) loadPhotoFromFile(item.file) },
+})
 </script>
 
 <template>
@@ -41,9 +56,24 @@ const {
     <!-- Profil -->
     <div class="stg-profile-card">
       <div class="stg-profile-top">
-        <div class="stg-avatar" :style="{ background: pendingPhoto ? 'transparent' : avatarBg }">
+        <div
+          class="stg-avatar"
+          :class="{ 'stg-avatar--drag-over': isPhotoDragOver }"
+          :style="{ background: pendingPhoto ? 'transparent' : avatarBg }"
+          role="button"
+          tabindex="0"
+          :title="isPhotoDragOver ? 'Relacher pour changer la photo' : 'Glisser une image ou cliquer pour changer'"
+          @click="pickPhoto"
+          @keydown.enter.prevent="pickPhoto"
+          @keydown.space.prevent="pickPhoto"
+          @dragenter="onPhotoDragEnter"
+          @dragover="onPhotoDragOver"
+          @dragleave="onPhotoDragLeave"
+          @drop="onPhotoDrop"
+        >
           <img v-if="pendingPhoto" :src="pendingPhoto" class="stg-avatar-img" alt="Photo de profil" />
           <span v-else class="stg-avatar-initials">{{ appStore.currentUser?.avatar_initials }}</span>
+          <span v-if="isPhotoDragOver" class="stg-avatar-drop-hint">Deposer ici</span>
         </div>
         <div class="stg-profile-info">
           <h4 class="stg-profile-name">{{ appStore.currentUser?.name }}</h4>

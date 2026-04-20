@@ -9,6 +9,7 @@
   import { useToast }        from '@/composables/useToast'
   import { useConfirm }      from '@/composables/useConfirm'
   import { useOpenExternal } from '@/composables/useOpenExternal'
+  import { useSimpleFileDrop } from '@/composables/useSimpleFileDrop'
   import Modal from '@/components/ui/Modal.vue'
   import type { AppDocument } from '@/types'
 
@@ -164,6 +165,22 @@
     addFile.value     = null
     addFileName.value = null
   }
+
+  // Drag-and-drop sur la zone fichier (mode "file").
+  const {
+    isDragOver: isFileDragOver,
+    onDragEnter: onFileDragEnter,
+    onDragOver: onFileDragOver,
+    onDragLeave: onFileDragLeave,
+    onDrop: onFileZoneDrop,
+  } = useSimpleFileDrop({
+    onDrop: ([item]) => {
+      if (!item?.path) return
+      addFile.value     = item.path
+      addFileName.value = item.name
+      if (!addName.value) addName.value = item.name
+    },
+  })
 
   async function submitAdd() {
     if (!addName.value.trim() || !selectedTravailId.value) return
@@ -355,10 +372,23 @@
                 <span class="ress-file-selected-name">{{ addFileName }}</span>
                 <button class="ress-file-clear" type="button" aria-label="Retirer le fichier" @click="clearFile"><X :size="12" /></button>
               </div>
-              <button v-else class="ress-file-picker" type="button" @click="pickFile">
+              <div
+                v-else
+                class="ress-file-picker"
+                :class="{ 'ress-file-picker--drag-over': isFileDragOver }"
+                role="button"
+                tabindex="0"
+                @click="pickFile"
+                @keydown.enter.prevent="pickFile"
+                @keydown.space.prevent="pickFile"
+                @dragenter="onFileDragEnter"
+                @dragover="onFileDragOver"
+                @dragleave="onFileDragLeave"
+                @drop="onFileZoneDrop"
+              >
                 <Upload :size="16" />
-                <span>Cliquer pour choisir…</span>
-              </button>
+                <span>{{ isFileDragOver ? 'Relacher pour deposer' : 'Glisser un fichier ou cliquer' }}</span>
+              </div>
             </template>
           </div>
 
@@ -558,7 +588,9 @@
   width: 100%;
   transition: all .15s;
 }
-.ress-file-picker:hover { border-color: var(--accent); color: var(--text-secondary); background: var(--accent-subtle); }
+.ress-file-picker:hover,
+.ress-file-picker--drag-over { border-color: var(--accent); color: var(--text-secondary); background: var(--accent-subtle); }
+.ress-file-picker--drag-over { border-style: solid; box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15); }
 
 .ress-file-selected {
   display: flex;

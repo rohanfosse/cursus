@@ -106,10 +106,15 @@ contextBridge.exposeInMainWorld('api', {
   getStudentByEmail: (email: string) => get(`/api/auth/student-by-email?email=${encodeURIComponent(email)}`),
   registerStudent:   (payload: unknown) => post('/api/auth/register', payload),
 
-  importStudents: async (promoId: number) => {
-    const fileRes = await invoke('dialog:openFile') as { ok: boolean; data?: string | null }
-    if (!fileRes?.ok || !fileRes.data) return { ok: false, error: 'Annulé' }
-    const b64Res = await invoke('fs:readFileBase64', fileRes.data) as { ok: boolean; data?: { b64: string } }
+  importStudents: async (promoId: number, path?: string) => {
+    // Si un path est fourni (drag-drop), on skippe le dialog natif.
+    let filePath: string | null = path ?? null
+    if (!filePath) {
+      const fileRes = await invoke('dialog:openFile') as { ok: boolean; data?: string | null }
+      if (!fileRes?.ok || !fileRes.data) return { ok: false, error: 'Annulé' }
+      filePath = fileRes.data
+    }
+    const b64Res = await invoke('fs:readFileBase64', filePath) as { ok: boolean; data?: { b64: string } }
     if (!b64Res?.ok || !b64Res.data?.b64) return { ok: false, error: 'Lecture échouée' }
     const text = safeAtob(b64Res.data.b64)
     if (!text) return { ok: false, error: 'Fichier CSV invalide (décodage échoué)' }

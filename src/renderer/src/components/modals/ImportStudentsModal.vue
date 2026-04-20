@@ -7,6 +7,7 @@
   import { Upload, UserPlus, FileText, AlertTriangle, CheckCircle2, X } from 'lucide-vue-next'
   import { useToast }      from '@/composables/useToast'
   import { useAppStore }   from '@/stores/app'
+  import { useSimpleFileDrop } from '@/composables/useSimpleFileDrop'
   import Modal from '@/components/ui/Modal.vue'
   import type { Promotion } from '@/types'
 
@@ -59,17 +60,32 @@
   })
 
   // ── Import CSV (fichier) ──────────────────────────────────────────────
-  async function doImportCsv() {
+  async function doImportCsv(path?: string) {
     if (!selectedPromo.value) return
     loading.value = true
     result.value  = null
     try {
-      const res = await window.api.importStudents(selectedPromo.value)
+      const res = await window.api.importStudents(selectedPromo.value, path)
       if (!res?.ok) { showToast(res?.error ?? 'Erreur import', 'error'); return }
       result.value = res.data ?? { imported: 0, errors: [] }
       if (result.value.imported > 0) showToast(`${result.value.imported} étudiant(s) importé(s)`, 'success')
     } finally { loading.value = false }
   }
+
+  // Drag-and-drop CSV : skipe le dialog natif, import direct depuis le path.
+  const {
+    isDragOver: isCsvDragOver,
+    onDragEnter: onCsvDragEnter,
+    onDragOver: onCsvDragOver,
+    onDragLeave: onCsvDragLeave,
+    onDrop: onCsvDrop,
+  } = useSimpleFileDrop({
+    allowedExtensions: ['csv', 'txt'],
+    onDrop: ([item]) => {
+      if (!item?.path) return
+      void doImportCsv(item.path)
+    },
+  })
 
   // ── Import textarea ───────────────────────────────────────────────────
   async function doImportTextarea() {
@@ -177,6 +193,28 @@ Marie Martin;marie@viacesi.fr;</pre>
             Les doublons d'email sont ignorés.
           </p>
         </div>
+
+        <!-- Zone drag-drop CSV -->
+        <div
+          class="is-csv-drop"
+          :class="{ 'is-csv-drop--drag-over': isCsvDragOver, 'is-csv-drop--disabled': !selectedPromo || loading }"
+          role="button"
+          tabindex="0"
+          @click="!loading && selectedPromo && doImportCsv()"
+          @keydown.enter.prevent="!loading && selectedPromo && doImportCsv()"
+          @dragenter="onCsvDragEnter"
+          @dragover="onCsvDragOver"
+          @dragleave="onCsvDragLeave"
+          @drop="onCsvDrop"
+        >
+          <Upload :size="20" class="is-csv-drop-icon" />
+          <span class="is-csv-drop-label">
+            <template v-if="isCsvDragOver">Relacher pour importer</template>
+            <template v-else-if="loading">Import en cours...</template>
+            <template v-else>Glisser un .csv ou cliquer pour choisir</template>
+          </span>
+          <span class="is-csv-drop-hint">Max 50 Mo &middot; .csv ou .txt</span>
+        </div>
       </template>
 
       <!-- Résultat -->
@@ -210,7 +248,7 @@ Marie Martin;marie@viacesi.fr;</pre>
         v-else
         class="btn-primary is-submit"
         :disabled="!selectedPromo || loading"
-        @click="doImportCsv"
+        @click="() => doImportCsv()"
       >
         <Upload :size="14" />
         {{ loading ? 'Import…' : 'Choisir un fichier' }}
@@ -287,6 +325,31 @@ Marie Martin;marie@viacesi.fr;</pre>
   color: var(--text-secondary); background: rgba(0,0,0,.2);
   border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; overflow-x: auto; white-space: pre;
 }
+
+/* Zone drag-drop CSV */
+.is-csv-drop {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 20px 14px;
+  border: 1.5px dashed var(--border-input);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+  color: var(--text-secondary);
+}
+.is-csv-drop:hover:not(.is-csv-drop--disabled),
+.is-csv-drop--drag-over {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+}
+.is-csv-drop--drag-over { border-style: solid; box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15); }
+.is-csv-drop--disabled { opacity: .5; cursor: not-allowed; }
+.is-csv-drop-icon { color: var(--text-muted); }
+.is-csv-drop:hover:not(.is-csv-drop--disabled) .is-csv-drop-icon,
+.is-csv-drop--drag-over .is-csv-drop-icon { color: var(--accent); }
+.is-csv-drop-label { font-size: 13px; font-weight: 600; }
+.is-csv-drop-hint { font-size: 11px; color: var(--text-muted); opacity: .7; }
 
 /* Result */
 .is-result {
