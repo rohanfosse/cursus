@@ -3,6 +3,7 @@
  * le formulaire de dépôt inline, ou le statut rendu selon le variant.
  */
 <script setup lang="ts">
+import { ref, onBeforeUnmount } from 'vue'
 import {
   CheckCircle2, Clock, Lock, Upload,
   Calendar, Award, Bell, BellOff,
@@ -45,6 +46,34 @@ const t = props.devoir
 const showDepositForm = props.variant !== 'overdue' && props.variant !== 'event' && props.variant !== 'submitted'
 const { addReminder, removeReminder, hasReminder } = useStudentReminders()
 
+// ── Popover choix de rappel ──────────────────────────────────────────────
+const reminderOpen = ref(false)
+const REMINDER_OPTIONS: { hours: number; label: string }[] = [
+  { hours: 1,  label: '1h avant' },
+  { hours: 3,  label: '3h avant' },
+  { hours: 24, label: '24h avant' },
+  { hours: 72, label: '3 jours avant' },
+]
+
+function onReminderClick(ev: MouseEvent) {
+  ev.stopPropagation()
+  if (hasReminder(props.devoir.id)) {
+    removeReminder(props.devoir.id)
+    return
+  }
+  reminderOpen.value = !reminderOpen.value
+  if (reminderOpen.value) document.addEventListener('click', closeReminder, { once: true })
+}
+
+function closeReminder() { reminderOpen.value = false }
+
+function pickReminder(hours: number) {
+  addReminder(props.devoir.id, props.devoir.title, props.devoir.deadline, hours)
+  reminderOpen.value = false
+}
+
+onBeforeUnmount(() => document.removeEventListener('click', closeReminder))
+
 /** Minimal markdown : **bold**, newlines → <br> */
 function formatDesc(text: string): string {
   return text
@@ -63,16 +92,29 @@ function formatDesc(text: string): string {
         <span v-if="devoir.category" class="tag-badge">{{ parseCategoryIcon(devoir.category).label || devoir.category }}</span>
         <span v-if="devoir.channel_name" class="devoir-channel"># {{ devoir.channel_name }}</span>
       </div>
-      <button
-        v-if="variant === 'pending' || variant === 'urgent'"
-        class="devoir-reminder-btn"
-        :class="{ active: hasReminder(devoir.id) }"
-        :title="hasReminder(devoir.id) ? 'Annuler le rappel' : 'Me rappeler 24h avant'"
-        @click.stop="hasReminder(devoir.id) ? removeReminder(devoir.id) : addReminder(devoir.id, devoir.title, devoir.deadline)"
-      >
-        <BellOff v-if="hasReminder(devoir.id)" :size="12" />
-        <Bell v-else :size="12" />
-      </button>
+      <div v-if="variant === 'pending' || variant === 'urgent'" class="devoir-reminder-wrap">
+        <button
+          class="devoir-reminder-btn"
+          :class="{ active: hasReminder(devoir.id) }"
+          :title="hasReminder(devoir.id) ? 'Annuler le rappel' : 'Programmer un rappel'"
+          :aria-expanded="reminderOpen"
+          @click="onReminderClick"
+        >
+          <BellOff v-if="hasReminder(devoir.id)" :size="12" />
+          <Bell v-else :size="12" />
+        </button>
+        <div v-if="reminderOpen" class="devoir-reminder-popover" role="menu" @click.stop>
+          <span class="devoir-reminder-popover-title">Me rappeler</span>
+          <button
+            v-for="opt in REMINDER_OPTIONS" :key="opt.hours"
+            class="devoir-reminder-option"
+            role="menuitem"
+            @click="pickReminder(opt.hours)"
+          >
+            <Bell :size="10" /> {{ opt.label }}
+          </button>
+        </div>
+      </div>
       <span class="deadline-badge" :class="deadlineClass(devoir.deadline)">
         <Clock :size="10" />{{ deadlineLabel(devoir.deadline) }}
       </span>
@@ -197,6 +239,7 @@ function formatDesc(text: string): string {
 
 .devoir-channel { font-size: 11px; color: var(--text-muted); }
 
+.devoir-reminder-wrap { position: relative; flex-shrink: 0; }
 .devoir-reminder-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; border-radius: 6px;
@@ -206,6 +249,28 @@ function formatDesc(text: string): string {
 }
 .devoir-reminder-btn:hover { background: var(--bg-hover); color: var(--accent); border-color: var(--accent); }
 .devoir-reminder-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(var(--accent-rgb),.08); }
+
+.devoir-reminder-popover {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 30;
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 140px; padding: 6px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-modal, var(--bg-elevated));
+  box-shadow: 0 6px 20px rgba(0,0,0,.35);
+}
+.devoir-reminder-popover-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--text-muted); padding: 2px 8px 4px;
+}
+.devoir-reminder-option {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 4px;
+  border: none; background: transparent;
+  color: var(--text-secondary); font-family: var(--font);
+  font-size: 12px; text-align: left; cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.devoir-reminder-option:hover { background: var(--bg-hover); color: var(--accent); }
 
 .devoir-card-title {
   font-size: 15px;
