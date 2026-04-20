@@ -12,6 +12,7 @@ import { useDocumentsStore } from '@/stores/documents'
 import { useModalsStore } from '@/stores/modals'
 import { useFichiersStore } from '@/stores/fichiers'
 import { useApi }      from '@/composables/useApi'
+import { useSlashFocusSearch } from '@/composables/useSlashFocusSearch'
 import { relativeTime } from '@/utils/date'
 import { authUrl }      from '@/utils/auth'
 
@@ -23,6 +24,9 @@ const router   = useRouter()
 const { api }  = useApi()
 
 if (!appStore.isTeacher) router.replace('/dashboard')
+
+// ── Raccourci clavier : '/' focalise la recherche (convention cross-vues) ──
+useSlashFocusSearch('.fv-search')
 
 interface DmFile {
   message_id:   number

@@ -17,6 +17,7 @@
   import { useDocumentsEdit } from '@/composables/useDocumentsEdit'
   import { useDocumentsBatchSelection } from '@/composables/useDocumentsBatchSelection'
   import { useDocumentsViewMode } from '@/composables/useDocumentsViewMode'
+  import { useSlashFocusSearch } from '@/composables/useSlashFocusSearch'
   import { useCahierStore } from '@/stores/cahier'
   import CahierList from '@/components/cahier/CahierList.vue'
   import CahierEditor from '@/components/cahier/CahierEditor.vue'
@@ -37,6 +38,9 @@
 
   // ── View mode: grid vs list (persiste en localStorage) ───────────────
   const { mode: viewMode } = useDocumentsViewMode()
+
+  // ── Raccourci clavier : '/' focalise la recherche (convention cross-vues) ──
+  useSlashFocusSearch('.docs-search-input')
 
   // ── Drag & drop ────────────────────────────────────────────────────────
   const { isDragOver, pendingFile, uploading, onDragEnter, onDragLeave, onDragOver, onDrop, submitDocument, cancelDrop } = useFileDrop()

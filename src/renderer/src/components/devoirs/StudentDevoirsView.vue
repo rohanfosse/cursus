@@ -18,6 +18,7 @@ import StudentProjetFiche    from '@/components/projet/StudentProjetFiche.vue'
 import StudentStatsBar       from './StudentStatsBar.vue'
 import KanbanBoard           from './KanbanBoard.vue'
 import { useModules }        from '@/composables/useModules'
+import { useSlashFocusSearch } from '@/composables/useSlashFocusSearch'
 import StudentDevoirGroup    from './StudentDevoirGroup.vue'
 import DevoirsProjectCard    from './DevoirsProjectCard.vue'
 import EmptyState            from '@/components/ui/EmptyState.vue'
@@ -90,34 +91,16 @@ function scrollToTop() {
   el?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// ── Raccourci clavier : '/' focalise la recherche ──────────────────────────
-function isEditable(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  const tag = target.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
-}
-function onDevoirsKeydown(e: KeyboardEvent) {
-  if (e.isComposing || e.keyCode === 229) return
-  if (e.ctrlKey || e.metaKey || e.altKey) return
-  if (e.key === '/' && !isEditable(e.target)) {
-    const input = document.querySelector('.sdv-search-input') as HTMLInputElement | null
-    if (input) {
-      e.preventDefault()
-      input.focus()
-      input.select()
-    }
-  }
-}
+// ── Raccourci clavier : '/' focalise la recherche (convention cross-vues) ──
+useSlashFocusSearch('.sdv-search-input')
 
 onMounted(() => {
   const el = document.querySelector('.devoirs-scroll-area')
   el?.addEventListener('scroll', onDevoirsScroll, { passive: true })
-  window.addEventListener('keydown', onDevoirsKeydown)
 })
 onBeforeUnmount(() => {
   const el = document.querySelector('.devoirs-scroll-area')
   el?.removeEventListener('scroll', onDevoirsScroll)
-  window.removeEventListener('keydown', onDevoirsKeydown)
 })
 
 /** Shared deposit props forwarded to every group */
