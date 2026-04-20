@@ -48,7 +48,7 @@ const {
 const {
   depositingDevoirId, depositMode, depositLink, depositFile, depositFileName,
   depositing, rubricPreview,
-  startDeposit, cancelDeposit, pickFile, clearDepositFile, submitDeposit,
+  startDeposit, cancelDeposit, pickFile, onFileDrop, clearDepositFile, submitDeposit,
 } = useStudentDeposit(now)
 
 const {
@@ -123,6 +123,7 @@ watch(() => appStore.activeChannelId, () => {
         :start-deposit="startDeposit"
         :cancel-deposit="cancelDeposit"
         :pick-file="pickFile"
+        :on-file-drop="onFileDrop"
         :clear-deposit-file="clearDepositFile"
         :submit-deposit="submitDeposit"
         @update:deposit-mode="depositMode = $event"

@@ -7,6 +7,7 @@ import type { Devoir, Rubric } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 import { isExpired } from '@/utils/devoir'
 import { validateDeposit } from '@/utils/depositValidation'
 
@@ -14,6 +15,7 @@ export function useStudentDeposit(now: { value: number }) {
   const appStore = useAppStore()
   const travauxStore = useTravauxStore()
   const { showToast } = useToast()
+  const { confirm } = useConfirm()
 
   const depositingDevoirId = ref<number | null>(null)
   const depositMode        = ref<'file' | 'link'>('file')
@@ -50,6 +52,12 @@ export function useStudentDeposit(now: { value: number }) {
     }
   }
 
+  // Drag-and-drop : alimente depositFile directement depuis le path Electron.
+  function onFileDrop(payload: { path: string; name: string }) {
+    depositFile.value     = payload.path
+    depositFileName.value = payload.name
+  }
+
   function clearDepositFile() {
     depositFile.value     = null
     depositFileName.value = null
@@ -72,6 +80,24 @@ export function useStudentDeposit(now: { value: number }) {
         showToast(validation.error!, 'error')
         return
       }
+    }
+
+    // Devoir de groupe v2.199 : un autre membre a deja depose → confirmer
+    // avant d'ecraser (pas d'historique, la version precedente sera perdue).
+    if (
+      devoir.group_id != null
+      && devoir.depot_id != null
+      && devoir.depot_author_id != null
+      && devoir.depot_author_id !== appStore.currentUser.id
+    ) {
+      const author = devoir.depot_author_name || 'un autre membre'
+      const existingName = devoir.file_name || devoir.link_url || 'un rendu'
+      const ok = await confirm({
+        message: `${author} a deja depose "${existingName}" pour ce devoir de groupe. Votre fichier va le remplacer (la version precedente sera perdue).`,
+        variant: 'warning',
+        confirmLabel: 'Remplacer',
+      })
+      if (!ok) return
     }
 
     depositing.value = true
@@ -111,6 +137,7 @@ export function useStudentDeposit(now: { value: number }) {
     startDeposit,
     cancelDeposit,
     pickFile,
+    onFileDrop,
     clearDepositFile,
     submitDeposit,
   }

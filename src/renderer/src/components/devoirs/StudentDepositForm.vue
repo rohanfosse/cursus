@@ -1,9 +1,10 @@
 /** StudentDepositForm.vue - Inline deposit form: file/link toggle, picker, submit */
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, onBeforeUnmount, ref } from 'vue'
 import {
   CheckCircle2, Upload, Link2, X, FileText, LayoutList, Loader2,
 } from 'lucide-vue-next'
+import { useToast } from '@/composables/useToast'
 import type { Rubric } from '@/types'
 
 defineProps<{
@@ -21,10 +22,15 @@ const emit = defineEmits<{
   'update:depositMode': [v: 'file' | 'link']
   'update:depositLink': [v: string]
   pickFile: []
+  dropFile: [payload: { path: string; name: string }]
   clearFile: []
   cancel: []
   submit: []
 }>()
+
+const { showToast } = useToast()
+const isDragOver = ref(false)
+const MAX_BYTES = 50 * 1024 * 1024
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
@@ -34,6 +40,40 @@ function onKeydown(e: KeyboardEvent) {
 }
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+
+// ── Drag & drop sur la zone fichier ───────────────────────────────────────
+// Electron : file.path expose le chemin filesystem absolu. On l'utilise
+// directement comme pickFile() pour qu'addDepot recoive un path valide.
+function onDragEnter(e: DragEvent) {
+  if (!e.dataTransfer?.types.includes('Files')) return
+  e.preventDefault()
+  isDragOver.value = true
+}
+function onDragOver(e: DragEvent) {
+  if (!e.dataTransfer?.types.includes('Files')) return
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'copy'
+}
+function onDragLeave(e: DragEvent) {
+  // Reset seulement quand on quitte vraiment la zone (pas un enfant)
+  if (e.currentTarget === e.target) isDragOver.value = false
+}
+function onDrop(e: DragEvent) {
+  e.preventDefault()
+  isDragOver.value = false
+  const file = e.dataTransfer?.files[0]
+  if (!file) return
+  if (file.size > MAX_BYTES) {
+    showToast('Fichier trop volumineux (max 50 Mo).', 'error')
+    return
+  }
+  const electronPath = (file as unknown as { path?: string }).path
+  if (!electronPath) {
+    showToast('Glisser-deposer indisponible - utilisez le bouton Choisir.', 'error')
+    return
+  }
+  emit('dropFile', { path: electronPath, name: file.name })
+}
 </script>
 
 <template>
@@ -54,9 +94,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           <X :size="12" />
         </button>
       </div>
-      <div v-else class="deposit-file-zone" @click="$emit('pickFile')">
+      <div
+        v-else
+        class="deposit-file-zone"
+        :class="{ 'deposit-file-zone--drag-over': isDragOver }"
+        @click="$emit('pickFile')"
+        @dragenter="onDragEnter"
+        @dragover="onDragOver"
+        @dragleave="onDragLeave"
+        @drop="onDrop"
+      >
         <Upload :size="20" class="deposit-file-zone-icon" />
-        <span class="deposit-file-zone-label">Cliquer pour choisir un fichier</span>
+        <span class="deposit-file-zone-label">
+          <template v-if="isDragOver">Relacher pour deposer</template>
+          <template v-else>Glisser un fichier ou cliquer pour choisir</template>
+        </span>
         <span class="deposit-file-zone-hint">PDF, images, archives... &middot; Max 50 Mo</span>
       </div>
     </div>

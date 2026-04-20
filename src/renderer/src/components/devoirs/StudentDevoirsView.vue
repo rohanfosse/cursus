@@ -59,6 +59,7 @@ const props = defineProps<{
   startDeposit: (t: Devoir) => void
   cancelDeposit: () => void
   pickFile: () => void
+  onFileDrop?: (payload: { path: string; name: string }) => void
   clearDepositFile: () => void
   submitDeposit: (t: Devoir) => void
   // error / retry
@@ -115,6 +116,7 @@ const depositProps = computed(() => ({
   startDeposit: props.startDeposit,
   cancelDeposit: props.cancelDeposit,
   pickFile: props.pickFile,
+  onFileDrop: props.onFileDrop,
   clearDepositFile: props.clearDepositFile,
   submitDeposit: props.submitDeposit,
 }))

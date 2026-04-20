@@ -38,6 +38,7 @@ const props = defineProps<{
   startDeposit: (t: Devoir) => void
   cancelDeposit: () => void
   pickFile: () => void
+  onFileDrop?: (payload: { path: string; name: string }) => void
   clearDepositFile: () => void
   submitDeposit: (t: Devoir) => void
 }>()
@@ -235,6 +236,7 @@ function formatDesc(text: string): string {
         @update:deposit-mode="$emit('update:depositMode', $event)"
         @update:deposit-link="$emit('update:depositLink', $event)"
         @pick-file="pickFile"
+        @drop-file="onFileDrop && onFileDrop($event)"
         @clear-file="clearDepositFile"
         @cancel="cancelDeposit"
         @submit="submitDeposit(devoir)"
@@ -525,9 +527,14 @@ function formatDesc(text: string): string {
   text-align: center;
   transition: border-color var(--t-fast), background var(--t-fast);
 }
-.deposit-file-zone:hover {
+.deposit-file-zone:hover,
+.deposit-file-zone--drag-over {
   border-color: var(--accent);
   background: var(--accent-subtle);
+}
+.deposit-file-zone--drag-over {
+  border-style: solid;
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
 }
 
 .deposit-file-zone-icon       { color: var(--text-muted); margin-bottom: 2px; }

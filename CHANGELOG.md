@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.200.0 (2026-04-20)
+
+### UX depot etudiant
+
+Deux frictions haute priorite identifiees lors de l'audit UX/UI devoirs etudiant, les deux susceptibles de causer des litiges au pilote CESI sept 2026.
+
+- **Drag-and-drop sur la zone de depot** : on pouvait uniquement cliquer pour ouvrir le file picker. Desormais l'etudiant peut glisser un PDF/image/archive directement sur la zone. La zone affiche un etat actif ("Relacher pour deposer" + halo accent) pendant le hover. Limite 50 Mo respectee, fallback toast si `file.path` Electron indisponible.
+- **Avertissement ecrasement depot de groupe** : v2.199 autorise n'importe quel membre a ecraser le depot de l'equipe sans signal. Un etudiant pouvait ecrabouiller le rendu d'un camarade par erreur. Desormais, une confirmation `useConfirm` apparait : *"Alice a deja depose projet-v1.pdf pour ce devoir de groupe. Votre fichier va le remplacer (la version precedente sera perdue)."* Bouton `Remplacer` (warning) + `Annuler`. Le depot solo et le depot groupe par le meme etudiant ne declenchent pas le prompt.
+
 ## v2.199.0 (2026-04-20)
 
 ### Devoirs de groupe — modele "un depot = toute l'equipe"

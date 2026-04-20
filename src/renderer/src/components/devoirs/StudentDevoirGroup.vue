@@ -29,6 +29,7 @@ const props = defineProps<{
   startDeposit: (t: Devoir) => void
   cancelDeposit: () => void
   pickFile: () => void
+  onFileDrop?: (payload: { path: string; name: string }) => void
   clearDepositFile: () => void
   submitDeposit: (t: Devoir) => void
 }>()
@@ -81,6 +82,7 @@ function isExpired(deadline: string | null | undefined): boolean {
         :start-deposit="startDeposit"
         :cancel-deposit="cancelDeposit"
         :pick-file="pickFile"
+        :on-file-drop="onFileDrop"
         :clear-deposit-file="clearDepositFile"
         :submit-deposit="submitDeposit"
         @update:deposit-mode="$emit('update:depositMode', $event)"
