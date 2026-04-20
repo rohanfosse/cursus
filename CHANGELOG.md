@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.202.0 (2026-04-20)
+
+### Drag-drop : composable modernise + composant unifie
+
+Amelioration du design du composable `useSimpleFileDrop` et extraction d'un composant `<FileDropZone>` pret a l'emploi.
+
+**Composable `useSimpleFileDrop` v2** :
+
+- **Drag counter** interne : plus de flicker `isDragOver` quand la souris passe sur les enfants de la zone (bug classique du `dragenter`/`dragleave` qui se declenchent pour chaque descendant).
+- **Machine a etats** : `status = 'idle' | 'drag-over' | 'processing' | 'success' | 'error'`. Les consumers peuvent peindre une animation differente par etat.
+- **Auto-reset** apres succes/erreur (`successResetMs`, defaut 1.5s) pour animer un flash "depot recu" sans boilerplate.
+- **Bindings object** : `v-bind="drop.bindings"` remplace le cablage des 4 handlers. API plus courte.
+- **Disabled reactif** : passe un `Ref<boolean>` / `ComputedRef<boolean>` pour bloquer dynamiquement (ex: tant que le promoId n'est pas choisi).
+- **`requireElectronPath`** : option pour rejeter les drops web quand l'app a besoin d'un path filesystem.
+- **Handlers async + gestion d'erreur** : si le `onDrop` throw, status passe a 'error' + toast. Plus silencieux.
+- **API legacy preservee** : `isDragOver`, `onDragEnter/Over/Leave`, `onDrop` restent exposes, aucun breaking change pour les consumers v2.201.
+
+**Composant `<FileDropZone>`** (`@/components/ui/FileDropZone.vue`) :
+
+- Zone de drop pre-stylee, accessible (role button, keyboard Enter/Space, aria-busy).
+- Props : `accept`, `allowedExtensions`, `maxBytes`, `multiple`, `disabled`, `label`, `hint`, `dragOverLabel`, `processingLabel`, `successLabel`, `variant` (`default` | `compact`), `requireElectronPath`.
+- Icones automatiques par status (Upload / Loader2 / CheckCircle2 / AlertCircle).
+- Animations : halo + scale en drag-over, flash en success, shake en error. `prefers-reduced-motion` respecte.
+- Slot `#icon` pour override.
+- ImportStudentsModal migre comme demo (supprime ~30 lignes de CSS + markup inline).
+
 ## v2.201.0 (2026-04-20)
 
 ### Drag-and-drop partout + composable moderne
