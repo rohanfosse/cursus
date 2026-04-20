@@ -19,6 +19,11 @@
  *
  * Le composant <ContextMenu> reste responsable du rendu + positionnement +
  * fermeture sur clic exterieur / Escape.
+ *
+ * ATTENTION : le mode est detecte a l'execution via un type-guard sur payload.
+ * Si `T` est un tableau dont chaque element a une propriete `label`, il sera
+ * confondu avec des items et route vers `state` au lieu de `ctx`. Eviter
+ * d'utiliser comme target un type ambigu ; preferer les objets domaine.
  */
 import { ref, type Ref } from 'vue'
 import type { ContextMenuItem } from '@/components/ui/ContextMenu.vue'
@@ -61,7 +66,7 @@ export function useContextMenu<T = unknown>(): UseContextMenuReturn<T> {
     ev.preventDefault()
 
     if (isContextMenuItemList(payload)) {
-      // Mode items : on stop toujours la propagation (evite les double-menus).
+      // Items: stopPropagation inconditionnel pour eviter les menus imbriques.
       ev.stopPropagation()
       if (!payload.length) return
       state.value = { x: ev.clientX, y: ev.clientY, items: payload }

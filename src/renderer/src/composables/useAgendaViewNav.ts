@@ -5,6 +5,7 @@
  */
 import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
+import { startOfISOWeek } from '@/utils/date'
 
 export type AgendaView = 'month' | 'week' | 'day'
 
@@ -12,11 +13,7 @@ function pad(n: number): string { return String(n).padStart(2, '0') }
 function toIso(d: Date): string { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
 
 function getWeekBounds(iso: string): [Date, Date] {
-  const d = new Date(`${iso}T00:00:00`)
-  const day = d.getDay()
-  const mondayOffset = day === 0 ? -6 : 1 - day
-  const monday = new Date(d)
-  monday.setDate(d.getDate() + mondayOffset)
+  const monday = startOfISOWeek(new Date(`${iso}T00:00:00`))
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() + 6)
   return [monday, sunday]
