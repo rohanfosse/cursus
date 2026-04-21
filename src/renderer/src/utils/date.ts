@@ -113,3 +113,16 @@ export function countdown(target: string | Date): string {
   const days = Math.floor(hours / 24)
   return `${days}j ${hours % 24}h`
 }
+
+/** Expiration restante pour un statut utilisateur ("encore 42 min", "jusqu'au 22 avr"). */
+export function formatExpiryShort(expiresAt: string | null | undefined): string {
+  if (!expiresAt) return 'sans expiration'
+  const ms = new Date(expiresAt).getTime() - Date.now()
+  if (ms <= 0) return 'expiré'
+  const min = Math.round(ms / 60_000)
+  if (min < 60) return `encore ${min} min`
+  const h = Math.round(min / 60)
+  if (h < 24) return `encore ${h} h`
+  const d = new Date(expiresAt)
+  return `jusqu'au ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
+}

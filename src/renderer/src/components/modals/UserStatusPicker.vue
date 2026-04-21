@@ -4,12 +4,13 @@
  * Presets rapides pour le contexte formation : examen, TP, pause, offline.
  * Duree optionnelle (auto-clear a expiration cote serveur).
  */
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { X, Trash2 } from 'lucide-vue-next'
 import Modal from '@/components/ui/Modal.vue'
 import { useStatusesStore } from '@/stores/statuses'
+import { formatExpiryShort } from '@/utils/date'
 
-defineProps<{ modelValue: boolean }>()
+const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [v: boolean] }>()
 
 const statuses = useStatusesStore()
@@ -38,6 +39,7 @@ const emoji = ref('')
 const text = ref('')
 const durationIdx = ref(1) // default 1h
 const submitting = ref(false)
+const textInputRef = ref<HTMLInputElement | null>(null)
 
 function applyPreset(p: typeof PRESETS[number]) {
   emoji.value = p.emoji
@@ -88,20 +90,38 @@ async function clearStatus() {
 watch(() => statuses.mine, (s) => {
   if (s) { emoji.value = s.emoji ?? ''; text.value = s.text ?? '' }
 }, { immediate: true })
+
+// Auto-focus de l'input texte a l'ouverture pour permettre la frappe immediate
+watch(() => props.modelValue, async (open) => {
+  if (!open) return
+  await nextTick()
+  textInputRef.value?.focus()
+  textInputRef.value?.select()
+})
 </script>
 
 <template>
   <Modal :model-value="modelValue" title="Définir un statut" max-width="480px" @update:model-value="emit('update:modelValue', $event)">
     <div class="usp-body">
       <div class="usp-current" v-if="statuses.mine?.emoji || statuses.mine?.text">
-        <span class="usp-current-emoji">{{ statuses.mine.emoji }}</span>
-        <span class="usp-current-text">{{ statuses.mine.text }}</span>
+        <span class="usp-current-emoji">{{ statuses.mine.emoji || '•' }}</span>
+        <div class="usp-current-body">
+          <span class="usp-current-text">{{ statuses.mine.text }}</span>
+          <span class="usp-current-expiry">{{ formatExpiryShort(statuses.mine.expiresAt) }}</span>
+        </div>
       </div>
 
       <label class="usp-label">Emoji + texte</label>
       <div class="usp-input-row">
         <input v-model="emoji" maxlength="8" class="usp-input usp-emoji-input" placeholder="🎯" />
-        <input v-model="text" maxlength="100" class="usp-input usp-text-input" placeholder="Qu'est-ce que tu fais ?" />
+        <input
+          ref="textInputRef"
+          v-model="text"
+          maxlength="100"
+          class="usp-input usp-text-input"
+          placeholder="Qu'est-ce que tu fais ?"
+          @keydown.enter="submit"
+        />
       </div>
 
       <label class="usp-label">Presets</label>
@@ -144,14 +164,16 @@ watch(() => statuses.mine, (s) => {
 .usp-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
 
 .usp-current {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
   background: rgba(var(--accent-rgb), .08);
   border: 1px solid rgba(var(--accent-rgb), .3);
-  border-radius: 8px;
+  border-radius: 10px;
 }
-.usp-current-emoji { font-size: 18px; }
-.usp-current-text { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+.usp-current-emoji { font-size: 22px; line-height: 1; }
+.usp-current-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.usp-current-text { font-size: 13px; color: var(--text-primary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usp-current-expiry { font-size: 11px; color: var(--text-muted); letter-spacing: .2px; }
 
 .usp-label {
   font-size: 11px;

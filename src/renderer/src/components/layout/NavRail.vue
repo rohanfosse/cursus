@@ -1,10 +1,11 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
-  import { MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame, Search, Shield, Bug, Zap, Paperclip, Lightbulb, Calendar, Gamepad2, PanelLeftClose, PanelLeftOpen, EyeOff, Eye, ArrowUp, ArrowDown, RotateCcw, Bookmark, Smile } from 'lucide-vue-next'
+  import { MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame, Search, Shield, Bug, Zap, Paperclip, Lightbulb, Calendar, Gamepad2, PanelLeftClose, PanelLeftOpen, EyeOff, Eye, ArrowUp, ArrowDown, RotateCcw, Bookmark, Smile, Trash2 } from 'lucide-vue-next'
   import UserStatusPicker from '@/components/modals/UserStatusPicker.vue'
   import { useStatusesStore } from '@/stores/statuses'
   import ContextMenu from '@/components/ui/ContextMenu.vue'
+  import type { ContextMenuQuickEmoji } from '@/components/ui/ContextMenu.vue'
   import { useContextMenu, type ContextMenuItem } from '@/composables/useContextMenu'
   import logoUrl from '@/assets/logo.png'
   import { useAppStore }    from '@/stores/app'
@@ -15,6 +16,7 @@
   import { useModules }     from '@/composables/useModules'
   import { useNavRailOrder } from '@/composables/useNavRailOrder'
   import { avatarColor }    from '@/utils/format'
+  import { formatExpiryShort } from '@/utils/date'
   import { getAuthToken }   from '@/utils/auth'
   import NotificationPanel from './NotificationPanel.vue'
 
@@ -172,8 +174,15 @@
 
   // ── Context menu (clic-droit) ──────────────────────────────────────────
   const { state: navCtx, open: openNavCtx, close: closeNavCtx } = useContextMenu()
+  const navCtxQuickEmojis = ref<ContextMenuQuickEmoji[] | undefined>(undefined)
+
+  function handleNavCtxClose(): void {
+    closeNavCtx()
+    navCtxQuickEmojis.value = undefined
+  }
 
   function openItemContextMenu(ev: MouseEvent, id: string) {
+    navCtxQuickEmojis.value = undefined
     const items: ContextMenuItem[] = [
       { label: 'Masquer ' + navItemLabel(id), icon: EyeOff, action: () => hideNavItem(id) },
       { separator: true, label: '' },
@@ -188,6 +197,7 @@
   function openRailContextMenu(ev: MouseEvent) {
     // Si on a clique sur un bouton, le handler de l'item a deja gere
     if ((ev.target as HTMLElement)?.closest('.nav-btn')) return
+    navCtxQuickEmojis.value = undefined
     const hidden = navHiddenIds.value.filter(id => isNavVisible(id))
     const items: ContextMenuItem[] = []
     if (hidden.length) {
@@ -233,6 +243,59 @@
   function onNavDragEnd() {
     draggingId.value = null
     dragOverId.value = null
+  }
+
+  // ── Statut personnel : menu contextuel discret sur l'avatar ─────────────
+  // Presets 1-clic pour le contexte formation (expiration 1h par defaut)
+  const STATUS_QUICK_DURATION_MS = 60 * 60_000
+  const STATUS_QUICK_PRESETS = [
+    { emoji: '📝', text: 'En examen' },
+    { emoji: '🧪', text: 'En TP' },
+    { emoji: '📚', text: 'En cours' },
+    { emoji: '☕', text: 'Pause' },
+    { emoji: '🎧', text: 'Ne pas déranger' },
+    { emoji: '✈️', text: 'Absent' },
+  ] as const
+
+  function applyQuickStatus(p: { emoji: string; text: string }): void {
+    const expiresAt = new Date(Date.now() + STATUS_QUICK_DURATION_MS).toISOString()
+    statusesStore.setMine({ emoji: p.emoji, text: p.text, expiresAt })
+    showToast(`Statut : ${p.emoji} ${p.text} (1h)`, 'info')
+  }
+
+  function openAvatarContextMenu(ev: MouseEvent) {
+    const mine = statusesStore.mine
+    const hasStatus = !!(mine?.emoji || mine?.text)
+
+    const items: ContextMenuItem[] = []
+
+    if (hasStatus) {
+      const label = `${mine!.emoji ?? '•'}  ${mine!.text ?? 'Statut'} — ${formatExpiryShort(mine!.expiresAt)}`
+      items.push({ label, disabled: true })
+      items.push({ separator: true, label: '' })
+    }
+
+    items.push({
+      label: hasStatus ? 'Personnaliser…' : 'Définir un statut personnalisé…',
+      icon: Smile,
+      action: () => { showStatusPicker.value = true },
+    })
+
+    if (hasStatus) {
+      items.push({
+        label: 'Effacer le statut',
+        icon: Trash2,
+        danger: true,
+        action: () => { statusesStore.setMine(null) },
+      })
+    }
+
+    navCtxQuickEmojis.value = STATUS_QUICK_PRESETS.map(p => ({
+      emoji: p.emoji,
+      label: `${p.text} (1h)`,
+      action: () => applyQuickStatus(p),
+    }))
+    openNavCtx(ev, items)
   }
 
 </script>
@@ -418,37 +481,36 @@
       <span class="nav-label">Feedback</span>
     </button> -->
 
-    <!-- ── Bouton statut personnel ── -->
-    <button
-      class="nav-btn nav-status-btn"
-      :title="statusesStore.mine ? `Statut : ${statusesStore.mine.text || statusesStore.mine.emoji}` : 'Définir un statut'"
-      aria-label="Statut personnel"
-      @click="showStatusPicker = true"
-    >
-      <span v-if="statusesStore.mine?.emoji" class="nav-status-emoji">{{ statusesStore.mine.emoji }}</span>
-      <Smile v-else :size="18" />
-      <span class="nav-label">Statut</span>
-    </button>
-
-    <!-- ── Avatar / Paramètres ── -->
+    <!-- ── Avatar / Paramètres (clic-droit = statut personnel) ── -->
     <div class="nav-divider" />
 
     <button
       id="nav-user-avatar"
       class="nav-avatar-btn"
       :style="avatarStyle"
-      :title="`${user?.name} - Paramètres`"
+      :title="statusesStore.mine ? `${user?.name} — ${statusesStore.mine.text || statusesStore.mine.emoji} (clic droit pour modifier)` : `${user?.name} — Paramètres (clic droit : statut)`"
       aria-label="Paramètres du compte"
       @click="modals.settings = true"
+      @contextmenu.prevent="openAvatarContextMenu"
     >
       <img v-if="user?.photo_data" :src="user.photo_data" :alt="user?.name" />
       <Flame v-else-if="user?.type === 'admin' || user?.type === 'teacher'" :size="18" style="color:#fff;opacity:.95" />
       <span v-else>{{ user?.avatar_initials }}</span>
+      <span v-if="statusesStore.mine?.emoji" class="nav-avatar-status" aria-hidden="true">
+        {{ statusesStore.mine.emoji }}
+      </span>
     </button>
   </nav>
 
-  <!-- Context menu (clic-droit sur un bouton ou sur la nav) -->
-  <ContextMenu v-if="navCtx" :x="navCtx.x" :y="navCtx.y" :items="navCtx.items" @close="closeNavCtx" />
+  <!-- Context menu (clic-droit sur un bouton, sur la nav, ou sur l'avatar pour le statut) -->
+  <ContextMenu
+    v-if="navCtx"
+    :x="navCtx.x"
+    :y="navCtx.y"
+    :items="navCtx.items"
+    :quick-emojis="navCtxQuickEmojis"
+    @close="handleNavCtxClose"
+  />
 
   <!-- Picker de statut personnel -->
   <UserStatusPicker v-model="showStatusPicker" />
@@ -632,11 +694,32 @@
 .notif-panel-fade-enter-from,
 .notif-panel-fade-leave-to     { opacity: 0; transform: translateX(-6px); }
 
-/* ── Bouton statut personnel ── */
-.nav-status-btn { cursor: pointer; }
-.nav-status-emoji {
-  font-size: 18px;
+/* ── Statut personnel : petit badge emoji discret en coin d'avatar ── */
+.nav-avatar-status {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bg-rail);
+  border: 2px solid var(--bg-rail);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
   line-height: 1;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .4), 0 0 0 1px rgba(255, 255, 255, .06);
+  animation: nav-avatar-status-in .22s cubic-bezier(.34, 1.56, .64, 1);
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+}
+@keyframes nav-avatar-status-in {
+  from { opacity: 0; transform: scale(.4); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-avatar-status { animation: none; }
 }
 
 /* ── Logo ── */
