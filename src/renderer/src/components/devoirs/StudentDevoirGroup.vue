@@ -147,6 +147,7 @@ function isExpired(deadline: string | null | undefined): boolean {
 .group-chevron--collapsed { transform: rotate(-90deg); }
 .group-header--danger  { color: var(--color-danger); }
 .group-header--warning { color: var(--color-warning); }
+.group-header--muted   { color: var(--text-muted); }
 .group-header--accent  { color: var(--accent-light); }
 .group-header--success { color: var(--color-success); }
 .group-header--purple  { color: var(--color-cctl); }

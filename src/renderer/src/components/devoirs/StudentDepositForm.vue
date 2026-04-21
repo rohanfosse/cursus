@@ -111,7 +111,7 @@ const {
       >
         <Loader2 v-if="depositing" :size="12" class="spin" />
         <Upload v-else :size="12" />
-        {{ depositing ? 'Dépôt...' : expired ? 'Délai expiré' : 'Déposer' }}
+        {{ depositing ? 'Dépôt…' : expired ? 'Date dépassée' : 'Déposer' }}
       </button>
     </div>
   </div>

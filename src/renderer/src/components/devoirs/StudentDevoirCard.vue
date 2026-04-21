@@ -215,7 +215,7 @@ function formatDesc(text: string): string {
       <div class="devoir-card-footer">
         <span class="devoir-deadline-date">Échéance : {{ formatDate(devoir.deadline) }}</span>
         <button class="btn-deposit-expired" disabled>
-          <Lock :size="12" /> Délai expiré
+          <Lock :size="12" /> Date dépassée
         </button>
       </div>
     </template>
