@@ -26,6 +26,7 @@ const typerace       = require('./models/typerace');
 const games          = require('./models/games');
 const bookmarks      = require('./models/bookmarks');
 const scheduled      = require('./models/scheduled');
+const statuses       = require('./models/statuses');
 
 // Initialisation complète : schema + migrations + seed
 function init() {
@@ -61,4 +62,5 @@ module.exports = {
   ...games,
   ...bookmarks,
   ...scheduled,
+  ...statuses,
 };

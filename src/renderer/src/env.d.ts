@@ -283,7 +283,14 @@ declare global {
       }) => void): () => void
       onSocketStateChange(cb: (connected: boolean) => void): () => void
       onPollUpdate?(cb: (data: { messageId: number; poll_votes: { totals: number[]; voters: Record<string, number[]> } }) => void): () => void
-      onPresenceUpdate?(cb: (data: { id: number; name: string; role: string }[]) => void): () => void
+      onPresenceUpdate?(cb: (data: Array<{ id: number; name: string; role: string; status?: { emoji: string | null; text: string | null; expiresAt: string | null } | null }>) => void): () => void
+
+      // Statuts personnalises
+      getMyStatus(): Promise<IpcResponse<{ userId: number; emoji: string | null; text: string | null; expiresAt: string | null; updatedAt: string } | null>>
+      setMyStatus(payload: { emoji: string | null; text: string | null; expiresAt: string | null }): Promise<IpcResponse<{ userId: number; emoji: string | null; text: string | null; expiresAt: string | null; updatedAt: string } | null>>
+      clearMyStatus(): Promise<IpcResponse<{ cleared: boolean }>>
+      listUserStatuses(): Promise<IpcResponse<Array<{ userId: number; emoji: string | null; text: string | null; expiresAt: string | null }>>>
+      onStatusChange(cb: (data: { userId: number; status: { emoji: string | null; text: string | null; expiresAt: string | null } | null }) => void): () => void
       emitTyping?(channelId: number): void
       emitDmTyping?(dmStudentId: number, dmPeerId?: number): void
       onTyping?(cb: (data: { channelId: number; userName: string }) => void): () => void

@@ -17,8 +17,11 @@ export type MsgNewPayload = {
   message?:        unknown
 }
 
-export type PresenceEntry = { id: number; name: string; role: string }
+export type UserStatusPayload = { emoji: string | null; text: string | null; expiresAt: string | null }
+export type PresenceEntry = { id: number; name: string; role: string; status?: UserStatusPayload | null }
 export type TypingPayload = { channelId?: number; dmStudentId?: number; userName: string }
+
+export type StatusChangePayload = { userId: number; status: UserStatusPayload | null }
 
 export type PollUpdatePayload = {
   messageId: number

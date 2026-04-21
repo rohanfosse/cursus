@@ -11,7 +11,7 @@
 import type { Socket } from 'socket.io-client'
 import { ipcRenderer } from 'electron'
 import type {
-  MsgNewPayload, PresenceEntry, TypingPayload, PollUpdatePayload,
+  MsgNewPayload, PresenceEntry, TypingPayload, PollUpdatePayload, StatusChangePayload,
   LiveActivityPushedPayload, LiveActivityClosedPayload, LiveResultsUpdatePayload,
   LiveSessionStartedPayload, LiveSessionEndedPayload, LiveInvitePayload, LiveScoresUpdatePayload,
   LiveCodeUpdatePayload, LiveBoardUpdatePayload, LiveConfusionUpdatePayload, LiveSelfPacedPayload,
@@ -39,6 +39,7 @@ function createChannel<T>() {
 // ── Messages / presence / typing ───────────────────────────────────────────
 export const msgNew = createChannel<MsgNewPayload>()
 export const presenceUpdate = createChannel<PresenceEntry[]>()
+export const statusChange   = createChannel<StatusChangePayload>()
 export const typing = createChannel<TypingPayload>()
 export const pollUpdate = createChannel<PollUpdatePayload>()
 
@@ -76,6 +77,7 @@ export function bindSocketEvents(socket: Socket): void {
   socket.on('msg:new',               (data: MsgNewPayload) => msgNew.emit(data))
   socket.on('msg:poll-update',       (data: PollUpdatePayload) => pollUpdate.emit(data))
   socket.on('presence:update',       (data: PresenceEntry[]) => presenceUpdate.emit(data))
+  socket.on('status:change',         (data: StatusChangePayload) => statusChange.emit(data))
   socket.on('typing',                (data: TypingPayload) => typing.emit(data))
 
   socket.on('live:activity-pushed',  (data: LiveActivityPushedPayload) => liveActivityPushed.emit(data))

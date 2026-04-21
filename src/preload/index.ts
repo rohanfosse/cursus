@@ -5,7 +5,7 @@ import {
   get, post, put, patch, del,
 } from './httpClient'
 import type {
-  MsgNewPayload, PresenceEntry, TypingPayload, PollUpdatePayload,
+  MsgNewPayload, PresenceEntry, TypingPayload, PollUpdatePayload, StatusChangePayload,
   LiveActivityPushedPayload, LiveActivityClosedPayload, LiveResultsUpdatePayload,
   LiveSessionStartedPayload, LiveSessionEndedPayload, LiveInvitePayload, LiveScoresUpdatePayload,
   LiveCodeUpdatePayload, LiveBoardUpdatePayload, LiveConfusionUpdatePayload, LiveSelfPacedPayload,
@@ -197,6 +197,14 @@ contextBridge.exposeInMainWorld('api', {
   deleteMessage:  (id: number)                  => del(`/api/messages/${id}`),
   editMessage:    (id: number, content: string) => patch(`/api/messages/${id}`, { content }),
   reportMessage:  (messageId: number, reason: string) => post(`/api/messages/${messageId}/report`, { reason }),
+
+  // ── Statuts personnalises ───────────────────────────────────────────────────
+  getMyStatus:       () => get('/api/me/status'),
+  setMyStatus:       (payload: { emoji: string | null; text: string | null; expiresAt: string | null }) =>
+    put('/api/me/status', payload),
+  clearMyStatus:     () => del('/api/me/status'),
+  listUserStatuses:  () => get('/api/statuses'),
+  onStatusChange:    (cb: (data: StatusChangePayload) => void) => sockEv.statusChange.add(cb),
 
   // ── Messages programmes (scheduled) ─────────────────────────────────────────
   listScheduledMessages:  () => get('/api/messages/scheduled/mine'),

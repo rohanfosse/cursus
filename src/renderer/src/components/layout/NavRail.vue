@@ -1,7 +1,9 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
-  import { MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame, Search, Shield, Bug, Zap, Paperclip, Lightbulb, Calendar, Gamepad2, PanelLeftClose, PanelLeftOpen, EyeOff, Eye, ArrowUp, ArrowDown, RotateCcw, Bookmark } from 'lucide-vue-next'
+  import { MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame, Search, Shield, Bug, Zap, Paperclip, Lightbulb, Calendar, Gamepad2, PanelLeftClose, PanelLeftOpen, EyeOff, Eye, ArrowUp, ArrowDown, RotateCcw, Bookmark, Smile } from 'lucide-vue-next'
+  import UserStatusPicker from '@/components/modals/UserStatusPicker.vue'
+  import { useStatusesStore } from '@/stores/statuses'
   import ContextMenu from '@/components/ui/ContextMenu.vue'
   import { useContextMenu, type ContextMenuItem } from '@/composables/useContextMenu'
   import logoUrl from '@/assets/logo.png'
@@ -20,6 +22,8 @@
   const modals      = useModalsStore()
   const travauxStore = useTravauxStore()
   const liveStore    = useLiveStore()
+  const statusesStore = useStatusesStore()
+  const showStatusPicker = ref(false)
   const { showToast } = useToast()
   const { isEnabled } = useModules()
   const router      = useRouter()
@@ -414,6 +418,18 @@
       <span class="nav-label">Feedback</span>
     </button> -->
 
+    <!-- ── Bouton statut personnel ── -->
+    <button
+      class="nav-btn nav-status-btn"
+      :title="statusesStore.mine ? `Statut : ${statusesStore.mine.text || statusesStore.mine.emoji}` : 'Définir un statut'"
+      aria-label="Statut personnel"
+      @click="showStatusPicker = true"
+    >
+      <span v-if="statusesStore.mine?.emoji" class="nav-status-emoji">{{ statusesStore.mine.emoji }}</span>
+      <Smile v-else :size="18" />
+      <span class="nav-label">Statut</span>
+    </button>
+
     <!-- ── Avatar / Paramètres ── -->
     <div class="nav-divider" />
 
@@ -433,6 +449,9 @@
 
   <!-- Context menu (clic-droit sur un bouton ou sur la nav) -->
   <ContextMenu v-if="navCtx" :x="navCtx.x" :y="navCtx.y" :items="navCtx.items" @close="closeNavCtx" />
+
+  <!-- Picker de statut personnel -->
+  <UserStatusPicker v-model="showStatusPicker" />
 
   <!-- Modale Feedback -->
   <Teleport to="body">
@@ -612,6 +631,13 @@
 .notif-panel-fade-leave-active { transition: opacity .09s ease, transform .09s ease; }
 .notif-panel-fade-enter-from,
 .notif-panel-fade-leave-to     { opacity: 0; transform: translateX(-6px); }
+
+/* ── Bouton statut personnel ── */
+.nav-status-btn { cursor: pointer; }
+.nav-status-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
 
 /* ── Logo ── */
 .nav-logo-btn {

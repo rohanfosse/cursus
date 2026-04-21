@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 80;
+const CURRENT_VERSION = 81;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -139,6 +139,16 @@ function initSchema() {
       UNIQUE(user_id, message_id)
     );
     CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS user_statuses (
+      user_id    INTEGER PRIMARY KEY,
+      user_type  TEXT NOT NULL CHECK(user_type IN ('student','teacher','admin','ta')),
+      emoji      TEXT,
+      text       TEXT,
+      expires_at TEXT,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_statuses_expires ON user_statuses(expires_at) WHERE expires_at IS NOT NULL;
   `);
 
   runMigrations(db);
@@ -1841,6 +1851,25 @@ function runMigrations(db) {
         ALTER TABLE scheduled_messages_v80 RENAME TO scheduled_messages;
         CREATE INDEX IF NOT EXISTS idx_scheduled_send   ON scheduled_messages(send_at, sent);
         CREATE INDEX IF NOT EXISTS idx_scheduled_author ON scheduled_messages(author_id, sent);
+      `);
+    },
+
+    // v81 : Statuts personnalises utilisateurs. Table 1:1 user_id -> status
+    // (emoji + texte court + expiration optionnelle). Diffusee via socket
+    // dans presence:update et status:change. user_id est l'id signe
+    // (positif etudiant, negatif enseignant) — pas de FK pour rester
+    // compatible avec les deux tables students/teachers.
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS user_statuses (
+          user_id    INTEGER PRIMARY KEY,
+          user_type  TEXT NOT NULL CHECK(user_type IN ('student','teacher','admin','ta')),
+          emoji      TEXT,
+          text       TEXT,
+          expires_at TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_statuses_expires ON user_statuses(expires_at) WHERE expires_at IS NOT NULL;
       `);
     },
   ];

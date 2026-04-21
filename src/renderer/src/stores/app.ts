@@ -37,7 +37,7 @@ export const useAppStore = defineStore('app', () => {
   const mentionChannels   = ref<Record<number, number>>({})
   const unreadDms         = ref<Record<string, number>>({}) // clé = nom de l'expéditeur
   const taChannelIds      = ref<number[]>([])               // canaux assignés à l'intervenant
-  const onlineUsers       = ref<{ id: number; name: string; role: string }[]>([]) // présence en ligne
+  const onlineUsers       = ref<Array<{ id: number; name: string; role: string; status?: { emoji: string | null; text: string | null; expiresAt: string | null } | null }>>([]) // présence en ligne + statuts
 
   // ── Historique de notifications ────────────────────────────────────────────
   interface NotifEntry {
@@ -332,7 +332,16 @@ export const useAppStore = defineStore('app', () => {
   // ── Présence en ligne ────────────────────────────────────────────────────
   function initPresenceListener(): () => void {
     if (window.api.onPresenceUpdate) {
-      return window.api.onPresenceUpdate((data) => { onlineUsers.value = data })
+      return window.api.onPresenceUpdate(async (data) => {
+        onlineUsers.value = data
+        // Synchroniser le store statuses avec les entrees re cues (statuts
+        // actifs embarques dans presence:update).
+        try {
+          const { useStatusesStore } = await import('@/stores/statuses')
+          const statuses = useStatusesStore()
+          statuses.applyBulk(data.map(u => ({ userId: u.id, status: u.status ?? null })))
+        } catch { /* non bloquant */ }
+      })
     }
     return () => {}
   }

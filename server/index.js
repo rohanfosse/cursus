@@ -180,6 +180,7 @@ app.use('/api/calendar',        require('./routes/calendar'))
 app.use('/api/typerace',        require('./routes/typerace'))
 app.use('/api/games',           require('./routes/games'))
 app.use('/api/bookmarks',       require('./routes/bookmarks'))
+app.use('/api',                 require('./routes/statuses'))
 
 // ── Fichiers statiques & SPA ──────────────────────────────────────────────────
 const path = require('path')

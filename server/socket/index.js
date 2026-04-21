@@ -29,14 +29,23 @@ module.exports = function setupSocket(io, queries, SECRET) {
   // Fan-out de 30+ clients simultanes (ex. reconnexion Wi-Fi promo)
   // declenche 30^2 events — debounce pour coalescer en une seule diffusion.
   let presenceTimer = null
+  function buildPresenceList() {
+    const ids = [...onlineUsers.keys()]
+    let statusByUser = new Map()
+    try {
+      const rows = queries.listActiveStatuses?.(ids) ?? []
+      statusByUser = new Map(rows.map(r => [r.userId, { emoji: r.emoji, text: r.text, expiresAt: r.expiresAt }]))
+    } catch { /* non bloquant : continue sans statuts */ }
+    return [...onlineUsers.entries()].map(([id, info]) => ({
+      id, name: info.name, role: info.role,
+      status: statusByUser.get(id) ?? null,
+    }))
+  }
   function broadcastPresence() {
     if (presenceTimer) return
     presenceTimer = setTimeout(() => {
       presenceTimer = null
-      const list = [...onlineUsers.entries()].map(([id, info]) => ({
-        id, name: info.name, role: info.role,
-      }))
-      io.to('all').emit('presence:update', list)
+      io.to('all').emit('presence:update', buildPresenceList())
     }, 250)
   }
 
@@ -81,10 +90,8 @@ module.exports = function setupSocket(io, queries, SECRET) {
       broadcastPresence()
     }
 
-    // Envoyer la liste actuelle au nouveau connecte
-    socket.emit('presence:update', [...onlineUsers.entries()].map(([id, info]) => ({
-      id, name: info.name, role: info.role,
-    })))
+    // Envoyer la liste actuelle au nouveau connecte (incluant les statuts)
+    socket.emit('presence:update', buildPresenceList())
 
     // ── Helper : re-valider le JWT sur les events critiques ──────────────
     function checkTokenValid() {

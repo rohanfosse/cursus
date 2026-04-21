@@ -6,6 +6,7 @@
   import { useMessagesStore } from '@/stores/messages'
   import { useLiveStore }     from '@/stores/live'
   import { useBookmarksStore } from '@/stores/bookmarks'
+  import { useStatusesStore } from '@/stores/statuses'
   import { usePrefs }       from '@/composables/usePrefs'
   import { useToast }       from '@/composables/useToast'
   import { useAppListeners } from '@/composables/useAppListeners'
@@ -54,6 +55,7 @@
   const modals   = useModalsStore()
   const liveStore = useLiveStore()
   const bookmarksStore = useBookmarksStore()
+  const statusesStore = useStatusesStore()
   const router   = useRouter()
   const { getPref } = usePrefs()
   const { showToast } = useToast()
@@ -297,13 +299,28 @@
       router.replace('/messages')
       loadModules()
       bookmarksStore.initIds()
+      statusesStore.init(appStore.currentUser?.id ?? null)
     }
 
-    // Init/reset bookmarks store suivant l'etat de session
+    // Init/reset stores par-user suivant l'etat de session
     watch(() => appStore.currentUser?.id ?? null, (uid, prev) => {
-      if (uid && uid !== prev) bookmarksStore.initIds()
-      else if (!uid && prev) bookmarksStore.reset()
+      if (uid && uid !== prev) {
+        bookmarksStore.initIds()
+        statusesStore.init(uid)
+      } else if (!uid && prev) {
+        bookmarksStore.reset()
+        statusesStore.reset()
+      }
     })
+
+    // Socket listener : status:change en temps reel
+    const offStatusChange = window.api.onStatusChange(({ userId, status }) => {
+      statusesStore.apply(userId, status)
+      if (userId === appStore.currentUser?.id) {
+        statusesStore.mine = status
+      }
+    })
+    onUnmounted(() => { try { offStatusChange() } catch { /* ignore */ } })
 
     // Tous les listeners IPC sont geres par useAppListeners (liveInvite, updater, grade, signature, document, assignment)
   })
