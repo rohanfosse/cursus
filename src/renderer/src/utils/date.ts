@@ -62,7 +62,7 @@ export function deadlineLabel(deadlineStr: string): string {
     return `Le ${date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
   }
   const h = diff / (3600 * 1000)
-  if (h < 1)   return "Moins d'1h"
+  if (h < 1)   return "Moins d'1h !"
   if (h < 24)  return `Dans ${Math.ceil(h)}h`
   const d = Math.ceil(h / 24)
   if (d === 1) return 'Demain'

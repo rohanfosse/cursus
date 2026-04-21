@@ -41,9 +41,10 @@ describe('deadlineLabel', () => {
   })
   afterEach(() => vi.useRealTimers())
 
-  it('shows retard for past dates', () => {
+  it('shows neutral formatted date for past dates (no "Retard" wording, anti-anxiogene)', () => {
     const label = deadlineLabel('2026-03-18T12:00:00Z')
-    expect(label).toContain('Retard')
+    expect(label).not.toContain('Retard')
+    expect(label).toMatch(/^Le \d+ \S+/) // "Le 18 mars" (mois abrege fr)
   })
 
   it('shows "Moins d\'1h" for < 1 hour', () => {
