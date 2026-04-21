@@ -338,6 +338,31 @@ router.post(
   }),
 )
 
+// IMPORTANT : les routes statiques `/repos/by-project-name` et
+// `/repos/promo/:promoId/unlinked` doivent etre declarees AVANT `/repos/:id`
+// sinon Express matche `/repos/by-project-name` contre `:id="by-project-name"`,
+// ce qui fait planter avec "Repo Lumen introuvable (id=NaN)".
+
+/**
+ * Liste les repos Lumen lies a un projet identifie par son nom (+ promoId).
+ * Le frontend Cursus manipule les projets par category/name (legacy), pas par
+ * id numerique. Le matching reutilise findProjectByNormalizedName (case/trim/NFD).
+ */
+router.get(
+  '/repos/by-project-name',
+  requirePromoMember((req) => Number(req.query.promoId) || null),
+  wrap(async (req) => {
+    const promoId = Number(req.query.promoId)
+    const name = String(req.query.name ?? '').trim()
+    if (!name) return { repos: [] }
+    // Filtre etudiant coherent avec /repos/promo/:id : un student ne doit pas
+    // pouvoir decouvrir un repo masque via l'integration projets.
+    const raw = getLumenReposByProjectName(promoId, name)
+    const filtered = isStudent(req) ? raw.filter((r) => r.is_visible) : raw
+    return { repos: filtered.map(serializeRepo) }
+  }),
+)
+
 router.get(
   '/repos/:id',
   requirePromoMember(promoFromRepoParam),
@@ -464,27 +489,6 @@ router.put(
 )
 
 // ─── Repos lies a un projet (integration bidirectionnelle) ──────────────────
-
-/**
- * Liste les repos Lumen lies a un projet identifie par son nom (+ promoId).
- * Utilise cette version par-nom car le frontend Cursus manipule les projets
- * par category/name (legacy), pas par id numerique. Le matching reutilise
- * la normalisation findProjectByNormalizedName (case + trim + NFD).
- */
-router.get(
-  '/repos/by-project-name',
-  requirePromoMember((req) => Number(req.query.promoId) || null),
-  wrap(async (req) => {
-    const promoId = Number(req.query.promoId)
-    const name = String(req.query.name ?? '').trim()
-    if (!name) return { repos: [] }
-    // Filtre etudiant coherent avec /repos/promo/:id : un student ne doit pas
-    // pouvoir decouvrir un repo masque via l'integration projets.
-    const raw = getLumenReposByProjectName(promoId, name)
-    const filtered = isStudent(req) ? raw.filter((r) => r.is_visible) : raw
-    return { repos: filtered.map(serializeRepo) }
-  }),
-)
 
 /**
  * Liste les repos d'une promo non encore lies a un projet. Utilise par le
