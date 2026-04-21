@@ -3,7 +3,7 @@ import { computed, nextTick, ref, toRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Link2, Hash, Megaphone, ExternalLink,
-  Award, Users, BookOpen,
+  Award, Users, BookOpen, AlertTriangle, RefreshCw,
 } from 'lucide-vue-next'
 import { useAppStore }          from '@/stores/app'
 import { useTravauxStore }      from '@/stores/travaux'
@@ -44,7 +44,7 @@ const projectMeta = computed((): ProjectMeta | null => {
 })
 
 // ── Documents + Canaux ────────────────────────────────────────────────────────
-const { documents, channels, loading } = useStudentProjetResources(
+const { documents, channels, loading, error: resourcesError, load: retryResources } = useStudentProjetResources(
   toRef(props, 'projectKey'),
   toRef(props, 'promoId'),
 )
@@ -228,11 +228,23 @@ function gradeColor(note: string | null | undefined): string {
               <div class="skel skel-line skel-w70" />
             </div>
           </div>
+          <div v-else-if="resourcesError.docs" class="spf-aside-error">
+            <AlertTriangle :size="12" />
+            <span>Échec du chargement.</span>
+            <button type="button" class="spf-retry-btn" @click="retryResources">
+              <RefreshCw :size="11" /> Réessayer
+            </button>
+          </div>
           <div v-else-if="!documents.length" class="spf-aside-empty">
             Aucune ressource déposée.
           </div>
           <ul v-else class="spf-doc-list">
-            <li v-for="doc in documents" :key="doc.id" class="spf-doc-item" @click="openDoc(doc)">
+            <li
+              v-for="doc in documents" :key="doc.id"
+              class="spf-doc-item"
+              :title="doc.name"
+              @click="openDoc(doc)"
+            >
               <span class="spf-doc-icon">
                 <Link2 v-if="doc.type === 'link'" :size="12" />
                 <component v-else :is="fileTypeIcon(doc.name)" :size="12" />
@@ -249,11 +261,23 @@ function gradeColor(note: string | null | undefined): string {
             <span>Canaux</span>
             <span class="spf-aside-count">{{ channels.length }}</span>
           </div>
-          <div v-if="!channels.length" class="spf-aside-empty">
+          <div v-if="resourcesError.channels" class="spf-aside-error">
+            <AlertTriangle :size="12" />
+            <span>Échec du chargement.</span>
+            <button type="button" class="spf-retry-btn" @click="retryResources">
+              <RefreshCw :size="11" /> Réessayer
+            </button>
+          </div>
+          <div v-else-if="!channels.length" class="spf-aside-empty">
             Aucun canal associé.
           </div>
           <ul v-else class="spf-channel-list">
-            <li v-for="ch in channels" :key="ch.id" class="spf-channel-item" @click="goToChannel(ch)">
+            <li
+              v-for="ch in channels" :key="ch.id"
+              class="spf-channel-item"
+              :title="ch.name"
+              @click="goToChannel(ch)"
+            >
               <Megaphone v-if="ch.type === 'annonce'" :size="13" class="spf-ch-icon spf-ch-icon--ann" />
               <Hash v-else :size="13" class="spf-ch-icon" />
               <span class="spf-ch-name">{{ ch.name }}</span>
@@ -777,6 +801,36 @@ function gradeColor(note: string | null | undefined): string {
 }
 .spf-aside-loading { display: flex; flex-direction: column; gap: 6px; }
 .spf-aside-empty { font-size: 12px; color: var(--text-muted); font-style: italic; }
+.spf-aside-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-warning);
+  padding: 6px 8px;
+  background: rgba(var(--color-warning-rgb), .08);
+  border-radius: 5px;
+  flex-wrap: wrap;
+}
+.spf-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-family: inherit;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: auto;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.spf-retry-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
 
 .spf-doc-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
 .spf-doc-item {

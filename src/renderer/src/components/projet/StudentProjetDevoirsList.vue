@@ -164,7 +164,12 @@ function onFormKeydown(e: KeyboardEvent, t: Devoir): void {
                 v-else
                 class="spf-file-zone"
                 :class="{ 'spf-file-zone--drag': dragOver, 'spf-file-zone--loading': uploading }"
+                role="button"
+                tabindex="0"
+                :aria-label="uploading ? 'Chargement du fichier en cours' : 'Zone de dépôt de fichier. Cliquer ou glisser un fichier'"
+                :aria-busy="uploading"
                 @click="!uploading && emit('pickFile')"
+                @keydown.enter.space.prevent="!uploading && emit('pickFile')"
                 @dragover="emit('dragOver', $event)"
                 @dragleave="emit('dragLeave')"
                 @drop="emit('drop', $event)"
@@ -309,7 +314,12 @@ function onFormKeydown(e: KeyboardEvent, t: Devoir): void {
                 v-else
                 class="spf-file-zone"
                 :class="{ 'spf-file-zone--drag': dragOver, 'spf-file-zone--loading': uploading }"
+                role="button"
+                tabindex="0"
+                :aria-label="uploading ? 'Chargement du fichier en cours' : 'Zone de dépôt de fichier. Cliquer ou glisser un fichier'"
+                :aria-busy="uploading"
                 @click="!uploading && emit('pickFile')"
+                @keydown.enter.space.prevent="!uploading && emit('pickFile')"
                 @dragover="emit('dragOver', $event)"
                 @dragleave="emit('dragLeave')"
                 @drop="emit('drop', $event)"
@@ -481,6 +491,7 @@ function onFormKeydown(e: KeyboardEvent, t: Devoir): void {
   transition: border-color var(--t-fast), background var(--t-fast);
 }
 .spf-file-zone:hover { border-color: var(--color-cctl); background: rgba(var(--color-cctl-rgb),.05); }
+.spf-file-zone:focus-visible { outline: 2px solid var(--color-cctl); outline-offset: 2px; border-color: var(--color-cctl); }
 .spf-file-zone--drag { border-color: var(--color-cctl); background: rgba(var(--color-cctl-rgb),.10); border-style: solid; }
 .spf-file-zone-icon { opacity: .5; }
 .spf-file-selected {
