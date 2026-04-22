@@ -217,7 +217,10 @@ const dateGroups = computed<DateGroup[]>(() => {
         <template v-for="group in dateGroups" :key="group.date">
           <div class="date-separator"><span>{{ group.date }}</span></div>
 
-          <TransitionGroup name="msg-fade" tag="div" class="msg-group-wrap">
+          <!-- Transition desactivee quand on charge de l'historique (infinite scroll
+               haut) : eviter le pop-in disgracieux de messages qui apparaissent
+               au-dessus de la viewport de l'utilisateur. -->
+          <TransitionGroup :name="store.loadingMore ? '' : 'msg-fade'" tag="div" class="msg-group-wrap">
             <template v-for="{ msg, grouped, isFirstUnread } in group.messages" :key="msg.id">
               <div v-if="isFirstUnread" :key="`unread-${msg.id}`" class="unread-divider">
                 <span class="unread-divider-label">Nouveaux messages</span>

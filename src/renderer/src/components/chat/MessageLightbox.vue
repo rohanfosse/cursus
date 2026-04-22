@@ -36,3 +36,69 @@ function onOpenExternal() {
     </div>
   </Transition>
 </template>
+
+<style scoped>
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, .85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+.lightbox-img {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: var(--radius);
+  box-shadow: var(--elevation-4);
+  cursor: default;
+}
+.lightbox-toolbar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: var(--space-sm);
+  z-index: 1;
+}
+.lightbox-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  background: var(--bg-active);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--motion-fast) var(--ease-out);
+  text-decoration: none;
+}
+.lightbox-btn:hover { background: rgba(255, 255, 255, .25); }
+.lightbox-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.lightbox-fade-enter-active,
+.lightbox-fade-leave-active {
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+.lightbox-fade-enter-from,
+.lightbox-fade-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lightbox-btn,
+  .lightbox-fade-enter-active,
+  .lightbox-fade-leave-active {
+    transition: none !important;
+  }
+}
+</style>
