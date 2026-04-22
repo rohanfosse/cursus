@@ -155,6 +155,12 @@ function assignTeacherToPromo(teacherId, promoId) {
   ).run(teacherId, promoId)
 }
 
+function unassignTeacherFromPromo(teacherId, promoId) {
+  return getDb().prepare(
+    'DELETE FROM teacher_promos WHERE teacher_id = ? AND promo_id = ?'
+  ).run(teacherId, promoId)
+}
+
 module.exports = {
   getProjectsByPromo,
   getProjectById,
@@ -174,4 +180,5 @@ module.exports = {
   getTaProjects,
   getTeacherPromos,
   assignTeacherToPromo,
+  unassignTeacherFromPromo,
 }

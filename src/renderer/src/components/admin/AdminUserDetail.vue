@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { KeyRound, UserX, Mail, Calendar, MessageSquare, FileText, Copy } from 'lucide-vue-next'
+import { KeyRound, UserX, Mail, Calendar, MessageSquare, FileText, Copy, Shield, Plus, X } from 'lucide-vue-next'
 import Modal from '@/components/ui/Modal.vue'
 import Avatar from '@/components/ui/Avatar.vue'
 import UiRoleBadge from '@/components/ui/UiRoleBadge.vue'
 import { useApi } from '@/composables/useApi'
+import { useAppStore } from '@/stores/app'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 import type { Promotion } from '@/types'
@@ -26,6 +27,14 @@ const emit = defineEmits<{
 const { api } = useApi()
 const { confirm } = useConfirm()
 const { showToast } = useToast()
+const appStore = useAppStore()
+
+type TeacherRole = 'teacher' | 'ta' | 'admin'
+const TEACHER_ROLE_OPTIONS: Array<{ value: TeacherRole; hint: string }> = [
+  { value: 'admin',   hint: 'Acces complet : securite, maintenance, stats globales.' },
+  { value: 'teacher', hint: 'Admin de ses promos : stats, moderation, devoirs.' },
+  { value: 'ta',      hint: 'Correction des projets assignes uniquement.' },
+]
 
 interface UserDetail {
   id: number
@@ -49,7 +58,19 @@ const tempPassword = ref<string | null>(null)
 const form = ref({ name: '', email: '', promo_id: null as number | null })
 // Convention backend : les teachers / TAs ont un id negatif pour les distinguer
 // des students (qui ont un id positif). Voir server/db/models/admin.js.
-const isTeacher = computed(() => (props.userId < 0) || detail.value?.type === 'teacher' || detail.value?.type === 'ta')
+const isTeacherLike = computed(() => (props.userId < 0) || detail.value?.type === 'teacher' || detail.value?.type === 'ta' || detail.value?.type === 'admin')
+
+// Role & promos (modifiables uniquement pour les teachers/tas/admins par l'admin systeme)
+const assignedPromos = ref<Array<{ id: number; name: string; color: string }>>([])
+const promoToAdd = ref<number | null>(null)
+const savingRole = ref(false)
+const savingPromo = ref(false)
+const isSelf = computed(() => detail.value?.id === appStore.currentUser?.id)
+const canEditRole = computed(() => appStore.isAdmin && isTeacherLike.value && !isSelf.value)
+const availablePromos = computed(() => {
+  const assigned = new Set(assignedPromos.value.map(p => p.id))
+  return props.promos.filter(p => !assigned.has(p.id))
+})
 
 async function loadDetail() {
   loading.value = true
@@ -60,10 +81,72 @@ async function loadDetail() {
     form.value = { name: data.name, email: data.email, promo_id: data.promo_id }
   }
   loading.value = false
+  if (isTeacherLike.value) await loadAssignedPromos()
+  else assignedPromos.value = []
+}
+
+async function loadAssignedPromos() {
+  const data = await api(() => window.api.adminGetTeacherPromos(props.userId))
+  assignedPromos.value = data ?? []
 }
 
 watch(() => props.userId, loadDetail)
 onMounted(loadDetail)
+
+async function changeRole(role: TeacherRole) {
+  if (!detail.value || detail.value.type === role) return
+  if (!canEditRole.value) return
+  const target = TEACHER_ROLE_OPTIONS.find(o => o.value === role)
+  const roleLabel = role === 'admin' ? 'Admin' : role === 'teacher' ? 'Enseignant' : 'Intervenant'
+  const ok = await confirm({
+    message: `Changer le rôle de ${detail.value.name} en "${roleLabel}" ? ${target?.hint ?? ''}`,
+    variant: 'warning',
+    confirmLabel: 'Changer le rôle',
+  })
+  if (!ok) return
+  savingRole.value = true
+  const res = await window.api.adminSetTeacherRole(props.userId, role)
+  savingRole.value = false
+  if (res?.ok) {
+    showToast(`Rôle mis à jour : ${roleLabel}.`, 'success')
+    emit('updated')
+    await loadDetail()
+  } else {
+    showToast(res?.error ?? 'Impossible de changer le rôle.', 'error')
+  }
+}
+
+async function addPromo() {
+  if (!promoToAdd.value) return
+  savingPromo.value = true
+  const res = await window.api.adminAssignPromo(props.userId, promoToAdd.value)
+  savingPromo.value = false
+  if (res?.ok) {
+    showToast('Promo ajoutée.', 'success')
+    promoToAdd.value = null
+    await loadAssignedPromos()
+  } else {
+    showToast(res?.error ?? 'Erreur lors de l\'ajout de la promo.', 'error')
+  }
+}
+
+async function removePromo(promoId: number, promoName: string) {
+  const ok = await confirm({
+    message: `Retirer l'accès de ${detail.value?.name} à la promo "${promoName}" ?`,
+    variant: 'warning',
+    confirmLabel: 'Retirer',
+  })
+  if (!ok) return
+  savingPromo.value = true
+  const res = await window.api.adminUnassignPromo(props.userId, promoId)
+  savingPromo.value = false
+  if (res?.ok) {
+    showToast('Promo retirée.', 'success')
+    await loadAssignedPromos()
+  } else {
+    showToast(res?.error ?? 'Erreur lors du retrait de la promo.', 'error')
+  }
+}
 
 const dirty = computed(() => {
   if (!detail.value) return false
@@ -78,7 +161,7 @@ async function saveUser() {
   const payload: Parameters<typeof window.api.adminUpdateUser>[1] = {}
   if (form.value.name !== detail.value.name) payload.name = form.value.name.trim()
   if (form.value.email !== detail.value.email) payload.email = form.value.email.trim()
-  if (!isTeacher.value && form.value.promo_id !== detail.value.promo_id) payload.promo_id = form.value.promo_id
+  if (!isTeacherLike.value && form.value.promo_id !== detail.value.promo_id) payload.promo_id = form.value.promo_id
 
   const res = await window.api.adminUpdateUser(props.userId, payload)
   saving.value = false
@@ -202,13 +285,79 @@ async function copyTempPassword() {
           <span><Mail :size="12" /> Email</span>
           <input v-model="form.email" type="email" />
         </label>
-        <label v-if="!isTeacher" class="adm-det-field">
+        <label v-if="!isTeacherLike" class="adm-det-field">
           <span>Promo</span>
           <select v-model="form.promo_id">
             <option v-for="p in promos" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </label>
       </div>
+
+      <section v-if="isTeacherLike" class="adm-det-section">
+        <div class="adm-det-section-head">
+          <Shield :size="14" />
+          <h3>Rôle</h3>
+          <span v-if="!canEditRole" class="adm-det-section-lock">
+            {{ isSelf ? 'Impossible de modifier son propre rôle' : 'Admin système uniquement' }}
+          </span>
+        </div>
+        <div class="adm-det-roles">
+          <button
+            v-for="opt in TEACHER_ROLE_OPTIONS"
+            :key="opt.value"
+            class="adm-det-role-card"
+            :class="{
+              'adm-det-role-card--active': detail.type === opt.value,
+              'adm-det-role-card--disabled': !canEditRole,
+            }"
+            :disabled="!canEditRole || savingRole || detail.type === opt.value"
+            :aria-pressed="detail.type === opt.value"
+            @click="changeRole(opt.value)"
+          >
+            <UiRoleBadge :role="opt.value" size="xs" />
+            <span class="adm-det-role-hint">{{ opt.hint }}</span>
+          </button>
+        </div>
+      </section>
+
+      <section v-if="isTeacherLike" class="adm-det-section">
+        <div class="adm-det-section-head">
+          <span class="adm-det-promo-icon">#</span>
+          <h3>Promos assignées</h3>
+          <span class="adm-det-section-count">{{ assignedPromos.length }}</span>
+        </div>
+
+        <ul v-if="assignedPromos.length" class="adm-det-promo-list">
+          <li v-for="p in assignedPromos" :key="p.id" class="adm-det-promo-chip" :style="{ borderColor: p.color }">
+            <span class="adm-det-promo-dot" :style="{ background: p.color }" aria-hidden="true" />
+            <span>{{ p.name }}</span>
+            <button
+              class="adm-det-promo-remove"
+              :aria-label="`Retirer ${p.name}`"
+              :title="`Retirer ${p.name}`"
+              :disabled="savingPromo"
+              @click="removePromo(p.id, p.name)"
+            ><X :size="11" /></button>
+          </li>
+        </ul>
+        <p v-else class="adm-det-promo-empty">
+          Aucune promo assignée — {{ detail.type === 'ta' ? 'cet intervenant n\'a accès qu\'à ses projets assignés.' : 'cet enseignant n\'est admin d\'aucune promo.' }}
+        </p>
+
+        <div v-if="availablePromos.length" class="adm-det-promo-add">
+          <select v-model="promoToAdd" aria-label="Ajouter une promo">
+            <option :value="null">Ajouter une promo...</option>
+            <option v-for="p in availablePromos" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+          <button
+            class="adm-det-btn"
+            :disabled="!promoToAdd || savingPromo"
+            @click="addPromo"
+          >
+            <Plus :size="13" /> Ajouter
+          </button>
+        </div>
+      </section>
 
       <div class="adm-det-actions">
         <button class="adm-det-btn adm-det-btn--ghost" @click="resetPassword">
@@ -397,4 +546,151 @@ async function copyTempPassword() {
 .adm-det-btn--danger { color: var(--color-danger); }
 .adm-det-btn--danger:hover:not(:disabled) { border-color: var(--color-danger); }
 .adm-det-btn--ghost { color: var(--text-muted); }
+
+/* ── Sections Role & Promos ── */
+.adm-det-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+}
+.adm-det-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+}
+.adm-det-section-head h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+.adm-det-section-lock {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: auto;
+  font-style: italic;
+}
+.adm-det-section-count {
+  font-size: 11px;
+  background: var(--bg-active);
+  border-radius: 10px;
+  padding: 1px 8px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.adm-det-promo-icon {
+  display: inline-flex;
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.adm-det-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.adm-det-role-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-main);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out);
+}
+.adm-det-role-card:not(.adm-det-role-card--disabled):not(:disabled):hover {
+  border-color: var(--accent);
+}
+.adm-det-role-card--active {
+  border-color: rgba(var(--accent-rgb), 0.5);
+  background: rgba(var(--accent-rgb), 0.08);
+}
+.adm-det-role-card--disabled,
+.adm-det-role-card:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+.adm-det-role-hint {
+  flex: 1;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.adm-det-promo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.adm-det-promo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-main);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.adm-det-promo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.adm-det-promo-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.adm-det-promo-remove:hover:not(:disabled) {
+  background: rgba(var(--color-danger-rgb, 220 38 38), 0.15);
+  color: var(--color-danger);
+}
+.adm-det-promo-remove:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.adm-det-promo-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+  font-style: italic;
+}
+
+.adm-det-promo-add {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.adm-det-promo-add select {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  outline: none;
+}
+.adm-det-promo-add select:focus { border-color: var(--accent); }
 </style>

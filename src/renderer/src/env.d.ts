@@ -253,6 +253,12 @@ declare global {
       adminResetPassword(id: number): Promise<IpcResponse<{ tempPassword: string }>>
       adminDeleteUser(id: number): Promise<IpcResponse<null>>
 
+      // Admin — Roles & promos
+      adminSetTeacherRole(id: number, role: 'teacher' | 'ta' | 'admin'): Promise<IpcResponse<{ id: number; role: 'teacher' | 'ta' | 'admin' }>>
+      adminGetTeacherPromos(id: number): Promise<IpcResponse<Array<{ id: number; name: string; color: string }>>>
+      adminAssignPromo(id: number, promoId: number): Promise<IpcResponse<{ teacherId: number; promoId: number }>>
+      adminUnassignPromo(id: number, promoId: number): Promise<IpcResponse<null>>
+
       // Admin — Stats
       adminGetStats(): Promise<IpcResponse<{
         counts: { students: number; teachers: number; promotions: number; channels: number; messages: number; travaux: number; depots: number }

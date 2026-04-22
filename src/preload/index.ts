@@ -652,6 +652,15 @@ contextBridge.exposeInMainWorld('api', {
   adminResetPassword: (id: number) => post(`/api/admin/users/${id}/reset-password`, {}),
   adminDeleteUser:    (id: number) => del(`/api/admin/users/${id}`),
 
+  // Role & promos (roles & permissions UI)
+  adminSetTeacherRole:   (id: number, role: 'teacher' | 'ta' | 'admin') =>
+    patch(`/api/admin/users/${id}/role`, { role }),
+  adminGetTeacherPromos: (id: number) => get(`/api/admin/users/${id}/promos`),
+  adminAssignPromo:      (id: number, promoId: number) =>
+    post(`/api/admin/users/${id}/promos`, { promoId }),
+  adminUnassignPromo:    (id: number, promoId: number) =>
+    del(`/api/admin/users/${id}/promos/${promoId}`),
+
   // Stats
   adminGetStats:      () => get('/api/admin/stats'),
   adminGetHeatmap:    () => get('/api/admin/heatmap'),
