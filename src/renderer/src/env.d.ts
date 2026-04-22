@@ -78,7 +78,7 @@ declare global {
       // Brouillon / publication programmee
       updateTravailPublished(payload: Record<string, unknown> & { travailId: number; published: boolean }): Promise<IpcResponse<null>>
       updateTravailScheduled(payload: { travailId: number; scheduledAt: string | null }): Promise<IpcResponse<null>>
-      updateTravail(id: number, payload: Partial<{ title: string; deadline: string; description: string; room: string; scheduledPublishAt: string | null }>): Promise<IpcResponse<null>>
+      updateTravail(id: number, payload: Partial<{ title: string; deadline: string; description: string; room: string; scheduledPublishAt: string | null; requires_submission: 0 | 1 }>): Promise<IpcResponse<null>>
 
       // Promotions & canaux
       createPromotion(payload: Record<string, unknown> & { name: string }): Promise<IpcResponse<{ id: number }>>
