@@ -65,11 +65,11 @@ describe('constants', () => {
     expect(types).toEqual(expect.arrayContaining(['check', 'thumb', 'fire', 'heart', 'think', 'eyes']))
   })
 
-  it('QUICK_REACTS est un ComputedRef avec 4 entrees par defaut', () => {
+  it('QUICK_REACTS est un ComputedRef avec 5 entrees par defaut', () => {
     const { QUICK_REACTS } = setup()
-    // QUICK_REACTS est maintenant reactif (useQuickReacts, v2.227.0+).
-    expect(QUICK_REACTS.value).toHaveLength(4)
-    expect(QUICK_REACTS.value.map(r => r.type)).toEqual(['check', 'thumb', 'fire', 'heart'])
+    // QUICK_REACTS est maintenant reactif (useQuickReacts v2, MAX 5 depuis v2.230.0).
+    expect(QUICK_REACTS.value).toHaveLength(5)
+    expect(QUICK_REACTS.value.map(r => r.type)).toEqual(['check', 'thumb', 'fire', 'heart', 'eyes'])
   })
 })
 

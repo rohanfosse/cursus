@@ -11,8 +11,9 @@
 import { ref, computed, readonly, type Ref } from 'vue'
 import { safeGetJSON, safeSetJSON } from '@/utils/safeStorage'
 
-const STORAGE_KEY = 'cc_quick_reacts_v1'
-const MAX_SLOTS = 4
+// v2 : MAX 5 (etait 4 en v1), inspire Discord.
+const STORAGE_KEY = 'cc_quick_reacts_v2'
+const MAX_SLOTS = 5
 
 export interface ReactOption {
   readonly type: string
@@ -45,8 +46,8 @@ export const AVAILABLE_REACTS: readonly ReactOption[] = [
   { type: 'up',     emoji: '⬆️', label: 'En haut'    },
 ]
 
-/** Defaults alignes sur l'ancien comportement (4 premieres). */
-const DEFAULT_TYPES: readonly string[] = ['check', 'thumb', 'fire', 'heart']
+/** Defaults : 5 reactions favorites les plus utiles en contexte pedago. */
+const DEFAULT_TYPES: readonly string[] = ['check', 'thumb', 'fire', 'heart', 'eyes']
 
 // Etat reactif module-level partage entre toutes les instances.
 const quickReactTypes: Ref<string[]> = ref(loadFromStorage())

@@ -71,7 +71,9 @@ const {
   togglePin:    () => { _togglePin(); showMenu.value = false },
   deleteMessage: () => { showMenu.value = false; _deleteMessage() },
   reportingMsg,
-  quickReactTypes: REACT_TYPES,
+  // Les 5 favoris de l'utilisateur — cohérent entre hover pill et ctx menu.
+  // Passé en fonction pour rester réactif aux changements dans Settings.
+  quickReactTypes: () => QUICK_REACTS.value,
   reactWithType: (type: string) => { quickReact(type) },
   bookmark: {
     isBookmarked: () => isBookmarked.value,
@@ -92,6 +94,12 @@ function reportMessageFromPill() { reportingMsg.value = true; showMenu.value = f
 // ── Capacites derivees pour la pill d'actions (props explicites)
 const canReport = computed(() => !isMine.value)
 const canDmAuthor = computed(() => !isMine.value && props.msg.author_id != null)
+
+// Set des types deja reactes par l'utilisateur — permet aux chips quick-react
+// de la pill d'afficher un etat "active" (inspire Discord).
+const myReactedTypes = computed<ReadonlySet<string>>(
+  () => messagesStore.userVotes[props.msg.id] ?? new Set(),
+)
 
 function closeAll() { _closeAll(showPicker, confirmingDelete) }
 
@@ -272,6 +280,7 @@ const renderedContentWithoutPoll = computed(() => {
       :can-delete="canDelete"
       :can-report="canReport"
       :can-dm-author="canDmAuthor"
+      :my-reacted-types="myReactedTypes"
       :show-picker="showPicker"
       :show-menu="showMenu"
       @update:show-picker="showPicker = $event"
@@ -509,24 +518,28 @@ const renderedContentWithoutPoll = computed(() => {
 /* ════════════════════════════════════════════
    PILL D'ACTIONS - style Slack
 ════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   PILL D'ACTIONS — refonte Discord-inspired (v2.230.0)
+   ══════════════════════════════════════════════════════════════ */
 .msg-action-pill {
   position: absolute;
-  top: -14px;
-  right: 16px;
+  top: -16px;
+  right: 12px;
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--motion-fast) var(--ease-out),
-              transform var(--motion-fast) var(--ease-out);
-  transform: translateY(4px);
+  transition: opacity   var(--motion-fast) var(--ease-out),
+              transform var(--motion-base) var(--ease-spring);
+  transform: translateY(4px) scale(.96);
   background: var(--bg-modal);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--elevation-2);
-  padding: 2px 4px;
+  padding: 3px;
   z-index: 30;
+  isolation: isolate;
 }
 
 /* Pill visible au survol OU au focus (a11y clavier). */
@@ -534,15 +547,16 @@ const renderedContentWithoutPoll = computed(() => {
 .msg-row:focus-within .msg-action-pill {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
 }
 
+/* Boutons icone : 28×28 compact (Discord-like). */
 .pill-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -567,19 +581,36 @@ const renderedContentWithoutPoll = computed(() => {
 }
 .pill-btn:disabled { opacity: .35; cursor: default; }
 
-.pill-emoji-btn { font-size: 16px; }
+/* Chips emoji favoris : légèrement plus larges (emoji visuel),
+   avec état "reacted" distinctif accent (on voit d'un coup d'œil
+   quelles reactions on a deja posees). */
+.pill-emoji-btn {
+  width: 30px;
+  height: 28px;
+  font-size: 15px;
+  border-radius: var(--radius-sm);
+}
 .pill-emoji-btn:hover:not(:disabled) {
-  transform: scale(1.15);
+  transform: scale(1.18);
   background: var(--bg-hover);
+}
+.pill-emoji-btn--reacted {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.pill-emoji-btn--reacted:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 .pill-sep {
   display: block;
   width: 1px;
-  height: 18px;
+  height: 16px;
   background: var(--border);
-  margin: 0 3px;
+  margin: 0 2px;
   flex-shrink: 0;
+  opacity: .7;
 }
 
 /* Picker complet */

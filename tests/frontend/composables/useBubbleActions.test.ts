@@ -120,14 +120,14 @@ beforeEach(() => {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('computed properties', () => {
-  it('isOwnMessage is true when author matches current user', () => {
+  it('isMine is true when author matches current user', () => {
     const actions = setup({ author_name: 'Alice' })
-    expect(actions.isOwnMessage.value).toBe(true)
+    expect(actions.isMine.value).toBe(true)
   })
 
-  it('isOwnMessage is false for other user', () => {
+  it('isMine is false for other user', () => {
     const actions = setup({ author_name: 'Bob' })
-    expect(actions.isOwnMessage.value).toBe(false)
+    expect(actions.isMine.value).toBe(false)
   })
 
   it('isPinned reflects msg.is_pinned', () => {

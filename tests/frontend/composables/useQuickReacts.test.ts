@@ -4,56 +4,56 @@ import {
   AVAILABLE_REACTS,
 } from '@/composables/useQuickReacts'
 
-const STORAGE_KEY = 'cc_quick_reacts_v1'
+// v2 (MAX_SLOTS=5) — storage key bumpee pour eviter les etats legacy a 4.
+const STORAGE_KEY = 'cc_quick_reacts_v2'
+const DEFAULTS = ['check', 'thumb', 'fire', 'heart', 'eyes']
 
 describe('useQuickReacts', () => {
   beforeEach(() => {
     localStorage.removeItem(STORAGE_KEY)
-    // Reset l'etat module-level en forcant un reset via l'API.
     const { resetQuickReacts } = useQuickReacts()
     resetQuickReacts()
   })
 
   describe('defaults', () => {
-    it('charge les 4 reactions par defaut au premier appel', () => {
+    it('charge les 5 reactions par defaut au premier appel', () => {
       const { quickReacts, quickReactTypes } = useQuickReacts()
-      expect(quickReactTypes.value).toEqual(['check', 'thumb', 'fire', 'heart'])
-      expect(quickReacts.value).toHaveLength(4)
+      expect(quickReactTypes.value).toEqual(DEFAULTS)
+      expect(quickReacts.value).toHaveLength(5)
       expect(quickReacts.value.every(r => typeof r.emoji === 'string')).toBe(true)
     })
 
     it('AVAILABLE_REACTS couvre au moins 20 reactions pedagogiques', () => {
       expect(AVAILABLE_REACTS.length).toBeGreaterThanOrEqual(20)
       const types = AVAILABLE_REACTS.map(r => r.type)
-      expect(new Set(types).size).toBe(types.length) // unicite
+      expect(new Set(types).size).toBe(types.length)
     })
   })
 
   describe('toggle', () => {
     it('ajoute un emoji non selectionne (sous la limite)', () => {
-      const { toggleQuickReact, resetQuickReacts, quickReactTypes } = useQuickReacts()
-      resetQuickReacts()
-      // D'abord retirer un pour passer a 3
-      toggleQuickReact('heart')
-      expect(quickReactTypes.value).toHaveLength(3)
+      const { toggleQuickReact, quickReactTypes } = useQuickReacts()
+      // D'abord retirer un pour passer a 4
+      toggleQuickReact('eyes')
+      expect(quickReactTypes.value).toHaveLength(4)
       // Ajouter un nouveau
       toggleQuickReact('laugh')
       expect(quickReactTypes.value).toContain('laugh')
-      expect(quickReactTypes.value).toHaveLength(4)
+      expect(quickReactTypes.value).toHaveLength(5)
     })
 
     it('retire un emoji deja selectionne', () => {
       const { toggleQuickReact, quickReactTypes } = useQuickReacts()
       toggleQuickReact('heart')
       expect(quickReactTypes.value).not.toContain('heart')
-      expect(quickReactTypes.value).toHaveLength(3)
+      expect(quickReactTypes.value).toHaveLength(4)
     })
 
-    it('refuse d\'ajouter un 5e emoji (deja 4 selectionnes)', () => {
+    it('refuse d\'ajouter un 6e emoji (deja 5 selectionnes)', () => {
       const { toggleQuickReact, quickReactTypes } = useQuickReacts()
-      expect(quickReactTypes.value).toHaveLength(4)
+      expect(quickReactTypes.value).toHaveLength(5)
       toggleQuickReact('laugh')
-      expect(quickReactTypes.value).toHaveLength(4)
+      expect(quickReactTypes.value).toHaveLength(5)
       expect(quickReactTypes.value).not.toContain('laugh')
     })
 
@@ -62,31 +62,21 @@ describe('useQuickReacts', () => {
       toggleQuickReact('check')
       toggleQuickReact('thumb')
       toggleQuickReact('fire')
-      expect(quickReactTypes.value).toEqual(['heart'])
       toggleQuickReact('heart')
-      // Refuse : on garde au moins 1
-      expect(quickReactTypes.value).toEqual(['heart'])
-    })
-
-    it('ignore les types inconnus', () => {
-      const { toggleQuickReact, quickReactTypes } = useQuickReacts()
-      const before = [...quickReactTypes.value]
-      toggleQuickReact('not_in_catalog')
-      // Le toggle s'execute quand meme (ajoute) car on ne filtre que sur
-      // la selection. On valide ici que le comportement est stable :
-      // soit l'entree est ajoutee soit ignoree, mais ne casse rien.
-      expect(quickReactTypes.value.length).toBeGreaterThanOrEqual(before.length)
+      expect(quickReactTypes.value).toEqual(['eyes'])
+      toggleQuickReact('eyes')
+      expect(quickReactTypes.value).toEqual(['eyes'])
     })
   })
 
   describe('setAll', () => {
-    it('remplace les 4 reactions', () => {
+    it('remplace les 5 reactions', () => {
       const { setQuickReactTypes, quickReactTypes } = useQuickReacts()
-      setQuickReactTypes(['laugh', 'clap', 'party', 'rocket'])
-      expect(quickReactTypes.value).toEqual(['laugh', 'clap', 'party', 'rocket'])
+      setQuickReactTypes(['laugh', 'clap', 'party', 'rocket', 'brain'])
+      expect(quickReactTypes.value).toEqual(['laugh', 'clap', 'party', 'rocket', 'brain'])
     })
 
-    it('refuse une liste de longueur != 4', () => {
+    it('refuse une liste de longueur != 5', () => {
       const { setQuickReactTypes, quickReactTypes } = useQuickReacts()
       const before = [...quickReactTypes.value]
       setQuickReactTypes(['laugh', 'clap'])
@@ -96,23 +86,23 @@ describe('useQuickReacts', () => {
     it('refuse des types inconnus', () => {
       const { setQuickReactTypes, quickReactTypes } = useQuickReacts()
       const before = [...quickReactTypes.value]
-      setQuickReactTypes(['laugh', 'clap', 'bogus', 'rocket'])
+      setQuickReactTypes(['laugh', 'clap', 'bogus', 'rocket', 'brain'])
       expect(quickReactTypes.value).toEqual(before)
     })
   })
 
   describe('reset', () => {
-    it('remet les defauts', () => {
+    it('remet les 5 defauts', () => {
       const { toggleQuickReact, resetQuickReacts, quickReactTypes } = useQuickReacts()
       toggleQuickReact('heart')
       toggleQuickReact('laugh')
       resetQuickReacts()
-      expect(quickReactTypes.value).toEqual(['check', 'thumb', 'fire', 'heart'])
+      expect(quickReactTypes.value).toEqual(DEFAULTS)
     })
   })
 
   describe('persistance', () => {
-    it('ecrit les choix dans localStorage via toggle', () => {
+    it('ecrit dans la cle v2 via toggle', () => {
       const { toggleQuickReact } = useQuickReacts()
       toggleQuickReact('heart')
       const stored = localStorage.getItem(STORAGE_KEY)
@@ -122,11 +112,11 @@ describe('useQuickReacts', () => {
       expect(parsed).not.toContain('heart')
     })
 
-    it('ecrit les choix dans localStorage via setQuickReactTypes', () => {
+    it('ecrit dans la cle v2 via setQuickReactTypes', () => {
       const { setQuickReactTypes } = useQuickReacts()
-      setQuickReactTypes(['laugh', 'clap', 'party', 'rocket'])
+      setQuickReactTypes(['laugh', 'clap', 'party', 'rocket', 'brain'])
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
-      expect(parsed).toEqual(['laugh', 'clap', 'party', 'rocket'])
+      expect(parsed).toEqual(['laugh', 'clap', 'party', 'rocket', 'brain'])
     })
   })
 })

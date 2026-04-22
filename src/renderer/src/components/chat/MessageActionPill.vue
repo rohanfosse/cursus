@@ -33,6 +33,9 @@ interface Props {
   canDmAuthor: boolean
   showPicker: boolean
   showMenu: boolean
+  /** Types de reactions deja posees par l'utilisateur sur ce message
+   *  (pour etat "reacted" sur les chips quick-react, inspire Discord). */
+  myReactedTypes?: ReadonlySet<string>
 }
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -145,8 +148,10 @@ onBeforeUnmount(() => {
       v-for="r in quickReacts"
       :key="r.type"
       class="pill-btn pill-emoji-btn"
+      :class="{ 'pill-emoji-btn--reacted': myReactedTypes?.has(r.type) }"
       :title="`Réagir avec ${r.emoji}`"
       :aria-label="`Réagir avec ${r.emoji}`"
+      :aria-pressed="myReactedTypes?.has(r.type) ?? false"
       @click.stop="$emit('quick-react', r.type)"
     >{{ r.emoji }}</button>
 

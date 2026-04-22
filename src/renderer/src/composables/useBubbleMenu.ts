@@ -24,8 +24,9 @@ interface MenuDeps {
   togglePin:    () => void
   deleteMessage: () => void
   reportingMsg: { value: boolean }
-  /** Set de reactions rapides (aligne sur le hover pill : meme types/emojis). */
-  quickReactTypes?: readonly MenuReactType[]
+  /** Set de reactions rapides (aligne sur le hover pill : meme types/emojis).
+   *  Fonction pour rester reactif aux changements de favoris utilisateur. */
+  quickReactTypes?: () => readonly MenuReactType[]
   reactWithType?: (type: string) => void
   bookmark?: {
     isBookmarked: () => boolean
@@ -162,7 +163,7 @@ export function useBubbleMenu(
   }
 
   const ctxQuickEmojiItems = computed<ContextMenuQuickEmoji[]>(() => {
-    const types = deps.quickReactTypes ?? []
+    const types = deps.quickReactTypes?.() ?? []
     if (!deps.reactWithType || types.length === 0) return []
     return types.map(r => ({
       emoji: r.emoji,

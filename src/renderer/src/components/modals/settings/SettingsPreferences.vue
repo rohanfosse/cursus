@@ -91,9 +91,9 @@ function canToggle(type: string): boolean {
         <h4 class="stg-group-title">Réactions rapides</h4>
       </div>
       <div class="stg-toggle-info stg-reacts-intro">
-        <span class="stg-toggle-label">Tes 4 réactions favorites</span>
+        <span class="stg-toggle-label">Tes {{ MAX_SLOTS }} réactions favorites</span>
         <span class="stg-toggle-desc">
-          Apparaissent au survol d'un message, dans l'ordre choisi. Clique sur un emoji pour l'ajouter ou le retirer ({{ quickReactTypes.length }}/{{ MAX_SLOTS }}).
+          Apparaissent au survol d'un message et au clic-droit, dans l'ordre choisi. Clique sur un emoji pour l'ajouter ou le retirer ({{ quickReactTypes.length }}/{{ MAX_SLOTS }}).
         </span>
       </div>
 
