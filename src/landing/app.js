@@ -479,6 +479,109 @@ document.addEventListener('DOMContentLoaded', () => {
     switchTab('types')
   }
 
+  // ══════════════════════════════════════════════════════════════════════
+  //  LUMEN - liseuse de cours GitHub avec chapitres navigables
+  // ══════════════════════════════════════════════════════════════════════
+  const lumenChapters = {
+    'tri-rapide': {
+      readers: 14,
+      links: 2,
+      content: `
+        <h1 class="lm-h1">Tri rapide</h1>
+        <p class="lm-p">Le <b>quicksort</b> est un algorithme de tri par partition, tres efficace en moyenne.</p>
+        <p class="lm-p">Complexite moyenne : <span class="lm-tex">O(n&middot;log n)</span>, pire cas <span class="lm-tex">O(n²)</span>.</p>
+        <h2 class="lm-h2">Implementation</h2>
+        <pre class="lm-code"><span class="lm-c-kw">function</span> <span class="lm-c-fn">quicksort</span>(arr) {
+  <span class="lm-c-kw">if</span> (arr.length &lt;= <span class="lm-c-num">1</span>) <span class="lm-c-kw">return</span> arr
+  <span class="lm-c-kw">const</span> pivot = arr[<span class="lm-c-num">0</span>]
+  <span class="lm-c-kw">const</span> left  = arr.<span class="lm-c-fn">filter</span>(x =&gt; x &lt; pivot)
+  <span class="lm-c-kw">const</span> right = arr.<span class="lm-c-fn">filter</span>(x =&gt; x &gt; pivot)
+  <span class="lm-c-kw">return</span> [...<span class="lm-c-fn">quicksort</span>(left), pivot, ...<span class="lm-c-fn">quicksort</span>(right)]
+}</pre>
+      `,
+    },
+    'graphes': {
+      readers: 9,
+      links: 1,
+      content: `
+        <h1 class="lm-h1">Parcours de graphes</h1>
+        <p class="lm-p">Le parcours en largeur (<b>BFS</b>) explore un graphe niveau par niveau depuis un sommet source.</p>
+        <div class="lm-mermaid" aria-label="Diagramme BFS">
+          <div class="lm-node lm-node--start">A</div>
+          <div class="lm-edge">→</div>
+          <div class="lm-node">B</div>
+          <div class="lm-edge">→</div>
+          <div class="lm-node">C</div>
+          <div class="lm-edge lm-edge--down">↓</div>
+          <div class="lm-node lm-node--end">D</div>
+        </div>
+        <h2 class="lm-h2">BFS en Python</h2>
+        <pre class="lm-code"><span class="lm-c-kw">from</span> collections <span class="lm-c-kw">import</span> deque
+
+<span class="lm-c-kw">def</span> <span class="lm-c-fn">bfs</span>(graph, start):
+    visited = {start}
+    queue = <span class="lm-c-fn">deque</span>([start])
+    <span class="lm-c-kw">while</span> queue:
+        node = queue.<span class="lm-c-fn">popleft</span>()
+        <span class="lm-c-kw">for</span> voisin <span class="lm-c-kw">in</span> graph[node]:
+            <span class="lm-c-kw">if</span> voisin <span class="lm-c-kw">not in</span> visited:
+                visited.<span class="lm-c-fn">add</span>(voisin)
+                queue.<span class="lm-c-fn">append</span>(voisin)</pre>
+      `,
+    },
+    'dynamique': {
+      readers: 6,
+      links: 3,
+      content: `
+        <h1 class="lm-h1">Programmation dynamique</h1>
+        <p class="lm-p">La suite de Fibonacci illustre la memoization pour eviter les recalculs.</p>
+        <p class="lm-p">Relation : <span class="lm-tex">F(n) = F(n-1) + F(n-2)</span></p>
+        <h2 class="lm-h2">Memoization Python</h2>
+        <pre class="lm-code"><span class="lm-c-kw">from</span> functools <span class="lm-c-kw">import</span> lru_cache
+
+@<span class="lm-c-fn">lru_cache</span>(maxsize=<span class="lm-c-kw">None</span>)
+<span class="lm-c-kw">def</span> <span class="lm-c-fn">fib</span>(n):
+    <span class="lm-c-kw">if</span> n &lt; <span class="lm-c-num">2</span>:
+        <span class="lm-c-kw">return</span> n
+    <span class="lm-c-kw">return</span> <span class="lm-c-fn">fib</span>(n - <span class="lm-c-num">1</span>) + <span class="lm-c-fn">fib</span>(n - <span class="lm-c-num">2</span>)
+
+<span class="lm-c-fn">print</span>(<span class="lm-c-fn">fib</span>(<span class="lm-c-num">50</span>))  <span class="lm-c-cmt"># 12586269025 — quasi-instantane</span></pre>
+      `,
+    },
+  }
+
+  const lumenMain = document.getElementById('lumen-main')
+  const lumenReaders = document.getElementById('lumen-readers')
+  const lumenLinks = document.getElementById('lumen-links')
+
+  function renderLumenChapter(key) {
+    const chap = lumenChapters[key]
+    if (!chap || !lumenMain) return
+    lumenMain.innerHTML = chap.content
+    if (lumenReaders) lumenReaders.lastChild.textContent = ` lu par ${chap.readers} étudiants`
+    if (lumenLinks)   lumenLinks.lastChild.textContent   = ` ${chap.links} devoir${chap.links > 1 ? 's' : ''} lié${chap.links > 1 ? 's' : ''}`
+    // Animation: fade-in du contenu
+    if (!prefersReducedMotion) {
+      lumenMain.style.animation = 'none'
+      void lumenMain.offsetHeight
+      lumenMain.style.animation = 'msgAppear 350ms var(--ease-smooth) forwards'
+    }
+  }
+
+  document.querySelectorAll('.demo-lumen-chap').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.demo-lumen-chap').forEach(b => {
+        const isActive = b === btn
+        b.classList.toggle('demo-lumen-chap--active', isActive)
+        b.setAttribute('aria-selected', String(isActive))
+      })
+      renderLumenChapter(btn.dataset.lumenChap)
+    })
+    btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click() } })
+  })
+
+  if (lumenMain) renderLumenChapter('tri-rapide')
+
   // ── Docs demo: clickable files with preview ─────────────────────────────
   document.querySelectorAll('.doc-item').forEach(item => {
     item.style.cursor = 'pointer'

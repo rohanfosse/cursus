@@ -1516,77 +1516,232 @@ img { max-width: 100%; display: block; }
 .bento-rex-cloud { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
 .bento-rex-cloud span { color: var(--color-rex); font-weight: 500; }
 
-/* ── Lumen demo (feature section) ─────────────────────────────────── */
-.demo-lumen-body {
-  padding: 14px 16px;
+/* ── Lumen demo (feature section) : liseuse cours GitHub ─────────── */
+.demo-lumen-wrap {
+  display: flex;
+  flex-direction: row;
+  min-height: 280px;
+  background: var(--bg-card);
+}
+
+.demo-lumen-sidebar {
+  width: 150px;
+  flex-shrink: 0;
+  padding: 10px 8px;
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 12px;
+  gap: 2px;
+  background: color-mix(in srgb, var(--color-lumen) 3%, transparent);
 }
-.demo-lumen-meta {
+
+.demo-lumen-repo {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-.demo-lumen-status {
-  font-family: var(--font);
+  gap: 6px;
+  padding: 6px 8px;
   font-size: 10px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: rgba(5, 150, 105, 0.12);
-  color: #059669;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
 }
-.demo-lumen-title {
+.demo-lumen-repo svg { color: var(--text-3); flex-shrink: 0; }
+
+.demo-lumen-chap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
   font-family: var(--font);
-  font-size: 14px;
-  font-weight: 700;
+  color: var(--text-2);
+  transition: background var(--duration-fast) var(--ease-smooth), color var(--duration-fast);
+}
+.demo-lumen-chap:hover {
+  background: color-mix(in srgb, var(--color-lumen) 8%, transparent);
   color: var(--text);
 }
-.demo-lumen-tabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 6px;
-}
-.demo-lumen-tab {
-  font-family: var(--font);
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  color: var(--text-3);
+.demo-lumen-chap--active {
+  background: color-mix(in srgb, var(--color-lumen) 15%, transparent);
+  color: var(--color-lumen);
   font-weight: 600;
 }
-.demo-lumen-tab--active {
-  background: rgba(245, 158, 11, 0.12);
-  color: var(--color-lumen);
-}
-.demo-lumen-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  line-height: 1.5;
-}
-.demo-lumen-line {
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-.demo-lumen-line--h1 {
-  color: var(--color-lumen);
+.demo-lumen-chap-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
   font-weight: 700;
+  background: color-mix(in srgb, var(--color-lumen) 18%, transparent);
+  color: var(--color-lumen);
+  flex-shrink: 0;
 }
-.demo-lumen-line--h2 {
+.demo-lumen-chap--active .demo-lumen-chap-num {
+  background: var(--color-lumen);
+  color: #fff;
+}
+.demo-lumen-chap-title {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+/* ── Zone principale : chapitre rendu ── */
+.demo-lumen-main {
+  flex: 1;
+  padding: 16px 18px;
+  overflow: auto;
+  min-width: 0;
+  font-family: var(--font);
+}
+
+.demo-lumen-main .lm-h1 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-lumen);
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+.demo-lumen-main .lm-h2 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 12px 0 6px;
+}
+.demo-lumen-main .lm-p {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.5;
+  margin: 0 0 6px;
+}
+.demo-lumen-main .lm-p b { color: var(--text); font-weight: 700; }
+
+/* ── Formule KaTeX inline (visuel) ── */
+.demo-lumen-main .lm-tex {
+  display: inline-block;
+  font-family: 'Computer Modern', 'Latin Modern Math', 'Cambria Math', serif;
+  font-style: italic;
+  font-size: 13px;
+  padding: 1px 6px;
+  background: color-mix(in srgb, var(--color-lumen) 8%, transparent);
+  border-radius: 4px;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+/* ── Bloc de code avec coloration syntaxique minimaliste ── */
+.demo-lumen-main .lm-code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.55;
+  padding: 10px 12px;
+  background: #0F172A;
+  color: #E2E8F0;
+  border-radius: 8px;
+  margin: 6px 0 0;
+  overflow-x: auto;
+  white-space: pre;
+}
+[data-theme="dark"] .demo-lumen-main .lm-code { background: #020617; }
+
+.demo-lumen-main .lm-c-kw  { color: #C084FC; font-weight: 600; }
+.demo-lumen-main .lm-c-fn  { color: #60A5FA; }
+.demo-lumen-main .lm-c-num { color: #F472B6; }
+.demo-lumen-main .lm-c-cmt { color: #64748B; font-style: italic; }
+
+/* ── Mini-diagramme Mermaid (visuel BFS) ── */
+.demo-lumen-main .lm-mermaid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--color-lumen) 5%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--color-lumen) 30%, transparent);
+  border-radius: 8px;
+  margin: 6px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+.demo-lumen-main .lm-node {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 14px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--color-lumen);
+  color: var(--color-lumen);
+}
+.demo-lumen-main .lm-node--start { background: var(--color-lumen); color: #fff; }
+.demo-lumen-main .lm-node--end   { background: color-mix(in srgb, var(--color-lumen) 15%, transparent); border-style: dashed; }
+.demo-lumen-main .lm-edge { color: var(--color-lumen); font-weight: 700; }
+.demo-lumen-main .lm-edge--down { display: block; width: 100%; text-align: center; }
+
+/* ── Footer metadata (readers / linked / sync) ── */
+.demo-lumen-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--color-lumen) 3%, transparent);
+  font-size: 10px;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+}
+.demo-lumen-read, .demo-lumen-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.demo-lumen-read svg, .demo-lumen-link svg { color: var(--color-lumen); }
+.demo-lumen-sep { color: var(--text-3); opacity: .5; }
+.demo-lumen-sync {
+  margin-left: auto;
   color: var(--color-lumen);
   font-weight: 600;
-  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
-.demo-lumen-line--text { color: var(--text-2); }
-.demo-lumen-line--code {
-  background: rgba(245, 158, 11, 0.06);
-  color: var(--color-lumen);
-  font-weight: 600;
+.demo-lumen-sync::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+}
+
+@media (max-width: 640px) {
+  .demo-lumen-wrap { flex-direction: column; min-height: auto; }
+  .demo-lumen-sidebar {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    gap: 4px;
+    padding: 8px;
+    scrollbar-width: none;
+  }
+  .demo-lumen-sidebar::-webkit-scrollbar { display: none; }
+  .demo-lumen-repo { flex-shrink: 0; border-bottom: none; border-right: 1px solid var(--border); padding-right: 12px; margin: 0; }
+  .demo-lumen-chap { flex-shrink: 0; white-space: nowrap; padding: 6px 10px; }
+  .demo-lumen-chap-title { font-size: 11px; }
 }
 
 /* ── Bento: Lumen card ────────────────────────────────────────────── */
