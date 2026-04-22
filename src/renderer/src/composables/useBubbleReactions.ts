@@ -4,18 +4,15 @@
  */
 import { ref, computed } from 'vue'
 import { useMessagesStore } from '@/stores/messages'
+import { AVAILABLE_REACTS, useQuickReacts } from './useQuickReacts'
 import type { Message } from '@/types'
 
-const REACT_TYPES = [
-  { type: 'check', emoji: '✅' },
-  { type: 'thumb', emoji: '👍' },
-  { type: 'fire',  emoji: '🔥' },
-  { type: 'heart', emoji: '❤️' },
-  { type: 'think', emoji: '🤔' },
-  { type: 'eyes',  emoji: '👀' },
-]
-
-const QUICK_REACTS = REACT_TYPES.slice(0, 4)
+/**
+ * Legacy export : utilise pour le context menu (quick-emoji row) et pour
+ * le mapping type -> emoji dans reactionsToShow. Couvre tous les types
+ * disponibles, pas juste les 4 rapides.
+ */
+export const REACT_TYPES = AVAILABLE_REACTS.map(r => ({ type: r.type, emoji: r.emoji }))
 
 /**
  * Réactions sur un message : toggle, picker, liste à afficher.
@@ -23,6 +20,8 @@ const QUICK_REACTS = REACT_TYPES.slice(0, 4)
 export function useBubbleReactions(msg: () => Message) {
   const messagesStore = useMessagesStore()
   const showPicker = ref(false)
+  // Reactions rapides personnalisables (4 favoris) — reactif.
+  const { quickReacts } = useQuickReacts()
 
   function quickReact(type: string) { messagesStore.toggleReaction(msg().id, type) }
 
@@ -36,8 +35,8 @@ export function useBubbleReactions(msg: () => Message) {
     showPicker.value = false
   }
 
-  // Map des types 'legacy' (check/thumb/fire/...) vers leur emoji.
-  // Les reactions arbitraires (via context menu ou picker) sont keyed par
+  // Map des types (check/thumb/fire/...) vers leur emoji, couvre tout le
+  // catalogue. Les reactions arbitraires (via emoji picker) sont keyed par
   // emoji directement : key = emoji.
   const TYPE_TO_EMOJI = new Map(REACT_TYPES.map(t => [t.type, t.emoji]))
 
@@ -55,7 +54,9 @@ export function useBubbleReactions(msg: () => Message) {
   })
 
   return {
-    REACT_TYPES, QUICK_REACTS,
+    REACT_TYPES,
+    /** 4 reactions rapides choisies par l'utilisateur (reactif). */
+    QUICK_REACTS: quickReacts,
     showPicker, quickReact, pickReact, pickEmojiReact,
     reactionsToShow,
   }

@@ -55,16 +55,21 @@ beforeEach(() => {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('constants', () => {
-  it('exports REACT_TYPES with 6 entries', () => {
+  it('exports REACT_TYPES avec au moins les 6 reactions originelles', () => {
     const { REACT_TYPES } = setup()
-    expect(REACT_TYPES).toHaveLength(6)
+    // REACT_TYPES couvre maintenant tout le catalogue AVAILABLE_REACTS
+    // (v2.227.0+), pas juste les 6 originelles.
+    expect(REACT_TYPES.length).toBeGreaterThanOrEqual(6)
     expect(REACT_TYPES[0]).toMatchObject({ type: 'check', emoji: expect.any(String) })
+    const types = REACT_TYPES.map(r => r.type)
+    expect(types).toEqual(expect.arrayContaining(['check', 'thumb', 'fire', 'heart', 'think', 'eyes']))
   })
 
-  it('exports QUICK_REACTS with first 4 entries', () => {
-    const { QUICK_REACTS, REACT_TYPES } = setup()
-    expect(QUICK_REACTS).toHaveLength(4)
-    expect(QUICK_REACTS).toEqual(REACT_TYPES.slice(0, 4))
+  it('QUICK_REACTS est un ComputedRef avec 4 entrees par defaut', () => {
+    const { QUICK_REACTS } = setup()
+    // QUICK_REACTS est maintenant reactif (useQuickReacts, v2.227.0+).
+    expect(QUICK_REACTS.value).toHaveLength(4)
+    expect(QUICK_REACTS.value.map(r => r.type)).toEqual(['check', 'thumb', 'fire', 'heart'])
   })
 })
 

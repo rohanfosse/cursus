@@ -22,7 +22,7 @@ import {
 import EmojiPicker from '@/components/ui/EmojiPicker.vue'
 import { useAppStore } from '@/stores/app'
 
-interface QuickReact { type: string; emoji: string }
+interface QuickReact { readonly type: string; readonly emoji: string }
 interface Props {
   quickReacts: readonly QuickReact[]
   isPinned: boolean
