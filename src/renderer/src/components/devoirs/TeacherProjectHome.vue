@@ -68,16 +68,48 @@ function toggleFocus(target: Exclude<FocusFilter, 'all'>) {
 }
 function resetFocus() { focusFilter.value = 'all'; searchQuery.value = '' }
 
+/**
+ * Set des categories dont au moins un devoir matche la recherche par titre.
+ * Pre-calcule pour que `displayedCategories` reste O(n) et que la liste
+ * "Devoirs trouves" partage la meme source de verite.
+ */
+const matchingDevoirs = computed<GanttRow[]>(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return []
+  return travauxStore.ganttData
+    .filter(t => t.title.toLowerCase().includes(q))
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+})
+
+const categoriesWithMatchingDevoir = computed<Set<string>>(() => {
+  const set = new Set<string>()
+  for (const t of matchingDevoirs.value) {
+    const cat = t.category?.trim()
+    if (cat) set.add(cat)
+  }
+  return set
+})
+
 const displayedCategories = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   return props.teacherCategories.filter(cat => {
-    if (q && !cat.toLowerCase().includes(q)) return false
+    if (q) {
+      // Un projet apparait s'il matche par nom OU s'il contient au moins un
+      // devoir qui matche par titre — indispensable pour retrouver un devoir
+      // precis sans se souvenir de sa categorie.
+      const catMatches = cat.toLowerCase().includes(q)
+      const hasDevoirMatch = categoriesWithMatchingDevoir.value.has(cat)
+      if (!catMatches && !hasDevoirMatch) return false
+    }
     const st = cachedProjectStats.value[cat]
     if (focusFilter.value === 'drafts' && (!st || st.drafts <= 0)) return false
     if (focusFilter.value === 'toGrade' && (!st || st.toGrade <= 0)) return false
     return true
   })
 })
+
+/** Top N devoirs matches pour la liste dediee (cliquable direct). */
+const matchingDevoirsTop = computed(() => matchingDevoirs.value.slice(0, 10))
 
 const focusLabel = computed(() => {
   if (focusFilter.value === 'drafts') return 'Projets avec brouillons'
@@ -210,8 +242,36 @@ const nothingToDo = computed(() =>
         </div>
       </div>
 
+      <!-- ── Devoirs trouves par la recherche (cliquable direct) ─────── -->
+      <!-- Remplace visuellement la timeline quand une recherche est active :
+           l'utilisateur qui cherche un devoir precis veut y sauter sans passer
+           par la grille projets. -->
+      <div v-if="searchQuery && matchingDevoirsTop.length" class="dh-next-section">
+        <h4 class="dv-section-title">
+          <Search :size="14" /> Devoirs trouvés
+          <span class="dv-section-count">{{ matchingDevoirs.length }}<span v-if="matchingDevoirs.length > matchingDevoirsTop.length"> (10 affichés)</span></span>
+        </h4>
+        <ul class="dh-timeline">
+          <li
+            v-for="d in matchingDevoirsTop" :key="d.id"
+            class="dh-timeline-item"
+            :class="{ 'dh-timeline-item--draft': !d.is_published }"
+            :title="d.title"
+            @click="openDevoir(d.id)"
+            @contextmenu="openCtxMenu($event, d)"
+          >
+            <FileText :size="14" class="dh-timeline-icon" />
+            <span class="dh-timeline-title">{{ d.title }}</span>
+            <span class="dh-timeline-type">{{ typeLabel(d.type) }}</span>
+            <span v-if="d.category" class="dh-timeline-proj">{{ d.category }}</span>
+            <span v-if="!d.is_published" class="dh-timeline-draft-tag">Brouillon</span>
+            <span v-else class="deadline-badge" :class="deadlineClass(d.deadline)">{{ deadlineLabel(d.deadline) }}</span>
+          </li>
+        </ul>
+      </div>
+
       <!-- ── Timeline unique des prochaines echeances ──────────────── -->
-      <div v-if="upcoming.length && focusFilter === 'all' && !searchQuery" class="dh-next-section">
+      <div v-else-if="upcoming.length && focusFilter === 'all'" class="dh-next-section">
         <h4 class="dv-section-title"><Clock :size="14" /> Prochaines échéances</h4>
         <ul class="dh-timeline">
           <li
@@ -468,6 +528,25 @@ const nothingToDo = computed(() =>
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 180px;
+  flex-shrink: 0;
+}
+
+/* Brouillon dans la liste des devoirs trouves : visuel aligne avec les cartes
+   brouillons (hachure subtile + tag "Brouillon" au lieu de la deadline). */
+.dh-timeline-item--draft {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(127, 127, 127, .03) 0 6px,
+      transparent 6px 12px
+    );
+}
+.dh-timeline-item--draft .dh-timeline-title { color: var(--text-secondary); }
+.dh-timeline-draft-tag {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  padding: 2px 7px; border-radius: 3px;
+  background: var(--bg-active); color: var(--text-secondary);
+  border: 1px dashed var(--border-input);
   flex-shrink: 0;
 }
 
