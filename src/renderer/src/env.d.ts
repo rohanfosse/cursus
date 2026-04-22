@@ -239,6 +239,39 @@ declare global {
       // Données de démo
       resetAndSeed(): Promise<IpcResponse<null>>
 
+      // Admin — Users (parite + bulk actions)
+      adminGetUsers(params?: { search?: string; promo_id?: number | null; type?: string | null; page?: number; limit?: number }): Promise<IpcResponse<{
+        users: Array<{ id: number; name: string; email: string; type: 'student' | 'teacher' | 'ta' | 'admin'; promo_id: number | null; promo_name: string | null; promo_color: string | null; avatar_initials: string; photo_data: string | null; must_change_password: number }>
+        total: number; page: number; limit: number
+      }>>
+      adminGetUserDetail(id: number): Promise<IpcResponse<{
+        id: number; name: string; email: string; type: 'student' | 'teacher' | 'ta' | 'admin'; avatar_initials: string; photo_data: string | null
+        promo_id: number | null; promo_name: string | null
+        messageCount: number; lastMessageAt: string | null; depotCount: number
+      }>>
+      adminUpdateUser(id: number, payload: { name?: string; email?: string; promo_id?: number | null }): Promise<IpcResponse<null>>
+      adminResetPassword(id: number): Promise<IpcResponse<{ tempPassword: string }>>
+      adminDeleteUser(id: number): Promise<IpcResponse<null>>
+
+      // Admin — Stats
+      adminGetStats(): Promise<IpcResponse<{
+        counts: { students: number; teachers: number; promotions: number; channels: number; messages: number; travaux: number; depots: number }
+        activity24h: { messages_24h: number; depots_24h: number }
+        messagesPerDay: Array<{ day: string; count: number }>
+        depotsPerDay: Array<{ day: string; count: number }>
+        topChannels: Array<{ name: string; promo_name: string; message_count: number }>
+        gradeDistribution: Array<{ range: string; count: number }>
+        lateCount: number; ungradedCount: number; avgGrade: number | null
+        promosSummary: Array<{ id: number; name: string; color: string; archived: number; student_count: number; channel_count: number; travaux_count: number; avg_grade: number | null }>
+      }>>
+      adminGetHeatmap(): Promise<IpcResponse<Array<{ day_of_week: number; hour: number; count: number }>>>
+      adminGetAdoption(): Promise<IpcResponse<{
+        dau: number; wau: number; mau: number; totalStudents: number
+        dauTrend: Array<{ day: string; count: number }>
+      }>>
+      adminGetLastSeen(): Promise<IpcResponse<Array<{ id: number; name: string; email: string; promo_id: number | null; promo_name: string | null; last_seen: string | null; days_absent: number | null }>>>
+      adminGetInactive(days: number): Promise<IpcResponse<Array<{ id: number; name: string; email: string; promo_id: number | null; promo_name: string | null; last_seen: string | null }>>>
+
       // Intervenants
       getIntervenants(): Promise<IpcResponse<{ id: number; name: string; email: string; role: string }[]>>
       createIntervenant(payload: Record<string, unknown> & { name: string; email: string }): Promise<IpcResponse<number>>

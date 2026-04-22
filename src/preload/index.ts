@@ -635,6 +635,30 @@ contextBridge.exposeInMainWorld('api', {
   // ── Admin ────────────────────────────────────────────────────────────────────
   resetAndSeed: () => post('/api/admin/reset-seed', {}),
 
+  // Users (liste, detail, edit, reset, delete)
+  adminGetUsers: (params: { search?: string; promo_id?: number | null; type?: string | null; page?: number; limit?: number } = {}) => {
+    const qs = new URLSearchParams()
+    if (params.search)   qs.set('search', params.search)
+    if (params.promo_id) qs.set('promo_id', String(params.promo_id))
+    if (params.type)     qs.set('type', params.type)
+    if (params.page)     qs.set('page', String(params.page))
+    if (params.limit)    qs.set('limit', String(params.limit))
+    const q = qs.toString()
+    return get(`/api/admin/users${q ? `?${q}` : ''}`)
+  },
+  adminGetUserDetail: (id: number) => get(`/api/admin/users/${id}`),
+  adminUpdateUser:    (id: number, payload: { name?: string; email?: string; promo_id?: number | null }) =>
+    patch(`/api/admin/users/${id}`, payload),
+  adminResetPassword: (id: number) => post(`/api/admin/users/${id}/reset-password`, {}),
+  adminDeleteUser:    (id: number) => del(`/api/admin/users/${id}`),
+
+  // Stats
+  adminGetStats:      () => get('/api/admin/stats'),
+  adminGetHeatmap:    () => get('/api/admin/heatmap'),
+  adminGetAdoption:   () => get('/api/admin/adoption'),
+  adminGetLastSeen:   () => get('/api/admin/last-seen'),
+  adminGetInactive:   (days: number) => get(`/api/admin/inactive?days=${days}`),
+
   // ── Shell ───────────────────────────────────────────────────────────────────
   openPath: async (filePath: string) => {
     if (filePath.startsWith('http://') || filePath.startsWith('https://'))

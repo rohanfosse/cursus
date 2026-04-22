@@ -17,7 +17,6 @@
   import { useNavRailOrder } from '@/composables/useNavRailOrder'
   import { avatarColor }    from '@/utils/format'
   import { formatExpiryShort } from '@/utils/date'
-  import { getAuthToken }   from '@/utils/auth'
   import NotificationPanel from './NotificationPanel.vue'
 
   const appStore    = useAppStore()
@@ -52,11 +51,7 @@
   })
 
   function openAdmin() {
-    const token = getAuthToken()
-    const url = token
-      ? `https://admin.cursus.school/?token=${encodeURIComponent(token)}`
-      : 'https://admin.cursus.school/'
-    window.open(url, '_blank')
+    router.push('/admin')
   }
 
   // ── Centre de notifications ─────────────────────────────────────────────────
@@ -458,17 +453,18 @@
       <component :is="sidebarCollapsed ? PanelLeftOpen : PanelLeftClose" :size="18" />
     </button>
 
-    <!-- ── Admin (masque temporairement) ── -->
-    <!-- <button
+    <!-- ── Admin (role admin uniquement) ── -->
+    <button
       v-if="appStore.isAdmin"
       class="nav-btn nav-admin-btn"
-      title="Console d'administration"
-      aria-label="Console d'administration"
+      :class="{ active: route.name === 'admin' }"
+      title="Administration"
+      aria-label="Administration"
       @click="openAdmin"
     >
       <Shield :size="20" />
       <span class="nav-label">Admin</span>
-    </button> -->
+    </button>
 
     <!-- ── Feedback / Bugs (masque temporairement) ── -->
     <!-- <button
