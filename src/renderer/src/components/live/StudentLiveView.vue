@@ -223,17 +223,25 @@
     <!-- ══════════ Pas de session ══════════ -->
     <div v-if="!session" class="live-join">
       <div class="join-hero">
-        <Zap :size="44" class="hero-icon" />
+        <div class="join-hero-icon" aria-hidden="true">
+          <Zap :size="26" />
+        </div>
         <h1 class="hero-title">Live</h1>
-        <p class="hero-desc">Rejoignez une session interactive avec un code</p>
+        <p class="hero-desc">Rejoins une session interactive avec un code.</p>
       </div>
 
       <div class="join-card">
+        <label for="live-join-code" class="join-label">Code de session</label>
         <input
+          id="live-join-code"
           v-model="joinCode"
           class="join-input"
-          placeholder="Code à 6 caractères"
+          placeholder="ABCDEF"
           maxlength="6"
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false"
+          inputmode="text"
           @keydown.enter="joinSession"
         />
         <button
@@ -243,6 +251,9 @@
         >
           {{ joining ? 'Connexion...' : 'Rejoindre' }}
         </button>
+        <p class="join-hint">
+          Le code à 6 caractères est communiqué par ton enseignant au début de la séance.
+        </p>
       </div>
     </div>
 
@@ -637,65 +648,119 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 28px;
-  max-width: 400px;
+  gap: var(--space-xl);
+  max-width: 420px;
   width: 100%;
-  margin-top: 80px;
+  margin-top: 72px;
 }
 .join-hero {
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
-.hero-icon { color: var(--accent); opacity: .7; }
-.hero-title { font-size: 28px; font-weight: 800; color: var(--text-primary); }
-.hero-desc { font-size: 14px; color: var(--text-muted); }
+.join-hero-icon {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.hero-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -.3px;
+}
+.hero-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 360px;
+}
 .join-card {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-1);
+}
+.join-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
 }
 .join-input {
   width: 100%;
   padding: 16px;
-  border-radius: 12px;
-  background: var(--bg-elevated);
-  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-input, var(--bg-hover));
+  border: 2px solid var(--border-input, var(--border));
   color: var(--text-primary);
   font-size: 24px;
   font-weight: 700;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', ui-monospace, monospace);
   text-align: center;
   letter-spacing: 6px;
   text-transform: uppercase;
   outline: none;
-  transition: border-color .15s;
+  transition: border-color var(--motion-fast) var(--ease-out),
+              box-shadow   var(--motion-fast) var(--ease-out);
 }
-.join-input:focus { border-color: var(--accent); }
+.join-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
 .join-input::placeholder {
-  font-size: 14px;
-  letter-spacing: normal;
-  text-transform: none;
-  font-family: inherit;
-  font-weight: 500;
+  color: var(--text-muted);
+  opacity: .5;
 }
 .join-btn {
   padding: 14px;
-  border-radius: 12px;
-  font-size: 16px;
+  border-radius: var(--radius);
+  font-size: 15px;
   font-weight: 700;
   background: var(--accent);
   color: #fff;
   border: none;
   cursor: pointer;
-  transition: all .15s;
+  transition: filter    var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
   min-height: 48px;
 }
-.join-btn:hover { filter: brightness(1.1); }
-.join-btn:disabled { opacity: .4; cursor: not-allowed; }
+.join-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.join-btn:active { transform: translateY(0); }
+.join-btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+.join-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+  text-align: center;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .join-input, .join-btn { transition: none !important; }
+  .join-btn:hover { transform: none; }
+}
 
 /* ── In session ── */
 .live-in-session {

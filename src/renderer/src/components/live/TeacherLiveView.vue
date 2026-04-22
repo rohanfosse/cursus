@@ -6,8 +6,10 @@
     Plus, Play, Square, ChevronRight, Trash2, Users, Zap, Clock,
     LogOut, Pencil, GripVertical, Copy, Download,
     ArrowRight, Eye, EyeOff, Bookmark, BookmarkPlus, Upload, Presentation,
-    FileDown, HelpCircle, AlertTriangle,
+    FileDown, HelpCircle, AlertTriangle, PencilLine, Sparkles, FileText,
   } from 'lucide-vue-next'
+  import UiCard from '@/components/ui/UiCard.vue'
+  import { relativeTime } from '@/utils/date'
   import { ACTIVITY_CATEGORIES, activityIcon, activityTypeLabel, getActivityCategory, isSparkType, parseJsonArray } from '@/utils/liveActivity'
   import { useResponseTimer } from '@/composables/useResponseTimer'
   import { useLiveTemplates } from '@/composables/useLiveTemplates'
@@ -239,6 +241,31 @@
     liveStore.initSocketListeners()
     if (promoId.value) await liveStore.fetchDraftSessions(promoId.value)
   })
+
+  // ── Page d'accueil : brouillons regroupes par statut + stats rapides ──────
+  /** Sessions "waiting" : brouillons reprenables. */
+  const homeWaitingDrafts = computed<LiveSession[]>(() =>
+    liveStore.draftSessions
+      .filter(s => s.status === 'waiting')
+      .slice()
+      .sort((a, b) => b.created_at.localeCompare(a.created_at)),
+  )
+
+  /** Stats "ambient" affichees dans le hero (aucun fetch supplementaire). */
+  const homeStats = computed(() => ({
+    drafts:    homeWaitingDrafts.value.length,
+    templates: templates.value.length,
+    archived:  liveStore.draftSessions.filter(s => s.status === 'ended').length,
+  }))
+
+  /** Compte les activites d'un brouillon (peut etre undefined selon payload). */
+  function draftActivityCount(s: LiveSession): number {
+    return s.activities?.length ?? 0
+  }
+
+  async function resumeDraft(s: LiveSession) {
+    await selectSession(s)
+  }
   onUnmounted(() => {
     liveStore.disposeSocketListeners()
   })
@@ -666,66 +693,165 @@
 
       <!-- Tab: Accueil (default) -->
       <template v-else>
-        <div class="live-hero">
-          <Zap :size="40" class="hero-icon" />
-          <h1 class="hero-title">Live</h1>
-          <p class="hero-desc">Lancez une activite interactive avec vos etudiants</p>
-        </div>
+        <!-- Hero card : identite + stats rapides + astuce -->
+        <section class="live-hero-card" aria-labelledby="live-hero-title">
+          <div class="live-hero-main">
+            <div class="live-hero-icon" aria-hidden="true">
+              <Zap :size="22" />
+            </div>
+            <div class="live-hero-text">
+              <h1 id="live-hero-title" class="live-hero-title">Live</h1>
+              <p class="live-hero-desc">Lancez une activité interactive avec vos étudiants.</p>
+            </div>
+          </div>
 
-        <!-- Grille des 4 categories -->
-        <div class="live-cat-grid">
-          <button
-            v-for="(cat, key) in ACTIVITY_CATEGORIES"
-            :key="key"
-            class="live-cat-card"
-            :style="{ '--cat-color': cat.color }"
-            @click="openCategory(key as ActivityCategory)"
-          >
-            <div class="live-cat-icon">
-              <component :is="ACTIVITY_CATEGORIES[key as ActivityCategory].icon" :size="28" />
+          <div class="live-hero-stats" role="list" aria-label="Résumé Live">
+            <div v-if="homeStats.drafts > 0" class="lh-stat lh-stat--accent" role="listitem">
+              <PencilLine :size="14" aria-hidden="true" />
+              <span class="lh-stat-value">{{ homeStats.drafts }}</span>
+              <span class="lh-stat-label">brouillon{{ homeStats.drafts > 1 ? 's' : '' }}</span>
             </div>
-            <div class="live-cat-info">
-              <span class="live-cat-label">{{ cat.label }}</span>
-              <span class="live-cat-desc">{{ cat.description }}</span>
+            <div v-if="homeStats.templates > 0" class="lh-stat" role="listitem">
+              <Bookmark :size="14" aria-hidden="true" />
+              <span class="lh-stat-value">{{ homeStats.templates }}</span>
+              <span class="lh-stat-label">modèle{{ homeStats.templates > 1 ? 's' : '' }}</span>
             </div>
-            <div class="live-cat-types">
-              <span v-for="t in cat.types.slice(0, 3)" :key="t" class="live-cat-type">{{ t.replace(/_/g, ' ') }}</span>
-              <span v-if="cat.types.length > 3" class="live-cat-type live-cat-more">+{{ cat.types.length - 3 }}</span>
+            <div v-if="homeStats.archived > 0" class="lh-stat" role="listitem">
+              <FileText :size="14" aria-hidden="true" />
+              <span class="lh-stat-value">{{ homeStats.archived }}</span>
+              <span class="lh-stat-label">archivée{{ homeStats.archived > 1 ? 's' : '' }}</span>
             </div>
-            <ArrowRight :size="16" class="live-cat-arrow" />
-          </button>
-        </div>
+            <button
+              class="lh-stat lh-stat--shortcut"
+              type="button"
+              title="Raccourcis clavier"
+              aria-label="Afficher les raccourcis clavier"
+              @click="shortcutsOpen = true"
+            >
+              <HelpCircle :size="14" aria-hidden="true" />
+              <span class="lh-stat-label">Astuce : <kbd>?</kbd> pour les raccourcis</span>
+            </button>
+          </div>
+        </section>
 
-        <!-- Modeles de session sauvegardes -->
-        <div v-if="templates.length > 0" class="live-templates">
-          <h3 class="live-templates-title">
-            <Bookmark :size="14" />
-            Modeles enregistres
-          </h3>
+        <!-- Brouillons à reprendre (promu en cards si présents) -->
+        <section v-if="homeWaitingDrafts.length > 0" class="live-section" aria-labelledby="live-drafts-title">
+          <header class="live-section-head">
+            <h2 id="live-drafts-title" class="live-section-title">
+              <PencilLine :size="16" aria-hidden="true" />
+              Brouillons à reprendre
+              <span class="live-section-count">{{ homeWaitingDrafts.length }}</span>
+            </h2>
+          </header>
+          <div class="live-drafts-grid">
+            <UiCard
+              v-for="s in homeWaitingDrafts"
+              :key="s.id"
+              interactive
+              :elevated="1"
+              padding="md"
+              class="live-draft-card"
+              @click="resumeDraft(s)"
+            >
+              <div class="ldc-body">
+                <span class="ldc-title">{{ s.title }}</span>
+                <div class="ldc-meta">
+                  <span>{{ draftActivityCount(s) }} activité{{ draftActivityCount(s) > 1 ? 's' : '' }}</span>
+                  <span class="ldc-sep" aria-hidden="true">·</span>
+                  <span>créé {{ relativeTime(s.created_at) }}</span>
+                </div>
+              </div>
+              <div class="ldc-actions">
+                <button
+                  type="button"
+                  class="ldc-resume"
+                  :title="`Reprendre « ${s.title} »`"
+                  @click.stop="resumeDraft(s)"
+                >
+                  <Play :size="13" aria-hidden="true" />
+                  Reprendre
+                </button>
+                <button
+                  type="button"
+                  class="ldc-clone"
+                  :title="`Dupliquer « ${s.title} »`"
+                  aria-label="Dupliquer"
+                  @click.stop="onCloneSession(s)"
+                >
+                  <Copy :size="13" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  class="ldc-delete"
+                  :title="`Supprimer « ${s.title} »`"
+                  aria-label="Supprimer le brouillon"
+                  @click.stop="onDeleteDraftSession(s)"
+                >
+                  <Trash2 :size="13" aria-hidden="true" />
+                </button>
+              </div>
+            </UiCard>
+          </div>
+        </section>
+
+        <!-- Grille des 4 categories de création -->
+        <section class="live-section" aria-labelledby="live-create-title">
+          <header class="live-section-head">
+            <h2 id="live-create-title" class="live-section-title">
+              <Sparkles :size="16" aria-hidden="true" />
+              Créer une nouvelle session
+            </h2>
+          </header>
+          <div class="live-cat-grid">
+            <button
+              v-for="(cat, key) in ACTIVITY_CATEGORIES"
+              :key="key"
+              class="live-cat-card"
+              :style="{ '--cat-color': cat.color }"
+              @click="openCategory(key as ActivityCategory)"
+            >
+              <div class="live-cat-icon">
+                <component :is="ACTIVITY_CATEGORIES[key as ActivityCategory].icon" :size="28" />
+              </div>
+              <div class="live-cat-info">
+                <span class="live-cat-label">{{ cat.label }}</span>
+                <span class="live-cat-desc">{{ cat.description }}</span>
+              </div>
+              <div class="live-cat-types">
+                <span v-for="t in cat.types.slice(0, 3)" :key="t" class="live-cat-type">{{ t.replace(/_/g, ' ') }}</span>
+                <span v-if="cat.types.length > 3" class="live-cat-type live-cat-more">+{{ cat.types.length - 3 }}</span>
+              </div>
+              <ArrowRight :size="16" class="live-cat-arrow" />
+            </button>
+          </div>
+        </section>
+
+        <!-- Modèles de session sauvegardés -->
+        <section v-if="templates.length > 0" class="live-section" aria-labelledby="live-templates-title">
+          <header class="live-section-head">
+            <h2 id="live-templates-title" class="live-section-title">
+              <Bookmark :size="16" aria-hidden="true" />
+              Modèles enregistrés
+              <span class="live-section-count">{{ templates.length }}</span>
+            </h2>
+          </header>
           <div class="live-templates-list">
             <div v-for="tpl in templates" :key="tpl.id" class="live-template-card">
               <div class="ltc-body">
                 <span class="ltc-name">{{ tpl.name }}</span>
-                <span class="ltc-meta">{{ tpl.activities.length }} activite{{ tpl.activities.length > 1 ? 's' : '' }}</span>
+                <span class="ltc-meta">{{ tpl.activities.length }} activité{{ tpl.activities.length > 1 ? 's' : '' }}</span>
               </div>
               <div class="ltc-actions">
-                <button class="ltc-load" @click="onLoadTemplate(tpl.id)" title="Charger ce modele dans une nouvelle session">
+                <button class="ltc-load" @click="onLoadTemplate(tpl.id)" :title="`Charger « ${tpl.name} » dans une nouvelle session`">
                   <Plus :size="12" /> Utiliser
                 </button>
-                <button class="ltc-del" @click="onDeleteTemplate(tpl.id, tpl.name)" :title="`Supprimer ${tpl.name}`" aria-label="Supprimer le modele">
+                <button class="ltc-del" @click="onDeleteTemplate(tpl.id, tpl.name)" :title="`Supprimer ${tpl.name}`" aria-label="Supprimer le modèle">
                   <Trash2 :size="12" />
                 </button>
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- Lien brouillons existants -->
-        <div v-if="liveStore.draftSessions.length > 0" class="live-home-drafts-hint">
-          <span class="live-home-drafts-text">
-            {{ liveStore.draftSessions.length }} brouillon(s) dans la sidebar
-          </span>
-        </div>
+        </section>
       </template>
     </div>
 
@@ -1301,16 +1427,227 @@
 }
 .live-home-back:hover { color: var(--accent); }
 
-.live-hero {
-  text-align: center;
+/* ── Hero card (accueil Live) ─────────────────────────────────────────── */
+.live-hero-card {
+  position: relative;
+  width: 100%;
   display: flex;
   flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-xl);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(ellipse at top right,
+      rgba(var(--accent-rgb), .10) 0%,
+      transparent 55%),
+    var(--bg-elevated);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.live-hero-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+.live-hero-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  flex-shrink: 0;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.live-hero-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.live-hero-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -.2px;
+}
+.live-hero-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.live-hero-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.lh-stat {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-xl);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1;
 }
-.hero-icon { color: var(--accent); opacity: .5; }
-.hero-title { font-size: 26px; font-weight: 700; color: var(--text-primary); margin: 0; }
-.hero-desc { font-size: 13px; color: var(--text-muted); max-width: 400px; }
+.lh-stat--accent {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.lh-stat-value { font-weight: 700; color: inherit; font-variant-numeric: tabular-nums; }
+.lh-stat-label { color: inherit; opacity: .85; }
+.lh-stat--shortcut {
+  margin-left: auto;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+  font-family: inherit;
+}
+.lh-stat--shortcut:hover {
+  background: var(--bg-active);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  color: var(--text-primary);
+}
+.lh-stat--shortcut kbd {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--bg-active);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin: 0 2px;
+}
+
+/* ── Section générique (titre + compteur) ────────────────────────────── */
+.live-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+.live-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+.live-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -.1px;
+}
+.live-section-count {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 8px;
+  border-radius: var(--radius-xl);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+/* ── Brouillons à reprendre ──────────────────────────────────────────── */
+.live-drafts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-md);
+}
+.live-draft-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.ldc-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ldc-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ldc-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.ldc-sep { opacity: .6; }
+.ldc-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: auto;
+  padding-top: var(--space-sm);
+  border-top: 1px dashed var(--border);
+}
+.ldc-resume {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: filter var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
+}
+.ldc-resume:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.ldc-resume:active { transform: translateY(0); }
+.ldc-clone,
+.ldc-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.ldc-clone:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.ldc-delete:hover {
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ldc-resume, .ldc-clone, .ldc-delete { transition: none !important; }
+  .ldc-resume:hover { transform: none; }
+}
 
 .live-home-name {
   width: 100%; max-width: 420px;
@@ -1402,13 +1739,6 @@
   color: var(--text-muted); opacity: 0; transition: all .15s;
 }
 .live-cat-card:hover .live-cat-arrow { opacity: 1; color: var(--cat-color); }
-
-.live-home-drafts-hint {
-  text-align: center;
-}
-.live-home-drafts-text {
-  font-size: 12px; color: var(--text-muted);
-}
 
 /* ── Category detail sub-page ── */
 .live-cat-detail {
