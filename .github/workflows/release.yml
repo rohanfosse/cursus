@@ -13,10 +13,16 @@ on:
 permissions:
   contents: write
 
+# Un seul release par tag a la fois. On ne cancel PAS en cours pour eviter
+# d'uploader des artefacts partiels sur la release GitHub.
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  # ── Gate: run tests before building releases ─────────────────────────────────
+  # ── Gate : typecheck uniquement (les tests complets tournent sur test.yml a chaque push main) ──
   preflight:
-    name: Preflight Tests
+    name: Preflight (typecheck)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -26,10 +32,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --ignore-scripts
-      - run: npm rebuild better-sqlite3
+      - run: npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
       - run: npm run typecheck
-      - run: npx vitest run
 
   # ── Build Windows (.exe) ─────────────────────────────────────────────────────
   build-windows:
@@ -43,14 +47,35 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
+
+      # Defender scanne chaque fichier ecrit : sur ~500MB de dist/+out/ ca coute
+      # 20-40s en I/O. On exclut le workspace pour la duree du job.
+      - name: Exclude workspace from Windows Defender
+        shell: powershell
+        run: |
+          Add-MpPreference -ExclusionPath "${{ github.workspace }}"
+          Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\electron\Cache"
+          Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\electron-builder\Cache"
+
+      # Cache les binaires Electron (~200MB) + electron-builder (nsis, fpm, etc.)
+      # entre les runs. Hit = gain 60-90s.
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: electron-windows-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            electron-windows-
 
       - name: Sync version from tag
         run: npm version "${{ inputs.tag || github.ref_name }}" --no-git-tag-version --allow-same-version
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Check runtime dependencies
         run: node scripts/check-runtime-deps.js
@@ -65,7 +90,7 @@ jobs:
           CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.WIN_CSC_LINK != '' && 'true' || 'false' }}
-        run: npm run build:win
+        run: npm run build:win:ci
 
       - name: Upload .exe to release
         uses: softprops/action-gh-release@v2
@@ -88,14 +113,24 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
+
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+          key: electron-macos-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            electron-macos-
 
       - name: Sync version from tag
         run: npm version "${{ inputs.tag || github.ref_name }}" --no-git-tag-version --allow-same-version
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Check runtime dependencies
         run: node scripts/check-runtime-deps.js
@@ -105,7 +140,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_SERVER_URL: ${{ secrets.VITE_SERVER_URL }}
-        run: npm run build:mac
+        run: npm run build:mac:ci
 
       - name: Upload .dmg to release
         uses: softprops/action-gh-release@v2
