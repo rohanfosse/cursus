@@ -583,11 +583,11 @@ const renderedContentWithoutPoll = computed(() => {
    PILL D'ACTIONS - style Slack
 ════════════════════════════════════════════ */
 /* ══════════════════════════════════════════════════════════════
-   PILL D'ACTIONS — refonte Discord-inspired (v2.230.0)
+   PILL D'ACTIONS — style Slack-like : aere, sobre, sans transform
    ══════════════════════════════════════════════════════════════ */
 .msg-action-pill {
   position: absolute;
-  top: -16px;
+  top: -18px;
   right: 12px;
   display: flex;
   align-items: center;
@@ -595,13 +595,13 @@ const renderedContentWithoutPoll = computed(() => {
   opacity: 0;
   pointer-events: none;
   transition: opacity   var(--motion-fast) var(--ease-out),
-              transform var(--motion-base) var(--ease-spring);
-  transform: translateY(4px) scale(.96);
+              transform var(--motion-fast) var(--ease-out);
+  transform: translateY(2px);
   background: var(--bg-modal);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 10px;
   box-shadow: var(--elevation-2);
-  padding: 3px;
+  padding: 4px;
   z-index: 30;
   isolation: isolate;
 }
@@ -611,32 +611,31 @@ const renderedContentWithoutPoll = computed(() => {
 .msg-row:focus-within .msg-action-pill {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(0) scale(1);
+  transform: translateY(0);
 }
 
-/* Boutons icone : 28×28 compact (Discord-like). */
+/* Boutons icone : 32x32 pour respirer (Slack-like, vs 28x28 Discord-like).
+   Pas de scale au hover : Slack reste sobre, juste un changement de fond. */
 .pill-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: none;
   background: transparent;
   color: var(--text-muted);
-  border-radius: var(--radius-sm);
+  border-radius: 7px;
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
   transition: background var(--motion-fast) var(--ease-out),
-              color      var(--motion-fast) var(--ease-out),
-              transform  var(--motion-fast) var(--ease-spring);
+              color      var(--motion-fast) var(--ease-out);
   padding: 0;
 }
 .pill-btn:hover:not(:disabled) {
-  background: var(--bg-active);
+  background: var(--bg-hover);
   color: var(--text-primary);
-  transform: scale(1.08);
 }
 .pill-btn:focus-visible {
   outline: none;
@@ -645,17 +644,15 @@ const renderedContentWithoutPoll = computed(() => {
 }
 .pill-btn:disabled { opacity: .35; cursor: default; }
 
-/* Chips emoji favoris : légèrement plus larges (emoji visuel),
-   avec état "reacted" distinctif accent (on voit d'un coup d'œil
-   quelles reactions on a deja posees). */
+/* Chips emoji favoris : meme format carre que les icones pour uniformite,
+   avec etat "reacted" accent distinctif (scan rapide de ses reactions). */
 .pill-emoji-btn {
-  width: 30px;
-  height: 28px;
-  font-size: 15px;
-  border-radius: var(--radius-sm);
+  width: 32px;
+  height: 32px;
+  font-size: 17px;
+  border-radius: 7px;
 }
 .pill-emoji-btn:hover:not(:disabled) {
-  transform: scale(1.18);
   background: var(--bg-hover);
 }
 .pill-emoji-btn--reacted {
@@ -1024,8 +1021,9 @@ const renderedContentWithoutPoll = computed(() => {
   .msg-row.grouped { animation: none !important; }
   .msg-action-pill { transition: none !important; }
   .msg-reaction-pill:hover { transform: none !important; }
-  .pill-btn:hover:not(:disabled) { transform: none !important; }
-  .pill-emoji-btn:hover:not(:disabled) { transform: none !important; }
+  .msg-reaction-add:hover,
+  .msg-reaction-add:focus-visible,
+  .msg-reaction-add.is-open { transform: none !important; }
 }
 
 /* Les styles du lightbox et de la modale de signalement ont ete deplaces
