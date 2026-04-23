@@ -51,6 +51,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:modelValue': [v: boolean]
   'submit': [payload: { markdown: string }]
+  /** Envoi direct dans le canal (1 clic de moins, action la plus frequente). */
+  'submit-send': [payload: { markdown: string }]
 }>()
 
 // ── Langages supportes ────────────────────────────────────────────────────
@@ -152,7 +154,12 @@ function onCodeKeydown(e: KeyboardEvent) {
   }
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
     e.preventDefault()
-    if (canSubmit.value) submit()
+    if (!canSubmit.value) return
+    // Shift+Ctrl+Enter : insere sans envoyer (flow ancien, pour texte autour).
+    // Ctrl+Enter seul : envoie directement dans le canal (action par defaut,
+    // coherente avec le modal /tableau).
+    if (e.shiftKey) submit()
+    else submitAndSend()
   }
 }
 
@@ -177,18 +184,27 @@ const canSubmit = computed(() => code.value.trim().length > 0)
 
 function close() { emit('update:modelValue', false) }
 
-function submit() {
-  if (!canSubmit.value) return
-  // Supprime les lignes vides en debut/fin pour un rendu propre, garde
-  // l'indentation interne. Trim le trailing whitespace par ligne.
+/** Construit le markdown final, nettoie les lignes vides haut/bas et les
+ *  trailing spaces par ligne (garde l'indentation interne intacte). */
+function buildMarkdown(): string {
   const cleaned = code.value
     .replace(/^\s*\n+/, '')
     .replace(/\n+\s*$/, '')
     .split('\n')
     .map(l => l.replace(/\s+$/, ''))
     .join('\n')
-  const markdown = '```' + selectedLang.value.md + '\n' + cleaned + '\n```'
-  emit('submit', { markdown })
+  return '```' + selectedLang.value.md + '\n' + cleaned + '\n```'
+}
+
+function submit() {
+  if (!canSubmit.value) return
+  emit('submit', { markdown: buildMarkdown() })
+  close()
+}
+/** Envoie directement dans le canal (skip le textarea). */
+function submitAndSend() {
+  if (!canSubmit.value) return
+  emit('submit-send', { markdown: buildMarkdown() })
   close()
 }
 
@@ -273,14 +289,31 @@ const charCount = computed(() => code.value.length)
           <!-- Hints raccourcis clavier -->
           <div class="ccd-hints">
             <span><kbd>Tab</kbd> indenter (2 espaces)</span>
-            <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> insérer</span>
+            <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> envoyer directement</span>
+            <span class="ccd-hint-muted">(collage = détection auto du langage)</span>
           </div>
 
-          <!-- Footer -->
+          <!-- Footer : CTA primaire = envoyer direct (1 clic),
+               secondaire = inserer pour ajouter du texte autour. -->
           <div class="ccd-footer">
             <button class="btn-ghost" @click="close">Annuler</button>
-            <button class="btn-primary" :disabled="!canSubmit" @click="submit">
-              <Send :size="13" /> Insérer le bloc
+            <button
+              type="button"
+              class="ccd-btn-secondary"
+              :disabled="!canSubmit"
+              title="Insérer dans le message pour ajouter du texte autour"
+              @click="submit"
+            >
+              Insérer dans le message
+            </button>
+            <button
+              type="button"
+              class="ccd-btn-primary"
+              :disabled="!canSubmit"
+              title="Envoyer directement dans le canal"
+              @click="submitAndSend"
+            >
+              <Send :size="14" /> Envoyer le bloc
             </button>
           </div>
         </div>
@@ -500,6 +533,7 @@ const charCount = computed(() => code.value.length)
   font-family: var(--font);
   margin: 0 2px;
 }
+.ccd-hint-muted { opacity: .7; font-style: italic; }
 
 /* ── Footer ──────────────────────────────────────────────────────────── */
 .ccd-footer {
@@ -510,6 +544,57 @@ const charCount = computed(() => code.value.length)
   padding: 12px 18px;
   border-top: 1px solid var(--border);
   background: var(--bg-elevated);
+}
+
+.ccd-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-input);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.ccd-btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+.ccd-btn-secondary:disabled { opacity: .45; cursor: not-allowed; }
+
+.ccd-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
+  transition: background var(--t-fast), transform var(--t-fast);
+}
+.ccd-btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, black);
+  transform: translateY(-1px);
+}
+.ccd-btn-primary:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  border-color: var(--border);
+  box-shadow: none;
 }
 
 /* ── Responsive (stack vertical sur mobile) ──────────────────────────── */

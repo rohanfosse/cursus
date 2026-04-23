@@ -20,6 +20,7 @@ import { renderMessageContent } from '@/utils/html'
 import { formatTime }      from '@/utils/date'
 import { authUrl }         from '@/utils/auth'
 import { useBubbleActions }   from '@/composables/useBubbleActions'
+import { useToast }            from '@/composables/useToast'
 import { useBubbleReactions } from '@/composables/useBubbleReactions'
 import { useBubbleBookmarks } from '@/composables/useBubbleBookmarks'
 import { useBubbleMenu }      from '@/composables/useBubbleMenu'
@@ -139,8 +140,30 @@ const myReactedTypes = computed<ReadonlySet<string>>(
 function closeAll() { _closeAll(showPicker, confirmingDelete) }
 
 // ── Click sur le texte du message : lightbox si image, sinon handler normal ──
+const { showToast } = useToast()
+
 function onTextClick(e: MouseEvent) {
-  const img = (e.target as HTMLElement).closest('img.msg-inline-img') as HTMLImageElement | null
+  const target = e.target as HTMLElement
+  // Bouton "Copier" dans l'en-tete d'un bloc de code : intercepte avant le
+  // flow standard pour copier le texte brut dans le presse-papiers (le
+  // rendu est v-html, donc on passe par delegation).
+  const copyBtn = target.closest('[data-action="copy-code"]') as HTMLElement | null
+  if (copyBtn) {
+    e.preventDefault()
+    e.stopPropagation()
+    const block = copyBtn.closest('.code-block')
+    const codeEl = block?.querySelector('code')
+    const text = codeEl?.textContent ?? ''
+    if (text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Code copie.', 'success')
+        copyBtn.classList.add('is-copied')
+        setTimeout(() => copyBtn.classList.remove('is-copied'), 1500)
+      }).catch(() => { showToast('Erreur lors de la copie.', 'error') })
+    }
+    return
+  }
+  const img = target.closest('img.msg-inline-img') as HTMLImageElement | null
   if (img?.src) { lightboxUrl.value = img.src; return }
   onMsgClick(e)
 }
@@ -531,33 +554,107 @@ const renderedContentWithoutPoll = computed(() => {
   color: var(--color-warning);
 }
 
-/* Blocs de code highlight.js */
+/* ════════════════════════════════════════════
+   BLOCS DE CODE — style GitHub/Notion
+════════════════════════════════════════════ */
 :deep(.code-block) {
   position: relative;
-  margin: 8px 0;
-  border-radius: 8px;
+  margin: 10px 0;
+  border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: rgba(0, 0, 0, .3);
+  background: rgba(0, 0, 0, .32);
+  box-shadow: var(--elevation-1);
 }
-:deep(.code-lang) {
-  display: block;
-  padding: 4px 12px;
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  color: var(--text-muted);
+
+/* Header : langue a gauche + meta + bouton Copier a droite */
+:deep(.code-block-head) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 5px 14px;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
+  min-height: 28px;
 }
+:deep(.code-lang) {
+  display: inline-block;
+  padding: 2px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .15);
+  border: 1px solid rgba(var(--accent-rgb), .3);
+  border-radius: 12px;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+:deep(.code-lines) {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+/* Bouton "Copier" : discret, s'active au hover, feedback "Copie!" quand cliqué */
+:deep(.code-copy) {
+  margin-left: auto;
+  padding: 3px 10px;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+:deep(.code-copy:hover) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-input);
+}
+:deep(.code-copy.is-copied) {
+  background: rgba(var(--color-success-rgb), .15);
+  color: var(--color-success);
+  border-color: rgba(var(--color-success-rgb), .4);
+}
+:deep(.code-copy.is-copied::before) {
+  content: 'Copié';
+}
+:deep(.code-copy.is-copied) {
+  font-size: 0;
+}
+:deep(.code-copy.is-copied::before) {
+  font-size: 11px;
+}
+
+/* Contenu code : typo mono + scroll horizontal sur long code */
 :deep(.code-block pre) {
   margin: 0;
-  padding: 10px 14px;
+  padding: 12px 16px;
   overflow-x: auto;
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.6;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, Menlo, Consolas, monospace;
+  tab-size: 2;
+}
+/* Scrollbar fine et discrete dans le bloc */
+:deep(.code-block pre::-webkit-scrollbar) {
+  height: 8px;
+}
+:deep(.code-block pre::-webkit-scrollbar-track) {
+  background: transparent;
+}
+:deep(.code-block pre::-webkit-scrollbar-thumb) {
+  background: rgba(255, 255, 255, .08);
+  border-radius: 4px;
+}
+:deep(.code-block pre::-webkit-scrollbar-thumb:hover) {
+  background: rgba(255, 255, 255, .15);
 }
 
 /* ════════════════════════════════════════════

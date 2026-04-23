@@ -111,14 +111,21 @@ marked.use({
       const alt  = escapeHtml(text ?? '')
       return `<img class="msg-inline-img" src="${authUrl(safe)}" alt="${alt}" loading="lazy" />`
     },
-    // Blocs de code : coloration syntaxique via highlight.js
+    // Blocs de code : coloration syntaxique via highlight.js. Header avec
+    // langue + bouton "Copier" (intercepte par listener delegue dans
+    // MessageBubble via data-action="copy-code").
     code({ text, lang }: { text: string; lang?: string; escaped?: boolean }) {
       const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext'
       const highlighted = hljs.highlight(text, { language }).value
       const langLabel = escapeHtml(lang || 'code')
+      const nbLines = text.split('\n').length
       return (
         `<div class="code-block">` +
-        `<span class="code-lang">${langLabel}</span>` +
+        `<div class="code-block-head">` +
+          `<span class="code-lang">${langLabel}</span>` +
+          `<span class="code-lines">${nbLines} ligne${nbLines > 1 ? 's' : ''}</span>` +
+          `<button type="button" class="code-copy" data-action="copy-code" aria-label="Copier le code">Copier</button>` +
+        `</div>` +
         `<pre><code class="hljs language-${escapeHtml(language)}">${highlighted}</code></pre>` +
         `</div>`
       )
@@ -244,9 +251,9 @@ export function renderMessageContent(raw: string, searchTerm = '', currentUserNa
   html = applyInlineRefs(html)
   if (searchTerm) html = highlightInHtml(html, searchTerm)
   const result = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'a', 'span', 'div', 'mark', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'img', 'del', 's', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'a', 'span', 'div', 'mark', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'img', 'del', 's', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'button'],
     // `style` retire : marked n'en emet pas, surface XSS inutile (url()/:has selectors).
-    ALLOWED_ATTR: ['class', 'data-url', 'data-channel', 'data-devoir-id', 'data-doc-id', 'data-lumen-id', 'data-lumen-file', 'data-file-name', 'role', 'href', 'tabindex', 'src', 'alt', 'loading', 'align'],
+    ALLOWED_ATTR: ['class', 'data-url', 'data-channel', 'data-devoir-id', 'data-doc-id', 'data-lumen-id', 'data-lumen-file', 'data-file-name', 'data-action', 'role', 'href', 'tabindex', 'src', 'alt', 'loading', 'align', 'type', 'aria-label'],
     // Whitelist des schemes URI : bloque javascript:, data: et autres exotiques
     // avant meme le filtrage per-attribut.
     ALLOWED_URI_REGEXP: /^(?:https?|cursus|mailto|tel|#):/i,

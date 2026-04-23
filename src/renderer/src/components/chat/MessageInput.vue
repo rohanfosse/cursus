@@ -184,7 +184,8 @@ async function insertBlockAndSend(md: string) {
   await insertBlockAtCursor(md)
   await send()
 }
-function onTableSubmitSend(p: { markdown: string })    { insertBlockAndSend(p.markdown) }
+function onTableSubmitSend(p: { markdown: string }) { insertBlockAndSend(p.markdown) }
+function onCodeSubmitSend(p:  { markdown: string }) { insertBlockAndSend(p.markdown) }
 
 // ── Keydown handler ───────────────────────────────────────────────────────
 function onKeydown(e: KeyboardEvent) {
@@ -525,6 +526,7 @@ function onKeydown(e: KeyboardEvent) {
     <CreateCodeModal
       v-model="modals.createCode"
       @submit="onCodeSubmit"
+      @submit-send="onCodeSubmitSend"
     />
 
     <!-- Modal de composition d'annonce (declenche par /annonce) -->
