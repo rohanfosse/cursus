@@ -11,11 +11,11 @@ import { useMsgAutocomplete, COMMAND_CATEGORIES, type SlashCommand } from '@/com
 import type { EmojiShortcode } from '@/utils/emojiShortcodes'
 import { useModalsStore }    from '@/stores/modals'
 import {
-  BookOpen, FileText, Bell, Megaphone, BarChart2 as BarChart2Icon, Table, Code2, HelpCircle, Calendar, Minus, ListChecks,
+  BookOpen, FileText, Bell, Megaphone, BarChart2 as BarChart2Icon, Table, Code2, HelpCircle, Calendar, Minus, ListChecks, Sigma,
 } from 'lucide-vue-next'
 
 const CMD_ICONS: Record<string, object> = {
-  BookOpen, FileText, Bell, Megaphone, BarChart2: BarChart2Icon, Table, Code2, HelpCircle, Calendar, Minus, ListChecks,
+  BookOpen, FileText, Bell, Megaphone, BarChart2: BarChart2Icon, Table, Code2, HelpCircle, Calendar, Minus, ListChecks, Sigma,
 }
 import { useMsgAttachment }   from '@/composables/useMsgAttachment'
 import { useMsgSend }         from '@/composables/useMsgSend'
@@ -30,6 +30,7 @@ const CreateCodeModal       = defineAsyncComponent(() => import('@/components/mo
 const CreateAnnounceModal   = defineAsyncComponent(() => import('@/components/modals/CreateAnnounceModal.vue'))
 const CreateChecklistModal  = defineAsyncComponent(() => import('@/components/modals/CreateChecklistModal.vue'))
 const CreateDateModal       = defineAsyncComponent(() => import('@/components/modals/CreateDateModal.vue'))
+const CreateMathModal       = defineAsyncComponent(() => import('@/components/modals/CreateMathModal.vue'))
 const HelpModal             = defineAsyncComponent(() => import('@/components/modals/HelpModal.vue'))
 const ScheduleMessageModal  = defineAsyncComponent(() => import('@/components/modals/ScheduleMessageModal.vue'))
 const ScheduledMessagesModal = defineAsyncComponent(() => import('@/components/modals/ScheduledMessagesModal.vue'))
@@ -98,6 +99,7 @@ const {
   onOpenAnnounce:  () => { modals.createAnnounce = true },
   onOpenChecklist: () => { modals.createChecklist = true },
   onOpenDate:      () => { modals.createDate = true },
+  onOpenMath:      () => { modals.createMath = true },
 })
 
 const { attaching, attachFile, uploadProgress } = useMsgAttachment(content, inputEl, autoResize)
@@ -198,6 +200,8 @@ function onChecklistSubmitSend(p: { markdown: string }) { insertBlockAndSend(p.m
 function onDateSubmit(p:          { markdown: string }) { insertBlockAtCursor(p.markdown) }
 function onDateSubmitSend(p:      { markdown: string }) { insertBlockAndSend(p.markdown) }
 function onAnnounceSubmitSend(p:  { markdown: string }) { insertBlockAndSend(p.markdown) }
+function onMathSubmit(p:          { markdown: string }) { insertBlockAtCursor(p.markdown) }
+function onMathSubmitSend(p:      { markdown: string }) { insertBlockAndSend(p.markdown) }
 /** /sondage "Inserer dans le message" : le serialisePoll contient du texte
  *  structure, on l'insere au curseur (l'utilisateur pourra ajouter un message
  *  au-dessus/dessous avant d'envoyer via le flow standard). */
@@ -565,6 +569,13 @@ function onKeydown(e: KeyboardEvent) {
       v-model="modals.createDate"
       @submit="onDateSubmit"
       @submit-send="onDateSubmitSend"
+    />
+
+    <!-- Modal formule LaTeX (declenche par /math) -->
+    <CreateMathModal
+      v-model="modals.createMath"
+      @submit="onMathSubmit"
+      @submit-send="onMathSubmitSend"
     />
 
     <!-- Modal d'aide riche (declenche par /aide) -->

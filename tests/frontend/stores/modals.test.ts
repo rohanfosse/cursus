@@ -29,6 +29,15 @@ describe('modals store', () => {
     expect(s.classe).toBe(false)
     expect(s.createPromo).toBe(false)
     expect(s.signatureRequest).toBeNull()
+    // Builders slash (v2.232+)
+    expect(s.createPoll).toBe(false)
+    expect(s.createTable).toBe(false)
+    expect(s.createCode).toBe(false)
+    expect(s.createAnnounce).toBe(false)
+    expect(s.createChecklist).toBe(false)
+    expect(s.createDate).toBe(false)
+    expect(s.createMath).toBe(false)
+    expect(s.help).toBe(false)
   })
 
   it('can open individual modals', () => {
@@ -75,6 +84,14 @@ describe('modals store', () => {
     s.intervenants = true
     s.classe = true
     s.createPromo = true
+    s.createPoll = true
+    s.createTable = true
+    s.createCode = true
+    s.createAnnounce = true
+    s.createChecklist = true
+    s.createDate = true
+    s.createMath = true
+    s.help = true
 
     s.closeAll()
 
@@ -84,6 +101,8 @@ describe('modals store', () => {
       'createChannel', 'cmdPalette', 'impersonate', 'newProject',
       'studentTimeline', 'rubric', 'importStudents', 'intervenants',
       'classe', 'createPromo',
+      'createPoll', 'createTable', 'createCode', 'createAnnounce',
+      'createChecklist', 'createDate', 'createMath', 'help',
     ] as const
     for (const field of booleanFields) {
       expect(s[field], `${field} should be false`).toBe(false)

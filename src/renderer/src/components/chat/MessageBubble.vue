@@ -702,13 +702,45 @@ const renderedContentWithoutPoll = computed(() => {
 }
 
 /* ════════════════════════════════════════════
-   CHECKLISTS GFM (- [ ] / - [x])
+   FORMULES MATHEMATIQUES (KaTeX)
+   ════════════════════════════════════════════ */
+/* Inline `$x^2$` : suit le flux du texte, petite marge pour respirer */
+:deep(.msg-text .katex) {
+  font-size: 1.05em;
+  color: inherit;
+}
+/* Display `$$...$$` : bloc centre avec respiration verticale et possible
+   scroll horizontal sur formules larges (matrices, fractions profondes) */
+:deep(.msg-text .katex-display) {
+  margin: 10px 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(var(--accent-rgb), .04);
+  border: 1px solid rgba(var(--accent-rgb), .12);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+:deep(.msg-text .katex-display > .katex) {
+  font-size: 1.15em;
+  white-space: nowrap;
+}
+/* Erreur KaTeX : pill rouge pour indiquer une formule invalide */
+:deep(.msg-text .msg-math-error) {
+  background: rgba(var(--color-danger-rgb), .12);
+  color: var(--color-danger);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--color-danger-rgb), .3);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+}
+
+/* ════════════════════════════════════════════
+   CHECKLISTS GFM (- [ ] / - [x]) — v2.239
+   Classes dediees posees par utils/html.ts (msg-tasklist / msg-task /
+   msg-task--done). Evite le selecteur :has() (support inegal).
 ════════════════════════════════════════════ */
-/* Marked genere :
-   <ul><li><input type="checkbox" disabled> Tâche...</li></ul>
-   On retire les puces de la liste et on style la checkbox custom.
-*/
-:deep(.msg-text ul:has(> li > input[type="checkbox"])) {
+:deep(.msg-text ul.msg-tasklist) {
   list-style: none;
   padding-left: 0;
   margin: 6px 0;
@@ -716,59 +748,66 @@ const renderedContentWithoutPoll = computed(() => {
   flex-direction: column;
   gap: 2px;
 }
-:deep(.msg-text li:has(> input[type="checkbox"])) {
+:deep(.msg-text li.msg-task) {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 3px 6px;
-  border-radius: 5px;
+  gap: 10px;
+  padding: 4px 8px 4px 6px;
+  border-radius: 6px;
   line-height: 1.5;
   transition: background var(--motion-fast) var(--ease-out);
 }
-:deep(.msg-text li:has(> input[type="checkbox"]):hover) {
-  background: rgba(255, 255, 255, .025);
+:deep(.msg-text li.msg-task:hover) {
+  background: rgba(var(--accent-rgb), .04);
 }
-:deep(.msg-text input[type="checkbox"]) {
+/* Checkbox custom : design moderne Linear/Notion-like */
+:deep(.msg-text li.msg-task input[type="checkbox"]) {
   appearance: none;
   -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  margin: 3px 0 0;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
   flex-shrink: 0;
   background: var(--bg-input);
   border: 1.5px solid var(--border-input);
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
   position: relative;
+  box-sizing: border-box;
   transition:
     background var(--motion-fast) var(--ease-out),
     border-color var(--motion-fast) var(--ease-out),
-    transform .1s cubic-bezier(.34, 1.56, .64, 1);
+    box-shadow var(--motion-fast) var(--ease-out),
+    transform .12s cubic-bezier(.34, 1.56, .64, 1);
 }
-:deep(.msg-text input[type="checkbox"]:hover) {
+:deep(.msg-text li.msg-task input[type="checkbox"]:hover) {
   border-color: var(--color-success);
-  transform: scale(1.1);
+  box-shadow: 0 0 0 3px rgba(var(--color-success-rgb), .1);
+  transform: scale(1.08);
 }
-:deep(.msg-text input[type="checkbox"]:checked) {
+:deep(.msg-text li.msg-task input[type="checkbox"]:checked) {
   background: var(--color-success);
   border-color: var(--color-success);
 }
-:deep(.msg-text input[type="checkbox"]:checked::after) {
+:deep(.msg-text li.msg-task input[type="checkbox"]:checked::after) {
   content: '';
   position: absolute;
-  top: 1px;
-  left: 4px;
-  width: 4px;
-  height: 8px;
+  top: 2px;
+  left: 5px;
+  width: 5px;
+  height: 9px;
   border: solid #fff;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
-/* Texte de tache cochee : raye + dim */
-:deep(.msg-text li:has(> input[type="checkbox"]:checked)) {
+/* Tache cochee : texte raye, couleur attenuee */
+:deep(.msg-text li.msg-task--done) {
   color: var(--text-muted);
+}
+:deep(.msg-text li.msg-task--done) {
   text-decoration: line-through;
   text-decoration-color: rgba(var(--color-success-rgb), .5);
+  text-decoration-thickness: 1.5px;
 }
 
 /* ════════════════════════════════════════════

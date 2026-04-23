@@ -27,6 +27,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: 'tableau',   description: 'Tableau en colonnes',                 icon: 'Table',        category: 'format', color: '#E67E22' },
   { name: 'checklist', description: 'Liste de tâches cochables',           icon: 'ListChecks',   category: 'format', color: '#16A085' },
   { name: 'code',      description: 'Bloc de code avec coloration',        icon: 'Code2',        category: 'format', color: '#8E44AD' },
+  { name: 'math',      description: 'Formule mathématique (LaTeX)',        icon: 'Sigma',        category: 'format', color: '#D35400' },
   // Utilitaires
   { name: 'aide',     description: 'Raccourcis et syntaxe disponibles',   icon: 'HelpCircle',   category: 'util',   color: '#95A5A6' },
   { name: 'date',     description: 'Insérer une date',                    icon: 'Calendar',     category: 'util',   color: '#3498DB' },
@@ -71,6 +72,9 @@ export interface SlashHandlers {
   /** Appele quand /date est execute : ouvre le date-picker (vs insertion
    *  immediate de la date du jour en fallback). */
   onOpenDate?: () => void
+  /** Appele quand /math est execute : ouvre l'editeur LaTeX avec preview
+   *  KaTeX et chips de formules courantes. */
+  onOpenMath?: () => void
 }
 
 /**
@@ -458,6 +462,18 @@ export function useMsgAutocomplete(
         } else {
           content.value = before + '- [ ] Tâche 1\n- [ ] Tâche 2\n- [ ] Tâche 3' + after
           activeRef.value = null
+        }
+      },
+      math() {
+        // Editeur LaTeX avec preview KaTeX. Fallback : inline math vide.
+        if (handlers.onOpenMath) {
+          content.value = before + after
+          activeRef.value = null
+          handlers.onOpenMath()
+        } else {
+          content.value = before + '$  $' + after
+          activeRef.value = null
+          nextTick(() => { const pos = before.length + 2; el.setSelectionRange(pos, pos) })
         }
       },
       aide() {
