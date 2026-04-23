@@ -18,6 +18,7 @@ import { onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import {
   Pin, PinOff, MoreHorizontal, Copy, Link2, Trash2, Pencil,
   SmilePlus, Bookmark, BookmarkCheck, Reply, AlertTriangle, MessageCircle,
+  Forward,
 } from 'lucide-vue-next'
 import EmojiPicker from '@/components/ui/EmojiPicker.vue'
 import { useAppStore } from '@/stores/app'
@@ -52,6 +53,7 @@ const emit = defineEmits<{
   (e: 'edit'): void
   (e: 'delete'): void
   (e: 'report'): void
+  (e: 'forward'): void
 }>()
 
 const appStore = useAppStore()
@@ -219,6 +221,29 @@ onBeforeUnmount(() => {
         role="menu"
         @keydown="onMenuKeydown"
       >
+        <!-- Actions rapides (doublon avec les icones de la pill mais utile au
+             clavier / accessibilite et aligne avec Slack/Discord qui listent
+             toutes les actions dans le menu ···). -->
+        <button class="msg-menu-item" role="menuitem" @click="$emit('reply')">
+          <Reply :size="12" aria-hidden="true" /> Répondre
+        </button>
+        <button
+          class="msg-menu-item"
+          :class="{ 'msg-menu-item--active': isBookmarked }"
+          role="menuitemcheckbox"
+          :aria-checked="isBookmarked"
+          @click="$emit('toggle-bookmark')"
+        >
+          <BookmarkCheck v-if="isBookmarked" :size="12" aria-hidden="true" />
+          <Bookmark v-else :size="12" aria-hidden="true" />
+          {{ isBookmarked ? 'Retirer le signet' : 'Mettre en signet' }}
+        </button>
+        <button class="msg-menu-item" role="menuitem" @click="$emit('forward')">
+          <Forward :size="12" aria-hidden="true" /> Transférer
+        </button>
+
+        <div class="msg-menu-sep" role="separator" aria-hidden="true" />
+
         <button class="msg-menu-item" role="menuitem" @click="$emit('copy')">
           <Copy :size="12" aria-hidden="true" /> Copier le texte
         </button>
@@ -234,9 +259,12 @@ onBeforeUnmount(() => {
         <button v-if="canReport" class="msg-menu-item" role="menuitem" @click="$emit('report')">
           <AlertTriangle :size="12" aria-hidden="true" /> Signaler
         </button>
-        <button v-if="canDelete" class="msg-menu-item msg-menu-danger" role="menuitem" @click="$emit('delete')">
-          <Trash2 :size="12" aria-hidden="true" /> Supprimer
-        </button>
+        <template v-if="canDelete">
+          <div class="msg-menu-sep" role="separator" aria-hidden="true" />
+          <button class="msg-menu-item msg-menu-danger" role="menuitem" @click="$emit('delete')">
+            <Trash2 :size="12" aria-hidden="true" /> Supprimer
+          </button>
+        </template>
       </div>
     </div>
   </div>

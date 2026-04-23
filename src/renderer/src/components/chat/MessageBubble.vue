@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  Check, Reply, AlertTriangle, Flame, Pin,
+  Check, Reply, AlertTriangle, Flame, Pin, SmilePlus, Plus,
 } from 'lucide-vue-next'
 import UiRoleBadge from '@/components/ui/UiRoleBadge.vue'
 import { computed, ref, watch } from 'vue'
@@ -11,6 +11,8 @@ import ContextMenu  from '@/components/ui/ContextMenu.vue'
 import MessageActionPill from '@/components/chat/MessageActionPill.vue'
 import MessageLightbox from '@/components/chat/MessageLightbox.vue'
 import MessageReportDialog from '@/components/chat/MessageReportDialog.vue'
+import ForwardMessageModal from '@/components/chat/ForwardMessageModal.vue'
+import EmojiPicker from '@/components/ui/EmojiPicker.vue'
 import PollRenderer from '@/components/chat/PollRenderer.vue'
 import LinkPreviewCard from '@/components/chat/LinkPreviewCard.vue'
 import { parsePoll, contentWithoutPoll } from '@/utils/poll'
@@ -90,6 +92,39 @@ function deleteMessage(){ showMenu.value = false; _deleteMessage() }
 function copyMessageLink() { copyPermalink(); showMenu.value = false }
 function dmAuthor()        { openDmWithAuthor(); showMenu.value = false }
 function reportMessageFromPill() { reportingMsg.value = true; showMenu.value = false }
+
+// ── Transfert de message (modal dediee) ──────────────────────────────────
+const showForward = ref(false)
+function onForward() { showMenu.value = false; showForward.value = true }
+
+// ── Picker inline a cote des reactions deja posees (style Slack) ─────────
+// Quand un message a deja >=1 reaction, un bouton "+ emoji" semi-transparent
+// apparait en bout de ligne pour permettre d'en ajouter une autre sans passer
+// par la pill d'actions flottante (plus rapide, plus visible).
+const showInlineEmojiPicker = ref(false)
+const inlineEmojiWrapRef = ref<HTMLElement | null>(null)
+
+function toggleInlineEmojiPicker(e?: Event) {
+  e?.stopPropagation()
+  showInlineEmojiPicker.value = !showInlineEmojiPicker.value
+}
+function onInlineEmojiPick(emoji: string) {
+  // Reutilise le flow existant (toggleReaction via store) pour rester coherent
+  // avec le picker de la pill d'actions et le quick-react.
+  pickEmojiReact(emoji)
+  showInlineEmojiPicker.value = false
+}
+// Fermeture au clic exterieur : listener pose uniquement quand ouvert.
+function handleInlinePickerOutside(e: MouseEvent) {
+  if (!inlineEmojiWrapRef.value) return
+  if (!inlineEmojiWrapRef.value.contains(e.target as Node)) {
+    showInlineEmojiPicker.value = false
+  }
+}
+watch(showInlineEmojiPicker, (open) => {
+  if (open) setTimeout(() => document.addEventListener('click', handleInlinePickerOutside), 0)
+  else document.removeEventListener('click', handleInlinePickerOutside)
+})
 
 // ── Capacites derivees pour la pill d'actions (props explicites)
 const canReport = computed(() => !isMine.value)
@@ -265,6 +300,28 @@ const renderedContentWithoutPoll = computed(() => {
           <span class="reaction-emoji">{{ r.emoji }}</span>
           <span class="reaction-count">{{ r.count }}</span>
         </button>
+
+        <!-- Bouton "+ emoji" quasi-transparent qui apparait quand il y a deja
+             au moins une reaction : permet d'en ajouter une autre sans passer
+             par la pill d'actions (style Slack/Discord "add reaction"). -->
+        <div ref="inlineEmojiWrapRef" class="msg-reaction-add-wrap">
+          <button
+            class="msg-reaction-add"
+            :class="{ 'is-open': showInlineEmojiPicker }"
+            type="button"
+            aria-label="Ajouter une réaction"
+            aria-haspopup="dialog"
+            :aria-expanded="showInlineEmojiPicker"
+            title="Ajouter une réaction"
+            @click="toggleInlineEmojiPicker"
+          >
+            <SmilePlus :size="14" aria-hidden="true" />
+            <Plus :size="9" class="msg-reaction-add-plus" aria-hidden="true" />
+          </button>
+          <div v-if="showInlineEmojiPicker" class="msg-reaction-add-picker" @click.stop>
+            <EmojiPicker @pick="onInlineEmojiPick" />
+          </div>
+        </div>
       </div>
     </div>
 
@@ -296,6 +353,13 @@ const renderedContentWithoutPoll = computed(() => {
       @edit="startEdit"
       @delete="deleteMessage"
       @report="reportMessageFromPill"
+      @forward="onForward"
+    />
+
+    <!-- Modal "Transferer le message" : ouverte depuis le menu actions. -->
+    <ForwardMessageModal
+      v-model="showForward"
+      :message="msg"
     />
 
     <!-- Menu contextuel (clic droit) -->
@@ -622,39 +686,62 @@ const renderedContentWithoutPoll = computed(() => {
   z-index: 40;
 }
 
-/* Menu ··· */
+/* ════════════════════════════════════════════
+   MENU ··· (popover) — design Discord/Slack-like
+═══════════════════════════════════════════════ */
 .pill-menu-wrap { position: relative; }
+
 .msg-menu {
   position: absolute;
   right: 0;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   z-index: 60;
-  min-width: 200px;
+  min-width: 240px;
   background: var(--bg-modal);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--elevation-3);
-  padding: var(--space-xs);
+  box-shadow:
+    var(--elevation-3),
+    0 0 0 1px rgba(255, 255, 255, .02) inset;
+  padding: 6px;
   display: flex;
   flex-direction: column;
   gap: 1px;
+  animation: msg-menu-in .14s var(--ease-out);
+  transform-origin: top right;
 }
+@keyframes msg-menu-in {
+  from { opacity: 0; transform: translateY(-4px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .msg-menu-item {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: 7px 10px;
+  gap: 10px;
+  padding: 8px 12px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
   font-family: var(--font);
   font-size: 13px;
+  font-weight: 500;
   border-radius: var(--radius-sm);
   cursor: pointer;
   width: 100%;
   text-align: left;
-  transition: background var(--motion-fast) var(--ease-out),
-              color      var(--motion-fast) var(--ease-out);
+  line-height: 1.2;
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    color      var(--motion-fast) var(--ease-out);
+}
+/* Icone uniforme 14px, couleur attenuee — prend vie au hover */
+.msg-menu-item > svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  transition: color var(--motion-fast) var(--ease-out);
 }
 .msg-menu-item:hover,
 .msg-menu-item:focus-visible {
@@ -662,11 +749,40 @@ const renderedContentWithoutPoll = computed(() => {
   color: var(--text-primary);
   outline: none;
 }
-.msg-menu-danger       { color: var(--color-danger); }
+.msg-menu-item:hover > svg,
+.msg-menu-item:focus-visible > svg {
+  color: var(--text-primary);
+}
+
+/* Etat "coche" (ex. bookmark actif) */
+.msg-menu-item--active {
+  color: var(--accent);
+}
+.msg-menu-item--active > svg { color: var(--accent); }
+.msg-menu-item--active:hover,
+.msg-menu-item--active:focus-visible {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+.msg-menu-item--active:hover > svg { color: var(--accent); }
+
+/* Action dangereuse (Supprimer) : isolee visuellement */
+.msg-menu-danger { color: var(--color-danger); }
+.msg-menu-danger > svg { color: var(--color-danger); }
 .msg-menu-danger:hover,
 .msg-menu-danger:focus-visible {
   background: color-mix(in srgb, var(--color-danger) 12%, transparent);
   color: var(--color-danger);
+}
+.msg-menu-danger:hover > svg,
+.msg-menu-danger:focus-visible > svg { color: var(--color-danger); }
+
+/* Separateur inline */
+.msg-menu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 6px;
+  opacity: .7;
 }
 
 /* ════════════════════════════════════════════
@@ -726,6 +842,68 @@ const renderedContentWithoutPoll = computed(() => {
 
 .reaction-emoji { font-size: 16px; line-height: 1; }
 .reaction-count { font-size: 12.5px; font-weight: 700; }
+
+/* ── Bouton "+ emoji" inline (ajout rapide, style Slack) ─────────────────
+   Apparait a la suite des reactions deja posees. Quasi-invisible au repos
+   (bordure pointillee, fond transparent) pour ne pas voler l'attention ;
+   se revele au hover. */
+.msg-reaction-add-wrap { position: relative; display: inline-flex; }
+.msg-reaction-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 32px;
+  padding: 2px 9px 2px 8px;
+  border-radius: 16px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  opacity: .55;
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out),
+    opacity var(--motion-fast) var(--ease-out),
+    transform .15s cubic-bezier(.34, 1.56, .64, 1);
+}
+.msg-row:hover .msg-reaction-add { opacity: 1; }
+.msg-reaction-add:hover,
+.msg-reaction-add:focus-visible,
+.msg-reaction-add.is-open {
+  opacity: 1;
+  background: var(--bg-elevated);
+  border-style: solid;
+  border-color: rgba(var(--accent-rgb), .45);
+  color: var(--accent);
+  outline: none;
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .18);
+}
+.msg-reaction-add-plus {
+  /* Petit "+" dans une pastille, comme dans Slack */
+  background: var(--bg-hover);
+  border-radius: 50%;
+  padding: 1px;
+  color: var(--text-muted);
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.msg-reaction-add:hover .msg-reaction-add-plus,
+.msg-reaction-add:focus-visible .msg-reaction-add-plus,
+.msg-reaction-add.is-open .msg-reaction-add-plus {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Picker positionne au-dessus du bouton — evite le chevauchement du texte
+   du message suivant (empeche aussi le picker d'etre coupe en bas d'ecran). */
+.msg-reaction-add-picker {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+}
 
 /* ════════════════════════════════════════════
    ÉDITION INLINE
