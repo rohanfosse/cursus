@@ -21,17 +21,15 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   // Références
   { name: 'devoir',   description: 'Référencer un devoir',                icon: 'BookOpen',     category: 'ref',    color: '#9B87F5' },
   { name: 'doc',      description: 'Référencer un document',              icon: 'FileText',     category: 'ref',    color: '#2ECC71' },
-  { name: 'rappel',   description: 'Rappeler un devoir aux étudiants',    icon: 'Bell',         category: 'ref',    color: '#F39C12' },
   // Formatage
-  { name: 'annonce',  description: 'Message d\'annonce officiel',         icon: 'Megaphone',    category: 'format', color: '#4A90D9' },
-  { name: 'sondage',  description: 'Sondage avec options de vote',        icon: 'BarChart2',    category: 'format', color: '#1ABC9C' },
+  { name: 'annonce',   description: 'Message d\'annonce officiel',         icon: 'Megaphone',    category: 'format', color: '#4A90D9' },
+  { name: 'sondage',   description: 'Sondage avec options de vote',        icon: 'BarChart2',    category: 'format', color: '#1ABC9C' },
   { name: 'tableau',   description: 'Tableau en colonnes',                 icon: 'Table',        category: 'format', color: '#E67E22' },
   { name: 'checklist', description: 'Liste de tâches cochables',           icon: 'ListChecks',   category: 'format', color: '#16A085' },
   { name: 'code',      description: 'Bloc de code avec coloration',        icon: 'Code2',        category: 'format', color: '#8E44AD' },
   // Utilitaires
   { name: 'aide',     description: 'Raccourcis et syntaxe disponibles',   icon: 'HelpCircle',   category: 'util',   color: '#95A5A6' },
-  { name: 'date',     description: 'Insérer la date du jour',             icon: 'Calendar',     category: 'util',   color: '#3498DB' },
-  { name: 'hr',       description: 'Séparateur horizontal',               icon: 'Minus',        category: 'util',   color: '#7F8C8D' },
+  { name: 'date',     description: 'Insérer une date',                    icon: 'Calendar',     category: 'util',   color: '#3498DB' },
 ]
 
 export const COMMAND_CATEGORIES: Record<string, string> = {
@@ -407,11 +405,6 @@ export function useMsgAutocomplete(
         activeRef.value = 'doc'; refSearch.value = ''; refStart.value = before.length
         loadDocs()
       },
-      rappel() {
-        content.value = before + '/devoir ' + after
-        activeRef.value = 'devoir'; refSearch.value = ''; refStart.value = before.length
-        loadDevoirs()
-      },
       annonce() {
         // Builder avec type / titre / message + preview si un handler est
         // branche. Sinon (tests), fallback sur l'ancien template inline.
@@ -486,10 +479,6 @@ export function useMsgAutocomplete(
           content.value = before + formatted + after
           activeRef.value = null
         }
-      },
-      hr() {
-        content.value = before + '\n---\n' + after
-        activeRef.value = null
       },
     }
 

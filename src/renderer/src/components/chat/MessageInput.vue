@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, defineAsyncComponent } from 'vue'
 import { Loader2, X as XIcon, Reply, Pen } from 'lucide-vue-next'
 import { useAppStore }      from '@/stores/app'
 import { useMessagesStore } from '@/stores/messages'
@@ -21,15 +21,18 @@ import { useMsgAttachment }   from '@/composables/useMsgAttachment'
 import { useMsgSend }         from '@/composables/useMsgSend'
 import { useMsgFormatting }   from '@/composables/useMsgFormatting'
 import MessageInputToolbar   from './MessageInputToolbar.vue'
-import CreatePollModal       from '@/components/modals/CreatePollModal.vue'
-import CreateTableModal      from '@/components/modals/CreateTableModal.vue'
-import CreateCodeModal       from '@/components/modals/CreateCodeModal.vue'
-import CreateAnnounceModal   from '@/components/modals/CreateAnnounceModal.vue'
-import CreateChecklistModal  from '@/components/modals/CreateChecklistModal.vue'
-import CreateDateModal       from '@/components/modals/CreateDateModal.vue'
-import HelpModal             from '@/components/modals/HelpModal.vue'
-import ScheduleMessageModal  from '@/components/modals/ScheduleMessageModal.vue'
-import ScheduledMessagesModal from '@/components/modals/ScheduledMessagesModal.vue'
+// Lazy-load des modals slash : 6 modals (Poll/Table/Code/Announce/Checklist/
+// Date) etaient chargees a l'init de chaque MessageInput alors qu'elles ne
+// sont consultees qu'apres un /cmd explicite. Async = premier paint plus leger.
+const CreatePollModal       = defineAsyncComponent(() => import('@/components/modals/CreatePollModal.vue'))
+const CreateTableModal      = defineAsyncComponent(() => import('@/components/modals/CreateTableModal.vue'))
+const CreateCodeModal       = defineAsyncComponent(() => import('@/components/modals/CreateCodeModal.vue'))
+const CreateAnnounceModal   = defineAsyncComponent(() => import('@/components/modals/CreateAnnounceModal.vue'))
+const CreateChecklistModal  = defineAsyncComponent(() => import('@/components/modals/CreateChecklistModal.vue'))
+const CreateDateModal       = defineAsyncComponent(() => import('@/components/modals/CreateDateModal.vue'))
+const HelpModal             = defineAsyncComponent(() => import('@/components/modals/HelpModal.vue'))
+const ScheduleMessageModal  = defineAsyncComponent(() => import('@/components/modals/ScheduleMessageModal.vue'))
+const ScheduledMessagesModal = defineAsyncComponent(() => import('@/components/modals/ScheduledMessagesModal.vue'))
 import { Clock } from 'lucide-vue-next'
 import { useScheduledStore } from '@/stores/scheduled'
 import { useModules }         from '@/composables/useModules'
@@ -193,6 +196,12 @@ function onCodeSubmitSend(p:      { markdown: string }) { insertBlockAndSend(p.m
 function onChecklistSubmit(p:     { markdown: string }) { insertBlockAtCursor(p.markdown) }
 function onChecklistSubmitSend(p: { markdown: string }) { insertBlockAndSend(p.markdown) }
 function onDateSubmit(p:          { markdown: string }) { insertBlockAtCursor(p.markdown) }
+function onDateSubmitSend(p:      { markdown: string }) { insertBlockAndSend(p.markdown) }
+function onAnnounceSubmitSend(p:  { markdown: string }) { insertBlockAndSend(p.markdown) }
+/** /sondage "Inserer dans le message" : le serialisePoll contient du texte
+ *  structure, on l'insere au curseur (l'utilisateur pourra ajouter un message
+ *  au-dessus/dessous avant d'envoyer via le flow standard). */
+function onPollInsert(p: { content: string }) { insertBlockAtCursor(p.content) }
 
 // ── Keydown handler ───────────────────────────────────────────────────────
 function onKeydown(e: KeyboardEvent) {
@@ -520,6 +529,7 @@ function onKeydown(e: KeyboardEvent) {
     <CreatePollModal
       v-model="modals.createPoll"
       @submit="onPollSubmit"
+      @submit-insert="onPollInsert"
     />
 
     <!-- Modal de composition de tableau (declenche par /tableau) -->
@@ -540,6 +550,7 @@ function onKeydown(e: KeyboardEvent) {
     <CreateAnnounceModal
       v-model="modals.createAnnounce"
       @submit="onAnnounceSubmit"
+      @submit-send="onAnnounceSubmitSend"
     />
 
     <!-- Modal de composition de checklist (declenche par /checklist) -->
@@ -553,6 +564,7 @@ function onKeydown(e: KeyboardEvent) {
     <CreateDateModal
       v-model="modals.createDate"
       @submit="onDateSubmit"
+      @submit-send="onDateSubmitSend"
     />
 
     <!-- Modal d'aide riche (declenche par /aide) -->

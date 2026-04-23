@@ -246,6 +246,17 @@ export function renderMessageContent(raw: string, searchTerm = '', currentUserNa
   // marked encode les apostrophes en &#39; ce qui casse l'affichage du texte francais
   html = html.replace(/&#39;/g, "'")
   html = html.replace(/&amp;#39;/g, "'")
+  // Task list GFM : marked genere des checkboxes avec `disabled` par defaut.
+  // On les retire pour rendre les cases cochables (MessageBubble gere le clic
+  // via delegation + editMessage si l'utilisateur est l'auteur).
+  html = html.replace(
+    /<input([^>]*?)\stype="checkbox"([^>]*?)\sdisabled(?:="[^"]*")?([^>]*?)>/gi,
+    '<input$1 type="checkbox"$2$3>',
+  )
+  html = html.replace(
+    /<input\sdisabled(?:="[^"]*")?([^>]*?)type="checkbox"([^>]*?)>/gi,
+    '<input$1 type="checkbox"$2>',
+  )
   html = applyMentions(html, currentUserName)
   html = applyChannelRefs(html)
   html = applyInlineRefs(html)

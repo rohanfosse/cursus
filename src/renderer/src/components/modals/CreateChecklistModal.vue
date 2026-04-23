@@ -547,15 +547,15 @@ function submitAndSend() {
   font-weight: 600;
   padding: 8px 16px;
   border-radius: var(--radius-sm);
-  background: var(--color-success);
+  background: var(--accent);
   color: #fff;
-  border: 1px solid var(--color-success);
+  border: 1px solid var(--accent);
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
   transition: background var(--t-fast), transform var(--t-fast);
 }
 .ccl-btn-primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-success) 88%, black);
+  background: color-mix(in srgb, var(--accent) 88%, black);
   transform: translateY(-1px);
 }
 .ccl-btn-primary:disabled {

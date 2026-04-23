@@ -22,6 +22,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:modelValue': [v: boolean]
   'submit': [payload: { markdown: string }]
+  'submit-send': [payload: { markdown: string }]
 }>()
 
 // ── Helpers de date ───────────────────────────────────────────────────────
@@ -52,7 +53,10 @@ const now = new Date()
 const dateValue = ref<string>(toIsoDate(now))
 const timeValue = ref<string>('')            // '' = pas d'heure
 
-type DateFormat = 'short' | 'medium' | 'long' | 'iso'
+// Formats reduits en v2 : Court et Moyen couvrent 95% des cas. Long etait
+// trop verbeux ("lundi 30 juin 2026 a 14h") et casse les phrases. ISO
+// ("2026-06-30T14:00") etait un format dev rarement utile dans un chat.
+type DateFormat = 'short' | 'medium'
 const selectedFormat = ref<DateFormat>('medium')
 
 const dateInputEl = ref<HTMLInputElement | null>(null)
@@ -68,14 +72,26 @@ watch(() => props.modelValue, (open) => {
 })
 
 // ── Chips raccourcis ──────────────────────────────────────────────────────
+// Passe de 4 a 6 chips en retirant "Long" / "ISO" (gain de place). Ajout de
+// "Vendredi" (prochain vendredi, typique pour un rendu de semaine) et
+// "Lundi prochain" (semaine suivante).
 interface QuickChip { id: string; label: string; apply: () => void }
+function nextWeekday(from: Date, targetDow: number): Date {
+  // targetDow : 0=dim, 1=lun, ..., 5=ven
+  const d = new Date(from)
+  d.setHours(0, 0, 0, 0)
+  const diff = (targetDow - d.getDay() + 7) % 7 || 7
+  d.setDate(d.getDate() + diff)
+  return d
+}
 const QUICK_CHIPS = computed<QuickChip[]>(() => {
   const n = new Date()
   return [
-    { id: 'today',    label: "Aujourd'hui",    apply: () => { dateValue.value = toIsoDate(n) } },
-    { id: 'tomorrow', label: 'Demain',         apply: () => { dateValue.value = toIsoDate(addDays(n, 1)) } },
-    { id: 'week',     label: 'Dans 7 jours',   apply: () => { dateValue.value = toIsoDate(addDays(n, 7)) } },
-    { id: 'month',    label: 'Dans 1 mois',    apply: () => { dateValue.value = toIsoDate(addMonths(n, 1)) } },
+    { id: 'today',    label: "Aujourd'hui", apply: () => { dateValue.value = toIsoDate(n) } },
+    { id: 'tomorrow', label: 'Demain',      apply: () => { dateValue.value = toIsoDate(addDays(n, 1)) } },
+    { id: 'friday',   label: 'Vendredi',    apply: () => { dateValue.value = toIsoDate(nextWeekday(n, 5)) } },
+    { id: 'week',     label: 'Dans 7 jours', apply: () => { dateValue.value = toIsoDate(addDays(n, 7)) } },
+    { id: 'month',    label: 'Dans 1 mois', apply: () => { dateValue.value = toIsoDate(addMonths(n, 1)) } },
   ]
 })
 
@@ -87,14 +103,19 @@ const activeChipId = computed<string | null>(() => {
   if (!selected) return null
   const n = new Date()
   n.setHours(0, 0, 0, 0)
-  const diffDays = Math.round((selected.getTime() - n.getTime()) / 86400000)
+  const selNoTime = new Date(selected); selNoTime.setHours(0, 0, 0, 0)
+  const diffDays = Math.round((selNoTime.getTime() - n.getTime()) / 86400000)
   if (diffDays === 0) return 'today'
   if (diffDays === 1) return 'tomorrow'
   if (diffDays === 7) return 'week'
+  // Vendredi prochain (dans 1-7 jours)
+  const friday = nextWeekday(n, 5)
+  friday.setHours(0, 0, 0, 0)
+  if (selNoTime.getTime() === friday.getTime()) return 'friday'
   // "1 mois" : compare aux mois directement (evite decalage Feb 28/29)
   const plus1m = addMonths(n, 1)
   plus1m.setHours(0, 0, 0, 0)
-  if (selected.getTime() === plus1m.getTime()) return 'month'
+  if (selNoTime.getTime() === plus1m.getTime()) return 'month'
   return null
 })
 
@@ -119,8 +140,6 @@ const FORMATS = computed<FormatDef[]>(() => {
   return [
     { id: 'short',  label: 'Court',  sample: renderDate(d, 'short') },
     { id: 'medium', label: 'Moyen',  sample: renderDate(d, 'medium') },
-    { id: 'long',   label: 'Long',   sample: renderDate(d, 'long') },
-    { id: 'iso',    label: 'ISO',    sample: renderDate(d, 'iso') },
   ]
 })
 
@@ -128,7 +147,6 @@ function renderDate(d: Date, fmt: DateFormat): string {
   const hasTime = !!timeValue.value
   const dayOpts: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: '2-digit' }
   const medOpts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' }
-  const longOpts: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
   switch (fmt) {
     case 'short':  {
       const s = d.toLocaleDateString('fr-FR', dayOpts)
@@ -137,15 +155,6 @@ function renderDate(d: Date, fmt: DateFormat): string {
     case 'medium': {
       const s = d.toLocaleDateString('fr-FR', medOpts)
       return hasTime ? `${s} à ${timeValue.value}` : s
-    }
-    case 'long': {
-      const s = d.toLocaleDateString('fr-FR', longOpts)
-      return hasTime ? `${s} à ${timeValue.value}` : s
-    }
-    case 'iso': {
-      // Format ISO simplifie (local, sans timezone) plus utile pour devs
-      if (hasTime) return `${dateValue.value}T${timeValue.value}`
-      return dateValue.value
     }
   }
 }
@@ -182,11 +191,19 @@ function submit() {
   emit('submit', { markdown: outputText.value })
   close()
 }
+function submitAndSend() {
+  if (!canSubmit.value) return
+  emit('submit-send', { markdown: outputText.value })
+  close()
+}
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' && canSubmit.value) {
     e.preventDefault()
-    submit()
+    // Enter seul = inserer dans le textarea (la date est souvent au milieu
+    // d'une phrase, on ne veut pas envoyer tout seul). Ctrl+Enter = envoyer.
+    if (e.ctrlKey || e.metaKey) submitAndSend()
+    else submit()
   }
 }
 </script>
@@ -285,11 +302,27 @@ function onKeydown(e: KeyboardEvent) {
             </div>
           </div>
 
-          <!-- Footer -->
+          <!-- Footer : cas typique = inserer dans une phrase,
+               donc "Inserer" reste primaire mais on ajoute "Envoyer" secondaire. -->
           <div class="cdt-footer">
             <button class="btn-ghost" @click="close">Annuler</button>
-            <button class="btn-primary cdt-btn-primary" :disabled="!canSubmit" @click="submit">
-              <Send :size="13" /> Insérer
+            <button
+              type="button"
+              class="cdt-btn-secondary"
+              :disabled="!canSubmit"
+              title="Envoyer immédiatement ce texte comme message"
+              @click="submitAndSend"
+            >
+              Envoyer
+            </button>
+            <button
+              type="button"
+              class="cdt-btn-primary"
+              :disabled="!canSubmit"
+              title="Insérer dans le message en cours"
+              @click="submit"
+            >
+              <Send :size="14" /> Insérer dans le message
             </button>
           </div>
         </div>
@@ -467,10 +500,10 @@ function onKeydown(e: KeyboardEvent) {
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .12);
 }
 
-/* ── Formats de sortie : grid 2x2 de boutons avec preview ────────────── */
+/* ── Formats de sortie : 2 boutons cote a cote avec preview ──────────── */
 .cdt-formats {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
 .cdt-format {
@@ -546,11 +579,59 @@ function onKeydown(e: KeyboardEvent) {
   border-top: 1px solid var(--border);
   background: var(--bg-elevated);
 }
-.cdt-btn-primary { min-width: 120px; justify-content: center; }
+.cdt-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-input);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.cdt-btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+.cdt-btn-secondary:disabled { opacity: .45; cursor: not-allowed; }
+
+.cdt-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
+  transition: background var(--t-fast), transform var(--t-fast);
+}
+.cdt-btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, black);
+  transform: translateY(-1px);
+}
+.cdt-btn-primary:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  border-color: var(--border);
+  box-shadow: none;
+}
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 520px) {
   .cdt-field--row { flex-direction: column; }
-  .cdt-formats { grid-template-columns: 1fr; }
 }
 </style>

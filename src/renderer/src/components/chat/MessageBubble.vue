@@ -163,9 +163,53 @@ function onTextClick(e: MouseEvent) {
     }
     return
   }
+  // Checkbox de checklist GFM : toggle le state [ ] <-> [x] dans le contenu,
+  // puis editMessage pour persister. Seul l'auteur peut cocher (respect de
+  // la regle serveur : editMessage exige ownership ; pour d'autres users,
+  // on affiche un toast discret).
+  const taskCheckbox = target.closest('input[type="checkbox"]') as HTMLInputElement | null
+  if (taskCheckbox && target.closest('.msg-text')) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!isMine.value) {
+      showToast("Seul l'auteur peut cocher cette liste.", 'info')
+      return
+    }
+    void handleTaskToggle(taskCheckbox)
+    return
+  }
   const img = target.closest('img.msg-inline-img') as HTMLImageElement | null
   if (img?.src) { lightboxUrl.value = img.src; return }
   onMsgClick(e)
+}
+
+/**
+ * Toggle la N-ieme tache d'une checklist markdown dans le contenu du message.
+ * Les checkboxes sont rendues par marked dans l'ordre d'apparition du texte
+ * source ; on compte l'index visuel via son rang dans le DOM .msg-text et
+ * on toggle le match correspondant dans le string original.
+ */
+async function handleTaskToggle(clicked: HTMLInputElement) {
+  const msgTextEl = clicked.closest('.msg-text')
+  if (!msgTextEl) return
+  const allCheckboxes = Array.from(msgTextEl.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))
+  const targetIdx = allCheckboxes.indexOf(clicked)
+  if (targetIdx < 0) return
+  // Toggle le N-ieme "- [ ]" ou "- [x]" dans le contenu source.
+  let seen = 0
+  const newContent = props.msg.content.replace(
+    /^(\s*[-*+]\s+\[)([ xX])(\])/gm,
+    (match, pre, state, post) => {
+      if (seen === targetIdx) {
+        seen++
+        return pre + (state.toLowerCase() === 'x' ? ' ' : 'x') + post
+      }
+      seen++
+      return match
+    },
+  )
+  if (newContent === props.msg.content) return
+  await messagesStore.editMessage(props.msg.id, newContent)
 }
 
 // ── Link preview (unfurl) — resolution async, respect de la pref user
@@ -694,10 +738,16 @@ const renderedContentWithoutPoll = computed(() => {
   background: var(--bg-input);
   border: 1.5px solid var(--border-input);
   border-radius: 4px;
-  cursor: default;
+  cursor: pointer;
   position: relative;
-  transition: background var(--motion-fast) var(--ease-out),
-              border-color var(--motion-fast) var(--ease-out);
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    transform .1s cubic-bezier(.34, 1.56, .64, 1);
+}
+:deep(.msg-text input[type="checkbox"]:hover) {
+  border-color: var(--color-success);
+  transform: scale(1.1);
 }
 :deep(.msg-text input[type="checkbox"]:checked) {
   background: var(--color-success);

@@ -17,7 +17,10 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
+  /** Envoi direct (flow historique, reste le primaire pour un sondage). */
   (e: 'submit', payload: { content: string }): void
+  /** Insertion dans le textarea pour ajouter du texte autour, avant envoi. */
+  (e: 'submit-insert', payload: { content: string }): void
 }>()
 
 const question     = ref('')
@@ -80,9 +83,8 @@ function close() {
   emit('update:modelValue', false)
 }
 
-function submit() {
-  if (!canSubmit.value) return
-  const content = serializePoll(
+function buildContent(): string {
+  return serializePoll(
     {
       v: 1,
       q: question.value.trim(),
@@ -92,7 +94,16 @@ function submit() {
     },
     trailingText.value,
   )
-  emit('submit', { content })
+}
+
+function submit() {
+  if (!canSubmit.value) return
+  emit('submit', { content: buildContent() })
+  close()
+}
+function submitInsert() {
+  if (!canSubmit.value) return
+  emit('submit-insert', { content: buildContent() })
   close()
 }
 </script>
@@ -191,6 +202,15 @@ function submit() {
 
           <div class="cpoll-footer">
             <button class="btn-ghost" @click="close">Annuler</button>
+            <button
+              type="button"
+              class="btn-secondary"
+              :disabled="!canSubmit"
+              title="Insérer dans le message en cours (pour ajouter du texte autour)"
+              @click="submitInsert"
+            >
+              Insérer dans le message
+            </button>
             <button class="btn-primary" :disabled="!canSubmit" @click="submit">
               <Send :size="13" /> Publier le sondage
             </button>
@@ -304,4 +324,28 @@ function submit() {
 }
 .btn-primary { background: #1ABC9C; }
 .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, #1ABC9C 85%, #000); }
+
+/* Bouton secondaire "Inserer dans le message" : outline, coherent avec les
+   autres modals de builder (CreateTable/Code/Checklist/Announce). */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-input);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+.btn-secondary:disabled { opacity: .45; cursor: not-allowed; }
 </style>

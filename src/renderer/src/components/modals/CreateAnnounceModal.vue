@@ -16,7 +16,7 @@
  * dans les notifications push ou les exports copie-colles.
  */
 import { ref, computed, watch, nextTick } from 'vue'
-import { X, Megaphone, Send, Info, AlertTriangle, Pin, Lightbulb, Bell } from 'lucide-vue-next'
+import { X, Megaphone, Send, Info, Pin, Bell } from 'lucide-vue-next'
 
 interface Props {
   modelValue: boolean
@@ -25,6 +25,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:modelValue': [v: boolean]
   'submit': [payload: { markdown: string }]
+  'submit-send': [payload: { markdown: string }]
 }>()
 
 // ── Types d'annonce ───────────────────────────────────────────────────────
@@ -39,12 +40,13 @@ interface AnnounceType {
   /** Libelle prefixe par defaut : "**Info**", "**Avertissement**"... */
   prefix: string
 }
+// 3 types suffisent : Annonce (neutre), Info (complement), Important (urgent).
+// Avertissement et Astuce retires en v2 : differenciation visuelle trop subtile
+// et choix cognitif inutile pour un etudiant presse.
 const TYPES: readonly AnnounceType[] = [
-  { id: 'announce',  label: 'Annonce',      emoji: '📣', icon: Bell,           hue: 'accent',  prefix: 'Annonce' },
-  { id: 'info',      label: 'Info',         emoji: 'ℹ️', icon: Info,           hue: 'info',    prefix: 'Info' },
-  { id: 'warning',   label: 'Avertissement', emoji: '⚠️', icon: AlertTriangle, hue: 'warning', prefix: 'Avertissement' },
-  { id: 'important', label: 'Important',    emoji: '📌', icon: Pin,            hue: 'danger',  prefix: 'Important' },
-  { id: 'tip',       label: 'Astuce',       emoji: '💡', icon: Lightbulb,      hue: 'success', prefix: 'Astuce' },
+  { id: 'announce',  label: 'Annonce',   emoji: '📣', icon: Bell, hue: 'accent', prefix: 'Annonce' },
+  { id: 'info',      label: 'Info',      emoji: 'ℹ️', icon: Info, hue: 'info',   prefix: 'Info' },
+  { id: 'important', label: 'Important', emoji: '📌', icon: Pin,  hue: 'danger', prefix: 'Important' },
 ]
 
 // ── Etat ──────────────────────────────────────────────────────────────────
@@ -97,7 +99,11 @@ const canSubmit = computed(() => message.value.trim().length > 0)
 function onMessageKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
     e.preventDefault()
-    if (canSubmit.value) submit()
+    if (!canSubmit.value) return
+    // Ctrl+Enter = envoyer direct (action la plus courante pour une annonce).
+    // Shift+Ctrl+Enter = inserer dans le textarea pour ajouter du texte autour.
+    if (e.shiftKey) submit()
+    else submitAndSend()
   }
 }
 
@@ -106,6 +112,11 @@ function close() { emit('update:modelValue', false) }
 function submit() {
   if (!canSubmit.value) return
   emit('submit', { markdown: markdownPreview.value })
+  close()
+}
+function submitAndSend() {
+  if (!canSubmit.value) return
+  emit('submit-send', { markdown: markdownPreview.value })
   close()
 }
 </script>
@@ -207,15 +218,30 @@ function submit() {
             <!-- Hints raccourcis -->
             <div class="can-hints">
               <span><kbd>Enter</kbd> dans le titre : aller au message</span>
-              <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> insérer</span>
+              <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> envoyer</span>
             </div>
           </div>
 
-          <!-- Footer -->
+          <!-- Footer : CTA primaire = envoyer direct, secondaire = inserer -->
           <div class="can-footer">
             <button class="btn-ghost" @click="close">Annuler</button>
-            <button class="btn-primary" :disabled="!canSubmit" @click="submit">
-              <Send :size="13" /> Insérer l'annonce
+            <button
+              type="button"
+              class="can-btn-secondary"
+              :disabled="!canSubmit"
+              title="Insérer dans le message pour ajouter du texte autour"
+              @click="submit"
+            >
+              Insérer dans le message
+            </button>
+            <button
+              type="button"
+              class="can-btn-primary"
+              :disabled="!canSubmit"
+              title="Envoyer directement dans le canal"
+              @click="submitAndSend"
+            >
+              <Send :size="14" /> Envoyer l'annonce
             </button>
           </div>
         </div>
@@ -477,5 +503,56 @@ function submit() {
   padding: 12px 18px;
   border-top: 1px solid var(--border);
   background: var(--bg-elevated);
+}
+
+.can-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-input);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.can-btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+.can-btn-secondary:disabled { opacity: .45; cursor: not-allowed; }
+
+.can-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
+  transition: background var(--t-fast), transform var(--t-fast);
+}
+.can-btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, black);
+  transform: translateY(-1px);
+}
+.can-btn-primary:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  border-color: var(--border);
+  box-shadow: none;
 }
 </style>
