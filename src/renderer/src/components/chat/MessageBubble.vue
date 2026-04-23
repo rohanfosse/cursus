@@ -26,6 +26,7 @@ import { useBubbleBookmarks } from '@/composables/useBubbleBookmarks'
 import { useBubbleMenu }      from '@/composables/useBubbleMenu'
 import { useLinkPreviews, extractUrls, type LinkPreview } from '@/composables/useLinkPreviews'
 import { usePrefs } from '@/composables/usePrefs'
+import { useLocalTasks } from '@/composables/useLocalTasks'
 import type { Message } from '@/types'
 
 interface Props {
@@ -163,19 +164,16 @@ function onTextClick(e: MouseEvent) {
     }
     return
   }
-  // Checkbox de checklist GFM : toggle le state [ ] <-> [x] dans le contenu,
-  // puis editMessage pour persister. Seul l'auteur peut cocher (respect de
-  // la regle serveur : editMessage exige ownership ; pour d'autres users,
-  // on affiche un toast discret).
+  // Checkbox de checklist GFM : coche locale par utilisateur. Le message
+  // source (markdown `- [ ]` / `- [x]`) n'est jamais modifié ; chaque
+  // utilisateur maintient son propre overlay d'états via useLocalTasks.
+  // Cliquer prend le currentTarget.checked (ce que le navigateur vient de
+  // toggler) et l'enregistre comme override.
   const taskCheckbox = target.closest('input[type="checkbox"]') as HTMLInputElement | null
   if (taskCheckbox && target.closest('.msg-text')) {
     e.preventDefault()
     e.stopPropagation()
-    if (!isMine.value) {
-      showToast("Seul l'auteur peut cocher cette liste.", 'info')
-      return
-    }
-    void handleTaskToggle(taskCheckbox)
+    handleTaskToggle(taskCheckbox)
     return
   }
   const img = target.closest('img.msg-inline-img') as HTMLImageElement | null
@@ -184,32 +182,21 @@ function onTextClick(e: MouseEvent) {
 }
 
 /**
- * Toggle la N-ieme tache d'une checklist markdown dans le contenu du message.
- * Les checkboxes sont rendues par marked dans l'ordre d'apparition du texte
- * source ; on compte l'index visuel via son rang dans le DOM .msg-text et
- * on toggle le match correspondant dans le string original.
+ * Toggle l'override local de la tâche cliquée (état personnel, non synchronisé).
+ * L'index est posé par renderMessageContent via `data-task-idx` sur chaque
+ * checkbox — plus fiable que de compter dans le DOM (robuste aux
+ * re-rendus partiels et au cache interne).
  */
-async function handleTaskToggle(clicked: HTMLInputElement) {
-  const msgTextEl = clicked.closest('.msg-text')
-  if (!msgTextEl) return
-  const allCheckboxes = Array.from(msgTextEl.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))
-  const targetIdx = allCheckboxes.indexOf(clicked)
-  if (targetIdx < 0) return
-  // Toggle le N-ieme "- [ ]" ou "- [x]" dans le contenu source.
-  let seen = 0
-  const newContent = props.msg.content.replace(
-    /^(\s*[-*+]\s+\[)([ xX])(\])/gm,
-    (match, pre, state, post) => {
-      if (seen === targetIdx) {
-        seen++
-        return pre + (state.toLowerCase() === 'x' ? ' ' : 'x') + post
-      }
-      seen++
-      return match
-    },
-  )
-  if (newContent === props.msg.content) return
-  await messagesStore.editMessage(props.msg.id, newContent)
+const { setOverride: setLocalTaskOverride } = useLocalTasks()
+function handleTaskToggle(clicked: HTMLInputElement) {
+  const idxAttr = clicked.getAttribute('data-task-idx')
+  if (idxAttr == null) return
+  const idx = Number.parseInt(idxAttr, 10)
+  if (!Number.isFinite(idx) || idx < 0) return
+  // Le navigateur a déjà toggle l'état côté DOM avant que preventDefault ne
+  // bloque : on lit clicked.checked pour savoir ce que l'utilisateur veut.
+  // On mémorise cet override — au prochain render, l'overlay s'appliquera.
+  setLocalTaskOverride(props.msg.id, idx, clicked.checked)
 }
 
 // ── Link preview (unfurl) — resolution async, respect de la pref user
@@ -736,40 +723,49 @@ const renderedContentWithoutPoll = computed(() => {
 }
 
 /* ════════════════════════════════════════════
-   CHECKLISTS GFM (- [ ] / - [x]) — v2.239
-   Classes dediees posees par utils/html.ts (msg-tasklist / msg-task /
-   msg-task--done). Evite le selecteur :has() (support inegal).
+   CHECKLISTS GFM (- [ ] / - [x]) — v2.241
+   Classes posees par utils/html.ts (msg-tasklist / msg-task /
+   msg-task--done + data-task-idx). Coche locale par utilisateur, persistee
+   en localStorage via useLocalTasks — le message source n'est pas modifié.
+   Design : vrai look TODO cardée, items cliquables pleine largeur avec
+   feedback visuel clair (hover, focus, done).
 ════════════════════════════════════════════ */
 :deep(.msg-text ul.msg-tasklist) {
   list-style: none;
-  padding-left: 0;
-  margin: 6px 0;
+  padding: 8px 6px;
+  margin: 8px 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  background: color-mix(in srgb, var(--bg-elevated) 50%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
 }
 :deep(.msg-text li.msg-task) {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
-  padding: 4px 8px 4px 6px;
-  border-radius: 6px;
-  line-height: 1.5;
+  padding: 7px 10px;
+  border-radius: 7px;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
   transition: background var(--motion-fast) var(--ease-out);
 }
 :deep(.msg-text li.msg-task:hover) {
-  background: rgba(var(--accent-rgb), .04);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
-/* Checkbox custom : design moderne Linear/Notion-like */
+/* Checkbox custom : carrée arrondie, nette, visible en dark & light. */
 :deep(.msg-text li.msg-task input[type="checkbox"]) {
   appearance: none;
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
-  margin: 2px 0 0;
-  flex-shrink: 0;
-  background: var(--bg-input);
-  border: 1.5px solid var(--border-input);
+  min-width: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  background: transparent;
+  border: 1.75px solid color-mix(in srgb, var(--text-muted) 65%, transparent);
   border-radius: 5px;
   cursor: pointer;
   position: relative;
@@ -780,34 +776,45 @@ const renderedContentWithoutPoll = computed(() => {
     box-shadow var(--motion-fast) var(--ease-out),
     transform .12s cubic-bezier(.34, 1.56, .64, 1);
 }
-:deep(.msg-text li.msg-task input[type="checkbox"]:hover) {
+:deep(.msg-text li.msg-task:hover input[type="checkbox"]:not(:checked)) {
   border-color: var(--color-success);
-  box-shadow: 0 0 0 3px rgba(var(--color-success-rgb), .1);
-  transform: scale(1.08);
+  box-shadow: 0 0 0 3px rgba(var(--color-success-rgb), .12);
+}
+:deep(.msg-text li.msg-task input[type="checkbox"]:focus-visible) {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .35);
 }
 :deep(.msg-text li.msg-task input[type="checkbox"]:checked) {
   background: var(--color-success);
   border-color: var(--color-success);
+  transform: scale(1.05);
 }
 :deep(.msg-text li.msg-task input[type="checkbox"]:checked::after) {
   content: '';
   position: absolute;
   top: 2px;
   left: 5px;
-  width: 5px;
-  height: 9px;
+  width: 4px;
+  height: 8px;
   border: solid #fff;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
-/* Tache cochee : texte raye, couleur attenuee */
+/* Tache cochee : texte raye, couleur atténuée, pas de background (on garde
+   l'indicateur visuel uniquement sur la checkbox + le texte). */
 :deep(.msg-text li.msg-task--done) {
   color: var(--text-muted);
-}
-:deep(.msg-text li.msg-task--done) {
   text-decoration: line-through;
-  text-decoration-color: rgba(var(--color-success-rgb), .5);
+  text-decoration-color: color-mix(in srgb, var(--text-muted) 60%, transparent);
   text-decoration-thickness: 1.5px;
+}
+/* Nested tasks : retire la petite bordure du container imbriqué pour éviter
+   la "boîte dans une boîte" quand une sous-tâche est rendue. */
+:deep(.msg-text li.msg-task ul.msg-tasklist) {
+  margin: 4px 0 0 22px;
+  padding: 4px;
+  background: transparent;
+  border: none;
 }
 
 /* ════════════════════════════════════════════

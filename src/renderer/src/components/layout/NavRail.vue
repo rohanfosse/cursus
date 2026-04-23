@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, type Component } from 'vue'
+import { computed, ref, watch, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame,
@@ -72,6 +72,8 @@ const msgBadgeCount = computed(() => {
 // ── État UI local ───────────────────────────────────────────────────────────
 const showNotifications = ref(false)
 const showStatusPicker  = ref(false)
+const showMorePopup     = ref(false)
+const moreBtnRef        = ref<HTMLButtonElement | null>(null)
 
 // ── Configuration des onglets ───────────────────────────────────────────────
 // Ajouter un onglet = ajouter une ligne à `NAV_ITEMS`. L'ordre par défaut,
@@ -155,6 +157,52 @@ const hiddenVisibleNavIds = computed(() =>
   navHiddenIds.value.filter(id => isNavVisible(id)),
 )
 
+/** Onglets masqués résolus en NavItem (avec icône/label) pour la grille "..." */
+const hiddenVisibleNavItems = computed<NavItem[]>(() => {
+  const items: NavItem[] = []
+  for (const id of hiddenVisibleNavIds.value) {
+    const item = NAV_ITEM_BY_ID[id as NavItemId]
+    if (item) items.push(item)
+  }
+  return items
+})
+
+/** Click sur une icône de la grille « Plus » : rétablit l'onglet puis navigue. */
+function openHiddenApp(id: string): void {
+  showNavItem(id)
+  showMorePopup.value = false
+  router.push(`/${id}`)
+}
+
+/** Fermeture au clic extérieur sur la popup « Plus ». */
+function handleMorePopupOutside(e: MouseEvent): void {
+  const target = e.target as Node
+  if (moreBtnRef.value?.contains(target)) return
+  const popup = document.querySelector('.nav-more-popup')
+  if (popup?.contains(target)) return
+  showMorePopup.value = false
+}
+function toggleMorePopup(): void {
+  showMorePopup.value = !showMorePopup.value
+}
+// Gestion listener global (Escape + clic extérieur) quand la popup est ouverte.
+function onMorePopupKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Escape') showMorePopup.value = false
+}
+// Pose/retire les listeners globaux en fonction de l'état de la popup.
+// (watch classique, pas onMounted : la popup peut s'ouvrir plusieurs fois.)
+watch(showMorePopup, (open) => {
+  if (open) {
+    setTimeout(() => {
+      document.addEventListener('click', handleMorePopupOutside)
+      document.addEventListener('keydown', onMorePopupKeydown)
+    }, 0)
+  } else {
+    document.removeEventListener('click', handleMorePopupOutside)
+    document.removeEventListener('keydown', onMorePopupKeydown)
+  }
+})
+
 // ── Navigation admin ────────────────────────────────────────────────────────
 function openAdmin() {
   router.push('/admin')
@@ -164,7 +212,6 @@ function openAdmin() {
 const {
   state:  navCtx,
   open:   openNavCtx,
-  openAt: openCtxAt,
   close:  closeNavCtx,
 } = useContextMenu()
 const navCtxQuickEmojis = ref<ContextMenuQuickEmoji[] | undefined>(undefined)
@@ -208,13 +255,6 @@ function openRailContextMenu(ev: MouseEvent) {
   if ((ev.target as HTMLElement)?.closest('.nav-btn')) return
   navCtxQuickEmojis.value = undefined
   openNavCtx(ev, buildHiddenItemsMenu())
-}
-
-function openMoreFromButton(ev: MouseEvent) {
-  const btn = (ev.currentTarget as HTMLElement) ?? (ev.target as HTMLElement)
-  const rect = btn.getBoundingClientRect()
-  navCtxQuickEmojis.value = undefined
-  openCtxAt(rect.right + 4, rect.top, buildHiddenItemsMenu())
 }
 
 // ── Drag & drop réordonnement ───────────────────────────────────────────────
@@ -398,19 +438,57 @@ function openAvatarContextMenu(ev: MouseEvent) {
     <!-- Hairline divider avant les utilitaires (Plus / Notifs) -->
     <div class="nav-group-divider" aria-hidden="true" />
 
-    <!-- ── Bouton « Plus » : onglets masqués ou hors viewport ───────── -->
-    <button
-      v-if="hiddenVisibleNavIds.length > 0"
-      class="nav-btn nav-more-btn"
-      :title="`${hiddenVisibleNavIds.length} onglet${hiddenVisibleNavIds.length > 1 ? 's' : ''} masqué${hiddenVisibleNavIds.length > 1 ? 's' : ''}`"
-      aria-label="Afficher les onglets masqués"
-      aria-haspopup="menu"
-      @click="openMoreFromButton"
-    >
-      <MoreHorizontal :size="20" aria-hidden="true" />
-      <span class="nav-label">Plus</span>
-      <span class="nav-badge nav-badge-more" aria-hidden="true">{{ hiddenVisibleNavIds.length }}</span>
-    </button>
+    <!-- ── Bouton « Plus » : onglets masqués, grille d'apps style Teams ── -->
+    <div v-if="hiddenVisibleNavIds.length > 0" class="nav-more-wrapper">
+      <button
+        ref="moreBtnRef"
+        class="nav-btn nav-more-btn"
+        :class="{ active: showMorePopup }"
+        :title="`${hiddenVisibleNavIds.length} application${hiddenVisibleNavIds.length > 1 ? 's' : ''}`"
+        aria-label="Ouvrir la grille des applications masquées"
+        aria-haspopup="dialog"
+        :aria-expanded="showMorePopup"
+        @click.stop="toggleMorePopup"
+      >
+        <MoreHorizontal :size="20" aria-hidden="true" />
+        <span class="nav-label">Plus</span>
+        <span class="nav-badge nav-badge-more" aria-hidden="true">{{ hiddenVisibleNavIds.length }}</span>
+      </button>
+
+      <!-- Popup grille d'icônes d'applications masquées (style Teams). -->
+      <Transition name="more-popup-fade">
+        <div
+          v-if="showMorePopup"
+          class="nav-more-popup"
+          role="dialog"
+          aria-label="Applications masquées"
+        >
+          <div class="nav-more-popup-title">Applications</div>
+          <div class="nav-more-grid">
+            <button
+              v-for="item in hiddenVisibleNavItems"
+              :key="item.id"
+              type="button"
+              class="nav-more-tile"
+              :title="item.title"
+              :aria-label="`Ouvrir ${item.label}`"
+              @click="openHiddenApp(item.id)"
+            >
+              <component :is="item.icon" :size="22" aria-hidden="true" />
+              <span class="nav-more-tile-label">{{ item.label }}</span>
+            </button>
+          </div>
+          <button
+            type="button"
+            class="nav-more-reset"
+            @click="resetNavOrder(); showMorePopup = false"
+          >
+            <RotateCcw :size="12" aria-hidden="true" />
+            <span>Réinitialiser l'ordre</span>
+          </button>
+        </div>
+      </Transition>
+    </div>
 
     <!-- ── Cloche de notifications ──────────────────────────────────── -->
     <div class="nav-notif-wrapper">
@@ -638,11 +716,119 @@ function openAvatarContextMenu(ev: MouseEvent) {
 }
 
 /* ── Bouton « Plus » — visuellement secondaire ───────────────────────── */
+.nav-more-wrapper { position: relative; }
 .nav-more-btn :deep(svg) {
   color: var(--text-muted);
   transition: color var(--motion-fast) var(--ease-out);
 }
 .nav-more-btn:hover :deep(svg) { color: var(--text-primary); }
+
+/* ── Popup grille d'applications masquées (style Teams) ──────────────── */
+.nav-more-popup {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  min-width: 240px;
+  max-width: 280px;
+  padding: 10px 10px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, .28),
+    0 2px 6px rgba(0, 0, 0, .18);
+  z-index: 1000;
+}
+.nav-more-popup-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-muted);
+  padding: 2px 6px 8px;
+}
+.nav-more-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.nav-more-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    transform .12s cubic-bezier(.34, 1.56, .64, 1);
+}
+.nav-more-tile :deep(svg) {
+  color: var(--accent);
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+.nav-more-tile:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  transform: translateY(-1px);
+}
+.nav-more-tile:hover :deep(svg) { transform: scale(1.08); }
+.nav-more-tile:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.nav-more-tile-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nav-more-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  width: 100%;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.nav-more-reset:hover { color: var(--text-primary); }
+.nav-more-reset:focus-visible {
+  outline: none;
+  color: var(--accent);
+}
+
+/* Transition douce d'ouverture/fermeture. */
+.more-popup-fade-enter-active,
+.more-popup-fade-leave-active {
+  transition:
+    opacity var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+.more-popup-fade-enter-from,
+.more-popup-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-4px) scale(.98);
+}
 
 /* ── Live dot ────────────────────────────────────────────────────────── */
 .nav-live-dot {

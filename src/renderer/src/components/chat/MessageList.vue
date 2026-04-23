@@ -350,10 +350,12 @@ const dateGroups = computed<DateGroup[]>(() => {
   40%           { transform: scale(1);  opacity: 1; }
 }
 
-/* ── Separateur de date (v2.240) ──
-   Avant : barres horizontales qui traversaient l'ecran et cachaient du
-   contenu lorsque sticky. Desormais une pill compacte centree, sans
-   barres, avec un halo blur pour rester lisible au-dessus des messages. */
+/* ── Separateur de date (v2.241) ──
+   Pill compacte centrée, sticky, SANS halo ring : la version précédente
+   ajoutait un box-shadow spread de 4px couleur bg-main, qui apparaissait
+   comme des barres horizontales de chaque côté de la pill lors du scroll
+   quand elle chevauchait un message. Pour garder la lisibilité on s'appuie
+   maintenant uniquement sur le backdrop-filter + un fond opaque. */
 .date-separator {
   display: flex;
   justify-content: center;
@@ -372,18 +374,13 @@ const dateGroups = computed<DateGroup[]>(() => {
   white-space: nowrap;
   padding: 5px 12px;
   border-radius: 999px;
-  /* Fond plus soutenu + blur -> lisible quand colle au-dessus d'un message */
-  background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 96%, transparent);
   backdrop-filter: blur(10px) saturate(1.3);
   -webkit-backdrop-filter: blur(10px) saturate(1.3);
   border: 1px solid var(--border);
   letter-spacing: .3px;
   text-transform: capitalize;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, .18),
-    0 0 0 4px color-mix(in srgb, var(--bg-main) 60%, transparent);
-  /* Le ring de 4px (box-shadow) cree un "halo" qui flou les pixels du message
-     directement sous la pill -> zero chevauchement visuel avec le contenu. */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .18);
   transition: box-shadow var(--motion-fast) var(--ease-out);
 }
 @media (prefers-reduced-motion: reduce) {

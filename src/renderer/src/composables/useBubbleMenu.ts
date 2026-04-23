@@ -8,6 +8,7 @@ import { useAppStore }      from '@/stores/app'
 import { useToast }         from '@/composables/useToast'
 import { avatarColor }      from '@/utils/format'
 import { renderMessageContent } from '@/utils/html'
+import { useLocalTasks } from '@/composables/useLocalTasks'
 import type { ContextMenuItem, ContextMenuQuickEmoji } from '@/components/ui/ContextMenu.vue'
 import type { Message } from '@/types'
 
@@ -44,6 +45,7 @@ export function useBubbleMenu(
 ) {
   const appStore = useAppStore()
   const { showToast } = useToast()
+  const { getForMsg: getLocalTasks } = useLocalTasks()
 
   // ── Lightbox
   const lightboxUrl = ref<string | null>(null)
@@ -134,8 +136,16 @@ export function useBubbleMenu(
   })
 
   // ── Computed: contenu rendu + couleur avatar
+  // Les overrides locaux de checklist sont passés à renderMessageContent :
+  // l'utilisateur voit l'état du markdown source par défaut, avec ses propres
+  // coches par-dessus. Le cache de rendu inclut ces overrides dans sa clé.
   const content = computed(() =>
-    renderMessageContent(msg().content, searchTerm(), appStore.currentUser?.name ?? ''),
+    renderMessageContent(
+      msg().content,
+      searchTerm(),
+      appStore.currentUser?.name ?? '',
+      getLocalTasks(msg().id),
+    ),
   )
 
   const color = computed(() => {
