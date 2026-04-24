@@ -110,7 +110,8 @@ declare global {
       exportPersonalData(studentId: number): Promise<IpcResponse<object>>
 
       // Upload fichier vers le serveur → URL publique + taille
-      uploadFile(localPath: string): Promise<IpcResponse<{ url: string; file_size?: number }>>
+      // onProgress optionnel : callback appele avec pourcentage 0-100 pendant l'upload
+      uploadFile(localPath: string, onProgress?: (percent: number) => void): Promise<IpcResponse<{ url: string; file_size?: number }>>
 
       // Shell
       openPath(filePath: string): Promise<IpcResponse<null>>

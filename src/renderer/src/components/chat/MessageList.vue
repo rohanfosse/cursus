@@ -436,17 +436,19 @@ const dateGroups = computed<DateGroup[]>(() => {
   flex-shrink: 0;
 }
 
-/* ── Highlight résultat de recherche ── */
+/* ── Highlight resultat de recherche / jump to message ── */
 .msg-highlight {
-  background: color-mix(in srgb, var(--color-warning) 6%, transparent);
-  animation: highlight-flash .6s ease-out;
+  animation: highlight-flash 2s ease-out forwards;
+  border-left: 3px solid var(--color-warning);
+  padding-left: 5px;
 }
 @keyframes highlight-flash {
-  0%   { background: color-mix(in srgb, var(--color-warning) 18%, transparent); }
-  100% { background: color-mix(in srgb, var(--color-warning) 6%, transparent); }
+  0%   { background: color-mix(in srgb, var(--color-warning) 35%, transparent); }
+  30%  { background: color-mix(in srgb, var(--color-warning) 28%, transparent); }
+  100% { background: transparent; border-left-color: transparent; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .msg-highlight { animation: none; }
+  .msg-highlight { animation: none; background: color-mix(in srgb, var(--color-warning) 10%, transparent); }
 }
 
 /* ── Skeleton fade ── */

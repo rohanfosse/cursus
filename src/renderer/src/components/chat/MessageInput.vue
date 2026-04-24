@@ -81,7 +81,7 @@ const placeholder = computed(() => {
 })
 
 // ── Composables ───────────────────────────────────────────────────────────
-const { showPreview, previewHtml, clearDraft, scheduleDraftSave } =
+const { showPreview, previewHtml, clearDraft, scheduleDraftSave, justSaved } =
   useMsgDraft(content, inputEl, autoResize)
 
 const {
@@ -284,11 +284,16 @@ function onKeydown(e: KeyboardEvent) {
         </button>
       </Transition>
 
-      <!-- Indicateur de frappe -->
+      <!-- Indicateur de frappe + brouillon enregistre -->
       <div class="mi-typing" aria-live="polite">
         <span v-if="messagesStore.typingText" class="mi-typing-text">
           {{ messagesStore.typingText }}
         </span>
+        <Transition name="saved-fade">
+          <span v-if="justSaved && !messagesStore.typingText" class="mi-saved-indicator" role="status">
+            Brouillon enregistre
+          </span>
+        </Transition>
       </div>
 
       <!-- Prévisualisation de la citation -->
@@ -660,6 +665,20 @@ function onKeydown(e: KeyboardEvent) {
   vertical-align: middle;
   animation: mi-pulse 1.4s ease-in-out infinite;
 }
+.mi-saved-indicator {
+  color: var(--text-muted);
+  font-style: normal;
+  opacity: .85;
+}
+.mi-saved-indicator::before {
+  content: '✓ ';
+  color: var(--success, #2ECC71);
+  font-weight: 600;
+}
+.saved-fade-enter-active, .saved-fade-leave-active {
+  transition: opacity .25s ease;
+}
+.saved-fade-enter-from, .saved-fade-leave-to { opacity: 0; }
 
 /* ── Prévisualisation citation ── */
 .mi-quote-preview {

@@ -55,6 +55,8 @@ const props = defineProps<{
   depositFile: string | null
   depositFileName: string | null
   depositing: boolean
+  uploading?: boolean
+  uploadProgress?: number
   rubricPreview: Rubric | null
   startDeposit: (t: Devoir) => void
   cancelDeposit: () => void
@@ -112,6 +114,8 @@ const depositProps = computed(() => ({
   depositFile: props.depositFile,
   depositFileName: props.depositFileName,
   depositing: props.depositing,
+  uploading: props.uploading,
+  uploadProgress: props.uploadProgress,
   rubricPreview: props.rubricPreview,
   startDeposit: props.startDeposit,
   cancelDeposit: props.cancelDeposit,

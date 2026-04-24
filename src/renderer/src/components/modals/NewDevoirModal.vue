@@ -98,7 +98,7 @@
   const draftKey = computed(() =>
     appStore.activePromoId ? STORAGE_KEYS.draftNewDevoir(appStore.activePromoId) : null,
   )
-  const draft = useFormDraft(draftKey.value, {
+  const { justSaved, restore: restoreDraft, clear: clearDraft } = useFormDraft(draftKey.value, {
     title, description, category, deadline, startDate, room, aavs,
     duration, calculatrice, ressources, session, requiresSubmission,
   })
@@ -141,7 +141,7 @@
     requiresSubmission.value = true
 
     // Restaurer un brouillon existant (prof qui avait ferme la modale sans submit)
-    draft.restore()
+    restoreDraft()
   })
 
   // Adapter requiresSubmission quand le type change
@@ -196,7 +196,7 @@
         scheduledPublishAt: scheduledPublishAt.value || null,
       })
       if (!res) { showToast('Erreur lors de la création.', 'error'); return }
-      draft.clear()
+      clearDraft()
       const msg = scheduledPublishAt.value
         ? 'Publication programmee.'
         : isDraft.value ? 'Brouillon enregistré.' : 'Devoir publié.'
@@ -373,11 +373,17 @@
           <input v-model="isDraft" type="checkbox" />
           Brouillon
         </label>
+        <Transition name="saved-fade">
+          <span v-if="justSaved" class="nd-saved-indicator" role="status">
+            ✓ Brouillon enregistre
+          </span>
+        </Transition>
         <div class="nd-footer-actions">
           <button type="button" class="btn-ghost" @click="emit('update:modelValue', false)">Annuler</button>
           <button
             type="submit" class="btn-primary nd-submit"
             :disabled="!canSubmit"
+            :title="canSubmit ? '' : (!title.trim() ? 'Renseigne un titre' : channelId == null ? 'Selectionne un canal (Options avancees)' : '')"
             :style="{ background: canSubmit ? activeType.color : undefined }"
           >
             {{ creating ? 'Création…' : isDraft ? 'Enregistrer' : 'Publier' }}
@@ -479,6 +485,15 @@
 }
 .nd-draft-toggle input { accent-color: var(--accent); }
 .nd-submit { min-width: 110px; transition: background .15s, opacity .15s; }
+.nd-saved-indicator {
+  font-size: 12px;
+  color: var(--success, #2ECC71);
+  margin-left: auto;
+  margin-right: 8px;
+  align-self: center;
+}
+.saved-fade-enter-active, .saved-fade-leave-active { transition: opacity .25s ease; }
+.saved-fade-enter-from, .saved-fade-leave-to { opacity: 0; }
 
 @media (max-width: 500px) {
   .nd-types { grid-template-columns: repeat(2, 1fr); }

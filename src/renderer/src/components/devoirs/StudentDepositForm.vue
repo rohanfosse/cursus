@@ -15,6 +15,8 @@ defineProps<{
   depositing: boolean
   expired: boolean
   depositFileSize?: number | null
+  uploading?: boolean
+  uploadProgress?: number
   rubricPreview: Rubric | null
 }>()
 
@@ -62,7 +64,15 @@ const {
       </button>
     </div>
     <div v-if="depositMode === 'file'">
-      <div v-if="depositFile" class="deposit-file-selected">
+      <!-- Progress bar pendant upload (gros fichiers rapports 20-40 Mo) -->
+      <div v-if="uploading" class="deposit-upload-progress" role="progressbar" :aria-valuenow="uploadProgress ?? 0" aria-valuemin="0" aria-valuemax="100">
+        <div class="deposit-upload-progress-bar" :style="{ width: (uploadProgress ?? 0) + '%' }" />
+        <span class="deposit-upload-progress-text">
+          <Loader2 :size="12" class="spin" />
+          Envoi en cours... {{ uploadProgress ?? 0 }}%
+        </span>
+      </div>
+      <div v-else-if="depositFile" class="deposit-file-selected">
         <CheckCircle2 :size="15" class="deposit-file-selected-icon" />
         <span class="deposit-file-selected-name">{{ depositFileName }}<template v-if="depositFileSize"> &middot; {{ (depositFileSize / 1_048_576).toFixed(1) }} Mo</template></span>
         <button class="deposit-file-selected-clear" type="button" @click.stop="$emit('clearFile')">
@@ -107,6 +117,13 @@ const {
       <button
         class="btn-primary btn-deposit-submit"
         :disabled="depositing || expired || (depositMode === 'file' ? !depositFile : !depositLink.trim())"
+        :title="expired
+          ? 'La date limite est depassee'
+          : depositMode === 'file' && !depositFile
+            ? 'Selectionne un fichier d\'abord'
+            : depositMode === 'link' && !depositLink.trim()
+              ? 'Colle un lien d\'abord'
+              : ''"
         @click="$emit('submit')"
       >
         <Loader2 v-if="depositing" :size="12" class="spin" />

@@ -316,6 +316,7 @@
           <button v-if="channelFilter" type="button" class="sb-channel-search-clear" @click="channelFilter = ''">
             <X :size="10" />
           </button>
+          <kbd v-else class="sb-channel-search-kbd" title="Ctrl+K : recherche globale (canaux, personnes, messages)">Ctrl K</kbd>
         </div>
 
         <div
@@ -649,6 +650,21 @@
 .sb-channel-search-input::placeholder { color: var(--text-muted); }
 .sb-channel-search-clear { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 1px; }
 .sb-channel-search-clear:hover { color: var(--text-primary); }
+.sb-channel-search-kbd {
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  padding: 1px 5px;
+  border: 1px solid var(--border, #3a3a3c);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  color: var(--text-muted);
+  background: var(--bg-secondary, rgba(255,255,255,.04));
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: auto;
+}
 
 /* ── Accent spacer (etudiants) ── */
 .sb-accent-spacer {

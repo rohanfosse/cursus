@@ -9,6 +9,7 @@ import { safeGet, safeSet, safeRemove } from '@/utils/safeStorage'
 import { STORAGE_KEYS } from '@/constants'
 
 const DRAFT_DEBOUNCE_MS = 500
+const SAVED_INDICATOR_MS = 1500
 
 function keyFor(channelId: number | null | undefined, dmStudentId: number | null | undefined): string | null {
   if (channelId)   return STORAGE_KEYS.draftChannel(channelId)
@@ -37,12 +38,20 @@ export function useMsgDraft(
 
   // ── Brouillons (auto-save localStorage) ──────────────────────────────────
   let draftTimer: ReturnType<typeof setTimeout> | null = null
+  let savedTimer: ReturnType<typeof setTimeout> | null = null
+  const justSaved = ref(false)
 
   const draftKey = computed(() => keyFor(appStore.activeChannelId, appStore.activeDmStudentId))
 
+  function flashSaved(): void {
+    justSaved.value = true
+    if (savedTimer) clearTimeout(savedTimer)
+    savedTimer = setTimeout(() => { justSaved.value = false }, SAVED_INDICATOR_MS)
+  }
+
   function writeDraft(key: string, value: string): void {
-    if (value.trim()) safeSet(key, value)
-    else              safeRemove(key)
+    if (value.trim()) { safeSet(key, value); flashSaved() }
+    else              { safeRemove(key) }
   }
 
   function saveDraft(): void {
@@ -97,6 +106,7 @@ export function useMsgDraft(
         const key = draftKey.value
         if (key) writeDraft(key, content.value)
       }
+      if (savedTimer) { clearTimeout(savedTimer); savedTimer = null }
       stopWatch()
     })
   }
@@ -107,5 +117,6 @@ export function useMsgDraft(
     clearDraft,
     scheduleDraftSave,
     saveDraft,
+    justSaved,
   }
 }

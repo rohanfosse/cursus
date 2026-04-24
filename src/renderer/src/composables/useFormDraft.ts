@@ -12,12 +12,13 @@
  *   // en submit :
  *   draft.clear()
  */
-import { watch, onUnmounted, getCurrentInstance, type Ref } from 'vue'
+import { ref, watch, onUnmounted, getCurrentInstance, type Ref } from 'vue'
 import { safeGet, safeSet, safeRemove } from '@/utils/safeStorage'
 
 type Primitive = string | number | boolean | null
 
 const DEBOUNCE_MS = 500
+const SAVED_INDICATOR_MS = 1500
 
 /**
  * Restaure le brouillon s'il existe, puis auto-save a chaque mutation des refs.
@@ -30,7 +31,9 @@ export function useFormDraft<T extends Record<string, Ref<Primitive>>>(
   fields: T,
 ) {
   let timer: ReturnType<typeof setTimeout> | null = null
+  let savedTimer: ReturnType<typeof setTimeout> | null = null
   let lastSerialized = ''
+  const justSaved = ref(false)
 
   function snapshot(): Record<string, Primitive> {
     const out: Record<string, Primitive> = {}
@@ -51,6 +54,9 @@ export function useFormDraft<T extends Record<string, Ref<Primitive>>>(
     if (serialized === lastSerialized) return
     safeSet(key, serialized)
     lastSerialized = serialized
+    justSaved.value = true
+    if (savedTimer) clearTimeout(savedTimer)
+    savedTimer = setTimeout(() => { justSaved.value = false }, SAVED_INDICATOR_MS)
   }
 
   function clear(): void {
@@ -88,9 +94,10 @@ export function useFormDraft<T extends Record<string, Ref<Primitive>>>(
   if (getCurrentInstance()) {
     onUnmounted(() => {
       if (timer) { clearTimeout(timer); timer = null; save() }
+      if (savedTimer) { clearTimeout(savedTimer); savedTimer = null }
       stopWatch()
     })
   }
 
-  return { save, clear, restore }
+  return { save, clear, restore, justSaved }
 }

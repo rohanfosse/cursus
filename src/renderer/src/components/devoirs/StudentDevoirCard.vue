@@ -33,6 +33,8 @@ const props = defineProps<{
   depositFileName: string | null
   depositing: boolean
   depositFileSize?: number | null
+  uploading?: boolean
+  uploadProgress?: number
   rubricPreview: Rubric | null
   // deposit actions
   startDeposit: (t: Devoir) => void
@@ -232,6 +234,8 @@ function formatDesc(text: string): string {
         :depositing="depositing"
         :expired="expired"
         :deposit-file-size="depositFileSize"
+        :uploading="uploading"
+        :upload-progress="uploadProgress"
         :rubric-preview="rubricPreview"
         @update:deposit-mode="$emit('update:depositMode', $event)"
         @update:deposit-link="$emit('update:depositLink', $event)"
@@ -244,7 +248,7 @@ function formatDesc(text: string): string {
       <!-- Default footer with deposit button -->
       <div v-else class="devoir-card-footer">
         <span class="devoir-deadline-date">Échéance : {{ formatDate(devoir.deadline) }}</span>
-        <span class="devoir-countdown" :class="`countdown--${variant}`">
+        <span class="devoir-countdown" :class="[`countdown--${variant}`, `countdown--${deadlineClass(devoir.deadline)}`]">
           <Clock :size="10" /> {{ countdown(devoir.deadline) }}
         </span>
         <button class="btn-primary btn-deposit" @click="startDeposit(devoir)">
@@ -468,6 +472,24 @@ function formatDesc(text: string): string {
 .countdown--urgent { background: rgba(var(--color-warning-rgb),.12); color: var(--color-warning); }
 .countdown--pending { background: rgba(var(--accent-rgb),.1); color: var(--accent-light); }
 
+/* Rampe d'urgence : <24h pulse rouge, <3j orange appuye, <7j jaune discret */
+.countdown--deadline-critical {
+  background: rgba(231, 76, 60, .18) !important;
+  color: #E74C3C !important;
+  animation: countdown-pulse 1.8s ease-in-out infinite;
+}
+.countdown--deadline-soon {
+  background: rgba(var(--color-warning-rgb), .18) !important;
+  color: var(--color-warning) !important;
+}
+@keyframes countdown-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, .35); }
+  50%      { box-shadow: 0 0 0 4px rgba(231, 76, 60, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .countdown--deadline-critical { animation: none; }
+}
+
 .btn-deposit {
   display: inline-flex;
   align-items: center;
@@ -551,6 +573,37 @@ function formatDesc(text: string): string {
   border-radius: 8px;
   background: rgba(var(--color-success-rgb), 0.08);
 }
+
+.deposit-upload-progress {
+  position: relative;
+  height: 32px;
+  border: 1.5px solid var(--accent, #4dd0e1);
+  border-radius: 8px;
+  background: rgba(77, 208, 225, 0.08);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.deposit-upload-progress-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgba(77, 208, 225, 0.25);
+  transition: width .2s ease-out;
+  z-index: 0;
+}
+.deposit-upload-progress-text {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.deposit-upload-progress-text .spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .deposit-file-selected-icon { color: var(--color-success); flex-shrink: 0; }
 

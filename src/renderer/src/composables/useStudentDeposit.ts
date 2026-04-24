@@ -10,6 +10,7 @@ import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { isExpired } from '@/utils/devoir'
 import { validateDeposit } from '@/utils/depositValidation'
+import { celebrate } from '@/utils/celebrate'
 
 export function useStudentDeposit(now: { value: number }) {
   const appStore = useAppStore()
@@ -113,6 +114,7 @@ export function useStudentDeposit(now: { value: number }) {
         const fileName = depositMode.value === 'file' ? depositFileName.value : depositLink.value.trim()
         const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
         showToast(`Rendu soumis - ${fileName} - ${time}`, 'success')
+        void celebrate()
         cancelDeposit()
         await travauxStore.fetchStudentDevoirs()
         nextTick(() => {

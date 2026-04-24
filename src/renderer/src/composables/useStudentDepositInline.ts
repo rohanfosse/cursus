@@ -21,6 +21,7 @@ import { useTravauxStore } from '@/stores/travaux'
 import { useToast } from '@/composables/useToast'
 import { validateFile } from '@/utils/fileValidation'
 import { validateUrl } from '@/utils/urlValidation'
+import { celebrate } from '@/utils/celebrate'
 import type { Devoir } from '@/types'
 
 export type DepositMode = 'file' | 'link'
@@ -45,6 +46,7 @@ export function useStudentDepositInline(isExpired: (deadline: string) => boolean
   const fileSize = ref<number | null>(null)
   const depositing = ref(false)
   const uploading = ref(false)
+  const uploadProgress = ref(0) // 0-100, 0 = indetermine
   const dragOver = ref(false)
 
   function start(t: Devoir) {
@@ -87,8 +89,9 @@ export function useStudentDepositInline(isExpired: (deadline: string) => boolean
     // La taille n'est pas toujours disponible via openFileDialog (depend de
     // l'impl Electron). On laisse le serveur valider en dernier recours.
     uploading.value = true
+    uploadProgress.value = 0
     try {
-      const uploadRes = await window.api.uploadFile(localPath)
+      const uploadRes = await window.api.uploadFile(localPath, (p) => { uploadProgress.value = p })
       if (uploadRes?.ok && uploadRes.data) {
         file.value = uploadRes.data.url
         fileName.value = localName
@@ -101,6 +104,7 @@ export function useStudentDepositInline(isExpired: (deadline: string) => boolean
       showToast('Erreur reseau lors de l\'upload. Verifie ta connexion.', 'error')
     } finally {
       uploading.value = false
+      uploadProgress.value = 0
     }
   }
 
@@ -141,8 +145,9 @@ export function useStudentDepositInline(isExpired: (deadline: string) => boolean
     }
 
     uploading.value = true
+    uploadProgress.value = 0
     try {
-      const uploadRes = await window.api.uploadFile(filePath)
+      const uploadRes = await window.api.uploadFile(filePath, (p) => { uploadProgress.value = p })
       if (uploadRes?.ok && uploadRes.data) {
         file.value = uploadRes.data.url
         fileName.value = dropped.name
@@ -155,6 +160,7 @@ export function useStudentDepositInline(isExpired: (deadline: string) => boolean
       showToast('Erreur reseau lors de l\'upload.', 'error')
     } finally {
       uploading.value = false
+      uploadProgress.value = 0
     }
   }
 
@@ -195,6 +201,10 @@ export function useStudentDepositInline(isExpired: (deadline: string) => boolean
       })
       if (ok) {
         showToast('Depot enregistre.', 'success')
+        // Celebration : depot a l'heure (la validation isExpired plus haut
+        // garantit qu'on est bien avant la deadline). Cosmetique, respecte
+        // prefers-reduced-motion.
+        void celebrate()
         cancel()
         await travauxStore.fetchStudentDevoirs()
       } else {
@@ -209,7 +219,7 @@ export function useStudentDepositInline(isExpired: (deadline: string) => boolean
   }
 
   return {
-    depositingDevoirId, mode, link, file, fileName, fileSize, depositing, uploading, dragOver,
+    depositingDevoirId, mode, link, file, fileName, fileSize, depositing, uploading, uploadProgress, dragOver,
     start, cancel, pickFile, clearFile,
     onDragOver, onDragLeave, onDrop, submit,
   }

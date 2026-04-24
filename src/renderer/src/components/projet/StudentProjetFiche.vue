@@ -73,6 +73,7 @@ const {
   fileSize: depositFileSize,
   depositing,
   uploading: depositUploading,
+  uploadProgress: depositUploadProgress,
   dragOver,
   start: startDeposit,
   cancel: cancelDeposit,
@@ -197,6 +198,7 @@ function gradeColor(note: string | null | undefined): string {
             :deposit-file-size="depositFileSize"
             :depositing="depositing"
             :uploading="depositUploading"
+            :upload-progress="depositUploadProgress"
             :drag-over="dragOver"
             @start-deposit="startDeposit"
             @cancel-deposit="cancelDeposit"

@@ -698,7 +698,8 @@ contextBridge.exposeInMainWorld('api', {
   exportCsv:       (travailId: number) => invoke('export:csv', travailId),
 
   // Upload d'un fichier local vers le serveur → retourne l'URL publique + taille
-  uploadFile: async (localPath: string) => {
+  // Progress optionnel via XHR onProgress (fetch ne l'expose pas).
+  uploadFile: async (localPath: string, onProgress?: (percent: number) => void) => {
     const b64Res = await invoke('fs:readFileBase64', localPath) as { ok: boolean; data?: { b64: string; mime: string; ext: string } }
     if (!b64Res?.ok || !b64Res.data) return b64Res
     const { b64, mime, ext } = b64Res.data
@@ -710,21 +711,36 @@ contextBridge.exposeInMainWorld('api', {
     const blob = new Blob([bytes], { type: mime })
     const formData = new FormData()
     formData.append('file', blob, fileName)
-    try {
-      const token = getJwtToken()
-      const res = await fetch(`${SERVER_URL}/api/files/upload`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      })
-      const json = await res.json() as { ok: boolean; data?: string; file_size?: number; error?: string }
-      if (json.ok && json.data) {
-        return { ok: true, data: { url: `${SERVER_URL}${json.data}`, file_size: json.file_size } }
+    const token = getJwtToken()
+    return new Promise<{ ok: boolean; data?: { url: string; file_size?: number }; error?: string }>((resolve) => {
+      try {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', `${SERVER_URL}/api/files/upload`, true)
+        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+        if (onProgress) {
+          xhr.upload.onprogress = (ev) => {
+            if (ev.lengthComputable) onProgress(Math.round((ev.loaded / ev.total) * 100))
+          }
+        }
+        xhr.onload = () => {
+          try {
+            const json = JSON.parse(xhr.responseText) as { ok: boolean; data?: string; file_size?: number; error?: string }
+            if (json.ok && json.data) {
+              resolve({ ok: true, data: { url: `${SERVER_URL}${json.data}`, file_size: json.file_size } })
+            } else {
+              resolve({ ok: false, error: json.error ?? `HTTP ${xhr.status}` })
+            }
+          } catch {
+            resolve({ ok: false, error: `HTTP ${xhr.status} — reponse invalide` })
+          }
+        }
+        xhr.onerror = () => resolve({ ok: false, error: 'Erreur reseau pendant l\'upload' })
+        xhr.onabort = () => resolve({ ok: false, error: 'Upload annule' })
+        xhr.send(formData)
+      } catch (err) {
+        resolve({ ok: false, error: String(err) })
       }
-      return { ok: false, error: json.error ?? 'Upload échoué' }
-    } catch (err) {
-      return { ok: false, error: String(err) }
-    }
+    })
   },
 
   // Lecture base64 : supporte les URLs serveur en plus des chemins locaux

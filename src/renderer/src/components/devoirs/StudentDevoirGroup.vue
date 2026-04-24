@@ -25,6 +25,8 @@ const props = defineProps<{
   depositFile: string | null
   depositFileName: string | null
   depositing: boolean
+  uploading?: boolean
+  uploadProgress?: number
   rubricPreview: Rubric | null
   startDeposit: (t: Devoir) => void
   cancelDeposit: () => void
@@ -78,6 +80,8 @@ function isExpired(deadline: string | null | undefined): boolean {
         :deposit-file="depositFile"
         :deposit-file-name="depositFileName"
         :depositing="depositing"
+        :uploading="uploading"
+        :upload-progress="uploadProgress"
         :rubric-preview="rubricPreview"
         :start-deposit="startDeposit"
         :cancel-deposit="cancelDeposit"
