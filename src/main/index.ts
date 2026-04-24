@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell, Tray, Menu } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, session, shell, Tray, Menu } from 'electron'
 import { join } from 'path'
 import { initUpdater, stopUpdater, getPendingUpdate, quitAndInstall } from './updater'
 
@@ -99,9 +99,11 @@ function createWindow(splash: BrowserWindow | null): void {
       devTools: !app.isPackaged,
       // Caches V8 le bytecode compile → startup plus rapide apres 1re run.
       v8CacheOptions: 'bypassHeatCheck',
-      // spellcheck desactive : on est une app FR avec editeurs qui ont leur
-      // propre logique. L engine spell par defaut alloue ~20-40 MB.
-      spellcheck: false,
+      // Spellcheck FR active : etudiants qui redigent consignes, rapports,
+      // messages longs. ~30 MB RAM, negligeable sur machines modernes.
+      // Les editeurs specifiques (code, tables, math, TypeRace) posent leur
+      // propre spellcheck="false" au niveau de l'element.
+      spellcheck: true,
       // Desactive le background throttling : sinon Chromium ralentit les
       // timers (setInterval, refresh JWT 6h) et throttle les sockets quand
       // la fenetre est cachee/minimisee → session qui expire la nuit.
@@ -208,6 +210,12 @@ function createWindow(splash: BrowserWindow | null): void {
 }
 
 app.whenReady().then(() => {
+  // Dictionnaire de correction orthographique FR (+fallback en-US pour les
+  // mots techniques). Chromium telecharge le dictionnaire Hunspell au 1er run
+  // sur Windows ; non-bloquant en offline — reprend au prochain demarrage.
+  try { session.defaultSession.setSpellCheckerLanguages(['fr', 'en-US']) }
+  catch (err) { log.warn('[Main] setSpellCheckerLanguages failed:', err) }
+
   // Splash AVANT db.init : better-sqlite3 est synchrone, les migrations peuvent
   // prendre 500-1500ms sur une DB a seed ou apres bump de version. On affiche
   // d'abord le splash pour que l'utilisateur ait un retour visuel immediat,
