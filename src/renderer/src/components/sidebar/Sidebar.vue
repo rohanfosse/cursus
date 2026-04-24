@@ -389,8 +389,8 @@
                 :class="{ rotated: collapsed.has(group.key) }"
               />
               <component
-                v-if="parseCategoryIcon(group.label).icon"
                 :is="parseCategoryIcon(group.label).icon!"
+                v-if="parseCategoryIcon(group.label).icon"
                 :size="12"
                 class="sidebar-category-icon"
               />

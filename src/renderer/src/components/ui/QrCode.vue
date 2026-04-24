@@ -76,7 +76,7 @@ defineExpose({ downloadPng })
 <template>
   <div class="qr-wrap">
     <canvas ref="canvasRef" class="qr-canvas" :width="size" :height="size" />
-    <button class="qr-download" @click="downloadPng" title="Telecharger" aria-label="Telecharger le QR code">
+    <button class="qr-download" title="Telecharger" aria-label="Telecharger le QR code" @click="downloadPng">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
     </button>
   </div>

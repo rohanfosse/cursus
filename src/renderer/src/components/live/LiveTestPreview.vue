@@ -138,7 +138,7 @@ const mockEmoji = ref<string | null>(null)
               </button>
             </template>
             <div v-else class="ltp-slider-wrap">
-              <input type="range" :min="1" :max="selected.max_rating ?? 10" v-model.number="mockRating" class="ltp-slider" />
+              <input v-model.number="mockRating" type="range" :min="1" :max="selected.max_rating ?? 10" class="ltp-slider" />
               <span class="ltp-slider-val">{{ mockRating || 1 }} / {{ selected.max_rating ?? 10 }}</span>
             </div>
           </div>

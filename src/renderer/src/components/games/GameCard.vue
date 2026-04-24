@@ -141,7 +141,7 @@ function play() { router.push(props.game.route) }
           </span>
           <span class="gc-mybest-value">{{ myBest }} pts</span>
         </div>
-        <button class="gc-cta" @click.stop="play" :aria-label="`Jouer a ${game.label}`">
+        <button class="gc-cta" :aria-label="`Jouer a ${game.label}`" @click.stop="play">
           <Play :size="13" />
           Jouer
         </button>

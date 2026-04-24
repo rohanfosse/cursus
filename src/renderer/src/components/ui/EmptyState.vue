@@ -32,7 +32,7 @@
     ]"
   >
     <div v-if="icon || $slots.icon" class="es-icon-wrap">
-      <component v-if="icon" :is="icon" :size="size === 'sm' || compact ? 22 : size === 'lg' ? 36 : 28" />
+      <component :is="icon" v-if="icon" :size="size === 'sm' || compact ? 22 : size === 'lg' ? 36 : 28" />
       <slot v-else name="icon" />
     </div>
     <h3 v-if="title" class="es-title">{{ title }}</h3>

@@ -171,8 +171,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onDashKeydown))
 
     <!-- Tab: Accueil -->
     <StudentBento
-      ref="bentoRef"
       v-if="dashTab === 'accueil'"
+      ref="bentoRef"
       :student-stats="studentStats"
       :urgent-actions="urgentActions"
       :recent-grades="recentGrades"

@@ -254,8 +254,8 @@
             </div>
             <div class="cc-icon-input-row">
               <component
-                v-if="newCategoryIconKey"
                 :is="CATEGORY_ICONS.find(i => i.key === newCategoryIconKey)!.component"
+                v-if="newCategoryIconKey"
                 :size="15"
                 class="cc-icon-preview"
               />

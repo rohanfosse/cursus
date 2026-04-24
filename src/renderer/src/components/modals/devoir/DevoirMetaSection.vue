@@ -84,7 +84,7 @@
     <!-- Title (editable) -->
     <div class="gd-title-row">
       <template v-if="!editingTitle">
-        <h3 class="gd-title" @click="emit('start-edit-title')" title="Cliquer pour modifier">
+        <h3 class="gd-title" title="Cliquer pour modifier" @click="emit('start-edit-title')">
           {{ travail.title }}
         </h3>
       </template>
@@ -106,7 +106,7 @@
       <div class="gd-info-field">
         <Calendar :size="12" class="gd-info-icon" />
         <template v-if="!editingDeadline">
-          <span class="gd-field-editable" @click="emit('start-edit-deadline')" title="Cliquer pour modifier">
+          <span class="gd-field-editable" title="Cliquer pour modifier" @click="emit('start-edit-deadline')">
             {{ formatDate(travail.deadline) }}
           </span>
         </template>

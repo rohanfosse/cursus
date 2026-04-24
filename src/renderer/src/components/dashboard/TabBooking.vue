@@ -231,14 +231,14 @@ onUnmounted(() => {
               <button
                 class="toggle-active"
                 :class="{ active: et.is_active }"
-                @click.stop="toggleActive(et)"
                 :title="et.is_active ? 'Actif' : 'Inactif'"
                 :aria-label="et.is_active ? 'Desactiver' : 'Activer'"
+                @click.stop="toggleActive(et)"
               >
                 <Check v-if="et.is_active" :size="10" />
                 <X v-else :size="10" />
               </button>
-              <button class="btn-icon btn-danger" @click.stop="deleteEventType(et.id)" title="Supprimer" aria-label="Supprimer le type">
+              <button class="btn-icon btn-danger" title="Supprimer" aria-label="Supprimer le type" @click.stop="deleteEventType(et.id)">
                 <Trash2 :size="12" />
               </button>
             </div>
@@ -316,7 +316,7 @@ onUnmounted(() => {
         <div v-else class="create-form">
           <div class="form-header">
             <span class="field-label">Nouveau type de rendez-vous</span>
-            <button class="btn-icon" @click="showCreateForm = false" aria-label="Fermer le formulaire">
+            <button class="btn-icon" aria-label="Fermer le formulaire" @click="showCreateForm = false">
               <X :size="14" />
             </button>
           </div>
@@ -347,8 +347,8 @@ onUnmounted(() => {
                 <button
                   v-for="c in colorPresets" :key="c"
                   class="color-btn" :class="{ selected: newType.color === c }"
-                  :style="{ background: c }" @click="newType.color = c"
-                  :aria-label="`Couleur ${c}`"
+                  :style="{ background: c }" :aria-label="`Couleur ${c}`"
+                  @click="newType.color = c"
                 />
               </div>
             </div>
@@ -379,7 +379,7 @@ onUnmounted(() => {
             <div class="day-rules">
               <div v-for="rule in (rulesByDay[day] ?? [])" :key="rule.id" class="rule-row">
                 <span class="rule-time">{{ formatTime(rule.start_time) }} - {{ formatTime(rule.end_time) }}</span>
-                <button class="btn-icon btn-danger" @click="removeSlot(rule)" aria-label="Supprimer le creneau">
+                <button class="btn-icon btn-danger" aria-label="Supprimer le creneau" @click="removeSlot(rule)">
                   <Trash2 :size="11" />
                 </button>
               </div>
@@ -389,7 +389,7 @@ onUnmounted(() => {
               <input v-model="newSlots[day].start" type="time" class="input-field time-input" />
               <span class="slot-sep">-</span>
               <input v-model="newSlots[day].end" type="time" class="input-field time-input" />
-              <button class="btn-icon btn-add" @click="onAddSlot(day)" aria-label="Ajouter un creneau">
+              <button class="btn-icon btn-add" aria-label="Ajouter un creneau" @click="onAddSlot(day)">
                 <Plus :size="12" />
               </button>
             </div>
@@ -408,10 +408,10 @@ onUnmounted(() => {
           <Users :size="14" />
           <span>Mes RDV</span>
           <div class="view-toggle">
-            <button class="view-btn" :class="{ active: bookingsView === 'calendar' }" @click="bookingsView = 'calendar'" aria-label="Vue calendrier">
+            <button class="view-btn" :class="{ active: bookingsView === 'calendar' }" aria-label="Vue calendrier" @click="bookingsView = 'calendar'">
               <CalendarDays :size="12" />
             </button>
-            <button class="view-btn" :class="{ active: bookingsView === 'list' }" @click="bookingsView = 'list'" aria-label="Vue liste">
+            <button class="view-btn" :class="{ active: bookingsView === 'list' }" aria-label="Vue liste" @click="bookingsView = 'list'">
               <LayoutList :size="12" />
             </button>
           </div>

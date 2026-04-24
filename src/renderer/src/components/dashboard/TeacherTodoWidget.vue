@@ -100,7 +100,7 @@ function clearDone(listId: string) {
     <div v-if="showSettings" class="ttw-settings">
       <div v-for="l in lists" :key="l.id" class="ttw-setting-row">
         <label class="ttw-setting-check">
-          <input type="checkbox" v-model="l.enabled" />
+          <input v-model="l.enabled" type="checkbox" />
           <span>{{ l.name }}</span>
         </label>
       </div>
@@ -120,7 +120,7 @@ function clearDone(listId: string) {
       <div v-if="!l.collapsed" class="ttw-list-body">
         <div v-for="item in l.items" :key="item.id" class="ttw-item" :class="{ done: item.done }">
           <label class="ttw-check">
-            <input type="checkbox" v-model="item.done" />
+            <input v-model="item.done" type="checkbox" />
             <span class="ttw-check-mark" />
           </label>
           <span class="ttw-item-text">{{ item.text }}</span>

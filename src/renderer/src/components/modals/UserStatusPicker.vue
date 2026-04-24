@@ -103,7 +103,7 @@ watch(() => props.modelValue, async (open) => {
 <template>
   <Modal :model-value="modelValue" title="Définir un statut" max-width="480px" @update:model-value="emit('update:modelValue', $event)">
     <div class="usp-body">
-      <div class="usp-current" v-if="statuses.mine?.emoji || statuses.mine?.text">
+      <div v-if="statuses.mine?.emoji || statuses.mine?.text" class="usp-current">
         <span class="usp-current-emoji">{{ statuses.mine.emoji || '•' }}</span>
         <div class="usp-current-body">
           <span class="usp-current-text">{{ statuses.mine.text }}</span>

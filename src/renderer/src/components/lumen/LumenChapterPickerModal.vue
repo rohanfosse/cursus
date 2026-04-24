@@ -100,7 +100,7 @@ const ctxItems = computed<ContextMenuItem[]>(() => {
           <FileText :size="16" />
           Lier un chapitre a ce devoir
         </h3>
-        <button type="button" class="lcpm-close" @click="emit('close')" aria-label="Fermer">
+        <button type="button" class="lcpm-close" aria-label="Fermer" @click="emit('close')">
           <X :size="18" />
         </button>
       </header>

@@ -104,17 +104,17 @@ function formatElapsed(s: number): string {
         <span v-if="totalCount && totalCount > 1 && positionIndex" class="lpm-position">
           {{ positionIndex }}<span class="lpm-position-sep">/</span>{{ totalCount }}
         </span>
-        <button v-if="hasNext" class="lpm-ctrl lpm-ctrl-primary" @click="emit('next')" title="Activite suivante (flecha droite)">
+        <button v-if="hasNext" class="lpm-ctrl lpm-ctrl-primary" title="Activite suivante (flecha droite)" @click="emit('next')">
           <ChevronRight :size="16" />
           Suivante
         </button>
-        <button v-if="!isFullscreen" class="lpm-ctrl" @click="requestFs" title="Plein ecran (F11)">
+        <button v-if="!isFullscreen" class="lpm-ctrl" title="Plein ecran (F11)" @click="requestFs">
           <Maximize2 :size="16" />
         </button>
-        <button class="lpm-ctrl lpm-ctrl-danger" @click="emit('closeActivity')" title="Terminer l'activite">
+        <button class="lpm-ctrl lpm-ctrl-danger" title="Terminer l'activite" @click="emit('closeActivity')">
           Terminer
         </button>
-        <button class="lpm-ctrl" @click="exitFs().then(() => emit('close'))" title="Fermer le mode projection (Esc)">
+        <button class="lpm-ctrl" title="Fermer le mode projection (Esc)" @click="exitFs().then(() => emit('close'))">
           <X :size="18" />
         </button>
       </div>

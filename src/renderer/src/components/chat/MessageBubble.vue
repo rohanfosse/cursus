@@ -287,8 +287,8 @@ const renderedContentWithoutPoll = computed(() => {
           <div
             v-if="renderedContentWithoutPoll"
             class="msg-text msg-text--after-poll"
-            v-html="renderedContentWithoutPoll"
             @click="onTextClick"
+            v-html="renderedContentWithoutPoll"
           />
           <!-- eslint-enable vue/no-v-html -->
         </template>
@@ -296,7 +296,7 @@ const renderedContentWithoutPoll = computed(() => {
         <!-- Message standard -->
         <template v-else>
           <!-- eslint-disable vue/no-v-html -->
-          <div class="msg-text" v-html="content" @click="onTextClick" />
+          <div class="msg-text" @click="onTextClick" v-html="content" />
           <!-- eslint-enable vue/no-v-html -->
 
           <!-- Prévisualisation image inline (bare URL hors markdown, ex. lien collé) -->

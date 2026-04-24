@@ -28,7 +28,7 @@ function isTtlEnvelope<T>(x: unknown): x is TtlEnvelope<T> {
 function warn(scope: string, err: unknown): void {
   // console.warn est volontaire pour surfacer les pannes de cache en dev ;
   // en production l'IPC ne doit jamais jeter, mais on reste défensif.
-  // eslint-disable-next-line no-console
+   
   console.warn(`[OfflineCache] ${scope}`, err)
 }
 

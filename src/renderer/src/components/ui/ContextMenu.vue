@@ -100,7 +100,7 @@ function run(item: ContextMenuItem) {
           @click.stop="run(item)"
           @keydown.enter.stop="run(item)"
         >
-          <component v-if="item.icon" :is="item.icon" :size="13" class="ctx-icon" />
+          <component :is="item.icon" v-if="item.icon" :size="13" class="ctx-icon" />
           <span>{{ item.label }}</span>
         </button>
       </template>

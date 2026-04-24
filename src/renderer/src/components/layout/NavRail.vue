@@ -402,7 +402,7 @@ function openAvatarContextMenu(ev: MouseEvent) {
           </span>
         </span>
       </template>
-      <component v-else :is="item.icon" :size="20" aria-hidden="true" />
+      <component :is="item.icon" v-else :size="20" aria-hidden="true" />
 
       <span class="nav-label">{{ item.label }}</span>
 

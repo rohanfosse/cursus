@@ -233,8 +233,8 @@ function gradeColor(note: string | null | undefined): string {
                     <!-- Projet -->
                     <span v-if="t.category" class="stl-proj-pill">
                       <component
-                        v-if="parseCategoryIcon(t.category).icon"
                         :is="parseCategoryIcon(t.category).icon!"
+                        v-if="parseCategoryIcon(t.category).icon"
                         :size="10"
                       />
                       {{ parseCategoryIcon(t.category).label }}

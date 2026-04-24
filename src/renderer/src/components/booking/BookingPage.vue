@@ -155,11 +155,11 @@ const ctxItems = computed<ContextMenuItem[]>(() => {
 
         <!-- Week nav -->
         <div class="bp-week-nav">
-          <button class="bp-week-btn" :disabled="weekOffset <= 0" @click="prevWeek" aria-label="Semaine precedente">
+          <button class="bp-week-btn" :disabled="weekOffset <= 0" aria-label="Semaine precedente" @click="prevWeek">
             <ChevronLeft :size="16" />
           </button>
           <span class="bp-week-label">{{ weekLabel }}</span>
-          <button class="bp-week-btn" :disabled="weekOffset >= 12" @click="nextWeek" aria-label="Semaine suivante">
+          <button class="bp-week-btn" :disabled="weekOffset >= 12" aria-label="Semaine suivante" @click="nextWeek">
             <ChevronRight :size="16" />
           </button>
         </div>

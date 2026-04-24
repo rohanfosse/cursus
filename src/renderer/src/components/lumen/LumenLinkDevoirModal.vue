@@ -99,7 +99,7 @@ async function toggleLink(travail: GanttRow) {
           <FileText :size="16" />
           Lier <span class="lldm-chapter">{{ chapterTitle }}</span> a des devoirs
         </h3>
-        <button type="button" class="lldm-close" @click="emit('close')" aria-label="Fermer">
+        <button type="button" class="lldm-close" aria-label="Fermer" @click="emit('close')">
           <X :size="18" />
         </button>
       </header>

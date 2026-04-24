@@ -113,7 +113,7 @@ async function linkRepo(repo: LumenRepo) {
           <Link2 :size="16" />
           Lier un cours a <span class="llrm-project">{{ projectName }}</span>
         </h3>
-        <button type="button" class="llrm-close" @click="emit('close')" aria-label="Fermer">
+        <button type="button" class="llrm-close" aria-label="Fermer" @click="emit('close')">
           <X :size="18" />
         </button>
       </header>

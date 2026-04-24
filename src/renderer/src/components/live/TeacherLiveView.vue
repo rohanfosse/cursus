@@ -842,10 +842,10 @@
                 <span class="ltc-meta">{{ tpl.activities.length }} activité{{ tpl.activities.length > 1 ? 's' : '' }}</span>
               </div>
               <div class="ltc-actions">
-                <button class="ltc-load" @click="onLoadTemplate(tpl.id)" :title="`Charger « ${tpl.name} » dans une nouvelle session`">
+                <button class="ltc-load" :title="`Charger « ${tpl.name} » dans une nouvelle session`" @click="onLoadTemplate(tpl.id)">
                   <Plus :size="12" /> Utiliser
                 </button>
-                <button class="ltc-del" @click="onDeleteTemplate(tpl.id, tpl.name)" :title="`Supprimer ${tpl.name}`" aria-label="Supprimer le modèle">
+                <button class="ltc-del" :title="`Supprimer ${tpl.name}`" aria-label="Supprimer le modèle" @click="onDeleteTemplate(tpl.id, tpl.name)">
                   <Trash2 :size="12" />
                 </button>
               </div>
@@ -894,8 +894,8 @@
           <button
             class="btn-preview"
             :class="{ active: previewMode }"
-            @click="togglePreview"
             title="Apercu cote etudiant (sans les etudiants)"
+            @click="togglePreview"
           >
             <component :is="previewMode ? EyeOff : Eye" :size="16" />
             {{ previewMode ? 'Fermer apercu' : 'Mode apercu' }}
@@ -903,13 +903,13 @@
           <button
             v-if="liveStore.sessionActivities.length > 0"
             class="btn-template"
-            @click="onSaveAsTemplate"
             title="Sauvegarder cette session comme modele reutilisable"
+            @click="onSaveAsTemplate"
           >
             <BookmarkPlus :size="16" />
             Modele
           </button>
-          <button class="btn-export" :disabled="exporting" @click="exportCsv" title="Exporter les resultats en CSV">
+          <button class="btn-export" :disabled="exporting" title="Exporter les resultats en CSV" @click="exportCsv">
             <Download :size="16" />
             {{ exporting ? 'Export...' : 'CSV' }}
           </button>
@@ -941,7 +941,7 @@
       <div v-if="isSparkSession && liveStore.sessionActivities.length > 0" class="spark-mode-panel">
         <div class="spm-toggle-wrap">
           <label class="spm-toggle">
-            <input type="checkbox" v-model="sparkAutoChain" />
+            <input v-model="sparkAutoChain" type="checkbox" />
             <span class="spm-toggle-track"><span class="spm-toggle-dot" /></span>
             <div class="spm-toggle-meta">
               <span class="spm-toggle-label">Mode Spark (enchainement auto)</span>
@@ -1213,7 +1213,7 @@
           <span class="acc-label">Prochaine question dans</span>
           <span class="acc-next">{{ nextPendingActivity.title }}</span>
         </div>
-        <button class="acc-cancel" @click="cancelAutoChain" title="Annuler l'enchainement auto">
+        <button class="acc-cancel" title="Annuler l'enchainement auto" @click="cancelAutoChain">
           Mettre en pause
         </button>
       </div>
@@ -1242,7 +1242,7 @@
         </div>
         <h2 class="activity-topbar-title">{{ liveStore.currentActivity.title }}</h2>
         <div class="activity-topbar-actions">
-          <button class="btn-project" @click="openPresentation" title="Afficher sur videoprojecteur (plein ecran)">
+          <button class="btn-project" title="Afficher sur videoprojecteur (plein ecran)" @click="openPresentation">
             <Presentation :size="16" />
             Projection
           </button>
@@ -1292,7 +1292,7 @@
         </div>
         <!-- Auto-close (Spark seulement) -->
         <label v-if="isSparkType(liveStore.currentActivity.type)" class="auto-close-toggle" title="Fermer automatiquement quand le timer expire">
-          <input type="checkbox" v-model="autoCloseEnabled" />
+          <input v-model="autoCloseEnabled" type="checkbox" />
           <span class="auto-close-label">Auto-fermer</span>
         </label>
       </div>
@@ -1300,8 +1300,8 @@
       <div class="results-area">
         <!-- Code : editeur en direct (prof) -->
         <LiveCodeEditor
-          ref="codeEditorRef"
           v-if="liveStore.currentActivity.type === 'live_code' && promoId"
+          ref="codeEditorRef"
           :activity-id="liveStore.currentActivity.id"
           :promo-id="promoId"
           :initial-content="liveStore.currentActivity.content ?? ''"

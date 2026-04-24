@@ -118,7 +118,7 @@ onBeforeUnmount(() => { if (refreshTimer) clearInterval(refreshTimer) })
           </div>
         </div>
 
-        <button class="wt-cta" @click="play" :aria-label="'Jouer a TypeRace'">
+        <button class="wt-cta" :aria-label="'Jouer a TypeRace'" @click="play">
           <Play :size="13" />
           <span>Jouer</span>
         </button>

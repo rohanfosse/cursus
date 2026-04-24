@@ -317,7 +317,7 @@ const currentRank = computed(() => {
 <template>
   <div class="si-layout">
     <header class="si-header">
-      <button class="si-icon-btn" @click="router.push('/jeux')" aria-label="Retour aux jeux">
+      <button class="si-icon-btn" aria-label="Retour aux jeux" @click="router.push('/jeux')">
         <ArrowLeft :size="18" />
       </button>
       <span class="si-brand">Space Invaders</span>

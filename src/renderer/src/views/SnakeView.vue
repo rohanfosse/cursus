@@ -221,7 +221,7 @@ const currentRank = computed(() => {
 <template>
   <div class="snake-layout" tabindex="-1">
     <header class="s-header">
-      <button class="s-icon-btn" @click="router.push('/jeux')" aria-label="Retour aux jeux">
+      <button class="s-icon-btn" aria-label="Retour aux jeux" @click="router.push('/jeux')">
         <ArrowLeft :size="18" />
       </button>
       <span class="s-brand">Snake</span>

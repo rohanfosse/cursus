@@ -36,7 +36,7 @@ function formatDateRange(start?: string, end?: string): string {
 
   <div class="spf-header-identity">
     <div class="spf-icon-wrap">
-      <component v-if="parsed.icon" :is="parsed.icon!" :size="22" class="spf-project-icon" />
+      <component :is="parsed.icon!" v-if="parsed.icon" :size="22" class="spf-project-icon" />
       <Layers v-else :size="22" class="spf-project-icon" />
     </div>
     <div class="spf-header-text">

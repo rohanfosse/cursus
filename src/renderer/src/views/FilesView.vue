@@ -284,7 +284,7 @@ function toggleCollapse(studentId: number) {
           >
             <div class="fv-list-item-icon" :style="{ '--fc': fileColor(f) }">
               <img v-if="f.is_image" :src="authUrl(f.file_url)" :alt="cleanFileName(f.file_name)" class="fv-list-thumb" />
-              <component v-else :is="fileIcon(f)" :size="15" />
+              <component :is="fileIcon(f)" v-else :size="15" />
             </div>
             <span class="fv-list-item-name">{{ cleanFileName(f.file_name) }}</span>
             <span class="fv-list-item-ext" :style="{ color: fileColor(f) }">{{ extOf(f.file_name).toUpperCase() || '—' }}</span>

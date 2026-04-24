@@ -298,9 +298,9 @@
                 class="feedback-bank-pill"
                 :class="{ 'feedback-custom': customFeedback.includes(fb) }"
                 type="button"
+                :title="customFeedback.includes(fb) ? 'Clic droit pour supprimer' : ''"
                 @click="insertFeedback(fb)"
                 @contextmenu.prevent="customFeedback.includes(fb) ? removeCustomFeedback(fb) : undefined"
-                :title="customFeedback.includes(fb) ? 'Clic droit pour supprimer' : ''"
               >
                 {{ fb }}
               </button>

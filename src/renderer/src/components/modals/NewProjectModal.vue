@@ -187,7 +187,7 @@ async function save() {
         <!-- Preview -->
         <div class="np-preview">
           <div class="np-preview-icon" :style="{ background: selectedColor + '20', color: selectedColor }">
-            <component v-if="selectedIcon" :is="selectedIcon.component" :size="20" />
+            <component :is="selectedIcon.component" v-if="selectedIcon" :size="20" />
             <FolderOpen v-else :size="20" />
           </div>
           <span class="np-preview-name" :style="{ color: selectedColor }">{{ name.trim() || 'Mon projet' }}</span>

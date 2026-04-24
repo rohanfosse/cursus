@@ -207,10 +207,10 @@ function openWith() {
       <!-- Image -->
       <div v-else-if="previewType === 'image'" class="preview-image-wrap">
         <div class="preview-zoom-controls">
-          <button class="preview-zoom-btn" @click="zoomOut" title="Zoom -"><ZoomOut :size="14" /></button>
+          <button class="preview-zoom-btn" title="Zoom -" @click="zoomOut"><ZoomOut :size="14" /></button>
           <span class="preview-zoom-level">{{ zoomLevel }}%</span>
-          <button class="preview-zoom-btn" @click="zoomIn" title="Zoom +"><ZoomIn :size="14" /></button>
-          <button class="preview-zoom-btn" @click="zoomReset" title="Réinitialiser">1:1</button>
+          <button class="preview-zoom-btn" title="Zoom +" @click="zoomIn"><ZoomIn :size="14" /></button>
+          <button class="preview-zoom-btn" title="Réinitialiser" @click="zoomReset">1:1</button>
         </div>
         <div class="preview-image-scroll">
           <img :src="blobUrl!" :alt="doc?.name" class="preview-image" :style="{ transform: `scale(${zoomLevel / 100})` }" />

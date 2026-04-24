@@ -231,7 +231,7 @@ onBeforeUnmount(() => {
     >
       <Calendar :size="15" class="dtp-trigger-icon" />
       <span class="dtp-trigger-text">{{ displayText || 'Choisir une date...' }}</span>
-      <button v-if="modelValue && !required" type="button" class="dtp-clear" @click.stop="clear" aria-label="Effacer la date">
+      <button v-if="modelValue && !required" type="button" class="dtp-clear" aria-label="Effacer la date" @click.stop="clear">
         <X :size="14" />
       </button>
     </button>
@@ -240,11 +240,11 @@ onBeforeUnmount(() => {
       <Transition name="dtp-pop">
         <div v-if="open" ref="pickerRef" class="dtp-popup" :style="popupStyle" role="dialog" aria-label="Calendrier">
           <div class="dtp-month-nav">
-            <button type="button" class="dtp-nav-btn" @click="prevMonth" aria-label="Mois precedent">
+            <button type="button" class="dtp-nav-btn" aria-label="Mois precedent" @click="prevMonth">
               <ChevronLeft :size="16" />
             </button>
             <span class="dtp-month-label">{{ monthLabel }}</span>
-            <button type="button" class="dtp-nav-btn" @click="nextMonth" aria-label="Mois suivant">
+            <button type="button" class="dtp-nav-btn" aria-label="Mois suivant" @click="nextMonth">
               <ChevronRight :size="16" />
             </button>
           </div>
@@ -272,15 +272,15 @@ onBeforeUnmount(() => {
           <div class="dtp-time">
             <Clock :size="14" class="dtp-time-icon" />
             <div class="dtp-time-spinner">
-              <button type="button" class="dtp-spin-btn" @click="adjustHours(1)" aria-label="+1 heure">&#9650;</button>
+              <button type="button" class="dtp-spin-btn" aria-label="+1 heure" @click="adjustHours(1)">&#9650;</button>
               <span class="dtp-time-value">{{ String(hours).padStart(2, '0') }}</span>
-              <button type="button" class="dtp-spin-btn" @click="adjustHours(-1)" aria-label="-1 heure">&#9660;</button>
+              <button type="button" class="dtp-spin-btn" aria-label="-1 heure" @click="adjustHours(-1)">&#9660;</button>
             </div>
             <span class="dtp-time-sep">:</span>
             <div class="dtp-time-spinner">
-              <button type="button" class="dtp-spin-btn" @click="adjustMinutes(5)" aria-label="+5 minutes">&#9650;</button>
+              <button type="button" class="dtp-spin-btn" aria-label="+5 minutes" @click="adjustMinutes(5)">&#9650;</button>
               <span class="dtp-time-value">{{ String(minutes).padStart(2, '0') }}</span>
-              <button type="button" class="dtp-spin-btn" @click="adjustMinutes(-5)" aria-label="-5 minutes">&#9660;</button>
+              <button type="button" class="dtp-spin-btn" aria-label="-5 minutes" @click="adjustMinutes(-5)">&#9660;</button>
             </div>
           </div>
 

@@ -103,8 +103,8 @@ function openItem(item: InboxItem) {
             </div>
           </template>
           <component
-            v-else
             :is="item.channelId ? Hash : AtSign"
+            v-else
             :size="11"
             class="wm-icon"
           />

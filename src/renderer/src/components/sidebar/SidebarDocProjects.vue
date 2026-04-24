@@ -72,8 +72,8 @@ function selectCategory(cat: string) {
           @click="selectProject(proj)"
         >
           <component
-            v-if="parseCategoryIcon(proj).icon"
             :is="parseCategoryIcon(proj).icon!"
+            v-if="parseCategoryIcon(proj).icon"
             :size="12"
             class="sb-docs-item-icon"
           />

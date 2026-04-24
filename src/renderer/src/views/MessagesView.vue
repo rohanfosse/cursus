@@ -240,7 +240,7 @@
             <input v-model="searchDateTo" type="date" class="search-filter-date" />
           </div>
           <label class="search-filter-check">
-            <input type="checkbox" v-model="searchHasFile" />
+            <input v-model="searchHasFile" type="checkbox" />
             <Paperclip :size="12" /> Avec fichier
           </label>
           <button v-if="hasActiveFilters" class="search-filter-clear" @click="searchDateFrom = ''; searchDateTo = ''; searchHasFile = false">
@@ -341,7 +341,7 @@
     <!-- Corps principal : messages + panels latéraux -->
     <div v-if="appStore.activeChannelId || appStore.activeDmStudentId" class="channel-body">
       <!-- Liste des messages + zone de saisie -->
-      <div class="messages-container" id="messages-container">
+      <div id="messages-container" class="messages-container">
         <MessageList />
 
         <!-- Barre de confirmation drag & drop -->
@@ -437,7 +437,7 @@
     </div>
 
     <!-- Aucun canal sélectionné - écran d'accueil -->
-    <div v-else class="no-channel-hint" id="no-channel-hint">
+    <div v-else id="no-channel-hint" class="no-channel-hint">
       <EmptyState
         size="lg"
         :icon="MessageSquare"

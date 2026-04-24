@@ -475,10 +475,10 @@ watch(() => route.query, (q) => {
     <!-- Toolbar -->
     <header class="agenda-toolbar" role="toolbar" aria-label="Barre d'outils du calendrier">
       <div class="agenda-toolbar-left">
-        <button type="button" class="ag-today-btn" @click="goToday" title="Aujourd'hui (T)" aria-label="Aller à aujourd'hui">Aujourd'hui</button>
+        <button type="button" class="ag-today-btn" title="Aujourd'hui (T)" aria-label="Aller à aujourd'hui" @click="goToday">Aujourd'hui</button>
         <div class="ag-nav-arrows" role="group" aria-label="Navigation par période">
-          <button type="button" class="ag-nav-btn" @click="goPrev" title="Période précédente" aria-label="Période précédente"><ChevronLeft :size="16" aria-hidden="true" /></button>
-          <button type="button" class="ag-nav-btn" @click="goNext" title="Période suivante" aria-label="Période suivante"><ChevronRight :size="16" aria-hidden="true" /></button>
+          <button type="button" class="ag-nav-btn" title="Période précédente" aria-label="Période précédente" @click="goPrev"><ChevronLeft :size="16" aria-hidden="true" /></button>
+          <button type="button" class="ag-nav-btn" title="Période suivante" aria-label="Période suivante" @click="goNext"><ChevronRight :size="16" aria-hidden="true" /></button>
         </div>
         <h1 class="ag-current-title" aria-live="polite">{{ currentTitle || 'Calendrier' }}</h1>
       </div>
@@ -487,9 +487,9 @@ watch(() => route.query, (q) => {
           <Search :size="13" class="ag-search-icon" aria-hidden="true" />
           <input
             ref="searchInputRef"
+            v-model="searchQuery"
             type="search"
             class="ag-search-input"
-            v-model="searchQuery"
             placeholder="Rechercher... (/)"
             aria-label="Rechercher dans le calendrier"
             @keydown.esc.prevent="clearSearch"
@@ -498,17 +498,17 @@ watch(() => route.query, (q) => {
             v-if="searchQuery"
             type="button"
             class="ag-search-clear"
-            @click="clearSearch"
             aria-label="Effacer la recherche"
             title="Effacer"
+            @click="clearSearch"
           ><X :size="12" aria-hidden="true" /></button>
         </div>
         <div class="ag-view-switch" role="group" aria-label="Changer de vue">
-          <button type="button" class="ag-view-btn" :class="{ active: activeView === 'month' }" @click="switchView('month')" title="Vue mois (M)" :aria-pressed="activeView === 'month'">Mois</button>
-          <button type="button" class="ag-view-btn" :class="{ active: activeView === 'week' }" @click="switchView('week')" title="Vue semaine (S)" :aria-pressed="activeView === 'week'">Semaine</button>
-          <button type="button" class="ag-view-btn" :class="{ active: activeView === 'day' }" @click="switchView('day')" title="Vue jour (J)" :aria-pressed="activeView === 'day'">Jour</button>
+          <button type="button" class="ag-view-btn" :class="{ active: activeView === 'month' }" title="Vue mois (M)" :aria-pressed="activeView === 'month'" @click="switchView('month')">Mois</button>
+          <button type="button" class="ag-view-btn" :class="{ active: activeView === 'week' }" title="Vue semaine (S)" :aria-pressed="activeView === 'week'" @click="switchView('week')">Semaine</button>
+          <button type="button" class="ag-view-btn" :class="{ active: activeView === 'day' }" title="Vue jour (J)" :aria-pressed="activeView === 'day'" @click="switchView('day')">Jour</button>
         </div>
-        <button v-if="isTeacher" class="ag-btn ag-btn--accent" @click="showForm = !showForm" title="Nouveau rappel (N)" aria-label="Créer un nouveau rappel">
+        <button v-if="isTeacher" class="ag-btn ag-btn--accent" title="Nouveau rappel (N)" aria-label="Créer un nouveau rappel" @click="showForm = !showForm">
           <Plus :size="14" aria-hidden="true" /> Rappel
         </button>
         <div class="ag-more-wrap">
@@ -540,16 +540,16 @@ watch(() => route.query, (q) => {
     <Transition name="filter-slide">
       <div v-if="showFilters" class="ag-filter-bar">
         <label class="ag-filter-check">
-          <input type="checkbox" v-model="showDeadlines" /> Echeances
+          <input v-model="showDeadlines" type="checkbox" /> Echeances
         </label>
         <label class="ag-filter-check">
-          <input type="checkbox" v-model="showStartDates" /> Demarrages
+          <input v-model="showStartDates" type="checkbox" /> Demarrages
         </label>
         <label class="ag-filter-check">
-          <input type="checkbox" v-model="showReminders" /> Rappels
+          <input v-model="showReminders" type="checkbox" /> Rappels
         </label>
         <label v-if="isTeacher" class="ag-filter-check">
-          <input type="checkbox" v-model="showOutlook" /> Outlook
+          <input v-model="showOutlook" type="checkbox" /> Outlook
           <span v-if="agenda.outlookConnected" class="ag-sync-dot ag-sync-dot--live" title="Connecte" />
           <span v-else class="ag-sync-dot" title="Non connecte" />
         </label>
@@ -682,7 +682,7 @@ watch(() => route.query, (q) => {
           <div class="agenda-detail-body">
             <header class="agenda-detail-head">
               <span class="agenda-detail-type">{{ eventTypeLabel(selectedEvent.eventType) }}</span>
-              <button type="button" class="agenda-detail-close" @click="closeDetail" aria-label="Fermer le panneau de détails"><X :size="14" aria-hidden="true" /></button>
+              <button type="button" class="agenda-detail-close" aria-label="Fermer le panneau de détails" @click="closeDetail"><X :size="14" aria-hidden="true" /></button>
             </header>
             <h2 id="agenda-detail-title" class="agenda-detail-title">{{ selectedEvent.title }}</h2>
 
@@ -767,17 +767,17 @@ watch(() => route.query, (q) => {
           <div class="agenda-detail-body">
             <header class="agenda-detail-head">
               <span id="agenda-form-title" class="agenda-detail-type">{{ editingId ? 'Modifier le rappel' : 'Nouveau rappel' }}</span>
-              <button type="button" class="agenda-detail-close" @click="tryCloseForm" aria-label="Fermer le formulaire"><X :size="14" aria-hidden="true" /></button>
+              <button type="button" class="agenda-detail-close" aria-label="Fermer le formulaire" @click="tryCloseForm"><X :size="14" aria-hidden="true" /></button>
             </header>
             <div class="ag-form">
               <div class="ag-form-row">
                 <label class="ag-label" style="flex:1;">Date<input v-model="formDate" type="date" class="ag-input" /></label>
                 <label class="ag-label" style="width: 110px;">Heure<input v-model="formTime" type="time" class="ag-input" /></label>
               </div>
-              <label class="ag-label">Titre<input v-model="formTitle" ref="titleInputRef" type="text" class="ag-input" placeholder="Ex: Soutenance finale..." /></label>
+              <label class="ag-label">Titre<input ref="titleInputRef" v-model="formTitle" type="text" class="ag-input" placeholder="Ex: Soutenance finale..." /></label>
               <label class="ag-label">Description<textarea v-model="formDesc" class="ag-input ag-textarea" rows="3" placeholder="Details..." /></label>
               <label v-if="isTeacher && !editingId" class="ag-label ag-check-label" :class="{ 'ag-check-label--disabled': !formTime }">
-                <input type="checkbox" v-model="formCreateTeams" :disabled="!formTime" />
+                <input v-model="formCreateTeams" type="checkbox" :disabled="!formTime" />
                 <Video :size="14" aria-hidden="true" />
                 <span>Créer une réunion Teams + Outlook</span>
                 <small v-if="!formTime" class="ag-hint">Nécessite une heure</small>

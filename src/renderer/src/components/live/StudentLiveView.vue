@@ -371,8 +371,8 @@
           <button
             v-for="(act, i) in selfPacedActivities" :key="act.id"
             :class="['sp-pill', { active: i === selfPacedIndex, done: respondedActivityIds.has(act.id) }]"
-            @click="selfPacedGoTo(i)"
             :title="act.title"
+            @click="selfPacedGoTo(i)"
           >
             <span class="sp-pill-num">{{ i + 1 }}</span>
             <span v-if="respondedActivityIds.has(act.id)" class="sp-pill-check">ok</span>

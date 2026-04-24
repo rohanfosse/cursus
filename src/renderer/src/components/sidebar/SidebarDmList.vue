@@ -88,7 +88,7 @@
   </div>
 
   <!-- Conversations -->
-  <div id="sidebar-dm-list" v-show="!dmCollapsed" class="sidebar-scroll-list">
+  <div v-show="!dmCollapsed" id="sidebar-dm-list" class="sidebar-scroll-list">
     <nav aria-label="Messages directs">
       <button
         v-for="s in dmContactsToShow"

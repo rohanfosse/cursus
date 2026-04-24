@@ -4,11 +4,11 @@ import { initUpdater, stopUpdater, getPendingUpdate, quitAndInstall } from './up
 
 // Modules CommonJS - import default : Rollup + @rollup/plugin-commonjs convertit
 // module.exports en export default, ce qui permet le bundling correct.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import dbRaw            from '../../server/db/index'
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import ipcRaw           from './ipc'
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import notificationsRaw from './notifications'
 
 const db            = dbRaw            as unknown as { init: () => void; close: () => void }

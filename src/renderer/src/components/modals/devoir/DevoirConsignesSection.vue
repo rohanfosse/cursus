@@ -70,13 +70,13 @@
     </template>
 
     <template v-else-if="!editingDesc">
-      <div class="gd-description" role="button" tabindex="0" @click="startEditDesc" @keydown.enter="startEditDesc" @keydown.space.prevent="startEditDesc" title="Cliquer pour modifier" aria-label="Modifier la description">
+      <div class="gd-description" role="button" tabindex="0" title="Cliquer pour modifier" aria-label="Modifier la description" @click="startEditDesc" @keydown.enter="startEditDesc" @keydown.space.prevent="startEditDesc">
         <pre class="gd-desc-pre">{{ travail.description || 'Aucune description - cliquez pour en ajouter.' }}</pre>
       </div>
     </template>
 
     <div v-else class="gd-desc-edit">
-      <textarea autofocus v-model="descDraft" class="gd-desc-textarea" rows="4" />
+      <textarea v-model="descDraft" autofocus class="gd-desc-textarea" rows="4" />
       <div class="gd-desc-edit-actions">
         <button class="btn-ghost" style="font-size:11px" @click="editingDesc = false">Annuler</button>
         <button class="btn-primary" style="font-size:11px;padding:3px 10px" @click="saveDesc">OK</button>

@@ -49,8 +49,8 @@
         style="width: 100%; height: 100%; object-fit: cover"
       />
       <component
-        v-else-if="props.icon"
         :is="props.icon"
+        v-else-if="props.icon"
         :size="Math.round(props.size * 0.52)"
       />
       <span v-else>{{ props.initials }}</span>

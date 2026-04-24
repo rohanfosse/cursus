@@ -138,7 +138,7 @@ function goBack() { router.push('/dashboard') }
   >
     <!-- Header epure, fade en playing ────────────────────────────── -->
     <header class="tr-header">
-      <button class="tr-icon-btn" @click.stop="goBack" :aria-label="'Retour au dashboard'">
+      <button class="tr-icon-btn" :aria-label="'Retour au dashboard'" @click.stop="goBack">
         <ArrowLeft :size="18" />
       </button>
       <span class="tr-brand">TypeRace</span>
@@ -198,7 +198,7 @@ function goBack() { router.push('/dashboard') }
         />
 
         <!-- Sparkline WPM live + stats integrees -->
-        <div class="tr-live" v-if="state === 'playing'">
+        <div v-if="state === 'playing'" class="tr-live">
           <SparklineWpm
             :samples="wpmSamples"
             :width="360"
@@ -250,7 +250,7 @@ function goBack() { router.push('/dashboard') }
             <span class="tr-end-metric-label">Precision</span>
             <span class="tr-end-metric-value">{{ Math.round(lastResult.accuracy * 100) }}%</span>
           </div>
-          <div class="tr-end-metric" v-if="currentRank">
+          <div v-if="currentRank" class="tr-end-metric">
             <span class="tr-end-metric-label">Rang</span>
             <span class="tr-end-metric-value">
               #{{ currentRank }}
@@ -260,7 +260,7 @@ function goBack() { router.push('/dashboard') }
           </div>
         </div>
 
-        <div class="tr-end-chart" v-if="wpmSamples.length > 1">
+        <div v-if="wpmSamples.length > 1" class="tr-end-chart">
           <SparklineWpm
             :samples="wpmSamples"
             :width="480"
@@ -272,7 +272,7 @@ function goBack() { router.push('/dashboard') }
         </div>
 
         <div class="tr-end-actions">
-          <button class="tr-btn-primary" @click.stop="newRound" :disabled="loading">
+          <button class="tr-btn-primary" :disabled="loading" @click.stop="newRound">
             <RotateCw :size="16" />
             Rejouer <kbd>Tab</kbd>
           </button>

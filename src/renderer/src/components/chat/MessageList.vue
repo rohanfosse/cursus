@@ -180,8 +180,8 @@ const dateGroups = computed<DateGroup[]>(() => {
 
 <template>
   <div
-    ref="listEl"
     id="messages-list"
+    ref="listEl"
     class="messages-list"
     role="log"
     aria-live="polite"

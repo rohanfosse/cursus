@@ -98,11 +98,11 @@ const todayIso = new Date().toISOString().slice(0, 10)
   <div class="bcv">
     <!-- Week nav -->
     <div class="bcv-nav">
-      <button class="bcv-nav-btn" @click="weekOffset--" aria-label="Semaine precedente">
+      <button class="bcv-nav-btn" aria-label="Semaine precedente" @click="weekOffset--">
         <ChevronLeft :size="14" />
       </button>
       <span class="bcv-week-label">{{ weekLabel }}</span>
-      <button class="bcv-nav-btn" @click="weekOffset++" aria-label="Semaine suivante">
+      <button class="bcv-nav-btn" aria-label="Semaine suivante" @click="weekOffset++">
         <ChevronRight :size="14" />
       </button>
       <button v-if="!isThisWeek" class="bcv-today-btn" @click="weekOffset = 0">Aujourd'hui</button>

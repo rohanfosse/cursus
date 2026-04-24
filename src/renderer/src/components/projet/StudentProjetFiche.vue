@@ -249,7 +249,7 @@ function gradeColor(note: string | null | undefined): string {
             >
               <span class="spf-doc-icon">
                 <Link2 v-if="doc.type === 'link'" :size="12" />
-                <component v-else :is="fileTypeIcon(doc.name)" :size="12" />
+                <component :is="fileTypeIcon(doc.name)" v-else :size="12" />
               </span>
               <span class="spf-doc-name">{{ doc.name }}</span>
               <ExternalLink :size="11" class="spf-doc-open" />

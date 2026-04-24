@@ -118,7 +118,7 @@ const winner = computed(() => winnerIndex())
             <span v-else class="poll-opt-check-placeholder" />
           </span>
           <span class="poll-opt-label">{{ opt }}</span>
-          <span class="poll-opt-stats" v-if="total > 0">
+          <span v-if="total > 0" class="poll-opt-stats">
             <span class="poll-opt-count">{{ votesState.totals[i] ?? 0 }}</span>
             <span class="poll-opt-percent">{{ percent(i) }}%</span>
           </span>

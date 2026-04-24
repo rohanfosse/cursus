@@ -388,8 +388,8 @@ function onKeydown(e: KeyboardEvent) {
                 >{{ COMMAND_CATEGORIES[cat] }}</div>
                 <button
                   v-for="(cmd, i) in refResults"
-                  :key="(cmd as SlashCommand).name + cat"
                   v-show="(cmd as SlashCommand).category === cat"
+                  :key="(cmd as SlashCommand).name + cat"
                   class="mi-mention-item mi-cmd-item"
                   :class="{ 'mi-mention-selected': i === refIndex }"
                   @mousedown.prevent="executeCommand(cmd as SlashCommand)"

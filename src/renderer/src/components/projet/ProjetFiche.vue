@@ -153,8 +153,8 @@ function formatDateRange(start?: string, end?: string): string {
       <div class="pf-header-identity">
         <div class="pf-icon-wrap">
           <component
-            v-if="parseCategoryIcon(projectKey).icon"
             :is="parseCategoryIcon(projectKey).icon!"
+            v-if="parseCategoryIcon(projectKey).icon"
             :size="22"
             class="pf-project-icon"
           />
