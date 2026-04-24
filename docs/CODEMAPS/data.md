@@ -1,6 +1,6 @@
-<!-- Generated: 2026-04-11 | Cursus v2.42.0 | Token estimate: ~520 -->
+<!-- Generated: 2026-04-24 | Cursus v2.241.0 | Token estimate: ~620 -->
 
-# Database Schema (SQLite v57)
+# Database Schema (SQLite v82)
 
 ## Core Tables
 
@@ -18,7 +18,7 @@
 | Table | Key Columns | Purpose | References |
 |-------|------------|---------|-----------|
 | `travaux` | id, promo_id, title, type (livrable/soutenance/cctl/etude_de_cas/memoire/autre), deadline, published, scheduled_publish_at, channel_id, group_id, requires_submission, room, aavs | Assignments + milestones + publication programmee | depots, rubrics, ressources, kanban_cards, project_travaux |
-| `depots` | id, travail_id, student_id, file_path, file_name, note (grade), feedback, link_url, deploy_url, submitted_at | Student submissions | rubric_scores |
+| `depots` | id, travail_id, student_id, group_id (v77), file_path, file_name, note (grade), feedback, link_url, deploy_url, submitted_at | Student submissions (un depot = toute l'equipe pour devoirs de groupe v77) | rubric_scores |
 | `travail_group_members` | travail_id, student_id, group_id | Assignment group access | (pivot) |
 | `ressources` | id, travail_id, type (file/link), name, path_or_url, category (Moodle/Github/LinkedIn/Site Web/Autre) | Assignment resources | |
 | `rubrics` | id, travail_id, title | Grading rubrics | rubric_criteria, rubric_scores |
@@ -37,9 +37,12 @@
 
 | Table | Key Columns | Purpose | References |
 |-------|------------|---------|-----------|
-| `messages` | id, channel_id, dm_student_id, author_id (±id), author_name, author_type, content, created_at, edited (flag), deleted_at, pinned, reactions (JSON), reply_to_id, reply_to_author, reply_to_preview | Chat messages + DM | reports |
+| `messages` | id, channel_id, dm_student_id, author_id (±id), author_name, author_type, content, created_at, edited (flag), deleted_at, pinned, reactions (JSON), reply_to_id, reply_to_author, reply_to_preview, poll_votes (JSON v78) | Chat messages + DM + sondages structures | reports |
 | `reports` | id, message_id, reporter_id, reporter_name, reason (spam/harassment/inappropriate/off_topic/other), status (pending/reviewed/dismissed), resolved_at | Flagged messages | |
-| `scheduled_messages` | id, channel_id, author_name, author_type, content, send_at, sent (flag) | Timed announcements | |
+| `scheduled_messages` | id, channel_id (nullable v80), dm_student_id, dm_peer_id, author_id, author_name, author_type, content, reply_to_id/author/preview, attachments_json, send_at, sent (flag), failed_at, error, created_at | Messages programmes user-scope (rebuild v80 : DMs + reply + attachments + crash-safe) | |
+| `bookmarks` | id, user_id (signe), user_type, message_id (FK messages ON DELETE CASCADE), note, created_at. UNIQUE(user_id, message_id) | Signets server-side (v79, remplace localStorage, sync cross-device) | messages |
+| `user_statuses` | user_id PK (signe), user_type, emoji, text, expires_at, updated_at | Statuts personnalises utilisateurs broadcastes via socket (presence:update / status:change) v81 | |
+| `link_previews` | url_hash PK (sha256 url normalisee), url, title, description, image, site_name, status (HTTP ou 0 si fetch error), fetched_at, expires_at | Cache OpenGraph TTL 24h (v82) — partage entre tous les messages | |
 
 ## Admin & Monitoring Tables
 
@@ -157,7 +160,7 @@ channels
 | idx_doc_promo_project | channel_documents(promo_id, project) | Project docs |
 | idx_teacher_notes_student | teacher_notes(student_id) | Get notes per student |
 
-## Migrations (v0 → v53)
+## Migrations (v0 → v82)
 
 | Version | Feature Added |
 |---------|---------------|
@@ -179,6 +182,31 @@ channels
 | v50-v55 | Lumen v1 (deprecated) — cours stockes en DB, drafts/published, snapshot repo read-only |
 | v56 | **Lumen pivot GitHub** — DROP lumen_courses/notes/reads, CREATE lumen_github_auth + lumen_repos + lumen_file_cache + lumen_chapter_notes + lumen_chapter_reads, ALTER promotions ADD github_org |
 | v57 | Lumen — liaison N:M devoirs <-> chapitres (lumen_chapter_travaux) |
+| v58 | Lumen — visibilite repo (is_visible sur lumen_repos, par defaut 1 pour repos existants, 0 pour nouveaux) |
+| v59 | Lumen — FTS5 fulltext search (table virtuelle `lumen_chapter_fts`, tokenize unicode61 remove_diacritics, alimentee lazy au fetch chapitre) |
+| v60 | Cahier — editeur collaboratif Yjs CRDT + TipTap (table `cahiers` : yjs_state BLOB, promo_id, group_id, project) |
+| v61 | **Live unifie** — fusion Spark + Pulse + Code + Board (live_sessions_v2, live_activities_v2 avec category, live_responses_v2, live_board_cards, live_board_votes) |
+| v62 | **Booking mini-Calendly** — booking_event_types, booking_availability_rules, booking_tokens, bookings, microsoft_tokens (OAuth Microsoft Graph) |
+| v63 | Booking — buffer time entre RDV (booking_event_types.buffer_minutes) |
+| v64 | Booking — reminders (booking_reminders), reschedule (rescheduled_from_id), timezone (par defaut Europe/Paris) |
+| v65 | Booking — recurrence (recurrence_group_id) + availability overrides (booking_availability_overrides par date) |
+| v66 | Spark replay — mode async apres fin de session (colonne `mode` live/replay sur live_responses_v2 + live_scores, UNIQUE etendue) |
+| v67 | Message Wall — colonne `hidden` sur live_board_cards (moderation) + table live_confusion_signals |
+| v68 | Self-paced mode — colonne `self_paced` sur live_sessions_v2 |
+| v69 | Texte a trous — no DB change (type stocke comme string dans live_activities_v2, reutilise correct_answers JSON existant) |
+| v70 | Fix `users` manquant — drop FK cassees vers `users(id)` sur cahiers/booking_event_types/booking_availability_rules/microsoft_tokens, CREATE VIEW `users` (UNION teachers + students) pour les JOINs existants |
+| v71 | OAuth states en DB (Booking Microsoft Graph) — table `oauth_states` (nonce PK, teacher_id, expires_at). Survit aux redemarrages et au multi-instance |
+| v72 | Calendar feed tokens — table `calendar_feed_tokens` ((user_type, user_id) PK, token UNIQUE) pour abonnement iCal public par utilisateur (revocation = DELETE) |
+| v73 | TypeRace — table `typerace_scores` (user_type/user_id, promo_id, phrase_id, wpm, accuracy, score, duration_ms) pour leaderboard mini-jeu typing FR |
+| v74 | Arcade games scores — table generique `game_scores` (game_id, user_type/user_id, promo_id, score, duration_ms, meta JSON) pour Snake/Space Invaders/Pacman/etc. |
+| v75 | Index `idx_travaux_channel` sur travaux(channel_id) pour getTravaux(channelId) |
+| v76 | Backfill `requires_submission = 0` pour type IN ('cctl', 'soutenance', 'etude_de_cas') — ces examens en salle ne sont pas des devoirs a rendre |
+| v77 | Devoirs de groupe "un depot = toute l'equipe" — ALTER depots ADD group_id (FK groups ON DELETE SET NULL), backfill depuis travaux.group_id, dedup sur (travail_id, group_id), index partiel `idx_depots_group` |
+| v78 | Sondages structures dans messages — ALTER messages ADD poll_votes TEXT (JSON `{ totals, voters }`) pour sortir les votes du contenu et des reactions emoji |
+| v79 | Signets server-side — table `bookmarks` (user_id signe + message_id UNIQUE, FK messages ON DELETE CASCADE). Remplace localStorage, sync cross-device |
+| v80 | Messages programmes user-scope — rebuild `scheduled_messages` : channel_id NULLABLE, author_id, dm_student_id/dm_peer_id (DMs), reply_to_*, attachments_json, failed_at/error (crash-safe). CHECK XOR channel vs DM |
+| v81 | Statuts personnalises utilisateurs — table `user_statuses` (user_id PK signe, user_type, emoji, text, expires_at). Broadcast via socket `presence:update` + `status:change` |
+| v82 | Cache OpenGraph link previews — table `link_previews` (url_hash sha256 PK, title/description/image/site_name, status HTTP, expires_at TTL 24h). Evite de re-fetcher les liens morts |
 
 ## Lumen Tables (v56-v57, post-pivot GitHub)
 
@@ -193,10 +221,65 @@ channels
 
 **Promo mapping** : `promotions.github_org TEXT` (ajoute en v56) — 1 promo = 1 organisation GitHub.
 
+## Cahier Tables (v60)
+
+| Table | Key Columns | Purpose | References |
+|-------|------------|---------|-----------|
+| `cahiers` | id, promo_id (FK promotions), group_id (FK groups, nullable), project, title, yjs_state (BLOB), created_by, created_at, updated_at | Cahier collaboratif Yjs CRDT + TipTap (1 cahier = 1 document Y.Doc serialise). Indexes : promo_id, group_id, (promo_id, project) | promotions, groups |
+
+## Live Unifie Tables (v61-v69)
+
+| Table | Key Columns | Purpose |
+|-------|------------|---------|
+| `live_sessions_v2` | id, teacher_id, promo_id, title, join_code (UNIQUE), status (waiting/active/ended), is_async, open_until, self_paced (v68), created_at, ended_at | Session unifiee Spark/Pulse/Code/Board (remplace live_sessions) |
+| `live_activities_v2` | id, session_id, category (spark/pulse/code/board), type, title, options (JSON), multi, max_words, max_rating, timer_seconds, correct_answers (JSON — inclut texte a trous v69), content, language, position, status, started_at, closed_at | Activites typees par categorie |
+| `live_responses_v2` | id, activity_id, student_id, answer, pinned, mode (live/replay, v66), created_at. UNIQUE(activity_id, student_id, mode) | Reponses + replay async |
+| `live_board_cards` | id, activity_id, column_name, content, author_id, author_name, color, votes, hidden (v67, moderation), created_at | Cartes Message Wall |
+| `live_board_votes` | id, card_id, student_id. UNIQUE(card_id, student_id) | Votes Message Wall |
+| `live_confusion_signals` | id, session_id, student_id, active, created_at. UNIQUE(session_id, student_id) | Signal "je suis perdu" temps reel (v67) |
+
+## Booking Tables (v62-v65)
+
+| Table | Key Columns | Purpose |
+|-------|------------|---------|
+| `booking_event_types` | id, teacher_id, title, slug (UNIQUE), description, duration_minutes, color, fallback_visio_url, is_active, buffer_minutes (v63), timezone (v64), created_at | Type de RDV bookable (1 prof peut en avoir plusieurs) |
+| `booking_availability_rules` | id, teacher_id, day_of_week (0-6), start_time, end_time, is_active | Creneaux hebdo recurrents |
+| `booking_availability_overrides` | id, event_type_id, override_date, start_time, end_time, is_blocked. UNIQUE(event_type_id, override_date, start_time) | Exceptions ponctuelles (v65) |
+| `booking_tokens` | id, event_type_id, student_id, token (UNIQUE), created_at | Token d'invitation public (envoye a l'etudiant pour partage tuteur) |
+| `bookings` | id, event_type_id, student_id, teacher_id, tutor_name, tutor_email, start_datetime, end_datetime, teams_join_url, outlook_event_id, status (confirmed/cancelled/rescheduled), cancel_token (UNIQUE), rescheduled_from_id (v64), recurrence_group_id (v65), created_at | RDV reserve (visio Teams via Graph) |
+| `booking_reminders` | id, booking_id, type (email_24h…), scheduled_at, sent_at. UNIQUE(booking_id, type) | Rappels email automatiques (v64) |
+| `microsoft_tokens` | teacher_id (PK), access_token_enc, refresh_token_enc (AES-256-GCM), expires_at, updated_at | Token OAuth Microsoft Graph (chiffre) |
+| `oauth_states` (v71) | nonce (PK), teacher_id, created_at, expires_at | State store OAuth Microsoft Graph en DB (resout perte d'etat multi-instance / redemarrage) |
+
+## Calendar Feed (v72)
+
+| Table | Key Columns | Purpose |
+|-------|------------|---------|
+| `calendar_feed_tokens` | (user_type, user_id) PK composite, token UNIQUE, created_at | Abonnement iCal public `/ical/:token.ics` par utilisateur. Token opaque aleatoire (1 seul actif par user), revocation = DELETE, rotation = upsert |
+
+## Games Tables (v73-v74)
+
+| Table | Key Columns | Purpose |
+|-------|------------|---------|
+| `typerace_scores` (v73) | id, user_type, user_id, promo_id (nullable), phrase_id, wpm, accuracy, score, duration_ms, created_at | Leaderboard TypeRace (typing speed FR). Partie re-jouable illimitee, aggregation best par user sur fenetre (jour/semaine/all). Anti-triche : coherence wpm/durationMs verifiee au POST |
+| `game_scores` (v74) | id, game_id, user_type, user_id, promo_id (nullable), score, duration_ms, meta (JSON), created_at | Table generique arcade (Snake, Space Invaders, Pacman...). Schema unifie evite 1 table par jeu |
+
+## Utility Tables (v67+)
+
+| Table | Key Columns | Purpose |
+|-------|------------|---------|
+| `lumen_chapter_fts` | repo_id (UNINDEXED), chapter_path (UNINDEXED), title, content | Table virtuelle FTS5 (v59) pour la recherche dans les chapitres Lumen (tokenize unicode61, diacritics strippes) |
+
+## Notes
+
+- **`users` VIEW (v70)** : n'est PAS une table physique. C'est une VIEW SQL `SELECT id, name, email, 'teacher' AS role FROM teachers UNION ALL SELECT id, name, email, 'student' AS role FROM students` — utilisee par les JOINs existants dans cahiers.js / bookings.js. Les tables qui pointaient `REFERENCES users(id)` (cahiers, booking_event_types, booking_availability_rules, microsoft_tokens) ont ete recrees en v70 sans cette FK cassee.
+- **user_id signe** (convention) : dans bookmarks, user_statuses, scheduled_messages (author_id), messages (author_id), l'id utilisateur est **signe** : positif = etudiant, negatif = enseignant. Pas de FK (compatibilite double table students/teachers).
+
 ## Encryption Status
 
 - **Passwords**: bcrypt SHA-256 (v16+)
 - **Tokens**: JWT signed with APP_JWT_SECRET
 - **DMs**: AES-256-GCM (`server/utils/crypto.js`, prefix `enc:`)
 - **Lumen GitHub tokens**: AES-256-GCM same helpers (v2.42.0+), lazy migration of legacy plain
+- **Microsoft Graph tokens (Booking v62+)**: AES-256-GCM sur access_token_enc + refresh_token_enc
 - **Files**: No encryption (access via JWT bearer token)

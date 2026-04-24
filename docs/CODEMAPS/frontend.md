@@ -1,22 +1,29 @@
-<!-- Generated: 2026-04-09 | Cursus v2.31.0 | Token estimate: ~560 -->
+<!-- Generated: 2026-04-24 | Cursus v2.241.0 | Token estimate: ~700 -->
 
 # Frontend Views, Stores & Composables
 
-## Views (9 main routes)
+## Views (16 main routes)
 
 | View File | Route | Purpose | Role |
 |-----------|-------|---------|------|
-| `DashboardView.vue` | `/` | Home + quick stats + widgets | both |
+| `DashboardView.vue` | `/dashboard` (+ `/` redirect) | Home + quick stats + widgets | both |
 | `MessagesView.vue` | `/messages` | Channel chat + DM inbox | both |
-| `DevoirsView.vue` | `/assignments` | Travaux (homework/projects) list + details | both |
-| `FilesView.vue` | `/files` | Shared documents + uploads | both |
+| `DevoirsView.vue` | `/devoirs` (+ `/travaux` redirect) | Travaux (homework/projects) list + details | both |
 | `DocumentsView.vue` | `/documents` | Project-scoped document library | both |
+| `FilesView.vue` | `/fichiers` | Fichiers partages par les etudiants (teacher only) | teacher |
 | `AgendaView.vue` | `/agenda` | Calendar + schedule view | both |
-| `LiveView.vue` | `/live` | Live quiz sessions (QCM, polls, word clouds) | both |
-| `RexView.vue` | `/rex` | REX feedback sessions (async-compatible) | both |
-| `LumenView.vue` | `/lumen` | Cours markdown publies, editeur teacher + reader etudiant, avec code examples et notes privees | both |
+| `LiveView.vue` | `/live` | Live unifie (Spark/Pulse/Code/Board) — module opt-in | both |
+| `LumenView.vue` | `/lumen` | Liseuse cours adossee a GitHub : repos, chapitres, notes privees, FTS5 search | both |
+| `AdminView.vue` | `/admin` | Console d'administration (users, audit, stats, moderation, maintenance) | admin |
+| `BookmarksView.vue` | `/signets` | Vue dediee signets de messages (recherche + filtres + note) | both |
+| `GamesView.vue` | `/jeux` | Hub des mini-jeux (module opt-in) | both |
+| `TypeRaceView.vue` | `/typerace` | Mini-jeu typing speed FR + leaderboard promo | both |
+| `SnakeView.vue` | `/snake` | Mini-jeu Snake + leaderboard | both |
+| `SpaceInvadersView.vue` | `/space-invaders` | Mini-jeu Space Invaders + leaderboard | both |
+| `BookingPublicView.vue` | `/book/:token` | Page publique de reservation RDV (Calendly-like), pas d'auth | public |
+| `BookingCancelView.vue` | `/book/cancel/:token` | Page publique d'annulation/reschedule RDV, pas d'auth | public |
 
-## Stores (10 total, Pinia)
+## Stores (14 total, Pinia)
 
 | Store | Key State | Key Actions | Purpose |
 |-------|-----------|-------------|---------|
@@ -25,13 +32,17 @@
 | `travaux.ts` | assignments, filters, view | fetchAssignments, createAssignment, updateAssignment, getGantt | Assignment management |
 | `documents.ts` | docs, activeProject, filter | fetchDocuments, uploadFile, deleteFile, filterByProject | Document library |
 | `agenda.ts` | events, selectedDate, view | fetchEvents, createEvent, updateEvent, syncCalendar | Calendar + scheduling |
-| `live.ts` | sessions, activities, responses, scores | joinSession, submitAnswer, closeActivity, getLeaderboard | Live quiz state |
-| `rex.ts` | sessions, activities, responses, analytics | createSession, submitResponse, getAnalytics, exportResults | REX feedback |
+| `live.ts` | sessions, activities, responses, scores | joinSession, submitAnswer, closeActivity, getLeaderboard | Live unifie (Spark/Pulse/Code/Board) |
 | `kanban.ts` | cards, columns, filter | fetchCards, createCard, updateCard, moveCard | Kanban task board |
 | `modals.ts` | open, type, data, callback | openModal, closeModal, confirmAction | Modal manager (global) |
-| `lumen.ts` | courses, currentCourse, unreadCourses, snapshotTrees, fileContentCache, notesCache, notedCourseIds, readCounts | fetchCoursesForPromo, createCourse, publishCourse, markAllAsRead, fetchSnapshotTree, fetchFileContent, refreshSnapshot, fetchCourseNote, saveCourseNote, fetchReadCounts | Cours Lumen, snapshot repo git, notes etudiant privees |
+| `lumen.ts` | repos, activeRepo, manifestCache, chapterCache, notesCache, readsCache, searchIndex | fetchReposForPromo, syncRepo, fetchChapter, saveNote, markRead, search (FTS5) | Lumen v2 GitHub-backed : repos par promo, cache markdown, notes et lectures par chapitre |
+| `bookmarks.ts` | ids (Set), list | initIds, toggle, fetchList, setNote, importBulk | Signets de messages : Set charge une fois au login pour O(1) has() cote bulle |
+| `cahier.ts` | cahiers[], loading, activeCahierId | fetchCahiers, createCahier, renameCahier, deleteCahier | Liste des cahiers collaboratifs (Yjs state charge a part dans l'editeur) |
+| `fichiers.ts` | files[], loading, selectedStudentId, filterType | fetchFiles, selectStudent, setFilterType | Vue teacher des fichiers DM recus des etudiants (images / docs) |
+| `scheduled.ts` | items[], loading | fetchMine, schedule (create), cancel, editContent | Messages programmes de l'utilisateur (envoi differe par cron serveur) |
+| `statuses.ts` | byUserId Map<number, UserStatus>, mine, loaded | init, set, clear, applyRealtime (presence + status:change) | Statuts emoji + texte utilisateurs : load initial + mises a jour Socket.io |
 
-## Composables (50+, organized by feature)
+## Composables (140 total, organized by feature)
 
 ### Core/API
 - `useApi.ts` — HTTP client wrapper + auto retry + error handling
@@ -44,6 +55,7 @@
 - `useMsgAutocomplete.ts` — @mention + emoji autocomplete
 - `useMsgDraft.ts` — Draft recovery + auto-save
 - `useMsgFormatting.ts` — Markdown + mentions + links parsing
+- `useLocalTasks.ts` — Overlay per-user des checklist `- [ ]` / `- [x]` des messages chat. Stocke dans localStorage (cle `cc_local_tasks`) pour permettre a chaque utilisateur de cocher/decocher ses taches sans muter le message source. Passe comme 4e argument a `src/renderer/src/utils/html.ts` au render. Ajoute en v2.241.0.
 
 ### UI Components (Bubbles = message interactions)
 - `useBubbleActions.ts` — Context menu (pin, react, delete)
@@ -107,6 +119,28 @@
 - `useClockTimer.ts` — Countdown timer for activities
 - `useRealtimeClock.ts` — Real-time clock display
 
+### Lumen / Cours (v56+ GitHub-backed)
+- `useChapterEdit.ts`, `useChapterAccueil.ts`, `useChapterCompanion.ts`, `useChapterKind.ts`, `useChapterLinkedTravaux.ts`, `useChapterOutline.ts`, `useChapterSearch.ts`, `useChapterStaleStatus.ts` — Lecture / edition chapitres GitHub + FTS5 + liaison devoirs
+
+### Cahier collaboratif (v60)
+- `useCahierCollab.ts` — Socket Yjs provider + awareness (presence curseurs)
+- `useCahierEditor.ts` — Wiring TipTap + binding Y.Doc + autosave debounce 5s
+
+### Booking (v62-v65)
+- `useBooking.ts` — Flow public reservation (fetch slots, book, cancel, reschedule)
+
+### Agenda & iCal
+- `useAgendaFilters.ts`, `useAgendaIcsExport.ts`, `useAgendaKeyboardShortcuts.ts`, `useAgendaOutlookPolling.ts`, `useAgendaViewNav.ts`, `useCalendarFeed.ts` — Filtres, export ICS, raccourcis clavier, polling Outlook (Microsoft Graph), feed abonnement
+
+### Games (module opt-in)
+- `useArcadeGame.ts` — Boucle de rendu + gestion score/anti-triche cote client (partagee Snake/SpaceInvaders)
+
+### Depots & Grading
+- `useDepotActions.ts`, `useDepotFeedbackBank.ts`, `useDepotFilterSort.ts`, `useDepotInlineGrading.ts`, `useDepotStats.ts` — Actions rendu, banque de commentaires reutilisables, filtres/tri, notation inline, stats
+
+### Statuses & Presence
+- `useStatuses` (integre dans le store) + `useAppListeners.ts` — Ecoute `status:change` / `presence:update`
+
 ### Utilities
 - `usePermissions.ts` — Check user role (student, teacher, admin)
 - `useDebounce.ts` — Debounce hook
@@ -124,15 +158,19 @@
 
 | Event | Payload | Direction |
 |-------|---------|-----------|
-| `user-status` | { userId, status: 'online'|'offline' } | emit |
+| `user-status` | { userId, status: online/offline } | emit |
 | `message` | { id, content, author, channelId } | on |
 | `message-edited` | { messageId, newContent } | on |
 | `message-deleted` | { messageId } | on |
 | `typing` | { userId, channelId, isTyping } | emit/on |
 | `reaction-added` | { messageId, emoji, userId } | on |
 | `live-activity-update` | { sessionId, activityId, status } | on |
-| `rex-response` | { sessionId, activityId, response } | emit |
 | `kanban-update` | { cardId, status, position } | emit/on |
+| `status:change` | { userId, emoji, text, expiresAt } | on |
+| `presence:update` | { userId, online, status? } | on |
+| `cahier:yjs-update` | { cahierId, update (binary) } | emit/on |
+| `live-v2:activity-update` | { sessionId, activityId, status } | on |
+| `live-v2:confusion` | { sessionId, count } | on |
 
 ## Data Flow Patterns
 

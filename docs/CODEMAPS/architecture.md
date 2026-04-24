@@ -1,4 +1,4 @@
-<!-- Generated: 2026-03-30 | Cursus v2.4.0 | Token estimate: ~250 -->
+<!-- Generated: 2026-04-24 | Cursus v2.241.0 | Token estimate: ~260 -->
 
 # Cursus — Architecture Overview
 
@@ -28,7 +28,7 @@
 - Electron: ^29.1.0
 - Express: ^4.22.1
 - Vue 3: ^3.5.30
-- SQLite: v47 (schema version), better-sqlite3: ^12.8.0
+- SQLite: v82 (schema version), better-sqlite3: ^12.8.0
 - TypeScript: ^5.9.3
 
 ## Project Structure
@@ -38,13 +38,13 @@
 │   ├── main/              # Electron main process (IPC bridge)
 │   ├── preload/           # IPC security context
 │   ├── renderer/          # Vue 3 frontend
-│   │   ├── src/views/     # 8 main routes
-│   │   ├── src/stores/    # 9 Pinia stores
-│   │   └── src/composables/ # 50+ reusable hooks
+│   │   ├── src/views/     # 16 main routes (Dashboard, Messages, Devoirs, Documents, Lumen, Live, Agenda, Admin, Bookmarks, Files, 4x Games, 2x public Booking)
+│   │   ├── src/stores/    # 14 Pinia stores
+│   │   └── src/composables/ # 140 reusable hooks
 │   └── landing/           # Marketing landing page
 ├── server/
 │   ├── index.js           # Express bootstrap + middleware chain
-│   ├── routes/            # 22 route files (~500 endpoints total)
+│   ├── routes/            # 36 route files + admin/ + bookings/ sub-folders (~500 endpoints total)
 │   ├── middleware/        # auth, validate, authorize
 │   ├── db/                # SQLite models, schema, queries
 │   ├── services/          # scheduler, socket handler
@@ -57,7 +57,7 @@
 ```
 
 ## Security Perimeter
-- **Public routes**: `/api/auth`, `/api/report-error`, `/health`, `/download`
+- **Public routes**: `/api/auth`, `/api/report-error`, `/api/update/config`, `/health`, `/download`, `/ical/:token.ics`, `/api/bookings/public/*`
 - **Protected routes**: `/api/*` (require JWT bearer token)
 - **Admin routes**: `/api/admin/*` (require admin role)
 - **Static files**: `/uploads` (require JWT), `/admin-monitor` (read-only)
@@ -78,15 +78,16 @@
 
 ## Database
 - **File**: `server/data.db` (single SQLite file)
-- **Migrations**: v0→v47 via PRAGMA user_version
-- **Tables**: 40+ (see data.md for schema)
-- **Encryption**: none yet (groundwork for AES-256-GCM DMs)
+- **Migrations**: v0→v82 via PRAGMA user_version
+- **Tables**: 60+ (see data.md for schema) + `users` VIEW (v70, UNION teachers + students)
+- **Encryption**: AES-256-GCM for Lumen GitHub tokens + Microsoft Graph tokens (Booking) via `server/utils/crypto.js`
 
 ## Realtime Features
-- **Socket.io**: User presence, typing indicators, live messages
-- **Live Quiz**: Teacher-led interactive sessions (QCM, polls, word clouds)
-- **REX (Retour d'Expérience)**: Anonymous feedback collection (async-compatible)
+- **Socket.io**: User presence, typing indicators, live messages, user statuses (emoji)
+- **Live unifie (v61)**: Fusion Spark (QCM) + Pulse (sondages) + Code (exos) + Board (message wall) — sessions teacher-led + self-paced + replay async
+- **Cahier collaboratif (v60)**: Editeur Yjs CRDT + TipTap, sync binaire, autosave debounce 5s
 - **Kanban**: Project task tracking (group collaboration)
+- **Booking (v62-v65)**: Mini-Calendly RDV visio tuteurs entreprise — Microsoft Graph OAuth, buffers, reminders, reschedule, recurrence
 
 ## Deployment
 - **Development**: `npm run dev` (Electron), `npm run dev:web` (Vite)
