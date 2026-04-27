@@ -327,3 +327,10 @@ export function useBooking() {
     formatDate, formatTime, statusLabel, statusClass,
   }
 }
+
+/**
+ * Type partage pour les composants enfants qui consomment l'instance unique
+ * de useBooking creee par TabBooking. Permet de typer les props sans avoir
+ * a redeclarer chaque ref individuellement.
+ */
+export type BookingHandle = ReturnType<typeof useBooking>

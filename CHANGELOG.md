@@ -1,5 +1,46 @@
 # Changelog
 
+## v2.251.3 (2026-04-27)
+
+### Split TabBooking : 673 lignes -> 1 orchestrateur + 3 sections
+
+`TabBooking.vue` etait un monolithe de 673 lignes mixant 3 responsabilites
+distinctes. Decoupage en 4 fichiers a responsabilite unique :
+
+- `TabBooking.vue` (151 lignes) : orchestrateur leger. Instancie une seule
+  fois `useBooking()`, gere le bandeau Microsoft + listeners socket, et
+  delegue le rendu aux 3 sections via prop `booking`.
+- `TabBookingEventTypes.vue` (585 lignes) : types de RDV + creation + lien
+  public/Jitsi/lien nominatif/bulk + QR codes.
+- `TabBookingAvailability.vue` (202 lignes) : grille hebdomadaire des
+  disponibilites.
+- `TabBookingMyBookings.vue` (164 lignes) : toggle vue calendrier/liste.
+
+**Type partage `BookingHandle`** : nouveau type exporte par `useBooking.ts`
+(`ReturnType<typeof useBooking>`) pour typer la prop `booking` sans
+redeclarer chaque ref individuellement dans chaque enfant.
+
+**A11y baseline** : `aria-pressed` sur les toggles Active/Public/Jitsi,
+`aria-busy` sur le bouton de sauvegarde des disponibilites, paire
+`role="tablist"`/`role="tab"` avec `aria-pressed` sur le toggle
+calendrier/liste, libelles explicites sur tous les inputs `time` et bouton
+supprimer (avec contexte de la valeur supprimee), `type="button"` sur tous
+les boutons hors form.
+
+**Tokens design system** :
+
+- Tous les `var(--space-*)`, `var(--radius-*)`, `var(--motion-*)`,
+  `var(--ease-*)`, `var(--focus-ring)` au lieu des valeurs hardcodees.
+- Badges status (success/warning/danger) passent sur `color-mix(in srgb,
+  var(--color-*) X%, transparent)` au lieu des hex.
+- Palette d'identification des types (12 couleurs) explicitement marquee
+  comme palette fixe (pas des tokens theme), commentee comme telle.
+- Microsoft status dot : passe de `#22c55e` / `#94a3b8` vers
+  `var(--color-success)` / `var(--text-muted)`.
+
+Tests : 1946 passants (aucun nouveau, aucune regression). Typecheck clean.
+Lint clean. check:design clean.
+
 ## v2.251.2 (2026-04-27)
 
 ### Tests useBooking + extraction helpers BookingFlow + a11y baseline
