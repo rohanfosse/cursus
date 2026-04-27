@@ -11,7 +11,7 @@ import { ref, computed, onMounted } from 'vue'
 import {
   Calendar, Plus, Send, Trash2, X, Check, Clock, Users, BellRing,
   ChevronDown, ChevronRight, AlertCircle, Copy, MailCheck, Sparkles,
-  CalendarRange, CalendarOff, Briefcase, Video,
+  CalendarRange, CalendarOff, Briefcase, Video, Eye,
 } from 'lucide-vue-next'
 import { useCampaigns, type Campaign, type HebdoRule } from '@/composables/useCampaigns'
 import { useToast } from '@/composables/useToast'
@@ -21,6 +21,8 @@ import UiPill from '@/components/ui/UiPill.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import Modal from '@/components/ui/Modal.vue'
+import BookingPreviewModal from '@/components/booking/BookingPreviewModal.vue'
+import type { BookingFlowInfo } from '@/components/booking/bookingFlow.types'
 
 const props = defineProps<{
   defaultNotifyEmail?: string
@@ -251,6 +253,32 @@ function toggleExpand(id: number) {
   expandedId.value = expandedId.value === id ? null : id
 }
 
+// ── Apercu invitation etudiant ───────────────────────────────────────────
+
+const previewOpen = ref(false)
+const previewInfo = ref<BookingFlowInfo | null>(null)
+
+/**
+ * Construit la BookingFlowInfo a partir d'une campagne pour montrer au prof
+ * exactement ce que verra un etudiant invite (avec tuteur si tripartite).
+ * Le nom de l'etudiant est generique car la preview n'est pas attachee a
+ * une invitation precise.
+ */
+function openPreview(c: Campaign) {
+  previewInfo.value = {
+    title: c.title,
+    description: c.description,
+    durationMinutes: c.duration_minutes,
+    color: c.color,
+    hostName: 'Toi (apercu)',
+    timezone: c.timezone,
+    attendeeName: 'Etudiant invite',
+    attendeeEmail: 'etudiant@exemple.fr',
+    withTutor: c.with_tutor === 1,
+  }
+  previewOpen.value = true
+}
+
 onMounted(() => {
   fetchAll()
   loadPromos()
@@ -375,6 +403,10 @@ onMounted(() => {
             </div>
 
             <div class="cm-actions">
+              <UiButton variant="ghost" size="sm" @click="openPreview(c)">
+                <template #leading><Eye :size="12" /></template>
+                Apercu invitation
+              </UiButton>
               <UiButton v-if="c.status === 'draft'" variant="primary" size="sm" @click="onLaunch(c)">
                 <template #leading><Send :size="12" /></template>
                 Lancer ({{ c.invite_count ?? 0 }} mails)
@@ -666,6 +698,11 @@ onMounted(() => {
         </UiButton>
       </footer>
     </Modal>
+
+    <BookingPreviewModal
+      v-model="previewOpen"
+      :info="previewInfo"
+    />
   </section>
 </template>
 

@@ -12,10 +12,12 @@
  */
 import { ref, computed, watch, onUnmounted } from 'vue'
 import {
-  CalendarPlus, Clock, Link, Trash2, Plus, Check, X, Copy, Globe, Video, Search,
+  CalendarPlus, Clock, Link, Trash2, Plus, Check, X, Copy, Globe, Video, Search, Eye,
 } from 'lucide-vue-next'
 import QrCode from '@/components/ui/QrCode.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import BookingPreviewModal from '@/components/booking/BookingPreviewModal.vue'
+import type { BookingFlowInfo } from '@/components/booking/bookingFlow.types'
 import { type BookingHandle, type EventType } from '@/composables/useBooking'
 
 const props = defineProps<{
@@ -156,6 +158,31 @@ function copyAllBulkLinks() {
   navigator.clipboard.writeText(text)
 }
 
+// ── Apercu visiteur ────────────────────────────────────────────────────────
+
+const previewOpen = ref(false)
+const previewInfo = ref<BookingFlowInfo | null>(null)
+const previewUrl = ref<string | null>(null)
+
+function openPreview(et: EventType) {
+  previewInfo.value = {
+    title: et.title,
+    description: et.description ?? null,
+    durationMinutes: et.duration_minutes,
+    color: et.color,
+    hostName: 'Toi (apercu)',
+    timezone: et.timezone,
+    attendeeName: null,
+    attendeeEmail: null,
+    withTutor: false,
+  }
+  // L'URL publique est utile meme si is_public=0 : le bouton "Ouvrir le vrai
+  // lien" du modal envoie le prof voir sa page de production. Si non publie,
+  // on n'expose pas le lien (le visiteur tomberait sur une erreur).
+  previewUrl.value = et.is_public ? props.booking.getPublicUrl(et) : null
+  previewOpen.value = true
+}
+
 onUnmounted(() => {
   if (copyTimeout) clearTimeout(copyTimeout)
   if (publicCopyTimeout) clearTimeout(publicCopyTimeout)
@@ -222,6 +249,15 @@ onUnmounted(() => {
           >
             <Check v-if="et.is_active" :size="10" />
             <X v-else :size="10" />
+          </button>
+          <button
+            type="button"
+            class="btn-icon btn-preview"
+            title="Apercu : voir ce que verra un etudiant"
+            :aria-label="`Apercu visiteur de ${et.title}`"
+            @click.stop="openPreview(et)"
+          >
+            <Eye :size="12" />
           </button>
           <button
             type="button"
@@ -445,6 +481,12 @@ onUnmounted(() => {
         </button>
       </div>
     </div>
+
+    <BookingPreviewModal
+      v-model="previewOpen"
+      :info="previewInfo"
+      :public-url="previewUrl"
+    />
   </div>
 </template>
 
@@ -676,5 +718,6 @@ onUnmounted(() => {
 }
 .btn-icon:hover { background: var(--bg-hover); color: var(--text-primary); }
 .btn-icon.btn-danger:hover { color: var(--color-danger); }
+.btn-icon.btn-preview:hover { color: var(--accent); }
 .btn-icon:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 </style>

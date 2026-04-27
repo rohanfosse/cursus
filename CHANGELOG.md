@@ -1,5 +1,44 @@
 # Changelog
 
+## v2.254.0 (2026-04-27)
+
+### Apercu visiteur : voir ce que verra l'etudiant
+
+Ajout d'un bouton "Apercu" sur chaque type de RDV et sur chaque campagne
+qui ouvre une modale montrant le `BookingFlow` reel tel qu'il apparaitra
+a l'etudiant — sans envoyer de mail ni rien enregistrer.
+
+**Nouveaux fichiers :**
+
+- `utils/bookingPreviewSlots.ts` (75 lignes) : generateur de creneaux
+  fictifs (jours ouvres, week-ends exclus, heures rondes 9h/10h/14h/15h).
+  Adaptatif : 2 creneaux/jour si duree ≥ 90 min, 4 sinon. Format ISO local
+  stable independant du fuseau horaire.
+- `components/booking/BookingPreviewModal.vue` (180 lignes) : modale qui
+  monte le composant `BookingFlow` reel avec les donnees du type / campagne
+  ainsi que des slots synthetiques. Banniere "Mode apercu" non-interactive.
+  Boutons "Ouvrir le vrai lien" (qui delegue a `window.api.openExternal` si
+  Electron, sinon `window.open`) et "Fermer l'apercu". La step de
+  confirmation est simulee localement (pas d'appel backend).
+
+**Integration :**
+
+- `TabBookingEventTypes` : nouveau bouton icone Eye sur chaque ligne de
+  type, entre le toggle Actif et le bouton Supprimer. Au hover : couleur
+  accent. La fonction `openPreview(et)` construit le `BookingFlowInfo`
+  depuis l'EventType et passe l'URL publique (uniquement si is_public=1).
+- `CampaignManager` : nouveau `UiButton` "Apercu invitation" en tete de la
+  rangee d'actions de chaque campagne. Reflete les 2 modes : tripartite
+  (avec champs tuteur) ou simple selon `c.with_tutor`.
+
+**Tests (11) :** `bookingPreviewSlots.test.ts` couvre le contrat complet :
+nb de creneaux par duree, calcul correct du `end`, exclusion week-end, saut
+samedi → lundi suivant, format ISO local, parametre `from`/`startHours`
+custom, demarrage depuis aujourd'hui si jour ouvre.
+
+Tests : 1957 passants (+11). Typecheck clean. Lint clean. check:design
+clean sur les fichiers modifies.
+
 ## v2.253.0 (2026-04-27)
 
 ### Promotion de Rendez-vous en onglet top-level
