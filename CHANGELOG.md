@@ -1,5 +1,29 @@
 # Changelog
 
+## v2.250.4 (2026-04-27)
+
+### Fix : `window.api.onBookingNew is not a function` en mode web
+
+Symptome : sur le build web (cursus.school via navigateur), plein d'onglets (Documents, Rendez-vous, etc.) plantaient avec `window.api.onBookingNew is not a function` ou variantes (`onBookingCancelled`, `onAuthExpired`, `onStatusChange`, `onPollUpdate`, `onLiveCodeUpdate`, ...). Cause : le shim `src/web/api-shim.ts` n'expose qu'un sous-ensemble du preload Electron. A chaque feature ajoutee au preload sans toucher au shim, le mode web casse.
+
+**Fix immediat — handlers manquants** :
+
+Ajout explicite dans le shim de `onBookingNew`, `onBookingCancelled` et `onAuthExpired`, plus le wiring socket `booking:new` / `booking:cancelled`.
+
+**Fix structurel — Proxy fallback** :
+
+`window.api` est maintenant wrappe dans un `Proxy` qui intercepte les proprietes inconnues et retourne un fallback degrade :
+
+- `on*` / `off*` -> retourne un unsubscribe no-op `() => {}`
+- `emit*` / `set*` / `clear*` -> retourne `undefined`
+- Methodes async -> `Promise.resolve({ ok: false, error: 'Action non disponible sur le web', _webFallback: true })`
+
+Chaque methode unknown est loggee une seule fois en console (`[api-shim] window.api.xxx() not implemented`) pour faciliter le debug ulterieur sans bruit. L'app continue a marcher gracefully au lieu de crasher.
+
+**Compromis** : ce filet masque potentiellement de vraies regressions (une route renommee qui devrait fonctionner en web). Acceptable car le mode web reste secondaire et le warning console pointe immediatement vers la cause.
+
+Tests : 42 passants (8 booking + 34 app store). Typecheck clean.
+
 ## v2.250.3 (2026-04-27)
 
 ### Fix : creation de campagne (suspect zod refine + log diagnostique)

@@ -43,6 +43,12 @@ const liveScoresUpdateCallbacks:   Array<(data: LiveScoresUpdatePayload) => void
 type GradeNewPayload = { devoirTitle: string; note: string | null; feedback: string | null; devoirId: number; category: string | null }
 const gradeNewCallbacks: Array<(data: GradeNewPayload) => void> = []
 
+// Booking notifications (mini-Calendly + campagnes)
+type BookingNewPayload = { bookingId: number; tutorName: string; studentName: string; eventTitle: string; startDatetime: string }
+type BookingCancelledPayload = { bookingId: number; tutorName: string; eventTitle: string }
+const bookingNewCallbacks: Array<(data: BookingNewPayload) => void> = []
+const bookingCancelledCallbacks: Array<(data: BookingCancelledPayload) => void> = []
+
 // Cache pour les fichiers ouverts via <input type="file">
 // Clé : pseudo-path "__web__<timestamp>", valeur : données du fichier
 const fileCache = new Map<string, { mime: string; b64: string; ext: string; name: string }>()
@@ -68,6 +74,8 @@ function connectSocket(token: string): void {
   socket.on('live:invite',          (data: LiveInvitePayload) => liveInviteCallbacks.forEach(cb => cb(data)))
   socket.on('live:scores-update',  (data: LiveScoresUpdatePayload) => liveScoresUpdateCallbacks.forEach(cb => cb(data)))
   socket.on('grade:new',           (data: GradeNewPayload) => gradeNewCallbacks.forEach(cb => cb(data)))
+  socket.on('booking:new',         (data: BookingNewPayload) => bookingNewCallbacks.forEach(cb => cb(data)))
+  socket.on('booking:cancelled',   (data: BookingCancelledPayload) => bookingCancelledCallbacks.forEach(cb => cb(data)))
   socket.on('connect', () => socketStateCallbacks.forEach(cb => cb(true)))
   socket.on('disconnect', () => socketStateCallbacks.forEach(cb => cb(false)))
   socket.on('connect_error', (err) => {
@@ -237,7 +245,36 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
 }
 
 // ─── Exposition de window.api ─────────────────────────────────────────────────
-;(window as unknown as { api: unknown }).api = {
+// Filet de secours : tout appel `window.api.xxx()` qui n'est pas explicitement
+// implementer cote shim retombe sur un no-op typee, plutot que `is not a function`.
+// Cela arrive systematiquement quand on ajoute un endpoint au preload Electron
+// sans toucher au shim — pour ne pas casser le mode web a chaque release, on
+// degrade gracieusement.
+//
+// Convention de fallback selon le prefixe :
+//  - on*  / off*  : event listener -> retourne un unsubscribe no-op `() => {}`
+//  - emit*        : pub-sub fire-and-forget -> retourne undefined
+//  - set*/clear*  : setter sync -> retourne undefined
+//  - get*/list*/post-shape async -> Promise<{ ok: false, error: 'web_unsupported' }>
+//
+// On loggue chaque methode unknown UNE FOIS pour faciliter le debug
+// (eviter le bruit en console si la methode est appellee dans une boucle).
+const fallbackLogged = new Set<string>()
+function makeWebFallback(name: string): (...args: unknown[]) => unknown {
+  return (...args: unknown[]) => {
+    if (!fallbackLogged.has(name)) {
+      fallbackLogged.add(name)
+      console.warn(`[api-shim] window.api.${name}() not implemented in web build — using no-op`)
+    }
+    if (/^(on|off)[A-Z]/.test(name)) return () => {}
+    if (/^(emit|set|clear|register|unregister)/.test(name)) return undefined
+    // Defaut : signature async-style { ok, error } pour ne pas casser les
+    // composables qui font `if (res.ok && res.data) {...}`.
+    return Promise.resolve({ ok: false, error: 'Action non disponible sur le web', _webFallback: true, _method: name, _argsCount: args.length })
+  }
+}
+
+const apiImpl = {
 
   // ── Badge (no-op en web) ────────────────────────────────────────────────────
   setBadge() {},
@@ -570,6 +607,26 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
     return () => { const i = gradeNewCallbacks.indexOf(cb); if (i !== -1) gradeNewCallbacks.splice(i, 1) }
   },
 
+  // ── Booking notifications (mini-Calendly + campagnes) ────────────────────
+  onBookingNew(cb: (data: BookingNewPayload) => void) {
+    bookingNewCallbacks.push(cb)
+    return () => { const i = bookingNewCallbacks.indexOf(cb); if (i !== -1) bookingNewCallbacks.splice(i, 1) }
+  },
+  onBookingCancelled(cb: (data: BookingCancelledPayload) => void) {
+    bookingCancelledCallbacks.push(cb)
+    return () => { const i = bookingCancelledCallbacks.indexOf(cb); if (i !== -1) bookingCancelledCallbacks.splice(i, 1) }
+  },
+
+  // ── Auth expired (preload Electron emet via IPC, web le fait via CustomEvent) ──
+  // Le composable cote renderer ecoute deja l'event 'cursus:auth-expired' sur
+  // window. On expose juste un stub qui retourne l'unsubscribe.
+  onAuthExpired(_cb: () => void): () => void {
+    // No-op cote shim : le store app.ts ecoute deja le CustomEvent 'cursus:auth-expired'
+    // qu'on dispatch dans apiFetch sur 401. Garder une fonction de retour pour ne pas
+    // casser les callsites preload-style.
+    return () => {}
+  },
+
   // ── Admin ────────────────────────────────────────────────────────────────────
   resetAndSeed: () => post('/api/admin/reset-seed', {}),
 
@@ -791,3 +848,12 @@ async function importStudentsBrowser(promoId: number): Promise<unknown> {
     return () => { const i = typingCallbacks.indexOf(cb); if (i !== -1) typingCallbacks.splice(i, 1) }
   },
 }
+
+// Wrap dans un Proxy : route les proprietes inconnues vers makeWebFallback.
+;(window as unknown as { api: unknown }).api = new Proxy(apiImpl, {
+  get(target, prop) {
+    if (prop in target) return (target as Record<string | symbol, unknown>)[prop]
+    if (typeof prop !== 'string') return undefined
+    return makeWebFallback(prop)
+  },
+})
