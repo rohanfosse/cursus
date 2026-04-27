@@ -6,11 +6,13 @@
  * regles de creneaux deja sauvegardes + un input pour en ajouter une.
  * Le bouton "Enregistrer" envoie l'ensemble au backend.
  */
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Settings, Trash2, Plus, Check } from 'lucide-vue-next'
 import { type BookingHandle } from '@/composables/useBooking'
 
 const props = defineProps<{ booking: BookingHandle }>()
+
+const totalRules = computed(() => props.booking.availability.value.length)
 
 const DAY_NAMES: Record<number, string> = {
   1: 'Lundi', 2: 'Mardi', 3: 'Mercredi',
@@ -41,6 +43,13 @@ function onAddSlot(day: number) {
     <div class="col-header">
       <Settings :size="14" aria-hidden="true" />
       <span>Disponibilites</span>
+      <span
+        v-if="totalRules > 0"
+        class="col-count"
+        :title="`${totalRules} creneau(x) recurrent(s)`"
+      >
+        {{ totalRules }}
+      </span>
     </div>
 
     <div class="week-grid">
@@ -122,6 +131,16 @@ function onAddSlot(day: number) {
   font-weight: 700;
   padding-bottom: var(--space-xs);
   border-bottom: 1px solid var(--border);
+}
+.col-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
 }
 
 .week-grid { display: flex; flex-direction: column; gap: var(--space-sm); max-height: 400px; overflow-y: auto; }

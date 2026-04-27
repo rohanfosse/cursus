@@ -1,5 +1,61 @@
 # Changelog
 
+## v2.252.0 (2026-04-27)
+
+### Refonte UX/UI page d'accueil RDV (cote prof)
+
+`TabBooking.vue` n'etait qu'une top-bar + 3 colonnes. Refait en vraie page
+d'accueil avec hierarchie visuelle, contexte immediat et raccourcis pour
+le quotidien du prof.
+
+**Nouvelle hierarchie :**
+
+- `UiPageHeader` (composant partage) avec titre + sous-titre + actions a
+  droite (pill statut Microsoft + CTA "Nouveau type" avec raccourci
+  visualise `Ctrl N`).
+- **Stats strip** 4 KPI : "Types actifs (X/Y)" / "RDV cette semaine" /
+  "En attente" (alert warning si > 0) / "Prochain RDV" (texte court
+  "Aujourd'hui 14h", "Demain 09h" ou date complete).
+- **"Prochain RDV" callout** : carte saillante affichee uniquement si un
+  RDV est prevu dans les 24 prochaines heures. Inclut titre du type,
+  partie prenante, libelle relatif ("Dans 45 min" / "A 14h"), et bouton
+  "Rejoindre" direct si une URL visio est attachee.
+- CampaignManager + 3 sections (types / disponibilites / mes RDV) en
+  dessous.
+
+**Performance :**
+
+- `SkeletonLoader` (composant partage) pendant le fetch initial : 4 cards
+  pour la stats strip + 3 listes pour les colonnes. Anim shimmer respectant
+  `prefers-reduced-motion`. Remplace le texte "Chargement..." nu.
+- Toutes les stats sont des `computed` reactifs (pas de re-calcul au scroll).
+
+**Ergonomie :**
+
+- Raccourci global `Ctrl/Cmd+N` pour ouvrir le formulaire de creation
+  (desactive si focus dans un input/textarea pour ne pas bloquer la saisie).
+- Filtre de recherche dans la section "Types d'evenements" — affiche
+  automatiquement quand 4+ types existent. Filtre par titre OU slug, avec
+  bouton X pour effacer et message "Aucun type ne correspond a..." si vide.
+- Badges de comptage dans les 3 entetes de section (`{{ count }}` en pill
+  a droite du titre) pour situer le volume d'un coup d'oeil.
+- Empty state propre dans "Types d'evenements" quand aucun type n'est
+  configure (icone + titre + sous-titre, via `EmptyState` partage).
+- Pill Microsoft : tone success quand connecte (vert avec point), neutral
+  sinon. Cliquable pour ouvrir Settings > Integrations.
+
+**Design system :**
+
+- Tokens partout : `var(--space-*)`, `var(--radius-*)`, `var(--motion-*)`,
+  `var(--ease-*)`, `--focus-ring`, `--elevation-*`.
+- `color-mix(in srgb, var(--accent) X%, transparent)` pour tous les fonds
+  doux (callout, stat-card accent, ms-pill ok). Plus aucun rgba/hex
+  hardcode dans les nouveaux blocs.
+- Reutilisation systematique des composants UI partages :
+  `UiPageHeader`, `UiButton`, `SkeletonLoader`, `EmptyState`.
+
+Tests : 1946 passants. Typecheck clean. Lint clean. check:design clean.
+
 ## v2.251.3 (2026-04-27)
 
 ### Split TabBooking : 673 lignes -> 1 orchestrateur + 3 sections

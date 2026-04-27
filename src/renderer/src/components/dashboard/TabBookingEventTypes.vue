@@ -10,20 +10,37 @@
  * Le composable useBooking est instancie par TabBooking (parent) et passe
  * via prop pour eviter de dupliquer fetch + state + listeners socket.
  */
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import {
-  CalendarPlus, Clock, Link, Trash2, Plus, Check, X, Copy, Globe, Video,
+  CalendarPlus, Clock, Link, Trash2, Plus, Check, X, Copy, Globe, Video, Search,
 } from 'lucide-vue-next'
 import QrCode from '@/components/ui/QrCode.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { type BookingHandle, type EventType } from '@/composables/useBooking'
 
 const props = defineProps<{
   booking: BookingHandle
   allStudents: Array<{ id: number; name?: string; email?: string; promo_id?: number }>
+  /** Permet au parent (TabBooking) de declencher l'ouverture du formulaire
+   *  via un raccourci clavier (Ctrl+N) sans coupler la logique. */
+  openCreateSignal?: number
 }>()
 
 const expandedTypeId = ref<number | null>(null)
 const showCreateForm = ref(false)
+const filterQuery = ref('')
+
+const filteredTypes = computed(() => {
+  const q = filterQuery.value.trim().toLowerCase()
+  if (!q) return props.booking.eventTypes.value
+  return props.booking.eventTypes.value.filter(et =>
+    et.title.toLowerCase().includes(q) || et.slug.toLowerCase().includes(q),
+  )
+})
+
+watch(() => props.openCreateSignal, () => {
+  showCreateForm.value = true
+})
 const bulkResults = ref<{ studentName: string; bookingUrl: string }[] | null>(null)
 const bulkPromoId = ref<number | null>(null)
 const linkStudentId = ref<number | null>(null)
@@ -148,12 +165,44 @@ onUnmounted(() => {
 <template>
   <div class="col col-types">
     <div class="col-header">
-      <CalendarPlus :size="14" />
+      <CalendarPlus :size="14" aria-hidden="true" />
       <span>Types d'evenements</span>
+      <span class="col-count" :title="`${booking.eventTypes.value.length} type(s) configure(s)`">
+        {{ booking.eventTypes.value.length }}
+      </span>
     </div>
 
-    <div class="type-list">
-      <div v-for="et in booking.eventTypes.value" :key="et.id" class="type-card">
+    <div v-if="booking.eventTypes.value.length >= 4" class="filter-row">
+      <Search :size="13" class="filter-icon" aria-hidden="true" />
+      <input
+        v-model="filterQuery"
+        type="search"
+        class="input-field filter-input"
+        placeholder="Filtrer..."
+        aria-label="Filtrer les types"
+      />
+      <button
+        v-if="filterQuery"
+        type="button"
+        class="btn-icon filter-clear"
+        aria-label="Effacer le filtre"
+        @click="filterQuery = ''"
+      >
+        <X :size="11" />
+      </button>
+    </div>
+
+    <EmptyState
+      v-if="!booking.eventTypes.value.length"
+      :icon="CalendarPlus"
+      tone="accent"
+      size="sm"
+      title="Aucun type de RDV"
+      subtitle="Cree ton premier type pour commencer a recevoir des reservations."
+    />
+
+    <div v-else class="type-list">
+      <div v-for="et in filteredTypes" :key="et.id" class="type-card">
         <div class="type-row" @click="expandedTypeId = expandedTypeId === et.id ? null : et.id">
           <span class="color-dot" :style="{ background: et.color }" aria-hidden="true" />
           <span class="type-title">{{ et.title }}</span>
@@ -314,6 +363,9 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
+      <p v-if="filterQuery && !filteredTypes.length" class="filter-no-result">
+        Aucun type ne correspond a "{{ filterQuery }}".
+      </p>
     </div>
 
     <button
@@ -415,6 +467,49 @@ onUnmounted(() => {
   font-weight: 700;
   padding-bottom: var(--space-xs);
   border-bottom: 1px solid var(--border);
+}
+.col-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+.filter-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.filter-icon {
+  position: absolute;
+  left: var(--space-xs);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.filter-input {
+  flex: 1;
+  padding-left: 26px;
+  padding-right: 26px;
+}
+.filter-input::-webkit-search-cancel-button { display: none; }
+.filter-clear {
+  position: absolute;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+}
+.filter-no-result {
+  margin: 0;
+  padding: var(--space-md);
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .type-list { display: flex; flex-direction: column; gap: var(--space-xs); max-height: 360px; overflow-y: auto; }

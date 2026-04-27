@@ -22,6 +22,13 @@ const bookingsView = ref<'list' | 'calendar'>('calendar')
     <div class="col-header">
       <Users :size="14" aria-hidden="true" />
       <span>Mes RDV</span>
+      <span
+        v-if="booking.sortedBookings.value.length > 0"
+        class="col-count"
+        :title="`${booking.sortedBookings.value.length} RDV`"
+      >
+        {{ booking.sortedBookings.value.length }}
+      </span>
       <div class="view-toggle" role="tablist" aria-label="Vue des RDV">
         <button
           type="button"
@@ -98,6 +105,15 @@ const bookingsView = ref<'list' | 'calendar'>('calendar')
   font-weight: 700;
   padding-bottom: var(--space-xs);
   border-bottom: 1px solid var(--border);
+}
+.col-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
 }
 
 .view-toggle { display: flex; gap: 2px; margin-left: auto; }
