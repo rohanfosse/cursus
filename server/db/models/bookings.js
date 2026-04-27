@@ -21,15 +21,15 @@ function getEventTypeById(id) {
   return getDb().prepare('SELECT * FROM booking_event_types WHERE id = ?').get(id) || null;
 }
 
-function createEventType({ teacherId, title, slug, description, durationMinutes, color, fallbackVisioUrl, bufferMinutes, timezone, isPublic }) {
+function createEventType({ teacherId, title, slug, description, durationMinutes, color, fallbackVisioUrl, bufferMinutes, timezone, isPublic, useJitsi }) {
   const res = getDb().prepare(
-    'INSERT INTO booking_event_types (teacher_id, title, slug, description, duration_minutes, color, fallback_visio_url, buffer_minutes, timezone, is_public) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(teacherId, title, slug, description || null, durationMinutes || 30, color || '#3b82f6', fallbackVisioUrl || null, bufferMinutes || 0, timezone || 'Europe/Paris', isPublic ? 1 : 0);
+    'INSERT INTO booking_event_types (teacher_id, title, slug, description, duration_minutes, color, fallback_visio_url, buffer_minutes, timezone, is_public, use_jitsi) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(teacherId, title, slug, description || null, durationMinutes || 30, color || '#3b82f6', fallbackVisioUrl || null, bufferMinutes || 0, timezone || 'Europe/Paris', isPublic ? 1 : 0, useJitsi ? 1 : 0);
   return getDb().prepare('SELECT * FROM booking_event_types WHERE id = ?').get(res.lastInsertRowid);
 }
 
 function updateEventType(id, fields) {
-  const allowed = ['title', 'slug', 'description', 'duration_minutes', 'color', 'fallback_visio_url', 'is_active', 'buffer_minutes', 'timezone', 'is_public'];
+  const allowed = ['title', 'slug', 'description', 'duration_minutes', 'color', 'fallback_visio_url', 'is_active', 'buffer_minutes', 'timezone', 'is_public', 'use_jitsi'];
   const sets = [];
   const vals = [];
   for (const key of allowed) {
@@ -118,7 +118,7 @@ function getTokenData(token) {
     SELECT bt.id, bt.event_type_id, bt.student_id, bt.token, bt.created_at,
            bet.teacher_id, bet.title AS event_title, bet.slug, bet.description,
            bet.duration_minutes, bet.color, bet.fallback_visio_url, bet.buffer_minutes, bet.timezone,
-           bet.is_active AS event_type_active,
+           bet.is_active AS event_type_active, bet.use_jitsi,
            s.name AS student_name, s.email AS student_email, u.name AS teacher_name
     FROM booking_tokens bt
     JOIN booking_event_types bet ON bet.id = bt.event_type_id
@@ -150,6 +150,7 @@ function getPublicEventTypeBySlug(slug) {
            bet.timezone,
            bet.is_active    AS event_type_active,
            bet.is_public,
+           bet.use_jitsi,
            u.name           AS teacher_name
     FROM booking_event_types bet
     JOIN users u ON u.id = bet.teacher_id

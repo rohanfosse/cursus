@@ -11,7 +11,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import {
   CalendarPlus, Clock, Link, Users, Settings, Trash2, Plus,
-  Check, X, ExternalLink, Copy, Calendar, LayoutList, CalendarDays, Globe,
+  Check, X, ExternalLink, Copy, Calendar, LayoutList, CalendarDays, Globe, Video,
 } from 'lucide-vue-next'
 import BookingCalendarView from './BookingCalendarView.vue'
 import QrCode from '@/components/ui/QrCode.vue'
@@ -29,7 +29,7 @@ const {
   savingAvailability,
   sortedBookings, rulesByDay,
   fetchAll,
-  createEventType, toggleActive, togglePublic, getPublicUrl, deleteEventType, generateLink, generateBulkLinks,
+  createEventType, toggleActive, togglePublic, toggleJitsi, getPublicUrl, deleteEventType, generateLink, generateBulkLinks,
   addSlot, removeSlot, saveAvailability,
   initSocketListeners, disposeSocketListeners,
   formatDate, formatTime, statusLabel, statusClass,
@@ -258,6 +258,28 @@ onUnmounted(() => {
 
             <!-- Expanded: generate link -->
             <div v-if="expandedTypeId === et.id" class="type-expand">
+              <!-- Visio Jitsi Meet (libre, gratuit, lien unique par RDV) -->
+              <div class="jitsi-link">
+                <div class="public-link-head">
+                  <Video :size="13" />
+                  <span class="field-label">Visio Jitsi Meet</span>
+                  <button
+                    class="toggle-active toggle-public"
+                    :class="{ active: et.use_jitsi }"
+                    :title="et.use_jitsi ? 'Jitsi actif — cliquer pour desactiver' : 'Activer la generation auto d\'un lien Jitsi par RDV'"
+                    :aria-label="et.use_jitsi ? 'Desactiver Jitsi' : 'Activer Jitsi'"
+                    @click.stop="toggleJitsi(et)"
+                  >
+                    <Check v-if="et.use_jitsi" :size="10" />
+                    <X v-else :size="10" />
+                  </button>
+                </div>
+                <p class="public-help">
+                  Si actif, Cursus genere un lien Jitsi Meet unique pour chaque reservation
+                  (libre, gratuit, sans inscription). Prend le pas sur Microsoft Teams meme si connecte.
+                </p>
+              </div>
+
               <!-- Lien public ouvert (style Calendly classique) -->
               <div class="public-link">
                 <div class="public-link-head">
@@ -558,12 +580,13 @@ onUnmounted(() => {
 .select-sm { flex: 1; min-width: 0; }
 .link-result { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
 .url-field { flex: 1; min-width: 0; font-size: 11px; }
-.public-link {
+.public-link, .jitsi-link {
   display: flex; flex-direction: column; gap: 6px;
   padding: 8px 10px; margin: -8px -10px 8px;
   background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
   border-bottom: 1px solid var(--border);
 }
+.jitsi-link { background: color-mix(in srgb, #22c55e 6%, var(--bg-elevated)); }
 .public-link-head { display: flex; align-items: center; gap: 6px; }
 .public-help { font-size: 11px; color: var(--text-muted); margin: 0; line-height: 1.4; }
 .toggle-public { margin-left: auto; }

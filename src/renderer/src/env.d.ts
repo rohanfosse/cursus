@@ -418,7 +418,7 @@ declare global {
       onLiveConfusionUpdate(cb: (data: { sessionId: number; count: number }) => void): () => void
       onLiveSelfPacedUpdate(cb: (data: { sessionId: number; selfPaced: boolean }) => void): () => void
       // Booking (mini-Calendly)
-      getBookingEventTypes(): Promise<IpcResponse<{ id: number; title: string; slug: string; description?: string; duration_minutes: number; buffer_minutes: number; timezone: string; color: string; fallback_visio_url?: string; is_active: number; is_public: number; created_at: string }[]>>
+      getBookingEventTypes(): Promise<IpcResponse<{ id: number; title: string; slug: string; description?: string; duration_minutes: number; buffer_minutes: number; timezone: string; color: string; fallback_visio_url?: string; is_active: number; is_public: number; use_jitsi: number; created_at: string }[]>>
       createBookingEventType(payload: unknown): Promise<IpcResponse<unknown>>
       updateBookingEventType(id: number, payload: unknown): Promise<IpcResponse<unknown>>
       deleteBookingEventType(id: number): Promise<IpcResponse<null>>

@@ -1,5 +1,37 @@
 # Changelog
 
+## v2.248.0 (2026-04-27)
+
+### Booking : Jitsi Meet en alternative libre a Teams
+
+Avant : la visio etait soit Microsoft Teams (necessite tenant Azure AD + licence M365 Business), soit une URL fallback statique manuelle. Pas d'option libre out-of-the-box.
+
+Maintenant : nouveau flag `use_jitsi` sur `booking_event_types`. Quand actif, Cursus genere automatiquement un lien Jitsi Meet unique (slug aleatoire 16 chars hex, 64 bits d'entropie) a chaque reservation. Prend le pas sur Teams meme si Microsoft est connecte cote prof.
+
+**Pourquoi Jitsi** :
+
+- Libre (Apache 2.0), gratuit, pas de compte requis cote etudiant.
+- API Graph Teams `OnlineMeetings.ReadWrite` n'est pas accessible aux comptes Microsoft personnels (Outlook.com gratuit) — Jitsi resout cette friction pour les profs sans tenant pro.
+- Self-hostable plus tard sans toucher au code applicatif (var d'env `JITSI_BASE_URL`).
+
+**Backend** :
+
+- Migration v84 : `booking_event_types.use_jitsi INTEGER NOT NULL DEFAULT 0`.
+- Helper `server/utils/jitsi.js` : `generateJitsiUrl()` genere `<JITSI_BASE_URL>/cursus-<random16hex>`. Default `https://meet.jit.si`.
+- `publicBooking.js` : nouvelle priorite visio (Jitsi > Teams > fallback URL) sur les 2 routes de reservation (token nominatif + lien public).
+- L'URL Jitsi est stockee dans `bookings.teams_join_url` (champ deja utilise pour Teams) — pas de migration de schema cote bookings.
+- Le lien Jitsi est inclus dans l'email de confirmation et l'evenement ICS, comme avant pour Teams.
+
+**Frontend** :
+
+- `useBooking.ts` : helper `toggleJitsi(et)` avec toast informatif.
+- `TabBooking.vue` : toggle "Visio Jitsi Meet" dans le bloc deplie de chaque type d'evenement, au-dessus du toggle "Lien public ouvert".
+- `EventType` interface ajoute `use_jitsi: number`.
+
+**Cas d'usage typique** :
+
+Prof sans compte Azure AD pro -> active `use_jitsi` sur ses types d'evenements -> chaque etudiant qui prend RDV recoit un lien Jitsi unique dans son mail de confirmation. Aucun setup Microsoft requis. La visio fonctionne dans Chrome/Firefox/Safari sans installation.
+
 ## v2.247.0 (2026-04-27)
 
 ### Booking : Cloudflare Turnstile sur le lien public

@@ -17,6 +17,7 @@ const { getValidMsToken } = require('../../utils/msToken')
 const { generateSlots }   = require('../../utils/slots')
 const { secureToken }     = require('../../utils/secureToken')
 const { escHtml, sanitizePlainText } = require('../../utils/escHtml')
+const { generateJitsiUrl } = require('../../utils/jitsi')
 const { getDb }           = require('../../db/connection')
 const {
   SERVER_URL, GRAPH_TIMEOUT_MS,
@@ -211,30 +212,39 @@ router.post('/public/:token/book', publicBookingLimiter, publicBookingPerTokenLi
       return res.status(409).json({ ok: false, error: 'Ce creneau vient d\'etre reserve. Veuillez en choisir un autre.' })
     }
 
-    // Teams / Outlook (best-effort, wrappe timeout)
-    let teamsJoinUrl = data.fallback_visio_url || null
+    // Visio : 3 modes par ordre de priorite
+    //   1. use_jitsi=1 -> on genere un lien Jitsi unique (libre, no signup)
+    //   2. Microsoft connecte -> Teams + Outlook event
+    //   3. fallback_visio_url -> URL statique de l'event-type
+    let teamsJoinUrl = null
     let outlookEventId = null
-    const msAccessToken = await getValidMsToken(data.teacher_id)
-    if (msAccessToken) {
-      try {
-        const result = await withTimeout(graph.createEventWithTeams(msAccessToken, {
-          // Subject = plain text -> sanitizePlainText (escHtml introduirait &amp; et n'eliminerait pas CR/LF)
-          subject: `${sanitizePlainText(data.event_title)} - ${sanitizePlainText(data.student_name)} / ${tutorName}`,
-          startDateTime: startDatetime,
-          endDateTime: endDatetime,
-          attendees: [
-            { email: tutorEmail, name: tutorName },
-            { email: data.student_email, name: data.student_name },
-          ],
-          body: `<p>Rendez-vous ${escHtml(data.event_title)}</p><p>Etudiant : ${escHtml(data.student_name)}</p><p>Tuteur entreprise : ${escHtml(tutorName)}</p>`,
-        }), GRAPH_TIMEOUT_MS, 'createEventWithTeams')
-        teamsJoinUrl = result.teamsJoinUrl || teamsJoinUrl
-        outlookEventId = result.eventId
-        if (teamsJoinUrl || outlookEventId) {
-          queries.updateBookingTeamsInfo(booking.id, { teamsJoinUrl, outlookEventId })
+    if (data.use_jitsi) {
+      teamsJoinUrl = generateJitsiUrl()
+      queries.updateBookingTeamsInfo(booking.id, { teamsJoinUrl, outlookEventId: null })
+    } else {
+      teamsJoinUrl = data.fallback_visio_url || null
+      const msAccessToken = await getValidMsToken(data.teacher_id)
+      if (msAccessToken) {
+        try {
+          const result = await withTimeout(graph.createEventWithTeams(msAccessToken, {
+            // Subject = plain text -> sanitizePlainText (escHtml introduirait &amp; et n'eliminerait pas CR/LF)
+            subject: `${sanitizePlainText(data.event_title)} - ${sanitizePlainText(data.student_name)} / ${tutorName}`,
+            startDateTime: startDatetime,
+            endDateTime: endDatetime,
+            attendees: [
+              { email: tutorEmail, name: tutorName },
+              { email: data.student_email, name: data.student_name },
+            ],
+            body: `<p>Rendez-vous ${escHtml(data.event_title)}</p><p>Etudiant : ${escHtml(data.student_name)}</p><p>Tuteur entreprise : ${escHtml(tutorName)}</p>`,
+          }), GRAPH_TIMEOUT_MS, 'createEventWithTeams')
+          teamsJoinUrl = result.teamsJoinUrl || teamsJoinUrl
+          outlookEventId = result.eventId
+          if (teamsJoinUrl || outlookEventId) {
+            queries.updateBookingTeamsInfo(booking.id, { teamsJoinUrl, outlookEventId })
+          }
+        } catch (err) {
+          log.warn('Teams/Outlook creation failed', { error: err.message })
         }
-      } catch (err) {
-        log.warn('Teams/Outlook creation failed', { error: err.message })
       }
     }
 
@@ -501,28 +511,35 @@ router.post('/public/event/:slug/book', publicBookingLimiter, publicEventPerSlug
       return res.status(409).json({ ok: false, error: 'Ce creneau vient d\'etre reserve. Veuillez en choisir un autre.' })
     }
 
-    let teamsJoinUrl = data.fallback_visio_url || null
+    // Visio : meme priorite que la route token nominatif (Jitsi > Teams > fallback URL).
+    let teamsJoinUrl = null
     let outlookEventId = null
-    const msAccessToken = await getValidMsToken(data.teacher_id)
-    if (msAccessToken) {
-      try {
-        const result = await withTimeout(graph.createEventWithTeams(msAccessToken, {
-          // Subject = plain text, attendeeName deja sanitize en haut.
-          subject: `${sanitizePlainText(data.event_title)} - ${attendeeName}`,
-          startDateTime: startDatetime,
-          endDateTime: endDatetime,
-          attendees: [
-            { email: attendeeEmail, name: attendeeName },
-          ],
-          body: `<p>Rendez-vous ${escHtml(data.event_title)}</p><p>Avec : ${escHtml(attendeeName)} (${escHtml(attendeeEmail)})</p>`,
-        }), GRAPH_TIMEOUT_MS, 'createEventWithTeams')
-        teamsJoinUrl = result.teamsJoinUrl || teamsJoinUrl
-        outlookEventId = result.eventId
-        if (teamsJoinUrl || outlookEventId) {
-          queries.updateBookingTeamsInfo(booking.id, { teamsJoinUrl, outlookEventId })
+    if (data.use_jitsi) {
+      teamsJoinUrl = generateJitsiUrl()
+      queries.updateBookingTeamsInfo(booking.id, { teamsJoinUrl, outlookEventId: null })
+    } else {
+      teamsJoinUrl = data.fallback_visio_url || null
+      const msAccessToken = await getValidMsToken(data.teacher_id)
+      if (msAccessToken) {
+        try {
+          const result = await withTimeout(graph.createEventWithTeams(msAccessToken, {
+            // Subject = plain text, attendeeName deja sanitize en haut.
+            subject: `${sanitizePlainText(data.event_title)} - ${attendeeName}`,
+            startDateTime: startDatetime,
+            endDateTime: endDatetime,
+            attendees: [
+              { email: attendeeEmail, name: attendeeName },
+            ],
+            body: `<p>Rendez-vous ${escHtml(data.event_title)}</p><p>Avec : ${escHtml(attendeeName)} (${escHtml(attendeeEmail)})</p>`,
+          }), GRAPH_TIMEOUT_MS, 'createEventWithTeams')
+          teamsJoinUrl = result.teamsJoinUrl || teamsJoinUrl
+          outlookEventId = result.eventId
+          if (teamsJoinUrl || outlookEventId) {
+            queries.updateBookingTeamsInfo(booking.id, { teamsJoinUrl, outlookEventId })
+          }
+        } catch (err) {
+          log.warn('Teams/Outlook creation failed (public)', { error: err.message })
         }
-      } catch (err) {
-        log.warn('Teams/Outlook creation failed (public)', { error: err.message })
       }
     }
 

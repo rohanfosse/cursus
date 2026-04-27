@@ -20,6 +20,7 @@ export interface EventType {
   fallback_visio_url?: string
   is_active: number
   is_public: number
+  use_jitsi: number
   created_at: string
 }
 
@@ -165,6 +166,24 @@ export function useBooking() {
     return `${SERVER_URL}/#/book/e/${et.slug}`
   }
 
+  /** Active/desactive la generation auto d'un lien Jitsi Meet par reservation. */
+  async function toggleJitsi(et: EventType) {
+    try {
+      const next = et.use_jitsi ? 0 : 1
+      const res = await window.api.updateBookingEventType(et.id, { use_jitsi: next })
+      if (res.ok) {
+        eventTypes.value = eventTypes.value.map(e =>
+          e.id === et.id ? { ...e, use_jitsi: next } : e,
+        )
+        showToast(next ? 'Jitsi Meet active : un lien unique sera genere par RDV' : 'Jitsi Meet desactive', 'success')
+      } else {
+        showToast(res.error || 'Erreur', 'error')
+      }
+    } catch {
+      showToast('Erreur lors de la mise a jour', 'error')
+    }
+  }
+
   async function deleteEventType(id: number) {
     if (!confirm('Supprimer ce type de rendez-vous ? Les liens existants seront invalides.')) return
     try {
@@ -302,7 +321,7 @@ export function useBooking() {
     sortedBookings, rulesByDay,
     // Actions
     fetchAll,
-    createEventType, toggleActive, togglePublic, getPublicUrl, deleteEventType, generateLink, generateBulkLinks,
+    createEventType, toggleActive, togglePublic, toggleJitsi, getPublicUrl, deleteEventType, generateLink, generateBulkLinks,
     addSlot, removeSlot, saveAvailability,
     initSocketListeners, disposeSocketListeners,
     // Helpers

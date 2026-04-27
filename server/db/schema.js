@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 83;
+const CURRENT_VERSION = 84;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -1914,6 +1914,15 @@ function runMigrations(db) {
     // student_id = 0 comme sentinelle (pas de FK explicite sur students).
     (db) => {
       tryAlter(db, "ALTER TABLE booking_event_types ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0");
+    },
+
+    // v84 : Booking — Jitsi Meet en alternative libre a Teams.
+    // Quand use_jitsi = 1, le backend genere un lien Jitsi Meet unique
+    // (slug aleatoire 16 chars hex) pour chaque reservation, en priorite
+    // sur la creation Teams via Microsoft Graph. Permet aux profs sans
+    // tenant Microsoft d'avoir une visio integree out-of-the-box.
+    (db) => {
+      tryAlter(db, "ALTER TABLE booking_event_types ADD COLUMN use_jitsi INTEGER NOT NULL DEFAULT 0");
     },
   ];
 
