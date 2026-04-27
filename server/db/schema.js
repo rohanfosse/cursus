@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 84;
+const CURRENT_VERSION = 85;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -1923,6 +1923,58 @@ function runMigrations(db) {
     // tenant Microsoft d'avoir une visio integree out-of-the-box.
     (db) => {
       tryAlter(db, "ALTER TABLE booking_event_types ADD COLUMN use_jitsi INTEGER NOT NULL DEFAULT 0");
+    },
+
+    // v85 : Booking — campagnes de RDV (visites tripartites).
+    // Une campagne = periode bornee + regle hebdo de creneaux + promo cible.
+    // A la creation, on genere une `booking_campaign_invites` par etudiant
+    // (avec un token unique) et on envoie un mail. Chaque etudiant prend
+    // 1 RDV max via `/book/c/:token`. Tripartite = etudiant + tuteur entreprise
+    // saisi a la reservation + prof (notify_email). Tous recoivent un .ics.
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS booking_campaigns (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          teacher_id INTEGER NOT NULL,
+          event_type_id INTEGER REFERENCES booking_event_types(id) ON DELETE SET NULL,
+          title TEXT NOT NULL,
+          description TEXT,
+          duration_minutes INTEGER NOT NULL DEFAULT 30,
+          buffer_minutes INTEGER NOT NULL DEFAULT 0,
+          color TEXT NOT NULL DEFAULT '#6366f1',
+          start_date TEXT NOT NULL,
+          end_date TEXT NOT NULL,
+          hebdo_rules TEXT NOT NULL DEFAULT '[]',
+          excluded_dates TEXT NOT NULL DEFAULT '[]',
+          promo_id INTEGER,
+          with_tutor INTEGER NOT NULL DEFAULT 1,
+          notify_email TEXT,
+          use_jitsi INTEGER NOT NULL DEFAULT 1,
+          fallback_visio_url TEXT,
+          timezone TEXT NOT NULL DEFAULT 'Europe/Paris',
+          status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','active','closed')),
+          launched_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_booking_campaigns_teacher ON booking_campaigns(teacher_id, status);
+
+        CREATE TABLE IF NOT EXISTS booking_campaign_invites (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          campaign_id INTEGER NOT NULL REFERENCES booking_campaigns(id) ON DELETE CASCADE,
+          student_id INTEGER NOT NULL,
+          token TEXT NOT NULL UNIQUE,
+          invited_at TEXT,
+          last_reminded_at TEXT,
+          booking_id INTEGER REFERENCES bookings(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE(campaign_id, student_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_booking_campaign_invites_token ON booking_campaign_invites(token);
+        CREATE INDEX IF NOT EXISTS idx_booking_campaign_invites_campaign ON booking_campaign_invites(campaign_id);
+      `);
+      // Lien optionnel d'une reservation vers une campagne (NULL pour les RDV
+      // hors campagne, qui restent valides comme avant).
+      tryAlter(db, "ALTER TABLE bookings ADD COLUMN campaign_id INTEGER REFERENCES booking_campaigns(id) ON DELETE SET NULL");
     },
   ];
 

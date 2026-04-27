@@ -14,6 +14,7 @@ import {
   Check, X, ExternalLink, Copy, Calendar, LayoutList, CalendarDays, Globe, Video,
 } from 'lucide-vue-next'
 import BookingCalendarView from './BookingCalendarView.vue'
+import CampaignManager from '@/components/booking/CampaignManager.vue'
 import QrCode from '@/components/ui/QrCode.vue'
 import { useBooking, type EventType } from '@/composables/useBooking'
 import { useMicrosoftConnection } from '@/composables/useMicrosoftConnection'
@@ -219,7 +220,9 @@ onUnmounted(() => {
 
     <div v-if="loading" class="loading-state">Chargement...</div>
 
-    <div v-else class="columns">
+    <CampaignManager v-else />
+
+    <div v-if="!loading" class="columns">
       <!-- ─── Section 1: Event Types ──────────────────────────────────── -->
       <div class="col col-types">
         <div class="col-header">

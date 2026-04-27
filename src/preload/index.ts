@@ -448,6 +448,16 @@ contextBridge.exposeInMainWorld('api', {
   createBookingToken:        (eventTypeId: number, studentId: number) => post('/api/bookings/tokens', { eventTypeId, studentId }),
   createBulkBookingTokens:   (eventTypeId: number, promoId: number) => post('/api/bookings/tokens/bulk', { eventTypeId, promoId }),
   getBookingPublicLink:      (eventTypeId: number)        => get(`/api/bookings/event-types/${eventTypeId}/public-link`),
+  // Campagnes de RDV (visites tripartites planifiees sur une periode)
+  getBookingCampaigns:       ()                           => get('/api/bookings/campaigns'),
+  createBookingCampaign:     (payload: unknown)           => post('/api/bookings/campaigns', payload),
+  getBookingCampaign:        (id: number)                 => get(`/api/bookings/campaigns/${id}`),
+  updateBookingCampaign:     (id: number, payload: unknown) => patch(`/api/bookings/campaigns/${id}`, payload),
+  deleteBookingCampaign:     (id: number)                 => del(`/api/bookings/campaigns/${id}`),
+  launchBookingCampaign:     (id: number)                 => post(`/api/bookings/campaigns/${id}/launch`, {}),
+  remindBookingCampaign:     (id: number)                 => post(`/api/bookings/campaigns/${id}/remind`, {}),
+  closeBookingCampaign:      (id: number)                 => post(`/api/bookings/campaigns/${id}/close`, {}),
+  getBookingCampaignSlots:   (id: number)                 => get(`/api/bookings/campaigns/${id}/slots`),
   getMyBookings:             (from?: string, to?: string) => {
     const qs = new URLSearchParams()
     if (from) qs.set('from', from)

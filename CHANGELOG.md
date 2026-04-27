@@ -1,5 +1,48 @@
 # Changelog
 
+## v2.249.0 (2026-04-27)
+
+### Booking : Campagnes de RDV (visites tripartites planifiees)
+
+Nouveau primitif "Campagne" : un prof cree une periode bornee (ex: 5-26 mai), definit ses plages hebdo (Mar/Jeu 14h-17h), choisit une promo cible. Cursus pre-genere une invitation par etudiant et envoie un mail au lancement. Chaque etudiant reserve son creneau via un lien personnel `/book/c/:token`. Mail de confirmation tripartite (etudiant + tuteur entreprise + prof) avec ICS attache (METHOD:REQUEST) compatible Outlook/Gmail/Apple sans dependre d'OAuth Microsoft.
+
+**Workflow prof, en clics minimaux** :
+
+1. Onglet Rendez-vous -> bouton "Nouvelle campagne"
+2. Formulaire : titre + promo + duree + periode (J0 a J0+21 par defaut) + 1 plage hebdo + tripartite + email de notif. Pre-rempli intelligemment (3 prochaines semaines, mardi 14-17h).
+3. "Creer" -> Cursus genere automatiquement les invitations pour la promo.
+4. "Lancer (N mails)" -> envoi en lot. Statut passe en `active`.
+5. Tableau de suivi : "12/24 reserve" + barre de progression + bouton "Relancer les non-reserves".
+
+**Workflow etudiant** :
+
+1. Mail recu avec lien personnel (`/book/c/:token`).
+2. Page le reconnait par son token : nom + email pre-remplis, pas de saisie.
+3. 1 clic sur un creneau dispo.
+4. Si tripartite : saisit nom + email tuteur entreprise.
+5. Confirmation -> mail tripartite avec invitation calendrier .ics.
+
+**Backend** :
+
+- Migration v85 : tables `booking_campaigns` + `booking_campaign_invites`. Campagne = event_type "fantome" auto-cree (slug `__campaign_*`, filtre des listes publiques) + periode + regles JSON.
+- Routes admin : CRUD + `launch` + `remind` (relance les pending uniquement) + `close`.
+- Routes publiques : `/api/bookings/public/campaign/:token/(info|slots|book)`. Le token resoud le student, pas de saisie redondante.
+- Email `sendCampaignInvite` (lien personnel) et `sendTripartiteConfirmation` (3 destinataires + ICS attache).
+- ICS etendu : support `attendees`, `METHOD:REQUEST`, `organizer`, UID stable -> Outlook propose Accepter/Refuser sur l'invitation.
+- Reutilise `generateSlots` existant en passant `daysCount` = duree de la campagne ; ne re-implemente rien.
+- Visio : Jitsi Meet par defaut (chaque RDV = lien unique non devinable).
+
+**Frontend** :
+
+- `useCampaigns` (CRUD + launch/remind/close) et `useCampaignBooking` (page publique etudiant).
+- `CampaignManager.vue` : section dans onglet Rendez-vous, expand/collapse par campagne, modal de creation, tableau de suivi avec compteurs et statuts par etudiant.
+- `BookingCampaignView.vue` : page `/book/c/:token` avec creneaux groupes par jour, formulaire tuteur si tripartite, ecran de confirmation.
+
+**Tests** :
+
+- 1600 tests backend passent (incluant la suite booking complete).
+- 1794 tests frontend passent (les unhandled exceptions canvas-confetti dans les tests `useStudentDeposit*` sont resolues via mock dans `tests/frontend/setup.ts`).
+
 ## v2.248.0 (2026-04-27)
 
 ### Booking : Jitsi Meet en alternative libre a Teams

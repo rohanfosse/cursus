@@ -8,8 +8,9 @@ const { secureToken } = require('../../utils/secureToken');
 // ── Event Types ─────────────────────────────────────────────────────────
 
 function getEventTypes(teacherId) {
+  // Filtre les event-types internes generes pour les campagnes (slug __campaign_<id>)
   return getDb().prepare(
-    'SELECT * FROM booking_event_types WHERE teacher_id = ? ORDER BY created_at DESC'
+    "SELECT * FROM booking_event_types WHERE teacher_id = ? AND slug NOT LIKE '__campaign_%' ORDER BY created_at DESC"
   ).all(teacherId);
 }
 

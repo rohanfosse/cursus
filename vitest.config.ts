@@ -33,6 +33,7 @@ export default defineConfig({
           name: 'frontend',
           environment: 'jsdom',
           include: ['tests/frontend/**/*.test.ts'],
+          setupFiles: ['./tests/frontend/setup.ts'],
         },
         resolve: {
           alias: { '@': resolve(__dirname, 'src/renderer/src') },

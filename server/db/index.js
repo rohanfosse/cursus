@@ -21,6 +21,7 @@ const lumen          = require('./models/lumen');
 const cahiers        = require('./models/cahiers');
 const liveUnified    = require('./models/live-unified');
 const bookings       = require('./models/bookings');
+const campaigns      = require('./models/campaigns');
 const calendar       = require('./models/calendar');
 const typerace       = require('./models/typerace');
 const games          = require('./models/games');
@@ -58,6 +59,7 @@ module.exports = {
   ...cahiers,
   ...liveUnified,
   ...bookings,
+  ...campaigns,
   ...calendar,
   ...typerace,
   ...games,

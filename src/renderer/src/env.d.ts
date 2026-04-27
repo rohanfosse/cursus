@@ -427,6 +427,16 @@ declare global {
       createBookingToken(eventTypeId: number, studentId: number): Promise<IpcResponse<{ token: string; bookingUrl: string }>>
       createBulkBookingTokens(eventTypeId: number, promoId: number): Promise<IpcResponse<{ studentId: number; studentName: string; bookingUrl: string }[]>>
       getBookingPublicLink(eventTypeId: number): Promise<IpcResponse<{ publicUrl: string; isPublic: boolean; isActive: boolean; slug: string }>>
+      // Campagnes
+      getBookingCampaigns(): Promise<IpcResponse<unknown[]>>
+      createBookingCampaign(payload: unknown): Promise<IpcResponse<unknown>>
+      getBookingCampaign(id: number): Promise<IpcResponse<unknown>>
+      updateBookingCampaign(id: number, payload: unknown): Promise<IpcResponse<unknown>>
+      deleteBookingCampaign(id: number): Promise<IpcResponse<null>>
+      launchBookingCampaign(id: number): Promise<IpcResponse<{ sent: number; skipped: number; alreadyInvited: number }>>
+      remindBookingCampaign(id: number): Promise<IpcResponse<{ sent: number; pending: number }>>
+      closeBookingCampaign(id: number): Promise<IpcResponse<unknown>>
+      getBookingCampaignSlots(id: number): Promise<IpcResponse<Array<{ start: string; end: string; date: string; time: string }>>>
       getMyBookings(from?: string, to?: string): Promise<IpcResponse<unknown[]>>
       startBookingOAuth(): Promise<IpcResponse<{ url: string }>>
       getBookingOAuthStatus(): Promise<IpcResponse<{ connected: boolean; expiresAt?: string }>>

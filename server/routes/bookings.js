@@ -11,5 +11,7 @@ router.use(require('./bookings/teacherAdmin'))
 router.use(require('./bookings/oauth'))
 router.use(require('./bookings/publicBooking'))
 router.use(require('./bookings/cancellation'))
+router.use(require('./bookings/campaigns'))
+router.use(require('./bookings/campaignPublic'))
 
 module.exports = router

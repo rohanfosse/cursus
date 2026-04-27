@@ -38,9 +38,10 @@ const router = createRouter({
     { path: '/signets',    component: () => import('@/views/BookmarksView.vue'), name: 'signets' },
     { path: '/admin',      component: () => import('@/views/AdminView.vue'),    name: 'admin', meta: { requiredRole: 'admin' } },
     // Public booking pages (no auth required)
+    { path: '/book/c/:token',        component: () => import('@/views/BookingCampaignView.vue'),    name: 'booking-campaign',     meta: { public: true } },
     { path: '/book/e/:slug',         component: () => import('@/views/BookingPublicEventView.vue'), name: 'booking-public-event', meta: { public: true } },
-    { path: '/book/:token',          component: () => import('@/views/BookingPublicView.vue'),  name: 'booking-public', meta: { public: true } },
-    { path: '/book/cancel/:token',   component: () => import('@/views/BookingCancelView.vue'),  name: 'booking-cancel', meta: { public: true } },
+    { path: '/book/:token',          component: () => import('@/views/BookingPublicView.vue'),     name: 'booking-public',       meta: { public: true } },
+    { path: '/book/cancel/:token',   component: () => import('@/views/BookingCancelView.vue'),     name: 'booking-cancel',       meta: { public: true } },
     // Catch-all → redirect au dashboard
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
   ],
