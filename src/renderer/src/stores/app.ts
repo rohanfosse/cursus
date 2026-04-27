@@ -39,6 +39,13 @@ export const useAppStore = defineStore('app', () => {
   const taChannelIds      = ref<number[]>([])               // canaux assignés à l'intervenant
   const onlineUsers       = ref<Array<{ id: number; name: string; role: string; status?: { emoji: string | null; text: string | null; expiresAt: string | null } | null }>>([]) // présence en ligne + statuts
 
+  // Bandeau "session expirée". Source unique, affichee par App.vue.
+  // Reset implicite a chaque login/restoreSession (un nouveau token = nouvelle
+  // session, on ne veut surtout pas garder l'ancien message colle en haut).
+  // Reset explicite via dismissSessionExpired() pour le bouton "fermer".
+  const sessionExpiredMessage = ref('')
+  function dismissSessionExpired(): void { sessionExpiredMessage.value = '' }
+
   // ── Historique de notifications ────────────────────────────────────────────
   interface NotifEntry {
     id:          string
@@ -170,6 +177,10 @@ export const useAppStore = defineStore('app', () => {
         if (parsed?.token) window.api.setToken(parsed.token)
         if (currentUser.value?.type === 'ta') loadTaChannels()
         _restoreNavState()
+        // Nouvelle session valide -> on efface l'eventuel bandeau "expire"
+        // herite d'un cycle precedent (sinon il reste colle alors que l'app
+        // marche).
+        sessionExpiredMessage.value = ''
         return true
       }
     } catch {
@@ -198,6 +209,10 @@ export const useAppStore = defineStore('app', () => {
     // Si l'utilisateur revient apres une expiration de session, restaurer
     // le canal qu'il consultait (no-op si deja dans un canal/DM).
     _restoreNavState()
+    // Nouvelle session = on dismiss le bandeau "expire" si encore affiche
+    // (cas typique : 401 -> bandeau -> reconnexion sans reload, le bandeau
+    // resterait colle sinon).
+    sessionExpiredMessage.value = ''
   }
 
   function logout(): void {
@@ -223,7 +238,8 @@ export const useAppStore = defineStore('app', () => {
   // Deux sources :
   //  - Web (src/web/api-shim.ts)     : dispatch d'un CustomEvent sur window
   //  - Electron (src/preload/*.ts)   : channel `authExpired` expose via IPC
-  const sessionExpiredMessage = ref('')
+  // (`sessionExpiredMessage` est declare en haut du store pour que login() et
+  // restoreSession() puissent le reset.)
   function initAuthExpiredListener(): () => void {
     // Idempotent : un dogpile de 401 (10 requetes en vol quand le token expire)
     // ne doit declencher qu'un seul logout + un seul banner.
@@ -583,7 +599,7 @@ export const useAppStore = defineStore('app', () => {
     startSimulation, stopSimulation,
     openChannel, openDm, markRead, markDmRead, markAllRead, loadTaChannels,
     addNotification, muteDm, unmuteDm, isDmMuted,
-    onlineUsers, isUserOnline, sessionExpiredMessage,
+    onlineUsers, isUserOnline, sessionExpiredMessage, dismissSessionExpired,
     initUnreadListener, initOnlineListener, initSocketListener, initPresenceListener, initAuthExpiredListener,
     onDmRefresh, offDmRefresh,
   }

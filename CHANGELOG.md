@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.250.2 (2026-04-27)
+
+### Fix : bandeau "session expirée" qui reste collé après reconnexion
+
+Symptome : un utilisateur recoit un 401 sur une requete (token JWT temporairement expire, race au demarrage), le bandeau rouge `Votre session a expire. Veuillez vous reconnecter.` s'affiche, `logout()` est appele, l'utilisateur se reconnecte (manuellement ou via `restoreSession` au reload). Mais `sessionExpiredMessage` n'etait jamais reset -> bandeau persistant alors que l'app marche.
+
+**Fix** :
+
+- `login()` et `restoreSession()` reset `sessionExpiredMessage.value = ''`. Une nouvelle session = pas de bandeau herite.
+- Bouton de fermeture (×) sur le bandeau via `dismissSessionExpired()` expose par le store. L'utilisateur peut le fermer si la condition de declenchement persiste (ex: 401 sur une route polling en arriere-plan).
+- Reorganisation : `sessionExpiredMessage` declare en haut du store (avec les autres refs d'etat) au lieu d'etre cache dans `initAuthExpiredListener`. Plus simple a auditer.
+
+Tests : 34 tests app store passent. Typecheck propre.
+
 ## v2.250.1 (2026-04-27)
 
 ### Booking : durcissement post-audit (1 BLOQUANT + 5 IMPORTANT + 2 NICE)

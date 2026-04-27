@@ -390,9 +390,12 @@
     <!-- Bandeau reconnexion socket -->
     <!-- Reconnexion : toast discret au lieu de bandeau -->
 
-    <!-- Bandeau session expirée -->
+    <!-- Bandeau session expirée (dismiss manuel via la croix) -->
     <div v-if="appStore.sessionExpiredMessage" class="offline-banner offline-banner-red">
       <span>{{ appStore.sessionExpiredMessage }}</span>
+      <button class="offline-banner-close" @click="appStore.dismissSessionExpired" aria-label="Fermer">
+        ×
+      </button>
     </div>
 
     <!-- Bandeau mise à jour -->
@@ -693,6 +696,13 @@
 
   .offline-banner-red  { background: #991b1b; color: #fecaca; }
   .offline-banner-green { background: #166534; color: #bbf7d0; }
+  .offline-banner-close {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: inherit; opacity: 0.7;
+    font-size: 18px; line-height: 1; cursor: pointer; padding: 4px 8px;
+    border-radius: 4px;
+  }
+  .offline-banner-close:hover { opacity: 1; background: rgba(255, 255, 255, 0.1); }
   .reconnected-fade-enter-active { transition: opacity var(--t-slow); }
   .reconnected-fade-leave-active { transition: opacity .5s; }
   .reconnected-fade-enter-from, .reconnected-fade-leave-to { opacity: 0; }
