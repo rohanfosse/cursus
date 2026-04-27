@@ -279,7 +279,7 @@ onUnmounted(() => {
                 </div>
                 <p class="public-help">
                   Si actif, Cursus genere un lien Jitsi Meet unique pour chaque reservation
-                  (libre, gratuit, sans inscription). Prend le pas sur Microsoft Teams meme si connecte.
+                  (libre, gratuit, sans inscription).
                 </p>
               </div>
 

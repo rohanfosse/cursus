@@ -9,7 +9,6 @@ interface QuickLink { name: string; url: string }
 const STORAGE_KEY = STORAGE_KEYS.QUICKLINKS
 const DEFAULT_LINKS: QuickLink[] = [
   { name: 'Moodle', url: 'https://moodle.cesi.fr' },
-  { name: 'Teams',  url: 'https://teams.microsoft.com' },
 ]
 
 const links = ref<QuickLink[]>([])

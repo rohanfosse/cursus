@@ -305,11 +305,11 @@ onMounted(() => {
             </svg>
           </div>
           <div class="stg-integration-meta">
-            <h4 class="stg-integration-title">Microsoft 365 / Outlook</h4>
+            <h4 class="stg-integration-title">Microsoft Outlook</h4>
             <p class="stg-integration-desc">
-              Synchroniser ton calendrier Outlook avec l'agenda Cursus. Permet
-              egalement la creation de reunions Teams depuis les rappels et
-              les creneaux de reservation.
+              Synchroniser ton calendrier Outlook avec l'agenda Cursus. Les
+              evenements Outlook apparaissent dans la vue agenda et peuvent
+              etre filtres independamment.
             </p>
           </div>
           <span class="stg-integration-status" :class="ms.connected.value ? 'ok' : 'ko'">
@@ -353,7 +353,7 @@ onMounted(() => {
           <ol class="stg-integration-steps">
             <li>Clique sur "Connecter Microsoft" — ton navigateur s'ouvre.</li>
             <li>Connecte-toi avec ton compte Microsoft (pro ou perso).</li>
-            <li>Accepte les permissions demandees (Calendrier, Teams).</li>
+            <li>Accepte les permissions demandees (Calendrier).</li>
             <li>Revenir dans Cursus — l'integration s'active automatiquement.</li>
           </ol>
           <p class="stg-integration-note">

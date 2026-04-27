@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { CalendarClock, Clock, MapPin, Video } from 'lucide-vue-next'
+import { CalendarClock, MapPin } from 'lucide-vue-next'
 import { useAgendaStore } from '@/stores/agenda'
 import { useAppStore } from '@/stores/app'
 import UiWidgetCard from '@/components/ui/UiWidgetCard.vue'
@@ -54,12 +54,6 @@ function dotColor(eventType: string): string {
   }
 }
 
-function openTeams(joinUrl: string | null | undefined) {
-  if (!joinUrl) return
-  if (window.api?.openExternal) window.api.openExternal(joinUrl)
-  else window.open(joinUrl, '_blank')
-}
-
 function goToAgenda() {
   router.push('/agenda')
 }
@@ -96,15 +90,6 @@ function goToAgenda() {
         <span v-if="ev.location" class="waj-meta" :title="ev.location">
           <MapPin :size="10" /> {{ ev.location }}
         </span>
-        <button
-          v-if="ev.teamsJoinUrl"
-          type="button"
-          class="waj-join"
-          aria-label="Rejoindre la visio Teams"
-          @click="openTeams(ev.teamsJoinUrl)"
-        >
-          <Video :size="11" />
-        </button>
       </li>
     </ul>
   </UiWidgetCard>
@@ -173,22 +158,4 @@ function goToAgenda() {
   white-space: nowrap;
 }
 
-.waj-join {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: none;
-  background: var(--brand-teams);
-  color: #fff;
-  border-radius: var(--radius-xs);
-  cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-out);
-}
-.waj-join:hover { background: var(--brand-teams-hover); }
-.waj-join:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
 </style>

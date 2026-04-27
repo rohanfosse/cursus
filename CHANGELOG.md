@@ -1,5 +1,43 @@
 # Changelog
 
+## v2.251.0 (2026-04-27)
+
+### Tests booking + retrait Teams + refonte UX CampaignManager
+
+**Tests booking & campagnes (72 nouveaux tests)** :
+
+- `bookingFlow.test.ts` : 32 tests sur la logique pure de BookingFlow.vue (toIso, buildMonthGrid, slotsByDate, canSubmit, errorTitle, canGoPrev, auto-selection 1ere date dispo, pre-remplissage formulaire).
+- `useCampaigns.test.ts` : 22 tests sur le composable de gestion des campagnes (CRUD, cycle de vie draft/active/closed, filtres calcules, refetch, toasts).
+- `useCampaignBooking.test.ts` : 18 tests sur le composable etudiant (fetchInfo + booking existant, fetchSlots, selectSlot/back, payload tripartite, error mapping, AbortError).
+
+**Retrait Teams de l'UI** :
+
+- AgendaView : suppression du checkbox "Creer une reunion Teams + Outlook", du bouton "Rejoindre Teams" dans le panneau detail, du compteur Teams dans le hero jour/semaine, de l'entree Teams du context menu, des classes CSS `.ag-btn--teams`/`.ag-check-label`.
+- SettingsIntegrations : carte renommee "Microsoft Outlook", description recentree sur la sync calendrier.
+- TabBooking : retrait de la mention "Prend le pas sur Microsoft Teams meme si connecte".
+- WidgetAgendaJour : retrait du bouton "Rejoindre Teams".
+- WidgetQuickLinks : retrait du lien Teams par defaut.
+
+L'integration Microsoft 365 OAuth reste en place pour la sync Outlook (sans creation de reunion Teams).
+
+**Refonte UX/UI CampaignManager** :
+
+- Passe entierement sur les composants UI partages : `UiCard` (avec `accentColor`), `UiPill` (tones semantiques), `UiButton` (avec loading), `EmptyState`, `Modal`, `useConfirm`.
+- Tokens design respectes : `var(--space-*)`, `var(--radius-*)`, `var(--motion-*)`, `var(--ease-*)`. Plus aucun hex hardcode (passage a `color-mix(in srgb, var(--color-*) X%, transparent)`).
+- Bandeau stats en haut (brouillons / actives / cloturees / ratio reservations).
+- Palette couleurs restreinte (6 swatches brand) au lieu d'un picker hex libre.
+- Selecteur jours en chip-toggle (style Calendly) au lieu d'un `<select>`.
+- Toggle cards illustrees pour Tripartite et Jitsi avec description inline.
+- Skeleton shimmer pendant le chargement.
+- EmptyState avec CTA "Creer ma premiere campagne".
+- Meta-chips par campagne (duree, tripartite, Jitsi auto, jours exclus).
+- Progress bar semantique (muted < 25% → warning < 75% → success).
+- Validation footer qui nomme les champs manquants.
+- a11y : `role="radiogroup"`, `aria-checked`, `aria-expanded/controls`, `aria-labels`, `--focus-ring` partout.
+- Confirmations unifiees via `useConfirm` (variant info/warning/danger).
+
+Tests : 1866 passants (40 nouveaux campagnes + 32 nouveaux BookingFlow). Typecheck clean. Lint clean. check:design clean sur les fichiers modifies.
+
 ## v2.250.4 (2026-04-27)
 
 ### Fix : `window.api.onBookingNew is not a function` en mode web

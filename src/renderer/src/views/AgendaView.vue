@@ -10,7 +10,7 @@ import ContextMenu from '@/components/ui/ContextMenu.vue'
 import { useContextMenu, type ContextMenuItem } from '@/composables/useContextMenu'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Plus, Trash2, RefreshCw, X, Clock, Tag, ExternalLink, ChevronLeft, ChevronRight, Check, AlertCircle, Download, Filter, Copy, Edit3, Calendar as CalIcon, Video, MapPin, User, MoreHorizontal, Search } from 'lucide-vue-next'
+import { Plus, Trash2, RefreshCw, X, Clock, Tag, ExternalLink, ChevronLeft, ChevronRight, Check, AlertCircle, Download, Filter, Copy, Edit3, Calendar as CalIcon, MapPin, User, MoreHorizontal, Search } from 'lucide-vue-next'
 import { useAppStore }   from '@/stores/app'
 import { useAgendaStore } from '@/stores/agenda'
 import { useToast } from '@/composables/useToast'
@@ -63,20 +63,19 @@ const dayHero = computed(() => {
 
   if (activeView.value === 'day') {
     const iso = selectedDate.value
-    let total = 0, deadlines = 0, teams = 0
+    let total = 0, deadlines = 0
     for (const ev of filteredEvents.value) {
       const meta = ev._meta
       if (typeof meta?.start !== 'string' || meta.start.slice(0, 10) !== iso) continue
       total++
       if (meta.eventType === 'deadline') deadlines++
-      if (meta.teamsJoinUrl) teams++
     }
     return {
       weekday: d.toLocaleDateString('fr-FR', { weekday: 'long' }),
       dateFull: d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
       weekNum: getISOWeekNumber(d),
       isToday: iso === todayIso,
-      total, deadlines, teams,
+      total, deadlines,
     }
   }
 
@@ -85,7 +84,7 @@ const dayHero = computed(() => {
   const end = new Date(start); end.setDate(start.getDate() + 6)
   const startIso = start.toISOString().slice(0, 10)
   const endIso = end.toISOString().slice(0, 10)
-  let total = 0, deadlines = 0, teams = 0
+  let total = 0, deadlines = 0
   for (const ev of filteredEvents.value) {
     const meta = ev._meta
     if (typeof meta?.start !== 'string') continue
@@ -93,7 +92,6 @@ const dayHero = computed(() => {
     if (iso < startIso || iso > endIso) continue
     total++
     if (meta.eventType === 'deadline') deadlines++
-    if (meta.teamsJoinUrl) teams++
   }
   const sameMonth = start.getMonth() === end.getMonth()
   const dateFull = sameMonth
@@ -105,7 +103,7 @@ const dayHero = computed(() => {
     dateFull,
     weekNum: getISOWeekNumber(start),
     isToday: isCurrentWeek,
-    total, deadlines, teams,
+    total, deadlines,
   }
 })
 
@@ -139,10 +137,6 @@ function onEventContextMenu(e: MouseEvent, event: { _meta?: CalendarEvent }) {
     { label: 'Voir les details', icon: ExternalLink, action: () => { selectedEvent.value = meta; detailOpen.value = true } },
     { label: 'Copier le titre',  icon: Copy,         action: () => { navigator.clipboard.writeText(meta.title); showToast('Titre copie', 'success') } },
   ]
-
-  if (meta.teamsJoinUrl) {
-    items.push({ label: 'Rejoindre Teams', icon: Video, action: () => window.open(meta.teamsJoinUrl!, '_blank', 'noopener') })
-  }
 
   if (meta.eventType === 'deadline' || meta.eventType === 'start_date') {
     items.push({ label: 'Voir le devoir', icon: CalIcon, action: () => router.push({ name: 'devoirs' }) })
@@ -244,7 +238,6 @@ const formDate       = ref('')
 const formTime       = ref('')
 const formTitle      = ref('')
 const formDesc       = ref('')
-const formCreateTeams = ref(false)
 const saving         = ref(false)
 
 // Autofocus : quand showForm passe à true, focus le champ Titre après rendu
@@ -282,35 +275,9 @@ async function submitReminder() {
       showToast('Rappel modifie', 'success')
     } else {
       await agenda.createReminder({ promo_tag: null, date: dateVal, title: formTitle.value.trim(), description: formDesc.value.trim(), bloc: null })
-
-      // If Teams meeting requested, also create in Outlook with online meeting
-      if (formCreateTeams.value && isTeacher.value && formTime.value) {
-        const startDate = new Date(`${formDate.value}T${formTime.value}:00`)
-        if (isNaN(startDate.getTime())) {
-          showToast('Date ou heure invalide pour la reunion Teams', 'error')
-        } else {
-          const startIso = startDate.toISOString()
-          const endIso   = new Date(startDate.getTime() + 60 * 60 * 1000).toISOString()
-          try {
-            const res = await window.api.createOutlookEvent({
-              subject: formTitle.value.trim(),
-              startDateTime: startIso,
-              endDateTime: endIso,
-              body: formDesc.value.trim() || undefined,
-              createTeams: true,
-            })
-            if (res.ok && res.data?.teamsJoinUrl) {
-              showToast('Reunion Teams creee — lien dans Outlook', 'success')
-              // Refresh outlook to see the new event
-              await loadOutlook()
-            }
-          } catch { showToast('Teams non disponible (verifiez la connexion Microsoft)', 'error') }
-        }
-      }
     }
     editingId.value = null
     formDate.value = ''; formTime.value = ''; formTitle.value = ''; formDesc.value = ''
-    formCreateTeams.value = false
     showForm.value = false
   } finally { saving.value = false }
 }
@@ -579,10 +546,6 @@ watch(() => route.query, (q) => {
               <span class="ag-chip-dot" :style="{ background: 'var(--color-danger)' }" />
               {{ dayHero.deadlines }} échéance{{ dayHero.deadlines > 1 ? 's' : '' }}
             </span>
-            <span v-if="dayHero.teams > 0" class="ag-day-hero-chip">
-              <Video :size="12" aria-hidden="true" />
-              {{ dayHero.teams }} Teams
-            </span>
           </template>
         </div>
       </div>
@@ -709,11 +672,6 @@ watch(() => route.query, (q) => {
               </div>
             </div>
 
-            <!-- Teams join button -->
-            <a v-if="selectedEvent.teamsJoinUrl" :href="selectedEvent.teamsJoinUrl" target="_blank" rel="noopener" class="ag-btn ag-btn--teams ag-btn--block">
-              <Video :size="14" aria-hidden="true" /> Rejoindre Teams
-            </a>
-
             <!-- Statut rendu avec progress bar -->
             <div v-if="selectedEvent.submissionStatus" class="agenda-detail-status-card" :class="`status--${selectedEvent.submissionStatus}`">
               <div class="agenda-detail-status-head">
@@ -776,12 +734,6 @@ watch(() => route.query, (q) => {
               </div>
               <label class="ag-label">Titre<input ref="titleInputRef" v-model="formTitle" type="text" class="ag-input" placeholder="Ex: Soutenance finale..." /></label>
               <label class="ag-label">Description<textarea v-model="formDesc" class="ag-input ag-textarea" rows="3" placeholder="Details..." /></label>
-              <label v-if="isTeacher && !editingId" class="ag-label ag-check-label" :class="{ 'ag-check-label--disabled': !formTime }">
-                <input v-model="formCreateTeams" type="checkbox" :disabled="!formTime" />
-                <Video :size="14" aria-hidden="true" />
-                <span>Créer une réunion Teams + Outlook</span>
-                <small v-if="!formTime" class="ag-hint">Nécessite une heure</small>
-              </label>
             </div>
           </div>
 
@@ -1072,30 +1024,6 @@ watch(() => route.query, (q) => {
 .ag-btn--ghost:hover:not(:disabled) { background: var(--bg-hover); }
 .ag-btn--danger { background: rgba(239,68,68,0.1); color: var(--color-danger); border-color: transparent; margin-top: 8px; }
 .ag-btn--danger:hover { background: rgba(239,68,68,0.2); }
-.ag-btn--teams {
-  background: var(--brand-teams); color: #fff; border-color: var(--brand-teams); margin-top: 4px;
-  text-decoration: none;
-}
-.ag-btn--teams:hover { background: var(--brand-teams-hover); border-color: var(--brand-teams-hover); }
-.ag-check-label {
-  flex-direction: row !important; align-items: center; gap: 6px;
-  background: rgba(98, 100, 167, 0.08); padding: 8px 10px; border-radius: 6px;
-  color: var(--text-primary); cursor: pointer;
-  font-size: 12px !important; font-weight: 500 !important;
-}
-.ag-check-label input { accent-color: var(--brand-teams); }
-.ag-check-label--disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background: color-mix(in srgb, var(--bg-hover) 60%, transparent) !important;
-}
-.ag-check-label--disabled input { cursor: not-allowed; }
-.ag-hint {
-  margin-left: auto;
-  font-size: 10.5px;
-  color: var(--text-muted);
-  font-style: italic;
-}
 
 .ag-spin { animation: ag-spin 1s linear infinite; }
 @keyframes ag-spin { to { transform: rotate(360deg); } }
