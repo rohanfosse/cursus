@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.250.3 (2026-04-27)
+
+### Fix : creation de campagne (suspect zod refine + log diagnostique)
+
+Apres le durcissement v2.250.1, des utilisateurs voient "Erreur a la creation" au POST /api/bookings/campaigns. Sans access aux logs prod, fix preventif + amelioration du log pour un futur diagnostic.
+
+**Fix probable** : le `refine()` zod ajoute sur `fallbackVisioUrl` interagissait possiblement mal avec `.optional().nullable()` en zod v4 quand le champ etait absent. Remplace par un `z.preprocess()` qui convertit `null` / `""` / `undefined` en `undefined` AVANT la chaine de validation. Applique aux 2 endroits (`teacherAdmin.js` et `campaigns.js`).
+
+**Log diagnostique** : le handler POST `/campaigns` enveloppe la creation dans un try/catch qui logue `error`, `stack`, `payloadKeys` cote serveur. Le wrap masque le detail au client (anti-leak), mais on garde la trace serveur pour debug ulterieur.
+
 ## v2.250.2 (2026-04-27)
 
 ### Fix : bandeau "session expirée" qui reste collé après reconnexion

@@ -47,10 +47,16 @@ const campaignFields = z.object({
   withTutor: z.boolean().optional(),
   notifyEmail: z.string().email().optional(),
   useJitsi: z.boolean().optional(),
-  fallbackVisioUrl: z.string().url().refine(
-    v => /^https?:\/\//i.test(v),
-    { message: 'URL doit commencer par http:// ou https://' },
-  ).optional().nullable(),
+  // Preprocesseur : "" / null / undefined -> undefined (skip la validation).
+  // Sinon zod v4 fait passer une chaine vide a .url() qui rejette avec une
+  // erreur peu utile a l'UI.
+  fallbackVisioUrl: z.preprocess(
+    v => (v == null || v === '' ? undefined : v),
+    z.string().url().refine(
+      v => /^https?:\/\//i.test(v),
+      { message: 'URL doit commencer par http:// ou https://' },
+    ),
+  ).optional(),
   timezone: z.string().max(50).optional(),
 })
 
@@ -96,14 +102,27 @@ router.get('/campaigns', requireRole('teacher'), wrap((req) => {
 }))
 
 router.post('/campaigns', requireRole('teacher'), validate(createCampaignSchema), wrap((req) => {
-  const c = queries.createCampaign({ teacherId: req.user.id, ...req.body })
-  // Auto-generer les invites pour la promo cible
-  if (c.promo_id) {
-    const students = queries.getStudents(c.promo_id) || []
-    queries.ensureInvitesForStudents(c.id, students.map(s => s.id))
+  try {
+    const c = queries.createCampaign({ teacherId: req.user.id, ...req.body })
+    // Auto-generer les invites pour la promo cible
+    if (c.promo_id) {
+      const students = queries.getStudents(c.promo_id) || []
+      queries.ensureInvitesForStudents(c.id, students.map(s => s.id))
+    }
+    const refreshed = queries.getCampaignById(c.id)
+    log.info('campaign_created', { campaignId: c.id, teacherId: req.user.id, promoId: c.promo_id })
+    return { ...parseCampaignJson(refreshed), invites: queries.listInvites(c.id) }
+  } catch (err) {
+    // Loggue avec contexte pour faciliter le debug en prod (le wrap masque
+    // le message detaille au client, mais on garde la trace serveur).
+    log.error('campaign_create_failed', {
+      teacherId: req.user.id,
+      error: err.message,
+      stack: err.stack,
+      payloadKeys: Object.keys(req.body || {}),
+    })
+    throw err
   }
-  const refreshed = queries.getCampaignById(c.id)
-  return { ...parseCampaignJson(refreshed), invites: queries.listInvites(c.id) }
 }))
 
 router.get('/campaigns/:id', requireRole('teacher'), wrap((req) => {

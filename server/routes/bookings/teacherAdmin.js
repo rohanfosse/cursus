@@ -46,9 +46,13 @@ function ensurePublicSlug(currentSlug, fields) {
 
 // Validateur URL HTTPS-only — z.string().url() autorise javascript:/data:,
 // donc on ajoute un refine pour bloquer ces schemes des l'entree.
-const httpUrl = z.string().url().refine(
-  v => /^https?:\/\//i.test(v),
-  { message: 'URL doit commencer par http:// ou https://' },
+// Preprocesseur : "" / null / undefined -> undefined (skip la validation).
+const httpUrl = z.preprocess(
+  v => (v == null || v === '' ? undefined : v),
+  z.string().url().refine(
+    v => /^https?:\/\//i.test(v),
+    { message: 'URL doit commencer par http:// ou https://' },
+  ),
 )
 
 const createEventTypeSchema = z.object({
