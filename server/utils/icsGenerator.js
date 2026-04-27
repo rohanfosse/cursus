@@ -71,13 +71,15 @@ function formatIcsDate(d) {
   return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
 }
 
-/** Escape special characters for ICS text fields */
+/** Escape special characters for ICS text fields. CR/LF transformes en \\n,
+ *  pas juste LF — sinon un attaquant peut injecter une nouvelle property
+ *  ICS via un \r non echape. */
 function escIcs(s) {
   return String(s)
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
-    .replace(/\n/g, '\\n')
+    .replace(/\r\n|\r|\n/g, '\\n')
 }
 
 module.exports = { generateIcs }

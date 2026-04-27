@@ -13,26 +13,25 @@ const { requireRole } = require('../../middleware/authorize')
 const { ForbiddenError, ValidationError } = require('../../utils/errors')
 const { SERVER_URL } = require('./_shared')
 
-// Mode public ouvert : impose un slug suffisamment long pour empecher
-// l'enumeration par dictionnaire (ex: "/book/e/jean"). Sous ce seuil, on
-// allonge le slug avec un suffixe aleatoire avant d'activer is_public.
-const PUBLIC_SLUG_MIN_LEN = 10
-
 /** Genere un slug derive en y collant un suffixe hex de 5 chars. */
 function lengthenSlugForPublic(baseSlug) {
   const suffix = crypto.randomBytes(3).toString('hex').slice(0, 5)
   return `${baseSlug}-${suffix}`
 }
 
+/** Heuristique : un slug deja allonge porte un suffixe `-XXXXX` final hex. */
+const RANDOMIZED_SLUG_RE = /-[0-9a-f]{5}$/
+
 /**
- * Si le PATCH active is_public et que le slug courant est trop court,
- * remplace-le par une variante allongee (et garantit l'unicite).
- * Retourne le slug final (peut etre inchange).
+ * A l'activation de is_public, on rallonge SYSTEMATIQUEMENT le slug avec un
+ * suffixe aleatoire — sauf s'il en a deja un (rejeu d'activation). Defense
+ * contre l'enumeration : meme un slug "cesi-rohan" devient "cesi-rohan-a3f2c"
+ * inscrutable. Modifie `fields.slug` en place pour que l'UPDATE le persiste.
  */
 function ensurePublicSlug(currentSlug, fields) {
   const wantsPublic = fields.is_public === 1 || fields.is_public === true
   if (!wantsPublic) return currentSlug
-  if (currentSlug && currentSlug.length >= PUBLIC_SLUG_MIN_LEN) return currentSlug
+  if (currentSlug && RANDOMIZED_SLUG_RE.test(currentSlug)) return currentSlug
   for (let i = 0; i < 5; i++) {
     const candidate = lengthenSlugForPublic(currentSlug || 'rdv')
     if (!queries.getEventTypeBySlug(candidate)) {
@@ -45,13 +44,20 @@ function ensurePublicSlug(currentSlug, fields) {
 
 // ── Schemas ────────────────────────────────────────────────────────────
 
+// Validateur URL HTTPS-only — z.string().url() autorise javascript:/data:,
+// donc on ajoute un refine pour bloquer ces schemes des l'entree.
+const httpUrl = z.string().url().refine(
+  v => /^https?:\/\//i.test(v),
+  { message: 'URL doit commencer par http:// ou https://' },
+)
+
 const createEventTypeSchema = z.object({
   title: z.string().min(1).max(200),
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
   description: z.string().max(1000).optional(),
   durationMinutes: z.number().int().min(5).max(480).optional(),
   color: z.string().max(20).regex(/^#[0-9a-fA-F]{3,8}$/).optional(),
-  fallbackVisioUrl: z.string().url().optional().nullable(),
+  fallbackVisioUrl: httpUrl.optional().nullable(),
   bufferMinutes: z.number().int().min(0).max(60).optional(),
   timezone: z.string().max(50).optional(),
   isPublic: z.boolean().optional(),

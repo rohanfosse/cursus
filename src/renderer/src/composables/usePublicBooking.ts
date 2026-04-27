@@ -2,7 +2,7 @@
  * usePublicBooking — composable for the public-facing booking page.
  * Uses fetch() directly (not window.api) so it works in both Electron and web.
  */
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { fetchWithTimeout, isAbortError } from '@/utils/fetchWithTimeout'
 
 const SERVER_URL = (import.meta.env?.VITE_SERVER_URL as string | undefined) || 'http://localhost:3001'
@@ -49,7 +49,6 @@ export interface BookingResult {
 export function usePublicBooking(identifier: string, mode: PublicBookingMode = 'token') {
   const eventInfo = ref<BookingEventInfo | null>(null)
   const slots = ref<BookingSlot[]>([])
-  const weekStart = ref('')
   const selectedSlot = ref<BookingSlot | null>(null)
   const step = ref<'calendar' | 'details' | 'confirmation'>('calendar')
   const loading = ref(false)
@@ -62,15 +61,6 @@ export function usePublicBooking(identifier: string, mode: PublicBookingMode = '
   const basePath = mode === 'event'
     ? `/api/bookings/public/event/${encodeURIComponent(identifier)}`
     : `/api/bookings/public/${encodeURIComponent(identifier)}`
-
-  // Group slots by date
-  const slotsByDate = computed(() => {
-    const map: Record<string, BookingSlot[]> = {}
-    for (const s of slots.value) {
-      (map[s.date] ??= []).push(s)
-    }
-    return map
-  })
 
   async function apiFetch<T>(path: string, opts?: RequestInit): Promise<{ ok: boolean; data?: T; error?: string; code?: string }> {
     try {
@@ -99,18 +89,6 @@ export function usePublicBooking(identifier: string, mode: PublicBookingMode = '
     loading.value = false
   }
 
-  async function fetchSlots(weekOffset = 0) {
-    loading.value = true
-    const res = await apiFetch<{ slots: BookingSlot[]; weekStart: string }>(
-      `${basePath}/slots?weekOffset=${weekOffset}`,
-    )
-    if (res.ok && res.data) {
-      slots.value = res.data.slots
-      weekStart.value = res.data.weekStart
-    }
-    loading.value = false
-  }
-
   /**
    * Charge les creneaux des `weeks` semaines en parallele et les fusionne
    * (deduplication par start ISO). Utilise pour alimenter le calendrier
@@ -135,7 +113,6 @@ export function usePublicBooking(identifier: string, mode: PublicBookingMode = '
       }
       all.sort((a, b) => a.start.localeCompare(b.start))
       slots.value = all
-      if (results[0]?.ok && results[0].data) weekStart.value = results[0].data.weekStart
     } finally {
       loading.value = false
     }
@@ -184,10 +161,9 @@ export function usePublicBooking(identifier: string, mode: PublicBookingMode = '
   }
 
   return {
-    eventInfo, slots, weekStart, selectedSlot, step,
+    eventInfo, slots, selectedSlot, step,
     loading, error, errorCode, bookingResult,
-    slotsByDate,
-    fetchEventInfo, fetchSlots, fetchSlotsRange, selectSlot, backToCalendar, bookSlot,
+    fetchEventInfo, fetchSlotsRange, selectSlot, backToCalendar, bookSlot,
     icsUrl,
   }
 }

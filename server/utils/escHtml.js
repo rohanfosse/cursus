@@ -37,4 +37,27 @@ function sanitizePlainText(s, maxLen = 200) {
     .slice(0, maxLen)
 }
 
-module.exports = { escHtml, sanitizePlainText }
+/**
+ * Whitelist scheme + parse pour empecher les URLs malicieuses dans les
+ * attributs HTML (`<a href="...">`). Protege contre `javascript:fetch(...)`,
+ * `data:text/html,<script>`, etc. — z.string().url() de zod accepte tous
+ * les schemes valides syntaxiquement, donc cette validation est obligatoire
+ * avant injection dans un template.
+ *
+ * Renvoie l'URL normalisee si http(s), null sinon.
+ *
+ * @param {string|null|undefined} u
+ * @returns {string|null}
+ */
+function safeHttpUrl(u) {
+  if (!u || typeof u !== 'string') return null
+  try {
+    const parsed = new URL(u)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    return parsed.href
+  } catch {
+    return null
+  }
+}
+
+module.exports = { escHtml, sanitizePlainText, safeHttpUrl }

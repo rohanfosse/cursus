@@ -129,10 +129,38 @@ function deleteCampaign(id) {
   const tx = db.transaction(() => {
     db.prepare('DELETE FROM booking_campaigns WHERE id = ?').run(id)
     if (c && c.event_type_id) {
-      db.prepare('DELETE FROM booking_event_types WHERE id = ?').run(c.event_type_id)
+      // L'event_type "fantome" peut avoir des bookings si la campagne a deja
+      // genere des reservations. SQLite refusera le DELETE si la FK est ON
+      // DELETE NO ACTION (default) -> on swallow l'erreur pour laisser l'orphelin
+      // plutot que de casser. Plus tard : ajout colonne `is_internal` + cleanup
+      // job pour purger les fantomes orphelins sans bookings.
+      try {
+        db.prepare('DELETE FROM booking_event_types WHERE id = ?').run(c.event_type_id)
+      } catch { /* booking referencing event_type, leave it orphaned */ }
     }
   })
   tx()
+}
+
+/**
+ * Transition atomique de status. Renvoie le nb de lignes affectees (0 si la
+ * campagne n'etait pas dans `fromStatus`). Permet a la route de detecter un
+ * double-launch sans send les mails 2x.
+ */
+function transitionCampaignStatus(id, fromStatus, toStatus, extra = {}) {
+  const db = getDb()
+  const sets = ['status = ?']
+  const vals = [toStatus]
+  if (extra.launched_at) { sets.push('launched_at = ?'); vals.push(extra.launched_at) }
+  vals.push(id, fromStatus)
+  const res = db.prepare(`UPDATE booking_campaigns SET ${sets.join(', ')} WHERE id = ? AND status = ?`).run(...vals)
+  return res.changes
+}
+
+function countCampaignBookings(campaignId) {
+  return getDb().prepare(
+    "SELECT COUNT(*) as n FROM bookings WHERE campaign_id = ? AND status = 'confirmed'"
+  ).get(campaignId).n
 }
 
 // ── Invites ──────────────────────────────────────────────────────────────
@@ -216,6 +244,7 @@ function getInviteById(inviteId) {
 module.exports = {
   getCampaigns, getCampaignById, getCampaignByInviteToken,
   createCampaign, updateCampaign, deleteCampaign,
+  transitionCampaignStatus, countCampaignBookings,
   ensureInvitesForStudents, listInvites, listPendingInvites,
   markInviteSent, attachBookingToInvite, getInviteById,
 }

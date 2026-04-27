@@ -48,6 +48,14 @@ const PUBLIC_STUDENT_ID = 0
 
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
 
+// Defense-in-depth : en prod, l'absence de TURNSTILE_SECRET_KEY est tres
+// probablement une erreur de config (var perdue dans un redeploy). On log
+// une fois au demarrage pour qu'un humain s'en apercoive plutot que le
+// captcha disparaisse silencieusement.
+if (process.env.NODE_ENV === 'production' && !process.env.TURNSTILE_SECRET_KEY) {
+  log.warn('TURNSTILE_SECRET_KEY missing in production — captcha public booking is OFF')
+}
+
 /**
  * Verifie un token Cloudflare Turnstile contre l'API officielle.
  * - Si TURNSTILE_SECRET_KEY n'est pas configure : on skip (mode dev / tests).

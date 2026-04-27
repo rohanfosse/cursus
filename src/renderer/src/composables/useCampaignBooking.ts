@@ -7,7 +7,7 @@
  *   3. Si tripartite, demande nom + email du tuteur entreprise
  *   4. Reservation -> mail tripartite + ICS attache
  */
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { fetchWithTimeout, isAbortError } from '@/utils/fetchWithTimeout'
 
 const SERVER_URL = (import.meta.env?.VITE_SERVER_URL as string | undefined) || 'http://localhost:3001'
@@ -59,14 +59,6 @@ export function useCampaignBooking(token: string) {
   const error = ref('')
   const errorCode = ref('')
   const result = ref<BookingResult | null>(null)
-
-  const slotsByDate = computed(() => {
-    const m: Record<string, Slot[]> = {}
-    for (const s of slots.value) (m[s.date] ??= []).push(s)
-    return m
-  })
-
-  const sortedDates = computed(() => Object.keys(slotsByDate.value).sort())
 
   async function api<T>(path: string, opts?: RequestInit): Promise<{ ok: boolean; data?: T; error?: string; code?: string }> {
     try {
@@ -139,7 +131,6 @@ export function useCampaignBooking(token: string) {
 
   return {
     info, slots, selectedSlot, step, loading, error, errorCode, result,
-    slotsByDate, sortedDates,
     fetchInfo, fetchSlots, selectSlot, backToCalendar, book,
   }
 }

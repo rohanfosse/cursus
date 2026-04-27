@@ -47,7 +47,10 @@ const campaignFields = z.object({
   withTutor: z.boolean().optional(),
   notifyEmail: z.string().email().optional(),
   useJitsi: z.boolean().optional(),
-  fallbackVisioUrl: z.string().url().optional().nullable(),
+  fallbackVisioUrl: z.string().url().refine(
+    v => /^https?:\/\//i.test(v),
+    { message: 'URL doit commencer par http:// ou https://' },
+  ).optional().nullable(),
   timezone: z.string().max(50).optional(),
 })
 
@@ -145,6 +148,12 @@ router.patch('/campaigns/:id', requireRole('teacher'), validate(updateCampaignSc
 router.delete('/campaigns/:id', requireRole('teacher'), wrap((req) => {
   const c = ownCampaignOr404(req.params.id, req.user.id)
   if (c.status === 'active') throw new ValidationError('Cloturer la campagne avant de la supprimer')
+  // Refuser la suppression si la campagne a des reservations confirmees :
+  // sinon perte de donnees historiques (planning, presence, etc.)
+  const bookingsCount = queries.countCampaignBookings(c.id)
+  if (bookingsCount > 0) {
+    throw new ValidationError(`Cette campagne a ${bookingsCount} reservation(s). Cloture-la plutot que la supprimer.`)
+  }
   queries.deleteCampaign(c.id)
   return null
 }))
@@ -152,6 +161,19 @@ router.delete('/campaigns/:id', requireRole('teacher'), wrap((req) => {
 router.post('/campaigns/:id/launch', requireRole('teacher'), wrap(async (req) => {
   const c = ownCampaignOr404(req.params.id, req.user.id)
   if (c.status === 'closed') throw new ValidationError('Campagne deja cloturee')
+
+  // Transition atomique draft -> active. Si la campagne etait deja active
+  // (clic precedent encore en cours), changes() = 0 -> on rejette pour eviter
+  // l'envoi double. Pour les campagnes deja active, on autorise le rejeu en
+  // se basant sur l'idempotence (filtre `!invited_at`).
+  if (c.status === 'draft') {
+    const changed = queries.transitionCampaignStatus(c.id, 'draft', 'active', { launched_at: new Date().toISOString() })
+    if (changed === 0) {
+      // Une autre requete a deja active la campagne -> on stoppe.
+      throw new ValidationError('Campagne deja en cours de lancement')
+    }
+  }
+
   // (Re)assure les invites pour la promo (au cas ou des etudiants ont ete ajoutes apres creation)
   if (c.promo_id) {
     const students = queries.getStudents(c.promo_id) || []
@@ -176,7 +198,6 @@ router.post('/campaigns/:id/launch', requireRole('teacher'), wrap(async (req) =>
     if (ok) sentIds.push(inv.id)
   }
   queries.markInviteSent(sentIds, 'invited')
-  queries.updateCampaign(c.id, { status: 'active', launched_at: new Date().toISOString() })
   log.info('campaign_launched', { campaignId: c.id, teacherId: req.user.id, sent: sentIds.length, total: toSend.length })
   return { sent: sentIds.length, skipped: toSend.length - sentIds.length, alreadyInvited: invites.length - toSend.length }
 }))

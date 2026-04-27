@@ -5,7 +5,7 @@
 const nodemailer = require('nodemailer');
 const log = require('../utils/logger');
 
-const { escHtml } = require('../utils/escHtml');
+const { escHtml, safeHttpUrl } = require('../utils/escHtml');
 
 const SMTP_HOST = process.env.SMTP_HOST || '';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -42,6 +42,12 @@ async function sendBookingConfirmation({ to, tutorName, teacherName, studentName
   const timeStr = startDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   const endTime = new Date(endDatetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
+  // Whitelist scheme http(s) avant injection dans href + escape attribut.
+  // z.string().url() autorise javascript:/data: -> sans ces 2 etapes, XSS dans
+  // les clients mail HTML (Outlook web, Apple Mail) qui rendent les liens.
+  const safeJoin = safeHttpUrl(teamsJoinUrl);
+  const safeCancel = safeHttpUrl(cancelUrl);
+
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
       <div style="background: #3b82f6; color: white; padding: 20px 24px; border-radius: 12px 12px 0 0;">
@@ -57,15 +63,17 @@ async function sendBookingConfirmation({ to, tutorName, teacherName, studentName
           <tr><td style="padding: 8px 0; color: #64748b;">Enseignant</td><td style="padding: 8px 0;">${escHtml(teacherName)}</td></tr>
           <tr><td style="padding: 8px 0; color: #64748b;">Etudiant</td><td style="padding: 8px 0;">${escHtml(studentName)}</td></tr>
         </table>
-        ${teamsJoinUrl ? `
-          <a href="${teamsJoinUrl}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin-bottom: 16px;">
-            Rejoindre la reunion Teams
+        ${safeJoin ? `
+          <a href="${escHtml(safeJoin)}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin-bottom: 16px;">
+            Rejoindre la visioconference
           </a>
         ` : ''}
-        <p style="margin: 16px 0 0; font-size: 13px; color: #64748b;">
-          Besoin d'annuler ou reporter ?
-          <a href="${cancelUrl}" style="color: #3b82f6;">Cliquez ici</a>
-        </p>
+        ${safeCancel ? `
+          <p style="margin: 16px 0 0; font-size: 13px; color: #64748b;">
+            Besoin d'annuler ou reporter ?
+            <a href="${escHtml(safeCancel)}" style="color: #3b82f6;">Cliquez ici</a>
+          </p>
+        ` : ''}
       </div>
       <p style="text-align: center; font-size: 11px; color: #94a3b8; margin-top: 16px;">
         Envoye par Cursus &mdash; cursus.school
@@ -95,6 +103,7 @@ async function sendBookingCancellation({ to, tutorName, eventTitle, startDatetim
   const dateStr = startDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   const timeStr = startDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
+  const safeRebook = safeHttpUrl(rebookUrl);
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
       <div style="background: #ef4444; color: white; padding: 20px 24px; border-radius: 12px 12px 0 0;">
@@ -103,7 +112,7 @@ async function sendBookingCancellation({ to, tutorName, eventTitle, startDatetim
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
         <p>Bonjour <strong>${escHtml(tutorName)}</strong>,</p>
         <p>Votre rendez-vous <strong>${escHtml(eventTitle)}</strong> du <strong>${dateStr} a ${timeStr}</strong> a ete annule.</p>
-        ${rebookUrl ? `<p><a href="${rebookUrl}" style="color: #3b82f6; font-weight: 600;">Reserver un nouveau creneau</a></p>` : ''}
+        ${safeRebook ? `<p><a href="${escHtml(safeRebook)}" style="color: #3b82f6; font-weight: 600;">Reserver un nouveau creneau</a></p>` : ''}
       </div>
     </div>
   `;
@@ -130,6 +139,7 @@ async function sendBookingReminder({ to, tutorName, teacherName, eventTitle, sta
   const dateStr = startDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   const timeStr = startDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
+  const safeJoin = safeHttpUrl(teamsJoinUrl);
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
       <div style="background: #f59e0b; color: white; padding: 20px 24px; border-radius: 12px 12px 0 0;">
@@ -139,7 +149,7 @@ async function sendBookingReminder({ to, tutorName, teacherName, eventTitle, sta
         <p>Bonjour <strong>${escHtml(tutorName)}</strong>,</p>
         <p>Pour rappel, votre rendez-vous <strong>${escHtml(eventTitle)}</strong> avec <strong>${escHtml(teacherName)}</strong> est prevu :</p>
         <p style="font-size: 16px; font-weight: 700; color: #111827;">${dateStr} a ${timeStr}</p>
-        ${teamsJoinUrl ? `<a href="${teamsJoinUrl}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin-top: 8px;">Rejoindre la reunion Teams</a>` : ''}
+        ${safeJoin ? `<a href="${escHtml(safeJoin)}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin-top: 8px;">Rejoindre la visioconference</a>` : ''}
       </div>
     </div>
   `;
@@ -165,6 +175,7 @@ async function sendBookingReschedule({ to, tutorName, eventTitle, oldDatetime, r
   const dateStr = oldDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   const timeStr = oldDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
+  const safeRebook = safeHttpUrl(rebookUrl);
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
       <div style="background: #3b82f6; color: white; padding: 20px 24px; border-radius: 12px 12px 0 0;">
@@ -173,7 +184,7 @@ async function sendBookingReschedule({ to, tutorName, eventTitle, oldDatetime, r
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
         <p>Bonjour <strong>${escHtml(tutorName)}</strong>,</p>
         <p>Votre rendez-vous <strong>${escHtml(eventTitle)}</strong> du <strong>${dateStr} a ${timeStr}</strong> a ete reporte.</p>
-        <p><a href="${rebookUrl}" style="display: inline-block; background: #3b82f6; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600;">Choisir un nouveau creneau</a></p>
+        ${safeRebook ? `<p><a href="${escHtml(safeRebook)}" style="display: inline-block; background: #3b82f6; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600;">Choisir un nouveau creneau</a></p>` : ''}
       </div>
     </div>
   `;
@@ -209,6 +220,13 @@ async function sendCampaignInvite({ to, studentName, teacherName, campaignTitle,
     ? new Date(deadlineDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     : null
 
+  // bookingUrl est construit cote serveur a partir de SERVER_URL + token : safe en pratique,
+  // mais on whitelist quand meme pour respecter le pattern (defense en profondeur).
+  const safeBooking = safeHttpUrl(bookingUrl);
+  if (!safeBooking) {
+    log.warn('Skipping campaign invite : invalid booking URL', { bookingUrl });
+    return false;
+  }
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
       <div style="background: #6366f1; color: white; padding: 20px 24px; border-radius: 12px 12px 0 0;">
@@ -221,7 +239,7 @@ async function sendCampaignInvite({ to, studentName, teacherName, campaignTitle,
         ${campaignDescription ? `<p style="margin: 0 0 16px; color: #475569;">${escHtml(campaignDescription)}</p>` : ''}
         ${deadlineStr ? `<p style="margin: 0 0 16px; font-size: 13px; color: #64748b;">A reserver avant le <strong>${deadlineStr}</strong>.</p>` : ''}
         <p style="margin: 24px 0;">
-          <a href="${bookingUrl}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+          <a href="${escHtml(safeBooking)}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px;">
             Choisir mon creneau
           </a>
         </p>
@@ -267,6 +285,10 @@ async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmai
   const timeStr = startDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   const endTime = new Date(endDatetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
+  // Whitelist scheme http(s) sur tous les liens injectes pour bloquer
+  // javascript:/data: que zod a pu laisser passer (fallback_visio_url custom).
+  const safeJoin = safeHttpUrl(joinUrl);
+  const safeCancel = safeHttpUrl(cancelUrl);
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
       <div style="background: #22c55e; color: white; padding: 20px 24px; border-radius: 12px 12px 0 0;">
@@ -281,9 +303,9 @@ async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmai
           <tr><td style="padding: 8px 0; color: #64748b;">Etudiant</td><td style="padding: 8px 0;">${escHtml(studentName || '-')}</td></tr>
           ${tutorName ? `<tr><td style="padding: 8px 0; color: #64748b;">Tuteur entreprise</td><td style="padding: 8px 0;">${escHtml(tutorName)}</td></tr>` : ''}
         </table>
-        ${joinUrl ? `
+        ${safeJoin ? `
           <p>
-            <a href="${joinUrl}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+            <a href="${escHtml(safeJoin)}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
               Rejoindre la visioconference
             </a>
           </p>
@@ -291,7 +313,7 @@ async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmai
         <p style="margin: 16px 0 0; font-size: 13px; color: #64748b;">
           L'invitation est jointe a ce mail (.ics). Ouvre-la pour ajouter le RDV a ton calendrier.
         </p>
-        ${cancelUrl ? `<p style="margin: 8px 0 0; font-size: 12px; color: #94a3b8;">Annuler ou reporter : <a href="${cancelUrl}" style="color: #3b82f6;">cliquez ici</a></p>` : ''}
+        ${safeCancel ? `<p style="margin: 8px 0 0; font-size: 12px; color: #94a3b8;">Annuler ou reporter : <a href="${escHtml(safeCancel)}" style="color: #3b82f6;">cliquez ici</a></p>` : ''}
       </div>
     </div>
   `;
