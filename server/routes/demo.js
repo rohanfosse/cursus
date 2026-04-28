@@ -217,4 +217,122 @@ router.get('/status', (req, res) => {
   res.json({ ok: true, data: { tenant: req.tenantId, counts } })
 })
 
+// ──────────────────────────────────────────────────────────────────────
+//  Endpoints "lecture vide" pour modules non couverts par le MVP (V2).
+//
+//  Le shim web reroute automatiquement /api/* -> /api/demo/* quand le
+//  token est `demo-`. Sans ces handlers, tous les fetchs des pages
+//  Booking/Documents/Lumen/Live/etc. tombent en 404 et le frontend
+//  affiche des erreurs reseau.
+//
+//  Strategie : on retourne des listes vides ou des objets minimaux
+//  pour que le frontend affiche son empty state naturellement. Les
+//  ecritures sont rejetees explicitement avec un code stable que le
+//  frontend peut detecter via `restrictAction()` du composable
+//  useDemoMode (cf. V3 pour le vrai support).
+// ──────────────────────────────────────────────────────────────────────
+
+// ── Booking ──────────────────────────────────────────────────────────
+router.get('/booking/event-types', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/booking/availabilities', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/booking/bookings', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/booking/campaigns', (_req, res) => res.json({ ok: true, data: [] }))
+
+// ── Documents ────────────────────────────────────────────────────────
+router.get('/documents/channel/:id', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/documents/project', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/documents/search', (_req, res) => res.json({ ok: true, data: [] }))
+
+// ── Bookmarks / signets ──────────────────────────────────────────────
+router.get('/bookmarks', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/bookmarks/ids', (_req, res) => res.json({ ok: true, data: [] }))
+
+// ── Teachers (pour les DMs cote etudiant) ─────────────────────────────
+router.get('/teachers', (req, res) => {
+  // Renvoie le prof demo seul, format identique a la prod (id negatif).
+  const t = getDemoDb().prepare(
+    `SELECT id, name FROM demo_teachers WHERE tenant_id = ?`
+  ).get(req.tenantId)
+  if (!t) return res.json({ ok: true, data: [] })
+  const initials = t.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)
+  res.json({ ok: true, data: [{
+    id: -t.id,
+    name: t.name,
+    promo_id: null,
+    promo_name: null,
+    avatar_initials: initials,
+    photo_data: null,
+    type: 'teacher',
+  }]})
+})
+
+// ── DMs (vides en MVP V2 — V3 ajoutera des conversations seedees) ────
+router.get('/messages/dm/:studentId/page', (_req, res) =>
+  res.json({ ok: true, data: { messages: [], hasMore: false } }),
+)
+router.get('/messages/dm-files', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/messages/pinned/:channelId', (_req, res) => res.json({ ok: true, data: [] }))
+router.post('/messages/reactions', (_req, res) => res.json({ ok: true, data: null }))
+
+// ── Recherche (pas de FTS en demo, retourne vide) ────────────────────
+router.get('/messages/search', (_req, res) => res.json({ ok: true, data: [] }))
+router.post('/messages/search-all', (_req, res) => res.json({ ok: true, data: [] }))
+
+// ── Live / Lumen / Kanban / Devoirs avances : non implementes ────────
+router.get('/live/sessions/promo/:id/active', (_req, res) =>
+  res.json({ ok: true, data: null }),
+)
+router.get('/live/sessions/promo/:id/history', (_req, res) =>
+  res.json({ ok: true, data: [] }),
+)
+router.get('/lumen/repos/promo/:id', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/lumen/github/me', (_req, res) =>
+  res.json({ ok: true, data: { connected: false } }),
+)
+router.get('/kanban/travaux/:travailId/groups/:groupId', (_req, res) =>
+  res.json({ ok: true, data: [] }),
+)
+
+// ── Calendar ─────────────────────────────────────────────────────────
+router.get('/calendar/feed-token', (_req, res) =>
+  res.json({ ok: true, data: { token: null } }),
+)
+
+// ── Reminders / suivi ────────────────────────────────────────────────
+router.get('/admin/rappels', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/admin/feedback/mine', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/teacher-notes/student/:id', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/teacher-notes/promo/:id', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/teacher-notes/promo/:id/summary', (_req, res) => res.json({ ok: true, data: [] }))
+
+// ── Engagement / scheduled ───────────────────────────────────────────
+router.get('/engagement/:promoId', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/scheduled', (_req, res) => res.json({ ok: true, data: [] }))
+
+// ── Signatures ───────────────────────────────────────────────────────
+router.get('/signatures', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/signatures/pending-count', (_req, res) =>
+  res.json({ ok: true, data: { count: 0 } }),
+)
+
+// ──────────────────────────────────────────────────────────────────────
+//  Fallback global : tout endpoint non explicitement defini retourne un
+//  payload "vide" pour les GET et un refus explicite pour les ecritures.
+//
+//  Ca evite que l'app crash quand le frontend appelle un endpoint encore
+//  non implemente cote demo (cas typique : une nouvelle feature ajoutee
+//  dans la prod sans toucher au shim demo). Le frontend voit `[]` et
+//  affiche son empty state.
+// ──────────────────────────────────────────────────────────────────────
+router.use((req, res) => {
+  if (req.method === 'GET') {
+    return res.json({ ok: true, data: [], _demoFallback: true })
+  }
+  res.status(403).json({
+    ok: false,
+    error: 'Cette action n\'est pas disponible en mode demo. Cree un compte pour la debloquer.',
+    _demoFallback: true,
+  })
+})
+
 module.exports = router

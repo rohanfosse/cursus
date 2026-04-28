@@ -1,5 +1,88 @@
 # Changelog
 
+## v2.257.0 (2026-04-28)
+
+### Mode demo jalon V2 + relicensing AGPL v3
+
+**Mode demo (jalon V2)** : la sandbox sans inscription livree en MVP
+v2.256 prend de l'epaisseur. Le visiteur explore maintenant l'app
+entiere sans crash, avec une promo qui prend vie en arriere-plan.
+
+- **Bots scriptes** (`server/services/demoBots.js`) : worker leger qui
+  scanne les sessions actives toutes les 60s et, avec 30% de probabilite
+  par tick, fait poster un message plausible par un des 6 etudiants
+  fictifs. Pool de phrases ciblees par canal (general / dev-web / algo
+  / projets) — l'utilisateur voit du mouvement sans intervention. Skip
+  auto en NODE_ENV=test, pilotable via `runOnce()` pour les tests.
+
+- **Cron de purge** (`server/services/demoReset.js`) : tourne toutes les
+  heures, supprime tenants + sessions dont le JWT a expire (TTL 24h).
+  Pas de cron lib (un setInterval suffit) ; en V3 on alignera sur
+  04h00 Paris si besoin.
+
+- **Demo independante du compte courant**. Avant : si un visiteur etait
+  deja loggue avec son vrai compte, /demo le redirigeait silencieusement
+  vers son dashboard reel — la demo etait inaccessible aux comptes
+  actifs. Maintenant : la session reelle est sauvegardee dans
+  `cc_session_backup` au lancement, restauree quand le visiteur clique
+  "Revenir a mon app" dans le DemoBanner. Les deux sessions sont
+  strictement independantes — un prof peut comparer son experience
+  reelle et la demo cote a cote.
+
+- **Routes demo elargies** + **fallback wildcard**. Ajout de 25
+  endpoints "lecture vide" (booking, documents, bookmarks, signatures,
+  teachers, DMs, lumen, kanban, calendar, etc.) pour que les pages du
+  frontend ne crashent pas en demo. Plus un fallback global : tout
+  endpoint non explicitement defini retourne `{ ok: true, data: [] }`
+  pour les GET et `{ ok: false, error: 'demo_unsupported' }` pour les
+  ecritures. Le frontend voit l'empty state naturel sans erreur reseau.
+
+- **Test E2E** : ajout d'un cas `endpoints non couverts retournent un
+  fallback (pas de 404)` qui verifie le wildcard. 4/4 tests demo passent
+  en 13.5s. Pour la suite : V3 ajoutera la presence Socket.IO fake et
+  les bots qui apparaissent en `online` dans la liste des etudiants.
+
+**Relicensing MIT -> GNU AGPL v3** : Cursus est deploye comme service
+web (app.cursus.school) en plus du code source. MIT et Apache 2.0 ne
+couvrent pas le cas SaaS — une EdTech pourrait fork, ajouter des
+features proprietaires, et le revendre en SaaS a des ecoles sans
+publier ses modifications. AGPL v3 oblige les operateurs reseau a
+publier leurs changes sous la meme licence.
+
+Trade-off accepte : peut faire fuir les ecoles privees qui veulent
+integrer Cursus a leur SI proprietaire ferme. Pour ce cas, un dual
+licensing pourra etre envisage plus tard.
+
+Le LICENSE est maintenant le texte AGPL v3 officiel (verbatim depuis
+gnu.org), donc detecte proprement par GitHub via licensee. Toutes les
+mentions MIT migrees : package.json (SPDX `AGPL-3.0-or-later`),
+README, SettingsAbout, landing FAQ + footer.
+
+**Landing modernisee** :
+
+- Hero CTA repense : "Tester en demo · sans inscription" en bouton
+  primaire, "Ouvrir l'app" en secondaire, "Telecharger" en lien tertiaire.
+- Nouvelle section "Pour qui ?" avec 2 cards (Enseignants + Etudiants),
+  5 points specifiques chacune, CTA dedie vers /demo.
+- FAQ avec 8 questions (gratuit, donnees privees, demarrage, vs
+  Moodle/Teams, auto-hebergement, fonctionnement demo, mainteneur,
+  signaler bug). Format `<details>` natif zero JS.
+- Polish des demos : timer Spark Quiz qui pulse rouge les 5 dernieres
+  secondes + reveal auto si timeout. Reactions chat sans emoji (SVG
+  lucide thumbs-up / party-popper / lightbulb) pour aligner sur la
+  regle no-emoji du projet.
+- Cache buster `?v=257` sur style.css et app.js (correctif urgent
+  apres rapport "CSS casse" — un cache browser servait l'ancien fichier).
+- Bio Rohan corrigee : "Enseignant Responsable Pedagogique en
+  Informatique au CESI de Montpellier" (au lieu de "etudiant ingenieur").
+
+**Tests demo** : 4/4 E2E passent (13.5s).
+
+- /login -> lien -> /demo affiche les 2 choix
+- demarrage etudiant -> dashboard + bandeau visible
+- demarrage enseignant -> session prof avec bandeau
+- endpoints non couverts retournent un fallback ok+vide
+
 ## v2.256.1 (2026-04-28)
 
 ### Restaure le Proxy `window.api` perdu en v2.255.1

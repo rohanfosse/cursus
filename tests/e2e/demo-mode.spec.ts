@@ -33,4 +33,30 @@ test.describe('Mode demo', () => {
     await expect(page).toHaveURL(/dashboard/, { timeout: 15_000 })
     await expect(page.locator('text=/Mode demonstration/i')).toBeVisible({ timeout: 10_000 })
   })
+
+  test('endpoints non couverts retournent un fallback (pas de 404)', async ({ page, request }) => {
+    // Demarre une session demo et recupere le token
+    const startRes = await request.post('/api/demo/start', { data: { role: 'student' } })
+    const { data } = await startRes.json()
+    const token = data.token
+
+    // Endpoint inconnu : GET retourne ok+vide (fallback wildcard cf. demo.js)
+    const fallback = await request.get('/api/demo/this-route-does-not-exist', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(fallback.status()).toBe(200)
+    const body = await fallback.json()
+    expect(body.ok).toBe(true)
+    expect(body._demoFallback).toBe(true)
+
+    // Endpoint d'ecriture inconnu : refus explicite 403
+    const writeBlocked = await request.post('/api/demo/another-fake-endpoint', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { x: 1 },
+    })
+    expect(writeBlocked.status()).toBe(403)
+
+    void page // signal a Playwright qu'on n'utilise pas la fixture page (mais on en a besoin
+              // pour que `request` herite la baseURL du config)
+  })
 })
