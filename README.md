@@ -72,7 +72,7 @@ Les etudiants et enseignants naviguent chaque jour entre 5 a 8 outils : Moodle, 
 | **Chat temps reel** | Canaux par promotion (archivables), annonces en lecture seule, DMs etudiant-etudiant, reactions, mentions `@nom` et `@tous`, slash commands `/devoir` `/doc` `/annonce`, recherche plein texte, indicateur de frappe, notifications desktop, offline queue avec retry |
 | **Devoirs et evaluation** | 5 types (livrable, soutenance, CCTL, etude de cas, memoire), brouillon, verrouillage apres deadline, grilles multicriteres, notation A-D, feedback individuel, export CSV |
 | **Documents et ressources** | Upload avec validation (taille max 50 Mo, extensions bloquees), liens, categorisation, viewers integres (PDF, Word, Excel), drag-and-drop, recherche, liaison aux devoirs |
-| **Dashboard personnalisable** | Widgets reorganisables par drag-and-drop, deadlines proches, dernieres notes, progression, calendrier, onglet RDV. Vues differentes enseignant/etudiant |
+| **Dashboard personnalisable** | Widgets reorganisables par drag-and-drop, deadlines proches, dernieres notes, progression, calendrier. Vues differentes enseignant/etudiant |
 
 ### Enrichissement
 
@@ -80,7 +80,9 @@ Les etudiants et enseignants naviguent chaque jour entre 5 a 8 outils : Moodle, 
 |----------------|-------------|
 | **Lumen -- Liseuse de cours** | Cours markdown adosses a GitHub (1 promo = 1 organisation, 1 cours = 1 repo). Detection automatique des chapitres, scaffold "Nouveau cours" en 1 clic, recherche fulltext FTS5, KaTeX + Mermaid + admonitions, edition inline, notes privees, tracking de lecture, PDF integre (pdf.js). |
 | **Live -- 4 modes interactifs** | Module unifie avec 4 categories : **Spark** (quiz QCM, vrai/faux, association, estimation, reponse courte avec scoring et podium), **Pulse** (feedback anonyme : nuage de mots, echelle, humeur, sondage, matrice, priorite, question ouverte), **Code** (editeur live avec coloration syntaxique), **Board** (brainstorming collaboratif avec post-its, votes, drag & drop, export Markdown) |
-| **Rendez-vous (mini-Calendly)** | Types d'evenements configurables, grille de disponibilites hebdomadaire, lien de reservation par etudiant, sync Microsoft Outlook + reunion Teams automatique, emails de confirmation et annulation, rate limiting sur les routes publiques |
+| **Rendez-vous (mini-Calendly)** | Page dediee `/booking` avec sidebar contextuelle. Types d'evenements configurables, grille de disponibilites hebdomadaire, lien de reservation par etudiant, sync Microsoft Outlook + reunion Teams ou **Jitsi Meet** (alternative libre), emails de confirmation et annulation, rate limiting sur les routes publiques |
+| **Campagnes de RDV (visites tripartites)** | Planification automatique de visites prof + etudiant + tuteur entreprise sur une periode donnee. Generation des creneaux a partir de regles hebdomadaires, invitations en 1 clic, lien personnel par etudiant, suivi des reservations en temps reel, relances automatiques |
+| **Mini-jeux** | TypeRace (vitesse de frappe), Snake, Space Invaders. Leaderboard par promo, scoping `day`/`week`/`all`. Activable/desactivable par module dans l'admin |
 | **Kanban projet** | Suivi par groupe avec drag-and-drop (a faire, en cours, termine) |
 | **Frise chronologique** | Timeline interactive des devoirs, zoom semaine/mois/trimestre/annee |
 | **Signature PDF** | Circuit de signature en DM avec tampon, reference unique, sauvegarde locale |
@@ -107,7 +109,7 @@ Voir [SECURITY.md](SECURITY.md) pour les details et le signalement de vulnerabil
 
 ## Demarrage rapide
 
-> **Prerequis** : [Node.js](https://nodejs.org/) 18+ et npm
+> **Prerequis** : [Node.js](https://nodejs.org/) 20+ et npm (CI utilise Node 22)
 
 ```bash
 git clone https://github.com/rohanfosse/cursus.git
@@ -206,10 +208,10 @@ cursus/
 
 | Couche | Technologies |
 |--------|-------------|
-| Desktop | Electron 29, context isolation, sandbox, auto-update (electron-updater, NSIS) |
-| Frontend | Vue 3 Composition API, TypeScript strict, Pinia, Vue Router |
+| Desktop | Electron 38, context isolation, sandbox, auto-update (electron-updater, NSIS) |
+| Frontend | Vue 3.5, Composition API, TypeScript strict, Pinia, Vue Router |
 | Backend | Express 4, Socket.IO 4, SQLite (Better-SQLite3), JWT, Zod, bcrypt, MSAL Node, nodemailer |
-| Build | electron-vite, Vite 6, electron-builder |
+| Build | electron-vite 3, Vite 6, electron-builder |
 | Mobile | PWA, service worker, Web App Manifest |
 | CI/CD | GitHub Actions (tests, deploy Docker, release Win/macOS, Lighthouse, CodeQL) |
 | Qualite | Vitest, Supertest, vue-tsc strict, Dependabot |
