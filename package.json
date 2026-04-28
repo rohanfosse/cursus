@@ -41,7 +41,7 @@
     "cursus"
   ],
   "author": "Rohan Fossé",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "dependencies": {
     "@azure/msal-node": "^5.1.2",
     "@codemirror/autocomplete": "^6.20.1",

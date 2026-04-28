@@ -262,7 +262,7 @@ const systemLanguage = navigator.language
         </a>
         <a href="https://github.com/rohanfosse/cursus/blob/main/LICENSE" target="_blank" rel="noopener" class="stg-info-cell stg-info-link">
           <span class="stg-info-label">Licence</span>
-          <span class="stg-info-value"><Scale :size="10" /> MIT <ExternalLink :size="10" /></span>
+          <span class="stg-info-value"><Scale :size="10" /> AGPL v3 <ExternalLink :size="10" /></span>
         </a>
       </div>
     </div>
@@ -288,7 +288,7 @@ const systemLanguage = navigator.language
         </div>
         <div class="stg-info-cell">
           <span class="stg-info-label">Licence</span>
-          <span class="stg-info-value">MIT</span>
+          <span class="stg-info-value">AGPL v3</span>
         </div>
         <div class="stg-info-cell">
           <span class="stg-info-label">Systeme</span>
@@ -311,7 +311,7 @@ const systemLanguage = navigator.language
         <div class="stg-author-avatar">RF</div>
         <div class="stg-author-info">
           <span class="stg-author-name">Rohan Fosse</span>
-          <span class="stg-author-copyright">&copy; 2025-2026 &middot; Distribue sous licence MIT</span>
+          <span class="stg-author-copyright">&copy; 2025-2026 &middot; Distribué sous licence AGPL v3</span>
           <a href="https://github.com/rohanfosse" target="_blank" rel="noopener" class="stg-author-link">
             <Github :size="12" /> @rohanfosse <ExternalLink :size="10" />
           </a>

@@ -517,8 +517,15 @@ git push origin feat/ma-feature   # ouvrir une PR vers main
 
 ## Licence
 
-Distribué sous licence [MIT](LICENSE) &middot; &copy; 2025-2026
-[Rohan Fosse](https://github.com/rohanfosse).
+Distribué sous licence [GNU AGPL v3](LICENSE) &middot; &copy; 2025-2026
+[Rohan Fossé](https://github.com/rohanfosse).
+
+L'AGPL est une licence copyleft forte&nbsp;: tu peux utiliser, modifier et
+redistribuer Cursus librement, mais si tu héberges une **version modifiée**
+comme service réseau, tu dois publier les modifications sous la même licence.
+Voir [LICENSE](LICENSE) pour les termes complets, ou la
+[FAQ AGPL](https://www.gnu.org/licenses/agpl-3.0.faq.html) pour une explication
+plus accessible.
 
 <br />
 
