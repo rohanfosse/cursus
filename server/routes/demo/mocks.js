@@ -125,8 +125,16 @@ router.get('/live/sessions/promo/:id/history', (_req, res) => {
 })
 
 // ── Lumen ────────────────────────────────────────────────────────────
-router.get('/lumen/repos/promo/:id', (_req, res) => res.json({ ok: true, data: [] }))
-router.get('/lumen/github/me',       (_req, res) => res.json({ ok: true, data: { connected: false } }))
+router.get('/lumen/repos/promo/:id',          (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/lumen/github/me',                (_req, res) => res.json({ ok: true, data: { connected: false } }))
+// Note: ces endpoints retournent un OBJET (pas un array). Le wildcard
+// renverrait `[]` qui ferait crasher `data.notes.slice()` cote front.
+// On les materialise explicitement avec le shape attendu (notes: array,
+// counts: object) — cf. WidgetLumenNotes / WidgetLumenTopRead.
+router.get('/lumen/my-notes',                 (_req, res) => res.json({ ok: true, data: { notes: [] } }))
+router.get('/lumen/repos/:id/read-counts',    (_req, res) => res.json({ ok: true, data: { counts: [] } }))
+router.get('/lumen/read-counts/promo/:id',    (_req, res) => res.json({ ok: true, data: { counts: [] } }))
+router.get('/lumen/stats/promo/:id',          (_req, res) => res.json({ ok: true, data: { repos: 1, reads: 14 } }))
 
 // ── Kanban ───────────────────────────────────────────────────────────
 router.get('/kanban/travaux/:travailId/groups/:groupId', (_req, res) =>
@@ -148,6 +156,51 @@ router.get('/teacher-notes/promo/:id/summary', (_req, res) => res.json({ ok: tru
 // ── Engagement / scheduled ───────────────────────────────────────────
 router.get('/engagement/:promoId', (_req, res) => res.json({ ok: true, data: [] }))
 router.get('/scheduled',           (_req, res) => res.json({ ok: true, data: [] }))
+
+// ── Assignments (vues avancees : gantt, rendus) ──────────────────────
+// Le wildcard `[]` ne suffit pas : le widget Gantt fait `data.tasks.map`,
+// les rendus utilisent `data.rendus` etc. On retourne le shape attendu.
+router.get('/assignments/gantt',  (_req, res) => res.json({ ok: true, data: { tasks: [], links: [] } }))
+router.get('/assignments/rendus', (_req, res) => res.json({ ok: true, data: [] }))
+
+// ── Groupes ──────────────────────────────────────────────────────────
+router.get('/groups',                (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/groups/:id/members',    (_req, res) => res.json({ ok: true, data: [] }))
+
+// ── Channels archives (panneau "Restaurer un canal") ─────────────────
+router.get('/promotions/:id/channels/archived', (_req, res) => res.json({ ok: true, data: [] }))
+
+// ── TypeRace (mini-jeu) ──────────────────────────────────────────────
+// `myStats` retourne un objet structure (allTime/today/week/history) — le
+// wildcard `[]` ferait crasher WidgetTypeRace qui fait `stats.week.bestScore`.
+router.get('/typerace/leaderboard', (_req, res) => res.json({
+  ok: true,
+  data: [
+    { rank: 1, userId: 1,  name: 'Sara Bouhassoun', bestScore: 142, bestWpm: 78 },
+    { rank: 2, userId: 2,  name: 'Lucas Bernard',   bestScore: 128, bestWpm: 71 },
+    { rank: 3, userId: 3,  name: 'Mehdi Chaouki',   bestScore: 117, bestWpm: 65 },
+  ],
+}))
+router.get('/typerace/me', (_req, res) => res.json({
+  ok: true,
+  data: {
+    allTime: { plays: 4, bestScore: 92 },
+    today:   { plays: 1 },
+    week:    { bestScore: 92 },
+    history: [{ wpm: 48 }, { wpm: 52 }, { wpm: 55 }, { wpm: 51 }, { wpm: 58 }, { wpm: 62 }, { wpm: 60 }],
+  },
+}))
+
+// ── Modules (admin opt-in/out) ───────────────────────────────────────
+// Retourne tous les modules actives par defaut pour que le visiteur voie
+// toute l'app (Live, Lumen, Games...). C'est un Record<string, boolean>,
+// pas un array — le wildcard renverrait [] et useModules.loadModules
+// ferait `m in []` qui retourne false -> defaults preservees, OK en
+// pratique mais on documente le shape pour eviter une regression.
+router.get('/modules', (_req, res) => res.json({
+  ok: true,
+  data: { kanban: true, frise: true, live: true, signatures: true, lumen: true, games: true },
+}))
 
 // ── Signatures ───────────────────────────────────────────────────────
 router.get('/signatures',               (_req, res) => res.json({ ok: true, data: [] }))

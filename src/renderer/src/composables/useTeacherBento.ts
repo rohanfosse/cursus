@@ -132,6 +132,57 @@ export function useTeacherBento() {
     localStorage.removeItem(SIZES_KEY)
   }
 
+  /**
+   * Preset demo prof : selection curatee de tuiles dont les donnees
+   * sont reellement presentes dans le seed demo (3 devoirs avec deadlines,
+   * session Live "Quiz Algo - Arbres AVL" en cours, ~30 students).
+   *
+   * Privilegie les widgets qui montrent des chiffres/graphes pour qu'un
+   * visiteur prof voit immediatement la richesse de l'interface, pas une
+   * grille de zeros. Layout pense "vue de pilotage" : 1 focus + 4 stats
+   * en haut, agenda du jour + activite + messages en cohabitation.
+   */
+  function applyDemoPreset() {
+    const DEMO_TEACHER_VISIBLE = [
+      'focus',         // 2x2 - action urgente (rendus a noter)
+      'stat-soumis',   // 1x1
+      'stat-noter',    // 1x1
+      'stat-moyenne',  // 1x1
+      'stat-online',   // 1x1 - lien avec presence simulee
+      'agenda-jour',   // 2x2 - Live + RDV de la journee
+      'messages',      // 2x1 - DMs (vide cote demo mais montre la feature)
+      'actions',       // 2x1 - quick create (devoir, cours, doc)
+      'activity',      // 4x1 - activite recente (bots qui parlent)
+      'feedback-templates', // 2x1 - showcase template feedback
+      'at-risk',       // 2x1 - etudiants a suivre (vide mais visible)
+      'schedule',      // 4x1 - agenda 48h
+    ]
+    const visibleSet = new Set(DEMO_TEACHER_VISIBLE)
+    hidden.value = new Set(ALL_IDS.filter(id => !visibleSet.has(id)))
+    // Re-ordre : visibles dans l'ordre du preset, le reste a la fin
+    order.value = [
+      ...DEMO_TEACHER_VISIBLE.filter(id => ALL_IDS.includes(id)),
+      ...ALL_IDS.filter(id => !visibleSet.has(id)),
+    ]
+    sizes.value = {
+      focus: '2x2',
+      'stat-soumis': '1x1',
+      'stat-noter': '1x1',
+      'stat-moyenne': '1x1',
+      'stat-online': '1x1',
+      'agenda-jour': '2x2',
+      messages: '2x1',
+      actions: '2x1',
+      activity: '4x1',
+      'feedback-templates': '2x1',
+      'at-risk': '2x1',
+      schedule: '4x1',
+    }
+    persist()
+    persistOrder()
+    persistSizes()
+  }
+
   function getWidgetSize(id: string): WidgetSize {
     if (sizes.value[id]) return sizes.value[id]
     const tile = TEACHER_TILES.find(t => t.id === id)
@@ -232,7 +283,7 @@ export function useTeacherBento() {
   function refreshVisibleOptional() { /* no-op, visibleTiles est computed */ }
 
   return {
-    hidden, isVisible, toggleTile, resetTiles,
+    hidden, isVisible, toggleTile, resetTiles, applyDemoPreset,
     allTiles: TEACHER_TILES,
     visibleTiles, reorderTiles, smartReorganize,
     // Alias back-compat

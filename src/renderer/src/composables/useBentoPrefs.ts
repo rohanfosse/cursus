@@ -23,6 +23,46 @@ function defaultPrefs(): BentoPrefs {
   }
 }
 
+// Preset demo etudiant : selection curatee de widgets dont les donnees
+// sont reellement presentes dans le seed demo (3 devoirs, 50 messages, 4
+// canaux, 1 session Live fake en cours). Evite les widgets vides comme
+// lumenProgress/lumenCourses (mocks renvoient []) qui afficheraient des
+// empty states et donneraient l'impression que la feature ne marche pas.
+//
+// Layout 4 cols : echeances 2x2 | live 2x1 | messages 2x1 | livrables 1x1
+//                 weekplanner 2x1 | project 2x1 | rendus 2x1 | countdown 1x1
+const DEMO_STUDENT_ORDER = [
+  'echeances',     // 3 devoirs avec deadlines
+  'live',          // session Live "Quiz Algo" en cours
+  'messages',      // DMs + mentions (4 canaux)
+  'livrables',     // Projet Web E4
+  'weekplanner',   // planning sur les deadlines seedees
+  'project',       // showcase de la fiche projet
+  'rendus',        // workflow rendu (vide mais visible)
+  'countdown',     // TP AVL dans 3j
+  'promoActivity', // presence simulee
+]
+
+export function demoStudentPrefs(): BentoPrefs {
+  const allIds = STUDENT_WIDGETS.map(w => w.id)
+  return {
+    order: DEMO_STUDENT_ORDER.filter(id => allIds.includes(id)),
+    hidden: allIds.filter(id => !DEMO_STUDENT_ORDER.includes(id)),
+    sizes: {
+      echeances: '2x2',
+      live: '2x1',
+      messages: '2x1',
+      livrables: '1x1',
+      weekplanner: '2x1',
+      project: '2x1',
+      rendus: '2x1',
+      countdown: '1x1',
+      promoActivity: '4x1',
+    },
+    preset: 'demo',
+  }
+}
+
 function loadPrefs(): BentoPrefs {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.BENTO_PREFS)
@@ -132,6 +172,10 @@ export function useBentoPrefs() {
     prefs.value = defaultPrefs()
   }
 
+  function applyDemoPreset() {
+    prefs.value = demoStudentPrefs()
+  }
+
   return {
     visibleWidgets,
     allWidgets,
@@ -141,6 +185,7 @@ export function useBentoPrefs() {
     getWidgetSize,
     setWidgetSize,
     applyPreset,
+    applyDemoPreset,
     resetDefaults,
     prefs,
   }

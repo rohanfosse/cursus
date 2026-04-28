@@ -1,5 +1,69 @@
 # Changelog
 
+## v2.262.0 (2026-04-28)
+
+### Demo : bots intelligents + widgets presets + fix slice crash
+
+**Bots V5 : reactivite au visiteur + personnalites stables**.
+Les bots ne postent plus dans le vide, ils repondent au visiteur :
+
+- **Tier 1 - Reactivite** : si Emma poste un message dans les 90s, un
+  bot lui repond avec `@Emma` (probabilite 70%) + un autre lui ajoute
+  une reaction emoji contextuelle (55%). 8 templates regex matchent
+  sur "merci", "?", "code block", "salut", etc. Sinon ack courts.
+- **Tier 2 - Personnalites** : 7 personas stables (Lucas pragmatique,
+  Sara curieuse, Mehdi serviable, Alice organisee, Jean senior, Hugo
+  discret, Lea posee). Chaque persona a ses canaux preferes et ses pools
+  short/medium/long/questions — la conversation devient lisible, on
+  reconnait qui parle.
+- **Tier 3 - Realisme** : variance de longueur (50% court, 35% medium,
+  15% long), awareness time-of-day (la nuit on poste rarement, le matin
+  les messages sont plus courts).
+- **Tier 4 - Polish** : edits realistes (vraies corrections via 8
+  EDIT_PATTERNS comme `du cou` -> `du coup`, `vraimt` -> `vraiment`),
+  bursts (10% chance d'enchainer 3 actions ce tick), reactions
+  contextuelles (heuristique pickEmojiForContent : merci -> 🙏, code -> 🔥,
+  question -> 🤔, lien -> 💡, etc.).
+
+stats runOnce() retourne maintenant `{ sessions, posted, replied,
+reactedVisitor, reacted, edited }`.
+
+**Widgets demo curatee par role**. Le bento etudiant et prof affiche
+desormais une selection de widgets dont les donnees sont reellement
+seedees (3 devoirs avec deadlines, session Live "Quiz Algo" en cours,
+50 messages, ~30 students). Evite les empty states.
+
+- Etudiant : echeances 2x2 + live + messages + livrables + weekplanner
+  + project + rendus + countdown + promoActivity
+- Prof : focus 2x2 + 4 stats 1x1 + agenda-jour 2x2 + messages + actions
+  + activity 4x1 + feedback-templates + at-risk + schedule
+
+`useBentoPrefs.applyDemoPreset()` et `useTeacherBento.applyDemoPreset()`
+appliques par `DemoLandingView` apres `appStore.login` selon le role.
+
+**Fix demo crash : `ke.slice is not a function`**. Plusieurs widgets
+appelaient `data.notes.slice()`, `data.history.slice()` etc. mais le
+wildcard demo retournait `[]` au lieu de `{ notes: [] }`. Ajout de
+mocks dedies pour les endpoints qui retournent un objet imbrique :
+
+- /lumen/my-notes -> `{ notes: [] }`
+- /lumen/repos/:id/read-counts -> `{ counts: [] }`
+- /lumen/read-counts/promo/:id -> `{ counts: [] }`
+- /lumen/stats/promo/:id -> `{ repos: 1, reads: 14 }`
+- /typerace/me -> `{ allTime, today, week, history }`
+- /typerace/leaderboard -> 3 fake rows
+- /assignments/gantt -> `{ tasks: [], links: [] }`
+- /assignments/rendus -> `[]`
+- /groups, /groups/:id/members -> `[]`
+- /promotions/:id/channels/archived -> `[]`
+- /modules -> tous les modules actives par defaut
+
+**Tests bots refactores** : 17 tests (avant 9), couvrent les nouvelles
+actions reply/react-visitor + heuristique pickEmojiForContent + edits
+realistes. Total tests demo : 36 -> 54.
+
+Bump 2.261.0 -> 2.262.0.
+
 ## v2.261.0 (2026-04-28)
 
 ### Demo : split modulaire + 45 tests + bots react/edit

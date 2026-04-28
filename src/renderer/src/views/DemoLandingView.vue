@@ -15,6 +15,8 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useToast } from '@/composables/useToast'
+import { useBentoPrefs } from '@/composables/useBentoPrefs'
+import { useTeacherBento } from '@/composables/useTeacherBento'
 import { STORAGE_KEYS } from '@/constants'
 import { GraduationCap, UserCog, ArrowRight, Info, ArrowLeft } from 'lucide-vue-next'
 import logoUrl from '@/assets/logo.png'
@@ -76,6 +78,16 @@ async function startDemo(role: 'student' | 'teacher') {
     // SESSION_BACKUP pour le restore au sortir.
     window.api.setToken?.(json.data.token)
     appStore.login(json.data.currentUser)
+
+    // Applique un preset de bento curate selon le role : seuls les widgets
+    // dont les donnees sont presentes dans le seed demo sont visibles
+    // (evite les empty states qui donnent l'impression que les features
+    // ne marchent pas). Idempotent — chaque demo session repart de zero.
+    try {
+      if (role === 'teacher') useTeacherBento().applyDemoPreset()
+      else useBentoPrefs().applyDemoPreset()
+    } catch { /* non bloquant */ }
+
     showToast('Demo demarree. Bonne exploration !', 'success')
     router.replace('/dashboard')
   } catch (err) {
