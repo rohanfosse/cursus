@@ -89,13 +89,24 @@ const FETCH_TIMEOUT = 15_000
 const MAX_RETRIES   = 2
 
 // Si le token courant est un token demo (prefixe `demo-`), on reroute
-// automatiquement les appels /api/* vers /api/demo/* (sauf /api/demo/* deja
-// prefixes et /api/auth/* qui restent sur la prod). Permet de reutiliser
-// le shim existant sans dupliquer toutes les methodes.
+// automatiquement les appels /api/* vers /api/demo/*. Sont exemptes :
+//  - /api/demo/* : deja prefixe
+//  - /api/auth/{login,register,refresh,change-password,logout} : vraies
+//    routes d'auth qui n'ont pas de sens en demo et ne doivent pas etre
+//    rewritees (un appel echoue proprement plutot que d'etre transforme).
+// En revanche /api/auth/teachers, /api/auth/identities, /api/auth/find-user
+// sont en realite des routes de fetch utilisateur sous le prefixe `auth/` ;
+// on les redirige vers /api/demo/* (ex: getTeachers -> /api/demo/teachers
+// qui retourne le prof seed). Sans ce rewrite, le token demo etait rejete
+// par le middleware d'auth prod -> 401 -> cursus:auth-expired -> logout
+// immediat de l'utilisateur juste apres le start (cf. test E2E demo).
+const AUTH_ONLY_ROUTES = /^\/api\/auth\/(login|register|refresh|change-password|logout)(\/|$)/
 function rewriteDemoPath(path: string): string {
   if (!jwtToken || !jwtToken.startsWith('demo-')) return path
   if (!path.startsWith('/api/')) return path
-  if (path.startsWith('/api/demo/') || path.startsWith('/api/auth/')) return path
+  if (path.startsWith('/api/demo/')) return path
+  if (AUTH_ONLY_ROUTES.test(path)) return path
+  if (path.startsWith('/api/auth/')) return path.replace(/^\/api\/auth\//, '/api/demo/')
   return path.replace(/^\/api\//, '/api/demo/')
 }
 

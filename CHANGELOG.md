@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.258.2 (2026-04-28)
+
+### Fix : mode demo se faisait deconnecter immediatement (vraie cause E2E)
+
+Les v2.258.0 et .1 attaquaient les symptomes (DemoBanner pas visible,
+cc_session vide en CI) sans voir la cause. Le trace Playwright local le
+montre clairement : juste apres `POST /api/demo/start`, le shell appelait
+`getTeachers()` qui touche `/api/auth/teachers`. Le `rewriteDemoPath` du
+shim web exemptait *toutes* les routes `/api/auth/*` du rewrite, donc le
+token demo etait envoye au middleware d'auth prod qui le rejette -> 401
+-> evenement `cursus:auth-expired` -> `appStore.logout()` -> cc_session
+removed -> `LoginOverlay` reaffichee.
+
+Resultat : les tests demo voyaient bien la POST /start passer, l'URL
+basculer en /dashboard, mais 50ms plus tard l'utilisateur etait remis sur
+le login. cc_session etait null, le DemoBanner n'avait jamais existe.
+Reproductible en local, pas seulement en CI.
+
+Fix dans `src/web/api-shim.ts` : on distingue les vraies routes d'auth
+(`/api/auth/{login,register,refresh,change-password,logout}`) — gardees
+telles quelles — des routes de fetch sous le prefixe `auth/`
+(`/api/auth/teachers`, `/api/auth/identities`, `/api/auth/find-user`)
+qui sont rewritees en `/api/demo/*` comme le reste de l'API.
+
+Tests E2E : 7 passing (avant : 5 passing + 2 failed).
+
 ## v2.258.1 (2026-04-28)
 
 ### Fix CI : tests E2E demo via localStorage plutot que DOM banner
