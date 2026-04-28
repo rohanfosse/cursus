@@ -35,15 +35,18 @@ async function refresh() {
       history: Array<{ wpm: number }>
     }>(() => window.api.typeRaceMyStats(), { silent: true }),
   ])
-  if (lb)    top.value = lb.slice(0, 3)
-  if (stats) {
+  // Gardes defensifs : les mocks demo peuvent renvoyer un shape different.
+  // On verifie chaque champ avant deref pour eviter les crashes en chaine.
+  if (Array.isArray(lb)) top.value = lb.slice(0, 3)
+  if (stats && typeof stats === 'object') {
     myBest.value = {
-      week:       stats.week.bestScore ?? 0,
-      allTime:    stats.allTime.bestScore ?? 0,
-      todayPlays: stats.today.plays ?? 0,
+      week:       stats.week?.bestScore ?? 0,
+      allTime:    stats.allTime?.bestScore ?? 0,
+      todayPlays: stats.today?.plays ?? 0,
     }
     // Derniers WPM en ordre chrono (history retourne DESC → on inverse)
-    mySamples.value = [...stats.history].reverse().map((h) => h.wpm).slice(-30)
+    const history = Array.isArray(stats.history) ? stats.history : []
+    mySamples.value = [...history].reverse().map((h) => h.wpm).slice(-30)
   }
 }
 

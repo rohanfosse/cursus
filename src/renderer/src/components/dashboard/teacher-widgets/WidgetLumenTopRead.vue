@@ -17,11 +17,15 @@ onMounted(async () => {
   if (!pid) return
   await lumenStore.fetchReposForPromo(pid)
   const resp = await window.api.getLumenReadCountsForPromo(pid) as { ok: boolean; data?: { counts: CountRow[] } }
-  if (resp.ok && resp.data) counts.value = resp.data.counts
+  if (resp.ok && resp.data) counts.value = Array.isArray(resp.data.counts) ? resp.data.counts : []
 })
 
 const top = computed(() => {
-  return [...counts.value]
+  // Garde defensif : si counts.value n'est pas iterable (regression backend
+  // ou mock demo qui renvoie un objet a la place d'un array), on tombe
+  // sur [] au lieu de crasher avec "is not iterable".
+  const arr = Array.isArray(counts.value) ? counts.value : []
+  return [...arr]
     .sort((a, b) => b.readers - a.readers)
     .slice(0, 5)
     .map((c) => {

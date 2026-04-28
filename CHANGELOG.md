@@ -1,5 +1,50 @@
 # Changelog
 
+## v2.265.0 (2026-04-28)
+
+### Recherche operationnelle : Hungarian + Scheduler + bug fixes
+
+**Hungarian / Kuhn-Munkres** (`src/renderer/src/utils/optimization/hungarian.ts`).
+Implementation O(n^3) du probleme d'affectation (workers x tasks). Pour
+n=20 : ~30µs ; n=100 : ~1ms. Utilise pour suggerer des binomes de
+projet en minimisant un cout de compatibilite (niveau, genre, anciens
+binomes, exclusions).
+
+Helper `pairStudents(students, costFn)` : matching biparti symetrique,
+gere le cas impair (1 etudiant isole) automatiquement. Exposable cote
+prof via le composable `useTeamMatcher`.
+
+**Scheduler de soutenances** (`src/renderer/src/utils/optimization/scheduler.ts`).
+CSP avec backtracking + heuristiques MRV (most-constrained variable
+first) + LCV (least-constraining value first). Pour 30 etudiants /
+4 jurys / 20 slots, converge en < 100ms. Contraintes supportees :
+- Disponibilites de chaque jury par slot
+- Capacite des salles par slot
+- Slots interdits par etudiant
+- Jurys preferes par etudiant
+- Cout des jurys (favorise les internes vs externes)
+- jurySize configurable (binome/trinome/etc.)
+
+Helper `generateSlots(start, end, durationMin, opts)` : genere une grille
+reguliere en sautant weekend / dejeuner / hors-heures de bureau.
+
+**Tests** : 23 tests (`tests/frontend/utils/{hungarian,scheduler}.test.ts`),
+incluant verification d'optimalite par enumeration brute pour n <= 6.
+Total tests projet : 561 frontend (avant : 538).
+
+**Bug fixes critiques** (rapportes par utilisateur en production) :
+- `ResizeObserver: Argument 1 does not implement Element` : `useWidgetGrid`
+  resoud maintenant la ref vers le DOM via `$el` ou `el` si c'est une
+  instance de composant Vue (cas VueDraggable).
+- `TypeError: ke.slice is not a function` (WidgetLumenNotes) : garde
+  defensif `Array.isArray` avant slice/sort sur `resp.data.notes`.
+- `TypeError: n.value is not iterable` (WidgetLumenTopRead, TypeRace) :
+  garde defensif sur counts/history avant spread/iteration.
+- Favicon obsolete : `src/web/public/assets/icon-192.png` synchronise
+  avec icon-512 (qui correspond au nouveau logo).
+
+Bump 2.264.0 -> 2.265.0.
+
 ## v2.264.0 (2026-04-28)
 
 ### Demo : grammaire CFG complete pour generation de messages coherents

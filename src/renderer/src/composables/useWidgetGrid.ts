@@ -14,7 +14,7 @@ const BREAKPOINTS = {
                   // < 600px   : 1 colonne
 } as const
 
-export function useWidgetGrid(containerRef: Ref<HTMLElement | null>) {
+export function useWidgetGrid(containerRef: Ref<HTMLElement | unknown>) {
   const columns = ref(4)
   let observer: ResizeObserver | null = null
 
@@ -24,15 +24,33 @@ export function useWidgetGrid(containerRef: Ref<HTMLElement | null>) {
     else columns.value = 1
   }
 
+  /**
+   * Resout le DOM node a partir d'une ref qui peut etre :
+   *  - directement un HTMLElement (ref="div")
+   *  - une instance de composant Vue (ref="<VueDraggable>") qui expose
+   *    le DOM via `$el`. Sans ce unwrap, ResizeObserver.observe() jette
+   *    "Argument 1 does not implement interface Element".
+   */
+  function resolveEl(): HTMLElement | null {
+    const v = containerRef.value as unknown
+    if (!v) return null
+    if (v instanceof HTMLElement) return v
+    // Composant Vue : $el (Options API) ou .el (Composition API exposed)
+    const candidate = (v as { $el?: unknown }).$el ?? (v as { el?: unknown }).el
+    if (candidate instanceof HTMLElement) return candidate
+    return null
+  }
+
   onMounted(() => {
-    if (!containerRef.value) return
+    const el = resolveEl()
+    if (!el) return
     observer = new ResizeObserver((entries) => {
       const entry = entries[0]
       if (entry) updateColumns(entry.contentRect.width)
     })
-    observer.observe(containerRef.value)
+    observer.observe(el)
     // Initial measurement
-    updateColumns(containerRef.value.offsetWidth)
+    updateColumns(el.offsetWidth)
   })
 
   onBeforeUnmount(() => {

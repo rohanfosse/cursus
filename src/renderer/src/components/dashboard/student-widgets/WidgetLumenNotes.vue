@@ -33,12 +33,16 @@ onMounted(async () => {
   loading.value = true
   try {
     const resp = await window.api.getLumenMyNotes() as { ok: boolean; data?: { notes: NoteRow[] } }
-    if (resp.ok && resp.data) {
-      notes.value = resp.data.notes
-        .slice()
-        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-        .slice(0, 3)
-    }
+    // Garde defensif : data peut etre [] (mauvais shape mock demo) ou
+    // { notes: undefined } — on filtre les 2 cas pour eviter le crash
+    // "X.slice is not a function" si resp.data n'est pas l'objet attendu.
+    const rawNotes = resp?.ok && resp.data && Array.isArray(resp.data.notes)
+      ? resp.data.notes
+      : []
+    notes.value = rawNotes
+      .slice()
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+      .slice(0, 3)
   } finally {
     loading.value = false
   }
