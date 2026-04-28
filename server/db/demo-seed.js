@@ -75,6 +75,12 @@ const CHANNELS = [
 ]
 
 // Messages historiques (relatifs au moment du seed pour rester coherents).
+//
+// Le visiteur demo doit voir des canaux **deja habites** : threads longs avec
+// markdown, code blocks, mentions, reactions, messages epingles. Si on lui
+// montre 3 lignes par canal, il pense que l'app est vide. La densite seedee
+// ici (~50 messages, 4 canaux) est calibree pour ressembler a une vraie
+// promo en milieu de semestre.
 function makeMessages(channelIds, students, teacher) {
   const now = Date.now()
   const min = (n) => new Date(now - n * 60_000).toISOString()
@@ -82,35 +88,71 @@ function makeMessages(channelIds, students, teacher) {
   const day = (n) => new Date(now - n * 86400_000).toISOString()
 
   const [chGeneral, chWeb, chAlgo, chProjets] = channelIds
-  const [emma, lucas, sara, jean, alice, mehdi] = students
+  const [emma, lucas, sara, jean, alice, mehdi, hugo, lea] = students
+
+  // Format reactions : JSON stringifie {emoji: [user_ids]}. Le frontend
+  // rend chaque emoji avec son compteur. On met des reactions sur 30% des
+  // messages (les plus engageants) — donne de la vie sans noyer la lecture.
+  const rx = (counts) => JSON.stringify(counts)
 
   return [
-    // #general
-    { channel_id: chGeneral, author: teacher, content: 'Bienvenue sur Cursus pour cette nouvelle annee. La premiere session a lieu lundi 9h en B204.', created_at: day(2) },
-    { channel_id: chGeneral, author: emma,    content: 'Merci ! On a deja recu le programme du semestre ?', created_at: day(2) },
-    { channel_id: chGeneral, author: teacher, content: 'Oui, le syllabus est dans le canal #cours, et les ressources dans Documents.', created_at: day(2) },
-    { channel_id: chGeneral, author: lucas,   content: 'Quelqu\'un a la liste des binomes pour le projet web ?', created_at: day(1) },
-    { channel_id: chGeneral, author: sara,    content: 'Je suis avec Mehdi, on a rejoint #developpement-web pour discuter.', created_at: day(1) },
+    // ────────────────────────────────────────────────────────────────────
+    // #general — accueil de la promo, rythmé par les annonces du prof
+    // ────────────────────────────────────────────────────────────────────
+    { channel_id: chGeneral, author: teacher, content: 'Bienvenue sur Cursus pour cette nouvelle annee ! La **premiere session** a lieu lundi 9h en B204. Pensez a installer l\'app desktop si vous etes encore sur le web.', created_at: day(5), is_pinned: 1, reactions: rx({ '👋': [emma.id, lucas.id, sara.id, jean.id], '🎉': [alice.id, mehdi.id] }) },
+    { channel_id: chGeneral, author: emma,    content: 'Merci ! On a deja recu le programme du semestre ?', created_at: day(5) },
+    { channel_id: chGeneral, author: teacher, content: 'Oui, le syllabus est dans Documents > _Administratif_, et les ressources de cours dans **Lumen** (icone livre dans la barre laterale).', created_at: day(5) },
+    { channel_id: chGeneral, author: alice,   content: 'L\'app est dispo en mode hors-ligne ? Je prends souvent le train.', created_at: day(4) },
+    { channel_id: chGeneral, author: teacher, content: 'Oui, c\'est une PWA — installable, ca synchronise au retour en ligne.', created_at: day(4), reactions: rx({ '👍': [alice.id, hugo.id, lea.id] }) },
+    { channel_id: chGeneral, author: lucas,   content: 'Quelqu\'un a la liste des binomes pour le projet web ?', created_at: day(3) },
+    { channel_id: chGeneral, author: sara,    content: 'Je suis avec Mehdi, on a rejoint #developpement-web pour discuter.', created_at: day(3) },
+    { channel_id: chGeneral, author: emma,    content: 'Je cherche encore un binome. @lucas tu es seul ?', created_at: day(3) },
+    { channel_id: chGeneral, author: lucas,   content: 'Carrement, on fait equipe @emma !', created_at: day(3), reactions: rx({ '🤝': [emma.id, sara.id] }) },
+    { channel_id: chGeneral, author: teacher, content: 'Reunion de mi-semestre **mardi 14h** en B204. Ordre du jour pousse dans Documents > _Comptes rendus_.', created_at: day(1), is_pinned: 1, reactions: rx({ '✅': [emma.id, lucas.id, sara.id, jean.id, alice.id, mehdi.id, hugo.id] }) },
+    { channel_id: chGeneral, author: hugo,    content: 'Je note. Merci pour le rappel.', created_at: hr(20) },
 
-    // #developpement-web
-    { channel_id: chWeb, author: teacher, content: 'Le **livrable Projet Web** est a rendre vendredi 17h. Pensez a deposer vos depots ici.', created_at: hr(28) },
-    { channel_id: chWeb, author: emma,    content: 'On peut travailler en equipe de 2 ou 3 ?', created_at: hr(27) },
-    { channel_id: chWeb, author: teacher, content: 'Oui, groupes de 2-3. Utilisez ce canal pour coordonner.', created_at: hr(27) },
-    { channel_id: chWeb, author: lucas,   content: 'On a commence avec @Sara sur la partie auth. Quelqu\'un fait le front ?', created_at: hr(5) },
-    { channel_id: chWeb, author: alice,   content: 'Je peux faire le front avec Vue, j\'ai deja fait un truc similaire l\'an dernier.', created_at: hr(4) },
-    { channel_id: chWeb, author: jean,    content: 'Je m\'occupe de la CI/CD si vous voulez. J\'ai un setup GitHub Actions pret.', created_at: hr(2) },
+    // ────────────────────────────────────────────────────────────────────
+    // #developpement-web — coeur de la demo, thread long sur le projet
+    // ────────────────────────────────────────────────────────────────────
+    { channel_id: chWeb, author: teacher, content: 'Le **livrable Projet Web E4** est a rendre vendredi 17h. Cahier des charges complet :\n\n- Frontend Vue ou React, responsive\n- Backend Node ou Python\n- Auth JWT, role-based\n- Tests unitaires (>= 60% coverage)\n- Deploiement sur un PaaS (Render, Fly.io, Vercel)\n\nDeposez vos rendus dans le devoir _Projet Web E4_ (tab Devoirs).', created_at: day(4), is_pinned: 1, reactions: rx({ '👀': [emma.id, lucas.id, alice.id, jean.id], '😅': [sara.id] }) },
+    { channel_id: chWeb, author: emma,    content: 'On peut travailler en equipe de 2 ou 3 ?', created_at: day(4) },
+    { channel_id: chWeb, author: teacher, content: 'Oui, groupes de 2-3. Utilisez ce canal pour coordonner. Pensez a `/devoir Projet Web E4` pour epingler vos questions.', created_at: day(4) },
+    { channel_id: chWeb, author: lucas,   content: 'On a commence avec @sara sur la partie auth. Quelqu\'un fait le front ?', created_at: day(2) },
+    { channel_id: chWeb, author: alice,   content: 'Je peux faire le front avec Vue, j\'ai deja fait un truc similaire l\'an dernier.', created_at: day(2), reactions: rx({ '🚀': [lucas.id, sara.id, emma.id] }) },
+    { channel_id: chWeb, author: jean,    content: 'Je m\'occupe de la CI/CD. J\'ai un setup GitHub Actions pret :\n\n```yaml\nname: CI\non: [push, pull_request]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with: { node-version: 22 }\n      - run: npm ci && npm test\n```\n\nFork-le si vous voulez, ca lint + teste sur chaque push.', created_at: day(1), reactions: rx({ '🔥': [emma.id, lucas.id, alice.id, sara.id, mehdi.id], '💯': [hugo.id] }) },
+    { channel_id: chWeb, author: sara,    content: 'Question auth : on prend `bcrypt` ou `argon2` pour le hash ? J\'ai lu que argon2 est recommande maintenant.', created_at: hr(20) },
+    { channel_id: chWeb, author: teacher, content: 'Argon2id est l\'OWASP recommendation 2024. Mais bcrypt reste accepte si vous montrez que vous savez pourquoi. Documentez votre choix dans le README.', created_at: hr(19), reactions: rx({ '📚': [sara.id, lucas.id, emma.id] }) },
+    { channel_id: chWeb, author: lucas,   content: 'OK on part sur argon2. @jean tu peux verifier que le pipeline `npm audit` passe ?', created_at: hr(18) },
+    { channel_id: chWeb, author: jean,    content: 'Vu, je rajoute `npm audit --audit-level=high` au workflow. Ca break si une dep critique est detectee.', created_at: hr(17) },
+    { channel_id: chWeb, author: emma,    content: 'On bloque sur le CORS en local. Le front sur :5173 et l\'api sur :3001, le navigateur refuse les cookies cross-origin.', created_at: hr(6) },
+    { channel_id: chWeb, author: alice,   content: 'Tu as bien `credentials: "include"` dans le fetch + `Access-Control-Allow-Credentials: true` cote serveur ? Sinon ca passe pas.', created_at: hr(5) },
+    { channel_id: chWeb, author: emma,    content: 'Ah oui c\'etait ca, merci ! `Access-Control-Allow-Credentials` manquait. Bonus : pense a `Access-Control-Allow-Origin` qui doit etre l\'origine exacte (pas `*`) quand `credentials: include`.', created_at: hr(4), reactions: rx({ '✅': [alice.id, lucas.id], '💡': [sara.id, hugo.id] }) },
+    { channel_id: chWeb, author: teacher, content: 'Bon reflex Emma. Pour la prod, vous fixerez l\'origine via env var, pas en dur.', created_at: hr(3) },
 
-    // #algorithmique
-    { channel_id: chAlgo, author: teacher, content: 'Rappel : la correction du TP3 est en ligne. Le prochain quiz Spark portera sur les arbres AVL.', created_at: day(1) },
-    { channel_id: chAlgo, author: sara,    content: 'Quelqu\'un a compris la rotation double ? Je bloque sur le cas gauche-droite.', created_at: hr(8) },
-    { channel_id: chAlgo, author: jean,    content: 'Regarde le `balanceFactor`. Si > 1 et fils gauche < 0 -> rotation gauche-droite.', created_at: hr(7) },
-    { channel_id: chAlgo, author: mehdi,   content: 'J\'ai un schema clair sur GitHub, je le partage dans #projets.', created_at: hr(6) },
+    // ────────────────────────────────────────────────────────────────────
+    // #algorithmique — entraide entre etudiants, plus dense en code
+    // ────────────────────────────────────────────────────────────────────
+    { channel_id: chAlgo, author: teacher, content: 'Rappel : la correction du TP3 est en ligne (Documents > Algo). Le prochain **quiz Spark** portera sur les arbres AVL — pensez a reviser les rotations.', created_at: day(2), is_pinned: 1 },
+    { channel_id: chAlgo, author: sara,    content: 'Quelqu\'un a compris la rotation double ? Je bloque sur le cas gauche-droite.', created_at: day(1) },
+    { channel_id: chAlgo, author: jean,    content: 'Regarde le `balanceFactor`. Si > 1 et fils gauche < 0 -> rotation gauche-droite (= rotation gauche du fils, puis rotation droite du noeud).\n\n```python\ndef rotate_lr(node):\n    node.left = rotate_left(node.left)\n    return rotate_right(node)\n```\n\nL\'astuce : tu fais 2 rotations simples plutot que de coder 4 cas.', created_at: day(1), reactions: rx({ '🙏': [sara.id, mehdi.id, emma.id], '💡': [hugo.id, lea.id] }) },
+    { channel_id: chAlgo, author: sara,    content: '@jean genie, ca s\'eclaire merci ! Je teste sur mon arbre des que possible.', created_at: day(1) },
+    { channel_id: chAlgo, author: mehdi,   content: 'J\'ai fait un schema clair sur GitHub avec les 4 cas (LL, RR, LR, RL). Lien dans #projets.', created_at: hr(10), reactions: rx({ '📎': [sara.id, emma.id, jean.id] }) },
+    { channel_id: chAlgo, author: hugo,    content: 'Quelqu\'un peut me confirmer la complexite de l\'insertion AVL ? `O(log n)` worst case ?', created_at: hr(8) },
+    { channel_id: chAlgo, author: jean,    content: 'Oui : descente `O(log n)` + au plus 2 rotations (chacune `O(1)`). Donc bien `O(log n)` worst case, contrairement a un BST classique qui peut degenerer en `O(n)`.', created_at: hr(7), reactions: rx({ '✅': [hugo.id, sara.id, lea.id] }) },
+    { channel_id: chAlgo, author: lea,     content: 'Le quiz Spark, c\'est en classe ou async ?', created_at: hr(2) },
+    { channel_id: chAlgo, author: teacher, content: 'En classe demain 10h, 20 min chrono. Notation participation, pas dans la moyenne.', created_at: hr(1) },
 
-    // #projets
-    { channel_id: chProjets, author: teacher, content: 'Pensez a creer un projet Kanban pour organiser vos taches. Le bouton est dans la sidebar.', created_at: day(3) },
-    { channel_id: chProjets, author: alice,   content: 'On a fait notre Kanban hier, c\'est super clair pour repartir les taches.', created_at: day(2) },
-    { channel_id: chProjets, author: mehdi,   content: 'Mon schema rotations AVL : voila le lien GitHub. N\'hesitez pas a me ping si bloques.', created_at: hr(5) },
-    { channel_id: chProjets, author: emma,    content: 'Top, merci Mehdi !', created_at: hr(4) },
+    // ────────────────────────────────────────────────────────────────────
+    // #projets — coordination, partage de liens, kanban
+    // ────────────────────────────────────────────────────────────────────
+    { channel_id: chProjets, author: teacher, content: 'Pensez a creer un **projet Kanban** pour organiser vos taches. Le bouton est dans la sidebar (icone +). Tres utile pour les soutenances.', created_at: day(6), is_pinned: 1 },
+    { channel_id: chProjets, author: alice,   content: 'On a fait notre Kanban hier, c\'est super clair pour repartir les taches. On utilise les colonnes _A faire / En cours / Review / Fait_.', created_at: day(4), reactions: rx({ '👏': [emma.id, lucas.id, sara.id] }) },
+    { channel_id: chProjets, author: mehdi,   content: 'Mon schema rotations AVL : https://github.com/mehdi-c/avl-cheatsheet\n\n4 cas illustres avec couleurs + GIF anime. N\'hesitez pas a fork.', created_at: hr(11), reactions: rx({ '🔥': [sara.id, jean.id, hugo.id, lea.id, emma.id] }) },
+    { channel_id: chProjets, author: emma,    content: 'Top, merci Mehdi ! Je t\'ajoute en collaborateur sur notre repo projet web ?', created_at: hr(10) },
+    { channel_id: chProjets, author: mehdi,   content: 'Carrement, mon handle est `mehdi-c`.', created_at: hr(9) },
+    { channel_id: chProjets, author: lucas,   content: 'Question ouverte : qui prefere Trello vs Notion vs le Kanban Cursus pour suivre un projet ? On utilise quoi ensuite en stage ?', created_at: hr(4) },
+    { channel_id: chProjets, author: jean,    content: 'En stage j\'avais Jira, plus puissant mais lourd. Le Kanban Cursus c\'est entre Trello (simple) et Jira (lourd) — assez pour de la pedagogie.', created_at: hr(3) },
+    { channel_id: chProjets, author: alice,   content: 'Je trouve que l\'integration `/devoir` -> kanban est bien pensee, ca evite de jongler. Mais on peut exporter ICS si besoin du calendrier perso.', created_at: hr(2), reactions: rx({ '👍': [lucas.id, emma.id] }) },
   ]
 }
 
@@ -195,16 +237,23 @@ function seedTenant(db, tenantId, role) {
     }
 
     // ── Messages (uniquement dans la promo principale)
+    // Le seed peut maintenant inclure des messages epingles (is_pinned) et
+    // des reactions JSON {emoji: [user_ids]} pour donner de la densite —
+    // c'est le canal #developpement-web qui est le plus fourni car c'est
+    // la qu'un visiteur etudiant va naturellement aller (Projet Web E4).
     const insertMessage = db.prepare(
       `INSERT INTO demo_messages
-         (tenant_id, channel_id, author_id, author_name, author_type, author_initials, content, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         (tenant_id, channel_id, author_id, author_name, author_type, author_initials, content, reactions, is_pinned, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     for (const msg of makeMessages(mainChannelIds, mainStudentRecords, teacherRecord)) {
       insertMessage.run(
         tenantId, msg.channel_id,
         msg.author.id, msg.author.name, msg.author.type, msg.author.initials,
-        msg.content, msg.created_at,
+        msg.content,
+        msg.reactions ?? null,
+        msg.is_pinned ? 1 : 0,
+        msg.created_at,
       )
     }
 

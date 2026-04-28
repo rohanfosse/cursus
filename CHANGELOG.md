@@ -1,5 +1,56 @@
 # Changelog
 
+## v2.260.0 (2026-04-28)
+
+### Demo : seed riche + mission tracker + nav badges + landing polish
+
+Resout le "cold start problem" du mode demo (le visiteur arrive sur le
+dashboard et ne sait pas quoi faire) et polit la landing.
+
+**Tier 2 - Seed enrichi** : le seed demo passe de ~20 messages a ~50,
+avec markdown (gras, code blocks YAML/Python, mentions @user, listes),
+reactions emoji (joins JSON), 5 messages epingles, threads coherents
+sur le projet web E4 (auth argon2/bcrypt, CORS debug, GitHub Actions).
+Les canaux #developpement-web et #algorithmique sont les plus denses
+(c'est la qu'un visiteur etudiant va naturellement). Endpoint
+`/messages/pinned/:channelId` lit maintenant `is_pinned=1` au lieu de
+retourner `[]`. Une session Live "Quiz Algo - Arbres AVL" en cours
++ historique de 3 sessions passees + 7 documents (PDF cours, DOCX TPs,
+notebook, lien GitHub, viz AVL externe) sont retournes par les
+endpoints demo correspondants.
+
+**Tier 3 - Mission tracker (DemoBanner v2)** : le bandeau decoratif
+devient un suivi de decouverte. Pill `X/5 decouvertes` cliquable
+(halo pulse tant que < 5/5) ouvre un dropdown avec les 5 etapes :
+dashboard, messagerie, Lumen, devoirs, live ou RDV. Detection
+automatique via `router.afterEach` (pas de hooks a poser dans 20
+composants) — visiter `/lumen` coche automatiquement l'etape Lumen.
+Persiste dans localStorage `cc_demo_mission`. A 5/5, animation wiggle
++ celebration + CTA "Creer un compte gratuit". Composable
+`useDemoMission` reutilisable, IDs typed.
+
+**Tier 3 - Nav badges "A essayer"** : dot vert pulsant sur les
+onglets NavRail pas encore visites en mode demo (Messagerie, Lumen,
+Devoirs, Live). Disparait au 1er clic via la mission auto-cochee.
+Couleur accent (vert) pour eviter la confusion avec le live-dot rouge.
+
+**Landing - Smooth scroll bento -> feature** : clic sur une carte
+bento scrollt avec offset nav (~70px) au lieu d'un saut net, puis
+halo color anime sur la mini-demo cible (1.5s) pour materialiser
+"tu es la maintenant". Hook applique a tous les liens internes
+(#feat-*, #features, #faq, #download). Respecte
+`prefers-reduced-motion`.
+
+**Landing - FAQ moderne** : passe d'une liste austere
+(border-top/bottom hairlines) a un design cards :
+border-radius 14px, padding genereux 18px/22px, indicateur chevron
+dans pastille douce (rotation 180deg a l'ouverture), barre d'accent
+verticale 3px sur la reponse + fond bleu tres pale, code/em
+restyles (badges arrondis), liens avec underline thicker. Ombre
+douce a l'ouverture pour separer visuellement.
+
+Bump 2.259.0 -> 2.260.0 (minor : nouvelles features visibles).
+
 ## v2.259.0 (2026-04-28)
 
 ### Landing : bento enrichi + Live multi-modes + docs filtrables + RDV bookable

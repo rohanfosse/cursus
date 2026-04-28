@@ -287,9 +287,35 @@ router.get('/booking/bookings', (_req, res) => res.json({ ok: true, data: [] }))
 router.get('/booking/campaigns', (_req, res) => res.json({ ok: true, data: [] }))
 
 // ── Documents ────────────────────────────────────────────────────────
-router.get('/documents/channel/:id', (_req, res) => res.json({ ok: true, data: [] }))
+// Le visiteur qui ouvre le panneau Documents d'un canal doit voir un mini
+// catalogue : sinon il pense que la feature est vide. On renvoie des docs
+// fictifs avec types varies (PDF/DOCX/XLSX/lien externe/notebook) — la
+// liste est partagee entre tous les canaux pour rester simple.
+const DEMO_DOCUMENTS = (channelId, promoId) => {
+  const day = (n) => new Date(Date.now() - n * 86400_000).toISOString()
+  return [
+    { id: 1001, channel_id: channelId, promo_id: promoId, category: 'Cours',     type: 'pdf',      name: 'Cours - Tri rapide.pdf',       path_or_url: 'https://example.com/cours-tri.pdf',     content: 'https://example.com/cours-tri.pdf',     description: '12 pages - complexite et implementations',    file_size: 2_413_120, travail_id: null, travail_title: null, created_at: day(20) },
+    { id: 1002, channel_id: channelId, promo_id: promoId, category: 'Cours',     type: 'pdf',      name: 'Cours - Arbres AVL.pdf',        path_or_url: 'https://example.com/cours-avl.pdf',     content: 'https://example.com/cours-avl.pdf',     description: '8 pages - rotations et invariant equilibre',  file_size: 1_184_320, travail_id: null, travail_title: null, created_at: day(15) },
+    { id: 1003, channel_id: channelId, promo_id: promoId, category: 'TP',        type: 'docx',     name: 'Sujet TP - Routage.docx',       path_or_url: 'https://example.com/tp-routage.docx',  content: 'https://example.com/tp-routage.docx',  description: 'Sujet du TP4 - 3 pages',                       file_size:   181_248, travail_id: null, travail_title: null, created_at: day(10) },
+    { id: 1004, channel_id: channelId, promo_id: promoId, category: 'TP',        type: 'xlsx',     name: 'Notes - Algo S1.xlsx',          path_or_url: 'https://example.com/notes-s1.xlsx',    content: 'https://example.com/notes-s1.xlsx',    description: 'Releve des notes du semestre 1',              file_size:    96_768, travail_id: null, travail_title: null, created_at: day(8) },
+    { id: 1005, channel_id: channelId, promo_id: promoId, category: 'Externe',   type: 'link',     name: 'GitHub - Projet Web E4',         path_or_url: 'https://github.com/cesi/projet-web-e4', content: 'https://github.com/cesi/projet-web-e4', description: 'Repo template avec CI deja configuree',       file_size: null,      travail_id: null, travail_title: null, created_at: day(5) },
+    { id: 1006, channel_id: channelId, promo_id: promoId, category: 'Externe',   type: 'link',     name: 'Visualiseur AVL interactif',     path_or_url: 'https://www.cs.usfca.edu/~galles/visualization/AVLtree.html', content: 'https://www.cs.usfca.edu/~galles/visualization/AVLtree.html', description: 'Outil web pour voir les rotations en direct', file_size: null, travail_id: null, travail_title: null, created_at: day(4) },
+    { id: 1007, channel_id: channelId, promo_id: promoId, category: 'Ressource', type: 'notebook', name: 'main_test.ipynb',                path_or_url: 'https://example.com/notebook.ipynb',   content: 'https://example.com/notebook.ipynb',   description: 'Tests interactifs Python pour le tri',        file_size:    62_464, travail_id: null, travail_title: null, created_at: day(2) },
+  ]
+}
+router.get('/documents/channel/:id', (req, res) => {
+  res.json({ ok: true, data: DEMO_DOCUMENTS(Number(req.params.id), null) })
+})
+router.get('/documents/promo/:promoId', (req, res) => {
+  res.json({ ok: true, data: DEMO_DOCUMENTS(null, Number(req.params.promoId)) })
+})
 router.get('/documents/project', (_req, res) => res.json({ ok: true, data: [] }))
-router.get('/documents/search', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/documents/search', (req, res) => {
+  const q = String(req.query.q || '').toLowerCase().trim()
+  if (!q) return res.json({ ok: true, data: [] })
+  const all = DEMO_DOCUMENTS(null, null)
+  res.json({ ok: true, data: all.filter(d => d.name.toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q)) })
+})
 
 // ── Bookmarks / signets ──────────────────────────────────────────────
 router.get('/bookmarks', (_req, res) => res.json({ ok: true, data: [] }))
@@ -319,7 +345,19 @@ router.get('/messages/dm/:studentId/page', (_req, res) =>
   res.json({ ok: true, data: { messages: [], hasMore: false } }),
 )
 router.get('/messages/dm-files', (_req, res) => res.json({ ok: true, data: [] }))
-router.get('/messages/pinned/:channelId', (_req, res) => res.json({ ok: true, data: [] }))
+router.get('/messages/pinned/:channelId', (req, res) => {
+  // Lit les messages reellement epingles dans le seed (is_pinned=1) pour
+  // que la liste "Messages epingles" affiche du contenu — sinon le visiteur
+  // qui clique l'icone epingle voit toujours "Aucun message epingle".
+  const rows = getDemoDb().prepare(
+    `SELECT id, channel_id, author_id, author_name, author_type, author_initials,
+            content, reactions, is_pinned, created_at
+     FROM demo_messages
+     WHERE tenant_id = ? AND channel_id = ? AND is_pinned = 1
+     ORDER BY created_at DESC`
+  ).all(req.tenantId, Number(req.params.channelId))
+  res.json({ ok: true, data: rows })
+})
 router.post('/messages/reactions', (_req, res) => res.json({ ok: true, data: null }))
 
 // ── Recherche (pas de FTS en demo, retourne vide) ────────────────────
@@ -327,12 +365,45 @@ router.get('/messages/search', (_req, res) => res.json({ ok: true, data: [] }))
 router.post('/messages/search-all', (_req, res) => res.json({ ok: true, data: [] }))
 
 // ── Live / Lumen / Kanban / Devoirs avances : non implementes ────────
-router.get('/live/sessions/promo/:id/active', (_req, res) =>
-  res.json({ ok: true, data: null }),
-)
-router.get('/live/sessions/promo/:id/history', (_req, res) =>
-  res.json({ ok: true, data: [] }),
-)
+// Session Live "fake en cours" : permet au visiteur etudiant de voir
+// immediatement le bouton "Rejoindre la session" sur le dashboard. La
+// session est purement decorative (rejoindre redirige vers /live qui
+// affichera le LiveBoard vide), mais elle materialise la feature.
+router.get('/live/sessions/promo/:id/active', (req, res) => {
+  const teacher = getDemoDb().prepare(
+    `SELECT id, name FROM demo_teachers WHERE tenant_id = ?`
+  ).get(req.tenantId)
+  res.json({
+    ok: true,
+    data: {
+      id: 'demo-live-1',
+      promo_id: Number(req.params.id),
+      teacher_id: teacher ? -teacher.id : -1,
+      teacher_name: teacher?.name || 'Prof. Lemaire',
+      title: 'Quiz Algo - Arbres AVL',
+      status: 'active',
+      join_code: 'AVL-2026',
+      is_async: 0,
+      open_until: null,
+      created_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+      ended_at: null,
+      activities: [],
+    },
+  })
+})
+router.get('/live/sessions/promo/:id/history', (_req, res) => {
+  // Historique des 3 dernieres sessions Live finies — donne du contexte au
+  // dashboard etudiant (vu deja, peux y revenir pour les replays).
+  const day = (n) => new Date(Date.now() - n * 86400_000).toISOString()
+  res.json({
+    ok: true,
+    data: [
+      { id: 'demo-live-h1', title: 'Quiz Web - Auth & JWT',     status: 'ended', participant_count: 18, activity_count: 8,  ended_at: day(2) },
+      { id: 'demo-live-h2', title: 'Pulse - Retour mi-semestre', status: 'ended', participant_count: 16, activity_count: 4,  ended_at: day(7) },
+      { id: 'demo-live-h3', title: 'Code partage - Tri rapide', status: 'ended', participant_count: 14, activity_count: 12, ended_at: day(10) },
+    ],
+  })
+})
 router.get('/lumen/repos/promo/:id', (_req, res) => res.json({ ok: true, data: [] }))
 router.get('/lumen/github/me', (_req, res) =>
   res.json({ ok: true, data: { connected: false } }),

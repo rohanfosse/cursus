@@ -22,6 +22,45 @@ function toggleTheme() {
 // ── DOMContentLoaded ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
 
+  // ── Smooth scroll bento -> feature section ──────────────────────────
+  // Override de la nav vers les ancres pour ajouter un offset (nav fixe)
+  // et un highlight visuel sur la section cible (pulse sur la mini-demo)
+  // pour que l'utilisateur voie clairement "je suis arrive ici".
+  const NAV_OFFSET = 70 // hauteur de la nav fixe + breathing room
+  function smoothScrollToSection(href) {
+    const id = href.replace(/^#/, '')
+    const el = document.getElementById(id)
+    if (!el) return false
+    const top = el.getBoundingClientRect().top + window.pageYOffset - NAV_OFFSET
+    if (prefersReducedMotion) {
+      window.scrollTo(0, top)
+    } else {
+      window.scrollTo({ top, behavior: 'smooth' })
+    }
+    // Highlight la mini-demo associee : pulse 1.2s. Utilise un attribut
+    // data plutot que toucher au scroll-margin (qui ferait shifter le layout).
+    const demo = el.querySelector('.mini-demo')
+    if (demo && !prefersReducedMotion) {
+      demo.classList.remove('demo-arrived')
+      void demo.offsetHeight
+      demo.classList.add('demo-arrived')
+      setTimeout(() => demo.classList.remove('demo-arrived'), 1500)
+    }
+    return true
+  }
+  // Hook tous les liens internes (#feat-*, #features, #audience, #faq, #download)
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    const href = a.getAttribute('href') || ''
+    if (href === '#' || href.length < 2) return
+    a.addEventListener('click', (e) => {
+      if (smoothScrollToSection(href)) {
+        e.preventDefault()
+        // Met a jour l'URL sans nouveau scroll-jank
+        if (history.pushState) history.pushState(null, '', href)
+      }
+    })
+  })
+
   // ── Burger menu toggle ──────────────────────────────────────────────
   const burger = document.getElementById('burger-toggle')
   const mobileMenu = document.getElementById('mobile-menu')

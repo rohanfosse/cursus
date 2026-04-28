@@ -19,6 +19,7 @@ import { useStatusesStore } from '@/stores/statuses'
 import { useToast } from '@/composables/useToast'
 import { useModules } from '@/composables/useModules'
 import { useNavRailOrder } from '@/composables/useNavRailOrder'
+import { useDemoMission } from '@/composables/useDemoMission'
 import { avatarColor } from '@/utils/format'
 import { formatExpiryShort } from '@/utils/date'
 import logoUrl from '@/assets/logo.png'
@@ -68,6 +69,27 @@ const msgBadgeCount = computed(() => {
   const dmCount = Object.values(appStore.unreadDms ?? {}).reduce((a: number, b) => a + (b as number), 0)
   return dmCount + mentionCount.value
 })
+
+// Mode demo : pulse "A essayer" sur les onglets pas encore visites. Disparait
+// au 1er clic (la mission s'auto-coche au passage sur la route). Seul affichage
+// du bord visuel — pas de texte intrusif. Mappe les nav-item ids aux ids de
+// la mission (live_or_booking couvre live et booking, le reste matche 1:1).
+const demoMission = useDemoMission()
+const NAV_TO_MISSION: Record<string, string> = {
+  messages: 'messages',
+  lumen:    'lumen',
+  devoirs:  'devoirs',
+  live:     'live_or_booking',
+  booking:  'live_or_booking',
+  agenda:   'live_or_booking',
+}
+function showDemoDot(itemId: string): boolean {
+  if (!demoMission.isActive.value) return false
+  const missionId = NAV_TO_MISSION[itemId]
+  if (!missionId) return false
+  const action = demoMission.actions.value.find(a => a.id === missionId)
+  return action ? !action.done : false
+}
 
 // ── État UI local ───────────────────────────────────────────────────────────
 const showNotifications = ref(false)
@@ -433,6 +455,12 @@ function openAvatarContextMenu(ev: MouseEvent) {
         v-if="item.id === 'live' && !appStore.isStaff && liveStore.currentSession"
         class="nav-live-dot"
         aria-label="Live en cours"
+      />
+      <!-- Dot "A essayer" du mode demo (route pas encore visitee) -->
+      <span
+        v-if="showDemoDot(item.id)"
+        class="nav-demo-dot"
+        aria-label="A decouvrir en demo"
       />
     </button>
 
@@ -844,6 +872,28 @@ function openAvatarContextMenu(ev: MouseEvent) {
   animation: pulse-dot 2s infinite;
 }
 
+/* ── Dot "A essayer" en mode demo ────────────────────────────────────── */
+/* Pulse subtil sur les onglets pas encore visites par le visiteur. Disparait
+   au 1er clic via la mission auto-cochee. Couleur accent (vert) pour eviter
+   la confusion avec le live-dot rouge. */
+.nav-demo-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-primary);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+  animation: navDemoPulse 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes navDemoPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); transform: scale(1); }
+  50%      { box-shadow: 0 0 0 6px transparent; transform: scale(1.15); }
+}
+
 /* ── Mini progress bar (devoirs) ─────────────────────────────────────── */
 .nav-progress {
   width: 28px;
@@ -1030,6 +1080,7 @@ function openAvatarContextMenu(ev: MouseEvent) {
   .nav-logo-btn:hover .nav-logo-img { transform: none !important; }
   .nav-status-dot,
   .nav-live-dot,
+  .nav-demo-dot,
   .nav-offline-banner,
   .nav-avatar-status,
   .nav-msg-badge,

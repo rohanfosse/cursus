@@ -852,6 +852,14 @@ img { max-width: 100%; display: block; }
 
 /* ── Feature Sections ──────────────────────────────────────────────── */
 .feature-section { padding: 96px 24px; }
+/* Definit l'accent par section pour que le halo "demo-arrived" et autres
+   indicateurs colorables (CTA, etc.) reprennent la couleur du module. */
+.feature-section[data-color="chat"]    { --card-accent: var(--color-chat); }
+.feature-section[data-color="devoirs"] { --card-accent: var(--color-devoirs); }
+.feature-section[data-color="docs"]    { --card-accent: var(--color-docs); }
+.feature-section[data-color="live"]    { --card-accent: var(--color-live); }
+.feature-section[data-color="rex"]     { --card-accent: var(--color-rex); }
+.feature-section[data-color="lumen"]   { --card-accent: var(--color-lumen); }
 
 .feature-row {
   display: grid;
@@ -1601,6 +1609,21 @@ img { max-width: 100%; display: block; }
 .visible .mini-demo-left {
   opacity: 1;
   transform: translateX(0);
+}
+
+/* Pulse sur la mini-demo cible quand on arrive depuis le bento : un halo
+   coloure pour materialiser "tu es la maintenant". Disparait en 1.5s. */
+.mini-demo.demo-arrived .demo-window {
+  animation: demoArrivedPulse 1.5s var(--ease-smooth) 1;
+}
+@keyframes demoArrivedPulse {
+  0%   { box-shadow: var(--shadow-md), 0 0 0 0 var(--card-accent, var(--primary)); }
+  20%  { box-shadow: var(--shadow-md), 0 0 0 8px color-mix(in srgb, var(--card-accent, var(--primary)) 35%, transparent); }
+  60%  { box-shadow: var(--shadow-md), 0 0 0 16px color-mix(in srgb, var(--card-accent, var(--primary)) 0%, transparent); }
+  100% { box-shadow: var(--shadow-md), 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mini-demo.demo-arrived .demo-window { animation: none; }
 }
 
 /* ── Internal Demo Animations ──────────────────────────────────────── */
@@ -3062,7 +3085,10 @@ img { max-width: 100%; display: block; }
 .audience-cta:hover::after { transform: translateX(3px); }
 
 /* ══════════════════════════════════════════════════════════════════
-   FAQ — accordeon natif <details>
+   FAQ — version moderne sobre : cartes douces, reponse marquee
+   par une barre d'accent verticale, typo plus generouse pour
+   ameliorer la lisibilite. Les items sont espaces (8px) au lieu
+   de hairlines collees.
    ══════════════════════════════════════════════════════════════════ */
 .faq-section {
   padding: 60px 0 100px;
@@ -3075,72 +3101,162 @@ img { max-width: 100%; display: block; }
 }
 
 .faq-item {
-  border-top: 1px solid var(--border);
-  padding: 18px 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 8px;
+  transition: border-color var(--duration-fast) var(--ease-smooth),
+              box-shadow var(--duration-normal) var(--ease-smooth),
+              transform var(--duration-normal) var(--ease-smooth);
 }
-.faq-item:last-child { border-bottom: 1px solid var(--border); }
+.faq-item:hover {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
+}
+.faq-item[open] {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.06),
+              0 1px 3px rgba(99, 102, 241, 0.04);
+}
+[data-theme="dark"] .faq-item[open] {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
 
 .faq-item summary {
   list-style: none;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 700;
+  letter-spacing: -0.2px;
   color: var(--text);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 4px 0;
+  padding: 18px 22px;
   user-select: none;
+  border-radius: inherit;
+  transition: color var(--duration-fast) var(--ease-smooth),
+              background var(--duration-fast) var(--ease-smooth);
 }
 .faq-item summary::-webkit-details-marker { display: none; }
+
+/* Indicateur visuel : chevron rotatif dans une pastille douce */
 .faq-item summary::after {
-  content: '+';
-  font-size: 22px;
-  font-weight: 400;
-  color: var(--text-2);
+  content: '';
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236366F1' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
   transition: transform var(--duration-normal) var(--ease-smooth),
-              color var(--duration-fast) var(--ease-smooth);
+              background-color var(--duration-fast) var(--ease-smooth);
   flex-shrink: 0;
 }
+[data-theme="dark"] .faq-item summary::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23818CF8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
 .faq-item[open] summary::after {
-  transform: rotate(45deg);
-  color: var(--primary);
+  transform: rotate(180deg);
+  background-color: color-mix(in srgb, var(--primary) 18%, transparent);
 }
 .faq-item summary:hover { color: var(--primary); }
+.faq-item summary:hover::after {
+  background-color: color-mix(in srgb, var(--primary) 14%, transparent);
+}
 .faq-item summary:focus-visible {
   outline: 2px solid var(--primary);
-  outline-offset: 4px;
-  border-radius: 4px;
+  outline-offset: 3px;
 }
 
+/* Conteneur de la reponse : barre d'accent a gauche, padding genereux */
+.faq-item[open] summary {
+  padding-bottom: 12px;
+}
+.faq-answer,
 .faq-item p,
 .faq-item ul {
-  margin-top: 12px;
-  font-size: 14px;
-  color: var(--text-2);
-  line-height: 1.7;
+  font-size: 14.5px;
+  color: var(--text);
+  line-height: 1.75;
+  font-weight: 450;
+  margin: 0 22px 18px 22px;
+  padding: 14px 18px;
+  background: color-mix(in srgb, var(--primary) 4%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--primary) 70%, transparent);
+  border-radius: 0 10px 10px 0;
+}
+[data-theme="dark"] .faq-answer,
+[data-theme="dark"] .faq-item p,
+[data-theme="dark"] .faq-item ul {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
 }
 .faq-item ul {
-  padding-left: 20px;
+  padding-left: 38px;
   list-style: disc;
 }
-.faq-item ul li { margin-bottom: 4px; }
-.faq-item a { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
-.faq-item a:hover { color: var(--primary-dark); }
+.faq-item ul li {
+  margin-bottom: 6px;
+}
+.faq-item ul li::marker {
+  color: var(--primary);
+  font-size: 0.85em;
+}
+/* Si plusieurs blocs (paragraphe puis liste), on les colle en un seul
+   rendu visuel : on remet la marge a zero entre les deux pour eviter le
+   double-cadre — chaque bloc reste son propre conteneur visuel sinon. */
+.faq-item p + ul,
+.faq-item ul + p {
+  margin-top: -8px;
+}
+
+.faq-item a {
+  color: var(--primary-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  font-weight: 600;
+  transition: text-decoration-color var(--duration-fast) var(--ease-smooth),
+              color var(--duration-fast) var(--ease-smooth);
+}
+.faq-item a:hover {
+  color: var(--primary);
+  text-decoration-color: var(--primary);
+}
+[data-theme="dark"] .faq-item a { color: var(--primary-light); }
+[data-theme="dark"] .faq-item a:hover { color: var(--accent-light); }
+
 .faq-item code {
   font-family: var(--font-mono);
   font-size: 12.5px;
-  padding: 2px 6px;
-  background: color-mix(in srgb, var(--primary) 8%, transparent);
-  border-radius: 4px;
+  padding: 2px 7px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-radius: 5px;
   color: var(--primary-dark);
+  font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, transparent);
+}
+[data-theme="dark"] .faq-item code {
+  color: var(--primary-light);
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.faq-item em {
+  color: var(--text);
+  font-style: normal;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 /* Animation d'ouverture (FAQ) — discrete */
 @media (prefers-reduced-motion: no-preference) {
   .faq-item[open] p,
-  .faq-item[open] ul {
+  .faq-item[open] ul,
+  .faq-item[open] .faq-answer {
     animation: faqFadeIn 280ms var(--ease-smooth);
   }
   @keyframes faqFadeIn {
