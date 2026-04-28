@@ -83,6 +83,13 @@ app.set('jwtSecret', SECRET)
 // ── Routes publiques (auth) ───────────────────────────────────────────────────
 app.use('/api/auth', authLimiter, require('./routes/auth'))
 
+// ── Routes mode demo (sandbox sans inscription) ──────────────────────────────
+// Mountees avant le authMiddleware /api : POST /start est public (cree une
+// session), et les autres routes ont leur propre middleware demoMode qui
+// valide le token JWT prefixe `demo-`. Aucune route /api/demo/* n'accede a la
+// DB de prod (DB physiquement separee : `cursus_demo.sqlite`).
+app.use('/api/demo', require('./routes/demo'))
+
 // ── Error reporting (sans auth — le frontend peut reporter avant login) ─────
 app.use('/api/report-error', require('./routes/error-report'))
 
