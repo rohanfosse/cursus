@@ -90,6 +90,8 @@
       </a>
       <div class="nav-center">
         <a href="#features">Fonctionnalités</a>
+        <a href="#audience">Pour qui</a>
+        <a href="#faq">FAQ</a>
         <a href="#download">Télécharger</a>
       </div>
       <div class="nav-right">
@@ -111,9 +113,11 @@
     <!-- Mobile menu overlay -->
     <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
       <a href="#features" class="mobile-link">Fonctionnalités</a>
+      <a href="#audience" class="mobile-link">Pour qui</a>
+      <a href="#faq" class="mobile-link">FAQ</a>
       <a href="#download" class="mobile-link">Télécharger</a>
       <a href="https://github.com/rohanfosse/cursus" class="mobile-link" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://app.cursus.school" class="mobile-link mobile-link--cta">Ouvrir l'app</a>
+      <a href="https://app.cursus.school/#/demo" class="mobile-link mobile-link--cta">Tester en démo</a>
     </div>
   </nav>
 
@@ -216,11 +220,13 @@
 
       <!-- CTAs sous le bento -->
       <div class="hero-actions fade-up">
-        <a href="https://app.cursus.school" class="btn-primary">
-          Ouvrir l'app
+        <a href="https://app.cursus.school/#/demo" class="btn-primary">
+          Tester en démo
+          <span class="btn-primary-hint">sans inscription</span>
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
         </a>
-        <a href="#download" class="btn-secondary">Télécharger</a>
+        <a href="https://app.cursus.school" class="btn-secondary">Ouvrir l'app</a>
+        <a href="#download" class="btn-tertiary">Télécharger</a>
       </div>
 
       <!-- Proof bar (below bento) -->
@@ -498,6 +504,100 @@
     </section>
 
   </section><!-- /#features -->
+
+  <!-- POUR QUI ? — pose le visiteur en 1 coup d'oeil sur sa propre vue -->
+  <section class="audience-section fade-up" id="audience" aria-label="Pour qui">
+    <div class="container">
+      <h2 class="section-title">Pour qui&nbsp;?</h2>
+      <p class="section-sub">Cursus est conçu autour des deux rôles principaux d'une promotion.</p>
+
+      <div class="audience-grid">
+        <article class="audience-card audience-card--teacher">
+          <div class="audience-icon" style="--ic: var(--color-chat)">
+            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <h3 class="audience-title">Enseignants</h3>
+          <p class="audience-desc">Tu pilotes une promotion et tu en as marre de jongler entre Moodle, Teams et tes mails.</p>
+          <ul class="audience-list">
+            <li>Crée des devoirs, note avec des grilles, suis les rendus</li>
+            <li>Diffuse des annonces lues à coup sûr (lecture seule)</li>
+            <li>Centralise tes ressources (PDF, Word, GitHub) liées aux devoirs</li>
+            <li>Programme tes RDV individuels avec sync Outlook + Teams ou Jitsi</li>
+            <li>Anime tes cours en live (quiz Spark, sondages Pulse, code partagé)</li>
+          </ul>
+          <a class="audience-cta" href="https://app.cursus.school/#/demo">Tester côté prof</a>
+        </article>
+
+        <article class="audience-card audience-card--student">
+          <div class="audience-icon" style="--ic: var(--color-devoirs)">
+            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+          </div>
+          <h3 class="audience-title">Étudiants</h3>
+          <p class="audience-desc">Tu veux savoir d'un coup d'œil ce qui te concerne, sans 5 onglets ouverts.</p>
+          <ul class="audience-list">
+            <li>Toutes tes deadlines et tes notes au même endroit</li>
+            <li>Discute avec ta promo et tes profs en un clic</li>
+            <li>Lis tes cours markdown rendus comme un manuel (KaTeX, code, PDF)</li>
+            <li>Réserve un créneau avec ton tuteur sans relancer 3 fois</li>
+            <li>Mode hors-ligne PWA pour bosser dans le train</li>
+          </ul>
+          <a class="audience-cta" href="https://app.cursus.school/#/demo">Tester côté étudiant</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ — anticipe les questions les plus frequentes pour reduire la friction -->
+  <section class="faq-section fade-up" id="faq" aria-label="Questions fréquentes">
+    <div class="container container-narrow">
+      <h2 class="section-title">Questions fréquentes</h2>
+
+      <details class="faq-item">
+        <summary>C'est gratuit&nbsp;?</summary>
+        <p>Oui, complètement. Cursus est <a href="https://github.com/rohanfosse/cursus" target="_blank" rel="noopener">open source sous licence MIT</a>&nbsp;: l'app web, le desktop et le code sont gratuits, sans freemium ni paywall. Tu peux l'utiliser tel quel sur <a href="https://app.cursus.school">app.cursus.school</a> ou auto-héberger ta propre instance.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Mes données sont privées&nbsp;?</summary>
+        <p>Oui. Les DMs sont chiffrés AES-256-GCM au repos, l'authentification est en JWT signé, les permissions par rôle (admin / enseignant / intervenant / étudiant) et l'isolation par promotion sont enforcées côté serveur. Pas de tracking analytique tiers, pas de revente. Tu peux exporter tes données personnelles en 1 clic (Art. 20 RGPD).</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Comment je commence&nbsp;?</summary>
+        <p>Trois options&nbsp;:</p>
+        <ul>
+          <li><a href="https://app.cursus.school/#/demo"><strong>Tester en démo</strong></a> sans rien installer ni créer de compte (~30 secondes).</li>
+          <li><a href="https://app.cursus.school">Créer un compte</a> sur l'app web pour de vrai.</li>
+          <li><a href="#download">Télécharger l'app</a> Windows ou macOS si tu préfères le desktop.</li>
+        </ul>
+      </details>
+
+      <details class="faq-item">
+        <summary>Ça remplace Moodle / Teams&nbsp;?</summary>
+        <p>Pour le quotidien d'une promotion, oui. Cursus couvre la messagerie, les devoirs, les ressources, les cours, les quiz live et les RDV — c'est-à-dire l'essentiel de ce qu'on fait sur Moodle + Teams + Outlook combinés. Pour les fonctions spécifiques (grands amphis distanciels, intégration SI école), Cursus est complémentaire et peut cohabiter — l'export ICS et la sync Outlook permettent de garder tes outils habituels.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Je peux l'auto-héberger&nbsp;?</summary>
+        <p>Oui, c'est la voie privilégiée pour les écoles. Le repo fournit un <code>docker-compose.yml</code> prêt à l'emploi, un <code>Dockerfile</code> multi-stage et la doc de déploiement (Nginx + Let's Encrypt). Tu maîtrises tes données, tes utilisateurs et ton domaine. Voir le <a href="https://github.com/rohanfosse/cursus#deploiement" target="_blank" rel="noopener">README</a>.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Comment fonctionne le mode démo&nbsp;?</summary>
+        <p>Tu choisis un rôle (prof ou étudiant) et tu arrives directement dans l'app avec une promotion fictive&nbsp;: <em>CPIA2 25-26 (Démo)</em>, 4 canaux, 6 étudiants, 3 devoirs, ~20 messages historiques. Tu peux écrire, créer, naviguer&nbsp;: chaque visiteur a sa propre session isolée des autres. Les données sont effacées automatiquement après 24h. Aucune inscription, aucun e-mail demandé.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>C'est maintenu par qui&nbsp;?</summary>
+        <p>Par <a href="https://github.com/rohanfosse" target="_blank" rel="noopener">Rohan Fosse</a>, étudiant ingénieur au CESI, sur du temps personnel. Le projet est utilisé en production sur sa propre promotion. Les contributions externes sont bienvenues — voir <a href="https://github.com/rohanfosse/cursus/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a>.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Je trouve un bug, comment je signale&nbsp;?</summary>
+        <p>Ouvre une <a href="https://github.com/rohanfosse/cursus/issues/new/choose" target="_blank" rel="noopener">issue GitHub</a> avec le template Bug. Pour une faille de sécurité, ne crée pas d'issue publique — voir <a href="https://github.com/rohanfosse/cursus/blob/main/SECURITY.md" target="_blank" rel="noopener">SECURITY.md</a>.</p>
+      </details>
+    </div>
+  </section>
 
   <!-- DOWNLOAD -->
   <section class="download-section fade-up" id="download">
