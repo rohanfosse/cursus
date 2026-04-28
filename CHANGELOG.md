@@ -1,5 +1,62 @@
 # Changelog
 
+## v2.261.0 (2026-04-28)
+
+### Demo : split modulaire + 45 tests + bots react/edit
+
+Refacto pour rendre la demo maintenable a long terme. Trois axes :
+
+**Split de `server/routes/demo.js`** (450 lignes -> 4 fichiers thematiques).
+La god-route est devenue `server/routes/demo/` avec :
+- `index.js` : router racine, POST /start, POST /end, mount middleware
+- `real.js` : endpoints qui lisent/ecrivent demo_* (promotions, channels,
+  messages, presence, status, teachers, pinned)
+- `mocks.js` : 30+ fallbacks hardcoded (booking, documents, live, lumen,
+  kanban, signatures...) + wildcard final
+- `README.md` : how-to ajouter un mock + diagramme du dispatch
+
+Gain : ajouter une feature ne necessite plus de naviguer dans 450 lignes.
+Le wildcard log toutes les hits via `console.warn` (visible en CI dans
+les logs Playwright) — futurs candidats pour un mock dedie. Mode strict
+`DEMO_STRICT=1` : le wildcard retourne 501 au lieu de [], pour que les
+trous deviennent visibles en CI plutot que silencieux.
+
+**Tests demo** : 0 -> 45 (`tests/backend/demo/`).
+- `seed.test.js` (14 tests) : currentUser shape student/teacher, 2 promos,
+  4 channels, 30+ students, 30+ messages avec reactions JSON parseables
+  + 3+ pinned + 0 orphelin, 3 assignments avec deadlines futures, isolation
+  cross-tenant
+- `routes.test.js` (22 tests) : POST /start ok, demoMode rejette token
+  manquant/invalide, /promotions /channels /messages persistent + isolent,
+  POST /messages persiste avec author_name correct, refuse content vide /
+  > 10k chars, /presence et /status retournent les bons compteurs,
+  wildcard 404 retourne []/403 selon methode, DEMO_STRICT=1 -> 501,
+  /end purge et invalide les requetes ulterieures
+- `bots.test.js` (9 tests) : Math.random mocke pour declencher chaque
+  action, chaque type (post/react/edit) verifie individuellement,
+  idempotence (re-react = no-op), exclusion des messages > 30min de la
+  cible react, sessions expirees ignorees
+
+**Bots demo plus malins** (`server/services/demoBots.js`).
+- Avant : 1 action par tick (POST 30%)
+- Apres : 3 actions independantes par tick :
+  - POST 30% — un bot poste un message dans un canal
+  - REACT 20% — un bot ajoute une reaction emoji a un message des 30
+    dernieres minutes (10 emojis : 👍 ❤️ 🎉 😂 🤔 🔥 💡 🙏 ✅ 👀),
+    idempotent par user
+  - EDIT 8% — un bot edite un de SES messages des 5 dernieres minutes,
+    append un suffixe `(edit : typo)` et set edited=1
+
+La conversation evolue maintenant : reactions sur messages recents,
+typos corrigees, plus juste un fil monotone. Stats `runOnce()` retournent
+{ sessions, posted, reacted, edited }.
+
+`tests/backend/demo/bots.test.js` couvre les 3 actions individuellement
+avec Math.random mocke pour rendre les tests deterministes.
+
+Total tests projet : 1600 -> 1645.
+Bump 2.260.0 -> 2.261.0.
+
 ## v2.260.0 (2026-04-28)
 
 ### Demo : seed riche + mission tracker + nav badges + landing polish
