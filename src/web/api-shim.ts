@@ -124,6 +124,15 @@ async function apiFetch(path: string, options: RequestInit = {}, retries = MAX_R
       const res = await fetch(`${SERVER_URL}${finalPath}`, { ...options, headers, signal: ctrl.signal })
       clearTimeout(timer)
       if (res.status === 401 && !path.startsWith('/api/auth/login')) {
+        // Mode demo + appel a une route /api/auth/{refresh,...} qui n'est
+        // pas reroute : le 401 est attendu (le token demo n'est pas accepte
+        // par le middleware d'auth prod). On NE deconnecte PAS le visiteur,
+        // on retourne juste l'erreur pour que l'appelant fasse son fallback.
+        const isDemo = jwtToken?.startsWith('demo-') === true
+        const isAuthOnlyPath = AUTH_ONLY_ROUTES.test(path)
+        if (isDemo && isAuthOnlyPath) {
+          return { ok: false, error: 'Action non disponible en mode demo.' }
+        }
         jwtToken = null
         socket?.disconnect()
         window.dispatchEvent(new CustomEvent('cursus:auth-expired'))
@@ -310,6 +319,15 @@ function makeWebFallback(name: string): (...args: unknown[]) => unknown {
     }
     if (/^(on|off)[A-Z]/.test(name)) return () => {}
     if (/^(emit|set|clear|register|unregister)/.test(name)) return undefined
+    // Mode demo : on traite la fonction non implementee comme "feature vide
+    // mais OK" plutot que de remonter une erreur visible. Le visiteur voit
+    // un onglet vide (acceptable) au lieu d'un toast technique du genre
+    // "Action non disponible sur le web". Le _webFallback reste expose pour
+    // le debug. Seuls les getters / fetchers async passent par ici (les
+    // setters/listeners ont deja ete short-circuites au-dessus).
+    if (jwtToken && jwtToken.startsWith('demo-')) {
+      return Promise.resolve({ ok: true, data: [], _webFallback: true, _demo: true, _method: name })
+    }
     // Defaut : signature async-style { ok, error } pour ne pas casser les
     // composables qui font `if (res.ok && res.data) {...}`.
     return Promise.resolve({ ok: false, error: 'Action non disponible sur le web', _webFallback: true, _method: name, _argsCount: args.length })
@@ -336,6 +354,11 @@ const apiImpl = {
   demoPresence: () => get('/api/demo/presence'),
 
   async refreshToken() {
+    // Mode demo : /api/auth/refresh n'est pas reroute vers /api/demo/* (cf.
+    // AUTH_ONLY_ROUTES). Un appel renverrait 401 -> auth-expired -> logout
+    // pendant la demo. Le token demo a 24h de TTL, on n'a pas besoin de le
+    // rafraichir : on retourne null directement, refreshJwtIfNeeded ignore ca.
+    if (jwtToken && jwtToken.startsWith('demo-')) return null
     const res = await post('/api/auth/refresh', {}) as { ok: boolean; data?: { token?: string } }
     if (res?.ok && res.data?.token) {
       jwtToken = res.data.token

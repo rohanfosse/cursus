@@ -16,27 +16,36 @@
  * `cc_session_backup`. Le bouton "Quitter la demo" la restaure pour qu'il
  * retrouve son app comme avant. La demo est strictement independante.
  */
-import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Beaker, ChevronDown, Check, PartyPopper } from 'lucide-vue-next'
+import { Beaker, ChevronDown, Check, PartyPopper, RotateCcw } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useDemoMode } from '@/composables/useDemoMode'
-import { useDemoMission } from '@/composables/useDemoMission'
+import { useDemoMission, DEMO_MISSION_TARGET_ROUTES } from '@/composables/useDemoMission'
 import { STORAGE_KEYS } from '@/constants'
 import type { User } from '@/types'
+
+// Marqueur "panneau deja vu dans cette session" : on auto-deplie le panneau
+// au premier chargement de la demo pour que le visiteur comprenne qu'il y a
+// 5 etapes a decouvrir. Une fois marque, on ne re-deplie plus dans la meme
+// session (sessionStorage = scope onglet, reset au reload propre du tab).
+const FIRST_SEEN_KEY = 'cc_demo_banner_seen'
+const AUTO_COLLAPSE_DELAY_MS = 8000     // duree de l'auto-ouverture de bienvenue
+const CELEBRATION_DURATION_MS = 6000    // duree de l'effet de celebration a 5/5
 
 const appStore = useAppStore()
 const router = useRouter()
 const { isDemo } = useDemoMode()
-const { actions, completedCount, totalCount, progress, allDone } = useDemoMission()
+const { actions, completedCount, totalCount, progress, allDone, resetMission } = useDemoMission()
 
-// Panneau deplie : ferme par defaut, on respecte la pref "ne plus afficher"
-// pour les visiteurs qui ont deja fait le tour (>= 5/5 lifetime).
 const expanded = ref(false)
-function togglePanel() { expanded.value = !expanded.value }
+function togglePanel() {
+  expanded.value = !expanded.value
+  // Une interaction explicite annule l'auto-collapse de bienvenue.
+  cancelAutoCollapse()
+}
 
-// Auto-deploie le panneau a 5/5 pendant 5s pour celebrer + invite a creer
-// un compte. Puis se referme.
+// Auto-deploie le panneau a 5/5 pendant 5s pour celebrer.
 const showCelebration = ref(false)
 let celebrationT: ReturnType<typeof setTimeout> | null = null
 watch(allDone, (done, prev) => {
@@ -44,7 +53,7 @@ watch(allDone, (done, prev) => {
     showCelebration.value = true
     expanded.value = true
     if (celebrationT) clearTimeout(celebrationT)
-    celebrationT = setTimeout(() => { showCelebration.value = false }, 6000)
+    celebrationT = setTimeout(() => { showCelebration.value = false }, CELEBRATION_DURATION_MS)
   }
 })
 
@@ -53,29 +62,76 @@ const panelRef = ref<HTMLElement | null>(null)
 function onDocClick(e: MouseEvent) {
   if (!expanded.value) return
   const target = e.target as Node
-  if (panelRef.value && !panelRef.value.contains(target)) expanded.value = false
+  if (panelRef.value && !panelRef.value.contains(target)) {
+    expanded.value = false
+    cancelAutoCollapse()
+  }
 }
-onMounted(() => document.addEventListener('click', onDocClick))
-onBeforeUnmount(() => {
-  document.removeEventListener('click', onDocClick)
-  if (celebrationT) clearTimeout(celebrationT)
+
+// Esc ferme le panneau (a11y : cohere avec les modales / popovers de l'app).
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && expanded.value) {
+    expanded.value = false
+    cancelAutoCollapse()
+  }
+}
+
+// Auto-collapse de l'ouverture de bienvenue : on laisse 8s pour lire et
+// scanner les 5 etapes, puis on referme si l'utilisateur n'a pas interagi.
+let autoCollapseT: ReturnType<typeof setTimeout> | null = null
+function cancelAutoCollapse() {
+  if (autoCollapseT) { clearTimeout(autoCollapseT); autoCollapseT = null }
+}
+
+onMounted(() => {
+  document.addEventListener('click', onDocClick)
+  document.addEventListener('keydown', onKeydown)
+
+  // Auto-ouverture au 1er mount : resout le cold-start (visiteur qui arrive
+  // sur le dashboard et ne sait pas par ou commencer). Skip si l'utilisateur
+  // a deja interagi (completedCount > 0) ou deja vu cette session.
+  try {
+    const seen = sessionStorage.getItem(FIRST_SEEN_KEY)
+    if (isDemo.value && completedCount.value === 0 && !seen) {
+      // nextTick : laisse le shell parent terminer sa transition de monte.
+      void nextTick(() => {
+        expanded.value = true
+        sessionStorage.setItem(FIRST_SEEN_KEY, '1')
+        autoCollapseT = setTimeout(() => {
+          // Ne se referme automatiquement que si l'utilisateur n'a pas
+          // cliqué dedans entre-temps (cancelAutoCollapse() aura ete appele).
+          if (autoCollapseT) expanded.value = false
+          autoCollapseT = null
+        }, AUTO_COLLAPSE_DELAY_MS)
+      })
+    }
+  } catch { /* sessionStorage indisponible (privacy) : on n'auto-ouvre pas */ }
 })
 
-// Action "Aller a..." : route mappee depuis l'id de l'action. Reutilise
-// les memes paths que useDemoMission.ACTIONS_CATALOG.routeMatcher.
-const ACTION_ROUTES: Record<string, string> = {
-  dashboard:        '/dashboard',
-  messages:         '/messages',
-  lumen:            '/lumen',
-  devoirs:          '/devoirs',
-  live_or_booking:  '/live',
-}
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocClick)
+  document.removeEventListener('keydown', onKeydown)
+  if (celebrationT) clearTimeout(celebrationT)
+  cancelAutoCollapse()
+})
+
 function gotoAction(id: string) {
-  const path = ACTION_ROUTES[id]
+  const path = DEMO_MISSION_TARGET_ROUTES[id]
   if (path) {
     expanded.value = false
+    cancelAutoCollapse()
     router.push(path).catch(() => { /* ignore navigation aborted */ })
   }
+}
+
+// Refaire le tour : remet les 5 actions a zero. Utile pour un prof qui veut
+// re-montrer la demo a un collegue, ou un visiteur curieux. Ne touche pas a
+// la session demo elle-meme (les donnees fictives restent).
+function replayTour() {
+  resetMission()
+  showCelebration.value = false
+  expanded.value = false
+  cancelAutoCollapse()
 }
 
 const hasBackup = computed(() => {
@@ -190,9 +246,35 @@ function createAccount() {
               </button>
             </li>
           </ul>
-          <div v-if="allDone" class="demo-mission-cta">
-            <button type="button" class="demo-mission-create" @click="createAccount">
+          <div class="demo-mission-cta">
+            <!-- A 5/5 : CTA principal pour creer un compte. Avant : lien
+                 discret pour le visiteur convaincu qui veut sauter la fin
+                 du tour sans avoir a passer par "Quitter" -> login. -->
+            <button
+              v-if="allDone"
+              type="button"
+              class="demo-mission-create"
+              @click="createAccount"
+            >
               Creer un compte gratuit
+            </button>
+            <button
+              v-else
+              type="button"
+              class="demo-mission-soft-cta"
+              @click="createAccount"
+            >
+              Sauvegarder en creant un compte
+            </button>
+            <button
+              v-if="allDone"
+              type="button"
+              class="demo-mission-replay"
+              :title="'Reinitialiser les 5 etapes pour refaire le tour'"
+              @click="replayTour"
+            >
+              <RotateCcw :size="11" aria-hidden="true" />
+              <span>Refaire le tour</span>
             </button>
           </div>
         </div>
@@ -200,20 +282,12 @@ function createAccount() {
     </div>
 
     <button
-      v-if="!hasBackup"
-      type="button"
-      class="demo-banner-cta"
-      @click="createAccount"
-    >
-      Creer un compte
-    </button>
-    <button
       type="button"
       class="demo-banner-leave"
       :title="hasBackup ? 'Revenir a ma session' : 'Quitter la demo'"
       @click="leaveDemo"
     >
-      {{ hasBackup ? 'Revenir a mon app' : 'Quitter' }}
+      {{ hasBackup ? 'Revenir a mon app' : 'Quitter la demo' }}
     </button>
   </div>
 </template>
@@ -356,6 +430,8 @@ function createAccount() {
   top: calc(100% + 8px);
   right: 0;
   width: 340px;
+  /* Sur tres petit ecran, on rogne pour ne pas deborder du viewport. */
+  max-width: calc(100vw - 16px);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -471,6 +547,9 @@ function createAccount() {
   padding: 10px 12px 12px;
   border-top: 1px solid var(--border);
   background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .demo-mission-create {
   width: 100%;
@@ -488,21 +567,56 @@ function createAccount() {
 .demo-mission-create:hover { filter: brightness(1.08); }
 .demo-mission-create:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
-.demo-banner-cta {
-  flex-shrink: 0;
-  padding: 4px 12px;
-  background: var(--accent);
-  color: #fff;
-  border: none;
+/* CTA discret avant 5/5 : permet au visiteur convaincu d'avancer vers la
+   creation de compte sans attendre la fin du tour. Style "lien" plutot que
+   bouton plein pour ne pas couper la phase de decouverte. */
+.demo-mission-soft-cta {
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
   border-radius: var(--radius-sm);
+  color: var(--accent);
   font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: filter var(--motion-fast) var(--ease-out);
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out);
 }
-.demo-banner-cta:hover { filter: brightness(1.08); }
-.demo-banner-cta:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.demo-mission-soft-cta:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+.demo-mission-soft-cta:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Lien secondaire "Refaire le tour" : reset les 5 actions a zero. Discret
+   pour ne pas concurrencer la CTA de creation de compte. */
+.demo-mission-replay {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+  transition: color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+}
+.demo-mission-replay:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.demo-mission-replay:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 .demo-banner-leave {
   flex-shrink: 0;

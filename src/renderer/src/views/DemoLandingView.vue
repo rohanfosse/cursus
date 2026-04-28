@@ -11,8 +11,8 @@
  * Si une session demo existe deja (token demo- dans localStorage), on la
  * reutilise et on saute directement vers le dashboard.
  */
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useToast } from '@/composables/useToast'
 import { useBentoPrefs } from '@/composables/useBentoPrefs'
@@ -22,11 +22,20 @@ import { GraduationCap, UserCog, ArrowRight, Info, ArrowLeft } from 'lucide-vue-
 import logoUrl from '@/assets/logo.png'
 
 const router = useRouter()
+const route = useRoute()
 const appStore = useAppStore()
 const { showToast } = useToast()
 
 const submitting = ref<'student' | 'teacher' | null>(null)
 const errorMsg = ref('')
+
+// Auto-start si la landing a passe ?role=teacher|student. Saute l'ecran de
+// choix : un visiteur qui a clique "Tester cote prof" depuis la landing ne
+// devrait pas re-piocher son role ici.
+const autoStarting = computed(() => {
+  const r = route.query.role
+  return r === 'student' || r === 'teacher'
+})
 
 // Si l'utilisateur a deja une vraie session (compte loggue, non-demo), on la
 // backup avant de demarrer la demo. La demo et le compte reel sont totalement
@@ -99,10 +108,35 @@ async function startDemo(role: 'student' | 'teacher') {
 function backToApp() {
   router.replace('/dashboard')
 }
+
+// Auto-start si role valide en query : on declenche immediatement startDemo
+// au mount. L'ecran montre un spinner pendant le call /api/demo/start. En cas
+// d'erreur, on tombe sur l'ecran normal avec le message d'erreur visible.
+onMounted(() => {
+  const r = route.query.role
+  if (r === 'student' || r === 'teacher') {
+    void startDemo(r)
+  }
+})
 </script>
 
 <template>
-  <div class="demo-landing">
+  <!-- Auto-start : ecran de chargement leger pendant qu'on demarre la session
+       demo. On reste sur cet etat jusqu'a la redirection vers /dashboard ou
+       jusqu'a une erreur (qui fait tomber sur le picker classique). -->
+  <div v-if="autoStarting && !errorMsg" class="demo-landing">
+    <div class="demo-card demo-card--loading">
+      <img :src="logoUrl" class="demo-logo" alt="Cursus" />
+      <h1 class="demo-title">Demarrage de la demo...</h1>
+      <p class="demo-subtitle">
+        Une seconde, on prepare ton espace
+        <strong>{{ route.query.role === 'teacher' ? 'enseignant' : 'etudiant' }}</strong>.
+      </p>
+      <div class="demo-spinner" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <div v-else class="demo-landing">
     <div class="demo-card">
       <img :src="logoUrl" class="demo-logo" alt="Cursus" />
       <h1 class="demo-title">Tester Cursus en demonstration</h1>
@@ -379,4 +413,20 @@ function backToApp() {
 .err-pop-enter-active { transition: opacity var(--motion-fast) var(--ease-out); }
 .err-pop-leave-active { transition: opacity var(--motion-fast) var(--ease-out); }
 .err-pop-enter-from, .err-pop-leave-to { opacity: 0; }
+
+/* Auto-start : carte de chargement plus aeree, sans liste de roles */
+.demo-card--loading { padding-bottom: var(--space-xl); }
+.demo-spinner {
+  width: 32px;
+  height: 32px;
+  margin: var(--space-md) auto 0;
+  border: 3px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: demoSpin 800ms linear infinite;
+}
+@keyframes demoSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .demo-spinner { animation-duration: 2.4s; }
+}
 </style>

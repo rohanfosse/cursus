@@ -17,6 +17,7 @@
   import { useSocketReconnectToast } from '@/composables/useSocketReconnectToast'
   import { useNotificationBanner } from '@/composables/useNotificationBanner'
   import { useDemoPresence } from '@/composables/useDemoPresence'
+  import { useDemoNotifications } from '@/composables/useDemoNotifications'
   import { resolveStartRoute } from '@/router'
   import { reportError }    from '@/utils/errorReporter'
   import { MessageSquare, FileText, Camera, Lock, Trash2, Download, UserX, Download as DownloadIcon, RefreshCw, Shield, Scale, Clock, Mail, Globe, Eye, Pencil, ChevronDown, Server, Zap } from 'lucide-vue-next'
@@ -103,6 +104,10 @@
   // Le composable s'auto-active quand currentUser.demo === true et s'arrete
   // au logout / sortie de la demo.
   useDemoPresence()
+
+  // Mode demo : flux de fausses notifications periodiques pour montrer la
+  // feature au visiteur. Auto-start sur currentUser.demo === true.
+  useDemoNotifications()
 
   // Toast discret pour la connexion socket (extrait dans useSocketReconnectToast).
   useSocketReconnectToast()

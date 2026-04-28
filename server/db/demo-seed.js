@@ -157,15 +157,30 @@ function makeMessages(channelIds, students, teacher) {
 }
 
 function makeAssignments(channelIds) {
-  const [, chWeb, chAlgo] = channelIds
+  // chGeneral n'est volontairement pas utilise : aucun devoir dans le canal
+  // d'accueil de la promo. La destructuration documente l'ordre attendu.
+  const [, chWeb, chAlgo, chProjets] = channelIds
   const days = (n) => {
     const d = new Date(Date.now() + n * 86400_000)
     return d.toISOString().slice(0, 10)
   }
+  // Mix passe + futur : un dashboard etudiant vide laisse l'impression que
+  // l'app n'a pas demarre. On seed 4 devoirs deja rendus + notes (passes)
+  // pour peupler "Mes notes", "Recents feedbacks" et les statistiques, et
+  // 4 devoirs a venir pour les widgets "Echeances", "A rendre" et la frise.
   return [
-    { channel_id: chWeb,  title: 'Projet Web E4',     description: 'Application web responsive avec auth + CRUD. Equipes de 2-3.', type: 'livrable', deadline: days(7) },
-    { channel_id: chAlgo, title: 'TP4 Arbres AVL',    description: 'Implementation d\'un AVL avec rotations simples et doubles.', type: 'livrable', deadline: days(3) },
-    { channel_id: chAlgo, title: 'Quiz Spark 2',      description: 'Quiz de 10 questions sur les arbres equilibres (en classe).', type: 'cctl',     deadline: days(2) },
+    // ── Passes (ranges chronologiquement) : notes + feedback synthetises
+    //    cote endpoint a partir de l'id (cf. real.js, /students/:id/assignments).
+    { channel_id: chAlgo,    title: 'TP3 Tri rapide',          description: 'Implementation d\'un quicksort optimise et benchmark vs tri fusion.', type: 'livrable',   deadline: days(-32) },
+    { channel_id: chAlgo,    title: 'Quiz Spark 1',            description: 'Quiz de 10 questions sur la complexite asymptotique.',                  type: 'cctl',       deadline: days(-21) },
+    { channel_id: chWeb,     title: 'TP HTML/CSS Layout',      description: 'Reproduction d\'une maquette Figma en flexbox + grid responsive.',     type: 'livrable',   deadline: days(-16) },
+    { channel_id: chProjets, title: 'Soutenance projet S1',    description: 'Presentation du projet de groupe semestre 1 (10 min + Q/R).',           type: 'soutenance', deadline: days(-9)  },
+
+    // ── A venir : 3 deja prevus + 1 soutenance pour avoir les 3 types couverts
+    { channel_id: chAlgo,    title: 'Quiz Spark 2',            description: 'Quiz de 10 questions sur les arbres equilibres (en classe).',          type: 'cctl',       deadline: days(2)   },
+    { channel_id: chAlgo,    title: 'TP4 Arbres AVL',          description: 'Implementation d\'un AVL avec rotations simples et doubles.',          type: 'livrable',   deadline: days(3)   },
+    { channel_id: chWeb,     title: 'Projet Web E4',           description: 'Application web responsive avec auth + CRUD. Equipes de 2-3.',         type: 'livrable',   deadline: days(7)   },
+    { channel_id: chProjets, title: 'Soutenance Projet Web',   description: 'Presentation du Projet Web E4 devant le jury (15 min + Q/R).',         type: 'soutenance', deadline: days(14)  },
   ]
 }
 

@@ -62,6 +62,11 @@ export function useAppListeners() {
   async function refreshJwtIfNeeded(force = false): Promise<void> {
     if (!force && Date.now() - lastTokenRefreshAt < MIN_REFRESH_INTERVAL_MS) return
     if (!appStore.currentUser) return
+    // Mode demo : le JWT prefixe `demo-` n'est jamais accepte par /api/auth/refresh
+    // (qui n'est pas reroute vers /api/demo/*). Un appel provoquerait un 401 ->
+    // dispatch `cursus:auth-expired` -> logout du visiteur en plein milieu de la
+    // demo. Le token demo a deja une TTL de 24h, plus que suffisant pour explorer.
+    if (appStore.currentUser.demo) return
     try {
       const res = await window.api.refreshToken?.()
       if (res?.token) {

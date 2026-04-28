@@ -14,7 +14,7 @@
  * instances du composable (DemoBanner + autres) voient la meme valeur
  * et reagissent au meme moment (sinon Map separes par composant).
  */
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import type { Router } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 
@@ -28,46 +28,57 @@ export interface DemoMissionAction {
 }
 
 // ── Catalogue des 5 actions, dans l'ordre logique d'exploration ────────
-// Chaque action a un `routeMatcher` qui declenche la completion. Un seul
-// passage suffit (idempotent : reset uniquement via window.__demoMissionReset
-// pour les tests, sinon la cle persiste 24h comme la session demo).
+// Chaque action a un `routeMatcher` qui declenche la completion + un
+// `targetRoute` qui sert au CTA "Aller a..." du DemoBanner. Un seul
+// passage suffit (idempotent : reset via resetMission() ou
+// window.__demoMissionReset pour les tests).
 const ACTIONS_CATALOG: ReadonlyArray<{
   id: string
   label: string
   hint: string
   routeMatcher: (path: string) => boolean
+  targetRoute: string
 }> = [
   {
     id: 'dashboard',
     label: 'Voir mon tableau de bord',
     hint: 'Le hub avec tes promos, devoirs et messages epingles.',
     routeMatcher: (p) => p === '/dashboard' || p === '/',
+    targetRoute: '/dashboard',
   },
   {
     id: 'messages',
     label: 'Ouvrir la messagerie',
     hint: 'Canaux par cours, mentions et fichiers partages.',
     routeMatcher: (p) => p.startsWith('/messages'),
+    targetRoute: '/messages',
   },
   {
     id: 'lumen',
     label: 'Lire un cours dans Lumen',
     hint: 'Tes repos GitHub rendus comme un manuel : markdown, code, KaTeX.',
     routeMatcher: (p) => p.startsWith('/lumen'),
+    targetRoute: '/lumen',
   },
   {
     id: 'devoirs',
     label: 'Voir tes devoirs',
     hint: 'Echeances, depots et notation par grilles A-D.',
     routeMatcher: (p) => p.startsWith('/devoirs') || p.startsWith('/travaux'),
+    targetRoute: '/devoirs',
   },
   {
     id: 'live_or_booking',
     label: 'Rejoindre un Live ou un RDV',
     hint: 'Quiz Spark en direct ou prise de rendez-vous tuteur.',
     routeMatcher: (p) => p.startsWith('/live') || p.startsWith('/booking') || p.startsWith('/agenda'),
+    targetRoute: '/live',
   },
 ]
+
+/** Map id -> route cible. Source unique de verite pour le DemoBanner CTA. */
+export const DEMO_MISSION_TARGET_ROUTES: Readonly<Record<string, string>> =
+  Object.freeze(Object.fromEntries(ACTIONS_CATALOG.map(a => [a.id, a.targetRoute])))
 
 // ── Etat module-level (singleton partage entre tous les composables) ──
 function loadInitial(): Set<string> {
@@ -145,6 +156,13 @@ export function useDemoMission() {
     persist()
   }
 
+  /** Reinitialise toutes les actions cochees. Utile pour "Refaire le tour"
+   *  quand l'utilisateur a deja explore et veut montrer la demo a un collegue. */
+  function resetMission(): void {
+    completedIds.value = new Set()
+    try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
+  }
+
   return {
     isActive,
     actions,
@@ -153,13 +171,9 @@ export function useDemoMission() {
     allDone,
     progress,
     markAction,
+    resetMission,
   }
 }
 
 // Export la liste des IDs valides pour les tests / wiring externe
 export const DEMO_MISSION_ACTION_IDS = ACTIONS_CATALOG.map(a => a.id)
-
-// Pour eviter les warnings unused : watch demarre quand le module est
-// importe et ne fait rien si pas en demo.
-const _wakeWatch = ref(0)
-watch(_wakeWatch, () => { /* placeholder pour activer le module */ })
