@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   BENTO_PREFS:      'cc_bento_prefs',
   RECENT_CHANNELS:  'cc_recent_channels',
   LAST_ROUTE:       'cc_last_route',
+  SESSION_BACKUP:   'cc_session_backup',
 
   /** Clé dynamique par canal : `lastRead:ch:{channelId}` */
   lastReadChannel: (channelId: number) => `lastRead:ch:${channelId}` as const,

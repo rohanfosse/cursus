@@ -359,6 +359,11 @@ const hocuspocus = attachHocuspocus(server, { jwtSecret: SECRET })
 // ── Démarrage ─────────────────────────────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
   log.info('server_started', { port: PORT, env: process.env.NODE_ENV || 'development' })
+
+  // Workers du mode demo (jalon V2). En NODE_ENV=test, ces .start() sont
+  // no-op (les tests pilotent via runOnce()).
+  try { require('./services/demoBots').start() } catch (err) { log.warn('demo_bots_start_failed', { error: err.message }) }
+  try { require('./services/demoReset').start() } catch (err) { log.warn('demo_reset_start_failed', { error: err.message }) }
 })
 
 // ── Arrêt gracieux ────────────────────────────────────────────────────────────

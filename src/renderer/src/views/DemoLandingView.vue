@@ -11,11 +11,12 @@
  * Si une session demo existe deja (token demo- dans localStorage), on la
  * reutilise et on saute directement vers le dashboard.
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useToast } from '@/composables/useToast'
-import { GraduationCap, UserCog, ArrowRight, Info } from 'lucide-vue-next'
+import { STORAGE_KEYS } from '@/constants'
+import { GraduationCap, UserCog, ArrowRight, Info, ArrowLeft } from 'lucide-vue-next'
 import logoUrl from '@/assets/logo.png'
 
 const router = useRouter()
@@ -25,11 +26,32 @@ const { showToast } = useToast()
 const submitting = ref<'student' | 'teacher' | null>(null)
 const errorMsg = ref('')
 
+// Si l'utilisateur a deja une vraie session (compte loggue, non-demo), on la
+// backup avant de demarrer la demo. La demo et le compte reel sont totalement
+// independants : le bouton "Quitter la demo" du DemoBanner restaurera la
+// session reelle. NE PAS rediriger vers /dashboard si deja loggue — on veut
+// que l'utilisateur puisse explorer la demo meme avec un compte actif.
+const hasRealSession = computed(() => {
+  return !!appStore.currentUser && !appStore.currentUser.demo
+})
+
 async function startDemo(role: 'student' | 'teacher') {
   if (submitting.value) return
   submitting.value = role
   errorMsg.value = ''
   try {
+    // Backup de la session reelle si elle existe (cf. DemoBanner pour la
+    // restauration). Stocke a l'identique de cc_session — meme schema.
+    if (hasRealSession.value && appStore.currentUser) {
+      try {
+        localStorage.setItem(
+          STORAGE_KEYS.SESSION_BACKUP,
+          JSON.stringify(appStore.currentUser),
+        )
+      } catch { /* localStorage plein : on continue, l'utilisateur perdra sa
+                   session reelle apres la demo, c'est un edge case */ }
+    }
+
     // Appel direct /api/demo/start (pas via window.api : la session demo
     // n'est pas encore cree, donc pas encore de token a poser).
     const serverUrl = (import.meta.env.VITE_SERVER_URL as string)
@@ -49,7 +71,9 @@ async function startDemo(role: 'student' | 'teacher') {
       submitting.value = null
       return
     }
-    // Pose le token + hydrate le store comme un login normal.
+    // Pose le token + hydrate le store comme un login normal. Le store
+    // `login()` ecrase cc_session ; le backup reste intact dans
+    // SESSION_BACKUP pour le restore au sortir.
     window.api.setToken?.(json.data.token)
     appStore.login(json.data.currentUser)
     showToast('Demo demarree. Bonne exploration !', 'success')
@@ -60,12 +84,9 @@ async function startDemo(role: 'student' | 'teacher') {
   }
 }
 
-onMounted(() => {
-  // Si l'utilisateur est deja loggue (demo ou non), on le redirige direct.
-  if (appStore.currentUser) {
-    router.replace('/dashboard')
-  }
-})
+function backToApp() {
+  router.replace('/dashboard')
+}
 </script>
 
 <template>
@@ -77,6 +98,19 @@ onMounted(() => {
         Aucune inscription. Donnees fictives, regenerees apres 24h.<br />
         Choisis ton point de vue pour explorer l'app.
       </p>
+
+      <!-- Bandeau si l'utilisateur a deja une vraie session : on lui dit
+           clairement que la demo est independante et qu'il pourra revenir. -->
+      <div v-if="hasRealSession" class="demo-existing-session">
+        <span class="demo-existing-text">
+          Tu es deja connecte en tant que <strong>{{ appStore.currentUser?.name }}</strong>.
+          La demo est independante : ta session reelle sera restauree automatiquement
+          quand tu cliqueras sur <em>Quitter la demo</em>.
+        </span>
+        <button type="button" class="demo-existing-back" @click="backToApp">
+          <ArrowLeft :size="13" /> Retour a mon app
+        </button>
+      </div>
 
       <div class="demo-roles">
         <button
@@ -291,6 +325,44 @@ onMounted(() => {
 .demo-info svg { flex-shrink: 0; margin-top: 2px; color: var(--accent); }
 .demo-info a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 .demo-info a:hover { color: var(--text-primary); }
+
+/* Bandeau "session reelle existante" - rappel que la demo est independante */
+.demo-existing-session {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+.demo-existing-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.demo-existing-text strong { color: var(--text-primary); }
+.demo-existing-text em { color: var(--text-primary); font-style: normal; font-weight: 600; }
+.demo-existing-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.demo-existing-back:hover { border-color: var(--accent); color: var(--accent); }
+.demo-existing-back:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 .err-pop-enter-active { transition: opacity var(--motion-fast) var(--ease-out); }
 .err-pop-leave-active { transition: opacity var(--motion-fast) var(--ease-out); }

@@ -7,26 +7,65 @@
  *
  * Voulu : pas de compteur d'actions, pas de timer (cf. brief Q3 - "le plus
  * simple pour un etudiant qui veut tester sans perdre de temps").
+ *
+ * Session reelle (backup/restore) : si l'utilisateur etait connecte avec
+ * un vrai compte avant de lancer la demo, sa session est sauvegardee dans
+ * `cc_session_backup`. Le bouton "Quitter la demo" la restaure pour qu'il
+ * retrouve son app comme avant. La demo est strictement independante.
  */
-import { Beaker, X } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { Beaker } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useDemoMode } from '@/composables/useDemoMode'
+import { STORAGE_KEYS } from '@/constants'
+import type { User } from '@/types'
 
 const appStore = useAppStore()
 const { isDemo } = useDemoMode()
 
+const hasBackup = computed(() => {
+  try { return !!localStorage.getItem(STORAGE_KEYS.SESSION_BACKUP) }
+  catch { return false }
+})
+
+function endDemoOnServer() {
+  try { void window.api.demoEnd?.() } catch { /* ignore */ }
+}
+
 function leaveDemo() {
-  // Termine la session cote serveur (best-effort) puis purge le cote client.
+  endDemoOnServer()
+
+  // Si une session reelle a ete backup avant la demo, on la restaure et
+  // on retourne sur l'app normale au lieu de logout completement.
+  let backup: User | null = null
   try {
-    void window.api.demoEnd?.()
-  } catch { /* ignore */ }
+    const raw = localStorage.getItem(STORAGE_KEYS.SESSION_BACKUP)
+    if (raw) backup = JSON.parse(raw) as User
+  } catch { /* corrompu : on ignore et on logout */ }
+
+  if (backup && backup.token) {
+    // Restore : on logout d'abord (clear cc_session demo) puis on rejoue
+    // login avec la session backup. Reload force le reset de tous les
+    // stores qui ont charge des donnees demo.
+    try { localStorage.removeItem(STORAGE_KEYS.SESSION_BACKUP) } catch { /* */ }
+    appStore.logout()
+    appStore.login(backup)
+    window.api.setToken?.(backup.token)
+    // Reload propre pour repartir de zero avec la vraie session.
+    window.location.href = '/'
+    return
+  }
+
+  // Pas de backup : logout simple (visiteur arrivee directement sur /demo).
   appStore.logout()
-  // Recharge sur la page de login pour avoir un etat propre.
   window.location.href = '/'
 }
 
 function createAccount() {
-  // Logout puis redirige vers la page de login (qui propose creer un compte).
+  endDemoOnServer()
+  // Pas de restore ici : l'utilisateur veut explicitement creer un nouveau
+  // compte, donc on clean tout.
+  try { localStorage.removeItem(STORAGE_KEYS.SESSION_BACKUP) } catch { /* */ }
   appStore.logout()
   window.location.href = 'https://app.cursus.school/'
 }
@@ -38,9 +77,11 @@ function createAccount() {
     <span class="demo-banner-text">
       <strong>Mode demonstration</strong>
       <span class="demo-banner-sep">&middot;</span>
-      Donnees fictives, reset apres 24h
+      <template v-if="hasBackup">Ta vraie session t'attend, sors quand tu veux</template>
+      <template v-else>Donnees fictives, reset apres 24h</template>
     </span>
     <button
+      v-if="!hasBackup"
       type="button"
       class="demo-banner-cta"
       @click="createAccount"
@@ -49,12 +90,11 @@ function createAccount() {
     </button>
     <button
       type="button"
-      class="demo-banner-close"
-      :title="'Quitter la demo'"
-      :aria-label="'Quitter la demo'"
+      class="demo-banner-leave"
+      :title="hasBackup ? 'Revenir a ma session' : 'Quitter la demo'"
       @click="leaveDemo"
     >
-      <X :size="14" />
+      {{ hasBackup ? 'Revenir a mon app' : 'Quitter' }}
     </button>
   </div>
 </template>
@@ -112,26 +152,25 @@ function createAccount() {
 .demo-banner-cta:hover { filter: brightness(1.08); }
 .demo-banner-cta:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
-.demo-banner-close {
+.demo-banner-leave {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
+  padding: 4px 12px;
   background: transparent;
-  border: none;
-  border-radius: var(--radius-xs);
-  color: var(--text-muted);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
-.demo-banner-close:hover {
-  background: rgba(0, 0, 0, .08);
+.demo-banner-leave:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--text-primary);
+  border-color: var(--accent);
 }
-.demo-banner-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.demo-banner-leave:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 @media (max-width: 640px) {
   .demo-banner-sep { display: none; }
