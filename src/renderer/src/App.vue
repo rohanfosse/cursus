@@ -24,6 +24,7 @@
   import NavRail    from '@/components/layout/NavRail.vue'
   import MobileNav  from '@/components/layout/MobileNav.vue'
   import TitleBar   from '@/components/layout/TitleBar.vue'
+  import DemoBanner from '@/components/layout/DemoBanner.vue'
   import SidebarWrapper from '@/components/sidebar/SidebarWrapper.vue'
   import LoginOverlay        from '@/components/auth/LoginOverlay.vue'
   // Modales frequentes gardees synchrones : ConfirmModal (hot via useConfirm),
@@ -375,6 +376,9 @@
   <div v-else id="app-shell" class="app-shell">
     <!-- Lien d'accessibilite : aller au contenu principal -->
     <a href="#main-content" class="sr-only sr-only-focusable">Aller au contenu principal</a>
+
+    <!-- Bandeau mode demo (visible uniquement si currentUser.demo === true) -->
+    <DemoBanner />
 
     <!-- Barre de titre custom (fenêtre sans chrome natif) -->
     <TitleBar />

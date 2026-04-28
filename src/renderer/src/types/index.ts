@@ -15,6 +15,10 @@ export interface User {
   // localStorage.SESSION pour survivre au redemarrage + etre rafraichi
   // proactivement par le timer 6h.
   token?: string
+  // Mode demo (sandbox sans inscription, cf. POST /api/demo/start). Quand
+  // true, l'app affiche un bandeau persistant et certaines actions sont
+  // restreintes (envoi mail reel, OAuth Microsoft, etc.).
+  demo?: boolean
 }
 
 export interface RubricCriterion {

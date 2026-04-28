@@ -164,6 +164,10 @@
           <button class="auth-secondary-btn" @click="goRegister">
             Créer un compte étudiant
           </button>
+
+          <router-link to="/demo" class="auth-demo-link">
+            Ou tester en démonstration (sans inscription)
+          </router-link>
         </div>
 
         <!-- ── Inscription ── -->
@@ -640,6 +644,20 @@
   border-color: var(--border);
   color: var(--text-primary);
 }
+
+/* Lien discret vers le mode demo (sandbox sans inscription) */
+.auth-demo-link {
+  display: block;
+  margin-top: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color .12s;
+}
+.auth-demo-link:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.auth-demo-link:focus-visible { outline: none; color: var(--accent); }
 
 /* ── Inscription ── */
 .auth-avatar-row {

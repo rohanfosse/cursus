@@ -51,6 +51,8 @@ const router = createRouter({
     { path: '/fichiers',   component: () => import('@/views/FilesView.vue'),  name: 'fichiers', meta: { requiredRole: 'teacher' } },
     { path: '/signets',    component: () => import('@/views/BookmarksView.vue'), name: 'signets' },
     { path: '/admin',      component: () => import('@/views/AdminView.vue'),    name: 'admin', meta: { requiredRole: 'admin' } },
+    // Demo mode landing (sandbox sans inscription, public)
+    { path: '/demo',       component: () => import('@/views/DemoLandingView.vue'), name: 'demo', meta: { public: true } },
     // Public booking pages (no auth required)
     { path: '/book/c/:token',        component: () => import('@/views/BookingCampaignView.vue'),    name: 'booking-campaign',     meta: { public: true } },
     { path: '/book/e/:slug',         component: () => import('@/views/BookingPublicEventView.vue'), name: 'booking-public-event', meta: { public: true } },

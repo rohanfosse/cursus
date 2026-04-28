@@ -26,6 +26,11 @@ declare global {
       clearAuth(): void
       refreshToken(): Promise<{ token: string } | null>
 
+      // Mode demo (sandbox sans inscription, web only). En desktop, tombe
+      // dans le no-op fallback du shim — pas de fonctionnalite demo en
+      // Electron, l'utilisateur est deja sur l'app installee.
+      demoEnd?(): Promise<IpcResponse<null>>
+
       // Structure
       getPromotions(): Promise<IpcResponse<Promotion[]>>
       getChannels(promoId: number): Promise<IpcResponse<Channel[]>>

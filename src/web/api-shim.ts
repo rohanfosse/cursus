@@ -88,7 +88,19 @@ function connectSocket(token: string): void {
 const FETCH_TIMEOUT = 15_000
 const MAX_RETRIES   = 2
 
+// Si le token courant est un token demo (prefixe `demo-`), on reroute
+// automatiquement les appels /api/* vers /api/demo/* (sauf /api/demo/* deja
+// prefixes et /api/auth/* qui restent sur la prod). Permet de reutiliser
+// le shim existant sans dupliquer toutes les methodes.
+function rewriteDemoPath(path: string): string {
+  if (!jwtToken || !jwtToken.startsWith('demo-')) return path
+  if (!path.startsWith('/api/')) return path
+  if (path.startsWith('/api/demo/') || path.startsWith('/api/auth/')) return path
+  return path.replace(/^\/api\//, '/api/demo/')
+}
+
 async function apiFetch(path: string, options: RequestInit = {}, retries = MAX_RETRIES): Promise<unknown> {
+  const finalPath = rewriteDemoPath(path)
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(jwtToken ? { Authorization: `Bearer ${jwtToken}` } : {}),
@@ -98,7 +110,7 @@ async function apiFetch(path: string, options: RequestInit = {}, retries = MAX_R
     try {
       const ctrl = new AbortController()
       const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT)
-      const res = await fetch(`${SERVER_URL}${path}`, { ...options, headers, signal: ctrl.signal })
+      const res = await fetch(`${SERVER_URL}${finalPath}`, { ...options, headers, signal: ctrl.signal })
       clearTimeout(timer)
       if (res.status === 401 && !path.startsWith('/api/auth/login')) {
         jwtToken = null
@@ -300,7 +312,16 @@ const apiImpl = {
   clearBadge() {},
 
   // ── Auth / session ──────────────────────────────────────────────────────────
-  setToken(token: string) { jwtToken = token; connectSocket(token) },
+  setToken(token: string) {
+    jwtToken = token
+    // Skip socket.io en mode demo : pas de presence/typing temps reel en
+    // MVP (cf. V3 du brief), le middleware socket.io rejetterait de toute
+    // facon le JWT demo car son auth attend req.user.id reel.
+    if (!token.startsWith('demo-')) connectSocket(token)
+  },
+
+  // ── Mode demo (sandbox) ─────────────────────────────────────────────────
+  demoEnd: () => post('/api/demo/end', {}),
 
   async refreshToken() {
     const res = await post('/api/auth/refresh', {}) as { ok: boolean; data?: { token?: string } }
