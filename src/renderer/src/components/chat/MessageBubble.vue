@@ -588,13 +588,19 @@ const renderedContentWithoutPoll = computed(() => {
 /* ════════════════════════════════════════════
    BLOCS DE CODE — style GitHub/Notion
 ════════════════════════════════════════════ */
+/* Le fond du body etait `rgba(0, 0, 0, .32)`, ce qui en dark theme sur
+   `--bg-main: #1a1b1d` donne un noir a peine plus fonce que le chat — le
+   bloc se confondait visuellement avec le fond. On utilise maintenant
+   `--bg-elevated`, plus contraste et coherent avec le header (cf.
+   `.code-block-head` ci-dessous). En light theme, ca donne aussi un vrai
+   look "carte" comme GitHub / Notion. */
 :deep(.code-block) {
   position: relative;
   margin: 10px 0;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: rgba(0, 0, 0, .32);
+  background: var(--bg-elevated);
   box-shadow: var(--elevation-1);
 }
 

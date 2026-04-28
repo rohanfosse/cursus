@@ -239,6 +239,7 @@ const dateGroups = computed<DateGroup[]>(() => {
                   msg.content,
                   msg.edited,
                   msg.is_pinned,
+                  msg.poll_votes,
                   grouped,
                   store.searchTerm,
                   store.reactions[msg.id],

@@ -30,6 +30,11 @@ interface Prefs {
   highContrast: boolean
   // Link previews (unfurl) — affiche une carte quand un message contient un lien
   unfurlEnabled: boolean
+  // Vue affichee au demarrage (apres restauration de session) :
+  //   'last'      : derniere route visitee (default — pattern Discord/Slack)
+  //   'dashboard' : toujours le tableau de bord
+  //   'messages'  : toujours la liste des messages (legacy v2.254 et avant)
+  startView: 'last' | 'dashboard' | 'messages'
 }
 
 const DEFAULTS: Prefs = {
@@ -58,6 +63,7 @@ const DEFAULTS: Prefs = {
   customAccent: '',
   highContrast: false,
   unfurlEnabled: true,
+  startView: 'last',
 }
 
 function loadPrefs(): Prefs {

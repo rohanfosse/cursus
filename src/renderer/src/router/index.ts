@@ -1,6 +1,19 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHashHistory, type LocationQueryRaw } from 'vue-router'
 import { hasRole, type Role } from '@/utils/permissions'
 import { useModules, type ModuleName } from '@/composables/useModules'
+import { STORAGE_KEYS } from '@/constants'
+
+// Snapshot de la derniere route AVANT que le router ne demarre — sinon la
+// premiere navigation (typiquement `/` -> redirect `/dashboard`) ecraserait
+// l'entree localStorage via `afterEach` avant qu'`App.vue` n'ait le temps
+// de la lire pour la restaurer.
+const _initialLastRoute: { path?: string; query?: LocationQueryRaw } | null = (() => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.LAST_ROUTE)
+    if (raw) return JSON.parse(raw)
+  } catch { /* prefs corrompues */ }
+  return null
+})()
 
 // ── RouteMeta augmentation ──────────────────────────────────────────────────
 declare module 'vue-router' {
@@ -82,5 +95,55 @@ router.beforeEach(async (to, _from, next) => {
   }
   next()
 })
+
+// Persistance de la derniere route visitee, pour le `startView: 'last'` au
+// prochain demarrage. On stocke chemin + query (ex. ?tab=promotions sur le
+// dashboard), pas le hash. Les routes publiques (/book/...) sont exclues :
+// elles s'adressent a des invites non logges et n'ont pas de sens comme
+// "vue d'accueil" pour un utilisateur authentifie.
+router.afterEach((to) => {
+  if (to.meta.public) return
+  if (to.path === '/' || !to.name) return
+  try {
+    localStorage.setItem(
+      STORAGE_KEYS.LAST_ROUTE,
+      JSON.stringify({ path: to.path, query: to.query }),
+    )
+  } catch { /* quota / private mode : on ignore silencieusement */ }
+})
+
+/**
+ * Determine la route a afficher au demarrage (apres restauration de session).
+ * Lit la pref `startView` (cf. usePrefs) :
+ *  - 'last'      : derniere route stockee, sinon /messages
+ *  - 'dashboard' : toujours /dashboard
+ *  - 'messages'  : toujours /messages
+ *
+ * Le router guard (beforeEach) reste authoritative : si la route restauree est
+ * inaccessible (role / module insuffisant), il redirige vers /dashboard. On ne
+ * duplique donc pas la verification ici.
+ */
+export function resolveStartRoute(): { path: string; query?: LocationQueryRaw } {
+  let pref: string = 'last'
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.PREFS)
+    if (raw) {
+      const prefs = JSON.parse(raw) as { startView?: string }
+      if (prefs.startView) pref = prefs.startView
+    }
+  } catch { /* prefs corrompues : on garde le default */ }
+
+  if (pref === 'dashboard') return { path: '/dashboard' }
+  if (pref === 'messages')  return { path: '/messages' }
+
+  // 'last' : utilise le snapshot pris a l'import du module (cf. plus haut).
+  // Lire localStorage ici serait incorrect : la premiere navigation a deja
+  // ecrase l'entree avec /dashboard.
+  if (_initialLastRoute?.path && typeof _initialLastRoute.path === 'string'
+      && _initialLastRoute.path.startsWith('/')) {
+    return { path: _initialLastRoute.path, query: _initialLastRoute.query }
+  }
+  return { path: '/messages' }
+}
 
 export default router

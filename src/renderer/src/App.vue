@@ -16,6 +16,7 @@
   import { useLumenFocus }  from '@/composables/useLumenFocus'
   import { useSocketReconnectToast } from '@/composables/useSocketReconnectToast'
   import { useNotificationBanner } from '@/composables/useNotificationBanner'
+  import { resolveStartRoute } from '@/router'
   import { reportError }    from '@/utils/errorReporter'
   import { MessageSquare, FileText, Camera, Lock, Trash2, Download, UserX, Download as DownloadIcon, RefreshCw, Shield, Scale, Clock, Mail, Globe, Eye, Pencil, ChevronDown, Server, Zap } from 'lucide-vue-next'
   import Toast        from '@/components/ui/Toast.vue'
@@ -298,7 +299,7 @@
     // Restaurer la session depuis localStorage
     const restored = appStore.restoreSession()
     if (restored) {
-      router.replace('/messages')
+      router.replace(resolveStartRoute())
       loadModules()
       bookmarksStore.initIds()
       statusesStore.init(appStore.currentUser?.id ?? null)

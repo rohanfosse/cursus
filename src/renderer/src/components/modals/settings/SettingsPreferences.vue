@@ -1,7 +1,7 @@
 /** SettingsPreferences — section Preferences du modal Settings. */
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Settings, MousePointer, FileText, RotateCcw, Lock, Smile } from 'lucide-vue-next'
+import { Settings, MousePointer, FileText, RotateCcw, Lock, Smile, Home } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { useSettingsPreferences } from '@/composables/useSettingsPreferences'
 import { useSettingsAccount } from '@/composables/useSettingsAccount'
@@ -20,6 +20,16 @@ watch(rememberMe, (v) => {
   setPref('rememberMe', v)
   if (!v) localStorage.removeItem(STORAGE_KEYS.REMEMBER_TOKEN)
 })
+
+// ── Vue affichee au demarrage de l'app ──────────────────────────────────────
+const startView = ref<'last' | 'dashboard' | 'messages'>(getPref('startView') ?? 'last')
+watch(startView, (v) => { setPref('startView', v) })
+
+const START_VIEW_OPTIONS: Array<{ value: 'last' | 'dashboard' | 'messages'; label: string; desc: string }> = [
+  { value: 'last',      label: 'Reprendre ou j\'etais',  desc: 'Ouvre l\'app sur la derniere page visitee.' },
+  { value: 'dashboard', label: 'Toujours le tableau de bord', desc: 'Ouvre l\'app sur la vue d\'ensemble (devoirs, promos, etc.).' },
+  { value: 'messages',  label: 'Toujours les messages',       desc: 'Ouvre l\'app directement sur la liste des conversations.' },
+]
 
 // ── Reactions rapides personnalisables ─────────────────────────────────────
 const {
@@ -65,6 +75,34 @@ function canToggle(type: string): boolean {
           <div class="stg-switch-thumb" />
         </div>
       </label>
+    </div>
+
+    <!-- Au demarrage -->
+    <div class="stg-group">
+      <div class="stg-group-header">
+        <Home :size="13" class="stg-group-icon" />
+        <h4 class="stg-group-title">Au demarrage</h4>
+      </div>
+      <div class="stg-start-view-options" role="radiogroup" aria-label="Vue affichee au demarrage de l'application">
+        <label
+          v-for="opt in START_VIEW_OPTIONS"
+          :key="opt.value"
+          class="stg-start-view-row"
+          :class="{ 'stg-start-view-row--selected': startView === opt.value }"
+        >
+          <input
+            v-model="startView"
+            type="radio"
+            name="start-view"
+            :value="opt.value"
+            class="stg-start-view-radio"
+          />
+          <div class="stg-start-view-info">
+            <span class="stg-start-view-label">{{ opt.label }}</span>
+            <span class="stg-start-view-desc">{{ opt.desc }}</span>
+          </div>
+        </label>
+      </div>
     </div>
 
     <!-- Saisie -->
@@ -177,6 +215,34 @@ function canToggle(type: string): boolean {
 </template>
 
 <style scoped>
+/* ── Choix de la vue au demarrage : 3 options radio ─────────────────── */
+.stg-start-view-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.stg-start-view-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-out),
+              background var(--motion-fast) var(--ease-out);
+}
+.stg-start-view-row:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+.stg-start-view-row--selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.stg-start-view-radio { margin-top: 3px; cursor: pointer; flex-shrink: 0; accent-color: var(--accent); }
+.stg-start-view-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stg-start-view-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.stg-start-view-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+
 /* ── Éditeur de réactions rapides ───────────────────────────────────── */
 .stg-reacts-intro { margin-bottom: var(--space-md); }
 

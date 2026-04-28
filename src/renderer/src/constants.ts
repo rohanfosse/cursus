@@ -12,6 +12,7 @@ export const STORAGE_KEYS = {
   QUICKLINKS:       'cc_student_quicklinks',
   BENTO_PREFS:      'cc_bento_prefs',
   RECENT_CHANNELS:  'cc_recent_channels',
+  LAST_ROUTE:       'cc_last_route',
 
   /** Clé dynamique par canal : `lastRead:ch:{channelId}` */
   lastReadChannel: (channelId: number) => `lastRead:ch:${channelId}` as const,
