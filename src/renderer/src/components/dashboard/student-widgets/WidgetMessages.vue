@@ -35,7 +35,11 @@ const inbox = computed<InboxItem[]>(() => {
     }))
 
   const mentionMap = new Map<string, InboxItem>()
-  for (const n of appStore.notificationHistory) {
+  // Garde defensive : notificationHistory peut etre [] depuis _loadNotifications
+  // mais en cas de corruption (regression Pinia, store.$reset partiel, etc.)
+  // on prefere ne rien afficher plutot que crasher avec "is not iterable".
+  const history = Array.isArray(appStore.notificationHistory) ? appStore.notificationHistory : []
+  for (const n of history) {
     if (!n.isMention || n.read) continue
     const k = n.channelId ? `chan-${n.channelId}` : `dm-${n.authorName}`
     const existing = mentionMap.get(k)

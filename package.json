@@ -1,6 +1,6 @@
 {
   "name": "cursus",
-  "version": "2.266.0",
+  "version": "2.267.0",
   "description": "Cursus - Suivez votre parcours de formation",
   "main": "out/main/index.js",
   "scripts": {
@@ -22,6 +22,8 @@
     "postinstall": "node scripts/postinstall.js",
     "server": "node server/index.js",
     "server:dev": "node --watch server/index.js",
+    "seed": "node scripts/seed.js",
+    "seed:reset": "SEED_RESET=1 node scripts/seed.js",
     "server:pm2": "pm2 start config/ecosystem.config.js --env production",
     "dev:web": "vite --config vite.web.config.ts",
     "build:web": "vite build --config vite.web.config.ts --mode production",

@@ -26,10 +26,30 @@ server/.env
 logs/
 
 *.pdf
+
+# Claude Code : on ignore tout le repertoire local
+# (memoire, sessions, hooks, projets, lockfiles agents...).
+# Aucun fichier de configuration partage du depot ne devrait y etre,
+# c'est purement de l'outillage developpeur local.
+.claude/
 .mcp.json
-.claude/.mcp.json
-.claude/projects/
-.claude/scheduled_tasks.lock
+
 coverage/
 tests/uploads/
 tmp/
+
+# Bases de donnees de dev et de test (peuvent apparaitre n'importe ou
+# selon les scripts lances, on cible large)
+cursus.db
+cursus.db-*
+data/cursus*.sqlite
+data/cursus*.sqlite-*
+*.sqlite
+*.sqlite-*
+
+# Artefacts Playwright (test-results genere automatiquement)
+test-results/
+playwright-report/
+
+# Backup auto de la DB par le serveur
+backups/

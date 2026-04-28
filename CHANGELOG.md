@@ -1,5 +1,56 @@
 # Changelog
 
+## v2.267.0 (2026-04-28)
+
+### Marketing depot + DX + Nudge starter + bug fixes prod
+
+**README v2 - touches DX**.
+- CTA "Tester la demo live" remonte au-dessus du fold, format proeminent
+- Section "Captures" avec placeholders pour 7 GIFs/screenshots a inserer
+- Fix oxymore : "DMs chiffres bout-en-bout au repos" -> "chiffres AES-256-GCM
+  au repos en base" (correction technique, AES-GCM avec cle serveur n'est
+  pas E2EE)
+- Section Architecture & Scaling ajoutee : choix single-tenant explique,
+  WAL mode SQLite, prereq build natif better-sqlite3 par OS
+
+**ARCHITECTURE.md complet** : 7 choix de design documentes (single-tenant,
+WAL, better-sqlite3, schema versionne, DMs chiffres, JWT stateless, Vue3),
+sentinelles operationnelles, points d'amelioration connus.
+
+**scripts/seed.js + npm run seed**. Plus besoin de cliquer dans l'admin
+pour peupler une DB de dev. `npm run seed` cree :
+- 1 promo "Licence Informatique L3 (Dev)"
+- 1 admin (admin@cursus.dev / Admin1234!)
+- 1 prof  (prof@cursus.dev / Prof1234!)
+- 1 etudiant (etudiant@cursus.dev / Etudiant1234!)
+- 3 canaux + 6 messages d'exemple
+- 1 cours Lumen factice
+Idempotent (insert or ignore par email/nom). `npm run seed:reset` purge
+les donnees de dev avant insert si besoin.
+
+**.gitignore enrichi**. Ignore desormais :
+- `.claude/` (memoire IDE locale, jamais commite)
+- `cursus.db*`, `data/cursus*.sqlite*` (bases de dev/test locales)
+- `test-results/`, `playwright-report/` (artefacts E2E)
+- `backups/` (snapshots auto serveur)
+
+**Nudge anti-gruyere RDV (starter)**. server/db/models/bookingSlotScoring.js
+implemente l'algorithme #1 propose dans la roadmap recherche-op : score
+chaque creneau libre selon sa contiguite avec les RDV existants. +5
+adjacent, +2 meme demi-journee, -3 cree un trou de 30min, -1 seul dans
+la journee. Renvoie aussi un score normalise [0..1] pour l'UI. Wire
+frontend a faire en suivant.
+
+**Fix bugs prod**. Defensive guards ajoutes sur 3 sites :
+- _loadNotifications : verif Array.isArray sur le JSON parse de localStorage
+  (catch un cc_notifications corrompu)
+- WidgetMessages : Array.isArray(notificationHistory) avant for...of
+  (corrige "n.value is not iterable")
+- ResizeObserver : useWidgetGrid duck-type via offsetWidth (corrige
+  les fixtures de tests cassees + les composant Vue passes en ref)
+
+Bump 2.266.0 -> 2.267.0.
+
 ## v2.266.0 (2026-04-28)
 
 ### Recherche FTS5 sur messages + fix tests useWidgetGrid

@@ -14,8 +14,14 @@ Un seul endroit, plus de charge mentale.
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/rohanfosse/cursus/test.yml?style=for-the-badge&label=tests&logo=vitest&logoColor=white)](https://github.com/rohanfosse/cursus/actions)
 [![Version](https://img.shields.io/github/v/release/rohanfosse/cursus?style=for-the-badge&label=version&color=22c55e)](https://github.com/rohanfosse/cursus/releases)
-[![License](https://img.shields.io/github/license/rohanfosse/cursus?style=for-the-badge&color=blue)](LICENSE)
+[![License AGPL-3.0](https://img.shields.io/github/license/rohanfosse/cursus?style=for-the-badge&color=blue&label=license)](LICENSE)
 [![App Status](https://img.shields.io/website?url=https%3A%2F%2Fapp.cursus.school&style=for-the-badge&label=app&logo=statuspage&logoColor=white)](https://app.cursus.school)
+
+<br />
+
+### [▶ Tester la démo live](https://app.cursus.school/#/demo)
+
+**Sans inscription. 30 secondes.** Bascule entre profil prof et étudiant pour explorer toute l'app.
 
 <br />
 
@@ -40,6 +46,23 @@ Un seul endroit, plus de charge mentale.
 > Teams, WhatsApp, Drive, mails. Les annonces se perdent, les deadlines aussi,
 > la frustration monte. **Cursus supprime cette charge mentale.** On ouvre
 > l'app le matin et on n'a jamais à se demander « c'est où ? ».
+
+<br />
+
+## Captures
+
+> **TODO** : remplacer les liens ci-dessous par les vraies captures.
+> Recommandé : un GIF animé pour le dashboard, des PNG pour les autres.
+
+![Démo Dashboard étudiant](https://placehold.co/1280x720/1a1a2e/ffffff?text=Dashboard+%C3%A9tudiant+%E2%80%94+%C3%A9ch%C3%A9ances+%2B+messages+%2B+Live)
+
+| Messagerie | Lumen (cours GitHub) | Live Quiz |
+|:---:|:---:|:---:|
+| ![Messagerie](https://placehold.co/640x400/1a1a2e/ffffff?text=Chat+par+canal) | ![Lumen](https://placehold.co/640x400/d97706/ffffff?text=Liseuse+markdown) | ![Live](https://placehold.co/640x400/ef4444/ffffff?text=Quiz+en+direct) |
+
+| Devoirs | Cahier collaboratif | Booking RDV |
+|:---:|:---:|:---:|
+| ![Devoirs](https://placehold.co/640x400/059669/ffffff?text=Notation+A-D) | ![Cahier](https://placehold.co/640x400/6366f1/ffffff?text=TipTap+%2B+Yjs) | ![Booking](https://placehold.co/640x400/0ea5e9/ffffff?text=Mini-Calendly) |
 
 <br />
 
@@ -257,7 +280,7 @@ Circuit de signature en DM avec tampon, référence unique, sauvegarde locale.
 <tr>
 <td valign="top">
 
-**DMs**<br /><sub>chiffrés bout-en-bout au repos</sub>
+**DMs**<br /><sub>chiffrés AES-256-GCM au repos en base</sub>
 
 </td>
 <td>
@@ -389,6 +412,28 @@ flowchart LR
     Server --> SMTP
     Server -->|REST| GH
 ```
+
+<br />
+
+### Architecture & Scaling
+
+**Single-tenant assume.** Une instance Cursus = une école. Un seul process Node.js + un seul fichier SQLite. Pas de multi-tenant logique au niveau des tables (toutes les rows sont scopées par `promo_id`, mais la base est partagée). Si tu veux héberger plusieurs écoles, tu lances plusieurs instances avec leurs propres ports, dossiers et fichiers SQLite — chaque école a son monde isolé physiquement.
+
+**Pourquoi pas multi-tenant ?** Une école = ~50-300 utilisateurs simultanés au pic, ~50k messages, ~10k devoirs. SQLite gère ça en O(log n) avec une empreinte mémoire de 30-50 Mo. Le multi-tenant logique aurait coûté en complexité (préfixes partout, audits cross-tenant, risques de fuite) sans gain visible. Le déploiement Docker rend trivial le fait de lancer N instances.
+
+**Concurrence SQLite : mode WAL.** SQLite est ouvert en `PRAGMA journal_mode = WAL` (Write-Ahead Logging) dès la création. Un writer parallèle aux lecteurs sans verrou global, ce qui suffit pour les ~30 r/w/s qu'une promo génère. La WAL fait que les lectures ne bloquent jamais les écritures et inversement, jusqu'à l'unique writer simultané que SQLite tolère. Si jamais une école atteint plusieurs centaines de writes/s en pic, on bascule sur PostgreSQL avec une migration linéaire (le code utilise `better-sqlite3` derrière une couche de queries paramétrées).
+
+> [!WARNING]
+> **`better-sqlite3` se compile via `node-gyp` à l'install.** C'est un binding natif C++. Pour que `npm install` réussisse, tu dois avoir sur ta machine :
+>
+> | OS | Prérequis |
+> |---|---|
+> | **Windows** | Python 3 + Visual Studio Build Tools (workload "C++ build tools") OU `npm install --global windows-build-tools` |
+> | **macOS** | Xcode Command Line Tools (`xcode-select --install`) |
+> | **Linux** | `build-essential` + `python3` (`apt install build-essential python3`) |
+> | **Docker** | L'image base inclut déjà ces deps. Si tu modifies le `Dockerfile`, ne pas oublier `apk add --no-cache python3 make g++` (Alpine) ou `apt-get install -y build-essential python3` (Debian/Ubuntu). |
+>
+> Pour Electron en particulier, `npm rebuild better-sqlite3` est nécessaire après chaque mise à jour d'Electron, car les ABI Node.js et Electron diffèrent. Le script `postinstall` du `package.json` s'en charge automatiquement.
 
 <br />
 

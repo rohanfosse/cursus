@@ -69,8 +69,13 @@ export const useAppStore = defineStore('app', () => {
 
   function _loadNotifications(): NotifEntry[] {
     try {
-      const saved = JSON.parse(localStorage.getItem(NOTIF_STORAGE_KEY) || '[]') as NotifEntry[]
-      return saved.filter(n => Date.now() - n.timestamp < NOTIF_MAX_AGE_MS)
+      const saved = JSON.parse(localStorage.getItem(NOTIF_STORAGE_KEY) || '[]') as unknown
+      // Garde defensive : si localStorage est corrompu (objet au lieu d'array),
+      // on reset plutot que crasher avec "filter is not a function" plus tard
+      // dans WidgetMessages / autres consumers qui font .filter() ou for...of.
+      if (!Array.isArray(saved)) return []
+      return (saved as NotifEntry[]).filter(n => n && typeof n.timestamp === 'number'
+        && Date.now() - n.timestamp < NOTIF_MAX_AGE_MS)
     } catch { return [] }
   }
   function _persistNotifications() {
