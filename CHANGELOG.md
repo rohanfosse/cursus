@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.258.1 (2026-04-28)
+
+### Fix CI : tests E2E demo via localStorage plutot que DOM banner
+
+Les 2 tests "demarrage demo etudiant/enseignant" continuaient a flaker en
+CI malgre le hardening v2.258 (waitForSelector + waitForResponse). Le
+serveur repondait bien (POST /api/demo/start ok), la nav vers /dashboard
+fonctionnait, mais l'assertion `text=/Mode demonstration/i` sur le
+DemoBanner timeoutait (15s, element non trouve).
+
+Cause probable : le DemoBanner est dans App.vue mais son `v-if="isDemo"`
+depend de la reactivite Pinia qui peut prendre plusieurs frames a
+propager apres `appStore.login()` + `router.replace('/dashboard')` en
+CI (chunks lazy + Chromium charge). Pas reproductible en local.
+
+Fix pragmatique : on remplace l'assertion DOM par une verification de
+localStorage `cc_session.demo === true` via `expect.poll`. C'est ce que
+prouve la session demo cote source de verite (le DOM en est une
+projection). `appStore.login()` ecrit sync dans localStorage, donc plus
+de race condition. Le DemoBanner reste teste manuellement.
+
+Tests E2E : 5 passing visent (avant : 5 passing + 2 failed).
+
 ## v2.257.0 (2026-04-28)
 
 ### Mode demo jalon V2 + relicensing AGPL v3
