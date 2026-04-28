@@ -17,9 +17,16 @@ const { resolveUrls, normalizeUrl, assertPublicHost } = require('../services/unf
 
 // Rate limit : 60 requetes/min par user. Les images sont chargees via le
 // proxy donc une page avec 5 liens = 5 + 5 = 10 hits.
+//
+// keyGenerator : `req.user.id` quand auth (cas standard, /api/link-preview
+// est derriere authMiddleware), 'anon' en fallback. On evite `req.ip`
+// directement car express-rate-limit v8+ throw ERR_ERL_KEY_GEN_IPV6 quand
+// un keyGenerator custom utilise req.ip sans le helper ipKeyGenerator —
+// merge avec ce que font les autres limiters du projet (cf. auth.js,
+// messages.js, scheduled.js qui utilisent tous le pattern `?? 'anon'`).
 const limiter = rateLimit({
   windowMs: 60_000, max: 60,
-  keyGenerator: (req) => `unfurl:${req.user?.id ?? req.ip}`,
+  keyGenerator: (req) => `unfurl:${req.user?.id ?? 'anon'}`,
   standardHeaders: true, legacyHeaders: false,
   message: { ok: false, error: 'Trop de previews demandees. Reessayez dans une minute.' },
   validate: { xForwardedForHeader: false },
