@@ -1,5 +1,5 @@
 /**
- * useWidgetGrid — logique de grille responsive pour le systeme de widgets.
+ * useWidgetGrid (v2) — logique de grille responsive pour le systeme de widgets.
  * Utilise ResizeObserver pour detecter la largeur du conteneur
  * et clamp les tailles de widgets qui depassent le nombre de colonnes.
  */
@@ -30,14 +30,27 @@ export function useWidgetGrid(containerRef: Ref<HTMLElement | unknown>) {
    *  - une instance de composant Vue (ref="<VueDraggable>") qui expose
    *    le DOM via `$el`. Sans ce unwrap, ResizeObserver.observe() jette
    *    "Argument 1 does not implement interface Element".
+   *  - un mock plain-object en environnement de test (jsdom-less) qui
+   *    expose juste `offsetWidth`.
+   *
+   * Accepte tout objet "DOM-like" via duck-typing (`offsetWidth: number`).
+   * En prod c'est toujours un vrai HTMLElement ; en test on tolere les
+   * fixtures legeres pour ne pas avoir a creer un vrai DOM.
    */
   function resolveEl(): HTMLElement | null {
     const v = containerRef.value as unknown
     if (!v) return null
-    if (v instanceof HTMLElement) return v
-    // Composant Vue : $el (Options API) ou .el (Composition API exposed)
-    const candidate = (v as { $el?: unknown }).$el ?? (v as { el?: unknown }).el
-    if (candidate instanceof HTMLElement) return candidate
+    // 1) Vrai HTMLElement (cas prod)
+    if (typeof HTMLElement !== 'undefined' && v instanceof HTMLElement) return v
+    // 2) Instance de composant Vue : unwrap via $el ou .el (un seul niveau)
+    const candidate = (v as { $el?: unknown; el?: unknown }).$el ?? (v as { el?: unknown }).el
+    if (candidate) {
+      if (typeof HTMLElement !== 'undefined' && candidate instanceof HTMLElement) return candidate as HTMLElement
+      // $el peut etre un fragment/comment node — fallback sur le node parent
+      if (typeof (candidate as { offsetWidth?: unknown }).offsetWidth === 'number') return candidate as HTMLElement
+    }
+    // 3) Duck-typing : objet avec offsetWidth (cas tests / SSR)
+    if (typeof (v as { offsetWidth?: unknown }).offsetWidth === 'number') return v as HTMLElement
     return null
   }
 

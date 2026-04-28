@@ -129,15 +129,72 @@ function getDmMessagesPage(studentId, beforeId, peerStudentId) {
   ).all(studentId, PAGE_SIZE));
 }
 
+/**
+ * Echappe une query utilisateur pour la syntaxe FTS5 :
+ *  - retire les caracteres speciaux qui pourraient casser le parser
+ *    (parentheses, double-quotes non-paires, operateurs)
+ *  - ajoute un suffixe `*` aux termes pour le prefix-matching (ex: "algo"
+ *    matche "algorithme") — ergonomie recherche moderne.
+ *
+ * Si la query devient vide apres sanitization, retourne null pour que le
+ * caller fallback sur LIKE (eviter une exception FTS5 sur input vide).
+ */
+function buildFtsQuery(rawQuery) {
+  const cleaned = String(rawQuery ?? '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]+/gu, ' ') // unicode letters + numbers seulement
+    .trim()
+  if (!cleaned) return null
+  // Decoupe en termes, ajoute prefix-match * a chaque terme >= 2 chars
+  const terms = cleaned.split(/\s+/).filter(t => t.length >= 2)
+  if (!terms.length) return null
+  return terms.map(t => `"${t}"*`).join(' ')
+}
+
+/**
+ * Recherche dans un canal donne. v2.265 : utilise FTS5 + BM25 ranking
+ * (tokens unicode + remove_diacritics, prefix-matching). Fallback sur
+ * LIKE si la query est trop courte (< 2 chars) ou si FTS jette (rare).
+ *
+ * @param {number} channelId
+ * @param {string} query
+ * @returns {Array} messages tries par pertinence (BM25), max 200
+ */
 function searchMessages(channelId, query) {
   const q = (query ?? '').slice(0, 200)
   if (!q) return []
-  return getDb().prepare(`
-    ${MESSAGE_SELECT}
-    AND m.channel_id = ? AND m.content LIKE '%' || ? || '%'
-    ORDER BY m.created_at ASC
-    LIMIT 200
-  `).all(channelId, q);
+  const fts = buildFtsQuery(q)
+  if (!fts) {
+    // Fallback LIKE pour query courte (1 char) — FTS5 n'aime pas les tokens < 2 chars
+    return getDb().prepare(`
+      ${MESSAGE_SELECT}
+      AND m.channel_id = ? AND m.content LIKE '%' || ? || '%'
+      ORDER BY m.created_at ASC
+      LIMIT 200
+    `).all(channelId, q);
+  }
+  try {
+    return getDb().prepare(`
+      ${MESSAGE_SELECT}
+      AND m.channel_id = ?
+      AND m.id IN (
+        SELECT rowid FROM messages_fts
+        WHERE messages_fts MATCH ?
+        ORDER BY bm25(messages_fts) ASC
+        LIMIT 200
+      )
+      ORDER BY m.created_at ASC
+      LIMIT 200
+    `).all(channelId, fts);
+  } catch {
+    // Si FTS5 jette (query mal formee post-sanitize), fallback LIKE
+    return getDb().prepare(`
+      ${MESSAGE_SELECT}
+      AND m.channel_id = ? AND m.content LIKE '%' || ? || '%'
+      ORDER BY m.created_at ASC
+      LIMIT 200
+    `).all(channelId, q);
+  }
 }
 
 const SEARCH_DM_LIMIT = 200;
@@ -318,35 +375,83 @@ function togglePinMessage(messageId, pinned) {
 function searchAllMessages(promoId, query, limit = 8, userId = null) {
   const db = getDb();
 
-  // Channel messages (non chiffrés — recherche LIKE classique)
-  const channelSql = promoId
-    ? `SELECT m.id, m.content, m.author_name, m.author_id, m.created_at,
-             c.id AS channel_id, c.name AS channel_name, c.promo_id,
-             COALESCE(s.avatar_initials, COALESCE(substr(upper(t.name), 1, 2), substr(upper(m.author_name), 1, 2))) AS author_initials,
-             COALESCE(s.photo_data, t.photo_data) AS author_photo,
-             'channel' AS source_type
-       FROM messages m
-       JOIN channels c ON m.channel_id = c.id
-       LEFT JOIN students s ON s.id = m.author_id AND m.author_type = 'student'
-       LEFT JOIN teachers t ON t.id = -m.author_id AND m.author_type = 'teacher'
-       WHERE c.promo_id = ? AND m.dm_student_id IS NULL AND m.deleted_at IS NULL
-         AND m.content LIKE '%' || ? || '%'
-       ORDER BY m.created_at DESC LIMIT ?`
-    : `SELECT m.id, m.content, m.author_name, m.author_id, m.created_at,
-             c.id AS channel_id, c.name AS channel_name, c.promo_id,
-             COALESCE(s.avatar_initials, COALESCE(substr(upper(t.name), 1, 2), substr(upper(m.author_name), 1, 2))) AS author_initials,
-             COALESCE(s.photo_data, t.photo_data) AS author_photo,
-             'channel' AS source_type
-       FROM messages m
-       JOIN channels c ON m.channel_id = c.id
-       LEFT JOIN students s ON s.id = m.author_id AND m.author_type = 'student'
-       LEFT JOIN teachers t ON t.id = -m.author_id AND m.author_type = 'teacher'
-       WHERE m.dm_student_id IS NULL AND m.deleted_at IS NULL AND m.content LIKE '%' || ? || '%'
-       ORDER BY m.created_at DESC LIMIT ?`;
+  // Channel messages : FTS5 + BM25 ranking (v2.265). Fallback LIKE si la
+  // query est trop courte (< 2 chars) pour eviter l'exception FTS.
+  const fts = buildFtsQuery(query)
+  let channelResults
+  if (fts) {
+    // FTS path : MATCH + ranking BM25, le ORDER BY se fait sur le score
+    // FTS (plus pertinent) plutot que sur created_at DESC. Ca change
+    // le comportement : les meilleurs matches en haut, pas les plus
+    // recents — c'est ce qu'attend un user qui tape une requete.
+    const ftsSql = promoId
+      ? `SELECT m.id, m.content, m.author_name, m.author_id, m.created_at,
+                c.id AS channel_id, c.name AS channel_name, c.promo_id,
+                COALESCE(s.avatar_initials, COALESCE(substr(upper(t.name), 1, 2), substr(upper(m.author_name), 1, 2))) AS author_initials,
+                COALESCE(s.photo_data, t.photo_data) AS author_photo,
+                'channel' AS source_type
+         FROM messages_fts f
+         JOIN messages m ON m.id = f.rowid
+         JOIN channels c ON m.channel_id = c.id
+         LEFT JOIN students s ON s.id = m.author_id AND m.author_type = 'student'
+         LEFT JOIN teachers t ON t.id = -m.author_id AND m.author_type = 'teacher'
+         WHERE messages_fts MATCH ? AND c.promo_id = ?
+           AND m.dm_student_id IS NULL AND m.deleted_at IS NULL
+         ORDER BY bm25(messages_fts) ASC
+         LIMIT ?`
+      : `SELECT m.id, m.content, m.author_name, m.author_id, m.created_at,
+                c.id AS channel_id, c.name AS channel_name, c.promo_id,
+                COALESCE(s.avatar_initials, COALESCE(substr(upper(t.name), 1, 2), substr(upper(m.author_name), 1, 2))) AS author_initials,
+                COALESCE(s.photo_data, t.photo_data) AS author_photo,
+                'channel' AS source_type
+         FROM messages_fts f
+         JOIN messages m ON m.id = f.rowid
+         JOIN channels c ON m.channel_id = c.id
+         LEFT JOIN students s ON s.id = m.author_id AND m.author_type = 'student'
+         LEFT JOIN teachers t ON t.id = -m.author_id AND m.author_type = 'teacher'
+         WHERE messages_fts MATCH ?
+           AND m.dm_student_id IS NULL AND m.deleted_at IS NULL
+         ORDER BY bm25(messages_fts) ASC
+         LIMIT ?`
+    try {
+      channelResults = promoId
+        ? db.prepare(ftsSql).all(fts, promoId, limit)
+        : db.prepare(ftsSql).all(fts, limit)
+    } catch {
+      channelResults = null
+    }
+  }
 
-  const channelResults = promoId
-    ? db.prepare(channelSql).all(promoId, query, limit)
-    : db.prepare(channelSql).all(query, limit);
+  // Fallback LIKE (query trop courte ou FTS jete) : meme logique qu'avant
+  if (!channelResults) {
+    const channelSql = promoId
+      ? `SELECT m.id, m.content, m.author_name, m.author_id, m.created_at,
+               c.id AS channel_id, c.name AS channel_name, c.promo_id,
+               COALESCE(s.avatar_initials, COALESCE(substr(upper(t.name), 1, 2), substr(upper(m.author_name), 1, 2))) AS author_initials,
+               COALESCE(s.photo_data, t.photo_data) AS author_photo,
+               'channel' AS source_type
+         FROM messages m
+         JOIN channels c ON m.channel_id = c.id
+         LEFT JOIN students s ON s.id = m.author_id AND m.author_type = 'student'
+         LEFT JOIN teachers t ON t.id = -m.author_id AND m.author_type = 'teacher'
+         WHERE c.promo_id = ? AND m.dm_student_id IS NULL AND m.deleted_at IS NULL
+           AND m.content LIKE '%' || ? || '%'
+         ORDER BY m.created_at DESC LIMIT ?`
+      : `SELECT m.id, m.content, m.author_name, m.author_id, m.created_at,
+               c.id AS channel_id, c.name AS channel_name, c.promo_id,
+               COALESCE(s.avatar_initials, COALESCE(substr(upper(t.name), 1, 2), substr(upper(m.author_name), 1, 2))) AS author_initials,
+               COALESCE(s.photo_data, t.photo_data) AS author_photo,
+               'channel' AS source_type
+         FROM messages m
+         JOIN channels c ON m.channel_id = c.id
+         LEFT JOIN students s ON s.id = m.author_id AND m.author_type = 'student'
+         LEFT JOIN teachers t ON t.id = -m.author_id AND m.author_type = 'teacher'
+         WHERE m.dm_student_id IS NULL AND m.deleted_at IS NULL AND m.content LIKE '%' || ? || '%'
+         ORDER BY m.created_at DESC LIMIT ?`;
+    channelResults = promoId
+      ? db.prepare(channelSql).all(promoId, query, limit)
+      : db.prepare(channelSql).all(query, limit);
+  }
 
   // DM messages (chiffrés — déchiffrement + filtrage en mémoire)
   if (userId) {

@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 85;
+const CURRENT_VERSION = 86;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -1975,6 +1975,78 @@ function runMigrations(db) {
       // Lien optionnel d'une reservation vers une campagne (NULL pour les RDV
       // hors campagne, qui restent valides comme avant).
       tryAlter(db, "ALTER TABLE bookings ADD COLUMN campaign_id INTEGER REFERENCES booking_campaigns(id) ON DELETE SET NULL");
+    },
+
+    // v86 : FTS5 sur les messages de canaux (recherche plein-texte rapide).
+    //
+    // Avant : `searchMessages` faisait `WHERE content LIKE '%q%'` -> O(n)
+    // sur toute la table. Inutilisable au-dela de ~100k messages.
+    // Apres : index inverse FTS5 + ranking BM25, requetes en O(log n).
+    //
+    // Tokenize unicode61 + remove_diacritics 2 : matche les accents francais
+    // (regle == regle, ecole == ecole). Cf. lumen_chapter_fts (v59) qui
+    // utilise le meme tokenizer.
+    //
+    // IMPORTANT : on indexe UNIQUEMENT les messages de CANAUX (dm_student_id
+    // IS NULL). Les DMs sont chiffres en DB ; les indexer en clair dans FTS
+    // casserait la confidentialite. La recherche DM reste sur le path
+    // dechiffrement-en-memoire-puis-filtre (cf. searchDmMessages).
+    //
+    // Backfill initial : un INSERT massif des messages existants. Pour les
+    // grosses bases (millions de rows), peut prendre quelques secondes au
+    // 1er boot post-migration mais c'est one-shot.
+    (db) => {
+      db.exec(`
+        -- Table virtuelle FTS5 standalone : pas de "external content" car
+        -- ca complique les triggers (la cmd 'delete' magique exige que le
+        -- contenu soit toujours sync avec messages, et casse l'index si
+        -- on essaie de supprimer un row deja absent). Stockage duplique
+        -- mais robustesse maximale.
+        CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+          content,
+          tokenize='unicode61 remove_diacritics 2'
+        );
+
+        -- Backfill : on indexe tous les messages existants non-DM, non-deleted.
+        INSERT INTO messages_fts(rowid, content)
+        SELECT id, content FROM messages
+        WHERE dm_student_id IS NULL AND deleted_at IS NULL;
+
+        -- Triggers de synchronisation. Avec un FTS5 standalone, on peut
+        -- DELETE/INSERT directement sans cmd magique. Les WHEN filtrent
+        -- pour ne traiter que les messages de canal non-deleted.
+
+        -- INSERT : ajouter au FTS si nouveau message de canal valide
+        CREATE TRIGGER IF NOT EXISTS messages_fts_ai AFTER INSERT ON messages
+        WHEN new.dm_student_id IS NULL AND new.deleted_at IS NULL
+        BEGIN
+          INSERT INTO messages_fts(rowid, content) VALUES (new.id, new.content);
+        END;
+
+        -- DELETE : retirer du FTS si etait indexe (etait un msg canal non-deleted)
+        CREATE TRIGGER IF NOT EXISTS messages_fts_ad AFTER DELETE ON messages
+        WHEN old.dm_student_id IS NULL AND old.deleted_at IS NULL
+        BEGIN
+          DELETE FROM messages_fts WHERE rowid = old.id;
+        END;
+
+        -- UPDATE : trigger unique qui DELETE puis INSERT conditionnellement.
+        -- Plus simple que 2 triggers separes (et plus sur — pas de fenetre
+        -- entre-deux qui pourrait creer une contrainte). DELETE est idempotent
+        -- (no-op si rowid absent) ; INSERT n'a lieu que si la nouvelle ligne
+        -- est indexable (canal non-deleted). Couvre les 4 cas :
+        --   was_indexed=Y new_indexable=Y : edit content -> DEL + INS
+        --   was_indexed=Y new_indexable=N : soft-delete  -> DEL seul
+        --   was_indexed=N new_indexable=Y : undelete    -> INS seul
+        --   was_indexed=N new_indexable=N : rien (DEL no-op + INSERT skipped)
+        CREATE TRIGGER IF NOT EXISTS messages_fts_au AFTER UPDATE ON messages
+        BEGIN
+          DELETE FROM messages_fts WHERE rowid = old.id;
+          INSERT INTO messages_fts(rowid, content)
+          SELECT new.id, new.content
+          WHERE new.dm_student_id IS NULL AND new.deleted_at IS NULL;
+        END;
+      `);
     },
   ];
 

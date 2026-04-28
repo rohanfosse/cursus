@@ -1,5 +1,48 @@
 # Changelog
 
+## v2.266.0 (2026-04-28)
+
+### Recherche FTS5 sur messages + fix tests useWidgetGrid
+
+**FTS5 + BM25 sur la recherche messages** (`server/db/schema.js` v86,
+`server/db/models/messages.js`).
+
+Avant : `searchMessages` faisait `WHERE content LIKE '%q%'` -> O(n) sur
+toute la table. Inutilisable au-dela de ~100k messages.
+
+Apres : index inverse FTS5 + ranking BM25, requetes en O(log n).
+- Migration v86 : `CREATE VIRTUAL TABLE messages_fts USING fts5(...)`
+  avec tokenize='unicode61 remove_diacritics 2' (matche les accents
+  francais : "regle" trouve "regle" et "règle")
+- Backfill auto : INSERT SELECT depuis messages au boot post-migration
+- Triggers AFTER INSERT/UPDATE/DELETE qui maintiennent l'index sync
+  (DM exclus pour confidentialite, soft-deletes retires de l'index)
+- buildFtsQuery() sanitize la query user : retire chars speciaux,
+  ajoute prefix-matching `*` -> "algo" trouve "algorithme"
+- Refacto searchMessages + searchAllMessages (partie canal) pour
+  utiliser MATCH + bm25() au lieu de LIKE. Ranking par pertinence,
+  plus par date.
+- Fallback LIKE pour query 1-char (FTS5 n'aime pas les tokens < 2 chars)
+- Fallback LIKE si FTS5 jette (query mal formee post-sanitize)
+
+**Tests** : 15 nouveaux dans `tests/backend/db/messages-fts.test.js` :
+trigger AFTER INSERT/DELETE/UPDATE, prefix-matching, accents, BM25
+ranking, isolation par channel, securite (chars speciaux). Total
+backend : 1663 -> 1678.
+
+**DM non-indexes (securite)**. Le contenu des DMs est chiffre AES-256-GCM
+en DB. Les indexer en FTS casserait la confidentialite. La recherche DM
+reste sur le path "decryption en memoire puis filter" (cf.
+searchDmMessages, inchange).
+
+**Fix useWidgetGrid (regression v2.265 sur tests)**. Mes gardes
+`instanceof HTMLElement` rejetaient les fixtures de test
+`{ offsetWidth: 1200 } as HTMLElement`. resolveEl() utilise maintenant
+duck-typing (objet avec offsetWidth: number) en plus du strict instanceof
++ unwrap $el. 15 tests useWidgetGrid passent a nouveau.
+
+Bump 2.265.0 -> 2.266.0.
+
 ## v2.265.0 (2026-04-28)
 
 ### Recherche operationnelle : Hungarian + Scheduler + bug fixes
