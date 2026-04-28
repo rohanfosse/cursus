@@ -207,31 +207,47 @@ document.addEventListener('DOMContentLoaded', () => {
   // ══════════════════════════════════════════════════════════════════════
 
   // ── Chat demo: clickable channels ─────────────────────────────────────
+  // Reactions : format `type:count`, le type mappe vers un SVG via REACTION_ICONS.
+  // Cohérent avec la regle "pas d'emoji" du projet (cf. CONTRIBUTING.md).
+  const REACTION_ICONS = {
+    up:    '<svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H7l-3-1V10l4-1 4-7c1.05-.05 2 .9 2 2v3a2 2 0 0 0 1 0Z"/></svg>',
+    party: '<svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-1.13 1.13c-.61.61-1.43.95-2.29.95-.86 0-1.13.45-1.13 1.13v.51c0 .86-.34 1.69-.95 2.29L14 22"/><path d="m16 8 1 1.5"/><path d="M20 6.27c-.96-.81-2.41-.81-3.37 0L8.27 13.6c-.96.81-.96 2.13 0 2.94l1.95 1.65c.96.81 2.41.81 3.37 0l8.36-7.32c.96-.81.96-2.14 0-2.95Z"/></svg>',
+    light: '<svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>',
+  }
+
   const chatChannels = {
     'général': [
       { av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '10:42', txt: 'Le livrable du <b>Projet Web E4</b> est à rendre vendredi 17h.' },
       { av: 'EL', bg: '#059669', name: 'Emma L.', nc: '', t: '10:44', txt: 'Merci ! On peut travailler en équipe ?' },
-      { av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '10:45', txt: 'Oui, groupes de 2-3. Utilisez le canal <b>#projet-web</b> pour coordonner.', rx: '👍 4|🎉 2' },
+      { av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '10:45', txt: 'Oui, groupes de 2-3. Utilisez le canal <b>#projet-web</b> pour coordonner.', rx: 'up:4|party:2' },
     ],
     'annonces': [
-      { av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '09:00', txt: '📌 <b>Semaine 12</b> : pas de cours mercredi. TP reporté à jeudi 14h.' },
-      { av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '08:30', txt: 'Résultats du TP Algo disponibles dans vos notes.', rx: '👍 8' },
+      { av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '09:00', txt: '<b>Semaine 12</b> : pas de cours mercredi. TP reporté à jeudi 14h.' },
+      { av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '08:30', txt: 'Résultats du TP Algo disponibles dans vos notes.', rx: 'up:8' },
     ],
     'projet-web': [
       { av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '', t: '14:12', txt: 'J\'ai push l\'archi sur le repo. Quelqu\'un peut review ?' },
       { av: 'EL', bg: '#059669', name: 'Emma L.', nc: '', t: '14:15', txt: 'Je regarde ce soir ! C\'est sur quelle branche ?' },
-      { av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '', t: '14:16', txt: '<code>feat/auth-module</code>. Merci 🙏', rx: '👍 1' },
+      { av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '', t: '14:16', txt: '<code>feat/auth-module</code>. Merci.', rx: 'up:1' },
     ],
     'algo-tp': [
       { av: 'SB', bg: '#8B5CF6', name: 'Sara B.', nc: '', t: '16:30', txt: 'Quelqu\'un a compris la rotation AVL ? Je bloque sur le cas double.' },
-      { av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '', t: '16:35', txt: 'Regarde le <code>balanceFactor</code>. Si > 1 et fils gauche < 0 → rotation gauche-droite.', rx: '💡 3' },
+      { av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '', t: '16:35', txt: 'Regarde le <code>balanceFactor</code>. Si > 1 et fils gauche &lt; 0 → rotation gauche-droite.', rx: 'light:3' },
     ]
+  }
+
+  function renderReaction(token) {
+    // token = "up:4" -> { type: 'up', count: 4 }
+    const [type, countStr] = token.trim().split(':')
+    const count = parseInt(countStr, 10) || 0
+    const icon = REACTION_ICONS[type] || REACTION_ICONS.up
+    return `<span class="reaction" data-type="${type}">${icon}<span class="reaction-count">${count}</span></span>`
   }
 
   function renderMessages(container, msgs, hasTyping) {
     container.innerHTML = ''
     msgs.forEach((m, i) => {
-      const reactions = m.rx ? m.rx.split('|').map(r => `<span class="reaction">${r.trim()}</span>`).join('') : ''
+      const reactions = m.rx ? m.rx.split('|').map(renderReaction).join('') : ''
       const div = document.createElement('div')
       div.className = 'demo-msg'
       div.style.setProperty('--delay', (i * 200) + 'ms')
@@ -284,24 +300,23 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   })
 
-  // ── Clickable reactions ─────────────────────────────────────────────────
+  // ── Clickable reactions (toggle compteur, format SVG + count) ─────────
   document.addEventListener('click', (e) => {
     const rx = e.target.closest('.reaction')
     if (!rx) return
-    const match = rx.textContent.match(/(.+?)\s*(\d+)/)
-    if (!match) return
-    const emoji = match[1].trim()
-    let count = parseInt(match[2])
+    const countEl = rx.querySelector('.reaction-count')
+    if (!countEl) return
+    let count = parseInt(countEl.textContent, 10) || 0
     if (rx.dataset.toggled) {
       count--
       delete rx.dataset.toggled
-      rx.style.background = ''
+      rx.classList.remove('reaction--toggled')
     } else {
       count++
       rx.dataset.toggled = '1'
-      rx.style.background = 'rgba(99, 102, 241, 0.15)'
+      rx.classList.add('reaction--toggled')
     }
-    rx.textContent = `${emoji} ${count}`
+    countEl.textContent = String(count)
   })
 
   // ── Devoirs demo: expandable items ──────────────────────────────────────
@@ -351,12 +366,35 @@ document.addEventListener('DOMContentLoaded', () => {
       if (timerIv) clearInterval(timerIv)
       let remaining = seconds
       timerEl.textContent = `0:${String(remaining).padStart(2, '0')}`
+      timerEl.classList.remove('live-timer--low', 'live-timer--out')
       if (prefersReducedMotion) return
       timerIv = setInterval(() => {
         remaining--
-        if (remaining <= 0) { clearInterval(timerIv); timerIv = null; return }
+        if (remaining <= 0) {
+          clearInterval(timerIv); timerIv = null
+          timerEl.textContent = 'Temps écoulé'
+          timerEl.classList.add('live-timer--out')
+          // Reveal automatique des bonnes réponses si l'utilisateur n'a pas
+          // clique : on simule "le prof a coupé le timer".
+          if (!revealed) revealAnswers(quizQuestions[qIdx])
+          return
+        }
         timerEl.textContent = `0:${String(remaining).padStart(2, '0')}`
+        // Passe en rouge pulsant les 5 dernieres secondes pour creer du
+        // suspense visuel (effet Spark Quiz reel).
+        if (remaining <= 5) timerEl.classList.add('live-timer--low')
       }, 1000)
+    }
+
+    function revealAnswers(q) {
+      revealed = true
+      if (timerIv) { clearInterval(timerIv); timerIv = null }
+      optsEl.querySelectorAll('.live-opt').forEach((o, i) => {
+        o.style.transitionDelay = `${i * 80}ms`
+        o.classList.add(parseInt(o.dataset.idx) === q.correct ? 'revealed-correct' : 'revealed-wrong')
+      })
+      statsEl.classList.add('revealed')
+      nextT = setTimeout(() => { qIdx = (qIdx + 1) % quizQuestions.length; renderQuiz(qIdx) }, 3000)
     }
 
     function renderQuiz(idx) {
@@ -384,16 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (revealed) return
       optsEl.querySelectorAll('.live-opt').forEach(o => o.classList.remove('selected'))
       opt.classList.add('selected')
-      revealT = setTimeout(() => {
-        revealed = true
-        if (timerIv) { clearInterval(timerIv); timerIv = null }
-        optsEl.querySelectorAll('.live-opt').forEach((o, i) => {
-          o.style.transitionDelay = `${i * 80}ms`
-          o.classList.add(parseInt(o.dataset.idx) === q.correct ? 'revealed-correct' : 'revealed-wrong')
-        })
-        statsEl.classList.add('revealed')
-        nextT = setTimeout(() => { qIdx = (qIdx + 1) % quizQuestions.length; renderQuiz(qIdx) }, 3000)
-      }, 800)
+      revealT = setTimeout(() => revealAnswers(q), 800)
     }
 
     renderQuiz(0)
@@ -593,11 +622,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = item.querySelector('span')?.textContent || 'Document'
       const icon = item.querySelector('.doc-icon')?.textContent || ''
       const color = getComputedStyle(item).getPropertyValue('--doc-color').trim() || '#6366F1'
-      const previews = { PDF: '📄 Aperçu PDF - 12 pages', DOC: '📝 Document Word - 3 pages', XLS: '📊 Tableur - 45 lignes', URL: '🔗 Lien externe' }
+      const previews = {
+        PDF: 'Aperçu PDF · 12 pages',
+        DOC: 'Document Word · 3 pages',
+        XLS: 'Tableur · 45 lignes',
+        URL: 'Lien externe',
+      }
 
       const el = document.createElement('div')
       el.className = 'doc-preview'
-      el.innerHTML = `<div class="preview-header" style="border-left:3px solid ${color}"><span class="preview-name">${name}</span><span class="preview-close">&times;</span></div><div class="preview-body"><div class="preview-placeholder">${previews[icon] || '📎 Fichier'}</div></div>`
+      el.innerHTML = `<div class="preview-header" style="border-left:3px solid ${color}"><span class="preview-name">${name}</span><span class="preview-close" aria-label="Fermer">&times;</span></div><div class="preview-body"><div class="preview-placeholder">${previews[icon] || 'Fichier'}</div></div>`
       body.appendChild(el)
       el.querySelector('.preview-close').addEventListener('click', e => { e.stopPropagation(); el.remove() })
     })
