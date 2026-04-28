@@ -1,5 +1,148 @@
 # Changelog
 
+## v2.256.1 (2026-04-28)
+
+### Restaure le Proxy `window.api` perdu en v2.255.1
+
+Regression silencieuse introduite par la refacto `SILENT_FALLBACKS` du
+commit precedent : le bloc final `;(window as ...).api = new Proxy(apiImpl, ...)`
+a ete remplace accidentellement par un simple commentaire. Resultat dans
+le build web : `window.api` etait `undefined`, tout appel
+`window.api.X()` crashait avec "Cannot read properties of undefined".
+
+Pas detecte plus tot car :
+
+- L'app Electron n'utilise pas ce shim (le preload Electron pose son
+  propre `window.api`, donc le bug etait invisible en local desktop).
+- Le test E2E `connecte un enseignant` passait par accident — sa seule
+  assertion `toHaveURL(/dashboard/)` matchait avant meme le click submit
+  (la route `/` redirige vers `/dashboard` via le router).
+- Le test E2E `refuse un login invalide` exposait reellement le bug : le
+  `catch` de `useLoginForm` affichait `String(e)` =
+  `"Cannot read properties of undefined (reading 'loginWithCredentials')"`,
+  qui ne contenait aucun de `erreur|invalide|incorrect`, d'ou l'echec du
+  selector du test.
+
+**Fix complementaire : `linkPreview.js` rate-limit IPv6.**
+
+`ERR_ERL_KEY_GEN_IPV6` etait throw par `express-rate-limit` v8+ quand un
+`keyGenerator` custom referencait `req.ip` sans utiliser le helper
+`ipKeyGenerator`. La validation est swallow par la lib (catch +
+`console.error`) donc le serveur tournait quand meme, mais ca polluait
+les logs CI a chaque boot. Aligne le pattern avec les autres limiters
+(`auth.js`, `messages.js`, `scheduled.js`) : `req.user?.id ?? 'anon'`.
+
+Verifie en local avec `npm run build:web` + Playwright contre le serveur
+prod : test `refuse un login invalide` passe en 4.9s.
+
+## v2.256.0 (2026-04-28)
+
+### Sidebar Rendez-vous + retrait de l'EmptyState plein ecran
+
+**Nouvelle `SidebarBooking.vue`** branchee sur la route `booking` (ajout
+d'une branche `v-else-if="route.name === 'booking'"` dans `Sidebar.vue`).
+Affiche en compact ce qui prenait toute la place avant la promotion en
+route top-level (cf. v2.253) :
+
+- Statut Microsoft (cliquable -> ouvre Settings)
+- Grille 2x2 de stats : Types actifs, RDV cette semaine, En attente,
+  Campagnes (actives + drafts en suffixe)
+- Liste des 5 prochains RDV avec date relative (`dans 30 min`, `demain
+  14:00`) et lien visio direct
+- Action rapide "Nouveau type de RDV" avec raccourci `Ctrl+N`
+
+Communication sidebar -> page via `CustomEvent('cursus:booking-create-type')`
+ecoute dans `TabBooking`. Pas de couplage par store/props — un event
+suffit pour ce one-shot.
+
+**Retrait du gros EmptyState dans `CampaignManager.vue`** : l'ancien
+bloc pleine largeur "Aucune campagne pour le moment" + bouton "Creer ma
+premiere campagne" faisait doublon avec le header (qui contient deja le
+bouton "Nouvelle campagne") et avec la sidebar. Remplace par un placeholder
+discret qui pointe vers le bouton du header.
+
+## v2.255.1 (2026-04-28)
+
+### Bruit console + CSP Pyodide
+
+**`api-shim` web : warn -> debug.** Les warnings
+`[api-shim] window.api.X() not implemented in web build — using no-op`
+passent de `console.warn` a `console.debug`. Toujours visibles via
+DevTools en niveau verbose, mais sans polluer la console par defaut. Les
+methodes pure-Electron (`setBadge`, `clearBadge`, `onRuntimeError`,
+`onPollUpdate`, `onStatusChange`, `offlineWrite`) sont en plus passees
+dans une `SILENT_FALLBACKS` qui les rend totalement silencieuses : ce
+sont des features OS-only qui n'auront jamais de version web, c'est
+attendu.
+
+**CSP Pyodide.** Ajout de `'unsafe-eval'` + 3 hashes sha256 pour les
+`<script>` inline injectes par Pyodide au bootstrap. Sans ca le runner
+`.ipynb` de Lumen ne demarrait pas en version web (kernel Python
+crashait au boot avec violations `script-src-elem`). Les hashes sont
+stables tant qu'on ne bump pas `PYODIDE_VERSION` dans `usePyodide.ts` —
+sinon a regenerer depuis les warnings console.
+
+**Pas resolu** dans cette release : `Error: tooltipContainer does not
+exist` qui vient d'un bundle vendor minifie qu'on n'a pas pu localiser
+sans source maps actifs.
+
+## v2.255.0 (2026-04-28)
+
+### Vue de demarrage configurable + fixes blocs code et v-memo polls
+
+**Nouvelle preference `startView`** (Settings > Preferences > "Au
+demarrage") avec 3 choix :
+
+- "Reprendre ou j'etais" (default — pattern Discord/Slack)
+- "Toujours le tableau de bord"
+- "Toujours les messages"
+
+Le router persiste la derniere route visitee dans `localStorage` via
+`afterEach` (chemin + query, hors routes publiques `/book/...`).
+`resolveStartRoute()` est appelee dans `App.vue` a la restauration de
+session.
+
+**Note technique** : la derniere route est snapshotee a l'import du
+module router (pas a l'appel de `resolveStartRoute`) car la premiere
+navigation `/` -> redirect `/dashboard` ecraserait l'entree
+`localStorage` avant que `App.vue` ait pu la lire. Le router guard reste
+authoritative pour les routes inaccessibles (role / module insuffisant).
+
+**Fix bloc de code (markdown).** Le fond etait `rgba(0, 0, 0, .32)` qui
+en dark theme sur `--bg-main: #1a1b1d` donnait un noir a peine plus
+fonce que le chat — le bloc se confondait visuellement avec le fond.
+Utilise maintenant `var(--bg-elevated)`, plus contraste et coherent avec
+le header. En light theme, look "carte" comme GitHub / Notion.
+
+**Fix `v-memo` MessageBubble.** `msg.poll_votes` est maintenant trackee.
+Avant, un vote arrivant en live (websocket) n'invalidait pas le memo, le
+`PollRenderer` ne se rerendait donc pas tant qu'autre chose ne changeait
+pas dans le message.
+
+## v2.254.1 (2026-04-28)
+
+### Pills de date qui s'empilent + checkbox tasklist en input text
+
+**Pills de date sticky qui s'empilent au scroll.** Tous les
+`.date-separator` etaient des freres directs du meme container scroll, et
+un `position: sticky` qui sort du flow ne pousse pas le precedent — il
+s'empile dessus. Resultat visible : 3 pills empilees en haut quand on a
+3 jours de messages.
+
+Fix : chaque jour est maintenant enveloppe dans un
+`<section class="date-group">` qui sert de contexte de scoping au
+sticky. Quand on sort du jour, le wrapper sort et la pill avec lui.
+
+**Checkbox tasklist GFM rendue comme un grand rectangle blanc.**
+L'`<input>` perdait son attribut `type="checkbox"` quelque part dans le
+pipeline `marked -> regex -> DOMPurify`, le browser le rendait donc en
+`<input type="text">` par defaut.
+
+Fix robuste : on regenere l'input from scratch dans le replace au lieu
+de bricoler les attrs sources (`html.ts`), ce qui garantit
+`type="checkbox"` inconditionnel. Tolere aussi un eventuel attribut sur
+le `<li>` source au cas ou marked changerait son output.
+
 ## v2.254.0 (2026-04-27)
 
 ### Apercu visiteur : voir ce que verra l'etudiant
