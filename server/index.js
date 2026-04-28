@@ -71,10 +71,15 @@ app.use((req, res, next) => {
 })
 
 const rateLimit = require('express-rate-limit')
+// `skipInTest` : tous les tests E2E partagent la meme IP (localhost) et
+// martelent l'API en parallele (plusieurs workers Playwright + bundle Vue
+// qui charge plein de chunks). Sans skip, on touchait la limite globale et
+// /api/demo/start retournait 429 au milieu des tests.
+const skipInTest = () => process.env.NODE_ENV === 'test'
 // Limite générale : 300 req/min par IP
-app.use(rateLimit({ windowMs: 60_000, max: 300, standardHeaders: true, legacyHeaders: false }))
+app.use(rateLimit({ windowMs: 60_000, max: 300, standardHeaders: true, legacyHeaders: false, skip: skipInTest }))
 // Limite stricte sur l'auth : 20 req/min par IP
-const authLimiter = rateLimit({ windowMs: 60_000, max: 20, standardHeaders: true, legacyHeaders: false })
+const authLimiter = rateLimit({ windowMs: 60_000, max: 20, standardHeaders: true, legacyHeaders: false, skip: skipInTest })
 
 // Expose io et secret pour les routes
 app.set('io', io)
@@ -110,7 +115,7 @@ const writeLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => req.user?.id ? String(req.user.id) : 'anon',
-  skip: (req) => req.method === 'GET',
+  skip: (req) => req.method === 'GET' || skipInTest(),
   message: { ok: false, error: 'Trop de requêtes. Réessayez dans une minute.' },
   validate: { xForwardedForHeader: false },
 })
