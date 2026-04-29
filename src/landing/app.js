@@ -599,7 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Channels meta : description + nombre de membres affiches dans le header
   const CHAT_CHANNELS_META = {
-    'général':    { desc: 'Canal principal de la promo CPIA2 25-26',     members: 24 },
+    'général':    { desc: 'Canal principal de la promo L3 Info 25-26',  members: 24 },
     'annonces':   { desc: 'Lecture seule · annonces officielles',         members: 24 },
     'projet-web': { desc: 'Coordination Projet Web E4 · 8 équipes',       members: 18 },
     'algo-tp':    { desc: 'Entraide TPs algo · pas de spoilers SVP',      members: 22 },
@@ -616,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
       {
         av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '10:42',
         pinned: true,
-        txt: '<span class="msg-mention msg-mention--all">@CPIA2</span> Le livrable du <b>Projet Web E4</b> est à rendre <b>vendredi 17h</b>.',
+        txt: '<span class="msg-mention msg-mention--all">@promo</span> Le livrable du <b>Projet Web E4</b> est à rendre <b>vendredi 17h</b>.',
         att: { kind: 'file', icon: 'PDF', color: '#dc2626', name: 'Sujet Projet Web E4.pdf', meta: '2.4 Mo · 12 pages' },
         readBy: 22,
       },
@@ -821,7 +821,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ],
     },
     'Emma L.': {
-      presence: 'online', lastSeen: 'Connectée · sur la promo CPIA2',
+      presence: 'online', lastSeen: 'Connectée · sur la promo L3 Info',
       bg: '#059669', av: 'EL',
       msgs: [
         { av: 'EL', bg: '#059669', name: 'Emma L.', nc: '#059669', t: '14:02', txt: 'Tu as commencé le TP Algo ?' },
@@ -1049,11 +1049,11 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   }
 
-  // ── Generic feedback : applique sur tous les boutons "actions" qui sinon
-  // ne feraient rien dans la demo (chat-header-search, devoirs-cta,
-  // msg-react-add, msg-action, msg-att-action, preview-pdf-btn).
-  // Pulse subtil + petit toast "Indispo en démo" quand pertinent.
-  function attachIdleFeedback(selector, opts = {}) {
+  // ── Feedback visuel sur les boutons "muets" de la demo : scale + flash
+  // de couleur d'accent. Pas de toast textuel : le visiteur sent juste que
+  // le bouton repond, sans qu'on lui dise explicitement "demo only".
+  // Le hover prepare deja l'idee, le clic confirme avec un flash vif.
+  function attachIdleFeedback(selector) {
     document.querySelectorAll(selector).forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault()
@@ -1062,41 +1062,20 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.classList.remove('btn-pulse-feedback')
         void btn.offsetHeight
         btn.classList.add('btn-pulse-feedback')
-        setTimeout(() => btn.classList.remove('btn-pulse-feedback'), 480)
-        if (opts.toast) {
-          showFeedbackToast(opts.toast)
-        }
+        setTimeout(() => btn.classList.remove('btn-pulse-feedback'), 600)
       })
     })
   }
 
-  function showFeedbackToast(text) {
-    let toast = document.getElementById('idle-feedback-toast')
-    if (!toast) {
-      toast = document.createElement('div')
-      toast.id = 'idle-feedback-toast'
-      toast.className = 'idle-feedback-toast'
-      document.body.appendChild(toast)
-    }
-    toast.textContent = text
-    toast.classList.remove('idle-feedback-toast--hide')
-    void toast.offsetHeight
-    toast.classList.add('idle-feedback-toast--show')
-    clearTimeout(toast._t)
-    toast._t = setTimeout(() => {
-      toast.classList.remove('idle-feedback-toast--show')
-      toast.classList.add('idle-feedback-toast--hide')
-    }, 1800)
-  }
-
-  // ── Applique aux boutons actuellement "muets" de la demo landing
-  attachIdleFeedback('#demo-chat .chat-header-search', { toast: 'Recherche dans le canal · démo' })
-  attachIdleFeedback('#demo-devoirs .devoirs-cta',     { toast: 'Création d\'un devoir · démo' })
-  attachIdleFeedback('#demo-chat .msg-react-add',      { toast: 'Ajouter une réaction · démo' })
-  attachIdleFeedback('#demo-chat .msg-action',         { toast: '' })  // pulse only, pas de toast (3 boutons par message)
-  attachIdleFeedback('#demo-chat .msg-att-action',     { toast: 'Ouverture du fichier · démo' })
-  // Boutons de navigation PDF dans la preview Ressources
-  attachIdleFeedback('#demo-docs .preview-pdf-btn',    { toast: '' })
+  // ── Applique aux boutons "muets" de la demo landing (juste un retour
+  // visuel pour signifier que le clic est enregistre, sans pretendre faire
+  // l'action reelle).
+  attachIdleFeedback('#demo-chat .chat-header-search')
+  attachIdleFeedback('#demo-devoirs .devoirs-cta')
+  attachIdleFeedback('#demo-chat .msg-react-add')
+  attachIdleFeedback('#demo-chat .msg-action')
+  attachIdleFeedback('#demo-chat .msg-att-action')
+  attachIdleFeedback('#demo-docs .preview-pdf-btn')
 
   // ══════════════════════════════════════════════════════════════════════
   //  EASTER EGGS - 4 mini-surprises subtiles, sans casser l'experience
