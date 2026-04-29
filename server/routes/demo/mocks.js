@@ -574,8 +574,12 @@ const LUMEN_CHAPTER_CONTENTS = {
   },
 }
 
+// Shape attendu par le store Lumen : { repos, org }. Le wildcard ne doit pas
+// renvoyer juste un array sinon promoOrg reste null et la sidebar Lumen
+// affiche "Aucune organisation GitHub" en demo. cf. lumen.ts fetchReposForPromo.
 router.get('/lumen/repos/promo/:id', (req, res) => {
-  res.json({ ok: true, data: getLumenRepos(Number(req.params.id)) })
+  const promoId = Number(req.params.id)
+  res.json({ ok: true, data: { repos: getLumenRepos(promoId), org: 'cursus-demo' } })
 })
 router.get('/lumen/repos/:id', (req, res) => {
   const repoId = Number(req.params.id)

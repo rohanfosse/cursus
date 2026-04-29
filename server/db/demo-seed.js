@@ -90,10 +90,20 @@ function makeMessages(channelIds, students, teacher) {
   const [chGeneral, chWeb, chAlgo, chProjets] = channelIds
   const [emma, lucas, sara, jean, alice, mehdi, hugo, lea] = students
 
-  // Format reactions : JSON stringifie {emoji: [user_ids]}. Le frontend
-  // rend chaque emoji avec son compteur. On met des reactions sur 30% des
-  // messages (les plus engageants) — donne de la vie sans noyer la lecture.
-  const rx = (counts) => JSON.stringify(counts)
+  // Format reactions : le frontend (stores/messages.ts initReactions) attend
+  // soit un nombre, soit { count, users: string[] }. On passe le format
+  // enrichi pour avoir la liste des reacteurs en tooltip. Si on lui envoie
+  // juste un array (ancien bug), il l'interprete comme nombre et affiche
+  // [38,35] dans la pill au lieu du compteur.
+  const idToName = new Map([[teacher.id, teacher.name], ...students.map(s => [s.id, s.name])])
+  const rx = (counts) => {
+    const out = {}
+    for (const [emoji, userIds] of Object.entries(counts)) {
+      const users = userIds.map(uid => idToName.get(uid) ?? '').filter(Boolean)
+      out[emoji] = { count: userIds.length, users }
+    }
+    return JSON.stringify(out)
+  }
 
   return [
     // ────────────────────────────────────────────────────────────────────
@@ -114,7 +124,7 @@ function makeMessages(channelIds, students, teacher) {
     // ────────────────────────────────────────────────────────────────────
     // #developpement-web — coeur de la demo, thread long sur le projet
     // ────────────────────────────────────────────────────────────────────
-    { channel_id: chWeb, author: teacher, content: 'Le **livrable Projet Web E4** est a rendre vendredi 17h. Cahier des charges complet :\n\n- Frontend Vue ou React, responsive\n- Backend Node ou Python\n- Auth JWT, role-based\n- Tests unitaires (>= 60% coverage)\n- Deploiement sur un PaaS (Render, Fly.io, Vercel)\n\nDeposez vos rendus dans le devoir _Projet Web E4_ (tab Devoirs).', created_at: day(4), is_pinned: 1, reactions: rx({ '👀': [emma.id, lucas.id, alice.id, jean.id], '😅': [sara.id] }) },
+    { channel_id: chWeb, author: teacher, content: '**Projet Web E4** : rendu vendredi 17h dans le tab _Devoirs_. CDC complet et bareme dans Lumen > Projet Web E4.', created_at: day(4), is_pinned: 1, reactions: rx({ '👀': [emma.id, lucas.id, alice.id, jean.id], '😅': [sara.id] }) },
     { channel_id: chWeb, author: emma,    content: 'On peut travailler en equipe de 2 ou 3 ?', created_at: day(4) },
     { channel_id: chWeb, author: teacher, content: 'Oui, groupes de 2-3. Utilisez ce canal pour coordonner. Pensez a `/devoir Projet Web E4` pour epingler vos questions.', created_at: day(4) },
     { channel_id: chWeb, author: lucas,   content: 'On a commence avec @sara sur la partie auth. Quelqu\'un fait le front ?', created_at: day(2) },

@@ -119,14 +119,19 @@ describe('demo-seed: seedTenant', () => {
       ).all(tenantId)
       // Au moins quelques messages ont des reactions
       expect(withReactions.length).toBeGreaterThanOrEqual(5)
-      // Toutes parseables et au format { emoji: [user_ids] }
+      // Format enrichi attendu par stores/messages.ts : { emoji: { count, users[] } }
+      // Si on stocke juste un array d'ids, le frontend l'interprete comme nombre
+      // et affiche [38,35] dans la pill au lieu du compteur.
       for (const m of withReactions) {
         const parsed = JSON.parse(m.reactions)
         expect(parsed).toBeTypeOf('object')
-        for (const [emoji, ids] of Object.entries(parsed)) {
+        for (const [emoji, entry] of Object.entries(parsed)) {
           expect(typeof emoji).toBe('string')
-          expect(Array.isArray(ids)).toBe(true)
-          expect(ids.every(id => typeof id === 'number')).toBe(true)
+          expect(entry).toBeTypeOf('object')
+          expect(typeof entry.count).toBe('number')
+          expect(entry.count).toBeGreaterThan(0)
+          expect(Array.isArray(entry.users)).toBe(true)
+          expect(entry.users.every(u => typeof u === 'string')).toBe(true)
         }
       }
     })
