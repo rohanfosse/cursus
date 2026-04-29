@@ -284,55 +284,95 @@ router.post('/messages/search-all', (req, res) => {
 // les 4 types Live (Spark quiz, Pulse poll, Code, Board). Le prof voit un
 // panneau "ready" pretes a etre lancees, l'etudiant qui rejoint voit la
 // premiere activite "active" (Quiz Spark) avec ses options.
+// Shape attendu par le front (cf. types.LiveActivity) :
+//   - type=qcm/sondage_libre/live_code/board (pas quiz/pulse/code/board)
+//   - status=live/pending/closed (pas active/ready)
+//   - options/correct_answers/timer_seconds au top level (pas dans payload)
+//   - category=spark/pulse/code/board pour le filtre isSparkType()
+// Sans ce shape, StudentLiveView ne reconnait pas l'activite ('qcm') et
+// reste sur l'ecran "En attente d'une activite".
 const ACTIVE_LIVE_ACTIVITIES = [
   {
-    id: 1001, type: 'quiz', status: 'active', position: 0,
+    id: 1001, session_id: 0, type: 'qcm', category: 'spark', status: 'live', position: 0,
     title: 'Quel est l\'invariant d\'un arbre AVL ?',
-    payload: {
-      options: [
-        '|balanceFactor| <= 1 sur chaque noeud',
-        'profondeur gauche = profondeur droite',
-        'tous les fils sont equilibres',
-        'la hauteur est exactement log(n)',
-      ],
-      correct: 0,
-      duration_seconds: 30,
-    },
-    response_count: 7,
+    options: JSON.stringify([
+      '|balanceFactor| <= 1 sur chaque noeud',
+      'profondeur gauche = profondeur droite',
+      'tous les fils sont equilibres',
+      'la hauteur est exactement log(n)',
+    ]),
+    correct_answers: JSON.stringify([0]),
+    multi: 0, max_words: 0,
+    timer_seconds: 30,
+    started_at: new Date(Date.now() - 30_000).toISOString(), closed_at: null,
+    content: null, language: null,
     created_at: new Date(Date.now() - 4 * 60_000).toISOString(),
   },
   {
-    id: 1002, type: 'pulse', status: 'ready', position: 1,
+    id: 1002, session_id: 0, type: 'sondage_libre', category: 'pulse', status: 'pending', position: 1,
     title: 'Comment ressens-tu la veille de soutenance ?',
-    payload: {
-      max_words_per_user: 3,
-      placeholder: 'Un mot...',
-    },
-    response_count: 0,
+    options: null, correct_answers: null,
+    multi: 0, max_words: 3,
+    timer_seconds: 0,
+    started_at: null, closed_at: null,
+    content: null, language: null,
     created_at: new Date(Date.now() - 2 * 60_000).toISOString(),
   },
   {
-    id: 1003, type: 'code', status: 'ready', position: 2,
+    id: 1003, session_id: 0, type: 'live_code', category: 'code', status: 'pending', position: 2,
     title: 'Implementation collaborative : binary_search',
-    payload: {
-      language: 'python',
-      starter: 'def binary_search(arr, target):\n    # complete ici\n    pass',
-      duration_seconds: 600,
-    },
-    response_count: 0,
+    options: null, correct_answers: null,
+    multi: 0, max_words: 0,
+    timer_seconds: 600,
+    started_at: null, closed_at: null,
+    content: 'def binary_search(arr, target):\n    # complete ici\n    pass',
+    language: 'python',
     created_at: new Date(Date.now() - 90_000).toISOString(),
   },
   {
-    id: 1004, type: 'board', status: 'ready', position: 3,
+    id: 1004, session_id: 0, type: 'board', category: 'board', status: 'pending', position: 3,
     title: 'Brainstorm : que retenir du sprint ?',
-    payload: {
-      max_stickies_per_user: 5,
-      duration_seconds: 300,
-    },
-    response_count: 0,
+    options: null, correct_answers: null,
+    multi: 0, max_words: 5,
+    timer_seconds: 300,
+    started_at: null, closed_at: null,
+    content: null, language: null,
     created_at: new Date(Date.now() - 60_000).toISOString(),
   },
 ]
+
+// Join par code : un visiteur etudiant tape un code et rejoint la session
+// active. En demo il n'y a qu'une session active, donc tout code valide
+// (>=4 chars) renvoie la session AVL-2026. Permet au flow "Rejoindre"
+// de StudentLiveView de fonctionner sans qu'on doive deviner le code.
+router.get('/live/sessions/code/:code', (req, res) => {
+  const teacher = getDemoDb().prepare(
+    `SELECT id, name FROM demo_teachers WHERE tenant_id = ?`
+  ).get(req.tenantId)
+  const promo = getDemoDb().prepare(
+    `SELECT id FROM demo_promotions WHERE tenant_id = ? ORDER BY id LIMIT 1`
+  ).get(req.tenantId)
+  if (String(req.params.code || '').length < 4) {
+    return res.status(404).json({ ok: false, error: 'Code invalide' })
+  }
+  res.json({
+    ok: true,
+    data: {
+      id: 'demo-live-1',
+      promo_id: promo?.id ?? 1,
+      teacher_id: teacher ? -teacher.id : -1,
+      teacher_name: teacher?.name || 'Prof. Lemaire',
+      title: 'Live Algo · Arbres AVL & soutenance',
+      status: 'active',
+      join_code: 'AVL-2026',
+      is_async: 0,
+      open_until: null,
+      created_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+      ended_at: null,
+      activities: ACTIVE_LIVE_ACTIVITIES,
+    },
+  })
+})
 
 router.get('/live/sessions/promo/:id/active', (req, res) => {
   const teacher = getDemoDb().prepare(

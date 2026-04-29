@@ -541,12 +541,20 @@ const apiImpl = {
   },
   getLiveStatsForPromo:     (promoId: number) => get(`/api/live/sessions/promo/${promoId}/stats`),
 
-  // V2 alias : le live store utilise les variantes /api/live-v2/ qui n'existent
-  // pas en demo. On les redirige sur les routes /api/live/ (V1) que les mocks
-  // implementent. Permet au mode entrainement etudiant ("Sessions passees")
-  // de fonctionner en demo : fetchSession + submitResponse + fetchHistory.
-  getLiveV2Session:           (id: number)         => get(`/api/live/sessions/${id}`),
-  submitLiveV2Response:       (activityId: number, payload: unknown) => post(`/api/live/activities/${activityId}/respond`, payload),
+  // V2 alias : le live store (cf. stores/live.ts) utilise systematiquement
+  // les variantes /api/live-v2/ qui n'existent pas en demo. On les redirige
+  // sur les routes /api/live/ (V1) que les mocks implementent. Sans ca,
+  // chaque appel V2 tombe dans makeWebFallback qui retourne [], donc
+  // currentSession reste null et l'onglet Live reste figé sur l'ecran
+  // "Rejoindre une session".
+  // Lecture
+  getLiveV2Session:           (id: number)             => get(`/api/live/sessions/${id}`),
+  getActiveLiveV2Session:     (promoId: number)        => get(`/api/live/sessions/promo/${promoId}/active`),
+  getLiveV2SessionByCode:     (code: string)           => get(`/api/live/sessions/code/${code}`),
+  getLiveV2SessionsForPromo:  (promoId: number)        => get(`/api/live/sessions/promo/${promoId}`),
+  getLiveV2ActivityResults:   (activityId: number)     => get(`/api/live/activities/${activityId}/results`),
+  getLiveV2Leaderboard:       (sessionId: number)      => get(`/api/live/sessions/${sessionId}/leaderboard`),
+  getLiveV2StatsForPromo:     (promoId: number)        => get(`/api/live/sessions/promo/${promoId}/stats`),
   getLiveV2HistoryForPromo:   (promoId: number, params?: { search?: string; dateFrom?: string; dateTo?: string }) => {
     const qs = new URLSearchParams()
     if (params?.search)   qs.set('search', params.search)
@@ -555,6 +563,10 @@ const apiImpl = {
     const q = qs.toString()
     return get(`/api/live/sessions/promo/${promoId}/history${q ? '?' + q : ''}`)
   },
+  // Ecriture (utilisees principalement par le prof — en demo on accepte
+  // mais les routes mockees peuvent ne pas exister, makeWebFallback
+  // catchera silencieusement)
+  submitLiveV2Response:       (activityId: number, payload: unknown) => post(`/api/live/activities/${activityId}/respond`, payload),
 
   emitLiveJoin(promoId: number)  { socket?.emit('live:join', { promoId }) },
   emitLiveLeave(promoId: number) { socket?.emit('live:leave', { promoId }) },
