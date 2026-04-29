@@ -187,9 +187,14 @@ const SCENARIOS: DemoScenario[] = [
   },
 ]
 
-const FIRST_DELAY_MS    = 20_000   // 20s avant le 1er scenario
-const MIN_GROUP_INTERVAL = 30_000  // 30s mini entre 2 scenarios
-const MAX_GROUP_INTERVAL = 90_000  // 90s maxi
+// Cadence reduite v2 : la demo etait trop spammeuse (1 scenario toutes les
+// 30-90s + chaque scenario en envoie 1-3). Le visiteur est noye sous les
+// toasts. On allonge les intervalles pour ne declencher qu'une vague de
+// notifs toutes les 2-4 minutes : assez pour montrer la feature, pas trop
+// pour ne pas casser l'exploration.
+const FIRST_DELAY_MS    = 45_000    // 45s avant le 1er scenario (etait 20s)
+const MIN_GROUP_INTERVAL = 120_000  // 2 min mini entre 2 scenarios (etait 30s)
+const MAX_GROUP_INTERVAL = 240_000  // 4 min maxi (etait 90s)
 
 export function useDemoNotifications(): void {
   const appStore = useAppStore()
