@@ -4188,6 +4188,50 @@ img { max-width: 100%; display: block; }
   .btn-burst-p { animation: none; opacity: 0; }
 }
 
+/* ── Feedback generique sur clic d'un bouton "muet" (pas de handler reel
+   dans la demo) : pulse subtil + scale ping. Garde l'utilisateur dans le
+   flow sans laisser un bouton silencieux. ── */
+.btn-pulse-feedback {
+  animation: btnPulseFeedback 480ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes btnPulseFeedback {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(0.93); }
+  70%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+/* Toast informatif "fonction démo" : apparait en bas centre 1.8s puis fade */
+.idle-feedback-toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  padding: 8px 16px;
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  z-index: 9998;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease, transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.idle-feedback-toast--show {
+  opacity: 0.96;
+  transform: translateX(-50%) translateY(0);
+}
+.idle-feedback-toast--hide {
+  opacity: 0;
+  transform: translateX(-50%) translateY(4px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-pulse-feedback { animation: none; }
+}
+
 /* ══════════════════════════════════════════════════════════════════
    EASTER EGGS : Konami confetti, logo spin, pill heart, test inf
    ══════════════════════════════════════════════════════════════════ */
@@ -4319,24 +4363,30 @@ img { max-width: 100%; display: block; }
 
 .live-options { display: flex; flex-direction: column; gap: 8px; }
 
-/* ── Phase VOTING : pas de % ni de fill visible. Le compteur global est
-   le seul indicateur de progression. Les options restent vierges. ── */
-.live-options--voting .live-opt-fill { display: none; }
+/* Couleur subtile par option : 4 teintes pastels distinctes pour repérer
+   visuellement A/B/C/D sans dominer la lecture. */
+.live-opt[data-opt="a"] { --opt-c: #06B6D4; }
+.live-opt[data-opt="b"] { --opt-c: #8B5CF6; }
+.live-opt[data-opt="c"] { --opt-c: #F59E0B; }
+.live-opt[data-opt="d"] { --opt-c: #EC4899; }
+
+/* ── Phase VOTING : pas de bar ni de pourcentage. Compteur global only. ── */
+.live-options--voting .live-opt-bar { display: none; }
 .live-options--voting .live-opt-pct { display: none; }
 .live-options--voting .live-opt-icon { display: none; }
-/* Ping rapide quand un vote tombe sur cette option (suggere "quelqu'un dans
-   la salle vient de cliquer ici"). Subtle scale + glow + retour. */
+/* Ping rapide quand un vote tombe sur cette option : pulse de la couleur
+   propre a l'option (pas de la couleur live globale). */
 .live-opt--just-voted {
   animation: optVotePing 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 @keyframes optVotePing {
-  0%   { transform: translateY(0) scale(1);    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-live) 40%, transparent); }
-  35%  { transform: translateY(-1px) scale(1.015); box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-live) 20%, transparent); }
+  0%   { transform: translateY(0) scale(1);    box-shadow: 0 0 0 0 color-mix(in srgb, var(--opt-c, var(--color-live)) 40%, transparent); }
+  35%  { transform: translateY(-1px) scale(1.015); box-shadow: 0 0 0 4px color-mix(in srgb, var(--opt-c, var(--color-live)) 22%, transparent); }
   100% { transform: translateY(0) scale(1);    box-shadow: 0 0 0 0 transparent; }
 }
 
-/* ── Phase REVEAL : le fill et le pourcentage apparaissent. ── */
-.live-options--reveal .live-opt-fill { display: block; }
+/* ── Phase REVEAL : la bar pousse + le pourcentage apparait. ── */
+.live-options--reveal .live-opt-bar { display: block; }
 .live-options--reveal .live-opt-pct  {
   display: inline-block;
   animation: pctFadeIn 400ms var(--ease-smooth);
@@ -4346,18 +4396,30 @@ img { max-width: 100%; display: block; }
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: none; }
 }
-/* ── Option Spark : fill du poll INSIDE l'option (style Mentimeter) ──── */
+
+/* ── Anim de reussite quand l'utilisateur clique la bonne reponse ── */
+.live-opt--success {
+  animation: optSuccess 700ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes optSuccess {
+  0%   { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+  35%  { box-shadow: 0 0 0 6px rgba(5, 150, 105, 0.30); transform: scale(1.03); }
+  100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+}
+/* ── Option Spark : structure 2 lignes (row + bar SOUS le texte) ────
+   Le texte ne shifte plus en fonction du % : la bar est un element
+   distinct qui pousse en dessous, pas un fond qui glisse derriere. */
 .live-opt {
-  position: relative;
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(99, 102, 241, 0.04);
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--opt-c, var(--color-live)) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--opt-c, var(--color-live)) 16%, transparent);
   font-size: 14px; color: var(--text-2);
   cursor: pointer;
-  overflow: hidden;
-  transition: border-color var(--duration-fast), transform var(--duration-fast), box-shadow var(--duration-fast);
+  transition: border-color var(--duration-fast), transform var(--duration-fast), box-shadow var(--duration-fast), background var(--duration-fast);
   opacity: 0; transform: translateY(8px);
   animation: msgAppear 0.35s var(--ease-smooth) forwards;
 }
@@ -4366,68 +4428,84 @@ img { max-width: 100%; display: block; }
 .live-opt:nth-child(3) { animation-delay: 0.15s; }
 .live-opt:nth-child(4) { animation-delay: 0.2s; }
 .live-opt:hover {
-  border-color: color-mix(in srgb, var(--color-live) 35%, var(--border));
+  border-color: color-mix(in srgb, var(--opt-c, var(--color-live)) 38%, transparent);
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-live) 14%, transparent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--opt-c, var(--color-live)) 16%, transparent);
 }
 .live-opt:active { transform: translateY(0) scale(0.98); }
-.live-opt:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
+.live-opt:focus-visible { outline: 2px solid var(--opt-c, var(--color-live)); outline-offset: 2px; }
 
-/* Fill du poll : barre de fond animee qui grandit avec --w */
-.live-opt-fill {
-  position: absolute;
-  top: 0; left: 0; bottom: 0;
+/* Row : letter + texte + pct + icone */
+.live-opt-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Bar sous le texte : barre fine 5px, fill grandit de 0% a la valeur cible.
+   Aucun fond derriere le texte donc le texte ne shifte pas. */
+.live-opt-bar {
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text-3) 12%, transparent);
+  overflow: hidden;
+  margin-top: 2px;
+}
+.live-opt-bar-fill {
+  display: block;
+  height: 100%;
   width: var(--w, 0%);
-  background: linear-gradient(90deg, rgba(99, 102, 241, 0.10), rgba(99, 102, 241, 0.18));
-  border-radius: 12px 0 0 12px;
-  transition: width 600ms var(--ease-smooth), background 320ms;
-  z-index: 0;
-  pointer-events: none;
+  background: linear-gradient(90deg, var(--opt-c, var(--color-live)), color-mix(in srgb, var(--opt-c, var(--color-live)) 65%, #fff));
+  border-radius: 3px;
+  transition: width 700ms var(--ease-smooth);
 }
-.live-opt > * { position: relative; z-index: 1; }
 
-/* Selected : bordure primary + ring + scale subtil */
+/* Selected : ring + ombre coloree par option */
 .live-opt.selected {
-  border-color: var(--color-live);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-live) 18%, transparent), 0 4px 14px color-mix(in srgb, var(--color-live) 22%, transparent);
-}
-.live-opt.selected .live-opt-fill {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--color-live) 18%, transparent), color-mix(in srgb, var(--color-live) 28%, transparent));
+  border-color: var(--opt-c, var(--color-live));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--opt-c, var(--color-live)) 20%, transparent),
+    0 4px 14px color-mix(in srgb, var(--opt-c, var(--color-live)) 24%, transparent);
 }
 
-/* Reveal correct : fond + bordure verts, animation pulse */
+/* Reveal correct : bord vert, texte vert, lettre verte, anim pulse */
 .live-opt.revealed-correct {
   border-color: #059669;
+  background: rgba(5, 150, 105, 0.10);
   color: #047857;
   font-weight: 700;
   animation: optCorrect 700ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.live-opt.revealed-correct .live-opt-fill {
-  background: linear-gradient(90deg, rgba(5, 150, 105, 0.22), rgba(5, 150, 105, 0.34));
+.live-opt.revealed-correct .live-opt-bar { background: rgba(5, 150, 105, 0.16); }
+.live-opt.revealed-correct .live-opt-bar-fill {
+  background: linear-gradient(90deg, #10B981, #059669);
 }
 @keyframes optCorrect {
   0%, 100% { transform: scale(1); }
-  40%      { transform: scale(1.04); }
+  40%      { transform: scale(1.03); }
 }
 [data-theme="dark"] .live-opt.revealed-correct { color: #34D399; }
 
-/* Reveal wrong : fond gris + opacity reduite, sauf si selected (rouge + shake) */
+/* Reveal wrong : opacite reduite, sauf selected (rouge + shake) */
 .live-opt.revealed-wrong {
-  opacity: 0.55;
+  opacity: 0.5;
+  background: color-mix(in srgb, var(--text-3) 6%, transparent);
   border-color: var(--border);
 }
-.live-opt.revealed-wrong .live-opt-fill {
-  background: linear-gradient(90deg, rgba(148, 163, 184, 0.15), rgba(148, 163, 184, 0.22));
+.live-opt.revealed-wrong .live-opt-bar-fill {
+  background: linear-gradient(90deg, var(--text-3), color-mix(in srgb, var(--text-3) 60%, transparent));
 }
 .live-opt.revealed-wrong.selected {
   opacity: 1;
+  background: rgba(239, 68, 68, 0.08);
   border-color: var(--color-live);
   color: var(--color-live);
   font-weight: 700;
   animation: optWrong 480ms ease;
 }
-.live-opt.revealed-wrong.selected .live-opt-fill {
-  background: linear-gradient(90deg, rgba(239, 68, 68, 0.18), rgba(239, 68, 68, 0.28));
+.live-opt.revealed-wrong.selected .live-opt-bar-fill {
+  background: linear-gradient(90deg, #EF4444, #DC2626);
 }
 @keyframes optWrong {
   0%, 100%   { transform: translateX(0); }
@@ -4435,45 +4513,48 @@ img { max-width: 100%; display: block; }
   40%, 80%   { transform: translateX(4px); }
 }
 
-[data-theme="dark"] .live-opt { background: rgba(255, 255, 255, 0.04); }
+[data-theme="dark"] .live-opt {
+  background: color-mix(in srgb, var(--opt-c, var(--color-live)) 8%, transparent);
+}
 
 .live-opt-letter {
   width: 26px; height: 26px;
   border-radius: 8px;
-  background: var(--border);
-  color: var(--text-2);
+  background: color-mix(in srgb, var(--opt-c, var(--color-live)) 18%, transparent);
+  color: var(--opt-c, var(--color-live));
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 800;
   flex-shrink: 0;
   transition: background var(--duration-fast), color var(--duration-fast), transform var(--duration-fast);
 }
 .live-opt:hover .live-opt-letter { transform: scale(1.06); }
-.live-opt.selected .live-opt-letter { background: var(--color-live); color: #fff; }
+.live-opt.selected .live-opt-letter { background: var(--opt-c, var(--color-live)); color: #fff; }
 .live-opt.revealed-correct .live-opt-letter { background: #059669; color: #fff; }
 .live-opt.revealed-wrong.selected .live-opt-letter { background: var(--color-live); color: #fff; }
 
-.live-opt-text { flex: 1; font-weight: 500; }
-.live-opt.revealed-correct .live-opt-text,
+.live-opt-text { flex: 1; font-weight: 500; color: var(--text); }
+.live-opt.revealed-correct .live-opt-text { color: #047857; font-weight: 700; }
 .live-opt.selected .live-opt-text { font-weight: 700; }
 
 .live-opt-pct {
   font-family: var(--font-mono);
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--opt-c, var(--text-3));
   letter-spacing: 0.2px;
-  min-width: 32px;
+  min-width: 38px;
   text-align: right;
   transition: color var(--duration-fast);
 }
 .live-opt.revealed-correct .live-opt-pct { color: #059669; }
 .live-opt.revealed-wrong.selected .live-opt-pct { color: var(--color-live); }
+.live-opt.revealed-wrong:not(.selected) .live-opt-pct { color: var(--text-3); }
 
 .live-opt-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px; height: 22px;
+  width: 20px; height: 20px;
   border-radius: 50%;
   flex-shrink: 0;
   color: transparent;

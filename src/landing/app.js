@@ -1049,6 +1049,55 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   }
 
+  // ── Generic feedback : applique sur tous les boutons "actions" qui sinon
+  // ne feraient rien dans la demo (chat-header-search, devoirs-cta,
+  // msg-react-add, msg-action, msg-att-action, preview-pdf-btn).
+  // Pulse subtil + petit toast "Indispo en démo" quand pertinent.
+  function attachIdleFeedback(selector, opts = {}) {
+    document.querySelectorAll(selector).forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (prefersReducedMotion) return
+        btn.classList.remove('btn-pulse-feedback')
+        void btn.offsetHeight
+        btn.classList.add('btn-pulse-feedback')
+        setTimeout(() => btn.classList.remove('btn-pulse-feedback'), 480)
+        if (opts.toast) {
+          showFeedbackToast(opts.toast)
+        }
+      })
+    })
+  }
+
+  function showFeedbackToast(text) {
+    let toast = document.getElementById('idle-feedback-toast')
+    if (!toast) {
+      toast = document.createElement('div')
+      toast.id = 'idle-feedback-toast'
+      toast.className = 'idle-feedback-toast'
+      document.body.appendChild(toast)
+    }
+    toast.textContent = text
+    toast.classList.remove('idle-feedback-toast--hide')
+    void toast.offsetHeight
+    toast.classList.add('idle-feedback-toast--show')
+    clearTimeout(toast._t)
+    toast._t = setTimeout(() => {
+      toast.classList.remove('idle-feedback-toast--show')
+      toast.classList.add('idle-feedback-toast--hide')
+    }, 1800)
+  }
+
+  // ── Applique aux boutons actuellement "muets" de la demo landing
+  attachIdleFeedback('#demo-chat .chat-header-search', { toast: 'Recherche dans le canal · démo' })
+  attachIdleFeedback('#demo-devoirs .devoirs-cta',     { toast: 'Création d\'un devoir · démo' })
+  attachIdleFeedback('#demo-chat .msg-react-add',      { toast: 'Ajouter une réaction · démo' })
+  attachIdleFeedback('#demo-chat .msg-action',         { toast: '' })  // pulse only, pas de toast (3 boutons par message)
+  attachIdleFeedback('#demo-chat .msg-att-action',     { toast: 'Ouverture du fichier · démo' })
+  // Boutons de navigation PDF dans la preview Ressources
+  attachIdleFeedback('#demo-docs .preview-pdf-btn',    { toast: '' })
+
   // ══════════════════════════════════════════════════════════════════════
   //  EASTER EGGS - 4 mini-surprises subtiles, sans casser l'experience
   //
@@ -1418,10 +1467,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // ══════════════════════════════════════════════════════════════════════
   //  LIVE QUIZ - multi-questions interactif
   // ══════════════════════════════════════════════════════════════════════
+  // Questions volontairement simples / accessibles : meme un visiteur non-tech
+  // doit comprendre l'enjeu en lisant la question. Statistiques realistes
+  // (la majorite trouve, mais 10-30% se trompent), bonne reponse decalee dans
+  // l'ordre pour que ce ne soit pas toujours la 2eme.
   const quizQuestions = [
-    { q: 'Quelle est la complexité d\'un tri fusion ?', opts: ['O(n)', 'O(n log n)', 'O(n²)', 'O(log n)'], correct: 1, stats: [12, 68, 15, 5], count: 28 },
-    { q: 'Quel protocole utilise le port 443 ?', opts: ['HTTP', 'FTP', 'HTTPS', 'SSH'], correct: 2, stats: [8, 4, 79, 9], count: 31 },
-    { q: 'Que signifie le S dans SOLID ?', opts: ['Scalable', 'Single Responsibility', 'Secure', 'Stateless'], correct: 1, stats: [15, 62, 12, 11], count: 26 },
+    { q: 'Combien de bits y a-t-il dans un octet ?',
+      opts: ['4', '6', '8', '16'],
+      correct: 2, stats: [4, 6, 78, 12], count: 28 },
+    { q: 'Que signifie l\'acronyme URL ?',
+      opts: ['User Resource Link', 'Uniform Resource Locator', 'Universal Routing Layer', 'Unified Reference Logic'],
+      correct: 1, stats: [11, 71, 9, 9], count: 31 },
+    { q: 'Quel langage permet de mettre en forme une page web ?',
+      opts: ['HTML', 'CSS', 'JavaScript', 'Python'],
+      correct: 1, stats: [18, 64, 14, 4], count: 26 },
   ]
 
   const quizContainer = document.getElementById('live-quiz-demo')
@@ -1505,7 +1564,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Reset visuel : pas de fills, pas de pourcentages pendant la phase vote
       optsEl.querySelectorAll('.live-opt').forEach(o => {
-        o.querySelector('.live-opt-fill')?.style.setProperty('--w', '0%')
+        o.querySelector('.live-opt-bar-fill')?.style.setProperty('--w', '0%')
         const pct = o.querySelector('.live-opt-pct')
         if (pct) pct.textContent = ''
       })
@@ -1561,7 +1620,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isCorrect = parseInt(o.dataset.idx) === q.correct
         // Decalage pour la sequence d'apparition des bars + pct
         setTimeout(() => {
-          o.querySelector('.live-opt-fill')?.style.setProperty('--w', pct + '%')
+          o.querySelector('.live-opt-bar-fill')?.style.setProperty('--w', pct + '%')
           const lab = o.querySelector('.live-opt-pct')
           if (lab) lab.textContent = pct + '%'
         }, i * 110)
@@ -1590,13 +1649,19 @@ document.addEventListener('DOMContentLoaded', () => {
       textEl.textContent = q.q
       countEl.textContent = `0 réponse`
       startTimer(30)
+      // Structure : 2 lignes (header + bar). La bar est SOUS le texte
+      // donc le texte ne bouge plus en fonction du pourcentage.
+      // Chaque option a sa propre couleur (--opt-c) selon son index pour
+      // donner un repere visuel distinct (cyan / violet / amber / pink).
       optsEl.innerHTML = q.opts.map((o, i) =>
-        `<div class="live-opt" data-idx="${i}" data-correct="${i === q.correct ? 1 : 0}" tabindex="0" role="button">
-          <span class="live-opt-fill" style="--w:0%"></span>
-          <span class="live-opt-letter">${'ABCD'[i]}</span>
-          <span class="live-opt-text">${o}</span>
-          <span class="live-opt-pct"></span>
-          <span class="live-opt-icon"></span>
+        `<div class="live-opt" data-idx="${i}" data-correct="${i === q.correct ? 1 : 0}" data-opt="${'abcd'[i]}" tabindex="0" role="button">
+          <div class="live-opt-row">
+            <span class="live-opt-letter">${'ABCD'[i]}</span>
+            <span class="live-opt-text">${o}</span>
+            <span class="live-opt-pct"></span>
+            <span class="live-opt-icon"></span>
+          </div>
+          <span class="live-opt-bar"><span class="live-opt-bar-fill" style="--w:0%"></span></span>
         </div>`
       ).join('')
       if (prefersReducedMotion) {
@@ -1605,7 +1670,7 @@ document.addEventListener('DOMContentLoaded', () => {
         optsEl.classList.remove('live-options--voting')
         optsEl.classList.add('live-options--reveal')
         optsEl.querySelectorAll('.live-opt').forEach((o, i) => {
-          o.querySelector('.live-opt-fill')?.style.setProperty('--w', q.stats[i] + '%')
+          o.querySelector('.live-opt-bar-fill')?.style.setProperty('--w', q.stats[i] + '%')
           const lab = o.querySelector('.live-opt-pct')
           if (lab) lab.textContent = q.stats[i] + '%'
           const isCorrect = parseInt(o.dataset.idx) === q.correct
@@ -1625,6 +1690,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (revealed) return
       optsEl.querySelectorAll('.live-opt').forEach(o => o.classList.remove('selected'))
       opt.classList.add('selected')
+      // Petite anim de reussite si l'utilisateur clique la bonne reponse :
+      // pulse spring + 3 confetti SVG. Doux, pas tape-a-l'oeil.
+      const isCorrect = parseInt(opt.dataset.idx) === q.correct
+      if (isCorrect && !prefersReducedMotion) {
+        opt.classList.remove('live-opt--success')
+        void opt.offsetHeight
+        opt.classList.add('live-opt--success')
+        spawnParticleBurst(opt, EMOJI_PARTICLES.slice(0, 3))
+      }
       revealT = setTimeout(() => revealAnswers(q), 900)
     }
 
