@@ -153,6 +153,29 @@ function makeMessages(channelIds, students, teacher) {
     { channel_id: chProjets, author: lucas,   content: 'Question ouverte : qui prefere Trello vs Notion vs le Kanban Cursus pour suivre un projet ? On utilise quoi ensuite en stage ?', created_at: hr(4) },
     { channel_id: chProjets, author: jean,    content: 'En stage j\'avais Jira, plus puissant mais lourd. Le Kanban Cursus c\'est entre Trello (simple) et Jira (lourd) — assez pour de la pedagogie.', created_at: hr(3) },
     { channel_id: chProjets, author: alice,   content: 'Je trouve que l\'integration `/devoir` -> kanban est bien pensee, ca evite de jongler. Mais on peut exporter ICS si besoin du calendrier perso.', created_at: hr(2), reactions: rx({ '👍': [lucas.id, emma.id] }) },
+
+    // ────────────────────────────────────────────────────────────────────
+    // Activite des dernieres heures : echanges courts qui donnent une
+    // sensation "promo encore active". On evite de tout poster a la
+    // meme heure pour que la timeline paraisse organique.
+    // ────────────────────────────────────────────────────────────────────
+    { channel_id: chWeb,     author: hugo,     content: 'Petit retex sur la PR auth : les tests `verifyToken` etaient flaky a cause d\'un Date.now() non mocke. Fixe avec `vi.useFakeTimers()` + `vi.setSystemTime()`.', created_at: min(95) },
+    { channel_id: chWeb,     author: emma,     content: 'Bonne idee, je rajoute la meme convention sur mes tests middleware. @hugo tu peux push la config dans `vitest.setup.ts` ?', created_at: min(80) },
+    { channel_id: chWeb,     author: hugo,     content: 'Vu, push fait. PR `chore/test-utils` ouverte, deux lignes a review.', created_at: min(75), reactions: rx({ '👀': [emma.id, lucas.id] }) },
+
+    { channel_id: chAlgo,    author: lea,      content: 'Question rapide : l\'AVL c\'est `O(log n)` insertion, mais avec **rebalance amortise**, c\'est toujours `O(log n)` ou ca peut grimper ?', created_at: min(45) },
+    { channel_id: chAlgo,    author: jean,     content: 'Toujours `O(log n)` worst case grace a l\'invariant |bf| <= 1. Pas d\'amortissement necessaire, contrairement aux arbres splay.', created_at: min(40), reactions: rx({ '🎯': [lea.id, sara.id, hugo.id] }) },
+    { channel_id: chAlgo,    author: sara,     content: 'J\'ai fini mon TP4 ! Reste plus qu\'a verifier les tests E2E.', created_at: min(25), reactions: rx({ '🎉': [emma.id, jean.id, lea.id, mehdi.id] }) },
+
+    { channel_id: chProjets, author: emma,     content: 'Quelqu\'un sait si le jury de soutenance accepte un pitch en anglais ? On a pense le faire bilingue.', created_at: min(35) },
+    { channel_id: chProjets, author: teacher,  content: 'Bilingue OK pour la soutenance, du moment que la doc reste lisible pour tout le jury. Privilegiez l\'anglais sur les **commentaires de code**, c\'est plus pro.', created_at: min(30), reactions: rx({ '✅': [emma.id, lucas.id, alice.id] }) },
+    { channel_id: chProjets, author: lucas,    content: 'On part sur ca. Je traduis le README ce soir.', created_at: min(15) },
+
+    { channel_id: chGeneral, author: alice,    content: 'Petit rappel : la page de la promo a maintenant un raccourci `Ctrl+K` pour la recherche globale. Tres pratique pour retrouver un message ancien.', created_at: min(20), reactions: rx({ '💡': [emma.id, lea.id, hugo.id, mehdi.id] }) },
+    { channel_id: chGeneral, author: jean,     content: 'Bon plan. Je teste tout de suite.', created_at: min(12) },
+    // Le tout dernier message : quelques minutes a peine, sans reaction (pas
+    // encore eu le temps), pour donner cette sensation "ca vient de tomber".
+    { channel_id: chGeneral, author: emma,     content: 'On se retrouve en bibli a 17h pour le sprint final ? Je ramene cafe + viennoiseries.', created_at: min(3) },
   ]
 }
 

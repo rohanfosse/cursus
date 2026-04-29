@@ -93,7 +93,7 @@ const DEMO_DOCUMENTS = (channelId, promoId) => {
     { id: 1002, channel_id: channelId, promo_id: promoId, category: 'Cours',     type: 'pdf',      name: 'Cours - Arbres AVL.pdf',      path_or_url: 'https://example.com/cours-avl.pdf',     content: 'https://example.com/cours-avl.pdf',     description: '8 pages - rotations et invariant equilibre',  file_size: 1_184_320, travail_id: null, travail_title: null, created_at: day(15) },
     { id: 1003, channel_id: channelId, promo_id: promoId, category: 'TP',        type: 'docx',     name: 'Sujet TP - Routage.docx',     path_or_url: 'https://example.com/tp-routage.docx',  content: 'https://example.com/tp-routage.docx',  description: 'Sujet du TP4 - 3 pages',                       file_size:   181_248, travail_id: null, travail_title: null, created_at: day(10) },
     { id: 1004, channel_id: channelId, promo_id: promoId, category: 'TP',        type: 'xlsx',     name: 'Notes - Algo S1.xlsx',        path_or_url: 'https://example.com/notes-s1.xlsx',    content: 'https://example.com/notes-s1.xlsx',    description: 'Releve des notes du semestre 1',              file_size:    96_768, travail_id: null, travail_title: null, created_at: day(8) },
-    { id: 1005, channel_id: channelId, promo_id: promoId, category: 'Externe',   type: 'link',     name: 'GitHub - Projet Web E4',       path_or_url: 'https://github.com/cesi/projet-web-e4', content: 'https://github.com/cesi/projet-web-e4', description: 'Repo template avec CI deja configuree',       file_size: null,      travail_id: null, travail_title: null, created_at: day(5) },
+    { id: 1005, channel_id: channelId, promo_id: promoId, category: 'Externe',   type: 'link',     name: 'GitHub - Projet Web E4',       path_or_url: 'https://github.com/cursus-demo/projet-web-e4', content: 'https://github.com/cursus-demo/projet-web-e4', description: 'Repo template avec CI deja configuree',       file_size: null,      travail_id: null, travail_title: null, created_at: day(5) },
     { id: 1006, channel_id: channelId, promo_id: promoId, category: 'Externe',   type: 'link',     name: 'Visualiseur AVL interactif',   path_or_url: 'https://www.cs.usfca.edu/~galles/visualization/AVLtree.html', content: 'https://www.cs.usfca.edu/~galles/visualization/AVLtree.html', description: 'Outil web pour voir les rotations en direct', file_size: null, travail_id: null, travail_title: null, created_at: day(4) },
     { id: 1007, channel_id: channelId, promo_id: promoId, category: 'Ressource', type: 'notebook', name: 'main_test.ipynb',              path_or_url: 'https://example.com/notebook.ipynb',   content: 'https://example.com/notebook.ipynb',   description: 'Tests interactifs Python pour le tri',        file_size:    62_464, travail_id: null, travail_title: null, created_at: day(2) },
   ]
@@ -197,9 +197,37 @@ router.get('/messages/dm-files', (_req, res) => res.json({
 }))
 router.post('/messages/reactions', (_req, res) => res.json({ ok: true, data: null }))
 
-// ── Recherche (pas de FTS en demo, retourne vide) ────────────────────
-router.get('/messages/search',      (_req, res) => res.json({ ok: true, data: [] }))
-router.post('/messages/search-all', (_req, res) => res.json({ ok: true, data: [] }))
+// ── Recherche : LIKE simple sur les messages du seed (pas de FTS) ───
+// Le visiteur qui tape "auth" ou "AVL" doit voir des resultats coherents
+// avec ce qu'il vient de lire dans les canaux. Limite a 20 hits.
+function searchDemoMessages(req, q) {
+  if (!q || q.length < 2) return []
+  try {
+    const rows = getDemoDb().prepare(`
+      SELECT m.id, m.channel_id, m.author_name, m.author_initials, m.content, m.created_at,
+             c.name AS channel_name
+      FROM demo_messages m JOIN demo_channels c ON c.id = m.channel_id AND c.tenant_id = m.tenant_id
+      WHERE m.tenant_id = ? AND LOWER(m.content) LIKE LOWER(?)
+      ORDER BY m.created_at DESC
+      LIMIT 20
+    `).all(req.tenantId, `%${q}%`)
+    return rows.map(r => ({
+      id: r.id, channel_id: r.channel_id, channel_name: r.channel_name,
+      author_name: r.author_name, author_initials: r.author_initials,
+      content: r.content, created_at: r.created_at,
+      // Highlight basique : encadre le terme dans <mark>...</mark>
+      preview: r.content.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<mark>$1</mark>').slice(0, 200),
+    }))
+  } catch { return [] }
+}
+router.get('/messages/search', (req, res) => {
+  const q = String(req.query.q || '').trim()
+  res.json({ ok: true, data: searchDemoMessages(req, q) })
+})
+router.post('/messages/search-all', (req, res) => {
+  const q = String(req.body?.q || '').trim()
+  res.json({ ok: true, data: searchDemoMessages(req, q) })
+})
 
 // ── Live ─────────────────────────────────────────────────────────────
 // Session Live "fake en cours" : permet au visiteur etudiant de voir
@@ -242,11 +270,63 @@ router.get('/live/sessions/promo/:id/history', (_req, res) => {
   })
 })
 
+// Detail d'une session live passee : activites + leaderboard. Affiche
+// dans le viewer "Historique" cote prof et permet de replayer une session.
+const LIVE_SESSION_DETAILS = {
+  'demo-live-h1': {
+    id: 'demo-live-h1', title: 'Quiz Web - Auth & JWT', status: 'ended',
+    started_at: new Date(Date.now() - 2 * 86400_000 - 30 * 60_000).toISOString(),
+    ended_at:   new Date(Date.now() - 2 * 86400_000).toISOString(),
+    activities: [
+      { id: 1, type: 'quiz', title: 'Que stocke un JWT ?',           options: ['Le mot de passe', 'Un token signé', 'Une session DB', 'Un cookie HTTP'],     correct: 1, stats: [4, 78, 12, 6],  count: 18 },
+      { id: 2, type: 'quiz', title: 'Algo de hash recommande 2024 ?', options: ['MD5', 'SHA1', 'argon2id', 'bcrypt seul'],                                    correct: 2, stats: [0, 0, 67, 33], count: 18 },
+      { id: 3, type: 'quiz', title: 'CORS empeche...',                options: ['Les attaques XSS', 'Les requetes cross-origin non autorisees', 'Les cookies tiers', 'Les redirections'], correct: 1, stats: [22, 67, 6, 5], count: 18 },
+      { id: 4, type: 'quiz', title: 'Bonne pratique pour le secret JWT ?', options: ['Hardcoder dans le code', 'Variable env + rotation', 'Dans le README', 'Dans localStorage'], correct: 1, stats: [0, 89, 0, 11], count: 18 },
+    ],
+    leaderboard: [
+      { rank: 1, student_id: 1, student_name: 'Emma Lefevre',     score: 4 },
+      { rank: 2, student_id: 4, student_name: 'Jean Durand',      score: 4 },
+      { rank: 3, student_id: 5, student_name: 'Alice Martin',     score: 3 },
+      { rank: 4, student_id: 2, student_name: 'Lucas Bernard',    score: 3 },
+      { rank: 5, student_id: 3, student_name: 'Sara Bouhassoun',  score: 2 },
+    ],
+  },
+  'demo-live-h2': {
+    id: 'demo-live-h2', title: 'Pulse - Retour mi-semestre', status: 'ended',
+    started_at: new Date(Date.now() - 7 * 86400_000 - 20 * 60_000).toISOString(),
+    ended_at:   new Date(Date.now() - 7 * 86400_000).toISOString(),
+    activities: [
+      { id: 5, type: 'pulse', title: 'Comment vous sentez-vous sur le projet ?', words: [{ w: 'motive', s: 14 }, { w: 'curieux', s: 11 }, { w: 'fatigue', s: 8 }, { w: 'stresse', s: 6 }, { w: 'serein', s: 5 }, { w: 'enthousiaste', s: 4 }] },
+      { id: 6, type: 'pulse', title: 'Un mot pour la semaine prochaine ?',         words: [{ w: 'sprint', s: 9 }, { w: 'soutenance', s: 7 }, { w: 'reviser', s: 5 }, { w: 'finir', s: 4 }] },
+    ],
+    leaderboard: [],
+  },
+  'demo-live-h3': {
+    id: 'demo-live-h3', title: 'Code partage - Tri rapide', status: 'ended',
+    started_at: new Date(Date.now() - 10 * 86400_000 - 45 * 60_000).toISOString(),
+    ended_at:   new Date(Date.now() - 10 * 86400_000).toISOString(),
+    activities: [
+      { id: 7, type: 'code', title: 'Implementation collaborative quicksort', language: 'python', edit_count: 47, contributor_count: 9 },
+    ],
+    leaderboard: [],
+  },
+}
+router.get('/live/sessions/:id', (req, res) => {
+  const detail = LIVE_SESSION_DETAILS[req.params.id]
+  if (!detail) return res.status(404).json({ ok: false, error: 'Session introuvable' })
+  res.json({ ok: true, data: detail })
+})
+router.get('/live/sessions/:id/leaderboard', (req, res) => {
+  const detail = LIVE_SESSION_DETAILS[req.params.id]
+  res.json({ ok: true, data: detail?.leaderboard ?? [] })
+})
+
 // ── Lumen ────────────────────────────────────────────────────────────
 //
 // On materialise 2 repos pedagogiques pour que la sidebar Lumen ne soit
-// pas vide en demo : "cesi/algo-l1" (3 chapitres markdown lies aux devoirs
-// d'algo) et "cesi/web-fullstack" (3 chapitres dont le projet web). Le
+// pas vide en demo : "cursus-demo/algo-l1" (3 chapitres markdown lies aux
+// devoirs d'algo) et "cursus-demo/web-fullstack" (3 chapitres dont le
+// projet web). Le
 // contenu markdown est sert depuis ce fichier — pas de vraie connexion
 // GitHub en demo. Les paths "ch01.md" sont stables, le content endpoint
 // les retrouve par path.
@@ -259,9 +339,9 @@ function buildLumenRepos(promoId) {
   {
     id: 9001,
     promoId,
-    owner: 'cesi',
+    owner: 'cursus-demo',
     repo: 'algo-l1',
-    fullName: 'cesi/algo-l1',
+    fullName: 'cursus-demo/algo-l1',
     defaultBranch: 'main',
     manifest: {
       project: 'Algorithmique L1',
@@ -288,9 +368,9 @@ function buildLumenRepos(promoId) {
   {
     id: 9002,
     promoId,
-    owner: 'cesi',
+    owner: 'cursus-demo',
     repo: 'web-fullstack',
-    fullName: 'cesi/web-fullstack',
+    fullName: 'cursus-demo/web-fullstack',
     defaultBranch: 'main',
     manifest: {
       project: 'Developpement Web Fullstack',
@@ -339,7 +419,7 @@ const LUMEN_CHAPTER_CONTENTS = {
     sha: 'sha-prog-dyn',
   },
   'ch01-layout.md': {
-    content: '# HTML / CSS Layout\n\nDeux outils principaux pour structurer une page : **Flexbox** (1D) et **Grid** (2D).\n\n## Flexbox\n\n```css\n.container {\n  display: flex;\n  gap: 16px;\n  justify-content: space-between;\n  align-items: center;\n}\n```\n\nIdeal pour : barre de nav, alignement vertical, distribution d\'elements en ligne.\n\n## Grid\n\n```css\n.grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));\n  gap: 20px;\n}\n```\n\nIdeal pour : layouts a 2 dimensions, galleries, dashboards.\n\n## Responsive\n\n```css\n@media (max-width: 768px) {\n  .grid { grid-template-columns: 1fr; }\n}\n```\n\n## Exercice\n\nReproduire la maquette **TP HTML/CSS Layout** (figma.com/cesi).',
+    content: '# HTML / CSS Layout\n\nDeux outils principaux pour structurer une page : **Flexbox** (1D) et **Grid** (2D).\n\n## Flexbox\n\n```css\n.container {\n  display: flex;\n  gap: 16px;\n  justify-content: space-between;\n  align-items: center;\n}\n```\n\nIdeal pour : barre de nav, alignement vertical, distribution d\'elements en ligne.\n\n## Grid\n\n```css\n.grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));\n  gap: 20px;\n}\n```\n\nIdeal pour : layouts a 2 dimensions, galleries, dashboards.\n\n## Responsive\n\n```css\n@media (max-width: 768px) {\n  .grid { grid-template-columns: 1fr; }\n}\n```\n\n## Exercice\n\nReproduire la maquette **TP HTML/CSS Layout** (figma.com/cursus-demo).',
     sha: 'sha-layout',
   },
   'ch02-auth-jwt.md': {
@@ -455,6 +535,17 @@ router.get('/lumen/stats/promo/:id',          (_req, res) => res.json({ ok: true
 // reference deja les devoirs en texte).
 router.get('/lumen/repos/:id/chapters/travaux', (_req, res) => res.json({ ok: true, data: [] }))
 router.get('/lumen/travaux/:travailId/chapters', (_req, res) => res.json({ ok: true, data: [] }))
+// Org GitHub configure pour la promo (vue prof). En demo on simule
+// l'org "cursus-demo" lie. Permet a la page Lumen Settings d'afficher
+// l'org connecte au lieu d'un ecran "Aucune organisation".
+router.get('/lumen/promos/:id/github-org', (_req, res) => res.json({
+  ok: true,
+  data: { org: 'cursus-demo', repos_count: 2, last_synced_at: new Date(Date.now() - 6 * 3600_000).toISOString() },
+}))
+router.put('/lumen/promos/:id/github-org', (req, res) => res.json({
+  ok: true,
+  data: { org: req.body?.org ?? 'cursus-demo' },
+}))
 
 // ── Kanban (cartes de tache pour un projet d'equipe) ─────────────────
 // Affiche dans le panneau Kanban d'un travail (modal "Suivi"). 3 colonnes
