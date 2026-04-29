@@ -94,11 +94,17 @@ export const useLiveStore = defineStore('live', () => {
       )
       if (data) {
         currentSession.value = data
+        // Reset des etats specifiques a une activite : sans ca, charger
+        // une session terminee laisse currentActivity pointe sur une vieille
+        // activite "live" du contexte precedent (ex. session active deja
+        // chargee), ce qui pollue le rendu lors d'un changement de session
+        // (replay UI vs live UI).
         const live = data.activities?.find(a => a.status === 'live')
-        if (live) {
-          currentActivity.value = live
-          await fetchResults(live.id)
-        }
+        currentActivity.value = live ?? null
+        results.value = null
+        hasResponded.value = false
+        myScore.value = null
+        if (live) await fetchResults(live.id)
       }
     } finally {
       loading.value = false

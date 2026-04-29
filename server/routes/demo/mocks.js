@@ -547,26 +547,31 @@ router.get('/live/activities/:id/results', (req, res) => {
   res.json({ ok: true, data: { type: 'unknown', total_responses: 0, distribution: [], last_response_at: null } })
 })
 
-// Soumission d'une reponse depuis l'etudiant (utilise par le mode entrainement
-// "Sessions passees" cote StudentLiveView). On retrouve l'activite dans nos
-// LIVE_SESSION_DETAILS, on compare la reponse aux correct_answers, et on
-// renvoie le shape LiveScoreResult attendu par useLiveReplayMode.submit().
+// Soumission d'une reponse depuis l'etudiant (utilise par le mode "live"
+// pour la session active ET le mode "entrainement" pour les sessions
+// passees cote StudentLiveView). On retrouve l'activite dans :
+//   - ACTIVE_LIVE_ACTIVITIES  (session demo-live-1, QCM AVL en cours)
+//   - LIVE_SESSION_DETAILS    (sessions historiques h1/h4 etc.)
+// On compare la reponse aux correct_answers et on renvoie le shape
+// LiveScoreResult attendu par useLiveReplayMode.submit() / submitQcm().
 router.post('/live/activities/:id/respond', (req, res) => {
   const aid = Number(req.params.id)
-  // Cherche l'activite dans toutes les sessions historiques
-  let activity = null
-  for (const s of Object.values(LIVE_SESSION_DETAILS)) {
-    activity = s.activities.find(a => a.id === aid)
-    if (activity) break
+  let activity = ACTIVE_LIVE_ACTIVITIES.find(a => a.id === aid) || null
+  if (!activity) {
+    for (const s of Object.values(LIVE_SESSION_DETAILS)) {
+      activity = s.activities.find(a => a.id === aid)
+      if (activity) break
+    }
   }
   if (!activity) {
-    // Activite inconnue (ex. session active) : fallback neutre
+    // Activite inconnue : fallback neutre (cf. demo prof poll de
+    // /activities/:id/results sur des activites jamais lancees).
     return res.json({ ok: true, data: { isCorrect: null, points: 0, rank: null } })
   }
 
   const submitted = Array.isArray(req.body?.answers) ? req.body.answers : []
   let correct = []
-  try { correct = JSON.parse(activity.correct_answers || '[]') } catch { /* fallback []*/ }
+  try { correct = JSON.parse(activity.correct_answers || '[]') } catch { /* */ }
   const isCorrect = correct.length > 0
     && submitted.length === correct.length
     && correct.every(idx => submitted.includes(idx))
