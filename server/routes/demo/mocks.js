@@ -118,17 +118,83 @@ router.get('/documents/search', (req, res) => {
   res.json({ ok: true, data: all.filter(d => d.name.toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q)) })
 })
 
-// ── Bookmarks / signets ──────────────────────────────────────────────
-router.get('/bookmarks',     (_req, res) => res.json({ ok: true, data: [] }))
-router.get('/bookmarks/ids', (_req, res) => res.json({ ok: true, data: [] }))
+// ── Bookmarks / signets etudiant ─────────────────────────────────────
+// 4 messages epingles par l'utilisateur courant : un de chaque categorie
+// (annonce prof, lien repo, code snippet, devoir). Le widget Signets de
+// l'etudiant affiche ces favoris pour acces rapide.
+const DEMO_BOOKMARKS = [
+  { id: 9001, message_id: 101, channel_id: 1, channel_name: 'annonces', author_name: 'Prof. Lemaire', content: 'Le sujet du Projet Web E4 est en ligne. Equipes de 2-3, deadline vendredi 17h.',  created_at: new Date(Date.now() - 14 * 86400_000).toISOString(), bookmarked_at: new Date(Date.now() - 14 * 86400_000).toISOString() },
+  { id: 9002, message_id: 142, channel_id: 2, channel_name: 'algo',     author_name: 'Prof. Lemaire', content: 'Pour la rotation AVL, regardez balanceFactor. Si > 1 et fils gauche < 0 → rotation gauche-droite.', created_at: new Date(Date.now() -  7 * 86400_000).toISOString(), bookmarked_at: new Date(Date.now() -  7 * 86400_000).toISOString() },
+  { id: 9003, message_id: 178, channel_id: 3, channel_name: 'projet-web', author_name: 'Emma Lefevre', content: 'J\'ai push l\'archi initiale sur feat/auth-module. Quelqu\'un peut review ?',                       created_at: new Date(Date.now() -  3 * 86400_000).toISOString(), bookmarked_at: new Date(Date.now() -  3 * 86400_000).toISOString() },
+  { id: 9004, message_id: 195, channel_id: 2, channel_name: 'algo',     author_name: 'Jean Dupont',   content: 'Visualiseur AVL interactif : https://www.cs.usfca.edu/~galles/visualization/AVLtree.html',          created_at: new Date(Date.now() -  1 * 86400_000).toISOString(), bookmarked_at: new Date(Date.now() -  1 * 86400_000).toISOString() },
+]
+router.get('/bookmarks',     (_req, res) => res.json({ ok: true, data: DEMO_BOOKMARKS }))
+router.get('/bookmarks/ids', (_req, res) => res.json({ ok: true, data: DEMO_BOOKMARKS.map(b => b.message_id) }))
 
-// ── DMs (vides en MVP V2 — V3 ajoutera des conversations seedees) ────
-// Le shim attend un array Message[], pas un objet : cf. note dans
-// real.js sur /messages/channel/:channelId/page.
-router.get('/messages/dm/:studentId/page', (_req, res) =>
-  res.json({ ok: true, data: [] }),
-)
-router.get('/messages/dm-files', (_req, res) => res.json({ ok: true, data: [] }))
+// ── DMs : conversations directes pre-remplies ───────────────────────
+// Pour montrer la feature "messages directs" en demo, on genere une
+// conversation realiste avec chaque interlocuteur. Le studentId 0 ou -1
+// = prof Lemaire (id negatif pour distinguer). Les messages sont alternes
+// entre l'utilisateur courant et l'autre, avec timestamps recents.
+function genDmConversation(otherId, otherName) {
+  const minAgo = (n) => new Date(Date.now() - n * 60_000).toISOString()
+  // Conversation differente selon l'interlocuteur
+  if (otherId < 0) {
+    // DM avec prof Lemaire : suivi pedagogique
+    return [
+      { id: 4001, channel_id: null, dm_partner_id: otherId, author_id: otherId,  author_name: otherName,        is_self: 0, content: 'Salut Emma, ou tu en es sur le module d\'auth du Projet Web ?', is_pinned: 0, created_at: minAgo(620) },
+      { id: 4002, channel_id: null, dm_partner_id: otherId, author_id: 0,        author_name: 'Toi',           is_self: 1, content: 'Le JWT est en place, je termine le refresh token ce soir.',     is_pinned: 0, created_at: minAgo(615) },
+      { id: 4003, channel_id: null, dm_partner_id: otherId, author_id: otherId,  author_name: otherName,        is_self: 0, content: 'Top. Push sur feat/auth-module quand tu peux, je review demain matin.', is_pinned: 0, created_at: minAgo(610) },
+      { id: 4004, channel_id: null, dm_partner_id: otherId, author_id: 0,        author_name: 'Toi',           is_self: 1, content: 'Ca marche, merci !',                                              is_pinned: 0, created_at: minAgo(608) },
+      { id: 4005, channel_id: null, dm_partner_id: otherId, author_id: otherId,  author_name: otherName,        is_self: 0, content: 'Au passage, ton TP3 etait excellent. A. Continue comme ca.',     is_pinned: 0, created_at: minAgo(120) },
+    ]
+  }
+  if (otherId === 1 || otherId === 2) {
+    // DM avec un binome / camarade : entraide TP
+    return [
+      { id: 4101 + otherId * 10, channel_id: null, dm_partner_id: otherId, author_id: otherId, author_name: otherName, is_self: 0, content: 'Tu as commence le TP4 AVL ?',                          is_pinned: 0, created_at: minAgo(180) },
+      { id: 4102 + otherId * 10, channel_id: null, dm_partner_id: otherId, author_id: 0,        author_name: 'Toi',     is_self: 1, content: 'Oui, je bloque sur la rotation double. Tu veux qu\'on regarde ensemble ?', is_pinned: 0, created_at: minAgo(175) },
+      { id: 4103 + otherId * 10, channel_id: null, dm_partner_id: otherId, author_id: otherId, author_name: otherName, is_self: 0, content: 'Carrement. On se voit a 16h en bibli ?',                is_pinned: 0, created_at: minAgo(170) },
+      { id: 4104 + otherId * 10, channel_id: null, dm_partner_id: otherId, author_id: 0,        author_name: 'Toi',     is_self: 1, content: 'Deal.',                                                 is_pinned: 0, created_at: minAgo(168) },
+    ]
+  }
+  // DM par defaut : echange court
+  return [
+    { id: 4200 + otherId, channel_id: null, dm_partner_id: otherId, author_id: otherId, author_name: otherName, is_self: 0, content: 'Tu sais ou trouver le sujet du TP ?',           is_pinned: 0, created_at: minAgo(60) },
+    { id: 4201 + otherId, channel_id: null, dm_partner_id: otherId, author_id: 0,        author_name: 'Toi',     is_self: 1, content: 'Dans #annonces, l\'epingle avec le PDF.',       is_pinned: 0, created_at: minAgo(55) },
+    { id: 4202 + otherId, channel_id: null, dm_partner_id: otherId, author_id: otherId, author_name: otherName, is_self: 0, content: 'Trouve, merci !',                                is_pinned: 0, created_at: minAgo(50) },
+  ]
+}
+router.get('/messages/dm/:studentId/page', (req, res) => {
+  const sid = Number(req.params.studentId)
+  let name = `Etudiant ${sid}`
+  try {
+    const row = getDemoDb().prepare(
+      `SELECT name FROM demo_students WHERE id = ? AND tenant_id = ?`
+    ).get(sid, req.tenantId)
+    if (row?.name) name = row.name
+  } catch { /* fallback */ }
+  if (sid < 0) name = 'Prof. Lemaire'
+  res.json({ ok: true, data: genDmConversation(sid, name) })
+})
+// Recents DM contacts pour le widget "Conversations directes" du dashboard
+router.get('/messages/recent-dm-contacts', (_req, res) => res.json({
+  ok: true,
+  data: [
+    { partner_id: -1, partner_name: 'Prof. Lemaire',     partner_role: 'teacher', avatar_initials: 'PL', last_message: 'Au passage, ton TP3 etait excellent. A. Continue comme ca.',  last_message_at: new Date(Date.now() - 120 * 60_000).toISOString(), unread: 0 },
+    { partner_id: 1,  partner_name: 'Emma Lefevre',      partner_role: 'student', avatar_initials: 'EL', last_message: 'Deal.',                                                       last_message_at: new Date(Date.now() - 168 * 60_000).toISOString(), unread: 0 },
+    { partner_id: 2,  partner_name: 'Jean Dupont',       partner_role: 'student', avatar_initials: 'JD', last_message: 'Trouve, merci !',                                              last_message_at: new Date(Date.now() - 50 * 60_000).toISOString(),  unread: 1 },
+  ],
+}))
+// Fichiers partages en DM (pour le widget "Mes fichiers")
+router.get('/messages/dm-files', (_req, res) => res.json({
+  ok: true,
+  data: [
+    { id: 7001, partner_id: -1, partner_name: 'Prof. Lemaire', file_name: 'Sujet TP4 AVL.pdf',         file_url: 'https://example.com/tp4-avl.pdf',        file_size: 412_000, mime_type: 'application/pdf', shared_at: new Date(Date.now() -  3 * 86400_000).toISOString() },
+    { id: 7002, partner_id:  1, partner_name: 'Emma Lefevre',  file_name: 'maquette-projet.fig',        file_url: 'https://example.com/maquette.fig',        file_size: 1_240_000, mime_type: 'application/octet-stream', shared_at: new Date(Date.now() -  2 * 86400_000).toISOString() },
+    { id: 7003, partner_id:  1, partner_name: 'Emma Lefevre',  file_name: 'archi-decision.md',          file_url: 'https://example.com/archi.md',           file_size:    8_400, mime_type: 'text/markdown', shared_at: new Date(Date.now() - 18 * 3600_000).toISOString() },
+  ],
+}))
 router.post('/messages/reactions', (_req, res) => res.json({ ok: true, data: null }))
 
 // ── Recherche (pas de FTS en demo, retourne vide) ────────────────────
@@ -335,37 +401,159 @@ router.post('/lumen/github/disconnect', (_req, res) => res.json({ ok: true, data
 // renverrait `[]` qui ferait crasher `data.notes.slice()` cote front.
 // On les materialise explicitement avec le shape attendu (notes: array,
 // counts: object) — cf. WidgetLumenNotes / WidgetLumenTopRead.
-router.get('/lumen/my-notes',                 (_req, res) => res.json({ ok: true, data: { notes: [] } }))
-router.get('/lumen/my-noted-chapters',        (_req, res) => res.json({ ok: true, data: [] }))
-router.get('/lumen/my-reads',                 (_req, res) => res.json({ ok: true, data: [] }))
-router.get('/lumen/repos/:id/read-counts',    (_req, res) => res.json({ ok: true, data: { counts: [] } }))
-router.get('/lumen/read-counts/promo/:id',    (_req, res) => res.json({ ok: true, data: { counts: [] } }))
+// Lumen : mes notes prises sur les chapitres + chapitres notes + lectures
+const LUMEN_MY_NOTES = [
+  { id: 1, repo_id: 1, chapter_path: 'cours/01-tri-rapide.md', chapter_title: 'Tri rapide',         note: 'La complexite pire cas O(n²) arrive si pivot mal choisi : random shuffle avant tri.',     created_at: new Date(Date.now() - 12 * 86400_000).toISOString(), updated_at: new Date(Date.now() - 12 * 86400_000).toISOString() },
+  { id: 2, repo_id: 1, chapter_path: 'cours/02-arbres-avl.md', chapter_title: 'Arbres AVL',         note: 'balanceFactor = height(L) - height(R), invariant |bf| <= 1. Rotation simple/double selon signe.', created_at: new Date(Date.now() - 8 * 86400_000).toISOString(),  updated_at: new Date(Date.now() - 5 * 86400_000).toISOString() },
+  { id: 3, repo_id: 2, chapter_path: 'projet/01-cdc.md',       chapter_title: 'Projet Web E4',      note: 'Bareme : 30 pts fonctionnalites, 25 code, 15 tests, 15 CI, 10 UX, 5 soutenance.',           created_at: new Date(Date.now() - 3 * 86400_000).toISOString(),  updated_at: new Date(Date.now() - 3 * 86400_000).toISOString() },
+]
+router.get('/lumen/my-notes', (_req, res) => res.json({ ok: true, data: { notes: LUMEN_MY_NOTES } }))
+router.get('/lumen/my-noted-chapters', (_req, res) => res.json({
+  ok: true,
+  data: [
+    { repo_id: 1, chapter_path: 'cours/01-tri-rapide.md', chapter_title: 'Tri rapide',  notes_count: 1 },
+    { repo_id: 1, chapter_path: 'cours/02-arbres-avl.md', chapter_title: 'Arbres AVL',  notes_count: 1 },
+    { repo_id: 2, chapter_path: 'projet/01-cdc.md',       chapter_title: 'Projet Web E4', notes_count: 1 },
+  ],
+}))
+// Mes lectures : 5 chapitres deja lus avec last_read pour la timeline
+router.get('/lumen/my-reads', (_req, res) => res.json({
+  ok: true,
+  data: [
+    { repo_id: 1, chapter_path: 'cours/01-tri-rapide.md',     chapter_title: 'Tri rapide',     repo_name: 'cours-algo-l3', read_at: new Date(Date.now() - 12 * 86400_000).toISOString() },
+    { repo_id: 1, chapter_path: 'cours/02-arbres-avl.md',     chapter_title: 'Arbres AVL',     repo_name: 'cours-algo-l3', read_at: new Date(Date.now() -  6 * 86400_000).toISOString() },
+    { repo_id: 1, chapter_path: 'cours/03-graphes.md',        chapter_title: 'Parcours graphes', repo_name: 'cours-algo-l3', read_at: new Date(Date.now() -  4 * 86400_000).toISOString() },
+    { repo_id: 2, chapter_path: 'projet/01-cdc.md',           chapter_title: 'Projet Web E4',  repo_name: 'projet-web-e4', read_at: new Date(Date.now() -  3 * 86400_000).toISOString() },
+    { repo_id: 1, chapter_path: 'cours/04-prog-dynamique.md', chapter_title: 'Prog. dynamique',repo_name: 'cours-algo-l3', read_at: new Date(Date.now() -  1 * 86400_000).toISOString() },
+  ],
+}))
+// Counts de lectures par chapitre (pour le widget "top read")
+router.get('/lumen/repos/:id/read-counts', (_req, res) => res.json({
+  ok: true,
+  data: {
+    counts: [
+      { chapter_path: 'cours/01-tri-rapide.md',     chapter_title: 'Tri rapide',      reads: 18 },
+      { chapter_path: 'cours/02-arbres-avl.md',     chapter_title: 'Arbres AVL',      reads: 14 },
+      { chapter_path: 'cours/03-graphes.md',        chapter_title: 'Parcours graphes', reads: 9  },
+      { chapter_path: 'cours/04-prog-dynamique.md', chapter_title: 'Prog. dynamique', reads: 5  },
+    ],
+  },
+}))
+router.get('/lumen/read-counts/promo/:id', (_req, res) => res.json({
+  ok: true,
+  data: {
+    counts: [
+      { chapter_title: 'Tri rapide',       repo_name: 'cours-algo-l3', reads: 18 },
+      { chapter_title: 'Projet Web E4',    repo_name: 'projet-web-e4', reads: 16 },
+      { chapter_title: 'Arbres AVL',       repo_name: 'cours-algo-l3', reads: 14 },
+      { chapter_title: 'Parcours graphes', repo_name: 'cours-algo-l3', reads: 9  },
+    ],
+  },
+}))
 router.get('/lumen/stats/promo/:id',          (_req, res) => res.json({ ok: true, data: { repos: 2, reads: 28 } }))
 // Liens chapitre <-> devoirs : vide en demo (acceptable, le contenu markdown
 // reference deja les devoirs en texte).
 router.get('/lumen/repos/:id/chapters/travaux', (_req, res) => res.json({ ok: true, data: [] }))
 router.get('/lumen/travaux/:travailId/chapters', (_req, res) => res.json({ ok: true, data: [] }))
 
-// ── Kanban ───────────────────────────────────────────────────────────
-router.get('/kanban/travaux/:travailId/groups/:groupId', (_req, res) =>
-  res.json({ ok: true, data: [] }),
-)
+// ── Kanban (cartes de tache pour un projet d'equipe) ─────────────────
+// Affiche dans le panneau Kanban d'un travail (modal "Suivi"). 3 colonnes
+// implicites par status : todo, doing, done. Avatar des assignes rendu
+// cote front depuis student_initials.
+router.get('/kanban/travaux/:travailId/groups/:groupId', (req, res) => {
+  const tid = Number(req.params.travailId)
+  const gid = Number(req.params.groupId)
+  // 6 cartes simulees pour le Projet Web E4 - Equipe B (Jean + Thomas)
+  res.json({
+    ok: true,
+    data: [
+      { id: 1, travail_id: tid, group_id: gid, title: 'Setup repo + CI',         description: 'Init Vite + GitHub Actions. Premier deploy Render.',     status: 'done',  position: 0, assignee_id: 2, assignee_name: 'Jean Dupont',   assignee_initials: 'JD', due_date: null, created_at: new Date(Date.now() - 14 * 86400_000).toISOString() },
+      { id: 2, travail_id: tid, group_id: gid, title: 'Maquette Figma',          description: 'Login + dashboard + page projet. Mobile first.',         status: 'done',  position: 1, assignee_id: 4, assignee_name: 'Thomas Martin', assignee_initials: 'TM', due_date: null, created_at: new Date(Date.now() - 12 * 86400_000).toISOString() },
+      { id: 3, travail_id: tid, group_id: gid, title: 'Auth JWT + bcrypt',       description: 'Endpoints /login + /me, middleware verify, hash bcrypt.', status: 'doing', position: 0, assignee_id: 2, assignee_name: 'Jean Dupont',   assignee_initials: 'JD', due_date: new Date(Date.now() + 2 * 86400_000).toISOString(), created_at: new Date(Date.now() - 7 * 86400_000).toISOString() },
+      { id: 4, travail_id: tid, group_id: gid, title: 'CRUD utilisateurs',       description: 'API REST + UI admin. Validation cote serveur.',          status: 'doing', position: 1, assignee_id: 4, assignee_name: 'Thomas Martin', assignee_initials: 'TM', due_date: new Date(Date.now() + 3 * 86400_000).toISOString(), created_at: new Date(Date.now() - 5 * 86400_000).toISOString() },
+      { id: 5, travail_id: tid, group_id: gid, title: 'Tests E2E Playwright',    description: 'Couvrir login + parcours utilisateur principal.',         status: 'todo',  position: 0, assignee_id: 4, assignee_name: 'Thomas Martin', assignee_initials: 'TM', due_date: new Date(Date.now() + 5 * 86400_000).toISOString(), created_at: new Date(Date.now() - 2 * 86400_000).toISOString() },
+      { id: 6, travail_id: tid, group_id: gid, title: 'Deploiement prod',        description: 'Render + custom domain + HTTPS Let\'s Encrypt.',         status: 'todo',  position: 1, assignee_id: 2, assignee_name: 'Jean Dupont',   assignee_initials: 'JD', due_date: new Date(Date.now() + 6 * 86400_000).toISOString(), created_at: new Date(Date.now() - 1 * 86400_000).toISOString() },
+    ],
+  })
+})
 
 // ── Calendar ─────────────────────────────────────────────────────────
 router.get('/calendar/feed-token', (_req, res) =>
   res.json({ ok: true, data: { token: null } }),
 )
 
-// ── Reminders / suivi / teacher-notes ────────────────────────────────
-router.get('/admin/rappels',                   (_req, res) => res.json({ ok: true, data: [] }))
-router.get('/admin/feedback/mine',             (_req, res) => res.json({ ok: true, data: [] }))
-router.get('/teacher-notes/student/:id',       (_req, res) => res.json({ ok: true, data: [] }))
-router.get('/teacher-notes/promo/:id',         (_req, res) => res.json({ ok: true, data: [] }))
-router.get('/teacher-notes/promo/:id/summary', (_req, res) => res.json({ ok: true, data: [] }))
+// ── Reminders / rappels prof ─────────────────────────────────────────
+// Liste des rappels personnels du prof : echeances + tags promo + statut.
+// Affiches dans le widget RappelsCard du dashboard prof.
+const day = (n) => new Date(Date.now() + n * 86400_000).toISOString().slice(0, 10)
+router.get('/admin/rappels', (_req, res) => res.json({
+  ok: true,
+  data: [
+    { id: 1, promo_tag: 'L3 INFO',  date: day(-3), title: 'Corriger TP3 Tri rapide',         description: 'Reste 8 rendus a noter. Bareme : 30/30 algo + 20/20 tests.', bloc: 'Algorithmique', done: 1 },
+    { id: 2, promo_tag: 'L3 INFO',  date: day(0),  title: 'Recap quiz Spark complexite',     description: 'Faire un point en cours sur les questions <50% de bonnes reponses.', bloc: 'Algorithmique', done: 0 },
+    { id: 3, promo_tag: 'L3 INFO',  date: day(2),  title: 'Lancer la campagne soutenances',  description: 'Ouvrir le lien de booking pour les soutenances Projet Web E4.',     bloc: 'Projet Web', done: 0 },
+    { id: 4, promo_tag: 'L3 INFO',  date: day(5),  title: 'Preparer le sujet TP4 AVL',       description: 'Finaliser le sujet, generer les tests automatises CI.',              bloc: 'Algorithmique', done: 0 },
+    { id: 5, promo_tag: 'L2 INFO',  date: day(7),  title: 'Reunion responsable promo L2',    description: 'Bilan mi-semestre + ajustement planning.',                          bloc: null, done: 0 },
+    { id: 6, promo_tag: 'L3 INFO',  date: day(14), title: 'Jury Soutenances Projet Web',     description: 'Inviter les 2 intervenants externes (M. Durand, Mme Lopez).',       bloc: 'Projet Web', done: 0 },
+  ],
+}))
+router.get('/admin/feedback/mine', (_req, res) => res.json({ ok: true, data: [] }))
+
+// Teacher notes : annotations privees du prof sur des etudiants.
+// Affichees dans le panneau lateral d'un etudiant (StudentTimelineModal).
+router.get('/teacher-notes/student/:id', (req, res) => {
+  const sid = Number(req.params.id)
+  // Genere 2-3 notes pseudo-deterministes selon student id
+  const notes = []
+  if (sid % 3 !== 0) {
+    notes.push({ id: sid * 10 + 1, student_id: sid, author_name: 'Prof. Lemaire', content: 'Eleve serieux et regulier. Bonne participation en TD.',                  created_at: new Date(Date.now() - 30 * 86400_000).toISOString() })
+    notes.push({ id: sid * 10 + 2, student_id: sid, author_name: 'Prof. Lemaire', content: 'A renforce sa rigueur sur les tests unitaires depuis le TP2.',          created_at: new Date(Date.now() - 14 * 86400_000).toISOString() })
+  }
+  if (sid % 2 === 0) {
+    notes.push({ id: sid * 10 + 3, student_id: sid, author_name: 'Prof. Martin',  content: 'A pris du retard sur le rendu du Projet Web - relance envoyee.',       created_at: new Date(Date.now() -  3 * 86400_000).toISOString() })
+  }
+  res.json({ ok: true, data: notes })
+})
+router.get('/teacher-notes/promo/:id', (_req, res) => res.json({
+  ok: true,
+  data: [
+    { id: 11, student_id: 1, student_name: 'Emma Lefevre',     author_name: 'Prof. Lemaire', content: 'Excellente review du code de son binome. Niveau Lead Dev.', created_at: new Date(Date.now() - 5 * 86400_000).toISOString() },
+    { id: 12, student_id: 2, student_name: 'Jean Dupont',      author_name: 'Prof. Lemaire', content: 'Tres a l\'aise sur les structures de donnees. Bon esprit critique.', created_at: new Date(Date.now() - 10 * 86400_000).toISOString() },
+    { id: 13, student_id: 3, student_name: 'Sara Bouhassoun',  author_name: 'Prof. Martin',  content: 'Bloque sur les bases de l\'OO. Prevoir un point individuel.', created_at: new Date(Date.now() - 2 * 86400_000).toISOString() },
+  ],
+}))
+router.get('/teacher-notes/promo/:id/summary', (_req, res) => res.json({
+  ok: true,
+  data: [
+    { student_id: 1, student_name: 'Emma Lefevre',     notes_count: 3, last_note_at: new Date(Date.now() - 5 * 86400_000).toISOString() },
+    { student_id: 2, student_name: 'Jean Dupont',      notes_count: 2, last_note_at: new Date(Date.now() - 10 * 86400_000).toISOString() },
+    { student_id: 3, student_name: 'Sara Bouhassoun',  notes_count: 1, last_note_at: new Date(Date.now() - 2 * 86400_000).toISOString() },
+    { student_id: 4, student_name: 'Thomas Martin',    notes_count: 1, last_note_at: new Date(Date.now() - 18 * 86400_000).toISOString() },
+  ],
+}))
 
 // ── Engagement / scheduled ───────────────────────────────────────────
-router.get('/engagement/:promoId', (_req, res) => res.json({ ok: true, data: [] }))
-router.get('/scheduled',           (_req, res) => res.json({ ok: true, data: [] }))
+// Engagement par etudiant pour la promo : metriques de participation
+// (messages envoyes, devoirs rendus a temps, lectures Lumen, %).
+router.get('/engagement/:promoId', (_req, res) => res.json({
+  ok: true,
+  data: [
+    { student_id: 1, student_name: 'Emma Lefevre',     messages: 87, devoirs_on_time: 4, devoirs_late: 0, lumen_reads: 12, last_active_at: new Date(Date.now() -    3600_000).toISOString(), score: 92 },
+    { student_id: 2, student_name: 'Jean Dupont',      messages: 64, devoirs_on_time: 4, devoirs_late: 0, lumen_reads: 8,  last_active_at: new Date(Date.now() -  2 * 3600_000).toISOString(), score: 85 },
+    { student_id: 3, student_name: 'Sara Bouhassoun',  messages: 41, devoirs_on_time: 3, devoirs_late: 1, lumen_reads: 5,  last_active_at: new Date(Date.now() -  6 * 3600_000).toISOString(), score: 64 },
+    { student_id: 4, student_name: 'Thomas Martin',    messages: 28, devoirs_on_time: 3, devoirs_late: 0, lumen_reads: 4,  last_active_at: new Date(Date.now() - 24 * 3600_000).toISOString(), score: 58 },
+    { student_id: 5, student_name: 'Lina Fernandez',   messages: 52, devoirs_on_time: 4, devoirs_late: 0, lumen_reads: 9,  last_active_at: new Date(Date.now() -  4 * 3600_000).toISOString(), score: 78 },
+    { student_id: 6, student_name: 'Lucas Bernard',    messages: 19, devoirs_on_time: 2, devoirs_late: 2, lumen_reads: 3,  last_active_at: new Date(Date.now() - 48 * 3600_000).toISOString(), score: 38 },
+  ],
+}))
+// Messages programmes : 2 messages prepares pour envoi differe
+router.get('/scheduled', (_req, res) => res.json({
+  ok: true,
+  data: [
+    { id: 1, channel_id: 1, channel_name: 'annonces',   content: 'Pensez à pousser votre code avant 17h vendredi pour le rendu Projet Web E4.', send_at: new Date(Date.now() + 2 * 86400_000 +  9 * 3600_000).toISOString(), status: 'pending' },
+    { id: 2, channel_id: 2, channel_name: 'algo',       content: 'Le corrigé du TP3 Tri rapide est disponible dans Documents.',                  send_at: new Date(Date.now() + 4 * 86400_000 + 14 * 3600_000).toISOString(), status: 'pending' },
+  ],
+}))
 
 // ── Assignments (vues avancees : gantt, rendus) ──────────────────────
 // Le shim renderer attend `data: GanttRow[]` (pas `{ tasks, links }` qui
@@ -415,11 +603,90 @@ router.get('/assignments/gantt', (req, res) => {
     res.json({ ok: true, data: [] })
   }
 })
-router.get('/assignments/rendus', (_req, res) => res.json({ ok: true, data: [] }))
+// ── Rendus (depots des etudiants) ────────────────────────────────────
+// Synthetises depuis demo_assignments (passes uniquement). Pour chaque
+// devoir passe, on suppose que la majorite des etudiants ont rendu et
+// genere une note pseudo-aleatoire mais stable. Le widget RecentRendus
+// du dashboard prof affiche ces depots en timeline.
+router.get('/assignments/rendus', (req, res) => {
+  try {
+    const db = getDemoDb()
+    const tenantId = req.tenantId
+    // 4 derniers devoirs deja rendus (deadline depassee + is_published)
+    const pastAssigns = db.prepare(`
+      SELECT a.id, a.title, a.type, a.deadline, c.id AS channel_id, c.name AS channel_name, c.promo_id
+      FROM demo_assignments a JOIN demo_channels c ON c.id = a.channel_id AND c.tenant_id = a.tenant_id
+      WHERE a.tenant_id = ? AND a.is_published = 1 AND a.deadline < datetime('now')
+      ORDER BY a.deadline DESC
+      LIMIT 4
+    `).all(tenantId)
+    const students = db.prepare(`
+      SELECT id, name, promo_id, avatar_initials FROM demo_students WHERE tenant_id = ? ORDER BY id
+    `).all(tenantId)
+    const grades = ['A', 'A', 'B', 'B', 'B', 'C', 'C', 'D']
+    const feedbacks = [
+      'Tres bon travail, code propre et tests complets.',
+      'Solide. Quelques points a creuser sur l\'efficacite.',
+      'Bon rendu, la doc reste a etoffer.',
+      'Convenable, manque de tests.',
+      'Fonctionne mais structure perfectible.',
+    ]
+    const rendus = []
+    let id = 6000
+    for (const a of pastAssigns) {
+      const promoStudents = students.filter(s => s.promo_id === a.promo_id)
+      // 80-90% des eleves ont rendu
+      const submitters = promoStudents.slice(0, Math.max(1, Math.floor(promoStudents.length * 0.85)))
+      submitters.forEach((s, i) => {
+        const submittedAt = new Date(new Date(a.deadline).getTime() - (1 + i) * 3600_000)
+        const note = grades[(s.id + a.id) % grades.length]
+        const feedback = feedbacks[(s.id + a.id) % feedbacks.length]
+        rendus.push({
+          id: id++,
+          travail_id: a.id,
+          travail_title: a.title,
+          channel_id: a.channel_id,
+          channel_name: a.channel_name,
+          student_id: s.id,
+          student_name: s.name,
+          student_initials: s.avatar_initials,
+          submitted_at: submittedAt.toISOString(),
+          note,
+          feedback,
+          file_name: `rendu-${a.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${s.name.split(' ')[0].toLowerCase()}.zip`,
+          file_size: 800_000 + (s.id * 17_000),
+        })
+      })
+    }
+    res.json({ ok: true, data: rendus })
+  } catch (e) {
+    console.warn('[demo/rendus] failed:', e?.message)
+    res.json({ ok: true, data: [] })
+  }
+})
 
-// ── Groupes ──────────────────────────────────────────────────────────
-router.get('/groups',                (_req, res) => res.json({ ok: true, data: [] }))
-router.get('/groups/:id/members',    (_req, res) => res.json({ ok: true, data: [] }))
+// ── Groupes (equipes pour les projets en binome / trinome) ───────────
+const DEMO_GROUPS = [
+  { id: 1, name: 'Equipe A',  travail_id: null, promo_id: 1, color: '#6366F1', created_at: new Date(Date.now() - 30 * 86400_000).toISOString() },
+  { id: 2, name: 'Equipe B',  travail_id: null, promo_id: 1, color: '#059669', created_at: new Date(Date.now() - 30 * 86400_000).toISOString() },
+  { id: 3, name: 'Equipe C',  travail_id: null, promo_id: 1, color: '#F59E0B', created_at: new Date(Date.now() - 30 * 86400_000).toISOString() },
+]
+const DEMO_GROUP_MEMBERS = {
+  1: [
+    { group_id: 1, student_id: 1, student_name: 'Emma Lefevre',    avatar_initials: 'EL', role: 'leader' },
+    { group_id: 1, student_id: 5, student_name: 'Lina Fernandez',  avatar_initials: 'LF', role: 'member' },
+  ],
+  2: [
+    { group_id: 2, student_id: 2, student_name: 'Jean Dupont',     avatar_initials: 'JD', role: 'leader' },
+    { group_id: 2, student_id: 4, student_name: 'Thomas Martin',   avatar_initials: 'TM', role: 'member' },
+  ],
+  3: [
+    { group_id: 3, student_id: 3, student_name: 'Sara Bouhassoun', avatar_initials: 'SB', role: 'leader' },
+    { group_id: 3, student_id: 6, student_name: 'Lucas Bernard',   avatar_initials: 'LB', role: 'member' },
+  ],
+}
+router.get('/groups',             (_req, res) => res.json({ ok: true, data: DEMO_GROUPS }))
+router.get('/groups/:id/members', (req,  res) => res.json({ ok: true, data: DEMO_GROUP_MEMBERS[Number(req.params.id)] ?? [] }))
 
 // ── Channels archives (panneau "Restaurer un canal") ─────────────────
 router.get('/promotions/:id/channels/archived', (_req, res) => res.json({ ok: true, data: [] }))
