@@ -238,6 +238,216 @@ function pickByTopic(templates, channelTopics) {
   return weighted[weighted.length - 1].t
 }
 
+// ────────────────────────────────────────────────────────────────────
+//  4. Live activity simulator (cote prof)
+// ────────────────────────────────────────────────────────────────────
+//
+//  Quand un prof projette une activite Spark/Pulse en cours de demo,
+//  on veut que le compteur de reponses tourne en temps reel et que la
+//  distribution se forme. Sans ca, l'endpoint /live/activities/:id/results
+//  renvoie 7 reponses figees et l'effet "live" s'evapore.
+//
+//  Modele : courbe logistique pour le total cumule (la majorite repond
+//  vite, la queue traine), tirage multinomial sur la distribution cible
+//  pour repartir chaque reponse arrivee. Resultat visible : 7 -> 12 -> 16
+//  reponses sur 60s, distribution qui tend vers la verite-terrain.
+//
+//  Etat en memoire keyed par `${tenantId}|${activityId}`. Lazy : la sim
+//  ne demarre qu'au 1er query, donc l'activite "bouge" des que le prof
+//  ouvre le panneau Resultats.
+const _liveSim = new Map()
+
+function _logistic(t, half = 25, k = 8) {
+  // Sigmoid centre sur `half` secondes, pente `k`. A t=0 -> ~0.05,
+  // t=half -> 0.5, t=2*half -> ~0.95. Adapte a une session de demo
+  // ou le prof regarde l'activite ~1 min.
+  return 1 / (1 + Math.exp(-(t - half) / k))
+}
+
+function _sampleMultinomial(weights) {
+  const total = weights.reduce((s, w) => s + w, 0)
+  if (total <= 0) return 0
+  let r = Math.random() * total
+  for (let i = 0; i < weights.length; i++) {
+    r -= weights[i]
+    if (r <= 0) return i
+  }
+  return weights.length - 1
+}
+
+/**
+ * Avance la simulation d'une activite Spark/Pulse et renvoie l'etat
+ * courant. `target` est la verite-terrain (distribution finale + total).
+ *
+ * @param {string} key       `${tenantId}|${activityId}`
+ * @param {object} target    { distribution: number[], total: number, type: string, correct?: number }
+ * @returns {object}         { type, total_responses, distribution, correct, last_response_at }
+ */
+function simulateLiveResults(key, target) {
+  const now = Date.now()
+  let state = _liveSim.get(key)
+  if (!state) {
+    state = {
+      startedAt: now,
+      lastUpdate: now,
+      currentTotal: 0,
+      currentDist: target.distribution.map(() => 0),
+      lastResponseAt: null,
+    }
+    _liveSim.set(key, state)
+  }
+
+  // Combien on devrait avoir maintenant ?
+  const elapsedSec = (now - state.startedAt) / 1000
+  const targetNow = Math.round(target.total * _logistic(elapsedSec))
+  const toAdd = Math.max(0, Math.min(target.total - state.currentTotal, targetNow - state.currentTotal))
+
+  // Repartit chaque reponse selon la distribution cible (vue comme un
+  // multinomial — on echantillonne avec remise, ce qui converge vers la
+  // distribution cible quand le total grandit).
+  for (let i = 0; i < toAdd; i++) {
+    const idx = _sampleMultinomial(target.distribution)
+    state.currentDist[idx] = (state.currentDist[idx] || 0) + 1
+    state.currentTotal++
+    state.lastResponseAt = new Date(now - i * 200).toISOString()
+  }
+  state.lastUpdate = now
+
+  return {
+    type: target.type,
+    total_responses: state.currentTotal,
+    distribution: state.currentDist.slice(),
+    correct: target.correct ?? null,
+    last_response_at: state.lastResponseAt,
+  }
+}
+
+/** Reset (utile pour les tests). */
+function resetLiveSim(key) {
+  if (key) _liveSim.delete(key)
+  else _liveSim.clear()
+}
+
+// ────────────────────────────────────────────────────────────────────
+//  5. Assignment submission simulator
+// ────────────────────────────────────────────────────────────────────
+//
+//  Le widget "Rendus recents" du dashboard prof doit ressembler a un
+//  fil d'actu : nouveaux depots qui apparaissent au fil de la session.
+//  Sans simulateur les rendus sont 100% statiques.
+//
+//  Modele : pour chaque assignment a venir (deadline future), on calcule
+//  un taux de remise theorique base sur la distance a la deadline. Les
+//  etudiants sont ranges par "diligence" (graphe d'affinite : les bots
+//  serviables/organises rendent tot, les discrets en dernier). Au fil
+//  de la session demo, on debloque progressivement les remises pour
+//  donner l'impression d'une vague qui avance.
+//
+//  Etat keyed par `${tenantId}` -> { startedAt, perAssignment }.
+const _submitSim = new Map()
+
+// Diligence par persona (1 = rend tot, 0 = rend tard ou pas du tout).
+// Mappe sur PERSONAS de demoBots.js — sans dependance circulaire,
+// on liste juste les noms. Etudiants hors persona = diligence 0.5.
+const DILIGENCE = {
+  'Alice Martin':     0.95, // organisee
+  'Lea Rousseau':     0.90, // organisee
+  'Jean Durand':      0.85, // senior, rigoureux
+  'Mehdi Chaouki':    0.80, // serviable
+  'Emma Lefevre':     0.75, // active
+  'Lucas Bernard':    0.65, // pragmatique
+  'Sara Bouhassoun':  0.60, // curieuse, peut zigzaguer
+  'Hugo Petit':       0.30, // discret, traine
+}
+
+/**
+ * Renvoie l'ordre de remise pour une liste d'etudiants : plus diligent
+ * en premier. Tirage stable : meme tenant -> meme ordre (pour ne pas
+ * shuffler entre 2 polls front).
+ */
+function _orderByDiligence(students, assignmentId) {
+  return students
+    .map(s => ({
+      s,
+      d: (DILIGENCE[s.name] ?? 0.5) + ((s.id * 31 + assignmentId * 17) % 100) / 1000, // tie-break stable
+    }))
+    .sort((a, b) => b.d - a.d)
+    .map(x => x.s)
+}
+
+/**
+ * Cumul cible de remises pour un assignment, base sur :
+ *  - distance a la deadline (proche = plus de remises)
+ *  - temps ecoule depuis le start de session demo (pour creer la
+ *    sensation de fil d'actu)
+ *
+ * Retourne un nombre entre 0 et N (total etudiants).
+ */
+function _targetSubmissionCount(assignment, totalStudents, sessionStartedAt) {
+  const now = Date.now()
+  const deadline = new Date(assignment.deadline).getTime()
+  const daysToDeadline = (deadline - now) / 86_400_000
+
+  // Baseline en fonction du delai a la deadline
+  let baseline
+  if (daysToDeadline < 0)       baseline = 0.92  // passe : presque tout le monde
+  else if (daysToDeadline < 1)  baseline = 0.75  // jour-J : majorite
+  else if (daysToDeadline < 3)  baseline = 0.45
+  else if (daysToDeadline < 7)  baseline = 0.20
+  else                          baseline = 0.05
+
+  // Bonus session : a chaque 30s ecoulees on ajoute ~2% (max +15%) pour
+  // que les rendus apparaissent visiblement pendant la demo.
+  const sessionElapsedSec = (now - sessionStartedAt) / 1000
+  const sessionBonus = Math.min(0.15, (sessionElapsedSec / 30) * 0.02)
+
+  return Math.round(totalStudents * (baseline + sessionBonus))
+}
+
+/**
+ * Renvoie la liste actuelle des soumissionnaires pour un assignment,
+ * en avancant le simulateur si necessaire.
+ *
+ * @returns {{ student: object, submittedAt: string }[]}
+ */
+function getSimulatedSubmissions(tenantId, assignment, students) {
+  let tenantState = _submitSim.get(tenantId)
+  if (!tenantState) {
+    tenantState = { startedAt: Date.now(), perAssignment: new Map() }
+    _submitSim.set(tenantId, tenantState)
+  }
+
+  const target = _targetSubmissionCount(assignment, students.length, tenantState.startedAt)
+  const ordered = _orderByDiligence(students, assignment.id)
+
+  let assignState = tenantState.perAssignment.get(assignment.id)
+  if (!assignState) {
+    assignState = { submitted: [] } // [{ studentId, submittedAt }]
+    tenantState.perAssignment.set(assignment.id, assignState)
+  }
+
+  // Avance jusqu'a `target` : ajoute les manquants dans l'ordre de diligence.
+  while (assignState.submitted.length < target && assignState.submitted.length < ordered.length) {
+    const next = ordered[assignState.submitted.length]
+    // Timestamp : echelonne sur les heures precedentes pour eviter que
+    // tout apparaisse "il y a 2s". Plus l'etudiant est diligent, plus il
+    // a rendu tot (timestamp plus ancien).
+    const hoursAgo = 0.5 + assignState.submitted.length * 0.7
+    const submittedAt = new Date(Date.now() - hoursAgo * 3600_000).toISOString()
+    assignState.submitted.push({ studentId: next.id, submittedAt })
+  }
+
+  return assignState.submitted.map(entry => ({
+    student: ordered.find(s => s.id === entry.studentId) || students.find(s => s.id === entry.studentId),
+    submittedAt: entry.submittedAt,
+  })).filter(x => x.student)
+}
+
+function resetSubmissionSim(tenantId) {
+  if (tenantId) _submitSim.delete(tenantId)
+  else _submitSim.clear()
+}
+
 module.exports = {
   // Graphe social
   SOCIAL_GRAPH, BASE_AFFINITY,
@@ -247,4 +457,8 @@ module.exports = {
   LAMBDA_BASE, LAMBDA_ALPHA, LAMBDA_BETA,
   // Topic
   TOPIC_KEYWORDS, tokenize, tagsForText, topicVector, scoreTemplate, pickByTopic,
+  // Live + assignments simulators (cote prof)
+  simulateLiveResults, resetLiveSim,
+  getSimulatedSubmissions, resetSubmissionSim,
+  DILIGENCE,
 }

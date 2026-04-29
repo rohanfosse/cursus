@@ -475,21 +475,23 @@ router.get('/live/sessions/:id/leaderboard', (req, res) => {
 })
 
 // Resultats temps-reel d'une activite donnee (utilise par le panneau prof
-// "Resultats" en cours de session). Pour la quiz active on simule la
-// distribution finale q.stats partiellement remplie.
+// "Resultats" en cours de session). Le simulateur (cf. demoBotsAlgo.js)
+// fait croitre le compteur et la distribution selon une courbe logistique
+// + tirage multinomial. Le prof voit donc 7 -> 12 -> 16 reponses sur 60s
+// avec une distribution qui tend vers la verite-terrain.
 router.get('/live/activities/:id/results', (req, res) => {
+  const { simulateLiveResults } = require('../../services/demoBotsAlgo')
   const aid = Number(req.params.id)
-  // Active quiz id 1001 : retourne stats partielles (vote en cours)
   if (aid === 1001) {
+    // Cible : 17 etudiants, 70% sur la bonne reponse, distractors degressifs
     return res.json({
       ok: true,
-      data: {
+      data: simulateLiveResults(`${req.tenantId}|${aid}`, {
         type: 'quiz',
-        total_responses: 7,
-        distribution: [5, 1, 1, 0],  // majorite sur la bonne reponse (idx 0)
+        total: 17,
+        distribution: [12, 2, 1, 2], // 70% / 12% / 6% / 12%
         correct: 0,
-        last_response_at: new Date(Date.now() - 10_000).toISOString(),
-      },
+      }),
     })
   }
   // Activites ready : pas encore de reponses
@@ -920,15 +922,25 @@ router.get('/assignments/gantt', (req, res) => {
 // du dashboard prof affiche ces depots en timeline.
 router.get('/assignments/rendus', (req, res) => {
   try {
+    const { getSimulatedSubmissions } = require('../../services/demoBotsAlgo')
     const db = getDemoDb()
     const tenantId = req.tenantId
-    // 4 derniers devoirs deja rendus (deadline depassee + is_published)
+    // 4 derniers devoirs deja rendus + 3 a venir (deadline future) :
+    // les passes ont des notes/feedback, les a-venir n'en ont pas mais
+    // affichent les rendus qui arrivent au fil de la session demo.
     const pastAssigns = db.prepare(`
       SELECT a.id, a.title, a.type, a.deadline, c.id AS channel_id, c.name AS channel_name, c.promo_id
       FROM demo_assignments a JOIN demo_channels c ON c.id = a.channel_id AND c.tenant_id = a.tenant_id
       WHERE a.tenant_id = ? AND a.is_published = 1 AND a.deadline < datetime('now')
       ORDER BY a.deadline DESC
       LIMIT 4
+    `).all(tenantId)
+    const upcomingAssigns = db.prepare(`
+      SELECT a.id, a.title, a.type, a.deadline, c.id AS channel_id, c.name AS channel_name, c.promo_id
+      FROM demo_assignments a JOIN demo_channels c ON c.id = a.channel_id AND c.tenant_id = a.tenant_id
+      WHERE a.tenant_id = ? AND a.is_published = 1 AND a.deadline >= datetime('now')
+      ORDER BY a.deadline ASC
+      LIMIT 3
     `).all(tenantId)
     const students = db.prepare(`
       SELECT id, name, promo_id, avatar_initials FROM demo_students WHERE tenant_id = ? ORDER BY id
@@ -943,9 +955,9 @@ router.get('/assignments/rendus', (req, res) => {
     ]
     const rendus = []
     let id = 6000
+    // Devoirs passes : tout le monde a rendu, notes + feedback
     for (const a of pastAssigns) {
       const promoStudents = students.filter(s => s.promo_id === a.promo_id)
-      // 80-90% des eleves ont rendu
       const submitters = promoStudents.slice(0, Math.max(1, Math.floor(promoStudents.length * 0.85)))
       submitters.forEach((s, i) => {
         const submittedAt = new Date(new Date(a.deadline).getTime() - (1 + i) * 3600_000)
@@ -968,6 +980,34 @@ router.get('/assignments/rendus', (req, res) => {
         })
       })
     }
+    // Devoirs a venir : simulateur progressif (cf. getSimulatedSubmissions)
+    // qui retourne les rendus tels qu'ils existeraient au temps t. Plus la
+    // deadline approche et plus la session demo dure, plus de rendus
+    // apparaissent. Pas de note (pas encore corrige).
+    for (const a of upcomingAssigns) {
+      const promoStudents = students.filter(s => s.promo_id === a.promo_id)
+      const subs = getSimulatedSubmissions(tenantId, a, promoStudents)
+      for (const sub of subs) {
+        const s = sub.student
+        rendus.push({
+          id: id++,
+          travail_id: a.id,
+          travail_title: a.title,
+          channel_id: a.channel_id,
+          channel_name: a.channel_name,
+          student_id: s.id,
+          student_name: s.name,
+          student_initials: s.avatar_initials,
+          submitted_at: sub.submittedAt,
+          note: null,
+          feedback: null,
+          file_name: `rendu-${a.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${s.name.split(' ')[0].toLowerCase()}.zip`,
+          file_size: 800_000 + (s.id * 17_000),
+        })
+      }
+    }
+    // Tri global : plus recents en premier (le widget affiche un fil)
+    rendus.sort((x, y) => new Date(y.submitted_at).getTime() - new Date(x.submitted_at).getTime())
     res.json({ ok: true, data: rendus })
   } catch (e) {
     console.warn('[demo/rendus] failed:', e?.message)
