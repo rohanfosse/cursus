@@ -77,7 +77,7 @@
     .fade-up { opacity: 0; transform: translateY(24px) scale(0.98); transition: opacity .65s cubic-bezier(.22,1,.36,1), transform .65s cubic-bezier(.22,1,.36,1); }
     .fade-up.visible { opacity: 1; transform: translateY(0) scale(1); }
   </style>
-  <link rel="stylesheet" href="style.css?v=268" />
+  <link rel="stylesheet" href="style.css?v=269" />
 </head>
 <body>
 
@@ -274,35 +274,73 @@
         </div>
         <div class="mini-demo mini-demo-right" id="demo-chat">
           <div class="demo-window">
-            <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="demo-title"># général</span></div>
+            <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="demo-title">Cursus · CPIA2 25-26</span></div>
             <div class="demo-chat-body">
               <div class="demo-sidebar-mini">
-                <div class="sidebar-ch active"><span class="ch-hash">#</span> général</div>
-                <div class="sidebar-ch"><span class="ch-hash">#</span> annonces <span class="badge">2</span></div>
-                <div class="sidebar-ch"><span class="ch-hash">#</span> projet-web <span class="badge">5</span></div>
-                <div class="sidebar-ch"><span class="ch-hash">#</span> algo-tp</div>
+                <div class="sidebar-section">
+                  <span class="sidebar-section-label">Canaux</span>
+                </div>
+                <div class="sidebar-ch active" data-channel="général"><span class="ch-hash">#</span><span class="ch-name">général</span></div>
+                <div class="sidebar-ch" data-channel="annonces"><span class="ch-hash">#</span><span class="ch-name">annonces</span><span class="badge">2</span></div>
+                <div class="sidebar-ch" data-channel="projet-web"><span class="ch-hash">#</span><span class="ch-name">projet-web</span><span class="badge">5</span></div>
+                <div class="sidebar-ch" data-channel="algo-tp"><span class="ch-hash">#</span><span class="ch-name">algo-tp</span></div>
+                <div class="sidebar-section">
+                  <span class="sidebar-section-label">Messages directs</span>
+                </div>
+                <div class="sidebar-dm">
+                  <span class="sidebar-dm-avatar" data-presence="online" style="background:#6366F1">MR</span>
+                  <span class="sidebar-dm-name">Prof. Martin</span>
+                </div>
+                <div class="sidebar-dm">
+                  <span class="sidebar-dm-avatar" data-presence="online" style="background:#059669">EL</span>
+                  <span class="sidebar-dm-name">Emma L.</span>
+                </div>
+                <div class="sidebar-dm">
+                  <span class="sidebar-dm-avatar" data-presence="away" style="background:#D97706">JD</span>
+                  <span class="sidebar-dm-name">Jean D.</span>
+                </div>
               </div>
-              <div class="demo-messages">
-                <div class="demo-msg" style="--delay: 0ms">
-                  <div class="msg-avatar" data-presence="online" style="background: #6366F1">MR</div>
-                  <div class="msg-body"><span class="msg-author" style="color: #6366F1">Prof. Martin</span><span class="msg-time">10:42</span><div class="msg-text">Le livrable du <b>Projet Web E4</b> est à rendre vendredi 17h.</div></div>
+              <div class="demo-chat-main">
+                <!-- Channel header : description + members + actions -->
+                <div class="chat-header">
+                  <div class="chat-header-info">
+                    <div class="chat-header-name"><span class="ch-hash">#</span><span id="chat-header-channel">général</span></div>
+                    <div class="chat-header-desc" id="chat-header-desc">Canal principal · 24 membres</div>
+                  </div>
+                  <div class="chat-header-members" aria-label="Membres en ligne">
+                    <span class="chat-member" style="background:#6366F1" data-presence="online">MR</span>
+                    <span class="chat-member" style="background:#059669" data-presence="online">EL</span>
+                    <span class="chat-member" style="background:#D97706" data-presence="away">JD</span>
+                    <span class="chat-member chat-member--more">+12</span>
+                  </div>
+                  <button type="button" class="chat-header-search" aria-label="Rechercher dans le canal">
+                    <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                  </button>
                 </div>
-                <div class="demo-msg" style="--delay: 350ms">
-                  <div class="msg-avatar" data-presence="online" style="background: #059669">EL</div>
-                  <div class="msg-body"><span class="msg-author">Emma L.</span><span class="msg-time">10:44</span><div class="msg-text">Merci ! On peut travailler en équipe ?</div></div>
-                </div>
-                <div class="demo-msg" style="--delay: 700ms">
-                  <div class="msg-avatar" data-presence="online" style="background: #6366F1">MR</div>
-                  <div class="msg-body"><span class="msg-author" style="color: #6366F1">Prof. Martin</span><span class="msg-time">10:45</span><div class="msg-text">Oui, groupes de 2-3. Utilisez le canal <b>#projet-web</b> pour coordonner.</div><div class="msg-reactions"><span class="reaction" data-type="up"><svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H7l-3-1V10l4-1 4-7c1.05-.05 2 .9 2 2v3a2 2 0 0 0 1 0Z"/></svg><span class="reaction-count">4</span></span><span class="reaction" data-type="party"><svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-1.13 1.13c-.61.61-1.43.95-2.29.95-.86 0-1.13.45-1.13 1.13v.51c0 .86-.34 1.69-.95 2.29L14 22"/><path d="m16 8 1 1.5"/><path d="M20 6.27c-.96-.81-2.41-.81-3.37 0L8.27 13.6c-.96.81-.96 2.13 0 2.94l1.95 1.65c.96.81 2.41.81 3.37 0l8.36-7.32c.96-.81.96-2.14 0-2.95Z"/></svg><span class="reaction-count">2</span></span></div></div>
-                </div>
-                <div class="demo-typing" style="--delay: 1050ms"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span> Jean écrit...</div>
+                <div class="demo-messages" id="demo-messages-container"></div>
               </div>
             </div>
             <div class="demo-input-bar">
-              <span class="demo-input-placeholder">Écrire dans #général...</span>
-              <div class="demo-input-actions">
-                <span class="demo-input-icon" title="Joindre un fichier">+</span>
-                <span class="demo-input-icon" title="Emoji">:)</span>
+              <button type="button" class="demo-input-icon demo-input-icon--btn" aria-label="Joindre un fichier">
+                <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+              </button>
+              <span class="demo-input-field" id="chat-input-field" tabindex="0" role="textbox" aria-label="Écrire un message">
+                <span class="demo-input-placeholder">Écrire dans <b>#<span id="chat-input-channel">général</span></b>… <span class="demo-input-hint">tape <kbd>/</kbd> pour les commandes</span></span>
+              </span>
+              <button type="button" class="demo-input-icon demo-input-icon--btn" aria-label="Emoji">
+                <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+              </button>
+              <button type="button" class="demo-input-send" id="chat-input-send" aria-label="Envoyer">
+                <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+              </button>
+              <!-- Command palette popover, montré quand l'input est cliqué -->
+              <div class="demo-input-cmds" id="chat-input-cmds" hidden>
+                <div class="demo-input-cmds-title">Commandes</div>
+                <button type="button" class="demo-input-cmd" data-cmd="/devoir"><span class="demo-input-cmd-key">/devoir</span><span class="demo-input-cmd-desc">Annoncer un devoir lié</span></button>
+                <button type="button" class="demo-input-cmd" data-cmd="/doc"><span class="demo-input-cmd-key">/doc</span><span class="demo-input-cmd-desc">Partager une ressource</span></button>
+                <button type="button" class="demo-input-cmd" data-cmd="/lumen"><span class="demo-input-cmd-key">/lumen</span><span class="demo-input-cmd-desc">Lien vers un chapitre</span></button>
+                <button type="button" class="demo-input-cmd" data-cmd="/quiz"><span class="demo-input-cmd-key">/quiz</span><span class="demo-input-cmd-desc">Lancer un quiz Spark</span></button>
+                <button type="button" class="demo-input-cmd" data-cmd="/rdv"><span class="demo-input-cmd-key">/rdv</span><span class="demo-input-cmd-desc">Proposer un créneau</span></button>
               </div>
             </div>
           </div>
@@ -823,8 +861,8 @@
     </div>
   </footer>
 
-  <script src="grammar.js?v=268"></script>
-  <script src="app.js?v=268"></script>
+  <script src="grammar.js?v=269"></script>
+  <script src="app.js?v=269"></script>
   <!-- Analytics: insert GA4 gtag.js snippet here when ready -->
 </body>
 </html>

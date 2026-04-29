@@ -593,24 +593,91 @@ document.addEventListener('DOMContentLoaded', () => {
   // affiche en pastille sur l'avatar (animation CSS).
   const CHAT_PRESENCE = { MR: 'online', EL: 'online', JD: 'away', SB: 'online' }
 
+  // ── Channels meta : description + nombre de membres affiches dans le header
+  const CHAT_CHANNELS_META = {
+    'général':    { desc: 'Canal principal de la promo CPIA2 25-26',     members: 24 },
+    'annonces':   { desc: 'Lecture seule · annonces officielles',         members: 24 },
+    'projet-web': { desc: 'Coordination Projet Web E4 · 8 équipes',       members: 18 },
+    'algo-tp':    { desc: 'Entraide TPs algo · pas de spoilers SVP',      members: 22 },
+  }
+
+  // Chaque message peut porter :
+  //   - mentions: parse @nom et #channel via la grammaire de msg-text
+  //   - att: piece jointe (file | code | link)
+  //   - thread: { count, avatars: [initials], lastAt }
+  //   - readBy: nb de lectures (badge "lu par X")
+  //   - pinned: epinglage visuel avec icone
   const chatChannels = {
     'général': [
-      { av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '10:42', txt: 'Le livrable du <b>Projet Web E4</b> est à rendre vendredi 17h.' },
-      { av: 'EL', bg: '#059669', name: 'Emma L.', nc: '', t: '10:44', txt: 'Merci ! On peut travailler en équipe ?' },
-      { av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '10:45', txt: 'Oui, groupes de 2-3. Utilisez le canal <b>#projet-web</b> pour coordonner.', rx: 'up:4|party:2' },
+      {
+        av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '10:42',
+        pinned: true,
+        txt: '<span class="msg-mention msg-mention--all">@CPIA2</span> Le livrable du <b>Projet Web E4</b> est à rendre <b>vendredi 17h</b>.',
+        att: { kind: 'file', icon: 'PDF', color: '#dc2626', name: 'Sujet Projet Web E4.pdf', meta: '2.4 Mo · 12 pages' },
+        readBy: 22,
+      },
+      {
+        av: 'EL', bg: '#059669', name: 'Emma L.', nc: '', t: '10:44',
+        txt: 'Merci ! <span class="msg-mention" style="--mc:#6366F1">@Prof.Martin</span> on peut travailler en équipe ?',
+      },
+      {
+        av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '10:45',
+        txt: 'Oui, groupes de 2-3. Utilisez <span class="msg-channel">#projet-web</span> pour coordonner.',
+        rx: 'up:4|party:2',
+        thread: { count: 3, avatars: ['EL', 'JD', 'SB'], lastAt: 'il y a 5 min' },
+      },
     ],
     'annonces': [
-      { av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '09:00', txt: '<b>Semaine 12</b> : pas de cours mercredi. TP reporté à jeudi 14h.' },
-      { av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '08:30', txt: 'Résultats du TP Algo disponibles dans vos notes.', rx: 'up:8' },
+      {
+        av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '09:00',
+        pinned: true,
+        txt: '<b>Semaine 12</b> · pas de cours mercredi. TP reporté à <b>jeudi 14h</b>, salle B204.',
+      },
+      {
+        av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '08:30',
+        txt: 'Résultats du <b>TP Algo</b> disponibles dans vos notes. Moyenne <b>14,2/20</b>.',
+        att: { kind: 'link', icon: 'XLS', color: '#059669', name: 'Notes Algo S1.xlsx', meta: 'Ouvert par 18 / 24 étudiants' },
+        rx: 'up:8',
+      },
     ],
     'projet-web': [
-      { av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '', t: '14:12', txt: 'J\'ai push l\'archi sur le repo. Quelqu\'un peut review ?' },
-      { av: 'EL', bg: '#059669', name: 'Emma L.', nc: '', t: '14:15', txt: 'Je regarde ce soir ! C\'est sur quelle branche ?' },
-      { av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '', t: '14:16', txt: '<code>feat/auth-module</code>. Merci.', rx: 'up:1' },
+      {
+        av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '', t: '14:12',
+        txt: 'J\'ai push l\'archi sur le repo. Quelqu\'un peut review ?',
+        att: { kind: 'link', icon: 'GIT', color: '#7c3aed', name: 'cesi/projet-web · feat/auth-module', meta: '+312 / -84 sur 7 fichiers · TypeScript' },
+      },
+      {
+        av: 'EL', bg: '#059669', name: 'Emma L.', nc: '', t: '14:15',
+        txt: 'Je regarde ce soir ! C\'est sur quelle branche ?',
+      },
+      {
+        av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '', t: '14:16',
+        txt: '<code>feat/auth-module</code>. Le middleware JWT vérifie le token côté server :',
+        att: { kind: 'code', lang: 'TypeScript', name: 'middleware/auth.ts',
+          code: [
+            [['kw', 'export'], ['', ' '], ['kw', 'function'], ['', ' '], ['fn', 'requireAuth'], ['', '(req, res, next) {']],
+            [['', '  '], ['kw', 'const'], ['', ' token = req.headers.authorization']],
+            [['', '    ?.'], ['fn', 'replace'], ['', '('], ['str', "'Bearer '"], ['', ', '], ['str', "''"], ['', ')']],
+            [['', '  '], ['kw', 'if'], ['', ' (!token) '], ['kw', 'return'], ['', ' res.'], ['fn', 'status'], ['', '('], ['num', '401'], ['', ')']],
+            [['', '  next()']],
+            [['', '}']],
+          ],
+        },
+        rx: 'up:1',
+      },
     ],
     'algo-tp': [
-      { av: 'SB', bg: '#8B5CF6', name: 'Sara B.', nc: '', t: '16:30', txt: 'Quelqu\'un a compris la rotation AVL ? Je bloque sur le cas double.' },
-      { av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '', t: '16:35', txt: 'Regarde le <code>balanceFactor</code>. Si > 1 et fils gauche &lt; 0 → rotation gauche-droite.', rx: 'light:3' },
+      {
+        av: 'SB', bg: '#8B5CF6', name: 'Sara B.', nc: '', t: '16:30',
+        txt: 'Quelqu\'un a compris la rotation AVL ? Je bloque sur le cas double.',
+      },
+      {
+        av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '', t: '16:35',
+        txt: 'Regarde le <code>balanceFactor</code>. Si <b>&gt; 1</b> et fils gauche <b>&lt; 0</b> → rotation gauche-droite. Le chapitre Lumen explique ça avec un schéma :',
+        att: { kind: 'link', icon: 'LUM', color: '#D97706', name: 'Lumen · Algo L1 · Arbres équilibrés', meta: '12 min de lecture · 2 devoirs liés' },
+        rx: 'light:3',
+        thread: { count: 2, avatars: ['SB', 'EL'], lastAt: 'il y a 2 min' },
+      },
     ]
   }
 
@@ -622,22 +689,90 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<span class="reaction" data-type="${type}">${icon}<span class="reaction-count">${count}</span></span>`
   }
 
-  function renderMessages(container, msgs, hasTyping) {
+  // ── Render attachements : 3 formes possibles (file / link / code) ─────
+  function renderAttachment(att) {
+    if (!att) return ''
+    if (att.kind === 'code') {
+      const tokenSpan = (t) => t[0] === '' ? t[1] : `<span class="lm-c-${t[0]}">${t[1]}</span>`
+      const lines = att.code.map((toks, i) =>
+        `<div class="msg-code-line"><span class="msg-code-num">${i + 1}</span><span class="msg-code-content">${toks.map(tokenSpan).join('')}</span></div>`
+      ).join('')
+      return `
+        <div class="msg-att msg-att--code">
+          <div class="msg-att-code-head">
+            <span class="msg-att-code-lang">${att.lang}</span>
+            <span class="msg-att-code-name">${att.name}</span>
+            <span class="msg-att-code-action" aria-hidden="true">Copier</span>
+          </div>
+          <pre class="msg-att-code-body">${lines}</pre>
+        </div>`
+    }
+    // file ou link : carte horizontale icone + nom + meta + action
+    return `
+      <div class="msg-att msg-att--${att.kind}">
+        <div class="msg-att-icon" style="background:${att.color}">${att.icon}</div>
+        <div class="msg-att-info">
+          <span class="msg-att-name">${att.name}</span>
+          <span class="msg-att-meta">${att.meta}</span>
+        </div>
+        <span class="msg-att-action">${att.kind === 'link' ? 'Ouvrir' : 'Aperçu'}</span>
+      </div>`
+  }
+
+  function renderThread(thread) {
+    if (!thread) return ''
+    const avatars = thread.avatars.map(a => `<span class="msg-thread-av" style="background:${CHAT_AVATAR_COLORS[a] || '#6366F1'}">${a}</span>`).join('')
+    return `
+      <button type="button" class="msg-thread">
+        <span class="msg-thread-avatars">${avatars}</span>
+        <span class="msg-thread-text">${thread.count} réponse${thread.count > 1 ? 's' : ''}</span>
+        <span class="msg-thread-time">${thread.lastAt}</span>
+        <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      </button>`
+  }
+
+  // Couleur d'avatar par initiales (cohere avec le reste de la demo).
+  const CHAT_AVATAR_COLORS = { MR: '#6366F1', EL: '#059669', JD: '#D97706', SB: '#8B5CF6', TM: '#EC4899', LF: '#06B6D4' }
+
+  function renderMessages(container, msgs, hasTyping, typingName) {
     container.innerHTML = ''
     msgs.forEach((m, i) => {
-      const reactions = m.rx ? m.rx.split('|').map(renderReaction).join('') : ''
+      const reactions = m.rx ? `<div class="msg-reactions">${m.rx.split('|').map(renderReaction).join('')}<button type="button" class="msg-react-add" aria-label="Ajouter une reaction"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button></div>` : ''
+      const att = renderAttachment(m.att)
+      const thread = renderThread(m.thread)
+      const readBy = m.readBy ? `<div class="msg-readby"><svg aria-hidden="true" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/><polyline points="20 12 13 19"/></svg>Lu par ${m.readBy} étudiants</div>` : ''
+      const pinned = m.pinned ? '<span class="msg-pin" title="Épinglé"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg>Épinglé</span>' : ''
+
       const div = document.createElement('div')
-      div.className = 'demo-msg'
+      div.className = 'demo-msg' + (m.pinned ? ' demo-msg--pinned' : '')
       div.style.setProperty('--delay', (i * 200) + 'ms')
       const presence = CHAT_PRESENCE[m.av] || 'online'
-      div.innerHTML = `<div class="msg-avatar" data-presence="${presence}" style="background:${m.bg}">${m.av}</div><div class="msg-body"><span class="msg-author"${m.nc ? ` style="color:${m.nc}"` : ''}>${m.name}</span><span class="msg-time">${m.t}</span><div class="msg-text">${m.txt}</div>${reactions ? `<div class="msg-reactions">${reactions}</div>` : ''}</div>`
+      div.innerHTML = `
+        <div class="msg-avatar" data-presence="${presence}" style="background:${m.bg}">${m.av}</div>
+        <div class="msg-body">
+          ${pinned}
+          <div class="msg-head">
+            <span class="msg-author"${m.nc ? ` style="color:${m.nc}"` : ''}>${m.name}</span>
+            <span class="msg-time">${m.t}</span>
+          </div>
+          <div class="msg-text">${m.txt}</div>
+          ${att}
+          ${reactions}
+          ${thread}
+          ${readBy}
+        </div>
+        <div class="msg-actions" aria-hidden="true">
+          <button type="button" class="msg-action" aria-label="Répondre"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+          <button type="button" class="msg-action" aria-label="Réagir"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+          <button type="button" class="msg-action" aria-label="Plus"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+        </div>`
       container.appendChild(div)
     })
     if (hasTyping) {
       const t = document.createElement('div')
       t.className = 'demo-typing'
       t.style.setProperty('--delay', (msgs.length * 200 + 200) + 'ms')
-      t.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span> Jean écrit...'
+      t.innerHTML = `<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span> ${typingName || 'Jean'} écrit...`
       container.appendChild(t)
     }
 
@@ -669,53 +804,128 @@ document.addEventListener('DOMContentLoaded', () => {
     return generateGrammarMessage()
   }
 
-  document.querySelectorAll('.demo-sidebar-mini .sidebar-ch').forEach(ch => {
+  // ── Render initial du canal "général" + handlers de switch ──────────
+  function renderChannel(name) {
+    const baseMsgs = chatChannels[name]
+    if (!baseMsgs) return
+
+    const win = document.querySelector('#demo-chat .demo-window')
+    if (!win) return
+
+    // Met a jour le header (description + nom inline) et la cible input.
+    const headerChan = win.querySelector('#chat-header-channel')
+    const headerDesc = win.querySelector('#chat-header-desc')
+    const meta = CHAT_CHANNELS_META[name] || { desc: '', members: 0 }
+    if (headerChan) headerChan.textContent = name
+    if (headerDesc) headerDesc.textContent = `${meta.desc} · ${meta.members} membres`
+    const inputChan = win.querySelector('#chat-input-channel')
+    if (inputChan) inputChan.textContent = name
+
+    // 35% de chance d'ajouter un message genere a la fin (effet
+    // "conversation qui continue") — different a chaque switch.
+    let msgs = baseMsgs
+    if (Math.random() < 0.35) {
+      const generated = generateMarkovMessage()
+      if (generated) {
+        const author = baseMsgs[Math.floor(Math.random() * baseMsgs.length)]
+        const t = new Date()
+        const time = String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0')
+        msgs = [...baseMsgs, {
+          av: author.av, bg: author.bg, name: author.name, nc: author.nc,
+          t: time, txt: generated,
+        }]
+      }
+    }
+
+    const container = win.querySelector('#demo-messages-container')
+    // Typing par canal : un nom different selon le canal pour le realisme
+    const TYPING_BY_CHAN = { 'général': 'Jean', 'projet-web': 'Sara', 'algo-tp': 'Emma' }
+    const typingName = TYPING_BY_CHAN[name]
+    renderMessages(container, msgs, !!typingName, typingName)
+
+    // Re-trigger entry animations
+    container.querySelectorAll('.demo-msg, .demo-typing').forEach(el => {
+      el.style.opacity = '0'
+      el.style.animation = 'none'
+      void el.offsetHeight // force reflow
+      el.style.animation = `msgAppear 350ms var(--ease-smooth) forwards`
+      el.style.animationDelay = el.style.getPropertyValue('--delay') || getComputedStyle(el).getPropertyValue('--delay')
+    })
+  }
+
+  // Render initial : remplit le canal "général" sans clic.
+  renderChannel('général')
+
+  document.querySelectorAll('#demo-chat .sidebar-ch').forEach(ch => {
     ch.style.cursor = 'pointer'
     ch.addEventListener('click', () => {
       const sidebar = ch.closest('.demo-sidebar-mini')
       sidebar.querySelectorAll('.sidebar-ch').forEach(c => c.classList.remove('active'))
       ch.classList.add('active')
-
-      const name = ch.textContent.replace(/#/g, '').replace(/\d+$/g, '').trim()
-      const baseMsgs = chatChannels[name]
-      if (!baseMsgs) return
-
-      const win = ch.closest('.demo-window')
-      const title = win.querySelector('.demo-title')
-      if (title) title.textContent = '# ' + name
-
-      // 35% de chance d'ajouter un message Markov-genere a la fin (effet
-      // "conversation qui continue") — different a chaque clic, donc on
-      // ne montre jamais 2 fois exactement le meme historique.
-      let msgs = baseMsgs
-      if (Math.random() < 0.35) {
-        const generated = generateMarkovMessage()
-        if (generated) {
-          // Pioche un author dans la liste existante pour la coherence
-          const author = baseMsgs[Math.floor(Math.random() * baseMsgs.length)]
-          const t = new Date()
-          const time = String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0')
-          msgs = [...baseMsgs, {
-            av: author.av, bg: author.bg, name: author.name, nc: author.nc,
-            t: time, txt: generated,
-          }]
-        }
-      }
-
-      const container = win.querySelector('.demo-messages')
-      const hasTyping = name === 'général' || name === 'projet-web'
-      renderMessages(container, msgs, hasTyping)
-
-      // Re-trigger entry animations
-      container.querySelectorAll('.demo-msg, .demo-typing').forEach(el => {
-        el.style.opacity = '0'
-        el.style.animation = 'none'
-        void el.offsetHeight // force reflow
-        el.style.animation = `msgAppear 350ms var(--ease-smooth) forwards`
-        el.style.animationDelay = el.style.getPropertyValue('--delay') || getComputedStyle(el).getPropertyValue('--delay')
-      })
+      const name = ch.dataset.channel || ch.querySelector('.ch-name')?.textContent.trim() || ''
+      renderChannel(name)
     })
   })
+
+  // ── Input bar interactif : palette de commandes + bouton send ──────────
+  // Click sur l'input field -> ouvre la palette /devoir /doc /lumen /quiz /rdv
+  // Click sur une commande -> remplace le placeholder par la commande tapee
+  // Click ailleurs -> ferme la palette
+  // Click sur send -> animation slide-up + reset
+  const chatInputField = document.getElementById('chat-input-field')
+  const chatInputCmds  = document.getElementById('chat-input-cmds')
+  const chatInputSend  = document.getElementById('chat-input-send')
+
+  function closeChatCmds() {
+    if (!chatInputCmds || chatInputCmds.hidden) return
+    chatInputCmds.hidden = true
+    chatInputField?.classList.remove('demo-input-field--active')
+  }
+
+  if (chatInputField && chatInputCmds) {
+    chatInputField.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const open = !chatInputCmds.hidden
+      if (open) { closeChatCmds(); return }
+      chatInputCmds.hidden = false
+      chatInputField.classList.add('demo-input-field--active')
+    })
+    chatInputField.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === '/') { e.preventDefault(); chatInputField.click() }
+      if (e.key === 'Escape') closeChatCmds()
+    })
+
+    chatInputCmds.querySelectorAll('.demo-input-cmd').forEach(cmd => {
+      cmd.addEventListener('click', (e) => {
+        e.stopPropagation()
+        const slug = cmd.dataset.cmd || ''
+        const placeholder = chatInputField.querySelector('.demo-input-placeholder')
+        if (placeholder) {
+          placeholder.innerHTML = `<span class="demo-input-cmd-typed">${slug}</span> <span class="demo-input-cursor" aria-hidden="true"></span>`
+        }
+        closeChatCmds()
+      })
+    })
+
+    document.addEventListener('click', (e) => {
+      if (!chatInputField.contains(e.target) && !chatInputCmds.contains(e.target)) closeChatCmds()
+    })
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeChatCmds() })
+  }
+
+  if (chatInputSend) {
+    chatInputSend.addEventListener('click', () => {
+      // Anime un check sur le bouton puis revient. Plus realiste qu'un toast.
+      chatInputSend.classList.add('demo-input-send--sent')
+      const placeholder = chatInputField?.querySelector('.demo-input-placeholder')
+      const original = placeholder?.innerHTML
+      if (placeholder) placeholder.innerHTML = '<span class="demo-input-sent">Message envoyé</span>'
+      setTimeout(() => {
+        chatInputSend.classList.remove('demo-input-send--sent')
+        if (placeholder && original) placeholder.innerHTML = original
+      }, 1400)
+    })
+  }
 
   // ── Clickable reactions (toggle compteur, format SVG + count) ─────────
   document.addEventListener('click', (e) => {
