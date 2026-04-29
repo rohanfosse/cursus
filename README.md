@@ -49,23 +49,6 @@ Un seul endroit, plus de charge mentale.
 
 <br />
 
-## Captures
-
-> **TODO** : remplacer les liens ci-dessous par les vraies captures.
-> Recommandé : un GIF animé pour le dashboard, des PNG pour les autres.
-
-![Démo Dashboard étudiant](https://placehold.co/1280x720/1a1a2e/ffffff?text=Dashboard+%C3%A9tudiant+%E2%80%94+%C3%A9ch%C3%A9ances+%2B+messages+%2B+Live)
-
-| Messagerie | Lumen (cours GitHub) | Live Quiz |
-|:---:|:---:|:---:|
-| ![Messagerie](https://placehold.co/640x400/1a1a2e/ffffff?text=Chat+par+canal) | ![Lumen](https://placehold.co/640x400/d97706/ffffff?text=Liseuse+markdown) | ![Live](https://placehold.co/640x400/ef4444/ffffff?text=Quiz+en+direct) |
-
-| Devoirs | Cahier collaboratif | Booking RDV |
-|:---:|:---:|:---:|
-| ![Devoirs](https://placehold.co/640x400/059669/ffffff?text=Notation+A-D) | ![Cahier](https://placehold.co/640x400/6366f1/ffffff?text=TipTap+%2B+Yjs) | ![Booking](https://placehold.co/640x400/0ea5e9/ffffff?text=Mini-Calendly) |
-
-<br />
-
 ## Pourquoi
 
 <table>
