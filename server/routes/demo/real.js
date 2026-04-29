@@ -334,6 +334,131 @@ router.get('/teachers', (req, res) => {
 })
 
 // ────────────────────────────────────────────────────────────────────
+//  Recent DM contacts : liste des contacts avec qui le visiteur a
+//  recemment echange en DM. Critique pour que le DM de bienvenue
+//  envoye par sendWelcomeDm (cf. demoBots) apparaisse dans la sidebar.
+//
+//  Avant : route hardcodee dans mocks avec partner_id 1, 2 — ids qui
+//  ne correspondent a aucun student du tenant (SQLite auto-increment
+//  global, pas reset par tenant). Resultat : la liste affichait des
+//  noms factices et les clics ne retrouvaient pas le bon DM.
+//
+//  Maintenant : on lit demo_messages pour trouver tous les peers avec
+//  qui le visiteur a echange (DM entrant ou sortant), enrichi avec :
+//   - le prof (toujours dispo en DM en demo)
+//   - 1-2 students recents si la liste est vide (pour ne pas avoir
+//     un sidebar vide a l'arrivee).
+// ────────────────────────────────────────────────────────────────────
+router.get('/messages/recent-dm-contacts', (req, res) => {
+  const db = getDemoDb()
+  const u = req.demoUser
+  if (!u) return res.json({ ok: true, data: [] })
+
+  const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20))
+
+  // Peers ayant echange avec le visiteur, avec le dernier message + count unread
+  // Heuristique unread : messages entrants pas encore "lus" — en demo on
+  // simplifie en comptant les messages des 30 dernieres minutes du peer.
+  const peers = db.prepare(
+    `SELECT
+       CASE WHEN m.author_id = ? THEN m.dm_student_id ELSE m.author_id END AS partner_id,
+       MAX(m.created_at) AS last_message_at,
+       MAX(CASE WHEN m.author_id = ? THEN NULL ELSE m.content END) AS last_message,
+       SUM(CASE
+             WHEN m.author_id != ?
+               AND datetime(m.created_at) >= datetime('now', '-30 minutes')
+             THEN 1 ELSE 0 END) AS unread
+     FROM demo_messages m
+     WHERE m.tenant_id = ?
+       AND m.channel_id IS NULL
+       AND (m.author_id = ? OR m.dm_student_id = ?)
+     GROUP BY partner_id
+     ORDER BY last_message_at DESC
+     LIMIT ?`
+  ).all(u.id, u.id, u.id, req.tenantId, u.id, u.id, limit)
+
+  const out = []
+
+  // Resolve les noms : students par id positif, prof par id negatif
+  for (const p of peers) {
+    if (!p.partner_id || p.partner_id === u.id) continue
+    if (p.partner_id < 0) {
+      const t = db.prepare(
+        `SELECT name FROM demo_teachers WHERE id = ? AND tenant_id = ?`
+      ).get(-p.partner_id, req.tenantId)
+      if (!t) continue
+      out.push({
+        partner_id: p.partner_id,
+        partner_name: t.name,
+        partner_role: 'teacher',
+        avatar_initials: t.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2),
+        last_message: p.last_message || '',
+        last_message_at: p.last_message_at,
+        unread: p.unread || 0,
+      })
+    } else {
+      const s = db.prepare(
+        `SELECT id, name, avatar_initials FROM demo_students WHERE id = ? AND tenant_id = ?`
+      ).get(p.partner_id, req.tenantId)
+      if (!s) continue
+      out.push({
+        partner_id: s.id,
+        partner_name: s.name,
+        partner_role: 'student',
+        avatar_initials: s.avatar_initials,
+        last_message: p.last_message || '',
+        last_message_at: p.last_message_at,
+        unread: p.unread || 0,
+      })
+    }
+  }
+
+  // Toujours ajouter le prof en bas de liste s'il n'y est pas (le visiteur
+  // peut vouloir le contacter meme sans historique).
+  if (!out.some(c => c.partner_role === 'teacher')) {
+    const t = db.prepare(
+      `SELECT id, name FROM demo_teachers WHERE tenant_id = ?`
+    ).get(req.tenantId)
+    if (t) {
+      out.push({
+        partner_id: -t.id,
+        partner_name: t.name,
+        partner_role: 'teacher',
+        avatar_initials: t.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2),
+        last_message: '',
+        last_message_at: null,
+        unread: 0,
+      })
+    }
+  }
+
+  // Si la liste est vide ou tres courte, complete avec 2-3 students recents
+  // pour ne pas afficher une sidebar vide.
+  if (out.length < 3) {
+    const fillers = db.prepare(
+      `SELECT id, name, avatar_initials FROM demo_students
+       WHERE tenant_id = ? AND id != ?
+       ORDER BY id LIMIT 4`
+    ).all(req.tenantId, u.id)
+    for (const s of fillers) {
+      if (out.some(c => c.partner_id === s.id)) continue
+      out.push({
+        partner_id: s.id,
+        partner_name: s.name,
+        partner_role: 'student',
+        avatar_initials: s.avatar_initials,
+        last_message: '',
+        last_message_at: null,
+        unread: 0,
+      })
+      if (out.length >= 5) break
+    }
+  }
+
+  res.json({ ok: true, data: out })
+})
+
+// ────────────────────────────────────────────────────────────────────
 //  Notification feed (toasts cote front sur activite reelle des bots)
 //
 //  Le composable useDemoNotifications poll cet endpoint toutes les 30s

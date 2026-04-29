@@ -192,6 +192,70 @@ describe('Message actions (pin, reactions, edit, delete)', () => {
 })
 
 // ────────────────────────────────────────────────────────────────────
+//  Welcome DM + recent-dm-contacts (decouverte des DMs entrants)
+// ────────────────────────────────────────────────────────────────────
+describe('Welcome DM + recent-dm-contacts', () => {
+  const app = buildApp()
+
+  it('GET /messages/recent-dm-contacts inclut au moins le prof', async () => {
+    const { token } = await startSession(app)
+    const res = await request(app).get('/api/demo/messages/recent-dm-contacts').set(auth(token))
+    expect(res.status).toBe(200)
+    expect(Array.isArray(res.body.data)).toBe(true)
+    expect(res.body.data.some(c => c.partner_role === 'teacher')).toBe(true)
+  })
+
+  it('GET /messages/recent-dm-contacts utilise des partner_id valides du tenant', async () => {
+    const { token, user } = await startSession(app)
+    const studentsRes = await request(app)
+      .get(`/api/demo/promotions/${user.promo_id}/students`).set(auth(token))
+    const validStudentIds = new Set(studentsRes.body.data.map(s => s.id))
+    const teachersRes = await request(app).get('/api/demo/teachers').set(auth(token))
+    const validTeacherIds = new Set(teachersRes.body.data.map(t => t.id)) // ids negatifs
+
+    const res = await request(app).get('/api/demo/messages/recent-dm-contacts').set(auth(token))
+    for (const contact of res.body.data) {
+      const isStudent = contact.partner_role === 'student' && validStudentIds.has(contact.partner_id)
+      const isTeacher = contact.partner_role === 'teacher' && validTeacherIds.has(contact.partner_id)
+      expect(isStudent || isTeacher).toBe(true)
+    }
+  })
+
+  it('un DM entrant cree par sendWelcomeDm apparait dans la conversation', async () => {
+    // Simule l'effet de sendWelcomeDm en inserant directement un DM bot
+    // (le warm-up serait declenche en NODE_ENV=production via setTimeout
+    // — on raccourcit pour les tests).
+    const { token, user } = await startSession(app)
+    const { sendWelcomeDm } = require('../../../server/services/demoBots')
+    const { getDemoDb } = require('../../../server/db/demo-connection')
+
+    // Trouve le tenant_id de la session courante
+    const sess = getDemoDb().prepare(
+      `SELECT tenant_id FROM demo_sessions WHERE user_id = ? ORDER BY id DESC LIMIT 1`
+    ).get(user.id)
+    expect(sess).toBeTruthy()
+
+    const result = sendWelcomeDm(getDemoDb(), sess.tenant_id, user.id)
+    expect(result).toBeTruthy()
+    expect(result.authorName).toBeTruthy()
+
+    // Trouve le bot dans la liste des students
+    const studentsRes = await request(app)
+      .get(`/api/demo/promotions/${user.promo_id}/students`).set(auth(token))
+    const bot = studentsRes.body.data.find(s => s.name === result.authorName)
+    expect(bot).toBeTruthy()
+
+    // Le visiteur ouvre la conversation avec le bot -> doit voir le welcome DM
+    const dmRes = await request(app)
+      .get(`/api/demo/messages/dm/${bot.id}/page`).set(auth(token))
+    expect(dmRes.status).toBe(200)
+    const incoming = dmRes.body.data.filter(m => !m.is_self)
+    const welcome = incoming.find(m => m.content === result.content)
+    expect(welcome).toBeTruthy()
+  })
+})
+
+// ────────────────────────────────────────────────────────────────────
 //  Lumen : reads + notes
 // ────────────────────────────────────────────────────────────────────
 describe('Lumen interactive (reads + notes)', () => {

@@ -214,24 +214,43 @@ router.get('/messages/dm/:studentId/page', (req, res) => {
   res.json({ ok: true, data: all })
 })
 // Recents DM contacts pour le widget "Conversations directes" du dashboard
-router.get('/messages/recent-dm-contacts', (_req, res) => res.json({
-  ok: true,
-  data: [
-    { partner_id: -1, partner_name: 'Prof. Lemaire',     partner_role: 'teacher', avatar_initials: 'PL', last_message: 'Au passage, ton TP3 etait excellent. A. Continue comme ca.',  last_message_at: new Date(Date.now() - 120 * 60_000).toISOString(), unread: 0 },
-    { partner_id: 1,  partner_name: 'Emma Lefevre',      partner_role: 'student', avatar_initials: 'EL', last_message: 'Deal.',                                                       last_message_at: new Date(Date.now() - 168 * 60_000).toISOString(), unread: 0 },
-    { partner_id: 2,  partner_name: 'Jean Dupont',       partner_role: 'student', avatar_initials: 'JD', last_message: 'Trouve, merci !',                                              last_message_at: new Date(Date.now() - 50 * 60_000).toISOString(),  unread: 1 },
-  ],
-}))
-// Fichiers partages en DM (pour le widget "Mes fichiers")
-router.get('/messages/dm-files', (_req, res) => res.json({
-  ok: true,
-  data: [
-    { id: 7001, partner_id: -1, partner_name: 'Prof. Lemaire', file_name: 'Sujet TP4 AVL.pdf',         file_url: 'https://example.com/tp4-avl.pdf',        file_size: 412_000, mime_type: 'application/pdf', shared_at: new Date(Date.now() -  3 * 86400_000).toISOString() },
-    { id: 7002, partner_id:  1, partner_name: 'Emma Lefevre',  file_name: 'maquette-projet.fig',        file_url: 'https://example.com/maquette.fig',        file_size: 1_240_000, mime_type: 'application/octet-stream', shared_at: new Date(Date.now() -  2 * 86400_000).toISOString() },
-    { id: 7003, partner_id:  1, partner_name: 'Emma Lefevre',  file_name: 'archi-decision.md',          file_url: 'https://example.com/archi.md',           file_size:    8_400, mime_type: 'text/markdown', shared_at: new Date(Date.now() - 18 * 3600_000).toISOString() },
-  ],
-}))
-router.post('/messages/reactions', (_req, res) => res.json({ ok: true, data: null }))
+// Recent DM contacts : route deplacee dans real.js pour pouvoir requeter
+// les ids reels du tenant (etaient hardcodes 1, 2 — invalides en demo
+// puisque les ids sont auto-increment SQLite, pas 1..N par tenant).
+// Fichiers partages en DM : synthetises avec des partner_id du tenant pour
+// que cliquer sur le fichier ouvre le bon DM (avant : ids hardcodes 1, 2
+// invalides). Renvoie liste vide si pas de student dans le tenant.
+router.get('/messages/dm-files', (req, res) => {
+  const db = getDemoDb()
+  const teacher = db.prepare(`SELECT id, name FROM demo_teachers WHERE tenant_id = ?`).get(req.tenantId)
+  const students = db.prepare(
+    `SELECT id, name FROM demo_students WHERE tenant_id = ? ORDER BY id LIMIT 2`
+  ).all(req.tenantId)
+  const day = (n) => new Date(Date.now() - n * 86400_000).toISOString()
+  const data = []
+  if (teacher) {
+    data.push({
+      id: 7001, partner_id: -teacher.id, partner_name: teacher.name,
+      file_name: 'Sujet TP4 AVL.pdf', file_url: 'https://example.com/tp4-avl.pdf',
+      file_size: 412_000, mime_type: 'application/pdf', shared_at: day(3),
+    })
+  }
+  if (students[0]) {
+    data.push({
+      id: 7002, partner_id: students[0].id, partner_name: students[0].name,
+      file_name: 'maquette-projet.fig', file_url: 'https://example.com/maquette.fig',
+      file_size: 1_240_000, mime_type: 'application/octet-stream', shared_at: day(2),
+    })
+    data.push({
+      id: 7003, partner_id: students[0].id, partner_name: students[0].name,
+      file_name: 'archi-decision.md', file_url: 'https://example.com/archi.md',
+      file_size: 8_400, mime_type: 'text/markdown', shared_at: new Date(Date.now() - 18 * 3600_000).toISOString(),
+    })
+  }
+  res.json({ ok: true, data })
+})
+// /messages/reactions deplace dans interactive.js (ecriture reelle vers
+// demo_messages.reactions, pas un no-op silencieux).
 
 // ── Recherche : LIKE simple sur les messages du seed (pas de FTS) ───
 // Le visiteur qui tape "auth" ou "AVL" doit voir des resultats coherents
