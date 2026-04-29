@@ -23,24 +23,26 @@ function defaultPrefs(): BentoPrefs {
   }
 }
 
-// Preset demo etudiant : selection curatee de widgets dont les donnees
-// sont reellement presentes dans le seed demo (3 devoirs, 50 messages, 4
-// canaux, 1 session Live fake en cours). Evite les widgets vides comme
-// lumenProgress/lumenCourses (mocks renvoient []) qui afficheraient des
-// empty states et donneraient l'impression que la feature ne marche pas.
+// Preset demo etudiant : selection minimaliste pour laisser respirer le
+// dashboard. 5 widgets seulement, choisis pour donner les essentiels en
+// 1 coup d'oeil :
+//   - echeances : ce qui me concerne maintenant (deadlines)
+//   - live      : session Live en cours (eye-catcher)
+//   - messages  : DMs + mentions
+//   - countdown : urgence visuelle (TP AVL dans 3j)
+//   - promoActivity : presence des camarades
 //
-// Layout 4 cols : echeances 2x2 | live 2x1 | messages 2x1 | livrables 1x1
-//                 weekplanner 2x1 | project 2x1 | rendus 2x1 | countdown 1x1
+// L'utilisateur decouvre l'app sans etre noye. Une indication subtile
+// "+ Ajouter un widget" dans la grille (cf. StudentBento.vue) lui montre
+// qu'il peut enrichir : weekplanner, project, rendus, livrables, lumen,
+// pomodoro, bookmarks, grades, etc. (~25 widgets disponibles dans
+// STUDENT_WIDGETS).
 const DEMO_STUDENT_ORDER = [
-  'echeances',     // 3 devoirs avec deadlines
-  'live',          // session Live "Quiz Algo" en cours
-  'messages',      // DMs + mentions (4 canaux)
-  'livrables',     // Projet Web E4
-  'weekplanner',   // planning sur les deadlines seedees
-  'project',       // showcase de la fiche projet
-  'rendus',        // workflow rendu (vide mais visible)
-  'countdown',     // TP AVL dans 3j
-  'promoActivity', // presence simulee
+  'echeances',     // 3 devoirs avec deadlines (2x2)
+  'live',          // session Live "Quiz Algo" en cours (2x1)
+  'messages',      // DMs + mentions (2x1)
+  'countdown',     // TP AVL dans 3j (1x1)
+  'promoActivity', // presence simulee (4x1)
 ]
 
 export function demoStudentPrefs(): BentoPrefs {
@@ -52,10 +54,6 @@ export function demoStudentPrefs(): BentoPrefs {
       echeances: '2x2',
       live: '2x1',
       messages: '2x1',
-      livrables: '1x1',
-      weekplanner: '2x1',
-      project: '2x1',
-      rendus: '2x1',
       countdown: '1x1',
       promoActivity: '4x1',
     },

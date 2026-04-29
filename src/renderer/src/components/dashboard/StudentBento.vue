@@ -237,6 +237,20 @@ function onReset() {
       </WidgetShell>
     </VueDraggable>
 
+    <!-- Indication subtile : "ajouter des widgets". Visible quand le
+         customizer est ferme. Click ouvre le panneau du customizer. -->
+    <button
+      v-if="!showCustomizer && !showOnboarding"
+      type="button"
+      class="sb-add-hint"
+      title="Personnaliser le tableau de bord"
+      @click="toggleCustomizer"
+    >
+      <span class="sb-add-hint-plus" aria-hidden="true">+</span>
+      <span class="sb-add-hint-text">Ajouter d'autres widgets</span>
+      <span class="sb-add-hint-count">{{ allWidgets.length - visibleWidgets.length }} disponibles</span>
+    </button>
+
     <!-- Widget picker panel -->
     <Transition name="sb-customizer">
       <WidgetPicker
@@ -344,6 +358,68 @@ function onReset() {
   opacity: 0.3;
   border: 2px dashed var(--accent) !important;
   border-radius: 14px;
+}
+
+/* ── Indication subtile "Ajouter des widgets" ──
+   Bouton discret en bas du dashboard, dashed border qui se rempli au
+   hover. Pas une vraie tile dans la grille (pour ne pas casser le
+   layout ni laisser penser que c'est une widget interactive), juste un
+   teaser pour decouvrir le customizer. */
+.sb-add-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 12px 18px;
+  border: 1px dashed color-mix(in srgb, var(--text-muted, #94A3B8) 50%, transparent);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-secondary, var(--text-2));
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 200ms ease, background 200ms ease, color 200ms ease, transform 200ms ease;
+}
+.sb-add-hint:hover {
+  border-color: var(--accent, #6366F1);
+  background: color-mix(in srgb, var(--accent, #6366F1) 5%, transparent);
+  color: var(--accent, #6366F1);
+  transform: translateY(-1px);
+}
+.sb-add-hint:focus-visible {
+  outline: 2px solid var(--accent, #6366F1);
+  outline-offset: 2px;
+}
+.sb-add-hint-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-muted, #94A3B8) 18%, transparent);
+  color: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background 200ms ease;
+}
+.sb-add-hint:hover .sb-add-hint-plus {
+  background: var(--accent, #6366F1);
+  color: #fff;
+}
+.sb-add-hint-text { font-weight: 600; }
+.sb-add-hint-count {
+  font-family: var(--font-mono, ui-monospace);
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.7;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted, #94A3B8) 12%, transparent);
 }
 
 @keyframes sb-fade {
