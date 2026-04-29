@@ -1027,13 +1027,20 @@ img { max-width: 100%; display: block; }
 /* ── Chat Demo ─────────────────────────────────────────────────────── */
 /* Hauteur fixe de la fenetre chat : evite le shift de page quand on
    change de canal/DM (chaque conversation a un nombre de messages
-   different). Le scroll se fait en interne dans .demo-messages. */
+   different). Le scroll se fait en interne dans .demo-messages.
+   Mobile : reduit la hauteur pour ne pas dominer l'ecran. */
 #demo-chat .demo-window {
   width: 100%;
   max-width: 520px;
   height: 520px;
   display: flex;
   flex-direction: column;
+}
+@media (max-width: 720px) {
+  #demo-chat .demo-window { height: 440px; }
+}
+@media (max-width: 480px) {
+  #demo-chat .demo-window { height: 400px; }
 }
 .demo-chat-body {
   display: flex;
@@ -1939,6 +1946,8 @@ img { max-width: 100%; display: block; }
   display: flex;
   flex-direction: column;
 }
+@media (max-width: 720px) { #demo-docs .demo-window { height: 420px; } }
+@media (max-width: 480px) { #demo-docs .demo-window { height: 380px; } }
 .demo-docs-body {
   padding: 12px;
   flex: 1;
@@ -3916,6 +3925,40 @@ img { max-width: 100%; display: block; }
   transform: translateY(-1px);
 }
 .demo-lumen-chip svg { opacity: 0.85; }
+.demo-lumen-chip { position: relative; }
+.demo-lumen-chip:focus-visible { outline: 2px solid var(--color-lumen); outline-offset: 2px; }
+
+/* Bulle "due date" qui apparait au clic du chip pendant 2.4s */
+.demo-lumen-chip-bubble {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--color-lumen);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-lumen) 40%, transparent);
+  animation: chipBubbleIn 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+  z-index: 5;
+}
+.demo-lumen-chip-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%; left: 50%; transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: var(--color-lumen);
+}
+@keyframes chipBubbleIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(2px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 .demo-lumen-sync {
   margin-left: auto;
   color: var(--color-lumen);
@@ -4264,67 +4307,6 @@ img { max-width: 100%; display: block; }
   100% { transform: none; opacity: 1; }
 }
 
-/* Palette de commandes : popover au-dessus de l'input bar */
-.demo-input-cmds {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 10px;
-  right: 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  animation: cmdsIn 200ms var(--ease-smooth);
-  z-index: 5;
-}
-@keyframes cmdsIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: none; }
-}
-.demo-input-cmds-title {
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--text-3);
-  padding: 4px 8px;
-}
-.demo-input-cmd {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
-  border: none;
-  background: transparent;
-  border-radius: 7px;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--font);
-  transition: background var(--duration-fast);
-}
-.demo-input-cmd:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
-.demo-input-cmd-key {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--primary);
-  padding: 2px 7px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--primary) 10%, transparent);
-  flex-shrink: 0;
-  min-width: 60px;
-  text-align: center;
-}
-.demo-input-cmd-desc {
-  font-size: 11.5px;
-  color: var(--text-2);
-  flex: 1;
-}
-
 /* ── Live Quiz Demo ──────────────────────────────────────────────── */
 .demo-live-body, .demo-rex-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 
@@ -4480,10 +4462,6 @@ img { max-width: 100%; display: block; }
   color: #fff;
   transform: scale(1);
 }
-
-/* Stat block container retire (le fill est maintenant in-option). Si .live-stats
-   reste dans le DOM (vide), on ne lui donne pas de hauteur. */
-.live-stats { display: none; }
 
 .live-footer, .rex-footer {
   display: flex; align-items: center;
@@ -4646,6 +4624,25 @@ img { max-width: 100%; display: block; }
   60%  { opacity: 1; transform: scale(1.2); text-shadow: 0 0 18px currentColor; }
   100% { opacity: 0.85; transform: scale(1); text-shadow: 0 0 0 transparent; }
 }
+/* Mot deja existant qu'on a re-pondere : grossit sur place sans pulse de glow,
+   pour signaler "ton vote a fait grossir un mot deja la" plutot que "nouveau". */
+.live-pulse-word--boost {
+  animation: pulseWordBoost 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes pulseWordBoost {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35); filter: brightness(1.4); }
+  100% { transform: scale(1); }
+}
+
+/* Input boost : tint orange/jaune au lieu du vert "envoye" */
+.live-pulse-input--boost {
+  animation: pulseInputBoost 600ms ease;
+}
+@keyframes pulseInputBoost {
+  0%   { background: rgba(245, 158, 11, 0.20); }
+  100% { background: var(--bg-card); }
+}
 
 /* ── Form d'ajout de mot : input + bouton "Envoyer" ── */
 .live-pulse-form {
@@ -4702,43 +4699,6 @@ img { max-width: 100%; display: block; }
 }
 .live-pulse-add:active { transform: scale(0.96); }
 .live-pulse-add:focus-visible { outline: 2px solid var(--color-rex); outline-offset: 2px; }
-.live-pulse-scale {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 8px 4px 0;
-}
-.live-pulse-scale-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-3);
-  letter-spacing: 0.2px;
-  white-space: nowrap;
-}
-.live-pulse-bars {
-  flex: 1;
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 36px;
-}
-.live-pulse-bar {
-  flex: 1;
-  height: var(--h, 20%);
-  background: linear-gradient(180deg, var(--color-rex), color-mix(in srgb, var(--color-rex) 50%, transparent));
-  border-radius: 3px 3px 0 0;
-  transform-origin: bottom;
-  animation: pulseBarRise 700ms var(--ease-spring) both;
-}
-.live-pulse-bar--peak {
-  background: linear-gradient(180deg, var(--color-live), var(--color-rex));
-  box-shadow: 0 0 12px color-mix(in srgb, var(--color-live) 40%, transparent);
-}
-@keyframes pulseBarRise {
-  from { transform: scaleY(0); opacity: 0; }
-  to   { transform: scaleY(1); opacity: 1; }
-}
-
 /* ── Code : editeur partage avec curseurs ──────────────────────────── */
 .live-code-tabs {
   display: flex;

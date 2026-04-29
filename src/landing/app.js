@@ -1064,6 +1064,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const KONAMI = ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a']
   let konamiIdx = 0
   document.addEventListener('keydown', (e) => {
+    // Ignore si l'utilisateur tape dans un input/textarea (ex: live-pulse-input).
+    // Sinon les touches "b" ou "a" peuvent incrementer konamiIdx alors que l'user
+    // ne tente pas le code.
+    if (e.target?.matches?.('input, textarea, [contenteditable]')) return
     const key = e.key.toLowerCase()
     if (key === KONAMI[konamiIdx]) {
       konamiIdx++
@@ -1423,7 +1427,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const quizContainer = document.getElementById('live-quiz-demo')
   if (quizContainer) {
     const optsEl = document.getElementById('live-quiz-opts')
-    const statsEl = document.getElementById('live-quiz-stats')
     const badgeEl = document.getElementById('live-q-badge')
     const textEl = document.getElementById('live-q-text')
     const countEl = document.getElementById('live-q-count')
@@ -1562,8 +1565,6 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="live-opt-icon"></span>
         </div>`
       ).join('')
-      // Statsel reste pour compat mais vide (les fills sont in-option maintenant)
-      if (statsEl) statsEl.innerHTML = ''
       if (prefersReducedMotion) {
         optsEl.querySelectorAll('.live-opt').forEach((o, i) => {
           o.querySelector('.live-opt-fill')?.style.setProperty('--w', q.stats[i] + '%')
@@ -1805,7 +1806,8 @@ document.addEventListener('DOMContentLoaded', () => {
     positioned.forEach((entry, i) => {
       const span = document.createElement('span')
       span.className = 'live-pulse-word'
-      if (entry.fresh) span.classList.add('live-pulse-word--fresh')
+      if (entry.fresh === 'new')   span.classList.add('live-pulse-word--fresh')
+      if (entry.fresh === 'boost') span.classList.add('live-pulse-word--boost')
       span.style.position = 'absolute'
       span.style.left = (entry.x - entry.width / 2) + 'px'
       span.style.top  = (entry.y - entry.height / 2) + 'px'
@@ -1822,15 +1824,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // (le mot grossit), sinon ajout en tete avec animation "fresh".
   function addPulseWord(raw) {
     const word = (raw || '').trim().toLowerCase().slice(0, 20)
-    if (!word) return false
+    if (!word) return { ok: false }
     const existing = pulseState.words.find(w => w.w.toLowerCase() === word)
+    let kind
     if (existing) {
       existing.s = Math.min(30, existing.s + 4)
-      existing.fresh = true
+      existing.fresh = 'boost'
+      kind = 'boost'
     } else {
-      pulseState.words.unshift({ w: word, s: 8, fresh: true })
+      pulseState.words.unshift({ w: word, s: 8, fresh: 'new' })
       // Plafonne a 14 pour ne pas exploser le layout
       if (pulseState.words.length > 14) pulseState.words.pop()
+      kind = 'new'
     }
     pulseState.count++
     const cloud = document.getElementById('live-pulse-cloud')
@@ -1841,20 +1846,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Met a jour le compteur
     const countEl = document.getElementById('live-pulse-count')
     if (countEl) countEl.textContent = `${pulseState.count} réponses anonymes`
-    return true
+    return { ok: true, kind }
   }
 
   // Form submit : valide + ajoute + reset l'input
+  // Si le mot existe deja, classe --boost (tint differente) au lieu de --sent
+  // pour signaler "ton mot existait, on l'a pondere".
   const pulseForm = document.getElementById('live-pulse-form')
   if (pulseForm) {
     pulseForm.addEventListener('submit', (e) => {
       e.preventDefault()
       const input = document.getElementById('live-pulse-input')
       if (!input) return
-      if (addPulseWord(input.value)) {
+      const result = addPulseWord(input.value)
+      if (result.ok) {
         input.value = ''
-        input.classList.add('live-pulse-input--sent')
-        setTimeout(() => input.classList.remove('live-pulse-input--sent'), 600)
+        const cls = result.kind === 'boost' ? 'live-pulse-input--boost' : 'live-pulse-input--sent'
+        input.classList.add(cls)
+        setTimeout(() => input.classList.remove(cls), 700)
       }
     })
   }
@@ -2097,7 +2106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Rattrapage CCTL
         { long: 'Session de recuperation pour un etudiant qui a manque ou rate l\'evaluation initiale. Le creneau bloque automatiquement la salle de rattrapage et notifie le responsable de promo.', who: 'Etudiant + responsable promo', notif: 'Notif au responsable + email recap' },
       ]
-      const long = LONG[idx] || { long: t.desc, who: '—', notif: '—' }
+      const long = LONG[idx] || { long: t.desc, who: '·', notif: '·' }
 
       detail.innerHTML = `
         <div class="rdv-type-card" style="--tc:${t.color}">
@@ -2240,6 +2249,16 @@ document.addEventListener('DOMContentLoaded', () => {
           const n = parseInt(countEl.textContent, 10)
           if (!isNaN(n) && n > 0) countEl.textContent = String(n - 1)
         }
+        // Persistance du booking dans la liste "Mes RDV" : si l'utilisateur
+        // switche sur l'onglet bookings ensuite, il verra son nouveau RDV
+        // tout en haut. Topic = la valeur courante de l'input du popover.
+        const topic = pop.querySelector('.rdv-popover-input')?.value?.trim() || type.suggestedTopic
+        rdvData.bookings.unshift({
+          who: 'Toi', initials: 'TU', avatarColor: type.color,
+          when: `${day}. ${time}`,
+          type: type.name, typeColor: type.color, duration: type.duration,
+          teams: true, topic,
+        })
         closeRdvPopover()
         showRdvToast(day, time, type)
       })
@@ -2534,8 +2553,21 @@ app.<span class="lm-c-fn">patch</span>(<span class="lm-c-num">'/users/:id'</span
         lumenLinks.innerHTML = '<span class="demo-lumen-empty">Pas de devoir lié</span>'
       } else {
         lumenLinks.innerHTML = chap.devoirs.map(d =>
-          `<button type="button" class="demo-lumen-chip" tabindex="0" title="${d.due}"><svg aria-hidden="true" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>${d.name}</button>`
+          `<button type="button" class="demo-lumen-chip" tabindex="0" title="${d.name} · ${d.due}" data-lumen-chip-name="${d.name}" data-lumen-chip-due="${d.due}"><svg aria-hidden="true" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>${d.name}</button>`
         ).join('')
+        // Click sur un chip : montre une bulle "due" cote du chip pendant 2.5s.
+        lumenLinks.querySelectorAll('.demo-lumen-chip').forEach(chip => {
+          chip.addEventListener('click', (ev) => {
+            ev.stopPropagation()
+            // Retire les anciennes bulles
+            lumenLinks.querySelectorAll('.demo-lumen-chip-bubble').forEach(b => b.remove())
+            const bubble = document.createElement('span')
+            bubble.className = 'demo-lumen-chip-bubble'
+            bubble.textContent = chip.dataset.lumenChipDue
+            chip.appendChild(bubble)
+            setTimeout(() => bubble.remove(), 2400)
+          })
+        })
       }
     }
     if (lumenProgressFill) lumenProgressFill.style.setProperty('--p', chap.progress + '%')

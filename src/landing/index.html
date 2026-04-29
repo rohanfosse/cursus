@@ -77,7 +77,7 @@
     .fade-up { opacity: 0; transform: translateY(24px) scale(0.98); transition: opacity .65s cubic-bezier(.22,1,.36,1), transform .65s cubic-bezier(.22,1,.36,1); }
     .fade-up.visible { opacity: 1; transform: translateY(0) scale(1); }
   </style>
-  <link rel="stylesheet" href="style.css?v=273" />
+  <link rel="stylesheet" href="style.css?v=274" />
 </head>
 <body>
 
@@ -324,7 +324,7 @@
               <button type="button" class="demo-input-icon demo-input-icon--btn" id="chat-input-plus" aria-label="Joindre un fichier">
                 <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
               </button>
-              <span class="demo-input-field" id="chat-input-field" tabindex="0" role="textbox" aria-label="Écrire un message">
+              <span class="demo-input-field" id="chat-input-field" aria-hidden="true">
                 <span class="demo-input-placeholder" id="chat-input-placeholder">Écrire dans <b>#<span id="chat-input-channel">général</span></b>…</span>
               </span>
               <button type="button" class="demo-input-icon demo-input-icon--btn" id="chat-input-emoji" aria-label="Emoji">
@@ -522,7 +522,6 @@
                 <span class="live-q-text" id="live-q-text"></span>
               </div>
               <div class="live-options" id="live-quiz-opts"></div>
-              <div class="live-stats" id="live-quiz-stats"></div>
               <div class="live-footer">
                 <span class="live-participants" id="live-q-count"></span>
                 <span class="live-timer" id="live-q-timer"></span>
@@ -921,8 +920,8 @@
     </div>
   </footer>
 
-  <script src="grammar.js?v=273"></script>
-  <script src="app.js?v=273"></script>
+  <script src="grammar.js?v=274"></script>
+  <script src="app.js?v=274"></script>
   <!-- Analytics: insert GA4 gtag.js snippet here when ready -->
 </body>
 </html>
