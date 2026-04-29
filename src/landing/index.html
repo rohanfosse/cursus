@@ -77,7 +77,7 @@
     .fade-up { opacity: 0; transform: translateY(24px) scale(0.98); transition: opacity .65s cubic-bezier(.22,1,.36,1), transform .65s cubic-bezier(.22,1,.36,1); }
     .fade-up.visible { opacity: 1; transform: translateY(0) scale(1); }
   </style>
-  <link rel="stylesheet" href="style.css?v=275" />
+  <link rel="stylesheet" href="style.css?v=276" />
 </head>
 <body>
 
@@ -530,13 +530,19 @@
 
             <!-- Mode Pulse : sondage anonyme + nuage de mots -->
             <div class="demo-live-body live-pane" data-live-pane="pulse" aria-hidden="true">
-              <div class="live-pulse-q">Comment vous sentez-vous sur le projet&nbsp;?</div>
+              <div class="live-pulse-header">
+                <div class="live-pulse-q-label">Question ouverte</div>
+                <div class="live-pulse-q">Comment vous sentez-vous sur le projet&nbsp;?</div>
+              </div>
               <div class="live-pulse-cloud" id="live-pulse-cloud"></div>
+              <div class="live-pulse-top" id="live-pulse-top" aria-label="Top des ressentis"></div>
               <form class="live-pulse-form" id="live-pulse-form" autocomplete="off">
-                <input type="text" class="live-pulse-input" id="live-pulse-input" maxlength="20" placeholder="Ton mot…" aria-label="Ton ressenti en un mot" />
-                <button type="submit" class="live-pulse-add" aria-label="Ajouter ton mot">
-                  <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                  <span>Envoyer</span>
+                <span class="live-pulse-input-icon" aria-hidden="true">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                </span>
+                <input type="text" class="live-pulse-input" id="live-pulse-input" maxlength="20" placeholder="Ajoute ton mot anonymement…" aria-label="Ton ressenti en un mot" />
+                <button type="submit" class="live-pulse-add" aria-label="Envoyer ton mot">
+                  <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
                 </button>
               </form>
               <div class="live-footer">
@@ -920,8 +926,8 @@
     </div>
   </footer>
 
-  <script src="grammar.js?v=275"></script>
-  <script src="app.js?v=275"></script>
+  <script src="grammar.js?v=276"></script>
+  <script src="app.js?v=276"></script>
   <!-- Analytics: insert GA4 gtag.js snippet here when ready -->
 </body>
 </html>

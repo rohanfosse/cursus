@@ -1476,6 +1476,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const ICON_CHECK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
     const ICON_X     = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>'
 
+    /**
+     * Live poll : 2 phases distinctes, façon Mentimeter / Kahoot.
+     *
+     * PHASE VOTE (avant reveal) :
+     *   - Aucun pourcentage visible. L'utilisateur voit uniquement le compteur
+     *     "X réponses" qui monte, et un petit ping visuel sur l'option qui
+     *     vient de recevoir un vote (effet "quelqu'un vient de cliquer").
+     *   - Les options sont cliquables, hover normal. La bonne reponse n'est
+     *     pas encore connue.
+     *
+     * PHASE RESULTS (au reveal) :
+     *   - Snap aux pourcentages finaux. Bars qui grandissent de 0% a leur
+     *     valeur finale, percentage tape en gros a droite, icone check sur
+     *     la bonne reponse. Confetti sur l'option correcte.
+     *   - L'option active classe `revealed-*` (correct / wrong / wrong+selected)
+     *     pour le styling.
+     */
     function startLivePoll(q) {
       if (pollIv) clearInterval(pollIv)
       liveVotes = [0, 0, 0, 0]
@@ -1486,32 +1503,38 @@ document.addEventListener('DOMContentLoaded', () => {
       const votesPerTick = targetTotal / totalTicks
       let ticks = 0
 
-      // Reset des fills/pcts INSIDE chaque option (plus de barres separees)
+      // Reset visuel : pas de fills, pas de pourcentages pendant la phase vote
       optsEl.querySelectorAll('.live-opt').forEach(o => {
         o.querySelector('.live-opt-fill')?.style.setProperty('--w', '0%')
         const pct = o.querySelector('.live-opt-pct')
         if (pct) pct.textContent = ''
       })
+      optsEl.classList.remove('live-options--reveal')
+      optsEl.classList.add('live-options--voting')
 
       const pollFn = () => {
         ticks++
         const n = Math.max(1, Math.round(votesPerTick * (0.6 + Math.random() * 0.8)))
+        let lastIdx = -1
         for (let i = 0; i < n && liveCount < targetTotal; i++) {
           const idx = pickBiased(q.stats)
           liveVotes[idx]++
           liveCount++
+          lastIdx = idx
         }
-        if (liveCount > 0) {
-          for (let i = 0; i < q.opts.length; i++) {
-            const pct = Math.round((liveVotes[i] / liveCount) * 100)
-            const opt  = optAt(i)
-            if (!opt) continue
-            opt.querySelector('.live-opt-fill')?.style.setProperty('--w', pct + '%')
-            const lab = opt.querySelector('.live-opt-pct')
-            if (lab) lab.textContent = pct + '%'
+        // Compteur visible (le seul indicateur de progression pendant le vote)
+        countEl.textContent = `${liveCount} réponse${liveCount > 1 ? 's' : ''}`
+        // "Ping" visuel sur l'option qui vient d'etre votee : court flash
+        // qui suggere "quelqu'un dans la salle vient de cliquer ici".
+        if (lastIdx >= 0 && !prefersReducedMotion) {
+          const opt = optAt(lastIdx)
+          if (opt) {
+            opt.classList.remove('live-opt--just-voted')
+            void opt.offsetHeight
+            opt.classList.add('live-opt--just-voted')
+            setTimeout(() => opt.classList.remove('live-opt--just-voted'), 380)
           }
         }
-        countEl.textContent = `${liveCount} réponse${liveCount > 1 ? 's' : ''}`
 
         if (ticks >= totalTicks || liveCount >= targetTotal) {
           clearInterval(pollIv); pollIv = null
@@ -1525,25 +1548,37 @@ document.addEventListener('DOMContentLoaded', () => {
       revealed = true
       if (timerIv) { clearInterval(timerIv); timerIv = null }
       if (pollIv) { clearInterval(pollIv); pollIv = null }
-      // Snap aux pourcentages finaux + ajoute revealed-* class
+
+      // Bascule en mode "results" : on autorise les pourcentages a apparaitre
+      optsEl.classList.remove('live-options--voting')
+      optsEl.classList.add('live-options--reveal')
+
+      // Snap aux pourcentages finaux + ajoute revealed-* class.
+      // Stagger 100ms entre chaque option pour un effet "barres qui grimpent
+      // une apres l'autre" facon resultat de quiz.
       optsEl.querySelectorAll('.live-opt').forEach((o, i) => {
         const pct = q.stats[i]
-        o.querySelector('.live-opt-fill')?.style.setProperty('--w', pct + '%')
-        const lab = o.querySelector('.live-opt-pct')
-        if (lab) lab.textContent = pct + '%'
-        o.style.transitionDelay = `${i * 80}ms`
         const isCorrect = parseInt(o.dataset.idx) === q.correct
+        // Decalage pour la sequence d'apparition des bars + pct
+        setTimeout(() => {
+          o.querySelector('.live-opt-fill')?.style.setProperty('--w', pct + '%')
+          const lab = o.querySelector('.live-opt-pct')
+          if (lab) lab.textContent = pct + '%'
+        }, i * 110)
+        o.style.transitionDelay = `${i * 80}ms`
         o.classList.add(isCorrect ? 'revealed-correct' : 'revealed-wrong')
         const icon = o.querySelector('.live-opt-icon')
         if (icon) icon.innerHTML = isCorrect ? ICON_CHECK : (o.classList.contains('selected') ? ICON_X : '')
       })
-      countEl.textContent = `${q.count} réponses`
-      // Mini "celebration" sur l'option correcte : confetti SVG depuis l'option
+      countEl.textContent = `${q.count} réponses · résultats`
+      // Confetti sur la bonne reponse, declenche apres le stagger
       const correctOpt = optAt(q.correct)
       if (correctOpt && !prefersReducedMotion) {
-        spawnParticleBurst(correctOpt, EMOJI_PARTICLES.slice(0, 3))
+        setTimeout(() => spawnParticleBurst(correctOpt, EMOJI_PARTICLES.slice(0, 3)), q.opts.length * 110 + 100)
       }
-      nextT = setTimeout(() => { qIdx = (qIdx + 1) % quizQuestions.length; renderQuiz(qIdx) }, 3200)
+      // Phase results plus longue (5s au lieu de 3.2s) : laisse le temps de
+      // voir tous les pourcentages et la bonne reponse avant la suivante.
+      nextT = setTimeout(() => { qIdx = (qIdx + 1) % quizQuestions.length; renderQuiz(qIdx) }, 5000)
     }
 
     function renderQuiz(idx) {
@@ -1555,7 +1590,6 @@ document.addEventListener('DOMContentLoaded', () => {
       textEl.textContent = q.q
       countEl.textContent = `0 réponse`
       startTimer(30)
-      // Options : structure enrichie avec fill background + pct label inline + icone reveal.
       optsEl.innerHTML = q.opts.map((o, i) =>
         `<div class="live-opt" data-idx="${i}" data-correct="${i === q.correct ? 1 : 0}" tabindex="0" role="button">
           <span class="live-opt-fill" style="--w:0%"></span>
@@ -1566,12 +1600,18 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>`
       ).join('')
       if (prefersReducedMotion) {
+        // En reduced-motion on saute directement aux resultats : pas
+        // d'animation de phase de vote.
+        optsEl.classList.remove('live-options--voting')
+        optsEl.classList.add('live-options--reveal')
         optsEl.querySelectorAll('.live-opt').forEach((o, i) => {
           o.querySelector('.live-opt-fill')?.style.setProperty('--w', q.stats[i] + '%')
           const lab = o.querySelector('.live-opt-pct')
           if (lab) lab.textContent = q.stats[i] + '%'
+          const isCorrect = parseInt(o.dataset.idx) === q.correct
+          o.classList.add(isCorrect ? 'revealed-correct' : 'revealed-wrong')
         })
-        countEl.textContent = `${q.count} réponses`
+        countEl.textContent = `${q.count} réponses · résultats`
       } else {
         startLivePoll(q)
       }
@@ -1873,12 +1913,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const cloud = document.getElementById('live-pulse-cloud')
     if (cloud) cloud.dataset.rendered = ''  // force re-layout
     renderPulseCloud({ force: true })
+    renderPulseTop()
     // Reset fresh apres animation
     setTimeout(() => pulseState.words.forEach(w => { delete w.fresh }), 800)
     // Met a jour le compteur
     const countEl = document.getElementById('live-pulse-count')
     if (countEl) countEl.textContent = `${pulseState.count} réponses anonymes`
     return { ok: true, kind }
+  }
+
+  // Top 3 mots les plus votes : barres horizontales avec bar de poids.
+  // Donne un repere clair de "ce que la classe ressent majoritairement".
+  function renderPulseTop() {
+    const top = document.getElementById('live-pulse-top')
+    if (!top) return
+    const sorted = [...pulseState.words].sort((a, b) => b.s - a.s).slice(0, 3)
+    if (!sorted.length) { top.innerHTML = ''; return }
+    const max = sorted[0].s || 1
+    top.innerHTML = '<div class="live-pulse-top-label">Top ressentis</div>' +
+      sorted.map((w, i) => `
+        <div class="live-pulse-top-row" style="--d:${i * 60}ms">
+          <span class="live-pulse-top-rank">${i + 1}</span>
+          <span class="live-pulse-top-word">${w.w}</span>
+          <span class="live-pulse-top-bar"><span class="live-pulse-top-fill" style="--w:${Math.round((w.s / max) * 100)}%"></span></span>
+          <span class="live-pulse-top-score">${w.s}</span>
+        </div>
+      `).join('')
   }
 
   // Form submit : valide + ajoute + reset l'input
@@ -1943,7 +2003,7 @@ document.addEventListener('DOMContentLoaded', () => {
         p.setAttribute('aria-hidden', String(!active))
       })
       if (liveTitle) liveTitle.textContent = LIVE_TITLES[mode] || 'Live'
-      if (mode === 'pulse') renderPulseCloud()
+      if (mode === 'pulse') { renderPulseCloud(); renderPulseTop() }
     }
 
     function scheduleNext() {

@@ -299,9 +299,53 @@ router.get('/engagement/:promoId', (_req, res) => res.json({ ok: true, data: [] 
 router.get('/scheduled',           (_req, res) => res.json({ ok: true, data: [] }))
 
 // ── Assignments (vues avancees : gantt, rendus) ──────────────────────
-// Le wildcard `[]` ne suffit pas : le widget Gantt fait `data.tasks.map`,
-// les rendus utilisent `data.rendus` etc. On retourne le shape attendu.
-router.get('/assignments/gantt',  (_req, res) => res.json({ ok: true, data: { tasks: [], links: [] } }))
+// Le shim renderer attend `data: GanttRow[]` (pas `{ tasks, links }` qui
+// etait une fausse hypothese de l'ancienne version : aucun consommateur
+// dans src/renderer ne lit `.tasks`). Le dashboard prof faisait
+// `ganttAll.value.filter(...)` -> crash quand on lui donnait un objet.
+//
+// On synthetise une liste GanttRow depuis demo_assignments + demo_channels
+// + demo_promotions avec quelques champs derives (start_date = deadline-3j,
+// depots_count = 0, students_total compte les eleves de la promo).
+router.get('/assignments/gantt', (req, res) => {
+  try {
+    const db = getDemoDb()
+    const rows = db.prepare(`
+      SELECT
+        a.id,
+        a.title,
+        a.type,
+        COALESCE(c.category, a.type) AS category,
+        a.is_published AS published,
+        a.is_published AS is_published,
+        datetime(a.deadline, '-3 days') AS start_date,
+        a.deadline,
+        NULL AS group_id,
+        NULL AS group_name,
+        NULL AS room,
+        NULL AS aavs,
+        1 AS requires_submission,
+        c.name AS channel_name,
+        c.id AS channel_id,
+        p.name AS promo_name,
+        p.color AS promo_color,
+        p.id AS promo_id,
+        0 AS depots_count,
+        (SELECT COUNT(*) FROM demo_students s WHERE s.tenant_id = a.tenant_id AND s.promo_id = p.id) AS students_total
+      FROM demo_assignments a
+      JOIN demo_channels    c ON c.id = a.channel_id  AND c.tenant_id = a.tenant_id
+      JOIN demo_promotions  p ON p.id = c.promo_id    AND p.tenant_id = a.tenant_id
+      WHERE a.tenant_id = ?
+      ORDER BY a.deadline ASC
+    `).all(req.tenantId)
+    res.json({ ok: true, data: rows })
+  } catch (e) {
+    // Pas un blocker en demo : on renvoie une liste vide plutot que de
+    // casser le dashboard. Le warn aide le debug si la schema bouge.
+    console.warn('[demo/gantt] failed:', e?.message)
+    res.json({ ok: true, data: [] })
+  }
+})
 router.get('/assignments/rendus', (_req, res) => res.json({ ok: true, data: [] }))
 
 // ── Groupes ──────────────────────────────────────────────────────────
