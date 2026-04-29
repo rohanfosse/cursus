@@ -348,37 +348,74 @@ router.get('/live/sessions/promo/:id/active', (req, res) => {
   })
 })
 router.get('/live/sessions/promo/:id/history', (_req, res) => {
-  // Historique des 3 dernieres sessions Live finies — donne du contexte au
-  // dashboard etudiant (vu deja, peux y revenir pour les replays).
+  // Historique des sessions Live finies — donne du contexte au dashboard
+  // etudiant (vu deja, peut y revenir pour reviser via "Sessions passees"
+  // dans StudentLiveView).
   const day = (n) => new Date(Date.now() - n * 86400_000).toISOString()
   res.json({
     ok: true,
     data: [
-      { id: 'demo-live-h1', title: 'Quiz Web - Auth & JWT',      status: 'ended', participant_count: 18, activity_count: 8,  ended_at: day(2) },
-      { id: 'demo-live-h2', title: 'Pulse - Retour mi-semestre', status: 'ended', participant_count: 16, activity_count: 4,  ended_at: day(7) },
-      { id: 'demo-live-h3', title: 'Code partage - Tri rapide',  status: 'ended', participant_count: 14, activity_count: 12, ended_at: day(10) },
+      { id: 'demo-live-h1', title: 'Quiz Web - Auth & JWT',      status: 'ended', participant_count: 18, activity_count: 4,  ended_at: day(2) },
+      { id: 'demo-live-h4', title: 'Quiz Algo - Arbres AVL',     status: 'ended', participant_count: 17, activity_count: 4,  ended_at: day(4) },
+      { id: 'demo-live-h2', title: 'Pulse - Retour mi-semestre', status: 'ended', participant_count: 16, activity_count: 2,  ended_at: day(7) },
+      { id: 'demo-live-h3', title: 'Code partage - Tri rapide',  status: 'ended', participant_count: 14, activity_count: 1,  ended_at: day(10) },
     ],
   })
 })
 
 // Detail d'une session live passee : activites + leaderboard. Affiche
-// dans le viewer "Historique" cote prof et permet de replayer une session.
+// dans le viewer "Historique" cote prof et permet aux etudiants de
+// reviser en mode entrainement (cf. useLiveReplayMode).
+//
+// Shape des activites = LiveActivity (cf. types/index.ts):
+//   - type='qcm' (Spark) avec options en JSON string et correct_answers
+//     JSON `[idx]` pour que useLiveReplayMode + buildResponsePayload
+//     fonctionnent.
+//   - status='closed' + category='spark' pour passer le filtre isSparkType().
+const _qcm = (id, title, options, correctIdx) => ({
+  id, session_id: 0,
+  type: 'qcm', category: 'spark',
+  title, options: JSON.stringify(options),
+  correct_answers: JSON.stringify([correctIdx]),
+  multi: 0, max_words: 0, position: id,
+  status: 'closed', started_at: null, closed_at: null,
+  timer_seconds: 30,
+  content: null, language: null,
+})
 const LIVE_SESSION_DETAILS = {
   'demo-live-h1': {
     id: 'demo-live-h1', title: 'Quiz Web - Auth & JWT', status: 'ended',
     started_at: new Date(Date.now() - 2 * 86400_000 - 30 * 60_000).toISOString(),
     ended_at:   new Date(Date.now() - 2 * 86400_000).toISOString(),
     activities: [
-      { id: 1, type: 'quiz', title: 'Que stocke un JWT ?',           options: ['Le mot de passe', 'Un token signé', 'Une session DB', 'Un cookie HTTP'],     correct: 1, stats: [4, 78, 12, 6],  count: 18 },
-      { id: 2, type: 'quiz', title: 'Algo de hash recommande 2024 ?', options: ['MD5', 'SHA1', 'argon2id', 'bcrypt seul'],                                    correct: 2, stats: [0, 0, 67, 33], count: 18 },
-      { id: 3, type: 'quiz', title: 'CORS empeche...',                options: ['Les attaques XSS', 'Les requetes cross-origin non autorisees', 'Les cookies tiers', 'Les redirections'], correct: 1, stats: [22, 67, 6, 5], count: 18 },
-      { id: 4, type: 'quiz', title: 'Bonne pratique pour le secret JWT ?', options: ['Hardcoder dans le code', 'Variable env + rotation', 'Dans le README', 'Dans localStorage'], correct: 1, stats: [0, 89, 0, 11], count: 18 },
+      _qcm(1, 'Que stocke un JWT ?',                    ['Le mot de passe', 'Un token signe', 'Une session DB', 'Un cookie HTTP'], 1),
+      _qcm(2, 'Algo de hash recommande 2024 ?',         ['MD5', 'SHA1', 'argon2id', 'bcrypt seul'], 2),
+      _qcm(3, 'CORS empeche...',                        ['Les attaques XSS', 'Les requetes cross-origin non autorisees', 'Les cookies tiers', 'Les redirections'], 1),
+      _qcm(4, 'Bonne pratique pour le secret JWT ?',    ['Hardcoder dans le code', 'Variable env + rotation', 'Dans le README', 'Dans localStorage'], 1),
     ],
     leaderboard: [
       { rank: 1, student_id: 1, student_name: 'Emma Lefevre',     score: 4 },
       { rank: 2, student_id: 4, student_name: 'Jean Durand',      score: 4 },
       { rank: 3, student_id: 5, student_name: 'Alice Martin',     score: 3 },
       { rank: 4, student_id: 2, student_name: 'Lucas Bernard',    score: 3 },
+      { rank: 5, student_id: 3, student_name: 'Sara Bouhassoun',  score: 2 },
+    ],
+  },
+  'demo-live-h4': {
+    id: 'demo-live-h4', title: 'Quiz Algo - Arbres AVL', status: 'ended',
+    started_at: new Date(Date.now() - 4 * 86400_000 - 25 * 60_000).toISOString(),
+    ended_at:   new Date(Date.now() - 4 * 86400_000).toISOString(),
+    activities: [
+      _qcm(11, 'Invariant d\'un arbre AVL ?',                ['height(L)=height(R)', '|height(L) - height(R)| <= 1', 'Tous les noeuds equilibres a 0', 'Profondeur fixe O(log n)'], 1),
+      _qcm(12, 'Cas necessitant une rotation gauche-droite', ['Insertion a gauche du fils gauche', 'Insertion a droite du fils gauche', 'Insertion a droite du fils droit', 'Insertion a gauche du fils droit'], 1),
+      _qcm(13, 'Complexite garantie d\'une insertion AVL ?',  ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)'], 1),
+      _qcm(14, 'Rotation simple : le pivot devient...',      ['Le nouveau fils gauche', 'Le nouveau fils droit', 'La nouvelle racine du sous-arbre', 'Le nouveau frere'], 2),
+    ],
+    leaderboard: [
+      { rank: 1, student_id: 4, student_name: 'Jean Durand',      score: 4 },
+      { rank: 2, student_id: 1, student_name: 'Emma Lefevre',     score: 3 },
+      { rank: 3, student_id: 6, student_name: 'Mehdi Chaouki',    score: 3 },
+      { rank: 4, student_id: 5, student_name: 'Alice Martin',     score: 2 },
       { rank: 5, student_id: 3, student_name: 'Sara Bouhassoun',  score: 2 },
     ],
   },
@@ -448,6 +485,33 @@ router.get('/live/activities/:id/results', (req, res) => {
   }
   // Activites ready : pas encore de reponses
   res.json({ ok: true, data: { type: 'unknown', total_responses: 0, distribution: [], last_response_at: null } })
+})
+
+// Soumission d'une reponse depuis l'etudiant (utilise par le mode entrainement
+// "Sessions passees" cote StudentLiveView). On retrouve l'activite dans nos
+// LIVE_SESSION_DETAILS, on compare la reponse aux correct_answers, et on
+// renvoie le shape LiveScoreResult attendu par useLiveReplayMode.submit().
+router.post('/live/activities/:id/respond', (req, res) => {
+  const aid = Number(req.params.id)
+  // Cherche l'activite dans toutes les sessions historiques
+  let activity = null
+  for (const s of Object.values(LIVE_SESSION_DETAILS)) {
+    activity = s.activities.find(a => a.id === aid)
+    if (activity) break
+  }
+  if (!activity) {
+    // Activite inconnue (ex. session active) : fallback neutre
+    return res.json({ ok: true, data: { isCorrect: null, points: 0, rank: null } })
+  }
+
+  const submitted = Array.isArray(req.body?.answers) ? req.body.answers : []
+  let correct = []
+  try { correct = JSON.parse(activity.correct_answers || '[]') } catch { /* fallback []*/ }
+  const isCorrect = correct.length > 0
+    && submitted.length === correct.length
+    && correct.every(idx => submitted.includes(idx))
+  const points = isCorrect ? 1000 : 0
+  res.json({ ok: true, data: { isCorrect, points, rank: null } })
 })
 
 // Stats agregees de la promo cote Live (widget "Stats Live" dashboard prof)

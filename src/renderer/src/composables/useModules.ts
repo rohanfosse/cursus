@@ -21,7 +21,7 @@ const MODULE_LABELS: Record<ModuleName, string> = {
 }
 
 const state = ref<Record<ModuleName, boolean>>({
-  kanban: true, frise: true, live: true, signatures: true, lumen: true, games: false,
+  kanban: true, frise: true, live: true, signatures: true, lumen: true, games: true,
 })
 
 let loaded = false

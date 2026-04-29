@@ -125,7 +125,12 @@ const NAV_ITEMS: readonly NavItem[] = [
   { id: 'fichiers',  label: 'Fichiers',   title: 'Fichiers partagés par les étudiants',        icon: Paperclip,       isVisible: () => appStore.isTeacher },
   { id: 'agenda',    label: 'Calendrier', title: 'Calendrier',                                 icon: Calendar,        isVisible: () => true },
   { id: 'booking',   label: 'Rendez-vous', title: 'Rendez-vous (mini-Calendly + campagnes)',   icon: CalendarCheck,   isVisible: () => appStore.isTeacher },
-  { id: 'live',      label: 'Live',       title: 'Live (quiz, feedback, code, tableau)',       icon: Zap,             isVisible: () => isEnabled('live') && (appStore.isStaff || !!(liveStore.currentSession && liveStore.currentSession.status !== 'ended')) },
+  // Live : toujours visible pour les etudiants tant que le module est actif —
+  // ils peuvent rejoindre une session en cours OU revoir/refaire d'anciennes
+  // sessions terminees en mode entrainement (cf. StudentLiveView "Sessions
+  // passees"). Avant on cachait l'onglet hors session active, ce qui rendait
+  // la fonctionnalite review invisible aux etudiants.
+  { id: 'live',      label: 'Live',       title: 'Live (quiz, feedback, code, tableau)',       icon: Zap,             isVisible: () => isEnabled('live') },
   { id: 'jeux',      label: 'Jeux',       title: 'Jeux (TypeRace, Snake, Space Invaders, ...)', icon: Gamepad2,        isVisible: () => appStore.isTeacher || isEnabled('games'), activeRoutes: ['jeux', 'typerace', 'snake', 'space-invaders'] },
 ]
 

@@ -141,11 +141,25 @@
     timerExpired.value = false
   })
 
+  // Sessions terminees pour la revision : on charge l'historique pour
+  // afficher des cartes cliquables "Reviser cette session" dans l'ecran
+  // d'accueil (no-session). Click -> fetchSession + replay automatique.
+  const pastSessions = computed(() => liveStore.historySessions ?? [])
+  const loadingPast = ref(false)
+  const reviewLoading = ref<number | string | null>(null)
+
   onMounted(async () => {
     liveStore.initSocketListeners()
     // Auto-detect active session for promo
     if (!session.value && promoId.value) {
       await liveStore.fetchActiveForPromo(promoId.value)
+    }
+    // Charge l'historique en arriere-plan : utile meme si pas de session
+    // active (ecran "Sessions terminees"). Silencieux en cas d'echec.
+    if (promoId.value) {
+      loadingPast.value = true
+      try { await liveStore.fetchHistory(promoId.value) } catch { /* tolere */ }
+      finally { loadingPast.value = false }
     }
   })
   onUnmounted(() => {
@@ -157,6 +171,32 @@
     joining.value = true
     await liveStore.joinByCode(joinCode.value.trim().toUpperCase())
     joining.value = false
+  }
+
+  async function reviewPastSession(sessionId: number | string) {
+    reviewLoading.value = sessionId
+    try {
+      await liveStore.fetchSession(sessionId as number)
+      // Si la session contient des questions Spark, on demarre le mode
+      // entrainement direct pour eviter un clic supplementaire. Sinon le
+      // visiteur voit le recap (cf. replay-offer condition).
+      if (liveStore.currentSession?.status === 'ended' && replaySparkActivities.value.length > 0) {
+        startReplay()
+      }
+    } finally {
+      reviewLoading.value = null
+    }
+  }
+
+  function formatRelative(iso: string | null | undefined): string {
+    if (!iso) return ''
+    const ms = Date.now() - new Date(iso).getTime()
+    const day = Math.floor(ms / 86_400_000)
+    if (day <= 0) return 'aujourd\'hui'
+    if (day === 1) return 'hier'
+    if (day < 7) return `il y a ${day} j`
+    if (day < 30) return `il y a ${Math.floor(day / 7)} sem`
+    return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
   }
 
   function toggleAnswer(index: number) {
@@ -255,6 +295,36 @@
           Le code à 6 caractères est communiqué par ton enseignant au début de la séance.
         </p>
       </div>
+
+      <section v-if="pastSessions.length || loadingPast" class="past-sessions">
+        <header class="past-sessions-head">
+          <RotateCw :size="14" />
+          <h2>Sessions terminées</h2>
+          <span class="past-sessions-hint">Refais une session passée à ton rythme.</span>
+        </header>
+        <ul class="past-sessions-list">
+          <li v-for="s in pastSessions" :key="String(s.id)" class="past-session-card">
+            <button
+              type="button"
+              class="past-session-btn"
+              :disabled="reviewLoading !== null"
+              :aria-busy="reviewLoading === s.id"
+              @click="reviewPastSession(s.id)"
+            >
+              <span class="past-session-title">{{ s.title }}</span>
+              <span class="past-session-meta">
+                <span v-if="s.activity_count">{{ s.activity_count }} activité{{ s.activity_count > 1 ? 's' : '' }}</span>
+                <span v-if="s.participant_count">· {{ s.participant_count }} participants</span>
+                <span v-if="s.ended_at">· {{ formatRelative(s.ended_at) }}</span>
+              </span>
+              <span class="past-session-cta">
+                <RotateCw :size="14" />
+                {{ reviewLoading === s.id ? 'Chargement...' : 'Réviser' }}
+              </span>
+            </button>
+          </li>
+        </ul>
+      </section>
     </div>
 
     <!-- ══════════ En session ══════════ -->
@@ -760,6 +830,103 @@
 @media (prefers-reduced-motion: reduce) {
   .join-input, .join-btn { transition: none !important; }
   .join-btn:hover { transform: none; }
+}
+
+/* ── Sessions terminees (revision asynchrone) ── */
+.past-sessions {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.past-sessions-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+.past-sessions-head h2 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+}
+.past-sessions-hint {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.past-sessions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.past-session-card {
+  width: 100%;
+}
+.past-session-btn {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+.past-session-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent-color);
+  transform: translateY(-1px);
+}
+.past-session-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.past-session-title {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.past-session-meta {
+  grid-column: 1;
+  grid-row: 2;
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.past-session-cta {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-color, #6366F1) 12%, transparent);
+  color: var(--accent-color, #6366F1);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .past-session-btn { transition: none !important; }
+  .past-session-btn:hover { transform: none; }
 }
 
 /* ── In session ── */
