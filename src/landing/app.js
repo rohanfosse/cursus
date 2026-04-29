@@ -967,7 +967,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { label: 'UX / accessibilité', score: 17 },
         { label: 'Documentation', score: 15 },
       ],
-      comment: '"Architecture solide, séparation claire des couches. Penser à factoriser les middlewares d\'auth." — Prof. Martin',
+      comment: '"Architecture solide, séparation claire des couches. Penser à factoriser les middlewares d\'auth." · Prof. Martin',
     },
     'TP Algo': {
       status: 'pending',
@@ -1129,6 +1129,43 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       tab.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tab.click() }
+      })
+    })
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  AUDIENCE - toggle prof / etudiant avec preview interactive
+  //
+  //  2 panneaux exclusifs (.audience-pane--active sur un seul a la fois).
+  //  Toggle anime via fade + slide (CSS). Sur switch, on retrigger les
+  //  animations d'apparition des items du panneau (rows + cards).
+  // ══════════════════════════════════════════════════════════════════════
+  const audienceToggleBtns = document.querySelectorAll('.audience-toggle-btn')
+  const audiencePanes      = document.querySelectorAll('.audience-pane')
+  if (audienceToggleBtns.length && audiencePanes.length) {
+    function setAudience(role) {
+      audienceToggleBtns.forEach(b => {
+        const active = b.dataset.audience === role
+        b.classList.toggle('audience-toggle-btn--active', active)
+        b.setAttribute('aria-selected', String(active))
+      })
+      audiencePanes.forEach(p => {
+        const active = p.dataset.audiencePane === role
+        p.classList.toggle('audience-pane--active', active)
+        // Retrigger les animations d'apparition des rows / cards.
+        if (active && !prefersReducedMotion) {
+          p.querySelectorAll('.audience-tl-row, .audience-mini-card').forEach(el => {
+            el.style.animation = 'none'
+            void el.offsetHeight
+            el.style.animation = ''
+          })
+        }
+      })
+    }
+    audienceToggleBtns.forEach(btn => {
+      btn.addEventListener('click', () => setAudience(btn.dataset.audience))
+      btn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click() }
       })
     })
   }
@@ -1424,10 +1461,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ══════════════════════════════════════════════════════════════════════
   const LIVE_MODES = ['spark', 'pulse', 'code', 'board']
   const LIVE_TITLES = {
-    spark: 'Spark — Quiz',
-    pulse: 'Pulse — Sondage',
-    code:  'Code — Co-edition',
-    board: 'Board — Brainstorm',
+    spark: 'Spark · Quiz',
+    pulse: 'Pulse · Sondage',
+    code:  'Code · Co-edition',
+    board: 'Board · Brainstorm',
   }
 
   const liveTabs   = document.querySelectorAll('.live-tab')
@@ -1622,17 +1659,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const rdvData = {
     types: [
-      { name: 'Suivi individuel',    duration: 30, color: '#0EA5E9', desc: 'Point hebdomadaire projet',     suggestedTopic: 'Avancement projet — questions ouvertes' },
-      { name: 'Soutenance',          duration: 60, color: '#8B5CF6', desc: 'Jury + 2 intervenants',         suggestedTopic: 'Soutenance — présentation 20 min + Q/R' },
-      { name: 'Rattrapage CCTL',     duration: 45, color: '#F59E0B', desc: 'Session de récupération',       suggestedTopic: 'Rattrapage — reprise des points bloquants' },
+      { name: 'Suivi individuel',    duration: 30, color: '#0EA5E9', desc: 'Point hebdomadaire projet',     suggestedTopic: 'Avancement projet · questions ouvertes' },
+      { name: 'Soutenance',          duration: 60, color: '#8B5CF6', desc: 'Jury + 2 intervenants',         suggestedTopic: 'Soutenance · présentation 20 min + Q/R' },
+      { name: 'Rattrapage CCTL',     duration: 45, color: '#F59E0B', desc: 'Session de récupération',       suggestedTopic: 'Rattrapage · reprise des points bloquants' },
     ],
     disponibilites: generateRdvWeek(),
     bookings: [
-      { who: 'Emma L.',    initials: 'EL', avatarColor: '#059669', when: 'Jeu. 9h00',   type: 'Suivi individuel', typeColor: '#0EA5E9', duration: 30, teams: true,  topic: 'Avancement Projet Web E4 — review architecture' },
+      { who: 'Emma L.',    initials: 'EL', avatarColor: '#059669', when: 'Jeu. 9h00',   type: 'Suivi individuel', typeColor: '#0EA5E9', duration: 30, teams: true,  topic: 'Avancement Projet Web E4 · review architecture' },
       { who: 'Jean D.',    initials: 'JD', avatarColor: '#D97706', when: 'Jeu. 14h00',  type: 'Suivi individuel', typeColor: '#0EA5E9', duration: 30, teams: true,  topic: 'Question sur les rotations AVL (TP Algo)' },
-      { who: 'Sara B.',    initials: 'SB', avatarColor: '#8B5CF6', when: 'Ven. 10h30',  type: 'Soutenance',       typeColor: '#8B5CF6', duration: 60, teams: false, topic: 'Soutenance mémoire de stage — salle B204' },
-      { who: 'Thomas M.',  initials: 'TM', avatarColor: '#EC4899', when: 'Ven. 14h00',  type: 'Rattrapage CCTL',  typeColor: '#F59E0B', duration: 45, teams: true,  topic: 'Rattrapage CCTL Algo — chapitre arbres équilibrés' },
-      { who: 'Lina F.',    initials: 'LF', avatarColor: '#06B6D4', when: 'Lun. 11h00',  type: 'Suivi individuel', typeColor: '#0EA5E9', duration: 30, teams: true,  topic: 'Choix sujet de stage — feedback CV' },
+      { who: 'Sara B.',    initials: 'SB', avatarColor: '#8B5CF6', when: 'Ven. 10h30',  type: 'Soutenance',       typeColor: '#8B5CF6', duration: 60, teams: false, topic: 'Soutenance mémoire de stage · salle B204' },
+      { who: 'Thomas M.',  initials: 'TM', avatarColor: '#EC4899', when: 'Ven. 14h00',  type: 'Rattrapage CCTL',  typeColor: '#F59E0B', duration: 45, teams: true,  topic: 'Rattrapage CCTL Algo · chapitre arbres équilibrés' },
+      { who: 'Lina F.',    initials: 'LF', avatarColor: '#06B6D4', when: 'Lun. 11h00',  type: 'Suivi individuel', typeColor: '#0EA5E9', duration: 30, teams: true,  topic: 'Choix sujet de stage · feedback CV' },
     ],
   }
 
@@ -1938,7 +1975,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <span class="lm-c-kw">return</span> n
     <span class="lm-c-kw">return</span> <span class="lm-c-fn">fib</span>(n - <span class="lm-c-num">1</span>) + <span class="lm-c-fn">fib</span>(n - <span class="lm-c-num">2</span>)
 
-<span class="lm-c-fn">print</span>(<span class="lm-c-fn">fib</span>(<span class="lm-c-num">50</span>))  <span class="lm-c-cmt"># 12586269025 — quasi-instantane</span></pre>
+<span class="lm-c-fn">print</span>(<span class="lm-c-fn">fib</span>(<span class="lm-c-num">50</span>))  <span class="lm-c-cmt"># 12586269025, quasi-instantane</span></pre>
       `,
     },
   }
@@ -1999,11 +2036,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // ══════════════════════════════════════════════════════════════════════
   const DOC_PREVIEWS = {
     'Cours Réseaux.pdf': {
-      kind: 'pdf', title: 'Réseaux & protocoles', subtitle: 'Chapitre 3 — TCP/IP',
+      kind: 'pdf', title: 'Réseaux & protocoles', subtitle: 'Chapitre 3 · TCP/IP',
       page: 8, pages: 12,
       blocks: [
         { type: 'p', lines: [92, 78, 84, 66] },
-        { type: 'figure', label: 'Fig. 3.1 — Modèle OSI 7 couches', figure: 'osi' },
+        { type: 'figure', label: 'Fig. 3.1 · Modèle OSI 7 couches', figure: 'osi' },
         { type: 'p', lines: [88, 72, 90] },
       ],
     },
@@ -2012,12 +2049,12 @@ document.addEventListener('DOMContentLoaded', () => {
       page: 3, pages: 8,
       blocks: [
         { type: 'p', lines: [90, 80, 70] },
-        { type: 'figure', label: 'Fig. 1 — Croissance asymptotique', figure: 'big-o' },
+        { type: 'figure', label: 'Fig. 1 · Croissance asymptotique', figure: 'big-o' },
         { type: 'p', lines: [85, 75, 60] },
       ],
     },
     'Sujet TP Algo.docx': {
-      kind: 'doc', title: 'TP Algo — Tri par fusion',
+      kind: 'doc', title: 'TP Algo · Tri par fusion',
       author: 'Prof. Martin', date: '12 mars 2026',
       blocks: [
         { type: 'p', lines: [96, 88, 76] },
@@ -2028,7 +2065,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ],
     },
     'TP Tri rapide.docx': {
-      kind: 'doc', title: 'TP Tri rapide — Quicksort',
+      kind: 'doc', title: 'TP Tri rapide · Quicksort',
       author: 'Prof. Martin', date: '20 mars 2026',
       blocks: [
         { type: 'p', lines: [94, 86, 78] },
@@ -2051,7 +2088,7 @@ document.addEventListener('DOMContentLoaded', () => {
     'GitHub projet web': {
       kind: 'github',
       repo: 'cesi/projet-web',
-      desc: 'Projet Web E4 — application full-stack avec auth JWT et API REST',
+      desc: 'Projet Web E4, application full-stack avec auth JWT et API REST',
       lang: 'TypeScript', langColor: '#3178C6',
       stars: 24, forks: 6, branch: 'main',
       files: [
@@ -2067,7 +2104,7 @@ document.addEventListener('DOMContentLoaded', () => {
       site: 'Moodle CESI',
       title: 'Réseaux & protocoles · L2',
       blocks: [
-        { type: 'h2', text: 'Section 3 — Protocoles TCP/IP' },
+        { type: 'h2', text: 'Section 3 · Protocoles TCP/IP' },
         { type: 'p', lines: [92, 78, 84] },
         { type: 'link', label: 'Cours Réseaux.pdf', kind: 'pdf' },
         { type: 'link', label: 'TP routage Dijkstra', kind: 'py' },
@@ -2076,7 +2113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     'tp_routage.py': {
       kind: 'code', lang: 'python', file: 'tp_routage.py',
       lines: [
-        [['cmt', '# Algo Dijkstra — plus courts chemins']],
+        [['cmt', '# Algo Dijkstra : plus courts chemins']],
         [['kw', 'from'], ['', ' heapq '], ['kw', 'import'], ['', ' heappush, heappop']],
         [],
         [['kw', 'def'], ['', ' '], ['fn', 'dijkstra'], ['', '(graph, source):']],
@@ -2090,7 +2127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     'Maquettes projet': {
       kind: 'figma',
-      file: 'Cursus — App',
+      file: 'Cursus · App',
       page: 'Mobile',
       frames: ['Login', 'Dashboard', 'Chat'],
     },

@@ -77,7 +77,7 @@
     .fade-up { opacity: 0; transform: translateY(24px) scale(0.98); transition: opacity .65s cubic-bezier(.22,1,.36,1), transform .65s cubic-bezier(.22,1,.36,1); }
     .fade-up.visible { opacity: 1; transform: translateY(0) scale(1); }
   </style>
-  <link rel="stylesheet" href="style.css?v=270" />
+  <link rel="stylesheet" href="style.css?v=271" />
 </head>
 <body>
 
@@ -501,7 +501,7 @@
         </div>
         <div class="mini-demo mini-demo-left" id="demo-live">
           <div class="demo-window">
-            <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="demo-title" id="live-mode-title">Spark — Quiz</span><span class="live-rec"><span class="live-rec-dot"></span>LIVE</span></div>
+            <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="demo-title" id="live-mode-title">Spark · Quiz</span><span class="live-rec"><span class="live-rec-dot"></span>LIVE</span></div>
 
             <!-- Selecteur de mode (auto-rotation + clic manuel) -->
             <div class="live-tabs" role="tablist" aria-label="Mode Live">
@@ -614,13 +614,13 @@
       <div class="container feature-row">
         <div class="feature-text">
           <div class="feature-icon" style="--fc: var(--color-rex)"><svg aria-hidden="true" width="32" height="32" viewBox="0 0 64 64" fill="none"><defs><linearGradient id="fp-g" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#0EA5E9"/><stop offset="50%" stop-color="#06B6D4"/><stop offset="100%" stop-color="#34D399"/></linearGradient></defs><path d="M32 56C32 56 6 40 6 22 6 13.2 13.2 6 22 6 26.8 6 30.8 8.4 32 12 33.2 8.4 37.2 6 42 6 50.8 6 58 13.2 58 22 58 40 32 56 32 56Z" fill="url(#fp-g)" opacity=".15" stroke="url(#fp-g)" stroke-width="2.5" stroke-linejoin="round"/><polyline points="4,34 16,34 20,34 24,26 28,42 32,18 36,38 40,28 44,34 48,34 60,34" fill="none" stroke="url(#fp-g)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-          <h2>Suivi 1-on-1 : booking en 1 clic</h2>
-          <p class="feature-desc">Les enseignants partagent un lien, les étudiants réservent leur créneau en 30 secondes. Sync Outlook + visio Teams ou Jitsi automatique, zéro back-and-forth.</p>
+          <h2>Réserve un créneau en 30 secondes</h2>
+          <p class="feature-desc">Tu partages un lien, l'autre choisit son créneau, le RDV apparaît dans ton Outlook avec un lien Teams ou Jitsi. Plus jamais de "tu serais dispo quand ?" par mail.</p>
           <ul class="feature-list">
-            <li>Types de RDV configurables (durée, couleur, sujet par défaut)</li>
-            <li>Grille de disponibilités hebdomadaire avec densité réelle</li>
-            <li>Sync calendrier Outlook + lien visio créé à la réservation</li>
-            <li>Emails de confirmation, rappels J-1 et lien d'annulation</li>
+            <li>Tes créneaux configurables (durée, couleur, sujet par défaut)</li>
+            <li>Grille de dispo hebdo qui reflète vraiment ton agenda</li>
+            <li>Sync Outlook + lien visio créé à la réservation</li>
+            <li>Confirmation, rappel J-1 et lien d'annulation par email</li>
           </ul>
         </div>
         <div class="mini-demo mini-demo-right" id="demo-rex">
@@ -663,7 +663,7 @@
         </div>
         <div class="mini-demo mini-demo-left" id="demo-lumen">
           <div class="demo-window">
-            <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="demo-title">Lumen — Algorithmique L1</span></div>
+            <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="demo-title">Lumen · Algorithmique L1</span></div>
             <div class="demo-lumen-wrap">
               <aside class="demo-lumen-sidebar" role="tablist" aria-label="Chapitres">
                 <div class="demo-lumen-repo">
@@ -714,56 +714,138 @@
 
   </section><!-- /#features -->
 
-  <!-- POUR QUI ? — pose le visiteur en 1 coup d'oeil sur sa propre vue -->
+  <!-- POUR QUI ? : 2 cards compactes avec preview interactive de chaque rôle -->
   <section class="audience-section fade-up" id="audience" aria-label="Pour qui">
     <div class="container">
-      <h2 class="section-title">Pour qui&nbsp;?</h2>
-      <p class="section-sub">Cursus est conçu autour des deux rôles principaux d'une promotion.</p>
+      <div class="audience-head">
+        <span class="audience-eyebrow">Pour qui ?</span>
+        <h2 class="audience-h2">Une promotion, <span class="audience-h2-grad">deux points de vue</span>.</h2>
+        <p class="audience-sub">Tu es des deux côtés du tableau. Choisis le tien et teste l'app dans ce contexte.</p>
+      </div>
+
+      <div class="audience-toggle" role="tablist" aria-label="Choisir un point de vue">
+        <button type="button" class="audience-toggle-btn audience-toggle-btn--active" data-audience="teacher" role="tab" aria-selected="true">
+          <span class="audience-toggle-dot" style="--c:#6366F1"></span>
+          Enseignant
+        </button>
+        <button type="button" class="audience-toggle-btn" data-audience="student" role="tab" aria-selected="false">
+          <span class="audience-toggle-dot" style="--c:#059669"></span>
+          Étudiant
+        </button>
+      </div>
 
       <div class="audience-grid">
-        <article class="audience-card audience-card--teacher">
-          <div class="audience-icon" style="--ic: var(--color-chat)">
-            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <!-- TEACHER ────────────────────────────────────────────────── -->
+        <article class="audience-pane audience-pane--active" data-audience-pane="teacher" style="--ac:#6366F1">
+          <div class="audience-pane-side">
+            <div class="audience-tag">
+              <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+              Côté prof
+            </div>
+            <h3 class="audience-pane-h">Pilote ta promo<br>sans jongler entre 5 outils.</h3>
+            <p class="audience-pane-p">Tu crées un devoir, l'annonce part dans le canal, le RDV individuel se réserve sur ton lien Outlook. Une seule app pour ne rien rater.</p>
+            <ul class="audience-features">
+              <li><span class="audience-feat-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Devoirs, grilles de notation, suivi des rendus</li>
+              <li><span class="audience-feat-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Ressources centralisées liées aux devoirs</li>
+              <li><span class="audience-feat-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Quiz Spark, sondages Pulse, code partagé en cours</li>
+              <li><span class="audience-feat-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>RDV synchronisés Outlook + Teams ou Jitsi</li>
+            </ul>
+            <a class="audience-cta" href="https://app.cursus.school/#/demo?role=teacher">
+              Tester côté prof
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
           </div>
-          <h3 class="audience-title">Enseignants</h3>
-          <p class="audience-desc">Tu pilotes une promotion et tu en as marre de jongler entre Moodle, Teams et tes mails.</p>
-          <ul class="audience-list">
-            <li>Crée des devoirs, note avec des grilles, suis les rendus</li>
-            <li>Diffuse des annonces lues à coup sûr (lecture seule)</li>
-            <li>Centralise tes ressources (PDF, Word, GitHub) liées aux devoirs</li>
-            <li>Programme tes RDV individuels avec sync Outlook + Teams ou Jitsi</li>
-            <li>Anime tes cours en live (quiz Spark, sondages Pulse, code partagé)</li>
-          </ul>
-          <a class="audience-cta" href="https://app.cursus.school/#/demo">Tester côté prof</a>
+          <!-- Preview : journée type côté prof -->
+          <div class="audience-pane-preview">
+            <div class="audience-preview-label">Une matinée type</div>
+            <div class="audience-timeline">
+              <div class="audience-tl-row" style="--d:0ms"><span class="audience-tl-time">09:00</span><span class="audience-tl-tag" style="--tc:#0EA5E9">RDV</span><span class="audience-tl-text">Suivi Emma L.</span></div>
+              <div class="audience-tl-row" style="--d:80ms"><span class="audience-tl-time">10:30</span><span class="audience-tl-tag" style="--tc:#EF4444">Live</span><span class="audience-tl-text">Quiz Spark complexité</span></div>
+              <div class="audience-tl-row" style="--d:160ms"><span class="audience-tl-time">11:15</span><span class="audience-tl-tag" style="--tc:#F59E0B">Devoir</span><span class="audience-tl-text">Note Projet Web E4</span></div>
+              <div class="audience-tl-row" style="--d:240ms"><span class="audience-tl-time">13:30</span><span class="audience-tl-tag" style="--tc:#059669">Annonce</span><span class="audience-tl-text">TP reporté à jeudi</span></div>
+              <div class="audience-tl-row" style="--d:320ms"><span class="audience-tl-time">14:00</span><span class="audience-tl-tag" style="--tc:#0EA5E9">RDV</span><span class="audience-tl-text">Suivi Jean D.</span></div>
+            </div>
+            <div class="audience-stat-row">
+              <div class="audience-stat"><span class="audience-stat-num">3</span><span class="audience-stat-lbl">RDV cette semaine</span></div>
+              <div class="audience-stat"><span class="audience-stat-num">24</span><span class="audience-stat-lbl">étudiants suivis</span></div>
+              <div class="audience-stat"><span class="audience-stat-num">8</span><span class="audience-stat-lbl">devoirs actifs</span></div>
+            </div>
+          </div>
         </article>
 
-        <article class="audience-card audience-card--student">
-          <div class="audience-icon" style="--ic: var(--color-devoirs)">
-            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+        <!-- STUDENT ────────────────────────────────────────────────── -->
+        <article class="audience-pane" data-audience-pane="student" style="--ac:#059669">
+          <div class="audience-pane-side">
+            <div class="audience-tag">
+              <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+              Côté étudiant
+            </div>
+            <h3 class="audience-pane-h">Tout ce qui te concerne,<br>en un coup d'œil.</h3>
+            <p class="audience-pane-p">Deadlines, notes, conversations de promo, cours markdown en liseuse. Plus jamais 5 onglets pour savoir ce qu'il y a à faire ce soir.</p>
+            <ul class="audience-features">
+              <li><span class="audience-feat-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Deadlines et notes au même endroit</li>
+              <li><span class="audience-feat-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Discute avec la promo et tes profs en un clic</li>
+              <li><span class="audience-feat-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Cours markdown rendus comme un manuel (KaTeX, code, PDF)</li>
+              <li><span class="audience-feat-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Mode hors-ligne PWA pour bosser dans le train</li>
+            </ul>
+            <a class="audience-cta" href="https://app.cursus.school/#/demo?role=student">
+              Tester côté étudiant
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
           </div>
-          <h3 class="audience-title">Étudiants</h3>
-          <p class="audience-desc">Tu veux savoir d'un coup d'œil ce qui te concerne, sans 5 onglets ouverts.</p>
-          <ul class="audience-list">
-            <li>Toutes tes deadlines et tes notes au même endroit</li>
-            <li>Discute avec ta promo et tes profs en un clic</li>
-            <li>Lis tes cours markdown rendus comme un manuel (KaTeX, code, PDF)</li>
-            <li>Réserve un créneau avec ton tuteur sans relancer 3 fois</li>
-            <li>Mode hors-ligne PWA pour bosser dans le train</li>
-          </ul>
-          <a class="audience-cta" href="https://app.cursus.school/#/demo">Tester côté étudiant</a>
+          <!-- Preview : tableau de bord côté étudiant -->
+          <div class="audience-pane-preview">
+            <div class="audience-preview-label">Ton tableau de bord</div>
+            <div class="audience-cards">
+              <div class="audience-mini-card audience-mini-card--devoir" style="--d:0ms">
+                <div class="audience-mini-head">
+                  <span class="audience-mini-ic" style="background:#F59E0B">D</span>
+                  <span class="audience-mini-title">TP Algo · arbre AVL</span>
+                </div>
+                <div class="audience-mini-meta">
+                  <span class="audience-mini-pill audience-mini-pill--warn">Dans 2j</span>
+                  <span class="audience-mini-bar"><span class="audience-mini-bar-fill" style="--w:60%"></span></span>
+                </div>
+              </div>
+              <div class="audience-mini-card audience-mini-card--grade" style="--d:90ms">
+                <div class="audience-mini-head">
+                  <span class="audience-mini-ic" style="background:#059669">N</span>
+                  <span class="audience-mini-title">Projet Web E4</span>
+                </div>
+                <div class="audience-mini-meta">
+                  <span class="audience-mini-grade">A · 17/20</span>
+                  <span class="audience-mini-meta-text">noté hier</span>
+                </div>
+              </div>
+              <div class="audience-mini-card audience-mini-card--chat" style="--d:180ms">
+                <div class="audience-mini-head">
+                  <span class="audience-mini-ic" style="background:#6366F1">M</span>
+                  <span class="audience-mini-title">3 messages non lus</span>
+                </div>
+                <div class="audience-mini-meta">
+                  <span class="audience-mini-meta-text"><b>Prof. Martin</b> dans #annonces</span>
+                </div>
+              </div>
+            </div>
+            <div class="audience-stat-row">
+              <div class="audience-stat"><span class="audience-stat-num">14,2</span><span class="audience-stat-lbl">moyenne S1</span></div>
+              <div class="audience-stat"><span class="audience-stat-num">2j</span><span class="audience-stat-lbl">prochaine deadline</span></div>
+              <div class="audience-stat"><span class="audience-stat-num">42%</span><span class="audience-stat-lbl">cours lu</span></div>
+            </div>
+          </div>
         </article>
       </div>
     </div>
   </section>
 
-  <!-- FAQ — anticipe les questions les plus frequentes pour reduire la friction -->
+  <!-- FAQ : anticipe les questions les plus frequentes pour reduire la friction -->
   <section class="faq-section fade-up" id="faq" aria-label="Questions fréquentes">
     <div class="container container-narrow">
       <h2 class="section-title">Questions fréquentes</h2>
 
       <details class="faq-item">
         <summary>C'est gratuit&nbsp;?</summary>
-        <p>Oui, complètement. Cursus est <a href="https://github.com/rohanfosse/cursus" target="_blank" rel="noopener">open source sous licence GNU AGPL v3</a>&nbsp;: l'app web, le desktop et le code sont gratuits, sans freemium ni paywall. Tu peux l'utiliser tel quel sur <a href="https://app.cursus.school">app.cursus.school</a> ou auto-héberger ta propre instance. La licence AGPL implique que les modifications hébergées comme service réseau doivent être publiées sous la même licence — voir <a href="https://github.com/rohanfosse/cursus/blob/main/LICENSE" target="_blank" rel="noopener">LICENSE</a>.</p>
+        <p>Oui, complètement. Cursus est <a href="https://github.com/rohanfosse/cursus" target="_blank" rel="noopener">open source sous licence GNU AGPL v3</a>&nbsp;: l'app web, le desktop et le code sont gratuits, sans freemium ni paywall. Tu peux l'utiliser tel quel sur <a href="https://app.cursus.school">app.cursus.school</a> ou auto-héberger ta propre instance. La licence AGPL implique que les modifications hébergées comme service réseau doivent être publiées sous la même licence (voir <a href="https://github.com/rohanfosse/cursus/blob/main/LICENSE" target="_blank" rel="noopener">LICENSE</a>).</p>
       </details>
 
       <details class="faq-item">
@@ -783,7 +865,7 @@
 
       <details class="faq-item">
         <summary>Ça remplace Moodle / Teams&nbsp;?</summary>
-        <p>Pour le quotidien d'une promotion, oui. Cursus couvre la messagerie, les devoirs, les ressources, les cours, les quiz live et les RDV — c'est-à-dire l'essentiel de ce qu'on fait sur Moodle + Teams + Outlook combinés. Pour les fonctions spécifiques (grands amphis distanciels, intégration SI école), Cursus est complémentaire et peut cohabiter — l'export ICS et la sync Outlook permettent de garder tes outils habituels.</p>
+        <p>Pour le quotidien d'une promotion, oui. Cursus couvre la messagerie, les devoirs, les ressources, les cours, les quiz live et les RDV : l'essentiel de ce qu'on fait sur Moodle + Teams + Outlook combinés. Pour les fonctions spécifiques (grands amphis distanciels, intégration SI école), Cursus est complémentaire et peut cohabiter, l'export ICS et la sync Outlook permettent de garder tes outils habituels.</p>
       </details>
 
       <details class="faq-item">
@@ -798,12 +880,12 @@
 
       <details class="faq-item">
         <summary>C'est maintenu par qui&nbsp;?</summary>
-        <p>Par <a href="https://github.com/rohanfosse" target="_blank" rel="noopener">Rohan Fossé</a>, Enseignant Responsable Pédagogique en Informatique au CESI de Montpellier. Le projet est utilisé en production sur les promotions qu'il pilote, et maintenu sur du temps personnel. Les contributions externes sont bienvenues — voir <a href="https://github.com/rohanfosse/cursus/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a>.</p>
+        <p>Par <a href="https://github.com/rohanfosse" target="_blank" rel="noopener">Rohan Fossé</a>, Enseignant Responsable Pédagogique en Informatique au CESI de Montpellier. Le projet est utilisé en production sur les promotions qu'il pilote, et maintenu sur du temps personnel. Les contributions externes sont bienvenues (voir <a href="https://github.com/rohanfosse/cursus/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a>).</p>
       </details>
 
       <details class="faq-item">
         <summary>Je trouve un bug, comment je signale&nbsp;?</summary>
-        <p>Ouvre une <a href="https://github.com/rohanfosse/cursus/issues/new/choose" target="_blank" rel="noopener">issue GitHub</a> avec le template Bug. Pour une faille de sécurité, ne crée pas d'issue publique — voir <a href="https://github.com/rohanfosse/cursus/blob/main/SECURITY.md" target="_blank" rel="noopener">SECURITY.md</a>.</p>
+        <p>Ouvre une <a href="https://github.com/rohanfosse/cursus/issues/new/choose" target="_blank" rel="noopener">issue GitHub</a> avec le template Bug. Pour une faille de sécurité, ne crée pas d'issue publique (voir <a href="https://github.com/rohanfosse/cursus/blob/main/SECURITY.md" target="_blank" rel="noopener">SECURITY.md</a>).</p>
       </details>
     </div>
   </section>
@@ -871,8 +953,8 @@
     </div>
   </footer>
 
-  <script src="grammar.js?v=270"></script>
-  <script src="app.js?v=270"></script>
+  <script src="grammar.js?v=271"></script>
+  <script src="app.js?v=271"></script>
   <!-- Analytics: insert GA4 gtag.js snippet here when ready -->
 </body>
 </html>
