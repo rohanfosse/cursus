@@ -371,4 +371,37 @@ describe('Lumen interactive (reads + notes)', () => {
     expect(res.status).toBe(200)
     expect(res.body.data.note).toBeNull()
   })
+
+  it('GET /lumen/my-notes fusionne la baseline + les notes du visiteur', async () => {
+    const { token } = await startSession(app)
+    // Ecrit une note visiteur sur un chapitre existant en baseline
+    await request(app).put('/api/demo/lumen/repos/9001/note').set(auth(token))
+      .send({ path: 'ch02-arbres-avl.md', content: 'mes notes perso AVL' })
+    // Ecrit une autre note sur un chapitre pas en baseline
+    await request(app).put('/api/demo/lumen/repos/9001/note').set(auth(token))
+      .send({ path: 'ch03-prog-dyn.md', content: 'note prog dyn' })
+    const res = await request(app).get('/api/demo/lumen/my-notes').set(auth(token))
+    expect(res.status).toBe(200)
+    const notes = res.body.data.notes
+    expect(Array.isArray(notes)).toBe(true)
+    // La note visiteur sur ch02-arbres-avl ecrase la baseline
+    const avl = notes.find(n => n.repo_id === 9001 && n.chapter_path === 'ch02-arbres-avl.md')
+    expect(avl?.note).toBe('mes notes perso AVL')
+    expect(avl?.chapter_title).toBe('Arbres AVL')
+    // La note ch03-prog-dyn (pas en baseline) apparait
+    const dyn = notes.find(n => n.repo_id === 9001 && n.chapter_path === 'ch03-prog-dyn.md')
+    expect(dyn?.note).toBe('note prog dyn')
+  })
+
+  it('GET /lumen/my-noted-chapters retourne au moins la baseline + les notes du visiteur', async () => {
+    const { token } = await startSession(app)
+    await request(app).put('/api/demo/lumen/repos/9001/note').set(auth(token))
+      .send({ path: 'ch01-tri-rapide.md', content: 'tri rapide perso' })
+    const res = await request(app).get('/api/demo/lumen/my-noted-chapters').set(auth(token))
+    expect(res.status).toBe(200)
+    expect(Array.isArray(res.body.data)).toBe(true)
+    expect(res.body.data.length).toBeGreaterThanOrEqual(1)
+    expect(res.body.data[0]).toHaveProperty('chapter_title')
+    expect(res.body.data[0]).toHaveProperty('notes_count')
+  })
 })

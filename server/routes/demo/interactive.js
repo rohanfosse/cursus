@@ -340,6 +340,92 @@ function chapterKey(repoId, path) {
   return `${repoId}|${path}`
 }
 
+// Baseline de notes prises (fictives, partagees) — fusionnees avec les
+// notes reelles du visiteur dans /lumen/my-notes.
+const LUMEN_MY_NOTES_BASELINE = [
+  { id: 1, repo_id: 1, chapter_path: 'cours/01-tri-rapide.md', chapter_title: 'Tri rapide',
+    note: 'La complexite pire cas O(n²) arrive si pivot mal choisi : random shuffle avant tri.',
+    created_at: new Date(Date.now() - 12 * 86400_000).toISOString(),
+    updated_at: new Date(Date.now() - 12 * 86400_000).toISOString() },
+  { id: 2, repo_id: 1, chapter_path: 'cours/02-arbres-avl.md', chapter_title: 'Arbres AVL',
+    note: 'balanceFactor = height(L) - height(R), invariant |bf| <= 1. Rotation simple/double selon signe.',
+    created_at: new Date(Date.now() - 8 * 86400_000).toISOString(),
+    updated_at: new Date(Date.now() - 5 * 86400_000).toISOString() },
+  { id: 3, repo_id: 2, chapter_path: 'projet/01-cdc.md', chapter_title: 'Projet Web E4',
+    note: 'Bareme : 30 pts fonctionnalites, 25 code, 15 tests, 15 CI, 10 UX, 5 soutenance.',
+    created_at: new Date(Date.now() - 3 * 86400_000).toISOString(),
+    updated_at: new Date(Date.now() - 3 * 86400_000).toISOString() },
+]
+
+// Resolve un title lisible pour un (repoId, path) en regardant le manifest
+// du repo. Fallback : le path brut si le manifest est introuvable.
+function resolveChapterTitle(repoId, path) {
+  // Les repos demo sont 9001 et 9002 (cf. mocks.js). Si on tape sur un
+  // autre repoId, on renvoie le path car on n'a pas le manifest.
+  const titleMap = {
+    9001: {
+      'ch01-tri-rapide.md': 'Tri rapide',
+      'ch02-arbres-avl.md': 'Arbres AVL',
+      'ch03-prog-dyn.md': 'Programmation dynamique',
+    },
+    9002: {
+      'ch01-layout.md': 'HTML / CSS Layout',
+      'ch02-auth-jwt.md': 'Authentification & JWT',
+      'ch03-projet-e4.md': 'Projet Web E4',
+    },
+  }
+  return titleMap[repoId]?.[path] ?? path
+}
+
+router.get('/lumen/my-notes', (req, res) => {
+  const s = getState(req.tenantId)
+  // Fusion baseline + notes du visiteur (les visiteurs ecrasent la baseline
+  // si meme key (repoId, path)).
+  const visitorKeys = new Set([...s.lumenNotes.keys()])
+  const out = []
+  let nextId = 1000
+  for (const baseline of LUMEN_MY_NOTES_BASELINE) {
+    const k = chapterKey(baseline.repo_id, baseline.chapter_path)
+    if (visitorKeys.has(k)) continue // visiteur a redige une vraie note ici, on prend la sienne
+    out.push(baseline)
+  }
+  for (const [k, entry] of s.lumenNotes) {
+    const [repoIdStr, path] = k.split('|')
+    const repoId = Number(repoIdStr)
+    out.push({
+      id: nextId++,
+      repo_id: repoId,
+      chapter_path: path,
+      chapter_title: resolveChapterTitle(repoId, path),
+      note: entry.content,
+      created_at: entry.updatedAt,
+      updated_at: entry.updatedAt,
+    })
+  }
+  out.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+  res.json({ ok: true, data: { notes: out } })
+})
+
+router.get('/lumen/my-noted-chapters', (req, res) => {
+  const s = getState(req.tenantId)
+  // Combine baseline + visiteur, deduplique par (repo_id, chapter_path).
+  // Pour un widget Top Read / Top Noted, donne le compte de notes par chapitre.
+  const counts = new Map()
+  for (const b of LUMEN_MY_NOTES_BASELINE) {
+    const k = chapterKey(b.repo_id, b.chapter_path)
+    counts.set(k, { repo_id: b.repo_id, chapter_path: b.chapter_path,
+                    chapter_title: b.chapter_title, notes_count: 1 })
+  }
+  for (const k of s.lumenNotes.keys()) {
+    const [repoIdStr, path] = k.split('|')
+    const repoId = Number(repoIdStr)
+    counts.set(k, { repo_id: repoId, chapter_path: path,
+                    chapter_title: resolveChapterTitle(repoId, path),
+                    notes_count: 1 })
+  }
+  res.json({ ok: true, data: [...counts.values()] })
+})
+
 router.post('/lumen/repos/:repoId/read', (req, res) => {
   const repoId = Number(req.params.repoId)
   const path = String(req.body?.path || '').trim()

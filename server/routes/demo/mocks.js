@@ -752,25 +752,9 @@ router.post('/lumen/github/connect', (_req, res) => res.json({
   data: { login: 'cursus-demo', name: 'Compte démo', avatarUrl: 'https://avatars.githubusercontent.com/u/0?v=4' },
 }))
 router.post('/lumen/github/disconnect', (_req, res) => res.json({ ok: true, data: null }))
-// Note: ces endpoints retournent un OBJET (pas un array). Le wildcard
-// renverrait `[]` qui ferait crasher `data.notes.slice()` cote front.
-// On les materialise explicitement avec le shape attendu (notes: array,
-// counts: object) — cf. WidgetLumenNotes / WidgetLumenTopRead.
-// Lumen : mes notes prises sur les chapitres + chapitres notes + lectures
-const LUMEN_MY_NOTES = [
-  { id: 1, repo_id: 1, chapter_path: 'cours/01-tri-rapide.md', chapter_title: 'Tri rapide',         note: 'La complexite pire cas O(n²) arrive si pivot mal choisi : random shuffle avant tri.',     created_at: new Date(Date.now() - 12 * 86400_000).toISOString(), updated_at: new Date(Date.now() - 12 * 86400_000).toISOString() },
-  { id: 2, repo_id: 1, chapter_path: 'cours/02-arbres-avl.md', chapter_title: 'Arbres AVL',         note: 'balanceFactor = height(L) - height(R), invariant |bf| <= 1. Rotation simple/double selon signe.', created_at: new Date(Date.now() - 8 * 86400_000).toISOString(),  updated_at: new Date(Date.now() - 5 * 86400_000).toISOString() },
-  { id: 3, repo_id: 2, chapter_path: 'projet/01-cdc.md',       chapter_title: 'Projet Web E4',      note: 'Bareme : 30 pts fonctionnalites, 25 code, 15 tests, 15 CI, 10 UX, 5 soutenance.',           created_at: new Date(Date.now() - 3 * 86400_000).toISOString(),  updated_at: new Date(Date.now() - 3 * 86400_000).toISOString() },
-]
-router.get('/lumen/my-notes', (_req, res) => res.json({ ok: true, data: { notes: LUMEN_MY_NOTES } }))
-router.get('/lumen/my-noted-chapters', (_req, res) => res.json({
-  ok: true,
-  data: [
-    { repo_id: 1, chapter_path: 'cours/01-tri-rapide.md', chapter_title: 'Tri rapide',  notes_count: 1 },
-    { repo_id: 1, chapter_path: 'cours/02-arbres-avl.md', chapter_title: 'Arbres AVL',  notes_count: 1 },
-    { repo_id: 2, chapter_path: 'projet/01-cdc.md',       chapter_title: 'Projet Web E4', notes_count: 1 },
-  ],
-}))
+// /lumen/my-notes et /lumen/my-noted-chapters : deplaces dans interactive.js
+// (etat per-tenant pour fusionner la baseline statique avec les notes
+// reelles du visiteur prises pendant la session).
 // Mes lectures : 5 chapitres deja lus avec last_read pour la timeline
 router.get('/lumen/my-reads', (_req, res) => res.json({
   ok: true,
