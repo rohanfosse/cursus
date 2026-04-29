@@ -129,9 +129,14 @@ router.post('/end', (req, res) => {
   res.json({ ok: true, data: null })
 })
 
-// Mount des sous-routers : real (lit demo_*) puis mocks (fallbacks). L'ordre
-// compte — un endpoint defini dans real.js prevaut sur un mock du meme path.
+// Mount des sous-routers dans cet ordre :
+//   1. real        : lit demo_* (presence, messages, students)
+//   2. interactive : ecrit demo_* + state en memoire (bookmarks, pin,
+//                    reactions, lumen notes/reads)
+//   3. mocks       : fallbacks statiques + wildcard 200 [] / 403
+// Un endpoint defini en amont prevaut sur un mock du meme path.
 router.use(require('./real'))
+router.use(require('./interactive'))
 router.use(require('./mocks'))
 
 module.exports = router

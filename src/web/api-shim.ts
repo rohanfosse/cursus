@@ -449,6 +449,22 @@ const apiImpl = {
     post('/api/messages/reactions', { msgId, reactionsJson }),
   deleteMessage:  (id: number)                  => del(`/api/messages/${id}`),
   editMessage:    (id: number, content: string) => patch(`/api/messages/${id}`, { content }),
+
+  // Bookmarks (signets) — utilises par le widget Signets et le menu
+  // contextuel des messages. Sans ces aliases, addBookmark/removeBookmark
+  // tombent dans makeWebFallback qui retourne un faux succes mais ne
+  // persiste rien — l'etudiant clique "Signet" et rien ne se passe.
+  listBookmarks:   (beforeId?: number, limit?: number) => {
+    const qs = []
+    if (beforeId != null) qs.push(`beforeId=${beforeId}`)
+    if (limit    != null) qs.push(`limit=${limit}`)
+    return get(`/api/bookmarks${qs.length ? '?' + qs.join('&') : ''}`)
+  },
+  listBookmarkIds: ()                                  => get('/api/bookmarks/ids'),
+  addBookmark:     (messageId: number, note?: string | null) =>
+    post('/api/bookmarks', { messageId, note: note ?? null }),
+  removeBookmark:  (messageId: number)                 => del(`/api/bookmarks/${messageId}`),
+  importBookmarks: (messageIds: number[])              => post('/api/bookmarks/import', { messageIds }),
   reportMessage:  (messageId: number, reason: string) => post(`/api/messages/${messageId}/report`, { reason }),
 
   // Feedback

@@ -118,18 +118,8 @@ router.get('/documents/search', (req, res) => {
   res.json({ ok: true, data: all.filter(d => d.name.toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q)) })
 })
 
-// ── Bookmarks / signets etudiant ─────────────────────────────────────
-// 4 messages epingles par l'utilisateur courant : un de chaque categorie
-// (annonce prof, lien repo, code snippet, devoir). Le widget Signets de
-// l'etudiant affiche ces favoris pour acces rapide.
-const DEMO_BOOKMARKS = [
-  { id: 9001, message_id: 101, channel_id: 1, channel_name: 'annonces', author_name: 'Prof. Lemaire', content: 'Le sujet du Projet Web E4 est en ligne. Equipes de 2-3, deadline vendredi 17h.',  created_at: new Date(Date.now() - 14 * 86400_000).toISOString(), bookmarked_at: new Date(Date.now() - 14 * 86400_000).toISOString() },
-  { id: 9002, message_id: 142, channel_id: 2, channel_name: 'algo',     author_name: 'Prof. Lemaire', content: 'Pour la rotation AVL, regardez balanceFactor. Si > 1 et fils gauche < 0 → rotation gauche-droite.', created_at: new Date(Date.now() -  7 * 86400_000).toISOString(), bookmarked_at: new Date(Date.now() -  7 * 86400_000).toISOString() },
-  { id: 9003, message_id: 178, channel_id: 3, channel_name: 'projet-web', author_name: 'Emma Lefevre', content: 'J\'ai push l\'archi initiale sur feat/auth-module. Quelqu\'un peut review ?',                       created_at: new Date(Date.now() -  3 * 86400_000).toISOString(), bookmarked_at: new Date(Date.now() -  3 * 86400_000).toISOString() },
-  { id: 9004, message_id: 195, channel_id: 2, channel_name: 'algo',     author_name: 'Jean Dupont',   content: 'Visualiseur AVL interactif : https://www.cs.usfca.edu/~galles/visualization/AVLtree.html',          created_at: new Date(Date.now() -  1 * 86400_000).toISOString(), bookmarked_at: new Date(Date.now() -  1 * 86400_000).toISOString() },
-]
-router.get('/bookmarks',     (_req, res) => res.json({ ok: true, data: DEMO_BOOKMARKS }))
-router.get('/bookmarks/ids', (_req, res) => res.json({ ok: true, data: DEMO_BOOKMARKS.map(b => b.message_id) }))
+// Bookmarks : routes deplacees dans interactive.js (etat persistant per
+// tenant pour que add/remove fasse effet pendant la session demo).
 
 // ── DMs : conversations directes pre-remplies ───────────────────────
 // Pour montrer la feature "messages directs" en demo, on genere une
