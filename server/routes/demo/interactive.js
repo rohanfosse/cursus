@@ -294,6 +294,40 @@ router.patch('/messages/:id', (req, res) => {
 })
 
 // ────────────────────────────────────────────────────────────────────
+//  Depots : soumission de devoir cote etudiant
+//
+//  Sans ce mock, cliquer "Soumettre" sur un devoir tombe dans le wildcard
+//  -> 403, le visiteur voit un toast d'erreur. On simule un succes en
+//  retournant une ligne depot "fictive" : pas de persistence (pas de
+//  table demo_depots dediee), juste un ack pour que le front affiche
+//  "Rendu envoye".
+// ────────────────────────────────────────────────────────────────────
+router.post('/depots', (req, res) => {
+  const travailId = Number(req.body?.travail_id ?? req.body?.travailId)
+  const studentId = Number(req.body?.student_id ?? req.body?.studentId ?? req.demoUser?.id)
+  if (!Number.isFinite(travailId) || travailId <= 0) {
+    return res.status(400).json({ ok: false, error: 'travail_id requis.' })
+  }
+  // Verif coherence : un visiteur etudiant soumet pour lui-meme
+  if (req.demoUser?.type === 'student' && studentId !== req.demoUser.id) {
+    return res.status(403).json({ ok: false, error: 'Vous ne pouvez soumettre que pour votre propre compte.' })
+  }
+  res.json({
+    ok: true,
+    data: {
+      id: 80000 + travailId * 10 + (studentId % 100),
+      travail_id: travailId,
+      student_id: studentId,
+      file_name: req.body?.file_name ?? 'rendu.zip',
+      file_url: req.body?.file_url ?? null,
+      submitted_at: new Date().toISOString(),
+      note: null,
+      feedback: null,
+    },
+  })
+})
+
+// ────────────────────────────────────────────────────────────────────
 //  Lumen : marquer chapitre lu, prendre/editer/supprimer une note
 //
 //  Etat en memoire (pas de tables demo_lumen_*). Le widget WidgetLumenNotes

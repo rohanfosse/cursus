@@ -192,6 +192,40 @@ describe('Message actions (pin, reactions, edit, delete)', () => {
 })
 
 // ────────────────────────────────────────────────────────────────────
+//  Depots : soumission de devoir
+// ────────────────────────────────────────────────────────────────────
+describe('POST /depots', () => {
+  const app = buildApp()
+
+  it('soumet un depot pour soi-meme et renvoie un id+timestamp', async () => {
+    const { token, user } = await startSession(app)
+    const assignsRes = await request(app)
+      .get(`/api/demo/students/${user.id}/assignments`).set(auth(token))
+    const travail = assignsRes.body.data[0]
+    expect(travail).toBeTruthy()
+    const res = await request(app).post('/api/demo/depots').set(auth(token))
+      .send({ travail_id: travail.id, student_id: user.id, file_name: 'mon-rendu.zip' })
+    expect(res.status).toBe(200)
+    expect(res.body.data.travail_id).toBe(travail.id)
+    expect(res.body.data.student_id).toBe(user.id)
+    expect(res.body.data.submitted_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  })
+
+  it('refuse de soumettre pour un autre etudiant (403)', async () => {
+    const { token, user } = await startSession(app)
+    const res = await request(app).post('/api/demo/depots').set(auth(token))
+      .send({ travail_id: 1, student_id: user.id + 999, file_name: 'pas-mon-compte.zip' })
+    expect(res.status).toBe(403)
+  })
+
+  it('rejette un travail_id manquant avec 400', async () => {
+    const { token } = await startSession(app)
+    const res = await request(app).post('/api/demo/depots').set(auth(token)).send({})
+    expect(res.status).toBe(400)
+  })
+})
+
+// ────────────────────────────────────────────────────────────────────
 //  Welcome DM + recent-dm-contacts (decouverte des DMs entrants)
 // ────────────────────────────────────────────────────────────────────
 describe('Welcome DM + recent-dm-contacts', () => {
