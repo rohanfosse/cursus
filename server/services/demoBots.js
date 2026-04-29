@@ -21,7 +21,10 @@
 const { getDemoDb } = require('../db/demo-connection')
 const grammar = require('./demoGrammar')
 
-const TICK_INTERVAL_MS = 60_000
+// Tick rapide : 30s donne une "sensation de reel" sans spammer. Sur une
+// session demo de 5 min un visiteur recupere ~10 ticks, soit en moyenne
+// 5-7 messages bots + autant de reactions (cf. PROB ci-dessous).
+const TICK_INTERVAL_MS = 30_000
 
 // 40% des messages spontanes utilisent la grammaire CFG (combinatoire
 // elargie : ~150 lemmes x 30 templates = milliers de phrases possibles).
@@ -30,14 +33,17 @@ const TICK_INTERVAL_MS = 60_000
 const GRAMMAR_RATIO = 0.40
 
 // Probabilites de chaque action par tick (independantes). Calibrees pour
-// ressentir comme une promo active sans spammer.
+// ressentir comme une promo active sans spammer. Bumpees v2.270 :
+// post/react plus frequents pour donner du grain au visiteur sans qu'il
+// ait besoin d'attendre 2 minutes pour voir bouger un canal.
 const PROB = {
-  replyToVisitor:  0.70, // SI le visiteur a poste recemment, 70% de reponse
-  reactToVisitor:  0.55, // SI le visiteur a poste recemment, 55% de reaction
-  post:            0.30, // post spontane (pas en reponse)
-  reactToRecent:   0.20, // reaction sur message recent (pas du visiteur)
+  replyToVisitor:  0.80, // SI le visiteur a poste recemment, 80% de reponse
+  reactToVisitor:  0.65, // SI le visiteur a poste recemment, 65% de reaction
+  replyToBot:      0.30, // bot repond a un autre bot (cree des "conversations")
+  post:            0.45, // post spontane (pas en reponse)
+  reactToRecent:   0.40, // reaction sur message recent (pas du visiteur)
   editOwn:         0.08, // edit d'un message recent du bot
-  burst:           0.10, // x3 actions ce tick (rafale)
+  burst:           0.15, // x2 actions de plus ce tick (rafale)
 }
 
 // Pool d'emojis. 10 emojis neutres et universellement compris.
@@ -549,6 +555,48 @@ function botEditOwn(db, session) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+//  Action 6 : REPLY a un autre bot (creation de "conversations")
+//
+//  Quand un bot a poste sans question dans les ~3 dernieres minutes et
+//  qu'il n'a pas encore ete repondu, on tente une replique courte d'un
+//  autre bot. Donne l'illusion d'echanges naturels meme quand le visiteur
+//  ne participe pas.
+// ────────────────────────────────────────────────────────────────────
+const BOT_REPLIES = [
+  'ah ok', 'bon a savoir', '+1', 'noted', 'je vais regarder', 'pareil',
+  'merci pour l\'info', 'top', 'bien vu', 'je t\'envoie un MP',
+  'on en parle demain', 'ca me va', 'je tente ce soir',
+]
+function replyToBot(db, session, visitorName) {
+  // Cible : message bot des 3 dernieres minutes, dans un canal, qui n'a
+  // pas encore eu de reponse plus recente du meme canal.
+  const target = db.prepare(
+    `SELECT m.id, m.channel_id, m.author_name, c.name AS channel_name
+     FROM demo_messages m
+     JOIN demo_channels c ON c.id = m.channel_id AND c.tenant_id = m.tenant_id
+     WHERE m.tenant_id = ?
+       AND m.author_type = 'student'
+       AND m.author_name != ?
+       AND m.channel_id IS NOT NULL
+       AND datetime(m.created_at) >= datetime('now', '-3 minutes')
+     ORDER BY m.id DESC LIMIT 5`
+  ).all(session.tenant_id, visitorName)
+  if (!target.length) return null
+
+  // Pioche aleatoire parmi les candidats
+  const t = pickRandom(target)
+  // Prend une persona du meme canal mais differente de l'auteur cible
+  const candidates = Object.entries(PERSONAS)
+    .filter(([name, p]) => name !== t.author_name && p.favChannels.includes(t.channel_name))
+  const [authorName] = pickRandom(candidates) || pickRandom(Object.entries(PERSONAS).filter(([n]) => n !== t.author_name))
+  if (!authorName) return null
+
+  const reply = pickRandom(BOT_REPLIES)
+  const inserted = insertBotMessage(db, session.tenant_id, t.channel_id, authorName, reply)
+  return inserted ? { type: 'reply-bot', targetMsgId: t.id, ...inserted } : null
+}
+
+// ────────────────────────────────────────────────────────────────────
 //  Tick principal
 //
 //  Pour chaque session active :
@@ -561,7 +609,7 @@ function botEditOwn(db, session) {
 //  Renvoie des compteurs par type pour observabilite.
 // ────────────────────────────────────────────────────────────────────
 function runOnceForSession(db, session) {
-  const stats = { posted: 0, replied: 0, reactedVisitor: 0, reacted: 0, edited: 0 }
+  const stats = { posted: 0, replied: 0, reactedVisitor: 0, reacted: 0, edited: 0, repliedBot: 0 }
 
   // Identifie le visiteur (le user_name dans demo_sessions est le pseudo
   // du currentUser : "Emma Lefevre" pour student, "Prof. Lemaire" pour teacher)
@@ -595,12 +643,18 @@ function runOnceForSession(db, session) {
     if (reactToRecent(db, session, visitorName)) stats.reacted++
   }
 
-  // 4. Edit d'un message recent du bot (toujours, faible probabilite)
+  // 4. Reply entre bots : si un bot a poste recemment, un autre lui repond.
+  // Donne l'illusion d'echanges naturels meme quand le visiteur observe.
+  if (Math.random() < PROB.replyToBot) {
+    if (replyToBot(db, session, visitorName)) stats.repliedBot++
+  }
+
+  // 5. Edit d'un message recent du bot (toujours, faible probabilite)
   if (Math.random() < PROB.editOwn) {
     if (botEditOwn(db, session)) stats.edited++
   }
 
-  // 5. Burst : rejoue 2 actions de plus (post + react) — donne l'effet
+  // 6. Burst : rejoue 2 actions de plus (post + react) — donne l'effet
   // "rafale de discussion" comme dans une vraie conversation qui decolle.
   if (Math.random() < PROB.burst) {
     if (postSpontaneous(db, session)) stats.posted++
@@ -617,9 +671,10 @@ function runOnce() {
       `SELECT id, tenant_id, user_name FROM demo_sessions
        WHERE expires_at > datetime('now')`
     ).all()
-    const total = { sessions: sessions.length, posted: 0, replied: 0, reactedVisitor: 0, reacted: 0, edited: 0 }
+    const total = { sessions: sessions.length, posted: 0, replied: 0, reactedVisitor: 0, reacted: 0, edited: 0, repliedBot: 0 }
     for (const s of sessions) {
       const got = runOnceForSession(db, s)
+      total.repliedBot      += got.repliedBot
       total.posted          += got.posted
       total.replied         += got.replied
       total.reactedVisitor  += got.reactedVisitor
@@ -651,6 +706,7 @@ module.exports = {
   replyToVisitor,
   reactToVisitor,
   reactToRecent,
+  replyToBot,
   botEditOwn,
   pickEmojiForContent,
   PERSONAS,

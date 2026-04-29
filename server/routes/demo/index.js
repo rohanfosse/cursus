@@ -79,6 +79,15 @@ router.post('/start', startLimiter, (req, res) => {
     { expiresIn: SESSION_TTL_HOURS + 'h' },
   )
 
+  // Warm-up bots : declenche un tick ~8s apres l'arrivee du visiteur pour
+  // qu'il voie de l'activite des l'ouverture du dashboard, sans attendre
+  // 30s. Skippe en NODE_ENV=test (pas de worker, controle deterministe).
+  if (process.env.NODE_ENV !== 'test') {
+    setTimeout(() => {
+      try { require('../../services/demoBots').runOnce() } catch { /* non-blocking */ }
+    }, 8_000)
+  }
+
   res.json({
     ok: true,
     data: {
