@@ -1301,6 +1301,122 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ══════════════════════════════════════════════════════════════════════
+  //  LIVE > CODE - 4 fichiers cliquables avec formats differents
+  //
+  //  Token classes :
+  //   - kw   : keywords (def, if, while, return, true, false, null)
+  //   - fn   : noms de fonctions / cles JSON
+  //   - num  : nombres
+  //   - str  : strings et chaines JSON
+  //   - cmt  : commentaires Python ou texte Markdown
+  //   - h1   : heading H1 Markdown
+  //   - h2   : heading H2 Markdown
+  //   - mc   : code inline Markdown
+  //   - bul  : puces de liste Markdown
+  //   - punc : ponctuation JSON ({ } [ ] : ,)
+  //
+  //  Token format : ['type', 'text'] ou ['', 'text'] pour neutre.
+  // ══════════════════════════════════════════════════════════════════════
+  const LIVE_CODE_FILES = {
+    'binary_search.py': {
+      lang: 'Python',
+      hi: 5,           // ligne en surbrillance (0-indexed)
+      hiEditor: 'EL',  // initiales de l'editeur sur la ligne
+      lines: [
+        [['kw', 'def'], ['', ' '], ['fn', 'binary_search'], ['', '(arr, target):']],
+        [['', '    lo, hi = '], ['num', '0'], ['', ', '], ['fn', 'len'], ['', '(arr) - '], ['num', '1']],
+        [['kw', '    while'], ['', ' lo <= hi:']],
+        [['', '        mid = (lo + hi) // '], ['num', '2']],
+        [['kw', '        if'], ['', ' arr[mid] == target:']],
+        [['kw', '            return'], ['', ' mid']],
+        [['kw', '        if'], ['', ' arr[mid] < target:']],
+        [['', '            lo = mid + '], ['num', '1']],
+        [['kw', '        else'], ['', ':']],
+        [['', '            hi = mid - '], ['num', '1']],
+        [['kw', '    return'], ['', ' -'], ['num', '1']],
+      ],
+    },
+    'tests.py': {
+      lang: 'Python',
+      lines: [
+        [['kw', 'from'], ['', ' binary_search '], ['kw', 'import'], ['', ' binary_search']],
+        [],
+        [['kw', 'def'], ['', ' '], ['fn', 'test_found'], ['', '():']],
+        [['', '    arr = ['], ['num', '1'], ['', ', '], ['num', '3'], ['', ', '], ['num', '5'], ['', ', '], ['num', '7'], ['', ', '], ['num', '9'], ['', ']']],
+        [['kw', '    assert'], ['', ' '], ['fn', 'binary_search'], ['', '(arr, '], ['num', '5'], ['', ') == '], ['num', '2']],
+        [],
+        [['kw', 'def'], ['', ' '], ['fn', 'test_missing'], ['', '():']],
+        [['kw', '    assert'], ['', ' '], ['fn', 'binary_search'], ['', '(['], ['num', '1'], ['', ', '], ['num', '2'], ['', ', '], ['num', '3'], ['', '], '], ['num', '4'], ['', ') == -'], ['num', '1']],
+        [],
+        [['cmt', '# pytest tests.py -v']],
+      ],
+    },
+    'data.json': {
+      lang: 'JSON',
+      lines: [
+        [['punc', '{']],
+        [['', '  '], ['fn', '"algo"'], ['punc', ':'], ['', ' '], ['str', '"binary_search"'], ['punc', ',']],
+        [['', '  '], ['fn', '"complexity"'], ['punc', ':'], ['', ' '], ['str', '"O(log n)"'], ['punc', ',']],
+        [['', '  '], ['fn', '"test_cases"'], ['punc', ':'], ['', ' '], ['num', '12'], ['punc', ',']],
+        [['', '  '], ['fn', '"passing"'], ['punc', ':'], ['', ' '], ['kw', 'true'], ['punc', ',']],
+        [['', '  '], ['fn', '"authors"'], ['punc', ':'], ['', ' '], ['punc', '['], ['str', '"EL"'], ['punc', ','], ['', ' '], ['str', '"JD"'], ['punc', ']']],
+        [['punc', '}']],
+      ],
+    },
+    'README.md': {
+      lang: 'Markdown',
+      lines: [
+        [['h1', '# Recherche dichotomique']],
+        [],
+        [['', "Implementation d'une recherche binaire en Python."]],
+        [],
+        [['h2', '## Complexite']],
+        [],
+        [['bul', '-'], ['', ' Temps : '], ['mc', '`O(log n)`']],
+        [['bul', '-'], ['', ' Memoire : '], ['mc', '`O(1)`']],
+        [],
+        [['h2', '## Usage']],
+        [],
+        [['mc', '    binary_search([1, 3, 5], 3)  # 1']],
+      ],
+    },
+  }
+
+  function renderLiveCode(fileName) {
+    const pre = document.getElementById('live-code-pre')
+    const file = LIVE_CODE_FILES[fileName]
+    if (!pre || !file) return
+    const tokenSpan = (t) => t[0] === '' ? t[1] : `<span class="lm-c-${t[0]}">${t[1]}</span>`
+    const lines = file.lines.map((toks, i) => {
+      const isHi = i === file.hi
+      const hiAttr = isHi ? ` data-editor="${file.hiEditor || 'EL'}"` : ''
+      const hiCls = isHi ? ' live-code-line--hi' : ''
+      const caret = isHi ? '<span class="live-code-caret" aria-hidden="true"></span>' : ''
+      const content = toks.length ? toks.map(tokenSpan).join('') : '​'
+      return `<span class="live-code-line${hiCls}"${hiAttr}><span class="live-code-num">${i + 1}</span>${content}${caret}</span>`
+    }).join('')
+    pre.innerHTML = lines
+  }
+
+  // Tabs cliquables : switch de fichier + maj de l'aria-selected
+  const liveCodeTabs = document.querySelectorAll('#live-code-tabs .live-code-tab')
+  liveCodeTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      liveCodeTabs.forEach(t => {
+        const active = t === tab
+        t.classList.toggle('live-code-tab--active', active)
+        t.setAttribute('aria-selected', String(active))
+      })
+      renderLiveCode(tab.dataset.liveCodeFile)
+    })
+    tab.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tab.click() }
+    })
+  })
+  // Render initial
+  if (liveCodeTabs.length) renderLiveCode('binary_search.py')
+
+  // ══════════════════════════════════════════════════════════════════════
   //  LIVE - rotation 4 modes : Spark (quiz) / Pulse / Code / Board
   //
   //  Auto-rotation toutes les 12s, mise en pause au hover, click manuel

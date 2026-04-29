@@ -1862,7 +1862,43 @@ img { max-width: 100%; display: block; }
 }
 
 /* ── Docs Demo ─────────────────────────────────────────────────────── */
-.demo-docs-body { padding: 12px; }
+/* Hauteur fixe pour eviter le shift de la page quand l'utilisateur ouvre
+   un apercu (le contenu interne grandit, le scroll est gere en interne).
+   Le wrapper passe en flex column pour pouvoir distribuer l'espace. */
+#demo-docs .demo-window {
+  height: 480px;
+  display: flex;
+  flex-direction: column;
+}
+.demo-docs-body {
+  padding: 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.docs-grid {
+  flex: 1;
+  overflow-y: auto;
+  align-content: start;
+}
+.docs-grid::-webkit-scrollbar { width: 6px; }
+.docs-grid::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-3) 30%, transparent); border-radius: 3px; }
+.docs-grid::-webkit-scrollbar-track { background: transparent; }
+/* Quand un apercu est ouvert : prend toute la place restante, scroll
+   interne dans .preview-body (max-height retire ici, gere par flex). */
+.demo-docs-body .doc-preview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 10px;
+}
+#demo-docs .preview-body {
+  flex: 1;
+  max-height: none;
+}
 
 .docs-search {
   display: flex;
@@ -4269,24 +4305,51 @@ img { max-width: 100%; display: block; }
 .live-code-tabs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   padding: 0 4px 6px;
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 .live-code-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   font-family: var(--font-mono);
   font-weight: 600;
-  padding: 4px 9px;
-  border-radius: 6px 6px 0 0;
+  padding: 5px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 7px 7px 0 0;
   color: var(--text-3);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--duration-fast), color var(--duration-fast);
 }
+.live-code-tab:hover { color: var(--text-2); background: color-mix(in srgb, var(--text) 4%, transparent); }
 .live-code-tab--active {
   background: color-mix(in srgb, var(--color-live) 6%, transparent);
   color: var(--text);
   border-bottom: 2px solid var(--color-live);
   margin-bottom: -1px;
 }
+
+/* Badge d'extension dans l'onglet (PY / JSON / MD) */
+.live-code-tab-ext {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #fff;
+  background: var(--ext-c, var(--text-3));
+}
+.live-code-tab-ext--py   { --ext-c: #2563EB; }
+.live-code-tab-ext--json { --ext-c: #D97706; }
+.live-code-tab-ext--md   { --ext-c: #059669; }
 .live-code-cursors {
   margin-left: auto;
   display: flex;
@@ -4344,15 +4407,24 @@ img { max-width: 100%; display: block; }
 }
 
 /* Coloration syntaxique du code en mode Live (token classes lm-c-*) */
-.live-code-pre .lm-c-kw  { color: #C084FC; font-weight: 600; }
-.live-code-pre .lm-c-fn  { color: #2563EB; }
-.live-code-pre .lm-c-num { color: #D97706; }
-.live-code-pre .lm-c-str { color: #059669; }
-.live-code-pre .lm-c-cmt { color: var(--text-3); font-style: italic; }
-[data-theme="dark"] .live-code-pre .lm-c-kw  { color: #C4B5FD; }
-[data-theme="dark"] .live-code-pre .lm-c-fn  { color: #60A5FA; }
-[data-theme="dark"] .live-code-pre .lm-c-num { color: #FBBF24; }
-[data-theme="dark"] .live-code-pre .lm-c-str { color: #34D399; }
+.live-code-pre .lm-c-kw   { color: #C084FC; font-weight: 600; }
+.live-code-pre .lm-c-fn   { color: #2563EB; }
+.live-code-pre .lm-c-num  { color: #D97706; }
+.live-code-pre .lm-c-str  { color: #059669; }
+.live-code-pre .lm-c-cmt  { color: var(--text-3); font-style: italic; }
+.live-code-pre .lm-c-punc { color: var(--text-3); }
+.live-code-pre .lm-c-h1   { color: #6366F1; font-weight: 800; font-size: 13.5px; }
+.live-code-pre .lm-c-h2   { color: #2563EB; font-weight: 700; }
+.live-code-pre .lm-c-bul  { color: #D97706; font-weight: 700; }
+.live-code-pre .lm-c-mc   { color: #059669; background: color-mix(in srgb, #059669 10%, transparent); padding: 0 4px; border-radius: 3px; font-size: 11.5px; }
+[data-theme="dark"] .live-code-pre .lm-c-kw   { color: #C4B5FD; }
+[data-theme="dark"] .live-code-pre .lm-c-fn   { color: #60A5FA; }
+[data-theme="dark"] .live-code-pre .lm-c-num  { color: #FBBF24; }
+[data-theme="dark"] .live-code-pre .lm-c-str  { color: #34D399; }
+[data-theme="dark"] .live-code-pre .lm-c-h1   { color: #A5B4FC; }
+[data-theme="dark"] .live-code-pre .lm-c-h2   { color: #93C5FD; }
+[data-theme="dark"] .live-code-pre .lm-c-bul  { color: #FBBF24; }
+[data-theme="dark"] .live-code-pre .lm-c-mc   { color: #6EE7B7; background: rgba(5, 150, 105, 0.18); }
 
 /* Cartouche flottant avec le nom de l'editeur sur la ligne en cours d'edition */
 .live-code-line--hi::after {
