@@ -756,16 +756,10 @@ router.post('/lumen/github/disconnect', (_req, res) => res.json({ ok: true, data
 // (etat per-tenant pour fusionner la baseline statique avec les notes
 // reelles du visiteur prises pendant la session).
 // Mes lectures : 5 chapitres deja lus avec last_read pour la timeline
-router.get('/lumen/my-reads', (_req, res) => res.json({
-  ok: true,
-  data: [
-    { repo_id: 1, chapter_path: 'cours/01-tri-rapide.md',     chapter_title: 'Tri rapide',     repo_name: 'cours-algo-l3', read_at: new Date(Date.now() - 12 * 86400_000).toISOString() },
-    { repo_id: 1, chapter_path: 'cours/02-arbres-avl.md',     chapter_title: 'Arbres AVL',     repo_name: 'cours-algo-l3', read_at: new Date(Date.now() -  6 * 86400_000).toISOString() },
-    { repo_id: 1, chapter_path: 'cours/03-graphes.md',        chapter_title: 'Parcours graphes', repo_name: 'cours-algo-l3', read_at: new Date(Date.now() -  4 * 86400_000).toISOString() },
-    { repo_id: 2, chapter_path: 'projet/01-cdc.md',           chapter_title: 'Projet Web E4',  repo_name: 'projet-web-e4', read_at: new Date(Date.now() -  3 * 86400_000).toISOString() },
-    { repo_id: 1, chapter_path: 'cours/04-prog-dynamique.md', chapter_title: 'Prog. dynamique',repo_name: 'cours-algo-l3', read_at: new Date(Date.now() -  1 * 86400_000).toISOString() },
-  ],
-}))
+// /lumen/my-reads : deplace dans interactive.js pour fusionner la baseline
+// statique avec les reads reels du visiteur (POST /lumen/repos/:id/read).
+// Le shape attendu est { reads: LumenRead[] } avec path (pas chapter_path)
+// — cf. lumen.ts fetchMyReads + types/index.ts LumenRead.
 // Counts de lectures par chapitre (pour le widget "top read")
 router.get('/lumen/repos/:id/read-counts', (_req, res) => res.json({
   ok: true,

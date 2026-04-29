@@ -393,6 +393,31 @@ describe('Lumen interactive (reads + notes)', () => {
     expect(dyn?.note).toBe('note prog dyn')
   })
 
+  it('GET /lumen/my-reads renvoie le shape { reads: LumenRead[] } (path, pas chapter_path)', async () => {
+    const { token } = await startSession(app)
+    const res = await request(app).get('/api/demo/lumen/my-reads').set(auth(token))
+    expect(res.status).toBe(200)
+    expect(res.body.data).toHaveProperty('reads')
+    expect(Array.isArray(res.body.data.reads)).toBe(true)
+    expect(res.body.data.reads.length).toBeGreaterThanOrEqual(3)
+    // LumenRead = { repo_id, path, read_at } — pas chapter_path
+    expect(res.body.data.reads[0]).toHaveProperty('repo_id')
+    expect(res.body.data.reads[0]).toHaveProperty('path')
+    expect(res.body.data.reads[0]).toHaveProperty('read_at')
+  })
+
+  it('POST /lumen/repos/:id/read fait apparaitre le chapitre dans /lumen/my-reads', async () => {
+    const { token } = await startSession(app)
+    await request(app).post('/api/demo/lumen/repos/9002/read').set(auth(token))
+      .send({ path: 'ch03-projet-e4.md' })
+    const res = await request(app).get('/api/demo/lumen/my-reads').set(auth(token))
+    const found = res.body.data.reads.find(
+      r => r.repo_id === 9002 && r.path === 'ch03-projet-e4.md',
+    )
+    expect(found).toBeTruthy()
+    expect(found.read_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  })
+
   it('GET /lumen/my-noted-chapters retourne au moins la baseline + les notes du visiteur', async () => {
     const { token } = await startSession(app)
     await request(app).put('/api/demo/lumen/repos/9001/note').set(auth(token))

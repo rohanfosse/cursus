@@ -426,6 +426,36 @@ router.get('/lumen/my-noted-chapters', (req, res) => {
   res.json({ ok: true, data: [...counts.values()] })
 })
 
+// Baseline de chapitres lus (fictifs) — fusionnee avec les reads reels
+// du visiteur. Le shape doit matcher LumenRead (repo_id, path, read_at)
+// pour que lumen.fetchMyReads alimente correctement le Set des chapitres
+// lus et que le viewer affiche le badge "Lu" sur les bons chapitres.
+const LUMEN_MY_READS_BASELINE = [
+  { repo_id: 9001, path: 'ch01-tri-rapide.md',  read_at: new Date(Date.now() - 12 * 86400_000).toISOString() },
+  { repo_id: 9001, path: 'ch02-arbres-avl.md',  read_at: new Date(Date.now() -  6 * 86400_000).toISOString() },
+  { repo_id: 9002, path: 'ch01-layout.md',      read_at: new Date(Date.now() -  4 * 86400_000).toISOString() },
+]
+
+router.get('/lumen/my-reads', (req, res) => {
+  const s = getState(req.tenantId)
+  const seen = new Set()
+  const reads = []
+  // Visiteur d'abord (les reads recents priment sur la baseline statique)
+  for (const [k, entry] of s.lumenReads) {
+    const [repoIdStr, path] = k.split('|')
+    const repoId = Number(repoIdStr)
+    seen.add(k)
+    reads.push({ repo_id: repoId, path, read_at: entry.readAt })
+  }
+  for (const b of LUMEN_MY_READS_BASELINE) {
+    const k = chapterKey(b.repo_id, b.path)
+    if (seen.has(k)) continue
+    reads.push(b)
+  }
+  reads.sort((a, b) => new Date(b.read_at).getTime() - new Date(a.read_at).getTime())
+  res.json({ ok: true, data: { reads } })
+})
+
 router.post('/lumen/repos/:repoId/read', (req, res) => {
   const repoId = Number(req.params.repoId)
   const path = String(req.body?.path || '').trim()
