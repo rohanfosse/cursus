@@ -20,6 +20,7 @@
  */
 const { getDemoDb } = require('../db/demo-connection')
 const grammar = require('./demoGrammar')
+const algo    = require('./demoBotsAlgo')
 
 // Tick rapide : 30s donne une "sensation de reel" sans spammer. Sur une
 // session demo de 5 min un visiteur recupere ~10 ticks, soit en moyenne
@@ -446,6 +447,16 @@ function postSpontaneous(db, session) {
   const tod = timeOfDay()
   if (tod === 'night' && Math.random() < 0.7) return null
 
+  // Vecteur topic du canal (10 derniers messages) — sert au scoring
+  // contextuel des templates persona. Le visiteur tape "AVL" -> les bots
+  // gravitent vers les phrases tagees `algo` au lieu de tirer au hasard.
+  const recentChannelMsgs = db.prepare(
+    `SELECT content FROM demo_messages
+     WHERE tenant_id = ? AND channel_id = ?
+     ORDER BY id DESC LIMIT 10`
+  ).all(session.tenant_id, channel.id)
+  const channelTopics = algo.topicVector(recentChannelMsgs)
+
   let content
   if (Math.random() < GRAMMAR_RATIO) {
     // CFG : pioche une intention selon le canal pour rester contextuel
@@ -460,12 +471,33 @@ function postSpontaneous(db, session) {
     content = grammar.generateMessage({ intent })
   } else {
     const prefer = tod === 'morning' ? 'short' : 'mixed'
-    content = pickPersonaMessage(persona, prefer)
+    // Pool persona : on tire d'abord 5 candidats, puis on score chacun
+    // par overlap topic avec le canal et on pondere le tirage final.
+    const pool = pickPersonaPool(persona, prefer)
+    if (pool && pool.length) {
+      // Echantillonne max 8 phrases pour scoring (eviter cout sur long pool)
+      const sample = pool.length <= 8 ? pool : pool.slice().sort(() => Math.random() - 0.5).slice(0, 8)
+      content = algo.pickByTopic(sample, channelTopics)
+    } else {
+      content = pickPersonaMessage(persona, prefer)
+    }
   }
   if (!content) return null
 
   const inserted = insertBotMessage(db, session.tenant_id, channel.id, authorName, content, { withTyping: true })
   return inserted ? { type: 'post', ...inserted } : null
+}
+
+// Helper : retourne le pool de phrases d'une persona pour une preference
+// de longueur, sans fallback (le caller decide). Different de
+// pickPersonaMessage qui retourne directement une phrase.
+function pickPersonaPool(persona, prefer) {
+  if (prefer === 'short')   return persona.short
+  if (prefer === 'medium')  return persona.medium
+  if (prefer === 'long')    return persona.long
+  if (prefer === 'question') return persona.questions
+  // mixed : concatene short + medium + long pondere par defaut
+  return [...(persona.short || []), ...(persona.medium || []), ...(persona.long || [])]
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -500,16 +532,33 @@ function replyToVisitor(db, session, visitorName) {
   ).get(session.tenant_id, lastVisitorMsg.channel_id, lastVisitorMsg.id, `%@${firstName}%`)
   if (alreadyReplied) return null
 
-  // Trouve un template qui matche
+  // Trouve un template qui matche le contenu du visiteur. Au sein du
+  // template, on choisit la replique par scoring topic : si le canal
+  // discute d'AVL et la replique generique mentionne "rotation", elle
+  // est priorisee sur "ok carrement".
   const template = VISITOR_REPLIES.find(t => t.match.test(lastVisitorMsg.content)) || VISITOR_REPLIES[VISITOR_REPLIES.length - 1]
-  const reply = pickRandom(template.replies).replace(/\{NAME\}/g, firstName)
+  const recentChannelMsgs = db.prepare(
+    `SELECT content FROM demo_messages
+     WHERE tenant_id = ? AND channel_id = ?
+     ORDER BY id DESC LIMIT 10`
+  ).all(session.tenant_id, lastVisitorMsg.channel_id)
+  const channelTopics = algo.topicVector(recentChannelMsgs)
+  const reply = (algo.pickByTopic(template.replies, channelTopics) || pickRandom(template.replies))
+    .replace(/\{NAME\}/g, firstName)
 
-  // Pioche une persona compatible avec le canal
+  // Pioche une persona du canal, ponderee par affinite envers le visiteur.
+  // Si Emma (visiteur) parle dans #algo, Lucas (affinite 0.9 avec Emma)
+  // est plus susceptible de repondre que Hugo (affinite de base 0.15).
   const channelInfo = db.prepare(
     `SELECT name FROM demo_channels WHERE id = ? AND tenant_id = ?`
   ).get(lastVisitorMsg.channel_id, session.tenant_id)
   if (!channelInfo) return null
-  const { name: authorName } = pickPersonaForChannel(channelInfo.name)
+  const channelPersonas = Object.entries(PERSONAS)
+    .filter(([_, p]) => p.favChannels.includes(channelInfo.name))
+    .map(([n]) => n)
+  const authorName = algo.pickAffineBot(visitorName, channelPersonas)
+    || pickPersonaForChannel(channelInfo.name).name
+  if (!authorName) return null
 
   const inserted = insertBotMessage(db, session.tenant_id, lastVisitorMsg.channel_id, authorName, reply, { withTyping: true })
   return inserted ? { type: 'reply', visitorMsgId: lastVisitorMsg.id, ...inserted } : null
@@ -656,12 +705,19 @@ function cascadeReactions(db, session, visitorName) {
     ? pickRandom(existingEmojis)
     : pickRandom(REACT_EMOJIS.filter(e => !existingEmojis.includes(e))) || pickRandom(REACT_EMOJIS)
 
-  // Pioche un reactor pas deja present sur cet emoji
+  // Pioche un reactor pas deja present sur cet emoji. On choisit par
+  // affinite envers le 1er reactor de cet emoji (l'initiateur de la
+  // cascade) — donne l'effet "le groupe d'amis pile en chaine".
   const entry = existing[emoji] || { count: 0, users: [] }
+  const initiator = entry.users[0] || null
+  const allBots = Object.keys(PERSONAS).filter(n => !entry.users.includes(n))
+  if (!allBots.length) return null
+  const reactorName = algo.pickAffineBot(initiator, allBots)
+  if (!reactorName) return null
   const reactor = db.prepare(
-    `SELECT id, name FROM demo_students WHERE tenant_id = ? ORDER BY RANDOM() LIMIT 1`
-  ).get(session.tenant_id)
-  if (!reactor || entry.users.includes(reactor.name)) return null
+    `SELECT id, name FROM demo_students WHERE tenant_id = ? AND name = ?`
+  ).get(session.tenant_id, reactorName)
+  if (!reactor) return null
 
   entry.count = (entry.count || 0) + 1
   entry.users = [...(entry.users || []), reactor.name]
@@ -688,9 +744,26 @@ const WELCOME_DM_LINES = [
   'Hello ! Tu rejoins la session ? On a un Live AVL cette semaine, code AVL-2026 si jamais.',
 ]
 function sendWelcomeDm(db, tenantId, visitorId) {
-  // Pioche un bot "serviable" (Alice ou Mehdi) — colle au type d'accueil
-  const candidates = ['Alice Martin', 'Mehdi Chaouki', 'Lucas Bernard']
-  for (const name of candidates) {
+  // Le bot DM est choisi par affinite envers le visiteur : si Emma joue
+  // la demo, c'est Lucas (affinite 0.9) qui DM en priorite, pas un
+  // tirage uniforme. Si le visiteur n'est pas dans le graphe (cas teacher
+  // ou student inconnu), fallback sur Alice (l'organisatrice du seed).
+  const visitor = db.prepare(
+    `SELECT name FROM demo_students WHERE id = ? AND tenant_id = ?`
+  ).get(visitorId, tenantId)
+  const visitorName = visitor?.name || ''
+
+  const candidatesNames = ['Lucas Bernard', 'Sara Bouhassoun', 'Alice Martin', 'Mehdi Chaouki', 'Jean Durand']
+  // Filtre : exclus le visiteur lui-meme (cas Emma joue Emma ne s'envoie
+  // pas un DM). Trie par affinite descendante mais on essaie d'abord le
+  // top — si le student n'existe pas dans le tenant on passe au suivant.
+  const ranked = candidatesNames
+    .filter(n => n !== visitorName)
+    .map(n => ({ n, a: algo.getAffinity(visitorName, n) }))
+    .sort((x, y) => y.a - x.a)
+    .map(x => x.n)
+
+  for (const name of ranked) {
     const author = getStudentByName(db, tenantId, name)
     if (!author || author.id === visitorId) continue
     const content = pickRandom(WELCOME_DM_LINES)
@@ -738,10 +811,15 @@ function replyToBot(db, session, visitorName) {
 
   // Pioche aleatoire parmi les candidats
   const t = pickRandom(target)
-  // Prend une persona du meme canal mais differente de l'auteur cible
-  const candidates = Object.entries(PERSONAS)
+  // Repondant choisi par affinite envers l'auteur cible : si Sara a
+  // poste, Jean (affinite 0.85) est priorise sur Hugo (affinite 0.15).
+  // Filtre prealable sur le canal pour rester thematique.
+  const candidatesNames = Object.entries(PERSONAS)
     .filter(([name, p]) => name !== t.author_name && p.favChannels.includes(t.channel_name))
-  const [authorName] = pickRandom(candidates) || pickRandom(Object.entries(PERSONAS).filter(([n]) => n !== t.author_name))
+    .map(([n]) => n)
+  const fallbackNames = Object.keys(PERSONAS).filter(n => n !== t.author_name)
+  const authorName = algo.pickAffineBot(t.author_name, candidatesNames)
+    || algo.pickAffineBot(t.author_name, fallbackNames)
   if (!authorName) return null
 
   const reply = pickRandom(BOT_REPLIES)
@@ -768,6 +846,13 @@ function runOnceForSession(db, session) {
   // du currentUser : "Emma Lefevre" pour student, "Prof. Lemaire" pour teacher)
   const visitorName = session.user_name || ''
 
+  // Hawkes : multiplicateur d'intensite pour ce tick. Apres une rafale
+  // de messages recents, lambda > 1 -> les PROB.* sont gonflees, plus
+  // d'actions ce tick. Apres un creux, lambda < 1 (mais clampe a 0.5
+  // mini) -> les bots se calment. Reproduit la respiration humaine.
+  const k = algo.intensityMultiplier(session.tenant_id)
+  const p = (base) => Math.min(0.95, base * k)
+
   // Detection "visiteur a poste recemment" — feature Tier 1.1/1.2
   const visitorPostedRecently = db.prepare(
     `SELECT 1 FROM demo_messages
@@ -776,48 +861,46 @@ function runOnceForSession(db, session) {
      LIMIT 1`
   ).get(session.tenant_id, visitorName)
 
+  // Helper qui execute une action, met a jour les stats et enregistre
+  // l'event Hawkes pour amplifier le tick suivant si succes.
+  const tryAction = (prob, fn, statKey) => {
+    if (Math.random() >= p(prob)) return
+    if (fn()) {
+      stats[statKey]++
+      algo.recordEvent(session.tenant_id)
+    }
+  }
+
   // 1. Si le visiteur a parle, on repond/reagit prioritairement
   if (visitorPostedRecently) {
-    if (Math.random() < PROB.replyToVisitor) {
-      if (replyToVisitor(db, session, visitorName)) stats.replied++
-    }
-    if (Math.random() < PROB.reactToVisitor) {
-      if (reactToVisitor(db, session, visitorName)) stats.reactedVisitor++
-    }
+    tryAction(PROB.replyToVisitor, () => replyToVisitor(db, session, visitorName), 'replied')
+    tryAction(PROB.reactToVisitor, () => reactToVisitor(db, session, visitorName), 'reactedVisitor')
   } else {
     // 2. Sinon, post spontane
-    if (Math.random() < PROB.post) {
-      if (postSpontaneous(db, session)) stats.posted++
-    }
+    tryAction(PROB.post, () => postSpontaneous(db, session), 'posted')
   }
 
   // 3. Reaction sur un message recent quelconque (toujours, en plus)
-  if (Math.random() < PROB.reactToRecent) {
-    if (reactToRecent(db, session, visitorName)) stats.reacted++
-  }
+  tryAction(PROB.reactToRecent, () => reactToRecent(db, session, visitorName), 'reacted')
 
   // 4. Reply entre bots : si un bot a poste recemment, un autre lui repond.
   // Donne l'illusion d'echanges naturels meme quand le visiteur observe.
-  if (Math.random() < PROB.replyToBot) {
-    if (replyToBot(db, session, visitorName)) stats.repliedBot++
-  }
+  tryAction(PROB.replyToBot, () => replyToBot(db, session, visitorName), 'repliedBot')
 
   // 4b. Cascade de reactions : un message deja reagi attire +1 d'un autre bot.
   // Effet "+1 collectif" tres caracteristique d'une promo engagee.
-  if (Math.random() < PROB.cascadeReact) {
-    if (cascadeReactions(db, session, visitorName)) stats.cascaded++
-  }
+  tryAction(PROB.cascadeReact, () => cascadeReactions(db, session, visitorName), 'cascaded')
 
   // 5. Edit d'un message recent du bot (toujours, faible probabilite)
-  if (Math.random() < PROB.editOwn) {
-    if (botEditOwn(db, session)) stats.edited++
-  }
+  tryAction(PROB.editOwn, () => botEditOwn(db, session), 'edited')
 
   // 6. Burst : rejoue 2 actions de plus (post + react) — donne l'effet
   // "rafale de discussion" comme dans une vraie conversation qui decolle.
+  // Le burst lui-meme est gate par PROB.burst (non-amplifie pour eviter
+  // des avalanches en haute intensite).
   if (Math.random() < PROB.burst) {
-    if (postSpontaneous(db, session)) stats.posted++
-    if (reactToRecent(db, session, visitorName)) stats.reacted++
+    if (postSpontaneous(db, session)) { stats.posted++; algo.recordEvent(session.tenant_id) }
+    if (reactToRecent(db, session, visitorName)) { stats.reacted++; algo.recordEvent(session.tenant_id) }
   }
 
   return stats
