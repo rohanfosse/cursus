@@ -77,7 +77,7 @@
     .fade-up { opacity: 0; transform: translateY(24px) scale(0.98); transition: opacity .65s cubic-bezier(.22,1,.36,1), transform .65s cubic-bezier(.22,1,.36,1); }
     .fade-up.visible { opacity: 1; transform: translateY(0) scale(1); }
   </style>
-  <link rel="stylesheet" href="style.css?v=272" />
+  <link rel="stylesheet" href="style.css?v=273" />
 </head>
 <body>
 
@@ -533,22 +533,16 @@
             <div class="demo-live-body live-pane" data-live-pane="pulse" aria-hidden="true">
               <div class="live-pulse-q">Comment vous sentez-vous sur le projet&nbsp;?</div>
               <div class="live-pulse-cloud" id="live-pulse-cloud"></div>
-              <div class="live-pulse-scale">
-                <span class="live-pulse-scale-label">À l'aise</span>
-                <div class="live-pulse-bars" aria-hidden="true">
-                  <span class="live-pulse-bar" style="--h: 18%"></span>
-                  <span class="live-pulse-bar" style="--h: 32%"></span>
-                  <span class="live-pulse-bar" style="--h: 64%"></span>
-                  <span class="live-pulse-bar live-pulse-bar--peak" style="--h: 88%"></span>
-                  <span class="live-pulse-bar" style="--h: 70%"></span>
-                  <span class="live-pulse-bar" style="--h: 38%"></span>
-                  <span class="live-pulse-bar" style="--h: 14%"></span>
-                </div>
-                <span class="live-pulse-scale-label">Stressé</span>
-              </div>
+              <form class="live-pulse-form" id="live-pulse-form" autocomplete="off">
+                <input type="text" class="live-pulse-input" id="live-pulse-input" maxlength="20" placeholder="Ton mot…" aria-label="Ton ressenti en un mot" />
+                <button type="submit" class="live-pulse-add" aria-label="Ajouter ton mot">
+                  <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                  <span>Envoyer</span>
+                </button>
+              </form>
               <div class="live-footer">
-                <span class="live-participants">22 réponses anonymes</span>
-                <span class="live-timer">Live</span>
+                <span class="live-participants" id="live-pulse-count">22 réponses anonymes</span>
+                <span class="live-timer">Live · anonyme</span>
               </div>
             </div>
 
@@ -654,28 +648,17 @@
         </div>
         <div class="mini-demo mini-demo-left" id="demo-lumen">
           <div class="demo-window">
-            <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="demo-title">Lumen · Algorithmique L1</span></div>
+            <div class="demo-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="demo-title" id="lumen-title">Lumen · Algorithmique</span></div>
             <div class="demo-lumen-wrap">
               <aside class="demo-lumen-sidebar" role="tablist" aria-label="Chapitres">
-                <div class="demo-lumen-repo">
+                <!-- Selecteur de repo : cliquable, ouvre un menu deroulant -->
+                <button type="button" class="demo-lumen-repo" id="lumen-repo-toggle" aria-haspopup="true" aria-expanded="false">
                   <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
-                  <span>cesi/algo-l1</span>
-                </div>
-                <button class="demo-lumen-chap demo-lumen-chap--active" data-lumen-chap="tri-rapide" data-read-state="reading" role="tab" aria-selected="true">
-                  <span class="demo-lumen-chap-num">1</span>
-                  <span class="demo-lumen-chap-title">Tri rapide</span>
-                  <span class="demo-lumen-chap-state" aria-label="En cours de lecture"></span>
+                  <span class="demo-lumen-repo-name" id="lumen-repo-name">algorithmique-l1</span>
+                  <svg class="demo-lumen-repo-chev" aria-hidden="true" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                <button class="demo-lumen-chap" data-lumen-chap="graphes" data-read-state="started" role="tab" aria-selected="false">
-                  <span class="demo-lumen-chap-num">2</span>
-                  <span class="demo-lumen-chap-title">Graphes</span>
-                  <span class="demo-lumen-chap-state" aria-label="Commencé"></span>
-                </button>
-                <button class="demo-lumen-chap" data-lumen-chap="dynamique" data-read-state="done" role="tab" aria-selected="false">
-                  <span class="demo-lumen-chap-num">3</span>
-                  <span class="demo-lumen-chap-title">Programmation dynamique</span>
-                  <span class="demo-lumen-chap-state" aria-label="Lu"></span>
-                </button>
+                <div class="demo-lumen-repo-menu" id="lumen-repo-menu" hidden role="menu"></div>
+                <div class="demo-lumen-chaps" id="lumen-chaps" role="tablist" aria-label="Chapitres"></div>
               </aside>
               <div class="demo-lumen-main" id="lumen-main" role="tabpanel"></div>
             </div>
@@ -684,18 +667,12 @@
               <div class="demo-lumen-progress-fill" id="lumen-progress-fill" style="--p: 42%"></div>
             </div>
             <div class="demo-lumen-footer">
-              <span class="demo-lumen-read" id="lumen-readers">
-                <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                lu par 14 étudiants
-              </span>
-              <span class="demo-lumen-sep">·</span>
-              <span class="demo-lumen-link-chips" id="lumen-links" aria-label="Devoirs liés"></span>
-              <span class="demo-lumen-sep">·</span>
               <span class="demo-lumen-progress-label" id="lumen-progress-label">42% lu</span>
               <span class="demo-lumen-sep">·</span>
+              <span class="demo-lumen-link-chips" id="lumen-links" aria-label="Devoirs liés"></span>
               <span class="demo-lumen-sync" title="Dernière synchro avec le repo GitHub">
                 <svg aria-hidden="true" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
-                Sync il y a 5 min
+                il y a 5 min
               </span>
             </div>
           </div>
@@ -944,8 +921,8 @@
     </div>
   </footer>
 
-  <script src="grammar.js?v=272"></script>
-  <script src="app.js?v=272"></script>
+  <script src="grammar.js?v=273"></script>
+  <script src="app.js?v=273"></script>
   <!-- Analytics: insert GA4 gtag.js snippet here when ready -->
 </body>
 </html>

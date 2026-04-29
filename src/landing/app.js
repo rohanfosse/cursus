@@ -475,13 +475,17 @@ document.addEventListener('DOMContentLoaded', () => {
     searchText.dataset.animated = '1'
 
     // Termes successifs : tape, attend, efface, tape le suivant. Filtrage live.
+    // Rythme volontairement pose pour qu'on voie chaque match : la grille filtre
+    // doc-par-doc et l'utilisateur a le temps de lire les noms.
     const sequence = [
-      { type: 'algo',   pause: 2200 },
-      { type: 'reseau', pause: 2200 },
-      { type: '.pdf',   pause: 2000 },
-      { type: 'tp',     pause: 2000 },
-      { type: '',       pause: 2400 },
+      { type: 'algo',   pause: 4000 },
+      { type: 'reseau', pause: 4000 },
+      { type: '.pdf',   pause: 3500 },
+      { type: 'tp',     pause: 3500 },
+      { type: '',       pause: 3000 },
     ]
+    const TYPE_MS  = 180   // ms par caractere quand on tape
+    const ERASE_MS = 110   // ms par caractere quand on efface
 
     if (prefersReducedMotion) {
       searchText.textContent = sequence[0].type
@@ -498,7 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function tick(now) {
       const target = sequence[seqIdx].type
       if (mode === 'typing') {
-        if (now - lastTick > 80) {
+        if (now - lastTick > TYPE_MS) {
           lastTick = now
           charIdx++
           searchText.textContent = target.slice(0, charIdx)
@@ -517,7 +521,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       } else if (mode === 'erasing') {
-        if (now - lastTick > 40) {
+        if (now - lastTick > ERASE_MS) {
           lastTick = now
           charIdx--
           searchText.textContent = target.slice(0, Math.max(0, charIdx))
@@ -531,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       // Pause si l'utilisateur a hover la fenetre (volonte de lire)
       const hovered = document.querySelector('#demo-docs .demo-window:hover, #demo-docs .demo-window:focus-within')
-      if (hovered) { lastTick = now; pauseUntil = Math.max(pauseUntil, now + 100) }
+      if (hovered) { lastTick = now; pauseUntil = Math.max(pauseUntil, now + 200) }
       requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
@@ -622,7 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       {
         av: 'MR', bg: '#6366F1', name: 'Prof. Martin', nc: '#6366F1', t: '10:45',
-        txt: 'Oui, groupes de 2-3. Utilisez <span class="msg-channel">#projet-web</span> pour coordonner.',
+        txt: 'Oui, groupes de 2-3. Utilisez <button type="button" class="msg-channel" data-go-channel="projet-web">#projet-web</button> pour coordonner.',
         rx: 'up:4|party:2',
         thread: { count: 3, avatars: ['EL', 'JD', 'SB'], lastAt: 'il y a 5 min' },
       },
@@ -831,7 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
       bg: '#D97706', av: 'JD',
       msgs: [
         { av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '#D97706', t: '11:40', txt: 'Tu sais où trouver le sujet du projet ?' },
-        { av: 'SB', bg: '#8B5CF6', name: 'Toi', nc: '#8B5CF6', t: '11:42', txt: 'Dans <code>#annonces</code>, c\'est l\'épinglé avec le PDF.' },
+        { av: 'SB', bg: '#8B5CF6', name: 'Toi', nc: '#8B5CF6', t: '11:42', txt: 'Dans <button type="button" class="msg-channel" data-go-channel="annonces">#annonces</button>, c\'est l\'épinglé avec le PDF.' },
         { av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '#D97706', t: '11:43', txt: 'Trouvé, merci.' },
       ],
     },
@@ -934,6 +938,19 @@ document.addEventListener('DOMContentLoaded', () => {
       renderChannel(name)
     })
   })
+
+  // Liens #channel cliquables dans les messages : delegation sur le container.
+  // Utilise par "Utilisez #projet-web pour coordonner" etc.
+  const chatMessagesContainer = document.getElementById('demo-messages-container')
+  if (chatMessagesContainer) {
+    chatMessagesContainer.addEventListener('click', (e) => {
+      const link = e.target.closest('[data-go-channel]')
+      if (!link) return
+      const target = link.dataset.goChannel
+      const sidebarCh = document.querySelector(`#demo-chat .sidebar-ch[data-channel="${target}"]`)
+      if (sidebarCh) sidebarCh.click()
+    })
+  }
 
   // Switch vers une conversation directe (DM)
   document.querySelectorAll('#demo-chat .sidebar-dm').forEach(dm => {
@@ -1451,37 +1468,43 @@ document.addEventListener('DOMContentLoaded', () => {
      * monter en temps reel, avec la bonne reponse qui se detache au fur
      * et a mesure (effet "majority forms over time").
      */
+    // Helper : trouve l'option DOM pour un index donne
+    const optAt = (i) => optsEl.querySelector(`.live-opt[data-idx="${i}"]`)
+    const ICON_CHECK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+    const ICON_X     = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>'
+
     function startLivePoll(q) {
       if (pollIv) clearInterval(pollIv)
       liveVotes = [0, 0, 0, 0]
       liveCount = 0
-      // Cible : ~q.count votes au total a la fin du timer (30s)
       const targetTotal = q.count
       const tickMs = 400
       const totalTicks = Math.floor(30_000 / tickMs)
       const votesPerTick = targetTotal / totalTicks
       let ticks = 0
 
-      // Initialise les barres a 0%
-      statsEl.querySelectorAll('.live-stat-fill').forEach(el => el.style.setProperty('--w', '0%'))
-      statsEl.querySelectorAll('.live-stat-pct').forEach(el => el.textContent = '0%')
+      // Reset des fills/pcts INSIDE chaque option (plus de barres separees)
+      optsEl.querySelectorAll('.live-opt').forEach(o => {
+        o.querySelector('.live-opt-fill')?.style.setProperty('--w', '0%')
+        const pct = o.querySelector('.live-opt-pct')
+        if (pct) pct.textContent = ''
+      })
 
       const pollFn = () => {
         ticks++
-        // Tire un nombre aleatoire de votes ce tick (autour de votesPerTick)
         const n = Math.max(1, Math.round(votesPerTick * (0.6 + Math.random() * 0.8)))
         for (let i = 0; i < n && liveCount < targetTotal; i++) {
           const idx = pickBiased(q.stats)
           liveVotes[idx]++
           liveCount++
         }
-        // Met a jour les pourcentages affiches (sur le total courant, pas final)
         if (liveCount > 0) {
           for (let i = 0; i < q.opts.length; i++) {
             const pct = Math.round((liveVotes[i] / liveCount) * 100)
-            const bar  = statsEl.querySelector(`.live-stat-bar:nth-child(${i + 1}) .live-stat-fill`)
-            const lab  = statsEl.querySelector(`.live-stat-bar:nth-child(${i + 1}) .live-stat-pct`)
-            if (bar) bar.style.setProperty('--w', pct + '%')
+            const opt  = optAt(i)
+            if (!opt) continue
+            opt.querySelector('.live-opt-fill')?.style.setProperty('--w', pct + '%')
+            const lab = opt.querySelector('.live-opt-pct')
             if (lab) lab.textContent = pct + '%'
           }
         }
@@ -1491,7 +1514,6 @@ document.addEventListener('DOMContentLoaded', () => {
           clearInterval(pollIv); pollIv = null
         }
       }
-      // Premier tick immediat puis rythme regulier
       pollFn()
       pollIv = setInterval(pollFn, tickMs)
     }
@@ -1500,22 +1522,25 @@ document.addEventListener('DOMContentLoaded', () => {
       revealed = true
       if (timerIv) { clearInterval(timerIv); timerIv = null }
       if (pollIv) { clearInterval(pollIv); pollIv = null }
-      // Au reveal, on snap les barres aux pourcentages "officiels" finaux
-      // (q.stats) — meme si le poll progressif n'a pas atteint la cible
-      // exacte, le reveal montre la verite.
-      statsEl.querySelectorAll('.live-stat-bar').forEach((bar, i) => {
-        const fill = bar.querySelector('.live-stat-fill')
-        const pct  = bar.querySelector('.live-stat-pct')
-        if (fill) fill.style.setProperty('--w', q.stats[i] + '%')
-        if (pct)  pct.textContent  = q.stats[i] + '%'
+      // Snap aux pourcentages finaux + ajoute revealed-* class
+      optsEl.querySelectorAll('.live-opt').forEach((o, i) => {
+        const pct = q.stats[i]
+        o.querySelector('.live-opt-fill')?.style.setProperty('--w', pct + '%')
+        const lab = o.querySelector('.live-opt-pct')
+        if (lab) lab.textContent = pct + '%'
+        o.style.transitionDelay = `${i * 80}ms`
+        const isCorrect = parseInt(o.dataset.idx) === q.correct
+        o.classList.add(isCorrect ? 'revealed-correct' : 'revealed-wrong')
+        const icon = o.querySelector('.live-opt-icon')
+        if (icon) icon.innerHTML = isCorrect ? ICON_CHECK : (o.classList.contains('selected') ? ICON_X : '')
       })
       countEl.textContent = `${q.count} réponses`
-      optsEl.querySelectorAll('.live-opt').forEach((o, i) => {
-        o.style.transitionDelay = `${i * 80}ms`
-        o.classList.add(parseInt(o.dataset.idx) === q.correct ? 'revealed-correct' : 'revealed-wrong')
-      })
-      statsEl.classList.add('revealed')
-      nextT = setTimeout(() => { qIdx = (qIdx + 1) % quizQuestions.length; renderQuiz(qIdx) }, 3000)
+      // Mini "celebration" sur l'option correcte : confetti SVG depuis l'option
+      const correctOpt = optAt(q.correct)
+      if (correctOpt && !prefersReducedMotion) {
+        spawnParticleBurst(correctOpt, EMOJI_PARTICLES.slice(0, 3))
+      }
+      nextT = setTimeout(() => { qIdx = (qIdx + 1) % quizQuestions.length; renderQuiz(qIdx) }, 3200)
     }
 
     function renderQuiz(idx) {
@@ -1527,19 +1552,23 @@ document.addEventListener('DOMContentLoaded', () => {
       textEl.textContent = q.q
       countEl.textContent = `0 réponse`
       startTimer(30)
+      // Options : structure enrichie avec fill background + pct label inline + icone reveal.
       optsEl.innerHTML = q.opts.map((o, i) =>
-        `<div class="live-opt" data-idx="${i}" data-correct="${i === q.correct ? 1 : 0}" tabindex="0" role="button"><span class="live-opt-letter">${'ABCD'[i]}</span><span class="live-opt-text">${o}</span><span class="live-check">&#10003;</span></div>`
+        `<div class="live-opt" data-idx="${i}" data-correct="${i === q.correct ? 1 : 0}" tabindex="0" role="button">
+          <span class="live-opt-fill" style="--w:0%"></span>
+          <span class="live-opt-letter">${'ABCD'[i]}</span>
+          <span class="live-opt-text">${o}</span>
+          <span class="live-opt-pct"></span>
+          <span class="live-opt-icon"></span>
+        </div>`
       ).join('')
-      // Barres a 0% — le poll progressif les fera monter
-      statsEl.innerHTML = q.opts.map((_, i) =>
-        `<div class="live-stat-bar"><div class="live-stat-fill${i === q.correct ? ' live-stat-fill--correct' : ''}" style="--w:0%"></div><span class="live-stat-label">${'ABCD'[i]}</span><span class="live-stat-pct">0%</span></div>`
-      ).join('')
-      statsEl.classList.remove('revealed')
-      // Demarre le poll progressif (skip si reduced motion : on snap direct)
+      // Statsel reste pour compat mais vide (les fills sont in-option maintenant)
+      if (statsEl) statsEl.innerHTML = ''
       if (prefersReducedMotion) {
-        statsEl.querySelectorAll('.live-stat-bar').forEach((bar, i) => {
-          bar.querySelector('.live-stat-fill').style.setProperty('--w', q.stats[i] + '%')
-          bar.querySelector('.live-stat-pct').textContent = q.stats[i] + '%'
+        optsEl.querySelectorAll('.live-opt').forEach((o, i) => {
+          o.querySelector('.live-opt-fill')?.style.setProperty('--w', q.stats[i] + '%')
+          const lab = o.querySelector('.live-opt-pct')
+          if (lab) lab.textContent = q.stats[i] + '%'
         })
         countEl.textContent = `${q.count} réponses`
       } else {
@@ -1555,7 +1584,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (revealed) return
       optsEl.querySelectorAll('.live-opt').forEach(o => o.classList.remove('selected'))
       opt.classList.add('selected')
-      revealT = setTimeout(() => revealAnswers(q), 800)
+      revealT = setTimeout(() => revealAnswers(q), 900)
     }
 
     renderQuiz(0)
@@ -1757,14 +1786,18 @@ document.addEventListener('DOMContentLoaded', () => {
     return pos
   }
 
-  function renderPulseCloud() {
+  // ── Pulse cloud : etat mutable pour permettre l'ajout par l'utilisateur
+  const pulseState = { words: [...PULSE_WORDS], count: 22 }
+
+  function renderPulseCloud(opts = {}) {
     const cloud = document.getElementById('live-pulse-cloud')
-    if (!cloud || cloud.dataset.rendered) return
+    if (!cloud) return
+    // opts.force = re-render meme si deja rendered (utilise apres ajout d'un mot)
+    if (cloud.dataset.rendered && !opts.force) return
     cloud.dataset.rendered = '1'
-    // Mesure le container une fois rendu
     const W = cloud.clientWidth || 320
     const H = 80
-    const positioned = layoutWordCloud(PULSE_WORDS, W, H)
+    const positioned = layoutWordCloud(pulseState.words, W, H)
     const tints = ['var(--color-rex)', 'var(--color-chat)', 'var(--color-devoirs)']
     cloud.style.position = 'relative'
     cloud.style.height = H + 'px'
@@ -1772,6 +1805,7 @@ document.addEventListener('DOMContentLoaded', () => {
     positioned.forEach((entry, i) => {
       const span = document.createElement('span')
       span.className = 'live-pulse-word'
+      if (entry.fresh) span.classList.add('live-pulse-word--fresh')
       span.style.position = 'absolute'
       span.style.left = (entry.x - entry.width / 2) + 'px'
       span.style.top  = (entry.y - entry.height / 2) + 'px'
@@ -1783,6 +1817,72 @@ document.addEventListener('DOMContentLoaded', () => {
       cloud.appendChild(span)
     })
   }
+
+  // Ajout d'un mot par l'utilisateur : si deja present, +1 sur le score
+  // (le mot grossit), sinon ajout en tete avec animation "fresh".
+  function addPulseWord(raw) {
+    const word = (raw || '').trim().toLowerCase().slice(0, 20)
+    if (!word) return false
+    const existing = pulseState.words.find(w => w.w.toLowerCase() === word)
+    if (existing) {
+      existing.s = Math.min(30, existing.s + 4)
+      existing.fresh = true
+    } else {
+      pulseState.words.unshift({ w: word, s: 8, fresh: true })
+      // Plafonne a 14 pour ne pas exploser le layout
+      if (pulseState.words.length > 14) pulseState.words.pop()
+    }
+    pulseState.count++
+    const cloud = document.getElementById('live-pulse-cloud')
+    if (cloud) cloud.dataset.rendered = ''  // force re-layout
+    renderPulseCloud({ force: true })
+    // Reset fresh apres animation
+    setTimeout(() => pulseState.words.forEach(w => { delete w.fresh }), 800)
+    // Met a jour le compteur
+    const countEl = document.getElementById('live-pulse-count')
+    if (countEl) countEl.textContent = `${pulseState.count} réponses anonymes`
+    return true
+  }
+
+  // Form submit : valide + ajoute + reset l'input
+  const pulseForm = document.getElementById('live-pulse-form')
+  if (pulseForm) {
+    pulseForm.addEventListener('submit', (e) => {
+      e.preventDefault()
+      const input = document.getElementById('live-pulse-input')
+      if (!input) return
+      if (addPulseWord(input.value)) {
+        input.value = ''
+        input.classList.add('live-pulse-input--sent')
+        setTimeout(() => input.classList.remove('live-pulse-input--sent'), 600)
+      }
+    })
+  }
+
+  // ── Board (Live > Brainstorm) : stickies cliquables, +1 vote au click ──
+  // Toggle "voted" : pastille devient rouge live + count +1, reclic -1.
+  // Animation "stickie-vote" cubique spring sur l'element.
+  document.querySelectorAll('.live-stickie').forEach(stickie => {
+    stickie.setAttribute('tabindex', '0')
+    stickie.setAttribute('role', 'button')
+    stickie.setAttribute('aria-label', 'Voter pour ce post-it')
+    const countEl = stickie.querySelector('.live-stickie-votes')
+    function toggleVote() {
+      if (!countEl) return
+      const text = countEl.textContent.trim()
+      const n = parseInt(text, 10) || 0
+      const voted = stickie.classList.toggle('live-stickie--voted')
+      countEl.lastChild.nodeValue = String(voted ? n + 1 : Math.max(0, n - 1))
+      stickie.classList.remove('live-stickie--just-voted')
+      void stickie.offsetHeight
+      stickie.classList.add('live-stickie--just-voted')
+      setTimeout(() => stickie.classList.remove('live-stickie--just-voted'), 650)
+    }
+    stickie.addEventListener('click', toggleVote)
+    stickie.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleVote() }
+    })
+  })
 
   if (liveTabs.length) {
     let liveAutoT = null
@@ -1905,15 +2005,19 @@ document.addEventListener('DOMContentLoaded', () => {
       let h = ''
       if (tab === 'types') {
         h = '<div class="rdv-types">' + rdvData.types.map((t, i) => `
-          <div class="rdv-type" style="--ic:${t.color};--d:${i * 100}ms">
+          <div class="rdv-type" style="--ic:${t.color};--d:${i * 100}ms" data-rdv-type-idx="${i}" tabindex="0" role="button" aria-label="Voir le détail du type ${t.name}">
             <span class="rdv-type-dot"></span>
             <div class="rdv-type-info">
               <span class="rdv-type-name">${t.name}</span>
               <span class="rdv-type-desc">${t.desc}</span>
             </div>
             <span class="rdv-type-duration">${t.duration} min</span>
+            <span class="rdv-type-chev" aria-hidden="true">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </span>
           </div>
         `).join('') + '</div>'
+        h += '<div class="rdv-type-detail" id="rdv-type-detail" hidden></div>'
       } else if (tab === 'disponibilites') {
         h = '<div class="rdv-week">' + rdvData.disponibilites.map((row, i) => {
           const slotsHtml = row.slots.map(s => {
@@ -1958,6 +2062,89 @@ document.addEventListener('DOMContentLoaded', () => {
     rexDemo.querySelectorAll('.rex-tab').forEach(t => {
       t.addEventListener('click', () => switchTab(t.dataset.rexTab))
       t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); t.click() } })
+    })
+
+    // ── Click sur un type : ouvre une carte de detail (description longue,
+    // preview de la grille de slots + bouton "Voir les disponibilites") ──
+    rexDemo.addEventListener('click', (e) => {
+      const typeEl = e.target.closest('.rdv-type')
+      if (!typeEl) return
+      const idx = parseInt(typeEl.dataset.rdvTypeIdx, 10)
+      const t = rdvData.types[idx]
+      if (!t) return
+      const detail = rexDemo.querySelector('#rdv-type-detail')
+      if (!detail) return
+
+      // Toggle si reclic sur le meme type
+      if (detail.dataset.openIdx === String(idx) && !detail.hidden) {
+        detail.hidden = true; detail.dataset.openIdx = ''
+        rexDemo.querySelectorAll('.rdv-type--active').forEach(el => el.classList.remove('rdv-type--active'))
+        return
+      }
+      rexDemo.querySelectorAll('.rdv-type--active').forEach(el => el.classList.remove('rdv-type--active'))
+      typeEl.classList.add('rdv-type--active')
+      detail.dataset.openIdx = String(idx)
+      detail.hidden = false
+
+      // Compte le nombre de creneaux de ce type dans la semaine generee.
+      const weekSlots = rdvData.disponibilites.flatMap(r => r.slots).filter(s => s.typeIdx === idx).length
+      // 3 details longs additionnels par type, hardcoded pour la demo.
+      const LONG = [
+        // Suivi individuel
+        { long: 'Point en visio ou en presentiel pour debloquer un projet, valider une orientation ou faire le bilan de la semaine. La duree courte permet d\'enchainer plusieurs etudiants.', who: 'Etudiant seul', notif: 'Rappel J-1 + lien Teams cree automatiquement' },
+        // Soutenance
+        { long: 'Presentation de 20 min suivie de 25-30 min de questions du jury. Pense a inviter tes 2 intervenants en mettant leurs adresses dans le booking, ils recevront automatiquement le lien.', who: 'Etudiant + jury (3 pers.)', notif: 'Salle reservee + invitation jury par email' },
+        // Rattrapage CCTL
+        { long: 'Session de recuperation pour un etudiant qui a manque ou rate l\'evaluation initiale. Le creneau bloque automatiquement la salle de rattrapage et notifie le responsable de promo.', who: 'Etudiant + responsable promo', notif: 'Notif au responsable + email recap' },
+      ]
+      const long = LONG[idx] || { long: t.desc, who: '—', notif: '—' }
+
+      detail.innerHTML = `
+        <div class="rdv-type-card" style="--tc:${t.color}">
+          <div class="rdv-type-card-head">
+            <span class="rdv-type-card-dot"></span>
+            <div class="rdv-type-card-titles">
+              <span class="rdv-type-card-name">${t.name}</span>
+              <span class="rdv-type-card-meta">${t.duration} min · ${weekSlots} créneau${weekSlots > 1 ? 'x' : ''} cette semaine</span>
+            </div>
+            <button type="button" class="rdv-type-card-close" aria-label="Fermer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+          <p class="rdv-type-card-long">${long.long}</p>
+          <div class="rdv-type-card-rows">
+            <div class="rdv-type-card-row">
+              <span class="rdv-type-card-row-lbl">Pour qui</span>
+              <span class="rdv-type-card-row-val">${long.who}</span>
+            </div>
+            <div class="rdv-type-card-row">
+              <span class="rdv-type-card-row-lbl">Sujet par défaut</span>
+              <span class="rdv-type-card-row-val">${t.suggestedTopic}</span>
+            </div>
+            <div class="rdv-type-card-row">
+              <span class="rdv-type-card-row-lbl">Notifs</span>
+              <span class="rdv-type-card-row-val">${long.notif}</span>
+            </div>
+          </div>
+          <button type="button" class="rdv-type-card-cta" data-rdv-go-dispo>Voir les créneaux disponibles
+            <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+      `
+      detail.querySelector('.rdv-type-card-close')?.addEventListener('click', (ev) => {
+        ev.stopPropagation()
+        detail.hidden = true; detail.dataset.openIdx = ''
+        typeEl.classList.remove('rdv-type--active')
+      })
+      detail.querySelector('[data-rdv-go-dispo]')?.addEventListener('click', (ev) => {
+        ev.stopPropagation()
+        switchTab('disponibilites')
+      })
+    })
+
+    rexDemo.addEventListener('keydown', (e) => {
+      const typeEl = e.target.closest?.('.rdv-type')
+      if (typeEl && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); typeEl.click() }
     })
 
     // Booking d'un creneau : clic sur un .rdv-slot ouvre un popover
@@ -2122,50 +2309,57 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ══════════════════════════════════════════════════════════════════════
-  //  LUMEN - liseuse de cours GitHub avec chapitres navigables
+  //  LUMEN - liseuse de cours GitHub : 3 repos selectionnables
+  //
+  //  Chaque repo a son propre titre (affiche dans la titlebar), ses
+  //  chapitres et leur etat (done / reading / started). Le selecteur de
+  //  repo en haut de la sidebar ouvre un menu deroulant avec les 3 repos.
   // ══════════════════════════════════════════════════════════════════════
-  const lumenChapters = {
-    'tri-rapide': {
-      readers: 14,
-      progress: 42,
-      devoirs: [
-        { name: 'TP Tri rapide', due: 'rendu vendredi' },
-        { name: 'Quiz Spark · complexité', due: 'live demain' },
-      ],
-      content: `
-        <h1 class="lm-h1">Tri rapide</h1>
-        <p class="lm-p">Le <b>quicksort</b> est un algorithme de tri par partition, tres efficace en moyenne.</p>
-        <p class="lm-p">Complexite moyenne : <span class="lm-tex">O(n&middot;log n)</span>, pire cas <span class="lm-tex">O(n²)</span>.</p>
-        <h2 class="lm-h2">Implementation</h2>
-        <pre class="lm-code"><span class="lm-c-kw">function</span> <span class="lm-c-fn">quicksort</span>(arr) {
+  const lumenRepos = {
+    'algorithmique-l1': {
+      label: 'algorithmique-l1', title: 'Algorithmique', defaultChap: 'tri-rapide',
+      chapters: {
+        'tri-rapide': {
+          n: 1, label: 'Tri rapide', readState: 'reading',
+          progress: 42,
+          devoirs: [
+            { name: 'TP Tri rapide', due: 'rendu vendredi' },
+            { name: 'Quiz Spark · complexité', due: 'live demain' },
+          ],
+          content: `
+            <h1 class="lm-h1">Tri rapide</h1>
+            <p class="lm-p">Le <b>quicksort</b> est un algorithme de tri par partition, tres efficace en moyenne.</p>
+            <p class="lm-p">Complexite moyenne : <span class="lm-tex">O(n&middot;log n)</span>, pire cas <span class="lm-tex">O(n²)</span>.</p>
+            <h2 class="lm-h2">Implementation</h2>
+            <pre class="lm-code"><span class="lm-c-kw">function</span> <span class="lm-c-fn">quicksort</span>(arr) {
   <span class="lm-c-kw">if</span> (arr.length &lt;= <span class="lm-c-num">1</span>) <span class="lm-c-kw">return</span> arr
   <span class="lm-c-kw">const</span> pivot = arr[<span class="lm-c-num">0</span>]
   <span class="lm-c-kw">const</span> left  = arr.<span class="lm-c-fn">filter</span>(x =&gt; x &lt; pivot)
   <span class="lm-c-kw">const</span> right = arr.<span class="lm-c-fn">filter</span>(x =&gt; x &gt; pivot)
   <span class="lm-c-kw">return</span> [...<span class="lm-c-fn">quicksort</span>(left), pivot, ...<span class="lm-c-fn">quicksort</span>(right)]
 }</pre>
-      `,
-    },
-    'graphes': {
-      readers: 9,
-      progress: 18,
-      devoirs: [
-        { name: 'TP routage Dijkstra', due: 'rendu sem. 15' },
-      ],
-      content: `
-        <h1 class="lm-h1">Parcours de graphes</h1>
-        <p class="lm-p">Le parcours en largeur (<b>BFS</b>) explore un graphe niveau par niveau depuis un sommet source.</p>
-        <div class="lm-mermaid" aria-label="Diagramme BFS">
-          <div class="lm-node lm-node--start">A</div>
-          <div class="lm-edge">→</div>
-          <div class="lm-node">B</div>
-          <div class="lm-edge">→</div>
-          <div class="lm-node">C</div>
-          <div class="lm-edge lm-edge--down">↓</div>
-          <div class="lm-node lm-node--end">D</div>
-        </div>
-        <h2 class="lm-h2">BFS en Python</h2>
-        <pre class="lm-code"><span class="lm-c-kw">from</span> collections <span class="lm-c-kw">import</span> deque
+          `,
+        },
+        'graphes': {
+          n: 2, label: 'Graphes', readState: 'started',
+          progress: 18,
+          devoirs: [
+            { name: 'TP routage Dijkstra', due: 'rendu sem. 15' },
+          ],
+          content: `
+            <h1 class="lm-h1">Parcours de graphes</h1>
+            <p class="lm-p">Le parcours en largeur (<b>BFS</b>) explore un graphe niveau par niveau depuis un sommet source.</p>
+            <div class="lm-mermaid" aria-label="Diagramme BFS">
+              <div class="lm-node lm-node--start">A</div>
+              <div class="lm-edge">→</div>
+              <div class="lm-node">B</div>
+              <div class="lm-edge">→</div>
+              <div class="lm-node">C</div>
+              <div class="lm-edge lm-edge--down">↓</div>
+              <div class="lm-node lm-node--end">D</div>
+            </div>
+            <h2 class="lm-h2">BFS en Python</h2>
+            <pre class="lm-code"><span class="lm-c-kw">from</span> collections <span class="lm-c-kw">import</span> deque
 
 <span class="lm-c-kw">def</span> <span class="lm-c-fn">bfs</span>(graph, start):
     visited = {start}
@@ -2176,22 +2370,21 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="lm-c-kw">if</span> voisin <span class="lm-c-kw">not in</span> visited:
                 visited.<span class="lm-c-fn">add</span>(voisin)
                 queue.<span class="lm-c-fn">append</span>(voisin)</pre>
-      `,
-    },
-    'dynamique': {
-      readers: 6,
-      progress: 73,
-      devoirs: [
-        { name: 'TP Memo Fibonacci',     due: 'rendu sem. 16' },
-        { name: 'Mini-projet sac à dos', due: 'binôme' },
-        { name: 'Quiz Spark · DP',       due: 'révisions' },
-      ],
-      content: `
-        <h1 class="lm-h1">Programmation dynamique</h1>
-        <p class="lm-p">La suite de Fibonacci illustre la memoization pour eviter les recalculs.</p>
-        <p class="lm-p">Relation : <span class="lm-tex">F(n) = F(n-1) + F(n-2)</span></p>
-        <h2 class="lm-h2">Memoization Python</h2>
-        <pre class="lm-code"><span class="lm-c-kw">from</span> functools <span class="lm-c-kw">import</span> lru_cache
+          `,
+        },
+        'dynamique': {
+          n: 3, label: 'Programmation dynamique', readState: 'done',
+          progress: 73,
+          devoirs: [
+            { name: 'TP Memo Fibonacci',     due: 'rendu sem. 16' },
+            { name: 'Mini-projet sac à dos', due: 'binôme' },
+          ],
+          content: `
+            <h1 class="lm-h1">Programmation dynamique</h1>
+            <p class="lm-p">La suite de Fibonacci illustre la memoization pour eviter les recalculs.</p>
+            <p class="lm-p">Relation : <span class="lm-tex">F(n) = F(n-1) + F(n-2)</span></p>
+            <h2 class="lm-h2">Memoization Python</h2>
+            <pre class="lm-code"><span class="lm-c-kw">from</span> functools <span class="lm-c-kw">import</span> lru_cache
 
 @<span class="lm-c-fn">lru_cache</span>(maxsize=<span class="lm-c-kw">None</span>)
 <span class="lm-c-kw">def</span> <span class="lm-c-fn">fib</span>(n):
@@ -2199,35 +2392,155 @@ document.addEventListener('DOMContentLoaded', () => {
         <span class="lm-c-kw">return</span> n
     <span class="lm-c-kw">return</span> <span class="lm-c-fn">fib</span>(n - <span class="lm-c-num">1</span>) + <span class="lm-c-fn">fib</span>(n - <span class="lm-c-num">2</span>)
 
-<span class="lm-c-fn">print</span>(<span class="lm-c-fn">fib</span>(<span class="lm-c-num">50</span>))  <span class="lm-c-cmt"># 12586269025, quasi-instantane</span></pre>
-      `,
+<span class="lm-c-fn">print</span>(<span class="lm-c-fn">fib</span>(<span class="lm-c-num">50</span>))</pre>
+          `,
+        },
+      },
+    },
+    'reseaux-l2': {
+      label: 'reseaux-l2', title: 'Réseaux', defaultChap: 'tcp-ip',
+      chapters: {
+        'tcp-ip': {
+          n: 1, label: 'TCP / IP', readState: 'reading',
+          progress: 35,
+          devoirs: [
+            { name: 'TP Wireshark', due: 'rendu sem. 12' },
+          ],
+          content: `
+            <h1 class="lm-h1">Couche TCP / IP</h1>
+            <p class="lm-p">Le modele TCP/IP organise les protocoles en 4 couches : application, transport, internet, acces reseau.</p>
+            <h2 class="lm-h2">Encapsulation</h2>
+            <p class="lm-p">Chaque couche ajoute un en-tete au paquet. Au niveau Ethernet, on parle de <b>trame</b> ; au niveau IP, de <b>paquet</b> ; au niveau TCP, de <b>segment</b>.</p>
+            <pre class="lm-code">[Ethernet][ IP [ TCP [ HTTP ] ] ][CRC]</pre>
+          `,
+        },
+        'osi': {
+          n: 2, label: 'Modèle OSI', readState: 'started',
+          progress: 12,
+          devoirs: [],
+          content: `
+            <h1 class="lm-h1">Modele OSI</h1>
+            <p class="lm-p">Le modele OSI definit <b>7 couches</b> de la physique a l'application.</p>
+            <h2 class="lm-h2">Les 7 couches</h2>
+            <p class="lm-p">7. Application · 6. Presentation · 5. Session · 4. Transport · 3. Reseau · 2. Liaison · 1. Physique</p>
+          `,
+        },
+        'routage': {
+          n: 3, label: 'Routage', readState: 'unread',
+          progress: 0,
+          devoirs: [
+            { name: 'TP routage statique', due: 'rendu sem. 14' },
+          ],
+          content: `
+            <h1 class="lm-h1">Routage</h1>
+            <p class="lm-p">Le routage statique fixe les routes a la main. Le routage dynamique utilise des protocoles comme RIP ou OSPF.</p>
+          `,
+        },
+      },
+    },
+    'web-e4': {
+      label: 'web-e4', title: 'Projet Web', defaultChap: 'auth-jwt',
+      chapters: {
+        'auth-jwt': {
+          n: 1, label: 'Auth JWT', readState: 'done',
+          progress: 100,
+          devoirs: [
+            { name: 'Projet Web E4', due: 'rendu vendredi' },
+          ],
+          content: `
+            <h1 class="lm-h1">Authentification JWT</h1>
+            <p class="lm-p">JSON Web Token (JWT) : un token signe qui contient les claims de l'utilisateur. Stocke cote client (cookie httpOnly recommande).</p>
+            <h2 class="lm-h2">Verification du token</h2>
+            <pre class="lm-code"><span class="lm-c-kw">function</span> <span class="lm-c-fn">verifyToken</span>(req) {
+  <span class="lm-c-kw">const</span> token = req.headers.authorization
+    ?.<span class="lm-c-fn">replace</span>(<span class="lm-c-num">'Bearer '</span>, <span class="lm-c-num">''</span>)
+  <span class="lm-c-kw">if</span> (!token) <span class="lm-c-kw">throw</span> <span class="lm-c-kw">new</span> Error(<span class="lm-c-num">'no token'</span>)
+  <span class="lm-c-kw">return</span> jwt.<span class="lm-c-fn">verify</span>(token, SECRET)
+}</pre>
+          `,
+        },
+        'rest-api': {
+          n: 2, label: 'API REST', readState: 'reading',
+          progress: 58,
+          devoirs: [
+            { name: 'TP CRUD Express', due: 'rendu sem. 13' },
+          ],
+          content: `
+            <h1 class="lm-h1">API REST</h1>
+            <p class="lm-p">Une API REST expose des ressources via des verbes HTTP : <b>GET</b> pour lire, <b>POST</b> pour creer, <b>PATCH</b> pour modifier, <b>DELETE</b> pour supprimer.</p>
+            <h2 class="lm-h2">Exemple Express.js</h2>
+            <pre class="lm-code">app.<span class="lm-c-fn">get</span>(<span class="lm-c-num">'/users/:id'</span>, requireAuth, getUser)
+app.<span class="lm-c-fn">post</span>(<span class="lm-c-num">'/users'</span>, requireAdmin, createUser)
+app.<span class="lm-c-fn">patch</span>(<span class="lm-c-num">'/users/:id'</span>, requireSelf, updateUser)</pre>
+          `,
+        },
+        'deploy': {
+          n: 3, label: 'Déploiement', readState: 'unread',
+          progress: 0,
+          devoirs: [],
+          content: `
+            <h1 class="lm-h1">Deploiement</h1>
+            <p class="lm-p">Container Docker + reverse-proxy Nginx + Let's Encrypt pour le HTTPS. CI GitHub Actions sur push pour build et deploy.</p>
+          `,
+        },
+      },
     },
   }
 
   const lumenMain = document.getElementById('lumen-main')
-  const lumenReaders = document.getElementById('lumen-readers')
   const lumenLinks = document.getElementById('lumen-links')
   const lumenProgressFill = document.getElementById('lumen-progress-fill')
   const lumenProgressLabel = document.getElementById('lumen-progress-label')
+  const lumenChapsContainer = document.getElementById('lumen-chaps')
+  const lumenRepoToggle = document.getElementById('lumen-repo-toggle')
+  const lumenRepoMenu = document.getElementById('lumen-repo-menu')
+  const lumenRepoName = document.getElementById('lumen-repo-name')
+  const lumenTitle = document.getElementById('lumen-title')
 
-  function renderLumenChapter(key) {
-    const chap = lumenChapters[key]
+  let currentRepo = 'algorithmique-l1'
+  let currentChap = lumenRepos[currentRepo].defaultChap
+
+  function renderLumenChaptersList() {
+    if (!lumenChapsContainer) return
+    const repo = lumenRepos[currentRepo]
+    lumenChapsContainer.innerHTML = Object.entries(repo.chapters).map(([key, chap]) => `
+      <button class="demo-lumen-chap${key === currentChap ? ' demo-lumen-chap--active' : ''}" data-lumen-chap="${key}" data-read-state="${chap.readState}" role="tab" aria-selected="${key === currentChap}">
+        <span class="demo-lumen-chap-num">${chap.n}</span>
+        <span class="demo-lumen-chap-title">${chap.label}</span>
+        <span class="demo-lumen-chap-state" aria-label="${chap.readState}"></span>
+      </button>
+    `).join('')
+    lumenChapsContainer.querySelectorAll('.demo-lumen-chap').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentChap = btn.dataset.lumenChap
+        lumenChapsContainer.querySelectorAll('.demo-lumen-chap').forEach(b => {
+          const a = b === btn
+          b.classList.toggle('demo-lumen-chap--active', a)
+          b.setAttribute('aria-selected', String(a))
+        })
+        renderLumenChapter()
+      })
+      btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click() } })
+    })
+  }
+
+  function renderLumenChapter() {
+    const repo = lumenRepos[currentRepo]
+    const chap = repo?.chapters[currentChap]
     if (!chap || !lumenMain) return
     lumenMain.innerHTML = chap.content
-    if (lumenReaders) lumenReaders.lastChild.textContent = ` lu par ${chap.readers} étudiants`
     if (lumenLinks) {
-      lumenLinks.innerHTML = chap.devoirs.map(d =>
-        `<button type="button" class="demo-lumen-chip" tabindex="0" title="${d.due}"><svg aria-hidden="true" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>${d.name}</button>`
-      ).join('')
+      if (chap.devoirs.length === 0) {
+        lumenLinks.innerHTML = '<span class="demo-lumen-empty">Pas de devoir lié</span>'
+      } else {
+        lumenLinks.innerHTML = chap.devoirs.map(d =>
+          `<button type="button" class="demo-lumen-chip" tabindex="0" title="${d.due}"><svg aria-hidden="true" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>${d.name}</button>`
+        ).join('')
+      }
     }
-
-    // Barre de progression : anime du chapitre precedent vers la nouvelle valeur.
-    // On utilise --p (pourcentage) pour piloter la largeur via CSS, ce qui
-    // permet la transition CSS native (smoother que JS).
     if (lumenProgressFill) lumenProgressFill.style.setProperty('--p', chap.progress + '%')
     if (lumenProgressLabel) lumenProgressLabel.textContent = chap.progress + '% lu'
 
-    // Animation: fade-in du contenu
     if (!prefersReducedMotion) {
       lumenMain.style.animation = 'none'
       void lumenMain.offsetHeight
@@ -2235,19 +2548,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  document.querySelectorAll('.demo-lumen-chap').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.demo-lumen-chap').forEach(b => {
-        const isActive = b === btn
-        b.classList.toggle('demo-lumen-chap--active', isActive)
-        b.setAttribute('aria-selected', String(isActive))
-      })
-      renderLumenChapter(btn.dataset.lumenChap)
-    })
-    btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click() } })
-  })
+  function selectLumenRepo(repoKey) {
+    if (!lumenRepos[repoKey]) return
+    currentRepo = repoKey
+    currentChap = lumenRepos[repoKey].defaultChap
+    if (lumenRepoName) lumenRepoName.textContent = lumenRepos[repoKey].label
+    if (lumenTitle) lumenTitle.textContent = `Lumen · ${lumenRepos[repoKey].title}`
+    renderLumenChaptersList()
+    renderLumenChapter()
+  }
 
-  if (lumenMain) renderLumenChapter('tri-rapide')
+  function renderLumenRepoMenu() {
+    if (!lumenRepoMenu) return
+    lumenRepoMenu.innerHTML = Object.entries(lumenRepos).map(([key, r]) => `
+      <button type="button" class="demo-lumen-repo-item${key === currentRepo ? ' demo-lumen-repo-item--active' : ''}" data-repo="${key}" role="menuitem">
+        <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22h6V2H2z"/><rect width="14" height="20" x="8" y="2" rx="2"/></svg>
+        <span>${r.label}</span>
+      </button>
+    `).join('')
+    lumenRepoMenu.querySelectorAll('.demo-lumen-repo-item').forEach(item => {
+      item.addEventListener('click', () => {
+        selectLumenRepo(item.dataset.repo)
+        renderLumenRepoMenu()
+        closeLumenRepoMenu()
+      })
+    })
+  }
+
+  function openLumenRepoMenu() {
+    if (!lumenRepoMenu || !lumenRepoToggle) return
+    lumenRepoMenu.hidden = false
+    lumenRepoToggle.setAttribute('aria-expanded', 'true')
+    lumenRepoToggle.classList.add('demo-lumen-repo--open')
+  }
+  function closeLumenRepoMenu() {
+    if (!lumenRepoMenu || !lumenRepoToggle) return
+    lumenRepoMenu.hidden = true
+    lumenRepoToggle.setAttribute('aria-expanded', 'false')
+    lumenRepoToggle.classList.remove('demo-lumen-repo--open')
+  }
+
+  if (lumenRepoToggle) {
+    lumenRepoToggle.addEventListener('click', (e) => {
+      e.stopPropagation()
+      if (lumenRepoMenu.hidden) { renderLumenRepoMenu(); openLumenRepoMenu() }
+      else closeLumenRepoMenu()
+    })
+    document.addEventListener('click', (e) => {
+      if (!lumenRepoMenu.contains(e.target) && !lumenRepoToggle.contains(e.target)) closeLumenRepoMenu()
+    })
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLumenRepoMenu() })
+  }
+
+  if (lumenMain) {
+    renderLumenChaptersList()
+    renderLumenChapter()
+  }
 
   // ══════════════════════════════════════════════════════════════════════
   //  DOCS PREVIEW - apercu visuel riche par type de fichier
