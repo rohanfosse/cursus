@@ -677,8 +677,8 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       {
         av: 'JD', bg: '#D97706', name: 'Jean D.', nc: '', t: '16:35',
-        txt: 'Regarde le <code>balanceFactor</code>. Si <b>&gt; 1</b> et fils gauche <b>&lt; 0</b> → rotation gauche-droite. Le chapitre Lumen explique ça avec un schéma :',
-        att: { kind: 'link', icon: 'LUM', color: '#D97706', name: 'Lumen · Algo L1 · Arbres équilibrés', meta: '12 min de lecture · 2 devoirs liés' },
+        txt: 'Regarde le <code>balanceFactor</code>. Si <b>&gt; 1</b> et fils gauche <b>&lt; 0</b> → rotation gauche-droite. Le chapitre du cours explique ça avec un schéma :',
+        att: { kind: 'link', icon: 'CRS', color: '#D97706', name: 'Cours · Algo L1 · Arbres équilibrés', meta: '12 min de lecture · 2 devoirs liés' },
         rx: 'light:3',
         thread: { count: 2, avatars: ['SB', 'EL'], lastAt: 'il y a 2 min' },
       },
@@ -1806,9 +1806,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // ══════════════════════════════════════════════════════════════════════
   const LIVE_MODES = ['spark', 'pulse', 'code', 'board']
   const LIVE_TITLES = {
-    spark: 'Spark · Quiz',
-    pulse: 'Pulse · Sondage',
-    code:  'Code · Co-edition',
+    spark: 'Quiz',
+    pulse: 'Sondage',
+    code:  'Code · Co-édition',
     board: 'Board · Brainstorm',
   }
 
@@ -2454,7 +2454,7 @@ document.addEventListener('DOMContentLoaded', () => {
           progress: 42,
           devoirs: [
             { name: 'TP Tri rapide', due: 'rendu vendredi' },
-            { name: 'Quiz Spark · complexité', due: 'live demain' },
+            { name: 'Quiz live · complexité', due: 'live demain' },
           ],
           content: `
             <h1 class="lm-h1">Tri rapide</h1>
@@ -2696,7 +2696,7 @@ app.<span class="lm-c-fn">patch</span>(<span class="lm-c-num">'/users/:id'</span
     currentRepo = repoKey
     currentChap = lumenRepos[repoKey].defaultChap
     if (lumenRepoName) lumenRepoName.textContent = lumenRepos[repoKey].label
-    if (lumenTitle) lumenTitle.textContent = `Lumen · ${lumenRepos[repoKey].title}`
+    if (lumenTitle) lumenTitle.textContent = `Cours · ${lumenRepos[repoKey].title}`
     renderLumenChaptersList()
     renderLumenChapter()
   }

@@ -337,6 +337,9 @@ img { max-width: 100%; display: block; }
 }
 
 .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 8px; margin-bottom: 8px; }
+.hero-actions-alt { text-align: center; font-size: 13px; color: var(--text-3); margin-top: 10px; margin-bottom: 4px; }
+.hero-actions-alt a { color: var(--text-2); text-decoration: none; font-weight: 600; transition: color .15s; }
+.hero-actions-alt a:hover { color: var(--primary); text-decoration: underline; }
 
 .hero {
   min-height: 100dvh;
@@ -3536,9 +3539,7 @@ img { max-width: 100%; display: block; }
   .proof-sep { display: none; }
   .hero-proof { flex-direction: column; gap: 4px; }
   .hero-actions { flex-direction: column; align-items: center; }
-  .hero-actions .btn-primary,
-  .hero-actions .btn-secondary,
-  .hero-actions .btn-tertiary { width: 100%; justify-content: center; }
+  .hero-actions .btn-primary { width: 100%; justify-content: center; }
   .download-grid { grid-template-columns: 1fr; }
   .docs-grid { grid-template-columns: 1fr; }
 }
@@ -6065,6 +6066,57 @@ img { max-width: 100%; display: block; }
 .btn-tertiary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* ══════════════════════════════════════════════════════════════════
+   Bande "Securite & souverainete" : 4 cartes compactes juste apres
+   le hero, avant les features. Argument debloquant pour les directions.
+   ══════════════════════════════════════════════════════════════════ */
+.security-strip {
+  padding: 40px 0 20px;
+  position: relative;
+}
+.security-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.security-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  background: var(--bg-glass);
+  border: 1px solid rgba(0, 0, 0, .06);
+  border-radius: 16px;
+  transition: transform .25s, border-color .25s, background .25s;
+}
+[data-theme="dark"] .security-card { border-color: rgba(255, 255, 255, .08); }
+.security-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, .25);
+  background: #fff;
+}
+[data-theme="dark"] .security-card:hover { background: rgba(99, 102, 241, .08); }
+.security-ic {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--sc) 12%, transparent);
+  color: var(--sc);
+}
+.security-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.security-title { font-size: 13.5px; font-weight: 700; color: var(--text); letter-spacing: -.2px; }
+.security-desc { font-size: 12px; color: var(--text-2); line-height: 1.45; }
+@media (max-width: 900px) {
+  .security-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px) {
+  .security-grid { grid-template-columns: 1fr; gap: 10px; }
+  .security-strip { padding: 24px 20px 8px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
    Section "Pour qui ?" : panneau interactif prof / etudiant avec
    preview live (timeline cote prof, dashboard cote etudiant).
    ══════════════════════════════════════════════════════════════════ */
@@ -6489,6 +6541,418 @@ img { max-width: 100%; display: block; }
    ameliorer la lisibilite. Les items sont espaces (8px) au lieu
    de hairlines collees.
    ══════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════
+   Cas d'usage : 3 scenarios concrets pour ancrer les fonctionnalites
+   dans la realite d'un prof (cours magistral / projet groupe / soutenances).
+   ══════════════════════════════════════════════════════════════════ */
+.usecase-section {
+  padding: 90px 0 70px;
+  position: relative;
+}
+.usecase-head { text-align: center; max-width: 720px; margin: 0 auto 48px; }
+.usecase-eyebrow {
+  display: inline-block;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+.usecase-h2-grad {
+  background: linear-gradient(135deg, #EF4444, #F59E0B);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.usecase-sub {
+  font-size: 15px; color: var(--text-2);
+  line-height: 1.55; margin-top: 12px;
+}
+.usecase-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.usecase-card {
+  display: flex; flex-direction: column;
+  background: var(--bg-glass);
+  border: 1px solid rgba(0, 0, 0, .08);
+  border-radius: 20px;
+  padding: 24px;
+  transition: transform .25s, border-color .25s, box-shadow .25s;
+  position: relative;
+  overflow: hidden;
+}
+[data-theme="dark"] .usecase-card { border-color: rgba(255, 255, 255, .08); }
+.usecase-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--uc);
+  opacity: .8;
+}
+.usecase-card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--uc) 35%, transparent);
+  box-shadow: 0 18px 40px -22px color-mix(in srgb, var(--uc) 50%, transparent);
+}
+.usecase-card-head {
+  display: flex; align-items: flex-start;
+  gap: 14px; margin-bottom: 20px;
+}
+.usecase-ic {
+  flex-shrink: 0;
+  width: 42px; height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--uc) 14%, transparent);
+  color: var(--uc);
+}
+.usecase-card-titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.usecase-card-tag {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--uc);
+}
+.usecase-card-h {
+  font-size: 18px; font-weight: 800;
+  color: var(--text); letter-spacing: -.3px;
+  line-height: 1.25;
+  margin: 0;
+}
+.usecase-steps {
+  list-style: none;
+  padding: 0; margin: 0 0 20px;
+  display: flex; flex-direction: column;
+  gap: 10px;
+  position: relative;
+}
+.usecase-steps::before {
+  content: '';
+  position: absolute;
+  left: 32px;
+  top: 12px; bottom: 12px;
+  width: 2px;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--uc) 30%, transparent), color-mix(in srgb, var(--uc) 5%, transparent));
+}
+.usecase-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  position: relative;
+  padding-left: 0;
+}
+.usecase-step-time {
+  flex-shrink: 0;
+  width: 52px;
+  font-size: 11px; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--uc);
+  background: color-mix(in srgb, var(--uc) 14%, transparent);
+  padding: 4px 6px;
+  border-radius: 6px;
+  text-align: center;
+  line-height: 1.2;
+  z-index: 1;
+}
+.usecase-step-text {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+  padding-top: 3px;
+}
+.usecase-step-text b { color: var(--text); font-weight: 700; }
+.usecase-foot {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(0, 0, 0, .1);
+  display: flex; flex-direction: column;
+  gap: 3px;
+}
+[data-theme="dark"] .usecase-foot { border-top-color: rgba(255, 255, 255, .12); }
+.usecase-foot-label {
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-3);
+}
+.usecase-foot-val {
+  font-size: 12.5px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .usecase-grid { grid-template-columns: 1fr; max-width: 560px; }
+  .usecase-section { padding: 60px 0 50px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Comparatif Cursus vs Moodle/Teams/Outlook : tableau honnete avec
+   marqueurs +/~/- et notes contextuelles. Met en valeur la colonne
+   Cursus, mais montre aussi les trous (visio amphi, SSO).
+   ══════════════════════════════════════════════════════════════════ */
+.compare-section {
+  padding: 60px 0 80px;
+  position: relative;
+}
+.compare-head { text-align: center; max-width: 720px; margin: 0 auto 40px; }
+.compare-eyebrow {
+  display: inline-block;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+.compare-h2-grad {
+  background: linear-gradient(135deg, #6366F1, #06B6D4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.compare-sub {
+  font-size: 15px;
+  color: var(--text-2);
+  line-height: 1.55;
+  margin-top: 12px;
+}
+
+.compare-table-wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  overflow-x: auto;
+  border-radius: 18px;
+  border: 1px solid rgba(0, 0, 0, .08);
+  background: var(--bg-glass);
+}
+[data-theme="dark"] .compare-table-wrap { border-color: rgba(255, 255, 255, .08); }
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.compare-table th, .compare-table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid rgba(0, 0, 0, .06);
+  vertical-align: middle;
+}
+[data-theme="dark"] .compare-table th,
+[data-theme="dark"] .compare-table td { border-bottom-color: rgba(255, 255, 255, .06); }
+.compare-table tbody tr:last-child th,
+.compare-table tbody tr:last-child td { border-bottom: none; }
+
+.compare-table thead th {
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--text-2);
+  background: rgba(99, 102, 241, .04);
+  border-bottom: 2px solid rgba(0, 0, 0, .08);
+  text-align: center;
+}
+[data-theme="dark"] .compare-table thead th { border-bottom-color: rgba(255, 255, 255, .12); }
+.compare-th-feat { text-align: left !important; }
+.compare-th-name { display: block; font-size: 14px; font-weight: 800; color: var(--text); letter-spacing: -.2px; }
+.compare-th-note { display: block; font-size: 11px; font-weight: 500; color: var(--text-3); margin-top: 2px; }
+
+.compare-th-cursus {
+  background: linear-gradient(180deg, rgba(99, 102, 241, .14), rgba(99, 102, 241, .06)) !important;
+  position: relative;
+}
+.compare-th-cursus .compare-th-name { color: var(--primary); }
+
+.compare-table tbody th {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 13.5px;
+  background: transparent;
+}
+.compare-table tbody tr:hover { background: rgba(99, 102, 241, .03); }
+
+.compare-td {
+  text-align: center;
+  color: var(--text-2);
+}
+.compare-td--cursus {
+  background: rgba(99, 102, 241, .04);
+}
+
+.compare-mark {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  font-weight: 800; font-size: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1;
+}
+.compare-mark--yes     { background: rgba(16, 185, 129, .14); color: #10B981; }
+.compare-mark--partial { background: rgba(245, 158, 11, .14); color: #F59E0B; }
+.compare-mark--no      { background: rgba(148, 163, 184, .18); color: #94A3B8; }
+
+.compare-note {
+  display: block;
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 4px;
+  line-height: 1.3;
+}
+
+.compare-foot {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-3);
+  margin: 24px auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.compare-foot .compare-mark { width: 18px; height: 18px; font-size: 12px; margin: 0 2px 0 8px; }
+
+@media (max-width: 720px) {
+  .compare-section { padding: 40px 0 60px; }
+  .compare-table { font-size: 12px; }
+  .compare-table th, .compare-table td { padding: 10px 8px; }
+  .compare-th-name { font-size: 12.5px; }
+  .compare-th-note { display: none; }
+  .compare-note { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Roadmap publique : 3 colonnes (Recent / En cours / A venir).
+   Signal "produit vivant" sans fake metrics, ancre sur le vrai
+   changelog GitHub.
+   ══════════════════════════════════════════════════════════════════ */
+.roadmap-section {
+  padding: 70px 0 80px;
+  position: relative;
+}
+.roadmap-head { text-align: center; max-width: 720px; margin: 0 auto 48px; }
+.roadmap-eyebrow {
+  display: inline-block;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+.roadmap-h2-grad {
+  background: linear-gradient(135deg, #10B981, #6366F1);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.roadmap-sub {
+  font-size: 15px; color: var(--text-2);
+  line-height: 1.55; margin-top: 12px;
+}
+.roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.roadmap-col {
+  display: flex; flex-direction: column;
+  background: var(--bg-glass);
+  border: 1px solid rgba(0, 0, 0, .08);
+  border-radius: 18px;
+  padding: 22px 22px 18px;
+  transition: transform .25s, border-color .25s;
+}
+[data-theme="dark"] .roadmap-col { border-color: rgba(255, 255, 255, .08); }
+.roadmap-col--current {
+  border-color: color-mix(in srgb, var(--rc) 35%, transparent);
+  background: color-mix(in srgb, var(--rc) 6%, var(--bg-glass));
+  box-shadow: 0 12px 30px -16px color-mix(in srgb, var(--rc) 50%, transparent);
+}
+.roadmap-col:hover { transform: translateY(-3px); }
+.roadmap-col-head {
+  display: flex; align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed rgba(0, 0, 0, .1);
+}
+[data-theme="dark"] .roadmap-col-head { border-bottom-color: rgba(255, 255, 255, .12); }
+.roadmap-col-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--rc);
+  flex-shrink: 0;
+}
+.roadmap-col-dot--pulse {
+  animation: roadmapPulse 2s ease-in-out infinite;
+}
+@keyframes roadmapPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--rc) 50%, transparent); }
+  50%      { box-shadow: 0 0 0 6px color-mix(in srgb, var(--rc) 0%, transparent); }
+}
+.roadmap-col-title {
+  font-size: 14px; font-weight: 800;
+  color: var(--text); letter-spacing: -.2px;
+  flex-grow: 1;
+}
+.roadmap-col-meta {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-3);
+  font-family: 'JetBrains Mono', monospace;
+}
+.roadmap-list {
+  list-style: none;
+  padding: 0; margin: 0;
+  display: flex; flex-direction: column;
+  gap: 12px;
+  flex-grow: 1;
+}
+.roadmap-list li {
+  display: flex; align-items: flex-start;
+  gap: 10px;
+}
+.roadmap-tag {
+  flex-shrink: 0;
+  font-size: 10.5px; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  background: color-mix(in srgb, var(--rc) 14%, transparent);
+  color: var(--rc);
+  padding: 3px 7px;
+  border-radius: 5px;
+  margin-top: 1px;
+  min-width: 56px;
+  text-align: center;
+}
+.roadmap-text {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.roadmap-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(0, 0, 0, .1);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--rc);
+  text-decoration: none;
+  transition: gap .2s;
+}
+[data-theme="dark"] .roadmap-link { border-top-color: rgba(255, 255, 255, .12); }
+.roadmap-link:hover { gap: 8px; }
+
+@media (max-width: 900px) {
+  .roadmap-grid { grid-template-columns: 1fr; max-width: 560px; }
+  .roadmap-section { padding: 50px 0 60px; }
+}
+
 .faq-section {
   padding: 60px 0 100px;
 }

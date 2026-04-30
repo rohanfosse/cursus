@@ -1,5 +1,51 @@
 # Changelog
 
+## v2.270.0 (2026-04-30)
+
+### Landing page : 4 nouvelles sections + cleanup naming/accents
+
+**4 nouvelles sections sur src/landing/index.html** pour debloquer les
+personas direction d'ecole + prof curieux qui n'etaient pas servis :
+
+- **Bandeau "Securite & souverainete"** apres le hero : 4 cartes
+  compactes (AES-256-GCM, hebergement Hostinger France, AGPL auditable,
+  auto-hebergeable). Argument debloquant pour les directions pedagogiques.
+- **Section "Cas d'usage"** apres les features : 3 scenarios concrets
+  (cours magistral d'algo, projet de groupe, semaine de soutenances)
+  avec timeline + outils remplaces. Ancre les fonctionnalites dans la
+  realite d'un prof.
+- **Tableau comparatif** Cursus vs Moodle / Teams / Outlook : 9 lignes
+  avec marqueurs +/~/- et notes contextuelles. Honnete : montre aussi
+  les trous Cursus (visio amphi >100p, SSO LDAP).
+- **Roadmap publique** entre FAQ et Download : 3 colonnes Recent
+  (avr. 26) / En cours (mai-juin) / A venir, basee sur le vrai
+  CHANGELOG. Signal "produit vivant" sans fake metrics.
+
+**Cleanup naming user-facing** (suite des commits 4a9b3e7 + 399eed05) :
+
+- Lumen -> Cours (meta SEO, bento card, feature 7, demo title, JS LIVE_TITLES)
+- Spark / Pulse -> Quiz / Sondage (feature 4 Live, audience prof)
+- Ressources (titre vitrine) -> Documents
+- Footer column "Ressources" -> "Liens"
+
+**Passe d'accents** sur le contenu visible et indexe Google :
+meta descriptions, JSON-LD, Decouvrir, Disponibilites, creneaux,
+coup d'oeil, pedagogique, integree, pensee, etudiants.
+
+**Hero CTA reduit a 1 primaire** : "Tester en demo - 30 s, sans
+inscription". Les CTAs concurrents "Ouvrir l'app" et "Telecharger"
+descendent en lien discret en-dessous ("Deja inscrit ? Se connecter -
+Telecharger l'app"). Reduit la friction du choix.
+
+**Proof bar amelioree** : remplacement de "Hebergee en France - donnees
+demo effacees 24h" (melange prod + demo) par "Hebergee en France - DM
+chiffres AES-256-GCM" + "Auto-hebergeable - AGPL v3".
+
+**Nav** : ajout de Cas d'usage, Comparatif, Roadmap. Retire Pour qui
+et Telecharger du desktop nav (toujours dispos en mobile menu et footer).
+
+Bump 2.269.0 -> 2.270.0.
+
 ## v2.267.0 (2026-04-28)
 
 ### Marketing depot + DX + Nudge starter + bug fixes prod
