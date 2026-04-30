@@ -975,36 +975,38 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   })
 
-  // ── Input bar : envoi reel d'un message visiteur + reponse bot ─────────
+  // ══════════════════════════════════════════════════════════════════════
+  //  Chat input : envoi du visiteur + reponse contextuelle intelligente
   //
-  //  Quand le visiteur ecrit dans le champ et presse Entree (ou clique
-  //  envoyer), on insere une bulle "Toi" dans la conv active + on declenche
-  //  une reponse contextuelle 1.5-2.5s plus tard avec un indicateur
-  //  "Sara ecrit..." entre les deux. Pour les canaux en mode "annonces"
-  //  (read-only) on n'envoie pas de reponse.
+  //  Pipeline cote envoi :
+  //    1. detectIntent(text) -> { kind: 'mention' | 'question' | 'ack' |
+  //                               'help' | 'status' | 'greet' | 'default',
+  //                               target?: string }
+  //    2. pickRespondent(intent) -> personne qui repond (priorite mention)
+  //    3. craftReplyText(intent, respondent) -> texte (grammar + heuristics)
+  //
+  //  Pour les @mentions : autocomplete dans l'input (#mention-suggest), et
+  //  rendu inline avec .msg-mention dans la bulle visiteur.
+  // ══════════════════════════════════════════════════════════════════════
   const chatInputSend = document.getElementById('chat-input-send')
   const chatInputReal = document.getElementById('chat-input-real')
+  const mentionSuggest = document.getElementById('mention-suggest')
 
-  // Pool de reponses contextuelles par canal. Pioche aleatoire. Si vide
-  // (ex: #annonces), aucun bot ne repond — coherent avec le canal prof-only.
-  const DEMO_REPLIES_BY_CHANNEL = {
-    'général':    [
-      { name: 'Emma L.', av: 'EL', bg: '#059669', txt: 'Bien noté ✏️' },
-      { name: 'Sara B.', av: 'SB', bg: '#8B5CF6', txt: 'On en parle demain en TD ?' },
-      { name: 'Jean D.', av: 'JD', bg: '#D97706', txt: 'OK pour moi.' },
-      { name: 'Emma L.', av: 'EL', bg: '#059669', txt: 'Top, merci pour l\'info.' },
-    ],
-    'projet-web': [
-      { name: 'Emma L.', av: 'EL', bg: '#059669', txt: 'Je m\'occupe du back si tu prends le front.' },
-      { name: 'Sara B.', av: 'SB', bg: '#8B5CF6', txt: 'On peut faire un point demain matin ?' },
-      { name: 'Jean D.', av: 'JD', bg: '#D97706', txt: 'Push sur la branche dev quand c\'est prêt.' },
-    ],
-    'algo-tp':    [
-      { name: 'Jean D.', av: 'JD', bg: '#D97706', txt: 'Tu as testé avec un arbre déséquilibré ?' },
-      { name: 'Sara B.', av: 'SB', bg: '#8B5CF6', txt: 'Le balanceFactor c\'est la clé.' },
-      { name: 'Emma L.', av: 'EL', bg: '#059669', txt: 'Regarde le chapitre 3 des cours, il y a un exemple.' },
-    ],
-    'annonces':   [], // canal prof-only : pas de reponse
+  // Personnes mentionnables (cf. sidebar du chat). aliases sert au matching
+  // quand l'utilisateur tape "@emma" -> trouve "Emma L.".
+  const KNOWN_PEOPLE = [
+    { name: 'Emma L.',      av: 'EL', bg: '#059669', firstName: 'Emma',   aliases: ['emma', 'emmal', 'emma.l'] },
+    { name: 'Jean D.',      av: 'JD', bg: '#D97706', firstName: 'Jean',   aliases: ['jean', 'jeand', 'jean.d'] },
+    { name: 'Sara B.',      av: 'SB', bg: '#8B5CF6', firstName: 'Sara',   aliases: ['sara', 'sarab', 'sara.b'] },
+    { name: 'Prof. Martin', av: 'MR', bg: '#6366F1', firstName: 'Martin', aliases: ['martin', 'profmartin', 'prof.martin', 'prof'] },
+  ]
+
+  // Pool de personnes "active" par canal. Permet de varier les reponses.
+  const ACTIVE_BY_CHANNEL = {
+    'général':    ['Emma L.', 'Sara B.', 'Jean D.'],
+    'projet-web': ['Emma L.', 'Sara B.', 'Jean D.'],
+    'algo-tp':    ['Jean D.', 'Sara B.', 'Emma L.'],
+    'annonces':   [],
   }
 
   function nowHHMM() {
@@ -1016,6 +1018,121 @@ document.addEventListener('DOMContentLoaded', () => {
     return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
   }
 
+  function pickRandom(arr) {
+    return arr && arr.length ? arr[Math.floor(Math.random() * arr.length)] : null
+  }
+
+  // ── Detection d'intention par patterns regex (8 categories) ───────────
+  function detectIntent(text) {
+    const t = text.toLowerCase().trim()
+    // Mention (priorite la plus haute)
+    const m = text.match(/@([\wàâéèêëïîôùûÿñç.-]+)/i)
+    if (m) {
+      const target = m[1].toLowerCase().replace(/\./g, '')
+      if (target === 'promo' || target === 'tous' || target === 'everyone') return { kind: 'mention-all' }
+      return { kind: 'mention', target: m[1] }
+    }
+    // Salutation
+    if (/^\s*(salut|bonjour|coucou|hello|yo|hey|bonsoir)\b/.test(t)) return { kind: 'greet' }
+    // Remerciement / accuse de reception
+    if (/\b(merci|thanks|cimer|reçu|bien noté|noté|nickel|parfait)\b/.test(t)) return { kind: 'ack' }
+    // Bug / aide demandee
+    if (/\b(bug|erreur|crash|plante|cassed?|cassé|marche\s*pas|fonctionne\s*pas|comprends?\s*pas|j'arrive\s*pas|aide|help)\b/.test(t)) {
+      return { kind: 'help' }
+    }
+    // Question
+    if (t.endsWith('?') || /^(qui|quand|comment|pourquoi|où|ou|quoi|est-ce|c'est|peux-tu|peut-on)\b/.test(t)) {
+      return { kind: 'question' }
+    }
+    // Status update / livraison
+    if (/\b(fini|terminé|push|commit|deployé|déployé|en\s*cours|bloqué|à\s*review|prêt|merge|merged?)\b/.test(t)) {
+      return { kind: 'status' }
+    }
+    return { kind: 'default' }
+  }
+
+  // ── Stylise les @mentions dans le texte du visiteur ──────────────────
+  function renderTextWithMentions(text) {
+    let out = escapeHtml(text)
+    out = out.replace(/@([\wàâéèêëïîôùûÿñç.-]+)/gi, (full, name) => {
+      const lname = name.toLowerCase().replace(/\./g, '')
+      if (lname === 'promo' || lname === 'tous' || lname === 'everyone') {
+        return `<span class="msg-mention msg-mention--all">@${escapeHtml(name)}</span>`
+      }
+      const found = KNOWN_PEOPLE.find(p => p.aliases.includes(lname))
+      const color = found ? found.bg : '#6366F1'
+      return `<span class="msg-mention" style="--mc:${color}">@${escapeHtml(name)}</span>`
+    })
+    return out
+  }
+
+  // ── Choix du repondant : prio mention > pool channel > DM ────────────
+  function pickRespondent(intent) {
+    if (intent.kind === 'mention') {
+      const target = intent.target.toLowerCase().replace(/\./g, '')
+      const found = KNOWN_PEOPLE.find(p => p.aliases.includes(target))
+      if (found) return found
+    }
+    if (intent.kind === 'mention-all') {
+      // @promo : on prend la 1re personne active du canal pour repondre
+      const channelPeople = ACTIVE_BY_CHANNEL[activeConv.name] || []
+      const first = channelPeople[0]
+      if (first) return KNOWN_PEOPLE.find(p => p.name === first)
+    }
+    if (activeConv.type === 'dm') {
+      const dm = chatDMs[activeConv.name]
+      if (dm) return { name: activeConv.name, av: dm.av, bg: dm.bg, firstName: activeConv.name.split(/\s+/)[0] }
+      return null
+    }
+    const channelPeople = ACTIVE_BY_CHANNEL[activeConv.name] || []
+    const name = pickRandom(channelPeople)
+    return name ? KNOWN_PEOPLE.find(p => p.name === name) : null
+  }
+
+  // ── Genere le texte de reponse selon l'intention + grammar CFG ───────
+  function craftReplyText(intent, respondent) {
+    const G = window.CursusGrammar
+    switch (intent.kind) {
+      case 'mention':
+      case 'mention-all':
+        // Reply intent avec adresse "@Toi"
+        if (G) return G.generateMessage({ intent: 'REPLY', extraVocab: { NAME: ['Toi'] } })
+        return 'OK je regarde ça.'
+      case 'question':
+        // 60% reponse "STATUS" plausible (genre techspeak), 40% question retour
+        if (G && Math.random() < 0.6) return G.generateMessage({ intent: 'STATUS' })
+        return pickRandom([
+          'Bonne question, je creuse.',
+          'Tu peux preciser ?',
+          'On en parle au prochain TD ?',
+          'Aucune idée, mais je regarde.',
+          'C\'est dans le cours, chapitre 3 de mémoire.',
+        ])
+      case 'ack':
+        return pickRandom(['De rien !', 'Avec plaisir 🙏', 'Pas de souci.', 'Tranquille.', 'Quand tu veux.'])
+      case 'help':
+        return pickRandom([
+          'Tu as essayé de redémarrer ?',
+          'Pousse ton code, on regarde ensemble.',
+          'Quelle erreur exactement ?',
+          'Vérifie ta version de Node, c\'est souvent ça.',
+          'Le cours sur le sujet est dans la liseuse, ça peut aider.',
+          'Tu as fait un git pull avant ? Parfois c\'est juste ça.',
+          'Donne le stacktrace complet, je regarde.',
+        ])
+      case 'status':
+        if (G && Math.random() < 0.5) return G.generateMessage({ intent: 'ACK' })
+        return pickRandom(['Bien noté.', 'Top, ça avance !', 'On garde le rythme alors.', 'Nickel.', 'Bien joué.'])
+      case 'greet':
+        return pickRandom(['Salut !', 'Hey ! Quoi de neuf ?', 'Yo !', 'Bonjour ! Tu as bien dormi ?', 'Coucou.'])
+      default:
+        // Fallback sur la grammar CFG (REPLY adresse a Toi)
+        if (G) return G.generateMessage({ intent: 'REPLY', extraVocab: { NAME: ['Toi'] } })
+        return 'OK noté.'
+    }
+  }
+
+  // ── DOM helpers : append message visiteur / typing / bot reply ──────
   function appendVisitorMessage(text) {
     const container = document.getElementById('demo-messages-container')
     if (!container) return
@@ -1028,10 +1145,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="msg-author" style="color:#6366F1">Toi</span>
           <span class="msg-time">${nowHHMM()}</span>
         </div>
-        <div class="msg-text">${escapeHtml(text)}</div>
+        <div class="msg-text">${renderTextWithMentions(text)}</div>
       </div>`
     container.appendChild(div)
-    // Animation d'apparition (reuse du keyframe msgAppear deja dans le CSS)
     div.style.animation = 'msgAppear 320ms var(--ease-smooth) forwards'
     container.scrollTop = container.scrollHeight
   }
@@ -1048,84 +1164,169 @@ document.addEventListener('DOMContentLoaded', () => {
     return t
   }
 
-  function appendBotReply(reply) {
+  function appendBotReply(respondent, txt) {
     const container = document.getElementById('demo-messages-container')
     if (!container) return
     const div = document.createElement('div')
     div.className = 'demo-msg'
     div.innerHTML = `
-      <div class="msg-avatar" data-presence="online" style="background:${reply.bg}">${reply.av}</div>
+      <div class="msg-avatar" data-presence="online" style="background:${respondent.bg}">${respondent.av}</div>
       <div class="msg-body">
         <div class="msg-head">
-          <span class="msg-author" style="color:${reply.bg}">${reply.name}</span>
+          <span class="msg-author" style="color:${respondent.bg}">${respondent.name}</span>
           <span class="msg-time">${nowHHMM()}</span>
         </div>
-        <div class="msg-text">${escapeHtml(reply.txt)}</div>
+        <div class="msg-text">${renderTextWithMentions(txt)}</div>
       </div>`
     container.appendChild(div)
     div.style.animation = 'msgAppear 320ms var(--ease-smooth) forwards'
     container.scrollTop = container.scrollHeight
   }
 
-  function pickReply() {
-    if (activeConv.type === 'dm') {
-      // En DM, c'est l'interlocuteur qui repond avec une phrase generique
-      const dm = chatDMs[activeConv.name]
-      if (!dm) return null
-      const replies = [
-        'Bien reçu, merci.',
-        'OK pour moi, on en reparle.',
-        'Je regarde ça et je te dis.',
-        'Top, merci !',
-      ]
-      return {
-        name: activeConv.name,
-        av:   dm.av,
-        bg:   dm.bg,
-        txt:  replies[Math.floor(Math.random() * replies.length)],
-      }
-    }
-    const pool = DEMO_REPLIES_BY_CHANNEL[activeConv.name]
-    if (!pool || !pool.length) return null
-    return pool[Math.floor(Math.random() * pool.length)]
-  }
-
+  // ── Pipeline d'envoi : detect intent -> pick respondent -> craft reply
   function sendVisitorMessage() {
     if (!chatInputReal) return
     const text = chatInputReal.value.trim()
     if (!text) {
-      // Champ vide : on fait juste l'animation send + flash, sans poster.
       chatInputSend?.classList.add('demo-input-send--sent')
       setTimeout(() => chatInputSend?.classList.remove('demo-input-send--sent'), 800)
       return
     }
     appendVisitorMessage(text)
     chatInputReal.value = ''
+    closeMentionDropdown()
     chatInputSend?.classList.add('demo-input-send--sent')
     setTimeout(() => chatInputSend?.classList.remove('demo-input-send--sent'), 800)
 
-    // Reponse bot apres 1.2s : indicateur typing, puis 1.5-2.2s plus tard,
-    // le message. Skip si le canal est annonces (prof-only).
-    const reply = pickReply()
-    if (!reply) return
+    // Pas de reponse dans #annonces (prof-only)
+    if (activeConv.type === 'channel' && !ACTIVE_BY_CHANNEL[activeConv.name]?.length) return
+
+    const intent = detectIntent(text)
+    const respondent = pickRespondent(intent)
+    if (!respondent) return
+
+    // Reponse principale apres 1-1.5s + typing
     setTimeout(() => {
-      const typing = appendBotTyping(reply.name)
+      const typing = appendBotTyping(respondent.name)
       setTimeout(() => {
         if (typing) typing.remove()
-        appendBotReply(reply)
-      }, 1500 + Math.random() * 700)
-    }, 1200)
+        const replyText = craftReplyText(intent, respondent)
+        appendBotReply(respondent, replyText)
+        // Bonus : si @promo, une 2eme personne enchaine 4-6s plus tard
+        if (intent.kind === 'mention-all') {
+          const channelPeople = ACTIVE_BY_CHANNEL[activeConv.name] || []
+          const second = channelPeople[1]
+          if (second) {
+            const r2 = KNOWN_PEOPLE.find(p => p.name === second)
+            if (r2) {
+              setTimeout(() => {
+                const t2 = appendBotTyping(r2.name)
+                setTimeout(() => {
+                  if (t2) t2.remove()
+                  appendBotReply(r2, craftReplyText(intent, r2))
+                }, 1300 + Math.random() * 600)
+              }, 3500 + Math.random() * 2000)
+            }
+          }
+        }
+      }, 1300 + Math.random() * 700)
+    }, 1100)
   }
 
-  if (chatInputSend) chatInputSend.addEventListener('click', sendVisitorMessage)
+  // ── Mention autocomplete : apparait quand le visiteur tape "@" ────────
+  function getMentionContext(input) {
+    // Renvoie la query courante (apres le dernier @ tape) ou null
+    const v = input.value
+    const cursor = input.selectionStart || v.length
+    const left = v.slice(0, cursor)
+    const m = left.match(/(?:^|\s)@([\wàâéèêëïîôùûÿñç.-]*)$/i)
+    return m ? { query: m[1], start: cursor - m[1].length - 1 } : null
+  }
+
+  function renderMentionDropdown(query) {
+    if (!mentionSuggest) return
+    const q = query.toLowerCase()
+    const candidates = []
+    // @promo en tete si le visiteur tape rien ou "p"
+    if (!q || 'promo'.startsWith(q) || 'tous'.startsWith(q)) {
+      candidates.push({ kind: 'all', label: '@promo', sub: 'toute la promo', av: '@', bg: '#EF4444' })
+    }
+    KNOWN_PEOPLE.forEach(p => {
+      if (!q || p.name.toLowerCase().includes(q) || p.aliases.some(a => a.startsWith(q))) {
+        candidates.push({ kind: 'person', label: p.name, sub: p.firstName, av: p.av, bg: p.bg, value: p.firstName })
+      }
+    })
+    if (!candidates.length) {
+      mentionSuggest.hidden = true
+      return
+    }
+    mentionSuggest.innerHTML = candidates.slice(0, 5).map((c, i) => `
+      <button type="button" class="mention-item${i === 0 ? ' mention-item--active' : ''}"
+              data-mention="${escapeHtml(c.kind === 'all' ? 'promo' : (c.value || c.label))}"
+              role="option" aria-selected="${i === 0}">
+        <span class="mention-avatar" style="background:${c.bg}">${escapeHtml(c.av)}</span>
+        <span class="mention-name">${escapeHtml(c.label)}</span>
+        <span class="mention-sub">${escapeHtml(c.sub)}</span>
+      </button>
+    `).join('')
+    mentionSuggest.hidden = false
+  }
+
+  function closeMentionDropdown() {
+    if (mentionSuggest) mentionSuggest.hidden = true
+  }
+
+  function applyMention(value) {
+    if (!chatInputReal) return
+    const v = chatInputReal.value
+    const cursor = chatInputReal.selectionStart || v.length
+    const left = v.slice(0, cursor)
+    const right = v.slice(cursor)
+    const replaced = left.replace(/@([\wàâéèêëïîôùûÿñç.-]*)$/, '@' + value + ' ')
+    chatInputReal.value = replaced + right
+    const newPos = replaced.length
+    chatInputReal.setSelectionRange(newPos, newPos)
+    chatInputReal.focus()
+    closeMentionDropdown()
+  }
+
   if (chatInputReal) {
+    chatInputReal.addEventListener('input', () => {
+      const ctx = getMentionContext(chatInputReal)
+      if (ctx) renderMentionDropdown(ctx.query)
+      else closeMentionDropdown()
+    })
     chatInputReal.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { closeMentionDropdown(); return }
+      // Si dropdown ouvert : Tab/Enter prend le 1er candidat
+      if (mentionSuggest && !mentionSuggest.hidden && (e.key === 'Tab' || e.key === 'Enter')) {
+        const active = mentionSuggest.querySelector('.mention-item--active')
+        if (active) {
+          e.preventDefault()
+          applyMention(active.dataset.mention)
+          return
+        }
+      }
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
         sendVisitorMessage()
       }
     })
+    chatInputReal.addEventListener('blur', () => {
+      // Petit delai pour laisser le clic sur dropdown se propager
+      setTimeout(closeMentionDropdown, 150)
+    })
   }
+  if (mentionSuggest) {
+    mentionSuggest.addEventListener('mousedown', (e) => {
+      // mousedown plutot que click pour eviter blur de l'input avant selection
+      const item = e.target.closest('.mention-item')
+      if (!item) return
+      e.preventDefault()
+      applyMention(item.dataset.mention)
+    })
+  }
+  if (chatInputSend) chatInputSend.addEventListener('click', sendVisitorMessage)
 
   // ══════════════════════════════════════════════════════════════════════
   //  PETITES ANIMATIONS au clic sur les boutons + et emoji de la zone

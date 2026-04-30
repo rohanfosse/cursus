@@ -4151,6 +4151,63 @@ img { max-width: 100%; display: block; }
   margin-top: 4px;
   opacity: .85;
 }
+
+/* Mention autocomplete : pop au-dessus de l'input quand le visiteur
+   tape "@". Liste d'utilisateurs + @promo, click ou Tab pour selectionner. */
+.demo-input-field { position: relative; }
+.mention-suggest {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: auto;
+  min-width: 240px;
+  max-width: 320px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px -8px rgba(15, 23, 42, .25), 0 4px 10px -2px rgba(15, 23, 42, .12);
+  padding: 4px;
+  z-index: 20;
+  overflow: hidden;
+  animation: mentionSuggestIn 180ms cubic-bezier(.22, 1, .36, 1) both;
+}
+@keyframes mentionSuggestIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.mention-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--text);
+  transition: background var(--duration-fast);
+}
+.mention-item:hover, .mention-item--active {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+.mention-avatar {
+  flex-shrink: 0;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: .02em;
+}
+.mention-name { font-weight: 600; flex-grow: 1; }
+.mention-sub  { font-size: 11px; color: var(--text-3); }
 .demo-input-hint {
   display: inline-flex;
   align-items: baseline;
