@@ -91,9 +91,16 @@ router.post('/start', startLimiter, (req, res) => {
     // Cree un moment "tu es attendu(e)" qui colore toute la session.
     if (role === 'student') {
       setTimeout(() => {
-        try { bots.sendWelcomeDm(db, tenantId, currentUser.id) } catch { /* non-blocking */ }
+        try { bots.sendWelcomeDm(db, tenantId, currentUser.id) } catch { /* */ }
       }, 15_000)
     }
+    // Trame narrative : une story de ~5 min avec 10-12 evenements scriptes
+    // tournant entre 3 trames (auth/avl/soutenance). Coexiste avec le tick
+    // bots aleatoire — le visiteur voit a la fois un fil narratif et du
+    // grain spontane.
+    try {
+      require('../../services/demoStorylines').startStoryline(tenantId)
+    } catch { /* */ }
   }
 
   res.json({
@@ -139,6 +146,9 @@ router.post('/end', (req, res) => {
   } catch { /* */ }
   try {
     require('../../services/demoBots').clearTyping(tenantId, null)
+  } catch { /* */ }
+  try {
+    require('../../services/demoStorylines').cancelStoryline(tenantId)
   } catch { /* */ }
   res.json({ ok: true, data: null })
 })
