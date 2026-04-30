@@ -34,30 +34,32 @@ export function useDemoMessagesPoll(): void {
     // les resultats de recherche par les messages live.
     if (messagesStore.searchTerm) return
 
-    let res: { ok?: boolean; data?: Message[] } | null = null
+    let messages: Message[] | null = null
     try {
       if (channelId) {
-        res = await window.api.getChannelMessagesPage(channelId) as typeof res
+        const res = await window.api.getChannelMessagesPage(channelId)
+        if (res?.ok && Array.isArray(res.data)) messages = res.data
       } else if (dmStudentId) {
         const peer = appStore.activeDmPeerId ?? undefined
-        res = await window.api.getDmMessagesPage(dmStudentId, undefined, peer) as typeof res
+        const res = await window.api.getDmMessagesPage(dmStudentId, undefined, peer)
+        if (res?.ok && Array.isArray(res.data)) messages = res.data
       }
     } catch { return }
 
-    if (!res?.ok || !Array.isArray(res.data)) return
+    if (!messages || !messages.length) return
 
     // L'API renvoie la page en ordre DESC (id decroissant). On upsert tous
     // les messages dont l'id depasse le max actuellement affiche : c'est
     // le moyen le plus simple de capter les nouveaux inserts bot.
     const currentMaxId = messagesStore.messages.length
-      ? Math.max(...messagesStore.messages.map(m => m.id))
+      ? Math.max(...messagesStore.messages.map((m: Message) => m.id))
       : 0
 
-    const newMessages = res.data.filter(m => m.id > currentMaxId)
+    const newMessages = messages.filter((m: Message) => m.id > currentMaxId)
     if (!newMessages.length) return
 
     // Upsert dans l'ordre chronologique (id ASC) pour conserver l'ordre.
-    for (const m of newMessages.sort((a, b) => a.id - b.id)) {
+    for (const m of newMessages.sort((a: Message, b: Message) => a.id - b.id)) {
       messagesStore.upsertMessage(m)
     }
   }
