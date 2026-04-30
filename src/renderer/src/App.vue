@@ -28,6 +28,7 @@
   import MobileNav  from '@/components/layout/MobileNav.vue'
   import TitleBar   from '@/components/layout/TitleBar.vue'
   import DemoBanner from '@/components/layout/DemoBanner.vue'
+  import DemoOnboardingTour from '@/components/demo/DemoOnboardingTour.vue'
   import SidebarWrapper from '@/components/sidebar/SidebarWrapper.vue'
   import LoginOverlay        from '@/components/auth/LoginOverlay.vue'
   // Modales frequentes gardees synchrones : ConfirmModal (hot via useConfirm),
@@ -406,6 +407,9 @@
 
     <!-- Bandeau mode demo (visible uniquement si currentUser.demo === true) -->
     <DemoBanner />
+
+    <!-- Mini-tour d'onboarding (demo uniquement, auto-start a 1.5s) -->
+    <DemoOnboardingTour v-if="appStore.currentUser?.demo" />
 
     <!-- Barre de titre custom (fenêtre sans chrome natif) -->
     <TitleBar />

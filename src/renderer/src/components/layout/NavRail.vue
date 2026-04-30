@@ -408,6 +408,7 @@ function openAvatarContextMenu(ev: MouseEvent) {
       :title="item.title"
       :aria-label="item.title"
       :aria-current="isItemActive(item) ? 'page' : undefined"
+      :data-tour="item.id"
       draggable="true"
       @dragstart="onNavDragStart($event, item.id)"
       @dragover="onNavDragOver($event, item.id)"
