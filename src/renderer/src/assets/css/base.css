@@ -112,6 +112,11 @@ body.theme-transitioning *::after {
   --border:       rgba(129,140,248,.15);
   --border-input: rgba(129,140,248,.22);
 
+  /* Ligne 1px en bas de #app, separation visuelle avec la taskbar OS.
+     v2.273.12 — fond app sombre + taskbar Win souvent sombre : ligne
+     plus claire pour ressortir. */
+  --app-bottom-border: rgba(255,255,255,.10);
+
   /* États sémantiques - emerald comme accent secondaire (landing) */
   --color-danger:  #F87171;
   --color-warning: #FBBF24;
@@ -312,6 +317,9 @@ body.light, body.cursus {
   --border:       rgba(15,23,42,.08);
   --border-input: rgba(15,23,42,.16);
 
+  /* Ligne 1px en bas de #app — ressort sur taskbar Win 11 mode clair */
+  --app-bottom-border: rgba(15,23,42,.14);
+
   /* Ombres - subtilement teintees indigo, mais douces sur fond blanc */
   --shadow-sm: 0 1px 2px rgba(15,23,42,.06), 0 1px 3px rgba(99,102,241,.04);
   --shadow-md: 0 4px 12px rgba(15,23,42,.06), 0 2px 4px rgba(99,102,241,.04);
@@ -422,6 +430,9 @@ body.sepia {
   --border:       rgba(100,70,30,.1);
   --border-input: rgba(100,70,30,.16);
 
+  /* Ligne 1px en bas de #app — sepia */
+  --app-bottom-border: rgba(80,50,10,.14);
+
   --shadow-sm: 0 1px 2px rgba(80,50,10,.06);
   --shadow-md: 0 4px 12px rgba(80,50,10,.1);
   --shadow-lg: 0 8px 30px rgba(80,50,10,.14);
@@ -472,6 +483,9 @@ body.night {
 
   --border:       rgba(255,255,255,.06);
   --border-input: rgba(255,255,255,.12);
+
+  /* Ligne 1px en bas de #app — night (presque noir) */
+  --app-bottom-border: rgba(255,255,255,.10);
 
   --shadow-sm: 0 1px 3px rgba(0,0,0,.4);
   --shadow-md: 0 4px 14px rgba(0,0,0,.5);
@@ -532,6 +546,9 @@ body.marine {
   --border:       rgba(80,140,200,.1);
   --border-input: rgba(80,140,200,.18);
 
+  /* Ligne 1px en bas de #app — marine */
+  --app-bottom-border: rgba(160,200,240,.14);
+
   --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
   --shadow-md: 0 4px 14px rgba(0,0,0,.4);
   --shadow-lg: 0 8px 36px rgba(0,0,0,.55);
@@ -578,6 +595,11 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* v2.273.12 — fine ligne 1px tout en bas de l'app pour separer
+     visuellement de la barre des taches Windows. Surtout utile en
+     theme clair quand le fond app blanc fusionne avec la taskbar
+     Win 11 light mode. Theme-aware via --app-bottom-border. */
+  box-shadow: inset 0 -1px 0 var(--app-bottom-border, rgba(15,23,42,.12));
 }
 
 /* Focus-visible - accessibilité clavier */
