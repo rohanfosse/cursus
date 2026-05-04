@@ -1,7 +1,7 @@
 <!-- StudentLiveView.vue - Vue étudiant pour le Live Quiz interactif -->
 <script setup lang="ts">
   import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-  import { Zap, CheckCircle2, Send, LogOut, XCircle, Trophy, RotateCw, ChevronRight, HelpCircle } from 'lucide-vue-next'
+  import { Zap, CheckCircle2, Send, LogOut, XCircle, Trophy, RotateCw, ChevronRight, HelpCircle, Hourglass } from 'lucide-vue-next'
   import { useAppStore }  from '@/stores/app'
   import { useLiveStore } from '@/stores/live'
   import { shuffleArray, KAHOOT_COLORS, KAHOOT_SHAPES, isSparkType } from '@/utils/liveActivity'
@@ -327,8 +327,18 @@
       </section>
     </div>
 
-    <!-- ══════════ En session ══════════ -->
-    <div v-else class="live-in-session">
+    <!-- ══════════ En session ══════════
+         v2.277 : tag du wrapper avec class replay-mode quand l'etudiant est
+         en entrainement, pour permettre une teinte de fond + banniere
+         distinctive (sans tout dupliquer). -->
+    <div v-else class="live-in-session" :class="{ 'is-replay': replayMode }">
+      <!-- Banniere mode entrainement : ruban fixe en haut, signale
+           clairement "tu n'es plus en live, tu refais en solo" pour eviter
+           la confusion avec une vraie session. -->
+      <div v-if="replayMode" class="replay-banner" role="status">
+        <RotateCw :size="14" />
+        <span><strong>Mode entrainement</strong> — tu refais cette session en solo, les resultats restent locaux.</span>
+      </div>
       <div class="session-bar">
         <span class="session-bar-title">
           {{ session.title }}
@@ -450,14 +460,23 @@
         </div>
       </div>
 
-      <!-- Waiting for activity (mode live uniquement, PAS en self-paced) -->
+      <!-- Waiting for activity (mode live uniquement, PAS en self-paced).
+           v2.277 : refonte de l'attente — au lieu de 3 dots vides, on
+           rassure l'etudiant avec une icone, un titre clair et une astuce
+           contextuelle. Cf. Wooclap / Mentimeter qui affichent un tip pendant
+           l'attente. -->
       <div v-else-if="!isSelfPaced && (!activity || activity.status === 'pending')" class="waiting-state">
-        <div class="waiting-dots">
+        <div class="waiting-icon" aria-hidden="true">
+          <Hourglass :size="36" />
+          <span class="waiting-pulse-ring" />
+        </div>
+        <h2 class="waiting-title">Le prof prepare la prochaine question</h2>
+        <p class="waiting-hint">Reste sur cette page, elle s'affichera automatiquement.</p>
+        <div class="waiting-dots" aria-hidden="true">
           <span class="dot" />
           <span class="dot" />
           <span class="dot" />
         </div>
-        <span class="waiting-text">En attente de la prochaine question...</span>
       </div>
 
       <!-- Activity live (ou self-paced) + not responded yet -->
@@ -971,23 +990,87 @@
 }
 .btn-leave:hover { background: rgba(239,68,68,.15); }
 
-/* ── Waiting ── */
+/* ── Replay mode (v2.277) ───────────────────────────────────────────────
+   Distinction visuelle claire entre live et entrainement : tint de fond
+   subtile + banniere fixe en haut avec icone RotateCw. Evite la confusion
+   "j'ai eu juste mais c'etait la mauvaise reponse au moment du live". */
+.live-in-session.is-replay {
+  background: linear-gradient(180deg,
+    rgba(var(--accent-rgb), 0.04) 0%,
+    transparent 240px);
+}
+.replay-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(var(--accent-rgb), 0.10);
+  border-bottom: 1px solid rgba(var(--accent-rgb), 0.25);
+  color: var(--accent);
+  font-size: 13px;
+  text-align: center;
+}
+.replay-banner svg { flex-shrink: 0; }
+
+/* ── Waiting state (v2.277) ─────────────────────────────────────────────
+   Refonte : icone hourglass + ring pulse + titre rassurant + tip + dots.
+   Cf. Wooclap / Mentimeter — l'attente devient un moment narratif, pas un
+   ecran vide. */
 .waiting-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 60px 0;
+  gap: 14px;
+  padding: 60px 24px;
+  text-align: center;
+}
+.waiting-icon {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb), 0.10);
+  color: var(--accent);
+}
+.waiting-pulse-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(var(--accent-rgb), 0.45);
+  animation: waiting-pulse 2.2s ease-out infinite;
+}
+@keyframes waiting-pulse {
+  0%   { transform: scale(0.85); opacity: 0.75; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+.waiting-title {
+  margin: 4px 0 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+.waiting-hint {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+  max-width: 360px;
+  line-height: 1.5;
 }
 .waiting-dots {
   display: flex;
   gap: 8px;
+  margin-top: 8px;
 }
 .dot {
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--color-live);
+  background: var(--accent);
   animation: dot-bounce 1.4s ease-in-out infinite;
 }
 .dot:nth-child(2) { animation-delay: .16s; }
@@ -996,10 +1079,9 @@
   0%, 80%, 100% { transform: scale(0.6); opacity: .3; }
   40% { transform: scale(1); opacity: 1; }
 }
-.waiting-text {
-  font-size: 16px;
-  color: var(--text-muted);
-  font-weight: 600;
+@media (prefers-reduced-motion: reduce) {
+  .waiting-pulse-ring,
+  .dot { animation: none; }
 }
 
 /* ── Response area ── */

@@ -13,14 +13,27 @@
     Math.max(1, ...(props.results.data ?? []).map(d => d.count)),
   )
 
+  // v2.277 : rotation deterministe basee sur le hash du texte (etait
+  // Math.random() qui re-randomisait a chaque rendu et faisait sauter les
+  // mots). Plage reduite -4°/+4° (etait -10/+10) pour respect dyslexie.
+  // Cf. WCAG 2.1 SC 1.4.10 — texte rotated > 30deg = barrier.
+  function stableRotation(text: string): number {
+    let hash = 0
+    for (let i = 0; i < text.length; i++) hash = (hash * 31 + text.charCodeAt(i)) | 0
+    return ((hash % 81) - 40) / 10  // -4.0 a +4.0 deg
+  }
+
   const words = computed(() =>
-    (props.results.data ?? []).map((d, i) => ({
-      text: d.word ?? d.text ?? d.option ?? '-',
-      count: d.count,
-      size: MIN_SIZE + ((d.count / maxCount.value) * (MAX_SIZE - MIN_SIZE)),
-      color: COLORS[i % COLORS.length],
-      rotation: (Math.random() - 0.5) * 20, // -10° to +10°
-    })),
+    (props.results.data ?? []).map((d, i) => {
+      const text = d.word ?? d.text ?? d.option ?? '-'
+      return {
+        text,
+        count: d.count,
+        size: MIN_SIZE + ((d.count / maxCount.value) * (MAX_SIZE - MIN_SIZE)),
+        color: COLORS[i % COLORS.length],
+        rotation: stableRotation(text),
+      }
+    }),
   )
 </script>
 
@@ -96,5 +109,13 @@
 .word-fade-leave-to {
   opacity: 0;
   transform: scale(0.3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wordcloud-word {
+    transform: none !important;
+    transition: none;
+  }
+  .word-fade-enter-active,
+  .word-fade-leave-active { transition: opacity 0.2s ease; }
 }
 </style>

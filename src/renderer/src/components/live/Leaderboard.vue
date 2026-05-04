@@ -1,6 +1,6 @@
 /** Leaderboard.vue - Classement en direct style Kahoot (complet avec barres de progression) */
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import { ChevronDown, ChevronUp, MessageSquare, Copy, PartyPopper } from 'lucide-vue-next'
   import { medal } from '@/utils/liveActivity'
   import type { LeaderboardEntry } from '@/types'
@@ -14,6 +14,28 @@
   }>()
 
   const showAll = ref(false)
+
+  // v2.277 : detection des students ayant gagne des points ce round pour
+  // declencher un "pulse" visuel + score-pop animation. Le composable parent
+  // passe `pointsThisRound` quand une nouvelle reponse arrive ; on tracke
+  // l'id pour ne re-animer que ces lignes-la.
+  const recentlyScored = ref<Set<string>>(new Set())
+  watch(() => props.entries.map(e => `${e.studentId}:${e.pointsThisRound ?? 0}`), (next, prev) => {
+    if (!prev) return
+    const newScorers = new Set<string>()
+    next.forEach((token, idx) => {
+      const prevToken = prev[idx]
+      const entry = props.entries[idx]
+      if (!entry) return
+      if (token !== prevToken && (entry.pointsThisRound ?? 0) > 0) {
+        newScorers.add(entry.studentId)
+      }
+    })
+    if (newScorers.size > 0) {
+      recentlyScored.value = newScorers
+      setTimeout(() => { recentlyScored.value = new Set() }, 1000)
+    }
+  })
 
   const displayEntries = computed(() =>
     showAll.value ? props.entries : props.entries.slice(0, 5),
@@ -66,7 +88,10 @@
         v-for="(entry, i) in displayEntries"
         :key="entry.studentId"
         class="lb-row"
-        :class="{ 'lb-top': entry.rank <= 3 }"
+        :class="{
+          'lb-top': entry.rank <= 3,
+          'lb-recent-score': recentlyScored.has(entry.studentId),
+        }"
         :style="{ animationDelay: `${i * 60}ms` }"
         @contextmenu="openCtx($event, entry)"
       >
@@ -254,5 +279,53 @@
 }
 .lb-row-move {
   transition: all 0.4s cubic-bezier(.25,.8,.25,1);
+}
+
+/* v2.277 : pulse on score change. Quand un etudiant marque ce round
+   (pointsThisRound > 0), le row "respire" pendant 1s. Cf. Wooclap /
+   Mentimeter qui font remonter visuellement les nouvelles reponses. */
+.lb-row.lb-recent-score {
+  animation: lb-row-pulse 1s ease-out;
+}
+@keyframes lb-row-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+    background: rgba(34, 197, 94, 0.10);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+    background: rgba(34, 197, 94, 0.06);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    background: var(--bg-elevated);
+  }
+}
+.lb-row.lb-recent-score.lb-top {
+  /* Garde le fond gradient gold mais ajoute le glow vert */
+  animation-name: lb-row-pulse-top;
+}
+@keyframes lb-row-pulse-top {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lb-row.lb-recent-score {
+    animation: none;
+    background: rgba(34, 197, 94, 0.10);
+  }
 }
 </style>

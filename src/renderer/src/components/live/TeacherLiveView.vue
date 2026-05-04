@@ -2686,6 +2686,11 @@
   box-shadow: 0 6px 18px color-mix(in srgb, var(--color-live) 14%, transparent);
 }
 .activity-card:hover::before { opacity: 1; }
+/* v2.277 : affordance drag-drop. Quand la card est draggable, le cursor
+   passe en grab au hover global de la card pour signaler "ca se reordonne"
+   meme avant que l'utilisateur trouve le grip handle. */
+.activity-card[draggable="true"] { cursor: grab; }
+.activity-card[draggable="true"]:active { cursor: grabbing; }
 /* Barre laterale colore selon la categorie */
 .activity-card:has(.cat--spark)::before { background: var(--live-spark); }
 .activity-card:has(.cat--pulse)::before { background: var(--live-pulse); }
@@ -3035,4 +3040,14 @@
   z-index: 1;
 }
 .btn-dismiss-podium:hover { background: var(--bg-hover); }
+
+/* ── v2.277 : focus-visible coherent dans le scope Live ─────────────────
+   Le base.css a deja prefers-reduced-motion global. On ajoute juste un
+   focus-ring teinte color-live pour cohesion visuelle (au lieu de
+   l'accent indigo global qui se confondrait avec les chips). */
+:deep(button:focus-visible),
+:deep([role="button"]:focus-visible) {
+  outline: 2px solid var(--color-live);
+  outline-offset: 2px;
+}
 </style>

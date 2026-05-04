@@ -177,8 +177,19 @@ defineExpose({ getContent: () => content.value, getLanguage: () => language.valu
 <style scoped>
 .lce-wrap {
   display: flex; flex-direction: column; height: 100%;
-  border: 1px solid var(--border); border-radius: var(--radius);
-  overflow: hidden; background: var(--bg-sidebar);
+  /* v2.277 : halo bleu live-code pour signaler "tu diffuses en direct".
+     Pulse subtil 2s, plus discret que le badge "Diffusion en direct"
+     mais constamment visible meme quand le badge sort du viewport. */
+  border: 1px solid var(--live-code, var(--color-live));
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-sidebar);
+  box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.45);
+  animation: lce-live-halo 2.4s ease-in-out infinite;
+}
+@keyframes lce-live-halo {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.30); }
+  50%      { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
 }
 .lce-wrap.lce-fullscreen {
   position: fixed;
@@ -186,6 +197,10 @@ defineExpose({ getContent: () => content.value, getLanguage: () => language.valu
   z-index: 1000;
   border-radius: 0;
   border: none;
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lce-wrap { animation: none; }
 }
 .lce-toolbar {
   display: flex; align-items: center; gap: 10px;
@@ -210,6 +225,9 @@ defineExpose({ getContent: () => content.value, getLanguage: () => language.valu
   background: var(--color-success); animation: pulse 1.5s ease-in-out infinite;
 }
 @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: .4 } }
+@media (prefers-reduced-motion: reduce) {
+  .lce-dot { animation: none; }
+}
 .lce-lines {
   font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums;
 }

@@ -55,8 +55,16 @@
 </script>
 
 <template>
-  <div class="countdown-timer" :class="{ pulsing: isPulsing }">
-    <svg viewBox="0 0 120 120" class="timer-ring">
+  <!-- v2.277 : role="timer" + aria-live pour screen readers (WCAG AA).
+       aria-live="polite" pour les > 5s, "assertive" pour la zone urgence.
+       L'animation pulse est desactivee via prefers-reduced-motion. -->
+  <div
+    class="countdown-timer"
+    :class="{ pulsing: isPulsing }"
+    role="timer"
+    :aria-label="`Temps restant : ${remaining} secondes`"
+  >
+    <svg viewBox="0 0 120 120" class="timer-ring" aria-hidden="true">
       <circle
         class="ring-bg"
         cx="60" cy="60" :r="radius"
@@ -76,7 +84,11 @@
         transform="rotate(-90 60 60)"
       />
     </svg>
-    <span class="timer-number" :style="{ color: strokeColor }">{{ remaining }}</span>
+    <span
+      class="timer-number"
+      :style="{ color: strokeColor }"
+      :aria-live="isPulsing ? 'assertive' : 'polite'"
+    >{{ remaining }}</span>
   </div>
 </template>
 
@@ -114,5 +126,17 @@
 @keyframes pulse-timer {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
+}
+/* v2.277 : respect prefers-reduced-motion. Le timer reste informatif via
+   couleur + chiffre, sans declenchement vestibulaire. */
+@media (prefers-reduced-motion: reduce) {
+  .countdown-timer.pulsing { animation: none; }
+  .ring-fill { transition: stroke 0.3s ease; }
+}
+
+/* Mobile : timer plus compact pour ne pas dominer l'ecran etudiant. */
+@media (max-width: 600px) {
+  .countdown-timer { width: 84px; height: 84px; }
+  .timer-number { font-size: 28px; }
 }
 </style>

@@ -16,6 +16,19 @@
 
   const totalPoints = computed(() => props.top3.reduce((s, p) => s + p.points, 0))
 
+  // v2.277 : confetti generes UNE fois au mount (etait Math.random dans le
+  // template = re-execute a chaque render reactif, ce qui faisait sauter
+  // les confettis quand totalPoints changeait p.ex.). Pour 40 dots, c'est
+  // anodin perf-wise mais visuellement cassait l'illusion.
+  const CONFETTI_COUNT = 40
+  const confetti = computed(() => Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
+    left: Math.random() * 100,
+    delay: Math.random() * 3,
+    duration: 2 + Math.random() * 2,
+    color: KAHOOT_COLORS[i % KAHOOT_COLORS.length],
+    size: 6 + Math.random() * 6,
+  })))
+
   // Reorder: [1st, 2nd, 3rd] → display [2nd, 1st, 3rd]
   function displayOrder() {
     const first  = props.top3[0] ?? { name: '-', points: 0 }
@@ -33,16 +46,21 @@
 
 <template>
   <div class="podium-wrapper" :class="{ visible: show }">
-    <!-- Confetti -->
-    <div class="confetti-container">
-      <span v-for="i in 40" :key="i" class="confetti-dot" :style="{
-        left: `${Math.random() * 100}%`,
-        animationDelay: `${Math.random() * 3}s`,
-        animationDuration: `${2 + Math.random() * 2}s`,
-        background: KAHOOT_COLORS[i % KAHOOT_COLORS.length],
-        width: `${6 + Math.random() * 6}px`,
-        height: `${6 + Math.random() * 6}px`,
-      }" />
+    <!-- Confetti : positions/delais figes au mount (cf. computed confetti). -->
+    <div class="confetti-container" aria-hidden="true">
+      <span
+        v-for="(c, i) in confetti"
+        :key="i"
+        class="confetti-dot"
+        :style="{
+          left: `${c.left}%`,
+          animationDelay: `${c.delay}s`,
+          animationDuration: `${c.duration}s`,
+          background: c.color,
+          width: `${c.size}px`,
+          height: `${c.size}px`,
+        }"
+      />
     </div>
 
     <h2 class="podium-title">Resultats finaux</h2>
@@ -216,5 +234,12 @@
 @keyframes podium-rise {
   from { height: 0 !important; opacity: 0; }
   to { opacity: 1; }
+}
+/* v2.277 : prefers-reduced-motion = pas de confetti, pas de podium-rise.
+   L'info reste lisible (noms, points, hauteurs distinctes des blocks). */
+@media (prefers-reduced-motion: reduce) {
+  .confetti-container { display: none; }
+  .podium-block { animation: none; }
+  .podium-wrapper { transition: opacity 0.2s ease; transform: none; }
 }
 </style>

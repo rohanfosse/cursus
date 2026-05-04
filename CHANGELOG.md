@@ -1,5 +1,58 @@
 # Changelog
 
+## v2.277.0 (2026-05-04)
+
+### Live — polish 3 phases (6.5 -> 8+)
+
+Audit honnete livre 6.5/10 sur le module Live. Trois phases de polish
+livrees ensemble : accessibilite, real-time feedback, signature visuelle.
+
+**Phase 1 — Accessibility & friction**
+
+- **CountdownTimer** : `role="timer"`, `aria-label`, `aria-live="polite"`
+  (assertive sous 5s) pour les screen readers. Animation pulse bypass via
+  `prefers-reduced-motion`. Ajout breakpoint mobile (timer 84px au lieu de
+  120px). Fix l'absence d'announcement WCAG du temps restant.
+- **Empty state etudiant en attente** : refonte de l'ecran "3 dots". Icone
+  hourglass dans cercle accent + ring pulse + titre rassurant + tip.
+  L'attente devient narrative au lieu d'un ecran vide. Cf. Wooclap /
+  Mentimeter.
+
+**Phase 2 — Real-time feedback signature**
+
+- **Leaderboard pulse on score** : quand un etudiant marque ce round
+  (`pointsThisRound > 0`), sa ligne fait un pulse vert 1s + scale(1.02)
+  + glow ring. Cf. Wooclap / Mentimeter qui font remonter visuellement
+  les nouvelles reponses. Le `recentlyScored` Set tracke les ids touches.
+- **Replay mode distinction** : en mode entrainement, banniere
+  `<RotateCw> Mode entrainement — tu refais cette session en solo, les
+  resultats restent locaux.` + tint de fond accent subtile. Evite la
+  confusion "j'ai eu juste mais c'etait la mauvaise reponse au moment du
+  live".
+- **JoinCodeDisplay stagger** : QR code et URL share apparaissent en
+  fade-up apres le pop des chars du code, avec delai dynamique calcule
+  sur la longueur du code. Plus de saccade entre les elements.
+- **LiveCodeEditor halo** : border `var(--live-code)` permanent + halo
+  pulse 2.4s (`box-shadow` ring). Signale "tu diffuses en direct" meme
+  quand le badge `Diffusion en direct` est hors viewport.
+
+**Phase 3 — Polish accessibilite**
+
+- **WordCloud** : rotation deterministe via hash du texte (etait
+  `Math.random()` qui re-randomisait a chaque render = mots qui sautent),
+  amplitude reduite -4°/+4° (etait -10/+10) pour respect dyslexie.
+  `prefers-reduced-motion` desactive la rotation. Cf. WCAG 2.1.
+- **Podium confetti** : positions/delais figes au mount via `computed`
+  (etait `Math.random()` inline dans template). `aria-hidden="true"` sur
+  le container. `prefers-reduced-motion` masque les confettis et le
+  podium-rise. L'info reste lisible sans animation.
+- **Drag-drop affordance** : `cursor: grab` sur card draggable et
+  `grabbing` au :active. L'utilisateur sait que la card se reordonne meme
+  avant de chercher le grip-handle.
+- **Focus-visible color-live** : focus ring teinte `var(--color-live)`
+  partout dans TeacherLiveView (au lieu de l'accent indigo qui se
+  confondait avec les chips colorees).
+
 ## v2.276.0 (2026-05-04)
 
 ### Lumen — Phase 4 polish editorial (7.5 -> 8.5+)

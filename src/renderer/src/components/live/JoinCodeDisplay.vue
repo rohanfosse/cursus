@@ -43,9 +43,9 @@
       </span>
     </button>
 
-    <QrCode :value="shareUrl" :size="120" class="join-code-qr" />
+    <QrCode :value="shareUrl" :size="120" class="join-code-qr" :style="{ animationDelay: `${code.length * 55 + 100}ms` }" />
 
-    <div class="join-code-share">
+    <div class="join-code-share" :style="{ animationDelay: `${code.length * 55 + 200}ms` }">
       <code class="join-code-url">{{ shareUrl }}</code>
       <button
         class="join-code-share-btn"
@@ -156,6 +156,14 @@
   border: 4px solid #fff;
   border-radius: var(--radius);
   box-shadow: 0 2px 12px rgba(0,0,0,.08);
+  /* v2.277 : entry animation aligne sur le stagger des chars (delai dynamique
+     passe en :style depuis le template). Le QR slide-fade apres les chars
+     pour eviter l'arrivee saccadee. */
+  animation: jc-fade-up .35s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes jc-fade-up {
+  from { transform: translateY(8px) scale(.96); opacity: 0; }
+  to   { transform: translateY(0)   scale(1);   opacity: 1; }
 }
 .join-code-share {
   display: flex;
@@ -167,6 +175,7 @@
   border: 1px solid var(--border);
   border-radius: 999px;
   max-width: 100%;
+  animation: jc-fade-up .35s cubic-bezier(.34,1.56,.64,1) both;
 }
 .join-code-url {
   font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace);
@@ -207,5 +216,10 @@
     height: 58px;
   }
   .join-code-url { max-width: 140px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .join-code-char,
+  .join-code-qr,
+  .join-code-share { animation: none; }
 }
 </style>
