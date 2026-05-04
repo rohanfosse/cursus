@@ -19,10 +19,10 @@
   // declencher un "pulse" visuel + score-pop animation. Le composable parent
   // passe `pointsThisRound` quand une nouvelle reponse arrive ; on tracke
   // l'id pour ne re-animer que ces lignes-la.
-  const recentlyScored = ref<Set<string>>(new Set())
+  const recentlyScored = ref<Set<number>>(new Set())
   watch(() => props.entries.map(e => `${e.studentId}:${e.pointsThisRound ?? 0}`), (next, prev) => {
     if (!prev) return
-    const newScorers = new Set<string>()
+    const newScorers = new Set<number>()
     next.forEach((token, idx) => {
       const prevToken = prev[idx]
       const entry = props.entries[idx]
