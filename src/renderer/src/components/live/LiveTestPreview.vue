@@ -41,7 +41,7 @@ const mockEmoji = ref<string | null>(null)
 </script>
 
 <template>
-  <div class="ltp-wrap" :style="{ '--cat-color': selected ? ACTIVITY_CATEGORIES[getActivityCategory(selected.type)].color : 'var(--accent)' }">
+  <div class="ltp-wrap" :style="{ '--cat-color': selected ? ACTIVITY_CATEGORIES[getActivityCategory(selected.type)].color : 'var(--color-live)' }">
     <div class="ltp-header">
       <div class="ltp-header-title">
         <Smartphone :size="16" />

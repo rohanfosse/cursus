@@ -236,14 +236,20 @@ const wordCount = computed(() => props.activity.max_words ?? 3)
   border: 1px solid var(--border-input); border-radius: var(--radius-sm);
   background: var(--bg-input); color: var(--text-primary); outline: none;
 }
-.lpi-input:focus, .lpi-textarea:focus { border-color: var(--accent); }
+.lpi-input:focus, .lpi-textarea:focus {
+  border-color: var(--live-pulse, var(--color-live));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--live-pulse, var(--color-live)) 18%, transparent);
+}
 .lpi-textarea { resize: vertical; min-height: 100px; }
 
 .lpi-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 10px 16px; font-size: 14px; font-weight: 600;
-  border: none; border-radius: var(--radius-sm); background: var(--accent); color: #fff;
+  padding: 10px 16px; font-size: 14px; font-weight: 700;
+  border: none; border-radius: var(--radius-sm);
+  background: var(--live-pulse, var(--color-live));
+  color: #fff;
   cursor: pointer; font-family: var(--font); transition: all .15s;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--live-pulse, var(--color-live)) 25%, transparent);
 }
 .lpi-btn:hover:not(:disabled) { filter: brightness(1.1); }
 .lpi-btn:disabled { opacity: .5; cursor: not-allowed; }
@@ -259,16 +265,18 @@ const wordCount = computed(() => props.activity.max_words ?? 3)
 
 /* Rating label */
 .lpi-rating-label {
-  text-align: center; font-size: 14px; font-weight: 600;
-  color: var(--accent); margin-top: 4px;
+  text-align: center; font-size: 14px; font-weight: 700;
+  color: var(--live-pulse, var(--color-live)); margin-top: 4px;
 }
 
 /* Slider */
 .lpi-slider-row { display: flex; align-items: center; gap: 10px; }
-.lpi-slider { flex: 1; height: 6px; accent-color: var(--accent); }
+.lpi-slider { flex: 1; height: 6px; accent-color: var(--live-pulse, var(--color-live)); }
 .lpi-slider-min, .lpi-slider-max { font-size: 12px; font-weight: 700; color: var(--text-muted); }
 .lpi-slider-val-big {
-  text-align: center; font-size: 36px; font-weight: 800; color: var(--accent);
+  text-align: center; font-size: 36px; font-weight: 800;
+  color: var(--live-pulse, var(--color-live));
+  font-family: var(--font-mono);
   margin: 4px 0;
 }
 
@@ -279,8 +287,15 @@ const wordCount = computed(() => props.activity.max_words ?? 3)
   background: var(--bg-sidebar); color: var(--text-primary); cursor: pointer;
   font-family: var(--font); font-size: 14px; text-align: left; transition: all .15s;
 }
-.lpi-opt:hover { border-color: var(--accent); }
-.lpi-opt.selected { background: rgba(var(--accent-rgb),.1); border-color: var(--accent); }
+.lpi-opt:hover {
+  border-color: color-mix(in srgb, var(--live-pulse, var(--color-live)) 50%, var(--border-input));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--live-pulse, var(--color-live)) 14%, transparent);
+}
+.lpi-opt.selected {
+  background: color-mix(in srgb, var(--live-pulse, var(--color-live)) 10%, transparent);
+  border-color: var(--live-pulse, var(--color-live));
+}
 
 /* Humeur */
 .lpi-humeur { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
@@ -290,7 +305,10 @@ const wordCount = computed(() => props.activity.max_words ?? 3)
   background: var(--bg-sidebar); cursor: pointer; transition: all .15s;
 }
 .lpi-humeur-btn:hover { transform: scale(1.1); }
-.lpi-humeur-btn.selected { border-color: var(--accent); background: rgba(var(--accent-rgb),.1); }
+.lpi-humeur-btn.selected {
+  border-color: var(--live-pulse, var(--color-live));
+  background: color-mix(in srgb, var(--live-pulse, var(--color-live)) 10%, transparent);
+}
 
 /* Priorite */
 .lpi-priorite { display: flex; flex-direction: column; gap: 6px; }
@@ -302,7 +320,9 @@ const wordCount = computed(() => props.activity.max_words ?? 3)
 .lpi-priorite-rank {
   width: 28px; height: 28px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
-  background: var(--accent); color: #fff; font-weight: 700; flex-shrink: 0;
+  background: var(--live-pulse, var(--color-live));
+  color: #fff;
+  font-family: var(--font-mono); font-weight: 800; flex-shrink: 0;
 }
 .lpi-priorite-label { flex: 1; color: var(--text-primary); font-size: 14px; }
 .lpi-priorite-btns { display: flex; gap: 4px; }

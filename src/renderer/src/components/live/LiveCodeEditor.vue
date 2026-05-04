@@ -192,7 +192,7 @@ defineExpose({ getContent: () => content.value, getLanguage: () => language.valu
   padding: 8px 12px; border-bottom: 1px solid var(--border);
   background: var(--bg-elevated);
 }
-.lce-icon { color: var(--accent); flex-shrink: 0; }
+.lce-icon { color: var(--live-code, var(--color-live)); flex-shrink: 0; }
 .lce-lang {
   font-size: 12px; font-family: var(--font);
   background: var(--bg-input); color: var(--text-primary);
@@ -219,7 +219,10 @@ defineExpose({ getContent: () => content.value, getLanguage: () => language.valu
   border: 1px solid var(--border); background: transparent;
   color: var(--text-muted); cursor: pointer; transition: all .15s;
 }
-.lce-copy:hover { color: var(--accent); border-color: var(--accent); }
+.lce-copy:hover {
+  color: var(--live-code, var(--color-live));
+  border-color: var(--live-code, var(--color-live));
+}
 
 .lce-editor {
   flex: 1; overflow: hidden; min-height: 300px;

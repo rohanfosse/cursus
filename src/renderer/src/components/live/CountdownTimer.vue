@@ -105,7 +105,8 @@
   justify-content: center;
   font-size: 36px;
   font-weight: 900;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace);
+  font-variant-numeric: tabular-nums;
 }
 .countdown-timer.pulsing {
   animation: pulse-timer 0.5s ease-in-out infinite;

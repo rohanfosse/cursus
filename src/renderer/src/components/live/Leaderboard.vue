@@ -80,7 +80,7 @@
               class="lb-bar-fill"
               :style="{
                 width: (entry.points / maxPoints * 100) + '%',
-                background: entry.rank <= 3 ? RANK_COLORS[entry.rank - 1] : 'var(--accent)',
+                background: entry.rank <= 3 ? RANK_COLORS[entry.rank - 1] : 'var(--color-live)',
               }"
             />
           </div>
@@ -122,11 +122,12 @@
   gap: 10px;
 }
 .lb-title {
+  font-family: var(--font-display);
   font-size: 16px;
-  font-weight: 700;
-  color: var(--text-secondary, #aaa);
+  font-weight: 800;
+  color: var(--color-live);
   text-transform: uppercase;
-  letter-spacing: .5px;
+  letter-spacing: .06em;
   text-align: center;
   margin-bottom: 4px;
 }
@@ -151,8 +152,12 @@
 .lb-row::after {
   content: '';
   position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--accent); opacity: 0;
+  background: var(--color-live); opacity: 0;
   transition: opacity .3s;
+}
+.lb-row:hover {
+  border-color: color-mix(in srgb, var(--color-live) 30%, var(--border));
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--color-live) 12%, transparent);
 }
 .lb-row.lb-top {
   background: linear-gradient(135deg, rgba(234,179,8,.08), rgba(234,179,8,.02));
@@ -205,13 +210,13 @@
   font-size: 16px;
   font-weight: 800;
   color: var(--text-primary);
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace);
 }
 .lb-round-pts {
   font-size: 12px;
   font-weight: 700;
   color: #22c55e;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace);
   animation: lb-pts-pop .4s cubic-bezier(.34,1.56,.64,1);
 }
 @keyframes lb-pts-pop {

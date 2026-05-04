@@ -149,11 +149,13 @@ watch(() => props.activityId, () => {
   padding: 8px 12px; border-bottom: 1px solid var(--border);
   background: var(--bg-elevated); flex-shrink: 0;
 }
-.lcv-icon { color: var(--accent); flex-shrink: 0; }
+.lcv-icon { color: var(--live-code, var(--color-live)); flex-shrink: 0; }
 .lcv-lang-badge {
+  font-family: var(--font-mono);
   font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .5px; padding: 2px 8px; border-radius: var(--radius);
-  background: rgba(var(--accent-rgb),.15); color: var(--accent);
+  letter-spacing: .06em; padding: 2px 8px; border-radius: var(--radius);
+  background: color-mix(in srgb, var(--live-code, var(--color-live)) 15%, transparent);
+  color: var(--live-code, var(--color-live));
 }
 .lcv-live {
   display: inline-flex; align-items: center; gap: 5px;
@@ -173,7 +175,10 @@ watch(() => props.activityId, () => {
   border: 1px solid var(--border); background: transparent;
   color: var(--text-muted); cursor: pointer; transition: all .15s;
 }
-.lcv-copy:hover { color: var(--accent); border-color: var(--accent); }
+.lcv-copy:hover {
+  color: var(--live-code, var(--color-live));
+  border-color: var(--live-code, var(--color-live));
+}
 
 .lcv-code {
   flex: 1; margin: 0; padding: 16px;

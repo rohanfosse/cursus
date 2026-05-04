@@ -532,15 +532,16 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  font-family: var(--font-display);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   padding: 3px 10px;
   border-radius: 999px;
   text-transform: uppercase;
-  letter-spacing: .4px;
-  color: var(--cat-color, var(--accent));
-  background: color-mix(in srgb, var(--cat-color, var(--accent)) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--cat-color, var(--accent)) 40%, transparent);
+  letter-spacing: .06em;
+  color: var(--cat-color, var(--color-live));
+  background: color-mix(in srgb, var(--cat-color, var(--color-live)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cat-color, var(--color-live)) 40%, transparent);
 }
 .form-error {
   display: flex;
@@ -634,12 +635,14 @@
 }
 .type-card:hover {
   background: var(--bg-hover);
-  border-color: var(--border-input);
+  border-color: color-mix(in srgb, var(--cat-color, var(--color-live)) 35%, var(--border-input));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--cat-color, var(--color-live)) 14%, transparent);
 }
 .type-card.active {
-  background: color-mix(in srgb, var(--cat-color, var(--accent)) 12%, transparent);
-  border-color: var(--cat-color, var(--accent));
-  color: var(--cat-color, var(--accent));
+  background: color-mix(in srgb, var(--cat-color, var(--color-live)) 12%, transparent);
+  border-color: var(--cat-color, var(--color-live));
+  color: var(--cat-color, var(--color-live));
 }
 .type-card-label {
   font-size: 14px;
@@ -650,7 +653,7 @@
   color: var(--text-muted);
 }
 .type-card.active .type-card-desc {
-  color: var(--accent);
+  color: var(--cat-color, var(--color-live));
   opacity: .7;
 }
 .form-input {
@@ -666,7 +669,8 @@
   transition: border-color .15s;
 }
 .form-input:focus {
-  border-color: var(--accent);
+  border-color: var(--cat-color, var(--color-live));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cat-color, var(--color-live)) 18%, transparent);
 }
 .timer-section {
   display: flex;
@@ -695,9 +699,9 @@
   transition: all .15s;
 }
 .timer-btn.active {
-  background: var(--accent-subtle, rgba(var(--accent-rgb),.12));
-  border-color: var(--accent);
-  color: var(--accent);
+  background: color-mix(in srgb, var(--cat-color, var(--color-live)) 12%, transparent);
+  border-color: var(--cat-color, var(--color-live));
+  color: var(--cat-color, var(--color-live));
 }
 .correct-label {
   font-size: 13px;
@@ -806,9 +810,9 @@
   transition: all .15s;
 }
 .max-words-btn.active {
-  background: var(--accent-subtle, rgba(var(--accent-rgb),.12));
-  border-color: var(--accent);
-  color: var(--accent);
+  background: color-mix(in srgb, var(--cat-color, var(--color-live)) 12%, transparent);
+  border-color: var(--cat-color, var(--color-live));
+  color: var(--cat-color, var(--color-live));
 }
 .form-actions {
   display: flex;
@@ -833,12 +837,13 @@
   padding: 8px 20px;
   border-radius: var(--radius-sm);
   font-size: 13px;
-  font-weight: 600;
-  background: var(--accent);
+  font-weight: 700;
+  background: var(--cat-color, var(--color-live));
   border: none;
   color: #fff;
   cursor: pointer;
   transition: all .15s;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--cat-color, var(--color-live)) 22%, transparent);
 }
 .btn-save:hover {
   filter: brightness(1.1);

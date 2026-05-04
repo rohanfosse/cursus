@@ -69,7 +69,7 @@
   gap: 14px;
   padding: 28px 36px;
   background:
-    radial-gradient(circle at top, color-mix(in srgb, var(--accent) 8%, transparent) 0%, transparent 60%),
+    radial-gradient(circle at top, color-mix(in srgb, var(--color-live) 8%, transparent) 0%, transparent 60%),
     var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius, 14px);
@@ -81,15 +81,16 @@
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  opacity: .4;
+  background: linear-gradient(90deg, transparent, var(--color-live), transparent);
+  opacity: .55;
 }
 .join-code-label {
+  font-family: var(--font-display);
   font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
+  font-weight: 800;
+  color: var(--color-live);
   text-transform: uppercase;
-  letter-spacing: 1.2px;
+  letter-spacing: .08em;
 }
 .join-code-value {
   display: flex;
@@ -103,7 +104,7 @@
   position: relative;
 }
 .join-code-char {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace);
   font-size: 52px;
   font-weight: 800;
   color: var(--text-primary);
@@ -119,7 +120,8 @@
   transition: transform .15s, border-color .15s;
 }
 .join-code-value:hover .join-code-char {
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-color: color-mix(in srgb, var(--color-live) 40%, var(--border));
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-live) 14%, transparent);
 }
 .join-code-value:active .join-code-char {
   transform: scale(.97);
@@ -167,7 +169,7 @@
   max-width: 100%;
 }
 .join-code-url {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace);
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
@@ -183,8 +185,8 @@
   border-radius: 999px;
   font-family: inherit;
   font-size: 11px;
-  font-weight: 600;
-  background: var(--accent);
+  font-weight: 700;
+  background: var(--color-live);
   color: #fff;
   border: none;
   cursor: pointer;
