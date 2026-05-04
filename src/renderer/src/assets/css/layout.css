@@ -485,7 +485,10 @@ nav[aria-label="Messages directs"] {
   overflow: hidden;
   min-width: 0;
   background: var(--bg-main);
-  background-image: linear-gradient(135deg, rgba(26,40,80,.18) 0%, transparent 55%);
+  /* v2.273.3 : suppression du linear-gradient bleu marine qui creait un
+     halo violet diffus en theme clair (fond blanc + #1a2850 .18 = mauve
+     pale). Le bg-main neutre suffit. Si on veut reintroduire un decor
+     subtil, le faire via un token theme-aware. */
 }
 
 /* RouterView doit occuper tout l'espace */
