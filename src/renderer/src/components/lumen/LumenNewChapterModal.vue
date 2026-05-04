@@ -94,7 +94,7 @@ defineEmits<Emits>()
         <button type="button" class="btn-ghost" :disabled="saving" @click="$emit('close')">
           Annuler
         </button>
-        <button type="button" class="btn-primary" :disabled="!canCreate" @click="$emit('save')">
+        <button type="button" class="btn-cta" :disabled="!canCreate" @click="$emit('save')">
           <Loader2 v-if="saving" :size="14" class="spin" />
           <Plus v-else :size="14" />
           {{ saving ? 'Creation...' : 'Creer' }}

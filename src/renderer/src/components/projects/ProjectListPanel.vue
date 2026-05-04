@@ -214,7 +214,7 @@ const ctxItems = computed<ContextMenuItem[]>(() => {
   padding: 6px 12px;
   border-radius: var(--radius-sm);
   border: none;
-  background: var(--accent);
+  background: var(--cta);
   color: #fff;
   font-size: 13px;
   font-weight: 500;
@@ -225,7 +225,7 @@ const ctxItems = computed<ContextMenuItem[]>(() => {
   cursor: not-allowed;
 }
 .btn-primary-sm:not(:disabled):hover {
-  filter: brightness(1.1);
+  background: var(--cta-hover);
 }
 .btn-danger-sm {
   padding: 4px 8px;

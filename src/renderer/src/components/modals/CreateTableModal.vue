@@ -1261,7 +1261,7 @@ function submitAndSend() {
 }
 .ctm-btn-secondary:disabled { opacity: .45; cursor: not-allowed; }
 
-/* Bouton primaire "Envoyer le tableau" : accent plein, emphase dominante */
+/* Bouton primaire "Envoyer le tableau" : CTA emerald (alignement landing) */
 .ctm-btn-primary {
   display: inline-flex;
   align-items: center;
@@ -1271,15 +1271,15 @@ function submitAndSend() {
   font-weight: 600;
   padding: 8px 16px;
   border-radius: var(--radius-sm);
-  background: var(--accent);
+  background: var(--cta);
   color: #fff;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--cta);
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
   transition: background var(--t-fast), transform var(--t-fast);
 }
 .ctm-btn-primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 88%, black);
+  background: var(--cta-hover);
   transform: translateY(-1px);
 }
 .ctm-btn-primary:disabled {

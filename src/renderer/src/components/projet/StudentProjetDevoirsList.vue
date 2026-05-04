@@ -195,7 +195,7 @@ function onFormKeydown(e: KeyboardEvent, t: Devoir): void {
               </span>
               <button class="btn-ghost" @click="emit('cancelDeposit')"><X :size="12" /> Annuler</button>
               <button
-                class="btn-primary"
+                class="btn-cta"
                 :disabled="submitDisabled"
                 @click="emit('submitDeposit', t)"
               >
@@ -208,7 +208,7 @@ function onFormKeydown(e: KeyboardEvent, t: Devoir): void {
           <button v-if="isOverdue(t)" class="spf-btn-expired" disabled>
             <Lock :size="12" /> Date dépassée
           </button>
-          <button v-else class="btn-primary spf-btn-deposit" @click="emit('startDeposit', t)">
+          <button v-else class="btn-cta spf-btn-deposit" @click="emit('startDeposit', t)">
             <Upload :size="12" /> Déposer
           </button>
         </div>
@@ -344,7 +344,7 @@ function onFormKeydown(e: KeyboardEvent, t: Devoir): void {
               </span>
               <button class="btn-ghost" @click="emit('cancelDeposit')"><X :size="12" /> Annuler</button>
               <button
-                class="btn-primary"
+                class="btn-cta"
                 :disabled="submitDisabled"
                 @click="emit('submitDeposit', t)"
               >

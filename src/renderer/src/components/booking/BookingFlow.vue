@@ -941,10 +941,10 @@ const dayInitials = DAY_INITIALS_FR
   transition: all 0.12s;
 }
 .bf-btn-primary {
-  background: var(--accent);
+  background: var(--cta);
   color: #fff;
 }
-.bf-btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+.bf-btn-primary:hover:not(:disabled) { background: var(--cta-hover); }
 .bf-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .bf-btn-secondary {
   background: var(--bf-bg);

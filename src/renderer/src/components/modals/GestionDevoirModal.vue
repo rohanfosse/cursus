@@ -379,7 +379,7 @@
             </template>
             <div v-else class="gd-rubric-empty">
               <p>Aucune rubrique definie.</p>
-              <button class="btn-primary" style="font-size:12px;margin-top:6px" @click="openRubricModal">Creer une rubrique</button>
+              <button class="btn-cta" style="font-size:12px;margin-top:6px" @click="openRubricModal">Creer une rubrique</button>
             </div>
           </div>
         </details>

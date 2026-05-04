@@ -366,7 +366,7 @@
             />
           </div>
           <span class="doc-drop-channel">→ #{{ appStore.activeChannelName }}</span>
-          <button class="btn-primary doc-drop-btn" :disabled="docAdding" @click="confirmDocAdd">
+          <button class="btn-cta doc-drop-btn" :disabled="docAdding" @click="confirmDocAdd">
             <FolderPlus :size="13" /> Ajouter
           </button>
           <button class="btn-ghost doc-drop-cancel" :disabled="docAdding" @click="cancelDocAdd">

@@ -29,7 +29,7 @@ const docStore = useDocumentsStore()
       <Upload :size="14" />
       Glissez un fichier ici ou cliquez Ajouter
     </p>
-    <button v-if="appStore.isTeacher && !docStore.searchQuery" class="btn-primary" @click="$emit('add')">
+    <button v-if="appStore.isTeacher && !docStore.searchQuery" class="btn-cta" @click="$emit('add')">
       <Plus :size="14" /> Ajouter un document
     </button>
   </div>

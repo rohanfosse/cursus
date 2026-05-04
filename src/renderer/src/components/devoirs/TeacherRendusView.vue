@@ -281,7 +281,7 @@ function filterLabel(f: LocalFilter): string {
                     <X :size="11" />
                   </button>
                   <button
-                    class="btn-primary"
+                    class="btn-cta"
                     style="font-size:11px;padding:3px 10px"
                     :disabled="savingGrade || !canSave"
                     @click="saveGrade(r.id)"

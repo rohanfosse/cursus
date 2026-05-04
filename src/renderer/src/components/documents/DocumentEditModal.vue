@@ -64,7 +64,7 @@
 
       <div class="da-footer">
         <button type="button" class="btn-ghost" @click="showEditModal = false">Annuler</button>
-        <button type="submit" class="btn-primary da-submit" :disabled="!editName.trim() || saving">
+        <button type="submit" class="btn-cta da-submit" :disabled="!editName.trim() || saving">
           {{ saving ? 'Enregistrement...' : 'Enregistrer' }}
         </button>
       </div>

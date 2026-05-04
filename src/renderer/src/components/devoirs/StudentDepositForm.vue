@@ -115,7 +115,7 @@ const {
         <X :size="12" /> Annuler
       </button>
       <button
-        class="btn-primary btn-deposit-submit"
+        class="btn-cta btn-deposit-submit"
         :disabled="depositing || expired || (depositMode === 'file' ? !depositFile : !depositLink.trim())"
         :title="expired
           ? 'La date limite est depassee'

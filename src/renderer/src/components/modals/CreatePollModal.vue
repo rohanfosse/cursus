@@ -211,7 +211,7 @@ function submitInsert() {
             >
               Insérer dans le message
             </button>
-            <button class="btn-primary" :disabled="!canSubmit" @click="submit">
+            <button class="btn-cta" :disabled="!canSubmit" @click="submit">
               <Send :size="13" /> Publier le sondage
             </button>
           </div>
@@ -322,8 +322,7 @@ function submitInsert() {
   padding: 12px 18px;
   border-top: 1px solid var(--border);
 }
-.btn-primary { background: #1ABC9C; }
-.btn-primary:hover:not(:disabled) { background: color-mix(in srgb, #1ABC9C 85%, #000); }
+/* CTA emerald — alignement landing (cf. base.css §--cta) */
 
 /* Bouton secondaire "Inserer dans le message" : outline, coherent avec les
    autres modals de builder (CreateTable/Code/Checklist/Announce). */

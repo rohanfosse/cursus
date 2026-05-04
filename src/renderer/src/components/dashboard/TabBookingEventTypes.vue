@@ -412,7 +412,7 @@ onUnmounted(() => {
     <button
       v-if="!showCreateForm"
       type="button"
-      class="btn-sm btn-primary add-type-btn"
+      class="btn-sm btn-cta add-type-btn"
       @click="showCreateForm = true"
     >
       <Plus :size="12" /> Nouveau type
@@ -478,7 +478,7 @@ onUnmounted(() => {
         <button type="button" class="btn-sm" @click="showCreateForm = false">Annuler</button>
         <button
           type="button"
-          class="btn-sm btn-primary"
+          class="btn-sm btn-cta"
           :disabled="!newType.title.trim()"
           @click="onCreateEventType"
         >
@@ -734,6 +734,8 @@ onUnmounted(() => {
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+.btn-cta { background: var(--cta); color: #fff; border-color: var(--cta); }
+.btn-cta:hover:not(:disabled) { background: var(--cta-hover); }
 .btn-danger { color: var(--color-danger); }
 
 .btn-icon {

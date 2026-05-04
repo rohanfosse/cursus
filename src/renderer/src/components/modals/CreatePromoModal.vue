@@ -117,7 +117,7 @@
           <!-- Pied -->
           <div class="cp-footer">
             <button class="btn-ghost" @click="close">Annuler</button>
-            <button class="btn-primary" :disabled="!name.trim() || saving" @click="submit">
+            <button class="btn-cta" :disabled="!name.trim() || saving" @click="submit">
               <GraduationCap :size="14" />
               {{ saving ? 'Création…' : 'Créer la promotion' }}
             </button>

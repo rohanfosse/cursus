@@ -262,12 +262,12 @@ onUnmounted(() => {
   color: var(--text-primary, #f8fafc);
 }
 .onb-btn-primary {
-  background: var(--accent-color, #6366F1);
+  background: var(--cta, #059669);
   color: white;
 }
 .onb-btn-primary:hover {
   transform: translateY(-1px);
-  filter: brightness(1.1);
+  background: var(--cta-hover, #047857);
 }
 
 @keyframes onbFadeIn {

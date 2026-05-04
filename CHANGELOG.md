@@ -1,5 +1,56 @@
 # Changelog
 
+## v2.274.0 (2026-05-04)
+
+### Alignement CTA app sur la landing — emerald
+
+Audit design app vs landing : la landing utilise **emerald** (`#059669`
+light / `#34D399` dark) pour ses CTA principaux (`.nav-cta`, `.btn-accent`),
+alors que l'app utilisait **indigo** (`--accent`) sur tous les boutons
+d'action. L'app n'avait donc aucun signal visuel fort pour les "actions de
+conversion" (Submit, Save, Confirmer, Creer, Envoyer, Deposer).
+
+**Tokens & classe nouvelle** (`base.css`, `components.css`) :
+
+- `--cta` / `--cta-hover` / `--cta-dark` / `--cta-rgb` / `--cta-subtle`,
+  ajoutes en light + dark.
+- `.btn-cta` : meme structure que `.btn-primary` mais sur la palette emerald,
+  avec micro-lift -1px et halo emerald au hover.
+- `UiButton` : nouvelle variante `cta` (`<UiButton variant="cta">`).
+
+**Boutons convertis** (~40 fichiers) — tous les boutons "commit / create /
+submit / save / send / deposit / confirm" sont passes en emerald :
+
+- **Modals** : Create*Modal (Channel, Poll, Promo, Math, Date, Code,
+  Checklist, Table, Announce), New*Modal (Travail), Import/Change/Suivi/
+  Rubric/Ressources/Intervenants/Depots/Document, Lumen, GestionDevoir.
+- **Devoirs** : DepositForm "Soumettre", StudentDevoirCard "Deposer",
+  TeacherProjectHome "Creer un devoir", DevoirsHeader "Nouveau devoir",
+  StudentProjetDevoirsList submit, TeacherRendusView save grade.
+- **Documents** : `DocumentsView`/`DocumentsEmptyState` "Ajouter",
+  `DocumentAddModal`/`DocumentEditModal` submit, MessagesView doc-drop.
+- **Booking** : BookingFlow "Confirmer le rendez-vous", TabBooking
+  "Nouveau type", TabBookingAvailability "Enregistrer", TabBookingEventTypes
+  "Nouveau type" + "Creer", CampaignManager "Nouvelle campagne" + "Lancer".
+- **Suivi etudiants** : "Nouvelle note" + submit + premiere note.
+- **Settings** : "Generer lien Outlook", "Connecter GitHub", "Connecter MS".
+- **Onboarding** : OnboardingWizard.ob-btn-primary, DemoOnboardingTour.
+- **Send messages** : `#btn-send` du chat (action haute frequence).
+- **App.vue** : "J'ai compris" privacy.
+
+**Garde indigo `--accent`** : actions secondaires (Annuler, Fermer,
+navigation, copy URL, retry, download). Les boutons danger restent
+`btn-danger`. Le `MessageReportDialog` "Envoyer le signalement" passe
+explicitement en `btn-danger` (action de moderation).
+
+**Scopes locaux mis a jour** : `cmt-/cdt-/ccd-/ccl-/ctm-/can-/ob-/onb-`
+btn-primary, `bf-btn-primary`, `btn-primary-sm` (ProjectListPanel) :
+toutes les declarations `background: var(--accent)` repointees sur
+`var(--cta)` + hover `var(--cta-hover)`.
+
+Resultat : l'app respire le meme langage visuel que la landing, avec une
+hierarchie d'action lisible (emerald = "go" / indigo = "interact").
+
 ## v2.271.0 (2026-04-30)
 
 ### Fix demo : envoi messages + visibilite bots + notifs riches

@@ -190,7 +190,7 @@
           </button>
 
           <!-- Ajouter (prof) — action principale, reste visible -->
-          <button v-if="appStore.isTeacher" class="btn-primary docs-add-btn" @click="openAddModal">
+          <button v-if="appStore.isTeacher" class="btn-cta docs-add-btn" @click="openAddModal">
             <Plus :size="14" />
             Ajouter
           </button>

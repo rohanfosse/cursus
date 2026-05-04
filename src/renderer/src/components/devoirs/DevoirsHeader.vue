@@ -46,7 +46,7 @@ const modals   = useModalsStore()
     </template>
 
     <template #actions>
-      <button v-if="appStore.isTeacher" class="btn-primary dh-new" @click="modals.newDevoir = true">
+      <button v-if="appStore.isTeacher" class="btn-cta dh-new" @click="modals.newDevoir = true">
         <Plus :size="14" /> Nouveau devoir
       </button>
     </template>

@@ -293,7 +293,7 @@
         <div style="display:flex;gap:8px;margin-left:auto">
           <button class="btn-ghost" @click="close">Annuler</button>
           <button
-            class="btn-primary"
+            class="btn-cta"
             :disabled="saving || !draftCriteria.length || draftCriteria.some(c => !c.label.trim())"
             @click="saveRubric"
           >
@@ -358,7 +358,7 @@
         <div style="margin-left:auto;display:flex;gap:8px">
           <button class="btn-ghost" @click="close">Annuler</button>
           <button
-            class="btn-primary"
+            class="btn-cta"
             :disabled="saving || !rubric"
             @click="saveScores"
           >

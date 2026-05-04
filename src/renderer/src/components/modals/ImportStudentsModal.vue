@@ -224,7 +224,7 @@ Marie Martin;marie@viacesi.fr;</pre>
       <button class="btn-ghost" @click="close">Fermer</button>
       <button
         v-if="mode === 'textarea'"
-        class="btn-primary is-submit"
+        class="btn-cta is-submit"
         :disabled="!selectedPromo || !validCount || loading"
         @click="doImportTextarea"
       >
@@ -233,7 +233,7 @@ Marie Martin;marie@viacesi.fr;</pre>
       </button>
       <button
         v-else
-        class="btn-primary is-submit"
+        class="btn-cta is-submit"
         :disabled="!selectedPromo || loading"
         @click="() => doImportCsv()"
       >

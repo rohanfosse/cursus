@@ -213,7 +213,7 @@ const ctxItems = computed<ContextMenuItem[]>(() => {
               Annuler
             </button>
             <button
-              class="btn-primary"
+              class="btn-cta"
               :disabled="!newName.trim() || !newEmail.trim() || creating"
               @click="create"
             >
@@ -321,7 +321,7 @@ const ctxItems = computed<ContextMenuItem[]>(() => {
                 <XIcon :size="12" /> Tout désélectionner
               </button>
               <button
-                class="btn-primary"
+                class="btn-cta"
                 :disabled="loadingAssign"
                 @click="saveChannels(ta.id)"
               >

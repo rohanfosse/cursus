@@ -79,7 +79,7 @@
       <textarea v-model="descDraft" autofocus class="gd-desc-textarea" rows="4" />
       <div class="gd-desc-edit-actions">
         <button class="btn-ghost" style="font-size:11px" @click="editingDesc = false">Annuler</button>
-        <button class="btn-primary" style="font-size:11px;padding:3px 10px" @click="saveDesc">OK</button>
+        <button class="btn-cta" style="font-size:11px;padding:3px 10px" @click="saveDesc">OK</button>
       </div>
     </div>
   </section>

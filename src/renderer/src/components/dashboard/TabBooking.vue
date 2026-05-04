@@ -196,7 +196,7 @@ onUnmounted(() => {
           <span>{{ msConnected ? 'Microsoft' : 'Non connecte' }}</span>
           <Settings :size="11" aria-hidden="true" class="ms-gear" />
         </button>
-        <UiButton variant="primary" size="sm" @click="triggerCreate">
+        <UiButton variant="cta" size="sm" @click="triggerCreate">
           <template #leading><Plus :size="14" /></template>
           Nouveau type
           <kbd class="kbd" aria-hidden="true">Ctrl N</kbd>

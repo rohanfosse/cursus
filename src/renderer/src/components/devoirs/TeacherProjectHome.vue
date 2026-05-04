@@ -209,7 +209,7 @@ const nothingToDo = computed(() =>
         ? 'Vos devoirs existent en brouillon. Publiez-les et associez-leur une catégorie pour les organiser.'
         : 'Les projets apparaîtront automatiquement quand vous créerez un devoir avec une catégorie.'"
   >
-    <button class="btn-primary" @click="modals.newDevoir = true">
+    <button class="btn-cta" @click="modals.newDevoir = true">
       <PlusCircle :size="14" /> Créer un devoir
     </button>
   </EmptyState>

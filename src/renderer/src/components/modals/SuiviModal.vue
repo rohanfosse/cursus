@@ -204,7 +204,7 @@
                 @keyup.enter="saveNote(r)"
                 @keyup.esc="editingNote = null"
               />
-              <button class="btn-primary suivi-save-btn" :disabled="saving" @click="saveNote(r)">✓</button>
+              <button class="btn-cta suivi-save-btn" :disabled="saving" @click="saveNote(r)">✓</button>
               <button class="btn-ghost suivi-save-btn" @click="editingNote = null">✕</button>
             </template>
             <button v-else class="suivi-note-badge" :class="r.note ? 'has-note' : 'no-note'" @click="startEditNote(r)">
@@ -221,7 +221,7 @@
                 @keyup.enter="saveFeedback(r)"
                 @keyup.esc="editingFeedback = null"
               />
-              <button class="btn-primary suivi-save-btn" :disabled="saving" @click="saveFeedback(r)">✓</button>
+              <button class="btn-cta suivi-save-btn" :disabled="saving" @click="saveFeedback(r)">✓</button>
               <button class="btn-ghost suivi-save-btn" @click="editingFeedback = null">✕</button>
             </template>
             <button v-else-if="r.note" class="suivi-feedback-btn" @click="startEditFeedback(r)">

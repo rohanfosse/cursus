@@ -101,7 +101,7 @@ function onAddSlot(day: number) {
 
     <button
       type="button"
-      class="btn-sm btn-primary save-avail-btn"
+      class="btn-sm btn-cta save-avail-btn"
       :disabled="booking.savingAvailability.value"
       :aria-busy="booking.savingAvailability.value || undefined"
       @click="booking.saveAvailability"
@@ -231,8 +231,8 @@ function onAddSlot(day: number) {
 }
 .btn-sm:hover:not(:disabled) { background: var(--bg-hover); }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+.btn-cta { background: var(--cta); color: #fff; border-color: var(--cta); }
+.btn-cta:hover:not(:disabled) { background: var(--cta-hover); }
 
 .btn-icon {
   display: inline-flex;

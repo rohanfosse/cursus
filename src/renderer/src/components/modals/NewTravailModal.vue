@@ -253,7 +253,7 @@
               <X :size="12" /> Annuler
             </button>
             <button
-              class="btn-primary"
+              class="btn-cta"
               type="button"
               style="font-size:12px"
               :disabled="!newGroupName.trim() || creatingGroup"
@@ -284,7 +284,7 @@
 
     <div class="modal-footer" style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0">
       <button class="btn-ghost" @click="emit('update:modelValue', false)">Annuler</button>
-      <button class="btn-primary" :disabled="!title.trim() || creating" @click="submit">
+      <button class="btn-cta" :disabled="!title.trim() || creating" @click="submit">
         {{ creating ? 'Création…' : isDraft ? 'Enregistrer brouillon' : 'Publier' }}
       </button>
     </div>

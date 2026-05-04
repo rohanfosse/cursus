@@ -111,7 +111,7 @@ onMounted(() => {
       <!-- Pas encore genere -->
       <div v-if="!feed.url.value" class="stg-integration-actions">
         <button
-          class="btn-primary"
+          class="btn-cta"
           :disabled="feed.loading.value"
           @click="feed.rotate()"
         >
@@ -275,7 +275,7 @@ onMounted(() => {
 
           <div class="stg-integration-actions">
             <button
-              class="btn-primary"
+              class="btn-cta"
               :disabled="ghSubmitting || !ghTokenInput.trim()"
               @click="handleGhConnect"
             >
@@ -327,7 +327,7 @@ onMounted(() => {
         <div class="stg-integration-actions">
           <button
             v-if="!ms.connected.value"
-            class="btn-primary"
+            class="btn-cta"
             :disabled="ms.loading.value"
             @click="ms.connect()"
           >
@@ -619,6 +619,7 @@ onMounted(() => {
 
 /* ── Boutons partages ────────────────────────────────────────────────────── */
 .btn-primary,
+.btn-cta,
 .btn-danger,
 .stg-btn {
   display: inline-flex;
@@ -639,6 +640,12 @@ onMounted(() => {
 }
 .btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+.btn-cta {
+  background: var(--cta);
+  color: #fff;
+}
+.btn-cta:hover:not(:disabled) { background: var(--cta-hover); }
+.btn-cta:disabled { opacity: .5; cursor: not-allowed; }
 
 .btn-danger,
 .stg-btn-danger {

@@ -277,7 +277,7 @@ function selectStudent(s: typeof studentList.value[number]) {
               {{ totalNotes }} note{{ totalNotes !== 1 ? 's' : '' }}
             </span>
           </div>
-          <button class="btn-primary ts-add-btn" @click="openNewNote()">
+          <button class="btn-cta ts-add-btn" @click="openNewNote()">
             <Plus :size="13" /> Nouvelle note
           </button>
         </div>
@@ -347,7 +347,7 @@ function selectStudent(s: typeof studentList.value[number]) {
           <div class="ts-form-actions">
             <button class="btn-ghost" @click="cancelForm()">Annuler</button>
             <button
-              class="btn-primary"
+              class="btn-cta"
               :disabled="!formContent.trim()"
               @click="submitForm()"
             >
@@ -362,7 +362,7 @@ function selectStudent(s: typeof studentList.value[number]) {
         <div v-else-if="!selectedStudentNotes.length && !showForm" class="ts-empty-cat">
           <component :is="CATEGORIES.find(c => c.id === activeCategory)?.icon ?? Notebook" :size="30" />
           <p>Aucune note dans cette catégorie</p>
-          <button class="btn-primary ts-empty-cta" @click="openNewNote()">
+          <button class="btn-cta ts-empty-cta" @click="openNewNote()">
             <Plus :size="12" /> Première note
           </button>
         </div>

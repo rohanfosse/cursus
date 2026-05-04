@@ -10,7 +10,9 @@
   import { computed } from 'vue'
   import { Loader2 } from 'lucide-vue-next'
 
-  type Variant = 'primary' | 'ghost' | 'danger' | 'icon'
+  // 'cta' = action de conversion principale (emerald, alignement landing).
+  // 'primary' = action neutre/secondaire (indigo, accent app).
+  type Variant = 'cta' | 'primary' | 'ghost' | 'danger' | 'icon'
   type Size = 'sm' | 'md' | 'lg'
 
   const props = withDefaults(defineProps<{
@@ -33,6 +35,7 @@
   const klass = computed(() => {
     if (props.variant === 'icon') return 'btn-icon'
     return {
+      cta: 'btn-cta',
       primary: 'btn-primary',
       ghost: 'btn-ghost',
       danger: 'btn-danger',

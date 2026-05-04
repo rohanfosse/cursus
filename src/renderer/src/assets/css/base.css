@@ -66,6 +66,16 @@ body.theme-transitioning *::after {
   --accent-rgb:    129,140,248;
   --accent-subtle: rgba(var(--accent-rgb), .14);
 
+  /* CTA — emerald (alignement landing : .nav-cta + boutons de conversion).
+     Reservé aux actions de validation/creation principales (Submit, Save,
+     Confirmer, Creer). Les actions secondaires (Cancel, Retry) restent sur
+     --accent indigo. Cf. src/landing/style.css §--accent. */
+  --cta:        #34D399;
+  --cta-hover:  #6EE7B7;
+  --cta-dark:   #10B981;
+  --cta-rgb:    52,211,153;
+  --cta-subtle: rgba(var(--cta-rgb), .14);
+
   /* Ombres - teintees indigo (landing dark) */
   --shadow-sm: 0 2px 8px rgba(0,0,0,.3);
   --shadow-md: 0 8px 32px rgba(0,0,0,.4);
@@ -305,6 +315,13 @@ body.light, body.cursus {
   --accent-light:  #818CF8;
   --accent-rgb:    99,102,241;
   --accent-subtle: rgba(99,102,241,.10);
+
+  /* CTA emerald — variante saturee pour fond clair (landing light) */
+  --cta:        #059669;
+  --cta-hover:  #047857;
+  --cta-dark:   #065F46;
+  --cta-rgb:    5,150,105;
+  --cta-subtle: rgba(5,150,105,.10);
 
   /* Code blocks (light theme) */
   --code-bg: #F8F9FB;

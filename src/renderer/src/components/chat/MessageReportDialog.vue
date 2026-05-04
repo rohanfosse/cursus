@@ -45,7 +45,7 @@ const QUICK_REASONS = ['Harcelement', 'Spam', 'Contenu inapproprie', 'Hors-sujet
         />
         <div class="report-actions">
           <button class="btn-ghost" @click="$emit('update:open', false)">Annuler</button>
-          <button class="btn-primary" :disabled="!reason.trim()" @click="$emit('submit')">Envoyer</button>
+          <button class="btn-danger" :disabled="!reason.trim()" @click="$emit('submit')">Envoyer</button>
         </div>
       </div>
     </div>
@@ -157,23 +157,10 @@ const QUICK_REASONS = ['Harcelement', 'Spam', 'Contenu inapproprie', 'Hors-sujet
   justify-content: flex-end;
   gap: var(--space-sm);
 }
-.report-actions .btn-primary {
-  background: var(--color-danger);
-  color: white;
+.report-actions .btn-danger {
   padding: 6px 16px;
   border-radius: var(--radius-sm);
   font-size: 12px;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  transition: filter var(--motion-fast) var(--ease-out);
-}
-.report-actions .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
-.report-actions .btn-primary:disabled {
-  opacity: .4;
-  cursor: not-allowed;
 }
 .report-actions .btn-ghost {
   padding: 6px 12px;
@@ -187,7 +174,7 @@ const QUICK_REASONS = ['Harcelement', 'Spam', 'Contenu inapproprie', 'Hors-sujet
 
 @media (prefers-reduced-motion: reduce) {
   .report-reason-btn,
-  .report-actions .btn-primary,
+  .report-actions .btn-danger,
   .lightbox-fade-enter-active,
   .lightbox-fade-leave-active {
     transition: none !important;

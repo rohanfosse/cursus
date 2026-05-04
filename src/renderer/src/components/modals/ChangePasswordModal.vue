@@ -217,7 +217,7 @@ function tryClose() {
           <div class="cpw-footer">
             <button v-if="!forced" class="btn-ghost" @click="tryClose">Annuler</button>
             <button
-              class="btn-primary cpw-submit"
+              class="btn-cta cpw-submit"
               :disabled="!canSubmit || saving"
               @click="save"
             >

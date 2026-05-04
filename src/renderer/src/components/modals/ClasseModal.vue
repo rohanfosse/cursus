@@ -292,7 +292,7 @@
                 <Users :size="32" class="classe-empty-icon" />
                 <p class="classe-empty-title">Aucun étudiant dans cette promotion</p>
                 <p class="classe-empty-sub">Importez une liste d'étudiants pour commencer.</p>
-                <button class="btn-primary classe-empty-csv-btn" type="button">
+                <button class="btn-cta classe-empty-csv-btn" type="button">
                   <Upload :size="14" /> Importer CSV
                 </button>
               </div>

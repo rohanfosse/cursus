@@ -145,7 +145,7 @@ function formatDateRange(start?: string, end?: string): string {
           <ChevronLeft :size="15" />
           <span>Tous les projets</span>
         </button>
-        <button class="btn-primary pf-btn-add" @click="addTravail">
+        <button class="btn-cta pf-btn-add" @click="addTravail">
           <Plus :size="13" /> Nouveau travail
         </button>
       </div>

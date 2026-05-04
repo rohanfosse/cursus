@@ -142,7 +142,7 @@
     <div class="reminder-footer">
       <button class="btn-ghost" style="font-size:12px" @click="emit('close')">Annuler</button>
       <button
-        class="btn-primary" style="font-size:12px"
+        class="btn-cta" style="font-size:12px"
         :disabled="!preview.trim() || sending"
         @click="send"
       >

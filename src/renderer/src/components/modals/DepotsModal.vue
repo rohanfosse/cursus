@@ -205,7 +205,7 @@
 
           <!-- Actions -->
           <div class="batch-actions">
-            <button class="btn-primary" :disabled="batch.saving.value || !batch.pendingNote.value" @click="batch.saveAndNext()">
+            <button class="btn-cta" :disabled="batch.saving.value || !batch.pendingNote.value" @click="batch.saveAndNext()">
               Enregistrer et suivant
             </button>
             <button class="btn-ghost" :disabled="batch.saving.value || !batch.pendingNote.value" @click="batch.save()">
@@ -308,7 +308,7 @@
             </div>
             <div v-if="showAddFeedback" class="feedback-add-form">
               <input v-model="newFeedbackText" class="form-input" placeholder="Nouveau commentaire rapide..." style="flex:1;font-size:12px" @keydown.enter.prevent="addCustomFeedback" />
-              <button class="btn-primary" style="font-size:12px;padding:4px 10px" @click="addCustomFeedback">OK</button>
+              <button class="btn-cta" style="font-size:12px;padding:4px 10px" @click="addCustomFeedback">OK</button>
               <button class="btn-ghost" style="font-size:12px;padding:4px 6px" @click="showAddFeedback = false">&times;</button>
             </div>
             <textarea
@@ -325,7 +325,7 @@
                 <X :size="11" /> Annuler
               </button>
               <button
-                class="btn-primary"
+                class="btn-cta"
                 style="font-size:12px"
                 :disabled="saving"
                 @click="saveFeedback(d)"
@@ -356,7 +356,7 @@
                 Annuler
               </button>
               <button
-                class="btn-primary"
+                class="btn-cta"
                 style="font-size:11px;padding:3px 8px"
                 :disabled="saving || !noteInput"
                 @click="saveNote(d)"

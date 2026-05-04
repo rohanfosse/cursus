@@ -30,6 +30,36 @@ button { font-family: var(--font); }
 .btn-primary:disabled               { opacity: .4; cursor: not-allowed; filter: saturate(.6); }
 .btn-primary:focus-visible          { outline: 2px solid var(--accent-light); outline-offset: 2px; }
 
+/* CTA — emerald, alignement landing (.nav-cta + .btn-accent).
+   Reserve aux actions de conversion/validation principales (Submit, Save,
+   Confirmer, Creer, Envoyer, Demarrer). Les actions secondaires gardent
+   .btn-primary indigo. Cf. base.css §--cta. */
+.btn-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--cta);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: var(--space-sm) var(--space-lg);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast), background var(--t-fast);
+}
+.btn-cta:hover:not(:disabled) {
+  background: var(--cta-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--cta-rgb),.30);
+}
+.btn-cta:active:not(:disabled) { filter: brightness(.92); transform: translateY(0); box-shadow: none; }
+.btn-cta:disabled              { opacity: .4; cursor: not-allowed; filter: saturate(.6); }
+.btn-cta:focus-visible         { outline: 2px solid var(--cta); outline-offset: 2px; }
+
 .btn-ghost {
   display: inline-flex;
   align-items: center;
@@ -111,14 +141,14 @@ button { font-family: var(--font); }
 .btn-close-modal:hover { background: var(--bg-hover); color: var(--text-primary); }
 .btn-close-modal:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* Bouton envoyer — rectangle avec icone+label "Envoyer".
+/* Bouton envoyer — CTA emerald (alignement landing).
    v2.273.2 : reverted le rond 36px de v2.273 qui cassait le layout (le
    bouton app a un text label, contrairement a la demo landing icon-only). */
 #btn-send {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--accent);
+  background: var(--cta);
   border: none;
   border-radius: var(--radius);
   color: #fff;
@@ -127,8 +157,8 @@ button { font-family: var(--font); }
   flex-shrink: 0;
   transition: background var(--t-base);
 }
-#btn-send:hover    { background: var(--accent-hover); }
-#btn-send:active   { background: var(--accent-dark); }
+#btn-send:hover    { background: var(--cta-hover); }
+#btn-send:active   { background: var(--cta-dark); }
 #btn-send:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ════════════════════════════════════════════

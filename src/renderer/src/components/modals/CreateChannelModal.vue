@@ -274,7 +274,7 @@
 
     <div class="cc-footer">
       <button class="btn-ghost" @click="emit('update:modelValue', false)">Annuler</button>
-      <button class="btn-primary" :disabled="!channelName.trim() || creating" @click="create">
+      <button class="btn-cta" :disabled="!channelName.trim() || creating" @click="create">
         {{ creating ? 'Création…' : 'Créer le canal' }}
       </button>
     </div>

@@ -295,7 +295,7 @@ onMounted(() => {
         </h2>
         <p class="cm-subtitle">Visites tripartites planifiees sur une periode donnee.</p>
       </div>
-      <UiButton variant="primary" size="sm" @click="showCreate = true">
+      <UiButton variant="cta" size="sm" @click="showCreate = true">
         <template #leading><Plus :size="14" /></template>
         Nouvelle campagne
       </UiButton>
@@ -402,7 +402,7 @@ onMounted(() => {
                 <template #leading><Eye :size="12" /></template>
                 Apercu invitation
               </UiButton>
-              <UiButton v-if="c.status === 'draft'" variant="primary" size="sm" @click="onLaunch(c)">
+              <UiButton v-if="c.status === 'draft'" variant="cta" size="sm" @click="onLaunch(c)">
                 <template #leading><Send :size="12" /></template>
                 Lancer ({{ c.invite_count ?? 0 }} mails)
               </UiButton>
@@ -682,7 +682,7 @@ onMounted(() => {
       <footer class="cm-form-footer">
         <UiButton variant="ghost" size="md" @click="showCreate = false">Annuler</UiButton>
         <UiButton
-          variant="primary"
+          variant="cta"
           size="md"
           :disabled="!canSubmit"
           :loading="submitting"

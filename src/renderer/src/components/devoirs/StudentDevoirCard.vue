@@ -251,7 +251,7 @@ function formatDesc(text: string): string {
         <span class="devoir-countdown" :class="[`countdown--${variant}`, `countdown--${deadlineClass(devoir.deadline)}`]">
           <Clock :size="10" /> {{ countdown(devoir.deadline) }}
         </span>
-        <button class="btn-primary btn-deposit" @click="startDeposit(devoir)">
+        <button class="btn-cta btn-deposit" @click="startDeposit(devoir)">
           <Upload :size="12" /> Déposer
         </button>
       </div>

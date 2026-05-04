@@ -680,7 +680,7 @@
           </div>
         </div>
 
-        <button class="btn-primary privacy-accept" @click="acceptPrivacy">
+        <button class="btn-cta privacy-accept" @click="acceptPrivacy">
           J'ai compris
         </button>
       </div>

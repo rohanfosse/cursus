@@ -575,23 +575,24 @@ async function savePhoto() {
 }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
+/* CTA emerald — alignement landing */
 .ob-btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 10px 22px;
-  background: var(--accent);
+  background: var(--cta);
   color: #fff;
   border: none;
   border-radius: var(--radius);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity var(--motion-fast) var(--ease-out), transform 0.1s ease;
+  transition: background var(--motion-fast) var(--ease-out), transform 0.1s ease;
 }
 
 .ob-btn-primary:hover {
-  opacity: 0.9;
+  background: var(--cta-hover);
 }
 
 .ob-btn-primary:active {

@@ -395,7 +395,7 @@
           <div class="ress-form-actions">
             <button class="btn-ghost" type="button" @click="showForm = false">Annuler</button>
             <button
-              class="btn-primary"
+              class="btn-cta"
               type="button"
               :disabled="!addName.trim() || !selectedTravailId || (addType === 'link' ? !addLink.trim() : !addFile) || adding"
               @click="submitAdd"

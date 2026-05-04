@@ -114,7 +114,7 @@
 
       <div class="da-footer">
         <button type="button" class="btn-ghost" @click="showAddModal = false">Annuler</button>
-        <button type="submit" class="btn-primary da-submit"
+        <button type="submit" class="btn-cta da-submit"
           :disabled="(addType === 'file' ? !addFiles.length : (!addName.trim() || !addLink.trim())) || (addType === 'file' && addFiles.length === 1 && !addName.trim()) || adding"
         >{{ adding ? (uploadTotal > 1 ? `Envoi ${uploadCurrentIndex}/${uploadTotal}...` : 'Envoi...') : (addFiles.length > 1 ? `Ajouter ${addFiles.length} fichiers` : 'Ajouter') }}</button>
       </div>
