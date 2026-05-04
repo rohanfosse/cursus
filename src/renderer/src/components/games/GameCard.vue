@@ -84,7 +84,7 @@ function play() { router.push(props.game.route) }
 </script>
 
 <template>
-  <article class="game-card" :style="{ '--accent': game.accent }" @click="play">
+  <article class="game-card" :style="{ '--game-c': game.accent }" @click="play">
     <header class="gc-head">
       <span class="gc-icon" aria-hidden="true">
         <component :is="game.icon" :size="20" />
@@ -151,32 +151,33 @@ function play() { router.push(props.game.route) }
 </template>
 
 <style scoped>
+/* v2.273.10 — refonte cards jeux pour coherence et modernite :
+   - fond uniforme blanc/bg-elevated (plus de radial-gradient teinte par jeu)
+   - couleur du jeu utilisee UNIQUEMENT sur l'icone (icon-ring style FilesView)
+   - CTA "Jouer" uniforme indigo (--accent systeme)
+   - hover/shadow neutres indigo
+   - badge "Nouveau" subtil emerald (au lieu d'orange criard)
+   - typo alignee design system (font-display 800 pour titres) */
 .game-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  background: var(--bg-sidebar);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 18px;
   cursor: pointer;
   overflow: hidden;
-  transition: transform .15s, box-shadow .15s, border-color .15s;
-}
-
-.game-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at top right, color-mix(in srgb, var(--accent, #3b82f6), transparent 85%), transparent 60%);
-  pointer-events: none;
-  transition: opacity .2s;
+  transition: transform var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
 }
 
 .game-card:hover {
   transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--accent, #3b82f6), transparent 60%);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .15), 0 2px 6px color-mix(in srgb, var(--accent, #3b82f6), transparent 80%);
+  border-color: rgba(var(--accent-rgb), .35);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .08),
+              0 0 0 1px rgba(var(--accent-rgb), .08);
 }
 
 .gc-head {
@@ -192,21 +193,23 @@ function play() { router.push(props.game.route) }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--accent, #3b82f6), transparent 85%);
-  color: var(--accent, #3b82f6);
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--game-c, var(--accent)) 12%, var(--bg-elevated));
+  border: 1.5px solid color-mix(in srgb, var(--game-c, var(--accent)) 22%, transparent);
+  color: var(--game-c, var(--accent));
   flex-shrink: 0;
 }
 
 .gc-title-wrap { flex: 1; min-width: 0; }
 .gc-title {
+  font-family: var(--font-display);
   font-size: 16px;
   font-weight: 800;
+  letter-spacing: -.01em;
   color: var(--text-primary);
   margin: 0 0 2px;
-  letter-spacing: -.2px;
 }
 .gc-tagline {
   font-size: 12px;
@@ -218,21 +221,23 @@ function play() { router.push(props.game.route) }
 .gc-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   padding: 3px 8px;
   border-radius: 999px;
-  font-size: 10px;
+  font-family: var(--font-display);
+  font-size: 9.5px;
   font-weight: 800;
-  letter-spacing: .3px;
+  letter-spacing: .06em;
   text-transform: uppercase;
   flex-shrink: 0;
 }
 .gc-badge--new {
-  background: linear-gradient(135deg, #eab308, #f59e0b);
-  color: #1a1a1a;
+  background: color-mix(in srgb, var(--color-success) 14%, transparent);
+  color: var(--color-success);
+  border: 1px solid color-mix(in srgb, var(--color-success) 28%, transparent);
 }
 .gc-badge--beta {
-  background: var(--bg-elevated);
+  background: var(--bg-hover);
   border: 1px solid var(--border);
   color: var(--text-muted);
 }
@@ -283,8 +288,8 @@ function play() { router.push(props.game.route) }
   color: var(--text-secondary);
 }
 .gc-row--me {
-  background: color-mix(in srgb, var(--accent, #3b82f6), transparent 85%);
-  color: var(--accent, #3b82f6);
+  background: rgba(var(--accent-rgb), .10);
+  color: var(--accent);
   font-weight: 700;
 }
 
@@ -313,7 +318,7 @@ function play() { router.push(props.game.route) }
 .gc-bar-fill {
   display: block;
   height: 100%;
-  background: var(--accent, #3b82f6);
+  background: var(--accent);
   border-radius: 2px;
   transition: width .3s ease;
 }
@@ -367,27 +372,33 @@ function play() { router.push(props.game.route) }
   font-variant-numeric: tabular-nums;
 }
 
+/* CTA "Jouer" — uniforme indigo (var--accent systeme) pour TOUS les jeux,
+   au lieu d'un degrade par couleur de jeu qui creait l'incoherence. */
 .gc-cta {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 7px 16px;
+  padding: 8px 18px;
   margin-left: auto;
   border: none;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent, #3b82f6), color-mix(in srgb, var(--accent, #3b82f6), white 20%));
+  background: var(--accent);
   color: #fff;
   font-size: 12px;
-  font-weight: 800;
-  letter-spacing: .3px;
+  font-weight: 700;
+  letter-spacing: .02em;
   cursor: pointer;
-  transition: transform .12s, filter .12s, box-shadow .12s;
-  box-shadow: 0 2px 6px color-mix(in srgb, var(--accent, #3b82f6), transparent 75%);
+  transition: transform var(--motion-fast) var(--ease-out),
+              filter var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+  box-shadow: 0 2px 8px rgba(var(--accent-rgb), .25);
   flex-shrink: 0;
 }
 .gc-cta:hover {
   transform: translateY(-1px);
-  filter: brightness(1.08);
+  filter: brightness(1.05);
+  box-shadow: 0 4px 12px rgba(var(--accent-rgb), .32);
+  background: var(--accent-hover);
 }
 .gc-cta:active {
   transform: translateY(0);
