@@ -1,5 +1,65 @@
 # Changelog
 
+## v2.275.0 (2026-05-04)
+
+### Refonte design Lumen — voix editoriale unifiee
+
+Audit honnete du module Lumen (cours markdown) : **5.5/10 avant, 7.5/10 apres**.
+Trois phases livrees ensemble (P1 quick wins, P2 layout refonte, P3 polish).
+
+**Phase 1 — Quick wins** :
+
+- **Voix typographique unique** : suppression du bloc CSS dupliquant 15px
+  sans-serif dans `LumenChapterViewer.vue` qui se battait avec le bloc 17px
+  Newsreader serif de `LumenView.vue`. Le viewer parle desormais d'une
+  seule voix editoriale (Newsreader 17px / line-height 1.72 / serif). Le
+  bloc style global de `LumenView.vue` est supprime, tout vit dans le
+  composant viewer.
+- **Largeur de lecture sous controle** : `.lumen-viewer-body` plafonne a
+  760px (~70-75 caracteres en 17px serif) sur tous les ecrans, au lieu
+  d'un `max-width: 100%` qui s'activait sous 1400px et laissait des
+  lignes a 150 chars sur 13" laptop. Padding adapte par breakpoints
+  (56 / 32 / 20 px).
+- **Admonitions reparees** : le HTML genere par `utils/markdown.ts`
+  utilise les classes `lumen-adm-note/tip/warning/danger`, mais le CSS
+  ciblait `lumen-admonition--note/tip/...`. Les variantes colorees ne
+  s'affichaient donc pas. Header (icone + titre "Note", "Astuce", etc.)
+  desormais visible et stylise par variante.
+- **Floating nav prev/next** : opacity 0.4 → 0.65 par defaut, 1.0 au
+  hover. Les boutons etaient quasi invisibles sur fond clair.
+
+**Phase 2 — Layout refonte** :
+
+- **Notes panel masque sous 1200px** : sous ce seuil, outline (220) +
+  notes (320) + body 760 = 1300px de largeur necessaire. On hide le
+  panneau pour rendre la lecture prioritaire. Cf. Notion qui hide la
+  sidebar a <1000px. Le contenu des notes reste persiste, juste non
+  visible — l'etudiant retrouve ses notes des qu'il elargit la fenetre.
+- **Outline header touch target 44px** : auparavant 30x30px (toggle
+  inadapte tactile). Full-width clickable, hover bg, focus ring inset.
+- **Breadcrumb hierarchise** : projet (link, muted) → section (italique,
+  secondary) → chapitre courant (bold 16px, primary). Trois niveaux
+  visuellement distincts au lieu de trois `<span>` identiques.
+- **Header chapitre allege** : chips secondaires (Print, Copy-link, Exec)
+  passent en style ghost minimal (icone + halo discret, sans bordure).
+  L'oeil se pose sur les actions primaires (Edit / Companion / Devoirs).
+
+**Phase 3 — Polish** :
+
+- **Code blocks fade-right** : mask-image lineaire signale "scroll
+  horizontal possible" sur les lignes longues. Sans cet indicateur, les
+  utilisateurs ignoraient le contenu cache a droite.
+- **Focus ring textarea notes** : `box-shadow: inset 2px accent` quand le
+  textarea est focus. Plus de flou visuel sur fond sombre.
+- **Inputs modal "Nouveau cours"** : 14px / padding 12px (etait 13/10,
+  ressemblait a du placeholder). Standard Stripe/Linear.
+- **Stale banner et fin de cours** : centres avec max-width 760px pour
+  rester dans la colonne de lecture. Tokens `--color-warning-rgb` /
+  `--color-success-rgb` au lieu d'rgb hardcodes.
+- **Reading-light toggle retire** : il dupliquait le theme switch global
+  via `!important` hardcodes qui cassaient le tokenisme. Si l'etudiant
+  veut un mode clair, il switch le theme app (Settings → Apparence).
+
 ## v2.274.0 (2026-05-04)
 
 ### Alignement CTA app sur la landing — emerald

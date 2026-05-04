@@ -895,18 +895,22 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
   color: var(--text-primary);
 }
 .lumen-modal-field input {
-  padding: 10px 12px;
+  /* v2.275 : 14px padding 12px = standard Stripe/Linear (etait 13px / 10px,
+     ressemblait a du placeholder). */
+  padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   outline: none;
+  transition: border-color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
 }
 .lumen-modal-field input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .18);
 }
 .lumen-modal-actions {
   display: flex;
@@ -930,141 +934,6 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
 }
 </style>
 
-<!-- Styles globaux : rendu du markdown en mode editorial. Non-scoped car le HTML est genere par marked + DOMPurify. -->
-<style>
-.lumen-viewer .markdown-body {
-  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
-  font-size: 17px;
-  line-height: 1.72;
-  color: var(--text-primary);
-  font-feature-settings: 'liga', 'kern';
-}
+<!-- Styles editoriaux du body markdown : delegues a LumenChapterViewer.vue
+     pour avoir UNE seule source de verite (cf. v2.275 audit design). -->
 
-.lumen-viewer .markdown-body h1,
-.lumen-viewer .markdown-body h2,
-.lumen-viewer .markdown-body h3,
-.lumen-viewer .markdown-body h4,
-.lumen-viewer .markdown-body h5,
-.lumen-viewer .markdown-body h6 {
-  font-family: 'Newsreader', Georgia, serif;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.25;
-  color: var(--text-primary);
-  margin: 1.8em 0 0.6em;
-  scroll-margin-top: 80px;
-}
-.lumen-viewer .markdown-body h1 {
-  font-size: 2.2em;
-  margin-top: 0.2em;
-  border-bottom: 2px solid var(--border);
-  padding-bottom: 0.3em;
-}
-.lumen-viewer .markdown-body h2 {
-  font-size: 1.7em;
-  margin-top: 2em;
-}
-.lumen-viewer .markdown-body h3 { font-size: 1.35em; }
-.lumen-viewer .markdown-body h4 { font-size: 1.15em; }
-.lumen-viewer .markdown-body h5 { font-size: 1em; text-transform: uppercase; letter-spacing: 0.05em; }
-.lumen-viewer .markdown-body h6 { font-size: 0.9em; color: var(--text-secondary); }
-
-.lumen-viewer .markdown-body p { margin: 0 0 1em; }
-.lumen-viewer .markdown-body strong { font-weight: 700; color: var(--text-primary); }
-.lumen-viewer .markdown-body em { font-style: italic; }
-
-.lumen-viewer .markdown-body a {
-  color: var(--accent);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
-  transition: all var(--t-fast) ease;
-}
-.lumen-viewer .markdown-body a:hover {
-  text-decoration-thickness: 2px;
-}
-
-.lumen-viewer .markdown-body ul,
-.lumen-viewer .markdown-body ol {
-  margin: 0 0 1em;
-  padding-left: 1.6em;
-}
-.lumen-viewer .markdown-body li { margin: 0.3em 0; }
-.lumen-viewer .markdown-body li > p { margin: 0.2em 0; }
-
-.lumen-viewer .markdown-body code {
-  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.88em;
-  background: var(--bg-secondary);
-  padding: 0.15em 0.4em;
-  border-radius: var(--radius-xs);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-}
-
-.lumen-viewer .markdown-body pre.lumen-code {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 16px 18px;
-  overflow-x: auto;
-  margin: 1.4em 0;
-  line-height: 1.55;
-}
-.lumen-viewer .markdown-body pre.lumen-code code {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: 13.5px;
-  color: var(--text-primary);
-}
-
-.lumen-viewer .markdown-body blockquote {
-  margin: 1.4em 0;
-  padding: 0.2em 0 0.2em 1.2em;
-  border-left: 3px solid var(--accent);
-  color: var(--text-secondary);
-  font-style: italic;
-}
-.lumen-viewer .markdown-body blockquote p { margin: 0.5em 0; }
-
-.lumen-viewer .markdown-body table {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 1.4em 0;
-  font-size: 14px;
-  font-family: var(--font-ui, -apple-system, system-ui, sans-serif);
-}
-.lumen-viewer .markdown-body th,
-.lumen-viewer .markdown-body td {
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  text-align: left;
-}
-.lumen-viewer .markdown-body th {
-  background: var(--bg-secondary);
-  font-weight: 700;
-}
-
-.lumen-viewer .markdown-body hr {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 2.4em 0;
-}
-
-.lumen-viewer .markdown-body .lumen-admonition {
-  margin: 1.4em 0;
-  padding: 14px 18px;
-  border-left: 4px solid var(--accent);
-  background: var(--bg-secondary);
-  border-radius: 0 6px 6px 0;
-}
-
-.lumen-viewer .markdown-body img {
-  max-width: 100%;
-  height: auto;
-  border-radius: var(--radius-sm);
-  display: block;
-  margin: 1.4em auto;
-}
-</style>

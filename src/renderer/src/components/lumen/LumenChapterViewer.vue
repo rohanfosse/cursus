@@ -13,7 +13,7 @@
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick, toRef, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Copy, Check, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, EyeOff, Columns2, Link2, Printer, Sun, Moon, Search, Terminal } from 'lucide-vue-next'
+import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Check, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, Columns2, Link2, Printer, Search, Terminal } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
 import { renderTex } from '@/utils/texRenderer'
 import { renderIpynb } from '@/utils/ipynbRenderer'
@@ -206,10 +206,6 @@ const {
   chapterKind,
   isMarp,
 })
-
-// Mode lecture clair/sombre — persiste dans localStorage
-const readingLight = ref(localStorage.getItem('lumen-reading-light') === '1')
-watch(readingLight, (v) => { localStorage.setItem('lumen-reading-light', v ? '1' : '0') })
 
 // v2.79 : imprimer le chapitre courant (feuille @media print gere le reste).
 function printChapter() {
@@ -567,16 +563,6 @@ watch(() => [props.content, props.chapter?.path], () => {
           <span v-if="repo.manifest?.author" class="lumen-viewer-meta-item">
             <User :size="10" /> {{ repo.manifest.author }}
           </span>
-          <button
-            v-if="!isPdf"
-            type="button"
-            class="lumen-viewer-chip lumen-viewer-chip--light-toggle"
-            :title="readingLight ? 'Mode sombre' : 'Mode clair'"
-            @click="readingLight = !readingLight"
-          >
-            <Sun v-if="readingLight" :size="11" />
-            <Moon v-else :size="11" />
-          </button>
           <LumenAnnotations
             v-if="!isPdf && !editMode"
             :repo-id="repo.id"
@@ -647,8 +633,7 @@ watch(() => [props.content, props.chapter?.path], () => {
         <div
           v-else
           class="lumen-viewer-body markdown-body"
-          :class="{ 'lumen-reading-light': readingLight }"
-          v-html="ipynbHtml"
+                    v-html="ipynbHtml"
         />
       </div>
 
@@ -976,39 +961,31 @@ button.lumen-viewer-chip:focus-visible {
   opacity: .5;
   cursor: not-allowed;
 }
-.lumen-viewer-chip--link-copy {
+/* Actions secondaires (Print, Copy-link, Exec) : style ghost minimal —
+   icon + halo discret. v2.275 : demotees visuellement pour que l'oeil se
+   focus sur Edit / Companion / Devoirs (les actions primaires).
+   Cf. GitHub docs : un seul bouton "edit" flottant proeminent. */
+.lumen-viewer-chip--link-copy,
+.lumen-viewer-chip--print,
+.lumen-viewer-chip--exec {
   color: var(--text-muted);
-  border-color: var(--border);
+  border-color: transparent;
+  background: transparent;
+  padding: 4px 6px;
 }
-.lumen-viewer-chip--link-copy:hover {
+.lumen-viewer-chip--link-copy:hover,
+.lumen-viewer-chip--print:hover,
+.lumen-viewer-chip--exec:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
 .lumen-viewer-chip--link-copy.copied {
   color: var(--color-success);
-  border-color: rgba(var(--color-success-rgb), .4);
   background: rgba(var(--color-success-rgb), .1);
-}
-.lumen-viewer-chip--print {
-  color: var(--text-muted);
-  border-color: var(--border);
-}
-.lumen-viewer-chip--print:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-.lumen-viewer-chip--exec {
-  color: var(--text-muted);
-  border-color: var(--border);
-}
-.lumen-viewer-chip--exec:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
 }
 .lumen-viewer-chip--exec.active {
   color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: rgba(var(--accent-rgb), .12);
 }
 
 /* Edition inline (v2.104) */
@@ -1311,57 +1288,35 @@ button.lumen-viewer-chip:focus-visible {
   color: var(--text-muted);
 }
 
-/* Mode lecture clair */
-.lumen-viewer-chip--light-toggle {
-  color: var(--text-muted);
-  border-color: var(--border);
-}
-.lumen-viewer-chip--light-toggle:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-.lumen-reading-light {
-  background: #faf9f7 !important;
-  color: #1a1a1a !important;
-}
-.lumen-reading-light :deep(h1),
-.lumen-reading-light :deep(h2),
-.lumen-reading-light :deep(h3),
-.lumen-reading-light :deep(h4),
-.lumen-reading-light :deep(h5),
-.lumen-reading-light :deep(h6) {
-  color: #111 !important;
-}
-.lumen-reading-light :deep(a) {
-  color: #1a73e8 !important;
-}
-.lumen-reading-light :deep(code):not(:deep(pre) code) {
-  background: rgba(0, 0, 0, 0.06) !important;
-  color: #c7254e !important;
-}
-.lumen-reading-light :deep(blockquote) {
-  border-color: #ddd !important;
-  color: #555 !important;
-}
-.lumen-reading-light :deep(table) td,
-.lumen-reading-light :deep(table) th {
-  border-color: #ddd !important;
-}
-.lumen-reading-light :deep(hr) {
-  border-color: #ddd !important;
-}
+/* v2.275 : reading-light toggle retire — il dupliquait le theme switch
+   global et utilisait des !important hardcodes qui cassaient le tokenisme.
+   Si l'utilisateur veut un mode clair pour la lecture, il switch le theme
+   global app (Settings -> Apparence). */
 
+/* Corps markdown : largeur de lecture confortable (~70-75 caracteres en
+   17px serif) capee a 760px. Centre dans le flex parent — l'outline
+   (220px) reste a droite, le contenu reste lisible meme sur 4K.
+   Cf. Stripe docs / Mintlify / Notion qui plafonnent autour de 720-780px. */
 .lumen-viewer-body {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-lg) 48px var(--space-md);
-  max-width: 820px;
+  padding: var(--space-xl) 56px var(--space-xl);
+  max-width: 760px;
   width: 100%;
   margin: 0 auto;
 }
-@media (max-width: 1400px) {
+/* Sur ecran moyen, on garde max-width 760px mais on reduit le padding
+   horizontal pour que les marges ne mangent pas le contenu. */
+@media (max-width: 1280px) {
   .lumen-viewer-body {
-    padding: var(--space-lg) 24px var(--space-md);
+    padding: var(--space-xl) 32px var(--space-xl);
+  }
+}
+/* Sous 900px le confort de 760px disparait : on laisse le body remplir
+   l'espace dispo pour eviter les marges fantomes. */
+@media (max-width: 900px) {
+  .lumen-viewer-body {
+    padding: var(--space-lg) 20px var(--space-lg);
     max-width: 100%;
   }
 }
@@ -1489,12 +1444,22 @@ button.lumen-viewer-chip:focus-visible {
   cursor: pointer;
   font: inherit;
   padding: 0;
+  color: var(--text-muted);
+  font-weight: 500;
+  transition: color var(--motion-fast) var(--ease-out);
 }
 .lumen-breadcrumbs-link:hover { color: var(--accent); text-decoration: underline; }
+/* Section parente : italique pour la differencier du projet (memes muted)
+   et du chapitre courant (bold). */
+.lumen-breadcrumbs-seg:not(.lumen-breadcrumbs-link):not(.lumen-breadcrumbs-current) {
+  font-style: italic;
+  color: var(--text-secondary);
+}
 .lumen-breadcrumbs-current {
   color: var(--text-primary);
   font-weight: 700;
   font-size: 16px;
+  font-style: normal;
   max-width: 520px;
 }
 .lumen-breadcrumbs-sep {
@@ -1509,13 +1474,14 @@ button.lumen-viewer-chip:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 8px 48px 0;
-  padding: 10px 14px;
-  background: rgba(217, 138, 0, 0.12);
-  border: 1px solid rgba(217, 138, 0, 0.35);
-  border-radius: var(--radius-sm);
+  margin: 12px auto 0;
+  max-width: 760px;
+  padding: 12px 16px;
+  background: rgba(var(--color-warning-rgb), 0.12);
+  border: 1px solid rgba(var(--color-warning-rgb), 0.35);
+  border-radius: var(--radius);
   font-size: 13px;
-  color: var(--warning);
+  color: var(--color-warning);
   flex-shrink: 0;
 }
 .lumen-stale-banner svg { flex-shrink: 0; }
@@ -1527,16 +1493,14 @@ button.lumen-viewer-chip:focus-visible {
   justify-content: center;
   gap: 8px;
   padding: 16px;
-  margin: 24px 48px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--success) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
-  color: var(--success);
+  margin: 24px auto;
+  max-width: 760px;
+  border-radius: var(--radius);
+  background: rgba(var(--color-success-rgb), 0.08);
+  border: 1px solid rgba(var(--color-success-rgb), 0.25);
+  color: var(--color-success);
   font-size: 14px;
   font-weight: 600;
-}
-@supports not (color: color-mix(in srgb, white, black)) {
-  .lumen-end-of-course { background: var(--bg-hover); border-color: var(--border); }
 }
 .lumen-stale-refresh {
   margin-left: auto;
@@ -1716,7 +1680,9 @@ button.lumen-viewer-chip:focus-visible {
   color: var(--text-secondary);
   cursor: pointer;
   box-shadow: var(--elevation-2);
-  opacity: 0.4;
+  /* v2.275 : 0.4 etait quasi invisible sur fond clair. 0.65 = present
+     mais pas intrusif, hover plein. */
+  opacity: 0.65;
   transform: translateY(0);
   transition: opacity var(--motion-base) var(--ease-out),
               background var(--motion-fast) var(--ease-out),
@@ -1725,7 +1691,7 @@ button.lumen-viewer-chip:focus-visible {
 }
 .lumen-viewer-main:hover .lumen-floating-nav-btn,
 .lumen-floating-nav-btn:focus-visible {
-  opacity: .85;
+  opacity: 1;
 }
 .lumen-floating-nav-btn:hover {
   opacity: 1;
@@ -1790,106 +1756,108 @@ button.lumen-viewer-chip:focus-visible {
    suit automatiquement le theme actif (default / cursus / marine / pulse).
    ════════════════════════════════════════════════════════════════════════ */
 
+/* Voix editoriale UNIQUE — Newsreader serif 17px, line-height 1.72.
+   Aligne sur les standards de lecture longue (Substack, Medium, NYT
+   Reader). Decale du Plus Jakarta Sans du reste de l'app pour signaler
+   "tu lis du contenu, pas de l'UI". */
 .lumen-viewer .markdown-body {
-  font-size: 15px;
-  line-height: 1.7;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17px;
+  line-height: 1.72;
   color: var(--text-primary);
-  font-family: var(--font);
+  font-feature-settings: 'liga', 'kern';
 }
 
-/* ── Titres : hierarchie visuelle nette ─────────────────────────────────── */
+/* ── Titres : hierarchie sobre, taille porte le poids ──────────────────── */
 .lumen-viewer .markdown-body h1,
 .lumen-viewer .markdown-body h2,
 .lumen-viewer .markdown-body h3,
 .lumen-viewer .markdown-body h4,
 .lumen-viewer .markdown-body h5,
 .lumen-viewer .markdown-body h6 {
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
   color: var(--text-primary);
   font-weight: 700;
   line-height: 1.25;
-  scroll-margin-top: var(--space-lg);
-  /* Coupures de ligne propres sur les titres long (CSS moderne). */
+  letter-spacing: -0.015em;
+  scroll-margin-top: var(--space-xl);
   text-wrap: balance;
 }
 
-/* Hierarchie sobre : la taille porte le poids, pas les bordures accent.
-   v2.166.1 — alignement avec la voix v2.166 (sentence case, calme). */
 .lumen-viewer .markdown-body h1 {
-  font-size: 30px;
-  margin: 0 0 var(--space-lg);
+  font-size: 2.2em;
+  margin: 0.2em 0 0.6em;
   letter-spacing: -0.02em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
 }
-
 .lumen-viewer .markdown-body h2 {
-  font-size: 24px;
-  margin: var(--space-xl) 0 var(--space-md);
-  letter-spacing: -0.015em;
+  font-size: 1.65em;
+  margin: 1.8em 0 0.5em;
 }
-
 .lumen-viewer .markdown-body h3 {
-  font-size: 18px;
-  margin: var(--space-lg) 0 var(--space-sm);
+  font-size: 1.3em;
+  margin: 1.5em 0 0.4em;
 }
-
 .lumen-viewer .markdown-body h4 {
-  font-size: 16px;
+  font-size: 1.1em;
   font-weight: 600;
-  margin: var(--space-lg) 0 var(--space-xs);
-  color: var(--text-secondary);
+  margin: 1.4em 0 0.3em;
 }
-
 .lumen-viewer .markdown-body h5,
 .lumen-viewer .markdown-body h6 {
-  font-size: 14px;
+  font-size: 0.95em;
   font-weight: 600;
-  margin: var(--space-md) 0 var(--space-xs);
+  margin: 1.2em 0 0.3em;
   color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-/* ── Paragraphes ─────────────────────────────────────────────────────────── */
+/* ── Paragraphes : rythme 1em vertical ─────────────────────────────────── */
 .lumen-viewer .markdown-body p {
-  margin: 0 0 var(--space-md);
+  margin: 0 0 1em;
 }
 
 /* ── Listes ─────────────────────────────────────────────────────────────── */
 .lumen-viewer .markdown-body ul,
 .lumen-viewer .markdown-body ol {
-  margin: 0 0 var(--space-md);
-  padding-left: var(--space-xl);
+  margin: 0 0 1em;
+  padding-left: 1.6em;
 }
-
 .lumen-viewer .markdown-body li {
-  margin-bottom: var(--space-xs);
+  margin: 0.3em 0;
 }
 .lumen-viewer .markdown-body li::marker {
   color: var(--accent);
   font-weight: 700;
 }
-.lumen-viewer .markdown-body li > p { margin-bottom: var(--space-xs); }
+.lumen-viewer .markdown-body li > p { margin: 0.2em 0; }
 .lumen-viewer .markdown-body li > ul,
 .lumen-viewer .markdown-body li > ol {
-  margin-top: var(--space-xs);
-  margin-bottom: var(--space-xs);
+  margin-top: 0.3em;
+  margin-bottom: 0.3em;
 }
 
 /* Checkbox lists (GFM) */
 .lumen-viewer .markdown-body li input[type="checkbox"] {
   accent-color: var(--accent);
-  margin-right: var(--space-xs);
+  margin-right: 0.4em;
   vertical-align: middle;
 }
 
-/* ── Liens ──────────────────────────────────────────────────────────────── */
+/* ── Liens : underline subtil, accent au hover ──────────────────────────── */
 .lumen-viewer .markdown-body a {
   color: var(--accent);
-  text-decoration: none;
-  border-bottom: 1px solid rgba(var(--accent-rgb), .35);
-  transition: border-color var(--motion-fast) var(--ease-out),
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: text-decoration-thickness var(--motion-fast) var(--ease-out),
               color var(--motion-fast) var(--ease-out);
 }
 .lumen-viewer .markdown-body a:hover {
   color: var(--accent-hover);
-  border-bottom-color: var(--accent);
+  text-decoration-thickness: 2px;
 }
 .lumen-viewer .markdown-body a:focus-visible {
   outline: none;
@@ -1904,37 +1872,39 @@ button.lumen-viewer-chip:focus-visible {
   padding: 1px 6px;
   border-radius: var(--radius-xs);
   font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
-  font-size: 0.88em;
+  font-size: 0.85em;
   font-weight: 500;
+  font-style: normal;
 }
 
-/* ── Blockquotes : citation litteraire (callouts → admonitions ::: ) ───── */
+/* ── Blockquotes : citation litteraire ──────────────────────────────────── */
 .lumen-viewer .markdown-body blockquote {
-  margin: var(--space-lg) 0;
-  padding: 2px var(--space-lg);
-  border-left: 4px solid var(--border);
+  margin: 1.6em 0;
+  padding: 0.2em 0 0.2em 1.2em;
+  border-left: 3px solid var(--accent);
   color: var(--text-secondary);
   font-style: italic;
-  font-size: 1.05em;
+  font-size: 1.02em;
   line-height: 1.65;
 }
 .lumen-viewer .markdown-body blockquote p:last-child { margin-bottom: 0; }
-/* Code inline dans une citation : pas d'italique sur le code. */
 .lumen-viewer .markdown-body blockquote code { font-style: normal; }
 
 /* ── Hr / separateur ────────────────────────────────────────────────────── */
 .lumen-viewer .markdown-body hr {
-  margin: var(--space-xl) 0;
+  margin: 2.4em 0;
   border: none;
   border-top: 1px solid var(--border);
 }
 
-/* ── Tables : zebra + sticky header ────────────────────────────────────── */
+/* ── Tables : zebra discrete, sans-serif pour lisibilite tabulaire ─────── */
 .lumen-viewer .markdown-body table {
   width: 100%;
-  margin: var(--space-lg) 0;
+  margin: 1.6em 0;
   border-collapse: collapse;
+  font-family: var(--font);
   font-size: 14px;
+  line-height: 1.5;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -1944,12 +1914,11 @@ button.lumen-viewer-chip:focus-visible {
   color: var(--text-primary);
   font-weight: 600;
   text-align: left;
-  padding: var(--space-sm) var(--space-md);
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
 }
 .lumen-viewer .markdown-body td {
-  padding: var(--space-sm) var(--space-md);
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   color: var(--text-primary);
 }
@@ -1961,12 +1930,13 @@ button.lumen-viewer-chip:focus-visible {
   background: rgba(var(--accent-rgb), .04);
 }
 
-/* ── Images ─────────────────────────────────────────────────────────────── */
+/* ── Images : caption-friendly, ombres douces ──────────────────────────── */
 .lumen-viewer .markdown-body img {
   max-width: 100%;
   height: auto;
-  border-radius: var(--radius);
-  margin: var(--space-md) 0;
+  border-radius: var(--radius-sm);
+  display: block;
+  margin: 1.6em auto;
   box-shadow: var(--elevation-1);
 }
 
@@ -2021,6 +1991,19 @@ button.lumen-viewer-chip:focus-visible {
   overflow-x: auto;
   font-size: 13px;
   line-height: 1.6;
+  /* v2.275 : fade-right discret pour signaler "scrollable horizontal".
+     Mask permet de garder la couleur du parent (peu importe le theme).
+     Sans cet indicateur, les utilisateurs ignoraient qu'il y avait du
+     contenu cache a droite sur lignes longues. */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+          mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+}
+/* Quand l'utilisateur a scroll jusqu'au bout, on retire le mask via
+   un attribut data positionne en JS (best-effort) — sinon le mask reste
+   inoffensif puisque les lignes se terminent avant la zone fade. */
+.lumen-viewer .markdown-body .lumen-codeblock pre.lumen-code[data-scrolled-end="true"] {
+  -webkit-mask-image: none;
+          mask-image: none;
 }
 .lumen-viewer .markdown-body .lumen-codeblock pre.lumen-code code {
   font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
@@ -2113,38 +2096,60 @@ button.lumen-viewer-chip:focus-visible {
   border-radius: 3px;
 }
 
-/* ── Admonitions / callouts (note, warning, tip, danger) ─────────────── */
+/* ── Admonitions / callouts (note, tip, warning, danger) ──────────────── */
 .lumen-viewer .markdown-body .lumen-admonition {
-  margin: var(--space-lg) 0;
-  padding: var(--space-md) var(--space-lg);
+  margin: 1.6em 0;
+  padding: 0.9em 1.2em;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   border-left-width: 3px;
   background: var(--bg-elevated);
 }
-.lumen-viewer .markdown-body .lumen-admonition--note {
+/* Header avec icone + titre ("Note", "Astuce", "Attention", "Danger") */
+.lumen-viewer .markdown-body .lumen-admonition-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 0.4em;
+  font-family: var(--font);
+  font-size: 0.85em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lumen-viewer .markdown-body .lumen-admonition-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.lumen-viewer .markdown-body .lumen-admonition-body > *:first-child { margin-top: 0; }
+.lumen-viewer .markdown-body .lumen-admonition-body > *:last-child { margin-bottom: 0; }
+
+/* Variantes — classes telles que produites par utils/markdown.ts.
+   v2.275 : alignement (etait casse, le HTML genere `lumen-adm-*` mais le
+   CSS ciblait `lumen-admonition--*`, les variantes ne s'appliquaient pas). */
+.lumen-viewer .markdown-body .lumen-adm-note {
   border-left-color: var(--accent);
   background: rgba(var(--accent-rgb), .06);
 }
-.lumen-viewer .markdown-body .lumen-admonition--tip,
-.lumen-viewer .markdown-body .lumen-admonition--success {
+.lumen-viewer .markdown-body .lumen-adm-note .lumen-admonition-head { color: var(--accent); }
+
+.lumen-viewer .markdown-body .lumen-adm-tip {
   border-left-color: var(--color-success);
   background: rgba(var(--color-success-rgb), .06);
 }
-.lumen-viewer .markdown-body .lumen-admonition--warning,
-.lumen-viewer .markdown-body .lumen-admonition--caution {
+.lumen-viewer .markdown-body .lumen-adm-tip .lumen-admonition-head { color: var(--color-success); }
+
+.lumen-viewer .markdown-body .lumen-adm-warning {
   border-left-color: var(--color-warning);
-  background: rgba(232, 137, 26, .06);
+  background: rgba(var(--color-warning-rgb), .08);
 }
-.lumen-viewer .markdown-body .lumen-admonition--danger,
-.lumen-viewer .markdown-body .lumen-admonition--important {
+.lumen-viewer .markdown-body .lumen-adm-warning .lumen-admonition-head { color: var(--color-warning); }
+
+.lumen-viewer .markdown-body .lumen-adm-danger {
   border-left-color: var(--color-danger);
   background: rgba(var(--color-danger-rgb), .06);
 }
-
-/* Premier element d'une admonition : pas de margin top */
-.lumen-viewer .markdown-body .lumen-admonition > *:first-child { margin-top: 0; }
-.lumen-viewer .markdown-body .lumen-admonition > *:last-child { margin-bottom: 0; }
+.lumen-viewer .markdown-body .lumen-adm-danger .lumen-admonition-head { color: var(--color-danger); }
 
 /* ════════════════════════════════════════════════════════════════════════
    PRINT STYLESHEET (v2.79)

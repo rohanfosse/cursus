@@ -110,12 +110,14 @@ const ctxItems = computed<ContextMenuItem[]>(() => {
 .lumen-outline-head {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 12px;
+  gap: 8px;
+  /* v2.275 : 44px min-height = touch target tactile. Full-width clickable. */
+  min-height: 44px;
+  padding: 0 14px;
   border: none;
   background: transparent;
   border-bottom: 1px solid var(--border);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -124,9 +126,18 @@ const ctxItems = computed<ContextMenuItem[]>(() => {
   text-align: left;
   width: 100%;
   font-family: inherit;
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
 }
-.lumen-outline-head:hover { color: var(--text-primary); }
-.is-collapsed .lumen-outline-head { padding: 10px 8px; }
+.lumen-outline-head:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.lumen-outline-head:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.is-collapsed .lumen-outline-head { padding: 0 10px; justify-content: center; }
 .is-collapsed .lumen-outline-head span { display: none; }
 
 .lumen-outline-count {

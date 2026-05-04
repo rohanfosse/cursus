@@ -179,6 +179,14 @@ async function handleDelete() {
   flex-direction: column;
   overflow: hidden;
 }
+/* v2.275 : sous 1200px, l'outline (220) + notes (320) + body 760 max
+   = 1300 minimum. On masque les notes pour rendre la lecture
+   prioritaire. Le contenu des notes est toujours sauvegarde, juste
+   non-visible (regression d'usage acceptable vs ecran serre).
+   Cf. Notion qui hide la sidebar a <1000px. */
+@media (max-width: 1200px) {
+  .lumen-note-panel { display: none; }
+}
 
 .lumen-note-head {
   display: flex;
@@ -241,6 +249,10 @@ async function handleDelete() {
   font-size: 13.5px;
   line-height: 1.55;
   padding: 16px;
+  transition: box-shadow var(--motion-fast) var(--ease-out);
+}
+.lumen-note-textarea:focus {
+  box-shadow: inset 0 0 0 2px rgba(var(--accent-rgb), .35);
 }
 
 .lumen-note-foot {
