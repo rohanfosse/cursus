@@ -827,7 +827,10 @@ watch(() => [props.content, props.chapter?.path], () => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--bg-primary);
+  /* v2.273.5 : --bg-main au lieu de --bg-primary (qui en theme light vaut
+     #E5E7EB, un gris trop fonce qui jaurissait sur le blanc des modales /
+     widgets autour. Le viewer doit etre la zone de contenu propre = blanc). */
+  background: var(--bg-main);
   /* height: 0 force le flex-basis a 0 pour que le container
      ne depasse pas la hauteur du parent (necessaire pour les PDFs) */
   height: 0;
@@ -895,8 +898,8 @@ watch(() => [props.content, props.chapter?.path], () => {
   color: var(--text-muted);
 }
 .lumen-viewer-chip.read {
-  color: var(--success);
-  border-color: var(--success);
+  color: var(--color-success);
+  border-color: var(--color-success);
 }
 
 button.lumen-viewer-chip {

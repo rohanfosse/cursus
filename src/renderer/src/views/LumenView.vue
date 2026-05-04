@@ -744,7 +744,9 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
   padding: 7px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: var(--bg-primary);
+  /* v2.273.5 : --bg-elevated (blanc en light) au lieu de --bg-primary
+     (#E5E7EB gris trop fonce). */
+  background: var(--bg-elevated);
   color: var(--text-primary);
   font-size: 12.5px;
   font-weight: 500;

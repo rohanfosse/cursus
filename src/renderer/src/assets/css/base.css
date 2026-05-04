@@ -279,12 +279,14 @@ body.light, body.cursus {
   --bg-modal:   #FFFFFF;
   --bg-elevated: #FFFFFF;
 
-  /* Alias legacy */
-  --bg-darkest: #E5E7EB;
-  --bg-dark:    #F1F3F5;
+  /* Alias legacy : en theme light on les ramene tous a du blanc / off-white
+     pour que les composants qui les utilisent (notamment lumen/* et widgets
+     dashboard) ne tombent pas sur des gris fonces issus de l'epoque dark. */
+  --bg-darkest: #F1F3F5;
+  --bg-dark:    #F5F6F8;
   --bg-medium:  #FAFBFC;
   --bg-light:   #FFFFFF;
-  --bg-primary: #E5E7EB;
+  --bg-primary: #FFFFFF;
 
   /* Texte - bleu profond / slate (landing) */
   --text-primary:   #1E1B4B;   /* AAA sur #FFFFFF (17.3:1) */
