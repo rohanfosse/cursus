@@ -261,33 +261,35 @@ body.theme-transitioning *::after {
 
 /* ════════════════════════════════════════════
    THÈME CLAIR  (body.light, body.cursus alias legacy)
-   Aligne sur la landing page (indigo / lavande).
-   Cf. src/landing/style.css §Design Tokens (light).
-   body.cursus est un alias preserve pour les preferences utilisateur
-   pre-v2.272 ; la migration cursus->light s'effectue cote useSettingsAppearance.
+   v2.273.1 — fonds blancs neutres avec accents indigo (au lieu d'une
+   lavande saturee partout). La landing peut se permettre l'effet hero
+   #F5F3FF mais l'app a besoin de neutralite pour la lecture longue.
+   L'identite indigo reste presente via --accent et les hover/active.
+   body.cursus est un alias legacy (migration cursus->light dans
+   useSettingsAppearance).
 ════════════════════════════════════════════ */
 body.light, body.cursus {
-  /* Fonds - lavande tres claire (landing) */
-  --bg-rail:    #EDE9FE;
-  --bg-sidebar: #F5F3FF;
-  --bg-main:    #F5F3FF;
+  /* Fonds - blanc / off-white, distingues par bordures plus que par teintes */
+  --bg-rail:    #F8F9FB;   /* Rail nav : tres legerement gris pour le distinguer */
+  --bg-sidebar: #FAFBFC;   /* Sidebar : encore plus clair */
+  --bg-main:    #FFFFFF;   /* Contenu principal : blanc pur */
   --bg-input:   #FFFFFF;
-  --bg-hover:   rgba(99,102,241,.06);
-  --bg-active:  rgba(99,102,241,.12);
+  --bg-hover:   rgba(99,102,241,.05);
+  --bg-active:  rgba(99,102,241,.10);
   --bg-modal:   #FFFFFF;
   --bg-elevated: #FFFFFF;
 
   /* Alias legacy */
-  --bg-darkest: #DDD6FE;
-  --bg-dark:    #EDE9FE;
-  --bg-medium:  #F5F3FF;
+  --bg-darkest: #E5E7EB;
+  --bg-dark:    #F1F3F5;
+  --bg-medium:  #FAFBFC;
   --bg-light:   #FFFFFF;
-  --bg-primary: #DDD6FE;
+  --bg-primary: #E5E7EB;
 
   /* Texte - bleu profond / slate (landing) */
-  --text-primary:   #1E1B4B;   /* AAA sur #F5F3FF (15.3:1) et #FFFFFF (17.3:1) */
-  --text-secondary: #475569;   /* AAA sur #F5F3FF (7.5:1) et #FFFFFF (8.5:1) */
-  --text-muted:     #64748B;   /* AA sur #F5F3FF (4.95:1) et #FFFFFF (5.6:1) */
+  --text-primary:   #1E1B4B;   /* AAA sur #FFFFFF (17.3:1) */
+  --text-secondary: #475569;   /* AAA sur #FFFFFF (8.5:1) */
+  --text-muted:     #64748B;   /* AA strong sur #FFFFFF (5.6:1) */
 
   /* Accent - indigo landing (variante saturee pour fond clair) */
   --accent:        #6366F1;
@@ -298,39 +300,36 @@ body.light, body.cursus {
   --accent-subtle: rgba(99,102,241,.10);
 
   /* Code blocks (light theme) */
-  --code-bg: #F5F3FF;
+  --code-bg: #F8F9FB;
   --code-text: #1E1B4B;
-  --code-header-bg: rgba(99,102,241,0.06);
-  --code-header-border: rgba(99,102,241,0.12);
+  --code-header-bg: rgba(15,23,42,0.04);
+  --code-header-border: rgba(15,23,42,0.08);
   --code-lang-color: rgba(30,27,75,0.55);
 
-  /* Bordures */
-  --border:       rgba(99,102,241,.12);
-  --border-input: rgba(99,102,241,.22);
+  /* Bordures - neutres (pas de teinte indigo qui jaurait sur fond blanc pur) */
+  --border:       rgba(15,23,42,.08);
+  --border-input: rgba(15,23,42,.16);
 
-  /* Ombres - teintees indigo */
-  --shadow-sm: 0 2px 8px rgba(99,102,241,.08);
-  --shadow-md: 0 8px 32px rgba(99,102,241,.12);
-  --shadow-lg: 0 16px 48px rgba(99,102,241,.18);
-  --shadow-glow: 0 0 40px rgba(99,102,241,.15);
-  --shadow-card: 0 1px 3px rgba(99,102,241,.08), 0 1px 2px rgba(99,102,241,.06);
-  --shadow-card-hover: 0 8px 25px rgba(99,102,241,.14), 0 3px 10px rgba(99,102,241,.08);
+  /* Ombres - subtilement teintees indigo, mais douces sur fond blanc */
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.06), 0 1px 3px rgba(99,102,241,.04);
+  --shadow-md: 0 4px 12px rgba(15,23,42,.06), 0 2px 4px rgba(99,102,241,.04);
+  --shadow-lg: 0 12px 32px rgba(15,23,42,.08), 0 4px 12px rgba(99,102,241,.06);
+  --shadow-glow: 0 0 40px rgba(99,102,241,.12);
+  --shadow-card: 0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
+  --shadow-card-hover: 0 8px 24px rgba(15,23,42,.08), 0 2px 8px rgba(99,102,241,.06);
 
-  /* Elevation light - alignee landing (.demo-window) */
+  /* Elevation light - douces, sans teinte trop marquee */
   --elevation-2:
-    0 1px 2px rgba(99,102,241,.04),
-    0 4px 8px rgba(99,102,241,.06),
-    0 0 0 1px rgba(99,102,241,.05);
+    0 1px 2px rgba(15,23,42,.04),
+    0 2px 4px rgba(15,23,42,.04);
   --elevation-3:
-    0 1px 2px rgba(99,102,241,.04),
-    0 4px 8px rgba(99,102,241,.06),
-    0 12px 24px rgba(99,102,241,.08),
-    0 24px 48px rgba(99,102,241,.04);
+    0 1px 2px rgba(15,23,42,.04),
+    0 4px 8px rgba(15,23,42,.05),
+    0 12px 24px rgba(15,23,42,.06);
   --elevation-4:
-    0 2px 4px rgba(99,102,241,.06),
-    0 12px 32px rgba(99,102,241,.10),
-    0 32px 80px rgba(99,102,241,.08),
-    0 0 0 1px rgba(99,102,241,.08);
+    0 1px 2px rgba(15,23,42,.04),
+    0 8px 16px rgba(15,23,42,.06),
+    0 24px 48px rgba(15,23,42,.10);
 
   /* Sémantique - emerald + variantes landing */
   --color-danger:  #DC2626;

@@ -12,9 +12,9 @@ export type ThemeId = 'auto' | 'dark' | 'light' | 'sepia' | 'night' | 'marine' |
 import { Laptop, Coffee } from 'lucide-vue-next'
 
 export const THEMES: { id: ThemeId; label: string; icon: typeof Moon; colors: string[]; accent: string }[] = [
-  { id: 'auto',   label: 'Auto',    icon: Laptop,   colors: ['#0F0D1A', '#F5F3FF', '#1A1733'], accent: '#6366F1' },
+  { id: 'auto',   label: 'Auto',    icon: Laptop,   colors: ['#0F0D1A', '#FAFBFC', '#1A1733'], accent: '#6366F1' },
   { id: 'dark',   label: 'Sombre',  icon: Monitor,  colors: ['#0F0D1A', '#15122B', '#1A1733'], accent: '#818CF8' },
-  { id: 'light',  label: 'Clair',   icon: Sun,      colors: ['#EDE9FE', '#F5F3FF', '#FFFFFF'], accent: '#6366F1' },
+  { id: 'light',  label: 'Clair',   icon: Sun,      colors: ['#F8F9FB', '#FAFBFC', '#FFFFFF'], accent: '#6366F1' },
   { id: 'sepia',  label: 'S\u00e9pia',   icon: Coffee,   colors: ['#f0ebe3', '#f5f0e8', '#faf8f4'], accent: '#c27c2c' },
   { id: 'night',  label: 'Nuit',    icon: Moon,     colors: ['#08090c', '#0b0d11', '#0f1115'], accent: '#818CF8' },
   { id: 'marine', label: 'Marine',  icon: Waves,    colors: ['#0e1829', '#132036', '#192840'], accent: '#5B9BD5' },

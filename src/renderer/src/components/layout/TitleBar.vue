@@ -147,25 +147,26 @@ onUnmounted(() => { unsubMaximize?.() })
 .wctrl-min:active,
 .wctrl-max:active { background: var(--bg-hover); }
 
-/* Thème clair */
-body.light .titlebar {
-  background:
-    linear-gradient(
-      to right,
-      #2c2f3a 0px,
-      #2c2f3a var(--rail-width),
-      #f0f1f3 var(--rail-width),
-      #f0f1f3 calc(var(--rail-width) + var(--sidebar-width)),
-      #fafafa calc(var(--rail-width) + var(--sidebar-width))
-    );
+/* Themes clairs (light, sepia, cursus) — la titlebar suit le gradient via
+   var(--bg-rail / sidebar / main). Plus d'override hardcode qui creait
+   les taches sombres en haut a gauche / droite (v2.273.1). */
+body.light .titlebar,
+body.sepia .titlebar,
+body.cursus .titlebar {
   border-bottom-color: rgba(0, 0, 0, .08);
 }
-body.light .wctrl-btn {
+body.light .wctrl-btn,
+body.sepia .wctrl-btn,
+body.cursus .wctrl-btn {
   color: rgba(0, 0, 0, .5);
 }
 body.light .wctrl-min:hover,
-body.light .wctrl-max:hover {
-  background: rgba(0, 0, 0, .08);
-  color: rgba(0, 0, 0, .8);
+body.light .wctrl-max:hover,
+body.sepia .wctrl-min:hover,
+body.sepia .wctrl-max:hover,
+body.cursus .wctrl-min:hover,
+body.cursus .wctrl-max:hover {
+  background: rgba(0, 0, 0, .06);
+  color: rgba(0, 0, 0, .85);
 }
 </style>
