@@ -20,7 +20,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import {
   Calendar, Plus, Settings, CalendarPlus, Users, Clock, Video,
-  AlertCircle,
+  AlertCircle, CalendarCheck, LayoutGrid, CalendarRange,
 } from 'lucide-vue-next'
 import CampaignManager from '@/components/booking/CampaignManager.vue'
 import TabBookingEventTypes from './TabBookingEventTypes.vue'
@@ -43,7 +43,17 @@ const modalsStore = useModalsStore()
 
 // Signal pour ouvrir le formulaire de creation depuis le parent (CTA + Ctrl+N)
 const openCreateSignal = ref(0)
-function triggerCreate() { openCreateSignal.value++ }
+function triggerCreate() {
+  openCreateSignal.value++
+  activeView.value = 'types'  // S'assurer que l'onglet Types est visible
+}
+
+// ── Vue active : tabs Mes RDV / Types / Disponibilites ───────────────────
+// v2.273.9 : avant on affichait les 3 sections en colonnes (page tres
+// chargee). Maintenant onglets avec "Mes RDV" par defaut (vue la plus
+// consultee : voir les rendez-vous a venir).
+type BookingView = 'bookings' | 'types' | 'availability'
+const activeView = ref<BookingView>('bookings')
 
 function openSettingsIntegrations() {
   modalsStore.settings = true
@@ -200,11 +210,7 @@ onUnmounted(() => {
       <div class="loading-stats">
         <SkeletonLoader v-for="i in 4" :key="i" variant="card" :rows="1" />
       </div>
-      <div class="loading-cols">
-        <SkeletonLoader variant="list" :rows="6" />
-        <SkeletonLoader variant="list" :rows="6" />
-        <SkeletonLoader variant="list" :rows="6" />
-      </div>
+      <SkeletonLoader variant="list" :rows="8" />
     </div>
 
     <template v-else>
@@ -269,14 +275,55 @@ onUnmounted(() => {
 
       <CampaignManager />
 
-      <div class="columns">
+      <!-- Tabs : Mes RDV (par defaut) / Types / Disponibilites.
+           v2.273.9 — avant : 3 colonnes simultanees. Page surchargee, surtout
+           Disponibilites qui est rarement consultee (config one-shot).
+           Maintenant : une seule vue active a la fois, style .rex-tab landing. -->
+      <div class="bk-view-tabs" role="tablist" aria-label="Vue des rendez-vous">
+        <button
+          type="button"
+          class="bk-view-tab"
+          :class="{ 'bk-view-tab--active': activeView === 'bookings' }"
+          role="tab"
+          :aria-selected="activeView === 'bookings'"
+          @click="activeView = 'bookings'"
+        >
+          <CalendarCheck :size="13" aria-hidden="true" />
+          Mes rendez-vous
+        </button>
+        <button
+          type="button"
+          class="bk-view-tab"
+          :class="{ 'bk-view-tab--active': activeView === 'types' }"
+          role="tab"
+          :aria-selected="activeView === 'types'"
+          @click="activeView = 'types'"
+        >
+          <LayoutGrid :size="13" aria-hidden="true" />
+          Types
+        </button>
+        <button
+          type="button"
+          class="bk-view-tab"
+          :class="{ 'bk-view-tab--active': activeView === 'availability' }"
+          role="tab"
+          :aria-selected="activeView === 'availability'"
+          @click="activeView = 'availability'"
+        >
+          <CalendarRange :size="13" aria-hidden="true" />
+          Disponibilités
+        </button>
+      </div>
+
+      <div class="bk-view-pane">
+        <TabBookingMyBookings v-if="activeView === 'bookings'" :booking="booking" />
         <TabBookingEventTypes
+          v-else-if="activeView === 'types'"
           :booking="booking"
           :all-students="allStudents"
           :open-create-signal="openCreateSignal"
         />
-        <TabBookingAvailability :booking="booking" />
-        <TabBookingMyBookings :booking="booking" />
+        <TabBookingAvailability v-else :booking="booking" />
       </div>
     </template>
   </div>
@@ -356,14 +403,8 @@ onUnmounted(() => {
   grid-template-columns: repeat(4, 1fr);
   gap: var(--space-md);
 }
-.loading-cols {
-  display: grid;
-  grid-template-columns: 2fr 1.5fr 1.5fr;
-  gap: var(--space-md);
-}
 @media (max-width: 1100px) {
   .loading-stats { grid-template-columns: repeat(2, 1fr); }
-  .loading-cols { grid-template-columns: 1fr; }
 }
 
 /* ── Stats strip ─────────────────────────────────────────────────────────── */
@@ -501,11 +542,60 @@ onUnmounted(() => {
   .next-cta { margin-left: auto; }
 }
 
-/* ── Columns ─────────────────────────────────────────────────────────────── */
-.columns {
-  display: grid;
-  grid-template-columns: 2fr 1.5fr 1.5fr;
-  gap: var(--space-md);
+/* ── Tabs vues (Mes RDV / Types / Disponibilites) ──────────────────────────
+   v2.273.9 — alignement landing .rex-tab : pills avec etat actif rex.
+   Une seule vue active a la fois pour ne pas surcharger la page. */
+.bk-view-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 2px 0 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-wrap: wrap;
 }
-@media (max-width: 1100px) { .columns { grid-template-columns: 1fr; } }
+.bk-view-tabs::-webkit-scrollbar { display: none; }
+.bk-view-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--color-rex) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-rex) 14%, transparent);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
+}
+.bk-view-tab:hover {
+  color: var(--color-rex);
+  background: color-mix(in srgb, var(--color-rex) 14%, transparent);
+  border-color: color-mix(in srgb, var(--color-rex) 32%, transparent);
+}
+.bk-view-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.bk-view-tab--active {
+  background: var(--color-rex);
+  color: #fff;
+  border-color: var(--color-rex);
+  font-weight: 700;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-rex) 32%, transparent);
+}
+.bk-view-tab--active:hover { color: #fff; background: var(--color-rex); }
+
+/* Pane : contient une seule vue a la fois, hauteur souple. */
+.bk-view-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 </style>
