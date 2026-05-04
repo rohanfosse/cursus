@@ -13,7 +13,7 @@
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick, toRef, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Check, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, Columns2, Link2, Printer, Search, Terminal } from 'lucide-vue-next'
+import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Check, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, Save, X, Eye, Columns2, Link2, Printer, Search, Terminal, MoreHorizontal } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
 import { renderTex } from '@/utils/texRenderer'
 import { renderIpynb } from '@/utils/ipynbRenderer'
@@ -168,6 +168,32 @@ function navigateToFirstChapter() {
   }
 }
 
+// ── Menu "more" header (v2.276) ───────────────────────────────────────────
+// Regroupe les actions secondaires (Print, Copy-link, Exec ipynb) dans un
+// popover ⋮ pour alleger le header. Ferme au clic-exterieur et a Escape.
+const moreMenuOpen = ref(false)
+const moreMenuRef = ref<HTMLElement | null>(null)
+function toggleMoreMenu() { moreMenuOpen.value = !moreMenuOpen.value }
+function closeMoreMenu() { moreMenuOpen.value = false }
+function handleClickOutsideMoreMenu(e: MouseEvent) {
+  if (!moreMenuOpen.value) return
+  const target = e.target as HTMLElement
+  if (moreMenuRef.value && !moreMenuRef.value.contains(target)) {
+    moreMenuOpen.value = false
+  }
+}
+function handleEscapeMoreMenu(e: KeyboardEvent) {
+  if (e.key === 'Escape' && moreMenuOpen.value) closeMoreMenu()
+}
+onMounted(() => {
+  document.addEventListener('click', handleClickOutsideMoreMenu)
+  document.addEventListener('keydown', handleEscapeMoreMenu)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutsideMoreMenu)
+  document.removeEventListener('keydown', handleEscapeMoreMenu)
+})
+
 function openTravail(travail: LumenLinkedTravail) {
   // Navigation vers la vue devoir : on set le projet actif par category
   // et on route vers /devoirs qui affichera le projet contenant le devoir.
@@ -271,6 +297,30 @@ watch(() => props.chapter.path, () => {
 // ── Outline (plan du chapitre) ────────────────────────────────────────────
 const { headings, activeHeadingId, open: outlineOpen, rebuild: rebuildOutline, scrollToHeading } = useChapterOutline(bodyRef)
 
+// ── Reading progress (v2.276) ─────────────────────────────────────────────
+// Pourcentage de lecture du chapitre (0..1). Calcule sur le scroll du body,
+// affiche en barre fine en bas du header. Signature editorial classique
+// (Medium, Substack). Deborder = 1 quand fond atteint, sinon ratio.
+const readingProgress = ref(0)
+function onBodyScroll() {
+  const el = bodyRef.value
+  if (!el) return
+  const max = el.scrollHeight - el.clientHeight
+  readingProgress.value = max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) : 0
+}
+onMounted(() => {
+  // Le bodyRef est attache via v-bind:ref, attendre nextTick pour binder.
+  nextTick(() => {
+    bodyRef.value?.addEventListener('scroll', onBodyScroll, { passive: true })
+  })
+})
+onBeforeUnmount(() => {
+  bodyRef.value?.removeEventListener('scroll', onBodyScroll)
+})
+watch(() => props.chapter?.path, () => {
+  readingProgress.value = 0
+})
+
 // Banner stale : true si on lit du cache OU si le repo n'a pas ete sync
 // depuis plus d'une heure. Invite l'utilisateur a resync.
 const { isStale: isStaleContent, relativeSyncedAt: staleRelative } = useChapterStaleStatus(repoRef, cachedRef)
@@ -323,7 +373,77 @@ function injectCopyButtons(root: HTMLElement) {
   })
 }
 
+/**
+ * Injecte un bouton "#" en hover sur chaque heading h1-h6, click pour
+ * copier l'URL avec ancre (lumen:// + #heading-id). Permet de partager un
+ * deep-link vers une section precise. Cf. GitHub README, MDN, Stripe docs.
+ */
+function injectHeadingAnchors(root: HTMLElement) {
+  const headings = root.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')
+  headings.forEach((h) => {
+    if (!h.id) return
+    if (h.querySelector('.lumen-heading-anchor')) return
+    if (h.closest('.lumen-admonition')) return
+
+    const a = document.createElement('button')
+    a.type = 'button'
+    a.className = 'lumen-heading-anchor'
+    a.title = 'Copier le lien vers cette section'
+    a.setAttribute('aria-label', `Copier le lien vers ${h.textContent ?? 'cette section'}`)
+    a.textContent = '#'
+    a.addEventListener('click', async (ev) => {
+      ev.preventDefault()
+      ev.stopPropagation()
+      const repoName = props.repo.repo || props.repo.fullName.split('/').pop() || ''
+      const url = `lumen://${repoName}/${props.chapter.path}#${h.id}`
+      try {
+        await navigator.clipboard.writeText(url)
+        a.classList.add('copied')
+        setTimeout(() => a.classList.remove('copied'), 1500)
+        showToast('Lien de la section copie', 'success')
+      } catch {
+        showToast('Copie impossible', 'error')
+      }
+    })
+    h.appendChild(a)
+  })
+}
+
+// ── Image lightbox (v2.276) ──────────────────────────────────────────────
+// Click sur une image markdown -> overlay plein ecran. Escape ou click
+// hors-image pour fermer. Pas de navigation entre images : un click = un
+// agrandissement, comme Notion / GitHub README.
+const lightboxSrc = ref<string | null>(null)
+const lightboxAlt = ref<string>('')
+function openLightbox(src: string, alt: string) {
+  lightboxSrc.value = src
+  lightboxAlt.value = alt
+}
+function closeLightbox() {
+  lightboxSrc.value = null
+  lightboxAlt.value = ''
+}
+function handleEscapeLightbox(e: KeyboardEvent) {
+  if (e.key === 'Escape' && lightboxSrc.value) closeLightbox()
+}
+onMounted(() => {
+  document.addEventListener('keydown', handleEscapeLightbox)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', handleEscapeLightbox)
+})
+
 function handleBodyClick(e: MouseEvent) {
+  // Image click -> lightbox (sauf si elle est dans un lien)
+  const imgTarget = e.target as HTMLElement
+  if (imgTarget?.tagName === 'IMG' && !imgTarget.closest('a')) {
+    const img = imgTarget as HTMLImageElement
+    if (img.src) {
+      e.preventDefault()
+      openLightbox(img.src, img.alt || '')
+      return
+    }
+  }
   const target = (e.target as HTMLElement)?.closest('a') as HTMLAnchorElement | null
   if (!target) return
 
@@ -402,6 +522,7 @@ async function enrichRender() {
   }
   if (!bodyRef.value) return
   injectCopyButtons(bodyRef.value)
+  injectHeadingAnchors(bodyRef.value)
   rebuildOutline()
   // Si une ancre est fournie via le deep-link (ex: ouverture depuis un
   // devoir avec ?anchor=section-machin), on scrolle directement a la
@@ -468,15 +589,8 @@ watch(() => [props.content, props.chapter?.path], () => {
             <FileText v-else :size="11" />
             {{ companionToggleLabel }}
           </button>
-          <button
-            v-if="(chapterKind === 'markdown' || chapterKind === 'tex' || chapterKind === 'ipynb') && !isMarp && !editMode"
-            type="button"
-            class="lumen-viewer-chip lumen-viewer-chip--print"
-            title="Imprimer / exporter en PDF"
-            @click="printChapter"
-          >
-            <Printer :size="11" />
-          </button>
+          <!-- Mode exec ipynb : reste en chip dedie car c'est un toggle
+               de mode (etat persistant), pas une action one-shot. -->
           <button
             v-if="isIpynb && !editMode"
             type="button"
@@ -488,16 +602,53 @@ watch(() => [props.content, props.chapter?.path], () => {
             <Terminal :size="11" />
             <span>{{ ipynbExecMode ? 'Lecture' : 'Exécuter' }}</span>
           </button>
-          <button
-            type="button"
-            class="lumen-viewer-chip lumen-viewer-chip--link-copy"
-            :class="{ copied: linkCopied }"
-            :title="linkCopied ? 'Lien copie' : 'Copier le lien lumen:// de ce chapitre'"
-            @click="copyChapterLink"
+
+          <!-- Menu "more" : actions secondaires regroupees (Print, Copy-link).
+               Allege le header pour focaliser sur Edit/Companion/Devoirs. -->
+          <div
+            v-if="!editMode"
+            ref="moreMenuRef"
+            class="lumen-more-wrap"
           >
-            <Check v-if="linkCopied" :size="11" />
-            <Link2 v-else :size="11" />
-          </button>
+            <button
+              type="button"
+              class="lumen-viewer-chip lumen-viewer-chip--more"
+              :class="{ active: moreMenuOpen }"
+              :aria-expanded="moreMenuOpen"
+              aria-haspopup="menu"
+              title="Plus d'actions"
+              @click.stop="toggleMoreMenu"
+            >
+              <MoreHorizontal :size="13" />
+            </button>
+            <div
+              v-if="moreMenuOpen"
+              class="lumen-more-menu"
+              role="menu"
+              aria-label="Actions du chapitre"
+            >
+              <button
+                v-if="(chapterKind === 'markdown' || chapterKind === 'tex' || chapterKind === 'ipynb') && !isMarp"
+                type="button"
+                class="lumen-more-item"
+                role="menuitem"
+                @click="printChapter(); closeMoreMenu()"
+              >
+                <Printer :size="13" />
+                <span>Imprimer / exporter PDF</span>
+              </button>
+              <button
+                type="button"
+                class="lumen-more-item"
+                role="menuitem"
+                @click="copyChapterLink(); closeMoreMenu()"
+              >
+                <Check v-if="linkCopied" :size="13" />
+                <Link2 v-else :size="13" />
+                <span>{{ linkCopied ? 'Lien copie' : 'Copier le lien lumen://' }}</span>
+              </button>
+            </div>
+          </div>
 
           <!-- Devoirs lies : chip + popover -->
           <div
@@ -570,6 +721,19 @@ watch(() => [props.content, props.chapter?.path], () => {
           />
         </div>
       </div>
+      <!-- Reading progress : barre fine de progression sous le header,
+           visible uniquement quand le chapitre a du contenu scrollable. -->
+      <div
+        v-if="readingProgress > 0 && readingProgress < 1"
+        class="lumen-reading-progress"
+        role="progressbar"
+        :aria-valuenow="Math.round(readingProgress * 100)"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        :aria-label="`Progression de lecture : ${Math.round(readingProgress * 100)}%`"
+      >
+        <div class="lumen-reading-progress-bar" :style="{ transform: `scaleX(${readingProgress})` }" />
+      </div>
       <!-- Breadcrumbs : orientation rapide via project / section / chapitre -->
       <nav class="lumen-breadcrumbs" aria-label="Fil d'ariane">
         <button
@@ -620,7 +784,7 @@ watch(() => [props.content, props.chapter?.path], () => {
 
       <!-- Rendu TeX avec KaTeX -->
       <div v-else-if="isTex && !editMode" class="lumen-viewer-main lumen-viewer-main--tex">
-        <div class="lumen-viewer-body markdown-body" :class="{ 'lumen-reading-light': readingLight }" v-html="texHtml" />
+        <div class="lumen-viewer-body markdown-body" v-html="texHtml" />
       </div>
 
       <!-- Rendu Jupyter Notebook : statique par défaut, runner Pyodide si mode exécution -->
@@ -725,7 +889,7 @@ watch(() => [props.content, props.chapter?.path], () => {
         <div
           ref="bodyRef"
           class="lumen-viewer-body markdown-body"
-          :class="{ 'lumen-viewer-body--accueil': isAccueilChapter, 'lumen-reading-light': readingLight }"
+          :class="{ 'lumen-viewer-body--accueil': isAccueilChapter }"
           @click="handleBodyClick"
         >
           <div v-html="html" />
@@ -802,6 +966,35 @@ watch(() => [props.content, props.chapter?.path], () => {
       @close="linkDevoirModalOpen = false"
       @changed="loadLinkedTravaux"
     />
+
+    <!-- Lightbox image (v2.276) : overlay plein ecran sur click image. -->
+    <Teleport to="body">
+      <Transition name="lumen-lightbox-fade">
+        <div
+          v-if="lightboxSrc"
+          class="lumen-lightbox"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="lightboxAlt || 'Image agrandie'"
+          @click="closeLightbox"
+        >
+          <img
+            :src="lightboxSrc"
+            :alt="lightboxAlt"
+            class="lumen-lightbox-img"
+            @click.stop
+          />
+          <button
+            type="button"
+            class="lumen-lightbox-close"
+            aria-label="Fermer l'image"
+            @click="closeLightbox"
+          >
+            <X :size="20" />
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
 
   </article>
 </template>
@@ -961,31 +1154,84 @@ button.lumen-viewer-chip:focus-visible {
   opacity: .5;
   cursor: not-allowed;
 }
-/* Actions secondaires (Print, Copy-link, Exec) : style ghost minimal —
-   icon + halo discret. v2.275 : demotees visuellement pour que l'oeil se
-   focus sur Edit / Companion / Devoirs (les actions primaires).
-   Cf. GitHub docs : un seul bouton "edit" flottant proeminent. */
-.lumen-viewer-chip--link-copy,
-.lumen-viewer-chip--print,
+/* Exec : toggle ipynb (lecture/execution) — accent au hover/active. */
 .lumen-viewer-chip--exec {
   color: var(--text-muted);
   border-color: transparent;
   background: transparent;
   padding: 4px 6px;
 }
-.lumen-viewer-chip--link-copy:hover,
-.lumen-viewer-chip--print:hover,
 .lumen-viewer-chip--exec:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
-.lumen-viewer-chip--link-copy.copied {
-  color: var(--color-success);
-  background: rgba(var(--color-success-rgb), .1);
-}
 .lumen-viewer-chip--exec.active {
   color: var(--accent);
   background: rgba(var(--accent-rgb), .12);
+}
+
+/* Bouton "more" (⋮) + popover des actions secondaires (Print, Copy-link).
+   v2.276 : regroupement pour alleger le header. Cf. GitHub : edit
+   visible, autres actions sous menu. */
+.lumen-more-wrap {
+  position: relative;
+}
+.lumen-viewer-chip--more {
+  color: var(--text-muted);
+  border-color: transparent;
+  background: transparent;
+  padding: 4px 6px;
+}
+.lumen-viewer-chip--more:hover,
+.lumen-viewer-chip--more.active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.lumen-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  min-width: 220px;
+  padding: 4px;
+  background: var(--bg-modal, var(--bg-elevated));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--elevation-3);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  animation: lumen-more-fade var(--motion-fast) var(--ease-out);
+}
+@keyframes lumen-more-fade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.lumen-more-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.lumen-more-item:hover {
+  background: var(--bg-hover);
+}
+.lumen-more-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.lumen-more-item svg {
+  flex-shrink: 0;
+  color: var(--text-secondary);
 }
 
 /* Edition inline (v2.104) */
@@ -1422,6 +1668,79 @@ button.lumen-viewer-chip:focus-visible {
   font-weight: 500;
 }
 
+/* Lightbox image (v2.276) : overlay plein ecran avec image agrandie.
+   Teleporte sur body pour eviter les conflits de stacking context. */
+.lumen-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  padding: 32px;
+}
+.lumen-lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  cursor: default;
+}
+.lumen-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.lumen-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.lumen-lightbox-close:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.lumen-lightbox-fade-enter-active,
+.lumen-lightbox-fade-leave-active {
+  transition: opacity var(--motion-base) var(--ease-out);
+}
+.lumen-lightbox-fade-enter-from,
+.lumen-lightbox-fade-leave-to { opacity: 0; }
+
+/* Reading progress (v2.276) : barre fine sous le header, scaleX driven par
+   le scroll. transform-origin left = scale grandit de gauche a droite.
+   Cf. Medium / Substack — signature editoriale qui rassure l'utilisateur
+   sur la longueur restante. */
+.lumen-reading-progress {
+  height: 2px;
+  margin: 0 -16px;
+  background: var(--border);
+  overflow: hidden;
+  position: relative;
+}
+.lumen-reading-progress-bar {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform var(--motion-fast) linear;
+  will-change: transform;
+}
+
 /* Breadcrumbs : fil d'ariane du header. Porte maintenant le titre du
    chapitre (v2.67.2) puisque le bloc meta redondant a ete supprime. */
 .lumen-breadcrumbs {
@@ -1791,6 +2110,56 @@ button.lumen-viewer-chip:focus-visible {
   border-bottom: 1px solid var(--border);
   padding-bottom: 0.3em;
 }
+
+/* Heading anchor (# au hover) — bouton copy-permalink injecte par
+   injectHeadingAnchors(). v2.276 — signature des bonnes docs (GitHub,
+   MDN, Stripe). Apparait au hover du heading parent. */
+.lumen-viewer .markdown-body h1,
+.lumen-viewer .markdown-body h2,
+.lumen-viewer .markdown-body h3,
+.lumen-viewer .markdown-body h4,
+.lumen-viewer .markdown-body h5,
+.lumen-viewer .markdown-body h6 {
+  position: relative;
+}
+.lumen-viewer .markdown-body .lumen-heading-anchor {
+  display: inline-block;
+  margin-left: 0.4em;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-weight: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+  vertical-align: baseline;
+}
+.lumen-viewer .markdown-body h1:hover .lumen-heading-anchor,
+.lumen-viewer .markdown-body h2:hover .lumen-heading-anchor,
+.lumen-viewer .markdown-body h3:hover .lumen-heading-anchor,
+.lumen-viewer .markdown-body h4:hover .lumen-heading-anchor,
+.lumen-viewer .markdown-body h5:hover .lumen-heading-anchor,
+.lumen-viewer .markdown-body h6:hover .lumen-heading-anchor,
+.lumen-viewer .markdown-body .lumen-heading-anchor:focus-visible {
+  opacity: 0.7;
+}
+.lumen-viewer .markdown-body .lumen-heading-anchor:hover {
+  opacity: 1 !important;
+  color: var(--accent);
+}
+.lumen-viewer .markdown-body .lumen-heading-anchor.copied {
+  opacity: 1 !important;
+  color: var(--color-success);
+}
+.lumen-viewer .markdown-body .lumen-heading-anchor:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 3px;
+}
 .lumen-viewer .markdown-body h2 {
   font-size: 1.65em;
   margin: 1.8em 0 0.5em;
@@ -1877,7 +2246,7 @@ button.lumen-viewer-chip:focus-visible {
   font-style: normal;
 }
 
-/* ── Blockquotes : citation litteraire ──────────────────────────────────── */
+/* ── Blockquotes : citation litteraire (italique discret) ───────────────── */
 .lumen-viewer .markdown-body blockquote {
   margin: 1.6em 0;
   padding: 0.2em 0 0.2em 1.2em;
@@ -1889,6 +2258,45 @@ button.lumen-viewer-chip:focus-visible {
 }
 .lumen-viewer .markdown-body blockquote p:last-child { margin-bottom: 0; }
 .lumen-viewer .markdown-body blockquote code { font-style: normal; }
+
+/* Pull-quote : variante grande citation pour mise en exergue. v2.276 —
+   Activable via `<blockquote class="pull-quote">` en HTML inline ou
+   syntaxe markdown future. Style Substack / NYT / Atlantic. */
+.lumen-viewer .markdown-body blockquote.pull-quote,
+.lumen-viewer .markdown-body blockquote[data-pull] {
+  margin: 2em 0;
+  padding: 0;
+  border-left: none;
+  font-size: 1.4em;
+  line-height: 1.4;
+  font-style: normal;
+  color: var(--text-primary);
+  font-weight: 500;
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+.lumen-viewer .markdown-body blockquote.pull-quote::before,
+.lumen-viewer .markdown-body blockquote[data-pull]::before {
+  content: '“';
+  display: block;
+  font-size: 2em;
+  color: var(--accent);
+  line-height: 0.5;
+  margin-bottom: 0.3em;
+}
+
+/* Drop-cap : premiere lettre du premier paragraphe en grande capitale.
+   v2.276 — opt-in via classe `.lumen-drop-cap` sur le viewer-body, OU
+   automatique sur le premier <p> qui suit un h1 (signature editorial). */
+.lumen-viewer .markdown-body h1 + p::first-letter {
+  float: left;
+  font-size: 3.4em;
+  line-height: 0.85;
+  font-weight: 700;
+  margin: 0.08em 0.08em 0 0;
+  color: var(--accent);
+  font-feature-settings: 'lnum';
+}
 
 /* ── Hr / separateur ────────────────────────────────────────────────────── */
 .lumen-viewer .markdown-body hr {
@@ -1930,7 +2338,7 @@ button.lumen-viewer-chip:focus-visible {
   background: rgba(var(--accent-rgb), .04);
 }
 
-/* ── Images : caption-friendly, ombres douces ──────────────────────────── */
+/* ── Images : caption-friendly, ombres douces, cliquables (lightbox) ──── */
 .lumen-viewer .markdown-body img {
   max-width: 100%;
   height: auto;
@@ -1938,6 +2346,18 @@ button.lumen-viewer-chip:focus-visible {
   display: block;
   margin: 1.6em auto;
   box-shadow: var(--elevation-1);
+  cursor: zoom-in;
+  transition: transform var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+.lumen-viewer .markdown-body img:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-2);
+}
+/* Quand l'image est dans un lien explicite, garder cursor pointer
+   habituel (l'utilisateur s'attend a une navigation, pas un zoom). */
+.lumen-viewer .markdown-body a img {
+  cursor: pointer;
 }
 
 /* ── Strong / em / mark ─────────────────────────────────────────────────── */
@@ -2170,6 +2590,9 @@ button.lumen-viewer-chip:focus-visible {
   .lumen-viewer-chip,
   .lumen-linked-travaux,
   .lumen-viewer-nav,
+  .lumen-reading-progress,
+  .lumen-heading-anchor,
+  .lumen-lightbox,
   .mobile-hamburger {
     display: none !important;
   }

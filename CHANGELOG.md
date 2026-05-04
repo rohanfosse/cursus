@@ -1,5 +1,50 @@
 # Changelog
 
+## v2.276.0 (2026-05-04)
+
+### Lumen — Phase 4 polish editorial (7.5 -> 8.5+)
+
+Apres la refonte v2.275 (typographie unifiee, layout, polish basics), cette
+version pousse Lumen vers le territoire Stripe Docs / Substack / Notion.
+
+**Reading progress bar** : barre fine de 2px sous le breadcrumb, scaleX
+driven par le scroll du body. Visible uniquement quand le chapitre a du
+contenu scrollable (>0% et <100%). Signature editorial classique
+(Medium, Substack) qui rassure l'utilisateur sur la longueur restante.
+
+**Heading anchor links** : au hover d'un h1-h6, un "#" apparait a droite
+du titre. Click = copie l'URL `lumen://repo/path#heading-id` dans le
+presse-papiers. Permet de partager un deep-link vers une section precise.
+Pattern GitHub README / MDN / Stripe docs.
+
+**Header dropdown menu (...)** : les actions secondaires Print et
+Copy-link sont regroupees sous un bouton ⋮ qui ouvre un popover propre.
+Allege visuellement le header pour focaliser l'oeil sur les actions
+primaires (Edit, Companion, Devoirs). Mode Exec ipynb reste en chip
+dedie car c'est un toggle de mode (etat persistant). Click-outside et
+Escape pour fermer le menu.
+
+**Image lightbox** : click sur une image markdown ouvre un overlay plein
+ecran avec backdrop-blur. Escape ou click-hors-image pour fermer.
+Cursor: zoom-in sur les images, zoom-out sur l'overlay. Pattern Notion /
+GitHub README. Teleporte sur body pour eviter les conflits de stacking
+context.
+
+**Pull-quote variant** : `<blockquote class="pull-quote">` rend une
+citation centree, grande (1.4em), avec guillemet decoratif accent au
+dessus. Permet la mise en exergue editorial style Substack / NYT /
+Atlantic. Activable via HTML inline dans le markdown.
+
+**Drop-cap automatique** : le premier paragraphe qui suit un h1 commence
+par une grande capitale flottante (3.4em, accent color). Detail
+typographique signature editoriale, visible sans configuration. Cf.
+Substack, Atlantic, Le Monde.
+
+**Cleanup** : suppression des references restantes au reading-light
+toggle dans les classes (deja retire du JS en v2.275 mais 2 :class=
+restaient). Print stylesheet etendu pour masquer les nouveaux elements
+(reading-progress, heading-anchor, lightbox).
+
 ## v2.275.0 (2026-05-04)
 
 ### Refonte design Lumen — voix editoriale unifiee
