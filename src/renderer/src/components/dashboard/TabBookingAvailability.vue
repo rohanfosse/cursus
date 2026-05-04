@@ -127,8 +127,11 @@ function onAddSlot(day: number) {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+  font-family: var(--font-display);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
   padding-bottom: var(--space-xs);
   border-bottom: 1px solid var(--border);
 }
@@ -143,29 +146,59 @@ function onAddSlot(day: number) {
   margin-left: auto;
 }
 
-.week-grid { display: flex; flex-direction: column; gap: var(--space-sm); max-height: 400px; overflow-y: auto; }
+/* v2.273.7 — alignement sur landing .rdv-day :
+   label LUN/MAR/etc. uppercase color-rex a gauche, slots en pills
+   monospace, card en bg-elevated avec border. */
+.week-grid { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; padding-right: 2px; }
 .day-block {
-  background: var(--bg-main);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm) var(--space-md);
-}
-.day-name { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
-.day-rules { display: flex; flex-direction: column; gap: 3px; margin-bottom: var(--space-xs); }
-.rule-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 3px var(--space-xs);
   background: var(--bg-elevated);
-  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px var(--space-md);
+  transition: border-color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
 }
-.rule-time { font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-.no-rules { font-size: 11px; color: var(--text-muted); font-style: italic; }
+.day-block:hover {
+  border-color: color-mix(in srgb, var(--color-rex) 30%, transparent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--color-rex) 10%, transparent);
+}
+.day-name {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--color-rex);
+  margin-bottom: 6px;
+}
+.day-rules { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: var(--space-sm); }
+.rule-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: color-mix(in srgb, var(--color-rex) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-rex) 18%, transparent);
+  border-radius: 999px;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.rule-row:hover { background: color-mix(in srgb, var(--color-rex) 14%, transparent); }
+.rule-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-rex);
+}
+.no-rules {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 4px 0;
+}
 .add-slot-row { display: flex; align-items: center; gap: 4px; }
-.time-input { width: 80px; font-size: 11px; padding: 3px 6px; }
+.time-input { width: 80px; font-size: 11px; padding: 3px 6px; font-family: var(--font-mono); }
 .slot-sep { font-size: 11px; color: var(--text-muted); }
-.btn-add { color: var(--accent); }
+.btn-add { color: var(--color-rex); }
 .save-avail-btn { align-self: flex-end; }
 
 .input-field {

@@ -168,6 +168,7 @@ onUnmounted(() => {
     <UiPageHeader
       title="Rendez-vous"
       subtitle="Pilote tes types de RDV, tes disponibilites et tes campagnes en un seul endroit."
+      section="rex"
       :sticky="false"
     >
       <template #leading>
@@ -290,7 +291,7 @@ onUnmounted(() => {
   color: var(--text-primary);
 }
 
-.hdr-icon { color: var(--accent); }
+.hdr-icon { color: var(--color-rex); }
 
 /* ── Microsoft pill ──────────────────────────────────────────────────────── */
 .ms-pill {
@@ -386,8 +387,8 @@ onUnmounted(() => {
   min-width: 0;
 }
 .stat-card--accent {
-  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
-  background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
+  border-color: color-mix(in srgb, var(--color-rex) 35%, transparent);
+  background: color-mix(in srgb, var(--color-rex) 6%, var(--bg-elevated));
 }
 .stat-card--alert {
   border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
@@ -399,7 +400,7 @@ onUnmounted(() => {
   right: var(--space-sm);
   color: var(--text-muted);
 }
-.stat-card--accent .stat-icon { color: var(--accent); }
+.stat-card--accent .stat-icon { color: var(--color-rex); }
 .stat-card--alert  .stat-icon { color: var(--color-warning); }
 
 .stat-label {
@@ -422,7 +423,9 @@ onUnmounted(() => {
 .stat-value--text { font-size: 14px; font-weight: 600; }
 .stat-suffix { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-left: 2px; }
 
-/* ── "Prochain RDV" callout ─────────────────────────────────────────────── */
+/* ── "Prochain RDV" callout ───────────────────────────────────────────────
+   v2.273.7 — teinte color-rex (cyan) en lieu et place de l'accent generique
+   pour matcher la signature visuelle de la section Rendez-vous. */
 .next-callout {
   display: flex;
   align-items: center;
@@ -430,10 +433,10 @@ onUnmounted(() => {
   padding: var(--space-md) var(--space-lg);
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--accent) 14%, var(--bg-elevated)) 0%,
+    color-mix(in srgb, var(--color-rex) 14%, var(--bg-elevated)) 0%,
     var(--bg-elevated) 70%
   );
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border: 1px solid color-mix(in srgb, var(--color-rex) 30%, var(--border));
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-1);
 }
@@ -444,8 +447,8 @@ onUnmounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  color: var(--accent);
+  background: color-mix(in srgb, var(--color-rex) 18%, transparent);
+  color: var(--color-rex);
   flex-shrink: 0;
 }
 .next-body {
@@ -456,11 +459,12 @@ onUnmounted(() => {
   min-width: 0;
 }
 .next-eyebrow {
+  font-family: var(--font-display);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .08em;
-  color: var(--accent);
+  color: var(--color-rex);
 }
 .next-title {
   font-size: 14px;
@@ -479,16 +483,17 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--space-xs);
   padding: var(--space-xs) var(--space-md);
-  background: var(--accent);
+  background: var(--color-rex);
   color: #fff;
   border-radius: var(--radius-sm);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
-  transition: filter var(--motion-fast) var(--ease-out);
+  transition: filter var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-rex) 30%, transparent);
 }
-.next-cta:hover { filter: brightness(1.06); }
+.next-cta:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .next-cta:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 @media (max-width: 720px) {

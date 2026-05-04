@@ -229,7 +229,12 @@ onUnmounted(() => {
     />
 
     <div v-else class="type-list">
-      <div v-for="et in filteredTypes" :key="et.id" class="type-card">
+      <div
+        v-for="et in filteredTypes"
+        :key="et.id"
+        class="type-card"
+        :style="{ '--ic': et.color }"
+      >
         <div class="type-row" @click="expandedTypeId = expandedTypeId === et.id ? null : et.id">
           <span class="color-dot" :style="{ background: et.color }" aria-hidden="true" />
           <span class="type-title">{{ et.title }}</span>
@@ -505,8 +510,11 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+  font-family: var(--font-display);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
   padding-bottom: var(--space-xs);
   border-bottom: 1px solid var(--border);
 }
@@ -554,33 +562,59 @@ onUnmounted(() => {
   font-style: italic;
 }
 
-.type-list { display: flex; flex-direction: column; gap: var(--space-xs); max-height: 360px; overflow-y: auto; }
-.type-card { background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+/* v2.273.7 — alignement sur landing .rdv-type :
+   border-left coloree par type, hover lift + shadow coloree, duration
+   en pill monospace cyan. */
+.type-list { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; padding-right: 2px; }
+.type-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ic, var(--color-rex));
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: transform var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.type-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--ic, var(--color-rex)) 16%, transparent);
+}
 .type-row {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
+  padding: 10px var(--space-md);
   cursor: pointer;
   transition: background var(--motion-fast) var(--ease-out);
 }
-.type-row:hover { background: var(--bg-hover); }
-.color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.type-row:hover { background: color-mix(in srgb, var(--ic, var(--color-rex)) 5%, transparent); }
+.color-dot {
+  width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ic, currentColor) 22%, transparent);
+}
 .type-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1px;
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-primary);
 }
 .type-dur {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
+  font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--text-muted);
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ic, var(--color-rex)) 14%, transparent);
+  color: var(--ic, var(--color-rex));
   flex-shrink: 0;
 }
 .toggle-active {

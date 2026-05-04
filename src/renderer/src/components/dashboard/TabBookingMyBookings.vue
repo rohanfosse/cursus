@@ -101,8 +101,11 @@ const bookingsView = ref<'list' | 'calendar'>('calendar')
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+  font-family: var(--font-display);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
   padding-bottom: var(--space-xs);
   border-bottom: 1px solid var(--border);
 }
@@ -134,35 +137,62 @@ const bookingsView = ref<'list' | 'calendar'>('calendar')
 .view-btn.active { background: var(--accent); color: #fff; }
 .view-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
-.booking-list { display: flex; flex-direction: column; gap: var(--space-xs); max-height: 440px; overflow-y: auto; }
+/* v2.273.7 — alignement style landing booking : cards en grid avec
+   colonne date a gauche (rex teint), info au milieu, badge a droite. */
+.booking-list { display: flex; flex-direction: column; gap: 8px; max-height: 440px; overflow-y: auto; padding-right: 2px; }
 .booking-card {
-  background: var(--bg-main);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm) var(--space-md);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  border-left: 3px solid var(--color-rex);
+  border-radius: var(--radius);
+  padding: 10px var(--space-md);
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: var(--space-sm);
+  transition: transform var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+.booking-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-rex) 14%, transparent);
 }
 .bk-date, .bk-time {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-rex);
+}
+.bk-time { color: var(--text-secondary); }
+.bk-type {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.05px;
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+.bk-people {
+  display: flex;
+  gap: var(--space-sm);
   font-size: 11px;
   color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
+  grid-column: 1 / -1;
 }
-.bk-type { font-size: 12px; font-weight: 600; }
-.bk-people { display: flex; gap: var(--space-sm); font-size: 11px; color: var(--text-secondary); }
-.bk-person::before { content: "— "; }
+.bk-person::before { content: "— "; opacity: .6; }
 .bk-badge {
-  display: inline-block;
-  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
   font-size: 10px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: var(--radius-xs);
-  margin-top: 2px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  justify-self: end;
 }
 .bk-badge.badge-success {
   background: color-mix(in srgb, var(--color-success) 15%, transparent);
