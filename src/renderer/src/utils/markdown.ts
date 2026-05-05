@@ -25,14 +25,47 @@ const HLJS_AUTO_SUBSET = [
   'html', 'css', 'json', 'sql', 'yaml', 'markdown',
 ]
 
-// Hook pour highlight.js sur les blocs de code + wrapper avec badge langue.
+// Hook pour highlight.js sur les blocs de code + wrapper avec badge langue,
+// numeros de ligne, nom de fichier, compteur, fold/wrap toggles.
 // Cas special : `mermaid` est passe tel-quel (echappe) dans un <pre> marque,
 // le viewer se charge du rendu SVG apres montage.
+//
+// Syntaxe enrichie supportee dans la fence :
+//   ```python title="server.py"          → affiche le nom de fichier
+//   ```js fold                            → bloc plie par defaut
+//   ```ts title="api.ts" fold             → combinaison
+// Le parsing tolere espaces et ordre arbitraire.
+const FOLD_THRESHOLD = 20
+
+interface CodeMeta {
+  lang: string
+  filename: string
+  foldedByDefault: boolean
+}
+
+function parseCodeMeta(rawLang: string): CodeMeta {
+  const trimmed = rawLang.trim()
+  if (!trimmed) return { lang: '', filename: '', foldedByDefault: false }
+  // Fast path : cas le plus frequent (juste ```python ou ```js) sans flags.
+  const spaceIdx = trimmed.indexOf(' ')
+  if (spaceIdx === -1) return { lang: trimmed.toLowerCase(), filename: '', foldedByDefault: false }
+  const lang = trimmed.slice(0, spaceIdx).toLowerCase()
+  const meta = trimmed.slice(spaceIdx + 1)
+  const titleMatch = meta.match(/title=["']([^"']+)["']/)
+  return {
+    lang,
+    filename: titleMatch?.[1] ?? '',
+    foldedByDefault: /\bfold\b/.test(meta),
+  }
+}
+
 marked.use({
   renderer: {
     code(token) {
       const code = typeof token === 'string' ? token : token.text
-      const lang = typeof token === 'string' ? '' : (token.lang ?? '')
+      const rawLang = typeof token === 'string' ? '' : (token.lang ?? '')
+      const { lang, filename, foldedByDefault } = parseCodeMeta(rawLang)
+
       if (lang === 'mermaid') {
         // Placeholder : la source est conservee en textContent, rendue
         // cote Vue par mermaid.render apres v-html.
@@ -44,12 +77,34 @@ marked.use({
         : hljs.highlightAuto(code, HLJS_AUTO_SUBSET).value
       const cls = validLang ? `language-${lang}` : ''
       const label = (validLang ? lang : (lang || 'text')).toUpperCase()
+
+      // Compte les lignes pour la gouttiere de numeros et le badge "N lignes".
+      // On regarde le code SOURCE (pas le HTML highlighte) pour eviter de
+      // compter les <span> multi-lignes des tokens.
+      const lineCount = code.split('\n').length - (code.endsWith('\n') ? 1 : 0)
+      const safeLineCount = Math.max(1, lineCount)
+      const lineNumbers = Array.from({ length: safeLineCount }, (_, i) => String(i + 1)).join('\n')
+
+      const shouldFold = foldedByDefault || safeLineCount > FOLD_THRESHOLD
+      const wrapperClasses = ['lumen-codeblock']
+      if (shouldFold) wrapperClasses.push('lumen-codeblock--folded')
+
+      const filenameHtml = filename
+        ? `<span class="lumen-codeblock-filename" title="${escapeHtml(filename)}">${escapeHtml(filename)}</span>`
+        : ''
+      const linesBadge = `<span class="lumen-codeblock-lines">${safeLineCount} ligne${safeLineCount > 1 ? 's' : ''}</span>`
+
       return (
-        `<div class="lumen-codeblock">` +
+        `<div class="${wrapperClasses.join(' ')}" data-fold-default="${shouldFold}">` +
           `<div class="lumen-codeblock-header">` +
             `<span class="lumen-codeblock-lang">${escapeHtml(label)}</span>` +
+            filenameHtml +
+            linesBadge +
           `</div>` +
-          `<pre class="lumen-code"><code class="hljs ${cls}">${highlighted}</code></pre>` +
+          `<div class="lumen-codeblock-body">` +
+            `<pre class="lumen-code-gutter" aria-hidden="true">${lineNumbers}</pre>` +
+            `<pre class="lumen-code"><code class="hljs ${cls}">${highlighted}</code></pre>` +
+          `</div>` +
         `</div>`
       )
     },
@@ -313,6 +368,9 @@ const ALLOWED_ATTR = [
   // Attributs data-* utilises par Lumen pour relier les liens
   // inter-chapitres a une navigation interne via un click handler.
   'data-chapter-link', 'data-external', 'data-lumen-link',
+  // Attribut data-* pour memoriser l'etat de pli initial des blocs de code
+  // (defini par la fence markdown via "fold" ou si > 20 lignes).
+  'data-fold-default',
 ]
 
 // Force rel="noopener noreferrer" sur tous les liens externes pour eviter window.opener leak

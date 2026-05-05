@@ -1,0 +1,900 @@
+.lumen-viewer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* v2.273.5 : --bg-main au lieu de --bg-primary (qui en theme light vaut
+     #E5E7EB, un gris trop fonce qui jaurissait sur le blanc des modales /
+     widgets autour. Le viewer doit etre la zone de contenu propre = blanc). */
+  background: var(--bg-main);
+  /* height: 0 force le flex-basis a 0 pour que le container
+     ne depasse pas la hauteur du parent (necessaire pour les PDFs) */
+  height: 0;
+}
+
+.lumen-viewer-head {
+  padding: 14px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.lumen-viewer-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.lumen-viewer-project {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.lumen-viewer-sep { color: var(--text-muted); }
+.lumen-viewer-title {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.lumen-viewer-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lumen-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.lumen-viewer-meta-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.lumen-viewer-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.lumen-viewer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 3px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+}
+.lumen-viewer-chip.read {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+button.lumen-viewer-chip {
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+button.lumen-viewer-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.lumen-viewer-chip--link {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.lumen-viewer-chip--link:hover {
+  background: var(--accent);
+  color: white;
+}
+.lumen-viewer-chip--marp {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .12);
+  border-color: rgba(var(--accent-rgb), .25);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.lumen-viewer-chip--edit {
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), .35);
+  background: transparent;
+  font-weight: 600;
+  gap: 5px;
+}
+.lumen-viewer-chip--edit:hover {
+  background: rgba(var(--accent-rgb), .14);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.lumen-viewer-chip-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(var(--accent-rgb), .18);
+  border: 1px solid rgba(var(--accent-rgb), .3);
+  border-radius: 3px;
+  color: var(--accent);
+  line-height: 1;
+}
+.lumen-viewer-chip--companion {
+  color: var(--color-warning);
+  border-color: rgba(232,137,26,.35);
+  background: transparent;
+  font-weight: 600;
+}
+.lumen-viewer-chip--companion:hover:not(:disabled) {
+  background: rgba(232,137,26,.12);
+  border-color: var(--color-warning);
+}
+.lumen-viewer-chip--companion.active {
+  background: rgba(232,137,26,.16);
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+.lumen-viewer-chip--companion:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+/* Exec : toggle ipynb (lecture/execution) — accent au hover/active. */
+.lumen-viewer-chip--exec {
+  color: var(--text-muted);
+  border-color: transparent;
+  background: transparent;
+  padding: 4px 6px;
+}
+.lumen-viewer-chip--exec:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.lumen-viewer-chip--exec.active {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .12);
+}
+
+/* Bouton "more" (⋮) + popover des actions secondaires (Print, Copy-link).
+   v2.276 : regroupement pour alleger le header. Cf. GitHub : edit
+   visible, autres actions sous menu. */
+.lumen-more-wrap {
+  position: relative;
+}
+.lumen-viewer-chip--more {
+  color: var(--text-muted);
+  border-color: transparent;
+  background: transparent;
+  padding: 4px 6px;
+}
+.lumen-viewer-chip--more:hover,
+.lumen-viewer-chip--more.active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.lumen-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  min-width: 220px;
+  padding: 4px;
+  background: var(--bg-modal, var(--bg-elevated));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--elevation-3);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  animation: lumen-more-fade var(--motion-fast) var(--ease-out);
+}
+@keyframes lumen-more-fade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.lumen-more-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.lumen-more-item:hover {
+  background: var(--bg-hover);
+}
+.lumen-more-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.lumen-more-item svg {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+/* Edition inline : tout est dans LumenChapterEditor.vue (refonte v2.283). */
+
+.lumen-viewer-loading,
+.lumen-viewer-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Wrapper flex : body markdown a gauche, outline a droite. Prend toute
+   la hauteur dispo, le body scroll verticalement independamment. */
+.lumen-viewer-main {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+.lumen-viewer-main--slides {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+  /* Le slidedeck gere son propre padding interne et son alignement.
+     v2.66.2 : on retire l'overflow-y:auto qui empechait le slidedeck
+     d'utiliser toute la hauteur disponible. */
+  overflow: hidden;
+  padding: 0;
+}
+
+
+.lumen-viewer-main--tex .lumen-viewer-body {
+  padding: var(--space-xl) var(--space-2xl, 32px);
+  max-width: 800px;
+  margin: 0 auto;
+}
+.lumen-tex-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--text-primary);
+}
+.lumen-tex-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.lumen-tex-img-placeholder {
+  padding: 24px;
+  text-align: center;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 16px 0;
+}
+.lumen-tex-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+.lumen-tex-table td,
+.lumen-tex-table th {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+
+/* Jupyter Notebook (v2.105) */
+.lumen-viewer-main--ipynb .lumen-viewer-body {
+  padding: var(--space-lg) var(--space-2xl, 32px);
+  max-width: 900px;
+  margin: 0 auto;
+}
+.ipynb-cell { margin-bottom: 16px; }
+.ipynb-cell--code {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.ipynb-code-wrap {
+  display: flex;
+  gap: 0;
+  background: var(--bg-secondary);
+}
+.ipynb-exec-count {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px 8px 10px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  min-width: 36px;
+  justify-content: flex-end;
+  user-select: none;
+  flex-shrink: 0;
+}
+.ipynb-code-wrap .lumen-code {
+  margin: 0;
+  border-radius: 0;
+  flex: 1;
+  min-width: 0;
+}
+.ipynb-outputs {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  background: var(--bg-primary);
+}
+.ipynb-stream,
+.ipynb-text {
+  margin: 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+  color: var(--text-secondary);
+}
+.ipynb-error {
+  margin: 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+  color: var(--danger);
+  background: rgba(var(--color-danger-rgb), 0.08);
+  padding: 8px;
+  border-radius: var(--radius-xs);
+}
+.ipynb-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-xs);
+}
+.ipynb-svg { max-width: 100%; overflow: auto; }
+.ipynb-html-output { overflow-x: auto; font-size: 13px; }
+.ipynb-parse-error {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* v2.275 : reading-light toggle retire — il dupliquait le theme switch
+   global et utilisait des !important hardcodes qui cassaient le tokenisme.
+   Si l'utilisateur veut un mode clair pour la lecture, il switch le theme
+   global app (Settings -> Apparence). */
+
+/* Corps markdown : largeur de lecture confortable (~70-75 caracteres en
+   17px serif) capee a 760px. Centre dans le flex parent — l'outline
+   (220px) reste a droite, le contenu reste lisible meme sur 4K.
+   Cf. Stripe docs / Mintlify / Notion qui plafonnent autour de 720-780px. */
+.lumen-viewer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-xl) 56px var(--space-xl);
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+}
+/* Sur ecran moyen, on garde max-width 760px mais on reduit le padding
+   horizontal pour que les marges ne mangent pas le contenu. */
+@media (max-width: 1280px) {
+  .lumen-viewer-body {
+    padding: var(--space-xl) 32px var(--space-xl);
+  }
+}
+/* Sous 900px le confort de 760px disparait : on laisse le body remplir
+   l'espace dispo pour eviter les marges fantomes. */
+@media (max-width: 900px) {
+  .lumen-viewer-body {
+    padding: var(--space-lg) 20px var(--space-lg);
+    max-width: 100%;
+  }
+}
+
+/* Mode Accueil (v2.66) : layout plus aere, h1 plus visible, padding genereux
+   pour donner une impression de "tableau de bord du bloc". */
+.lumen-viewer-body--accueil {
+  max-width: 920px;
+  padding: var(--space-xl) 64px var(--space-xl);
+}
+.lumen-viewer-body--accueil :deep(h1) {
+  font-size: 36px;
+  margin-bottom: var(--space-xl);
+  letter-spacing: -0.025em;
+}
+
+/* Sommaire du bloc affiche en bas de la page d'accueil (v2.66) */
+.lumen-bloc-toc {
+  margin-top: var(--space-2xl, 48px);
+  padding-top: var(--space-xl);
+  border-top: 1px solid var(--border);
+}
+.lumen-bloc-toc-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.lumen-bloc-toc-title::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 22px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.lumen-bloc-toc-section {
+  margin-bottom: var(--space-lg);
+}
+.lumen-bloc-toc-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-sm);
+}
+.lumen-bloc-toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-sm);
+}
+.lumen-bloc-toc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-base) var(--ease-out),
+              box-shadow var(--motion-base) var(--ease-out);
+}
+.lumen-bloc-toc-item:hover {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), .04);
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-2);
+}
+.lumen-bloc-toc-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.lumen-bloc-toc-item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lumen-bloc-toc-item-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+/* Lightbox image : extrait dans LumenImageLightbox.vue (v2.283). */
+
+/* Reading progress (v2.276) : barre fine sous le header, scaleX driven par
+   le scroll. transform-origin left = scale grandit de gauche a droite.
+   Cf. Medium / Substack — signature editoriale qui rassure l'utilisateur
+   sur la longueur restante. */
+.lumen-reading-progress {
+  height: 2px;
+  margin: 0 -16px;
+  background: var(--border);
+  overflow: hidden;
+  position: relative;
+}
+.lumen-reading-progress-bar {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform var(--motion-fast) linear;
+  will-change: transform;
+}
+
+/* Breadcrumbs : fil d'ariane du header. Porte maintenant le titre du
+   chapitre (v2.67.2) puisque le bloc meta redondant a ete supprime. */
+.lumen-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.lumen-breadcrumbs-seg {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+.lumen-breadcrumbs-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  color: var(--text-muted);
+  font-weight: 500;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.lumen-breadcrumbs-link:hover { color: var(--accent); text-decoration: underline; }
+/* Section parente : italique pour la differencier du projet (memes muted)
+   et du chapitre courant (bold). */
+.lumen-breadcrumbs-seg:not(.lumen-breadcrumbs-link):not(.lumen-breadcrumbs-current) {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+.lumen-breadcrumbs-current {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 16px;
+  font-style: normal;
+  max-width: 520px;
+}
+.lumen-breadcrumbs-sep {
+  color: var(--text-muted);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+/* Banner stale content : visible quand le contenu vient du cache ou est
+   plus vieux que 1h. Non dismissable : incite au resync. */
+.lumen-stale-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px auto 0;
+  max-width: 760px;
+  padding: 12px 16px;
+  background: rgba(var(--color-warning-rgb), 0.12);
+  border: 1px solid rgba(var(--color-warning-rgb), 0.35);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--color-warning);
+  flex-shrink: 0;
+}
+.lumen-stale-banner svg { flex-shrink: 0; }
+
+/* Indicateur fin de cours (v2.87) */
+.lumen-end-of-course {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  margin: 24px auto;
+  max-width: 760px;
+  border-radius: var(--radius);
+  background: rgba(var(--color-success-rgb), 0.08);
+  border: 1px solid rgba(var(--color-success-rgb), 0.25);
+  color: var(--color-success);
+  font-size: 14px;
+  font-weight: 600;
+}
+.lumen-stale-refresh {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-xs);
+  color: inherit;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.lumen-stale-refresh:hover { background: rgba(217, 138, 0, 0.12); }
+
+/* Popover "Devoirs lies" depuis le chip header. Cache par defaut, ne prend
+   pas de place verticale dans le contenu (cf. demande utilisateur v2.61). */
+.lumen-linked-popover-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.lumen-viewer-chip.active {
+  background: rgba(var(--accent-rgb), .14);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.lumen-linked-popover {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  right: 0;
+  width: min(360px, calc(100vw - 40px));
+  background: var(--bg-modal);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-3);
+  padding: var(--space-md);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.llt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+.llt-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.llt-count {
+  background: rgba(var(--accent-rgb), .14);
+  color: var(--accent);
+  padding: 1px 7px;
+  border-radius: var(--radius);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 700;
+}
+.llt-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter var(--motion-fast) var(--ease-out);
+}
+.llt-link-btn:hover { filter: brightness(1.1); }
+.llt-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.llt-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.llt-item:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+.llt-item-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.llt-item-cat {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-main);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+.llt-item-deadline {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.llt-empty {
+  margin: 0;
+  padding: var(--space-md);
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* Navigation flottante prev/next : 2 boutons en bordure du contenu, opacite
+   reduite au repos, opacite pleine au hover du viewer. */
+.lumen-floating-nav {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-md);
+  z-index: 5;
+}
+.lumen-floating-nav-btn {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: var(--elevation-2);
+  /* v2.275 : 0.4 etait quasi invisible sur fond clair. 0.65 = present
+     mais pas intrusif, hover plein. */
+  opacity: 0.65;
+  transform: translateY(0);
+  transition: opacity var(--motion-base) var(--ease-out),
+              background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
+}
+.lumen-viewer-main:hover .lumen-floating-nav-btn,
+.lumen-floating-nav-btn:focus-visible {
+  opacity: 1;
+}
+.lumen-floating-nav-btn:hover {
+  opacity: 1;
+  background: var(--accent);
+  color: #fff;
+  transform: scale(1.05);
+}
+.lumen-floating-nav-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--elevation-2), var(--focus-ring);
+}
+
+/* Scroll-to-top FAB (v2.283) : flottant en bas a droite du viewer, fade-in
+   apres 30 % de progression de lecture. Pattern Medium / Notion / GitHub
+   docs — confort sur les longs chapitres. */
+.lumen-scroll-top {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: var(--elevation-2);
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
+}
+.lumen-scroll-top:hover {
+  background: var(--accent);
+  color: #fff;
+  transform: translateY(-2px);
+}
+.lumen-scroll-top:focus-visible {
+  outline: none;
+  box-shadow: var(--elevation-2), var(--focus-ring);
+}
+.lumen-fab-fade-enter-active,
+.lumen-fab-fade-leave-active {
+  transition: opacity var(--motion-base) var(--ease-out),
+              transform var(--motion-base) var(--ease-out);
+}
+.lumen-fab-fade-enter-from,
+.lumen-fab-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+/* ── Recherche dans le chapitre (Ctrl+F) ── */
+.lumen-find-bar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.lumen-find-icon { color: var(--text-muted); flex-shrink: 0; }
+.lumen-find-input {
+  flex: 1; border: 1px solid var(--border-input); border-radius: var(--radius-sm);
+  background: var(--bg-input); color: var(--text-primary);
+  font-family: var(--font); font-size: 13px; padding: 5px 10px;
+  outline: none; min-width: 120px;
+}
+.lumen-find-input:focus { border-color: var(--accent); }
+.lumen-find-count {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.lumen-find-count--zero { color: var(--color-danger); }
+.lumen-find-nav {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-secondary); cursor: pointer; transition: all .12s;
+}
+.lumen-find-nav:hover { background: var(--bg-hover); color: var(--accent); }
+.lumen-find-close {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: var(--radius-sm);
+  border: none; background: transparent;
+  color: var(--text-muted); cursor: pointer;
+}
+.lumen-find-close:hover { color: var(--color-danger); }
+.find-slide-enter-active, .find-slide-leave-active { transition: all .2s ease; }
+.find-slide-enter-from, .find-slide-leave-to { opacity: 0; transform: translateY(-100%); }

@@ -1,0 +1,773 @@
+/* ════════════════════════════════════════════════════════════════════════
+   TYPOGRAPHIE PEDAGOGIQUE LUMEN (v2.65 — extrait v2.283)
+
+   Toute la mise en page d'un cours markdown : titres hierarchises, listes
+   avec marker accent, blockquote callout, tables zebrees, liens lisibles,
+   inline code souligne, hr discret. Tokenise sur les variables Cursus —
+   suit automatiquement le theme actif (default / cursus / marine / pulse).
+
+   Volontairement NON scoped : marked emet du HTML brut sans data-v-*
+   attributes, les selecteurs scoped ne matcheraient pas. Importe par
+   LumenChapterViewer via <style src="..."> pour rester un fichier CSS
+   pur (linting, autocompletion, plus simple a parcourir).
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Voix editoriale UNIQUE — Newsreader serif 17px, line-height 1.72.
+   Aligne sur les standards de lecture longue (Substack, Medium, NYT
+   Reader). Decale du Plus Jakarta Sans du reste de l'app pour signaler
+   "tu lis du contenu, pas de l'UI". */
+.lumen-viewer .markdown-body {
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 17px;
+  line-height: 1.72;
+  color: var(--text-primary);
+  font-feature-settings: 'liga', 'kern';
+}
+
+/* ── Titres : hierarchie sobre, taille porte le poids ──────────────────── */
+.lumen-viewer .markdown-body h1,
+.lumen-viewer .markdown-body h2,
+.lumen-viewer .markdown-body h3,
+.lumen-viewer .markdown-body h4,
+.lumen-viewer .markdown-body h5,
+.lumen-viewer .markdown-body h6 {
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  scroll-margin-top: var(--space-xl);
+  text-wrap: balance;
+  position: relative;
+}
+
+.lumen-viewer .markdown-body h1 {
+  font-size: 2.2em;
+  margin: 0.2em 0 0.6em;
+  letter-spacing: -0.02em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+}
+
+/* Heading anchor (# au hover) — bouton copy-permalink injecte par
+   injectHeadingAnchors(). v2.276 — signature des bonnes docs (GitHub,
+   MDN, Stripe). Apparait au hover du heading parent. */
+.lumen-viewer .markdown-body .lumen-heading-anchor {
+  display: inline-block;
+  margin-left: 0.4em;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-weight: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+  vertical-align: baseline;
+}
+.lumen-viewer .markdown-body h1:hover .lumen-heading-anchor,
+.lumen-viewer .markdown-body h2:hover .lumen-heading-anchor,
+.lumen-viewer .markdown-body h3:hover .lumen-heading-anchor,
+.lumen-viewer .markdown-body h4:hover .lumen-heading-anchor,
+.lumen-viewer .markdown-body h5:hover .lumen-heading-anchor,
+.lumen-viewer .markdown-body h6:hover .lumen-heading-anchor,
+.lumen-viewer .markdown-body .lumen-heading-anchor:focus-visible {
+  opacity: 0.7;
+}
+.lumen-viewer .markdown-body .lumen-heading-anchor:hover {
+  opacity: 1 !important;
+  color: var(--accent);
+}
+.lumen-viewer .markdown-body .lumen-heading-anchor.copied {
+  opacity: 1 !important;
+  color: var(--color-success);
+}
+.lumen-viewer .markdown-body .lumen-heading-anchor:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 3px;
+}
+.lumen-viewer .markdown-body h2 {
+  font-size: 1.65em;
+  margin: 1.8em 0 0.5em;
+}
+.lumen-viewer .markdown-body h3 {
+  font-size: 1.3em;
+  margin: 1.5em 0 0.4em;
+}
+.lumen-viewer .markdown-body h4 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 1.4em 0 0.3em;
+}
+.lumen-viewer .markdown-body h5,
+.lumen-viewer .markdown-body h6 {
+  font-size: 0.95em;
+  font-weight: 600;
+  margin: 1.2em 0 0.3em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Paragraphes : rythme 1em vertical ─────────────────────────────────── */
+.lumen-viewer .markdown-body p {
+  margin: 0 0 1em;
+}
+
+/* ── Listes ─────────────────────────────────────────────────────────────── */
+.lumen-viewer .markdown-body ul,
+.lumen-viewer .markdown-body ol {
+  margin: 0 0 1em;
+  padding-left: 1.6em;
+}
+.lumen-viewer .markdown-body li {
+  margin: 0.3em 0;
+}
+.lumen-viewer .markdown-body li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+.lumen-viewer .markdown-body li > p { margin: 0.2em 0; }
+.lumen-viewer .markdown-body li > ul,
+.lumen-viewer .markdown-body li > ol {
+  margin-top: 0.3em;
+  margin-bottom: 0.3em;
+}
+
+/* Checkbox lists (GFM) */
+.lumen-viewer .markdown-body li input[type="checkbox"] {
+  accent-color: var(--accent);
+  margin-right: 0.4em;
+  vertical-align: middle;
+}
+
+/* ── Liens : underline subtil, accent au hover ──────────────────────────── */
+.lumen-viewer .markdown-body a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: text-decoration-thickness var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.lumen-viewer .markdown-body a:hover {
+  color: var(--accent-hover);
+  text-decoration-thickness: 2px;
+}
+.lumen-viewer .markdown-body a:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 2px;
+}
+
+/* ── Code inline ────────────────────────────────────────────────────────── */
+.lumen-viewer .markdown-body :not(pre) > code {
+  background: rgba(var(--accent-rgb), .1);
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  font-weight: 500;
+  font-style: normal;
+}
+
+/* ── Blockquotes : citation litteraire (italique discret) ───────────────── */
+.lumen-viewer .markdown-body blockquote {
+  margin: 1.6em 0;
+  padding: 0.2em 0 0.2em 1.2em;
+  border-left: 3px solid var(--accent);
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: 1.02em;
+  line-height: 1.65;
+}
+.lumen-viewer .markdown-body blockquote p:last-child { margin-bottom: 0; }
+.lumen-viewer .markdown-body blockquote code { font-style: normal; }
+
+/* Pull-quote : variante grande citation pour mise en exergue. v2.276 —
+   Activable via `<blockquote class="pull-quote">` en HTML inline ou
+   syntaxe markdown future. Style Substack / NYT / Atlantic. */
+.lumen-viewer .markdown-body blockquote.pull-quote,
+.lumen-viewer .markdown-body blockquote[data-pull] {
+  margin: 2em 0;
+  padding: 0;
+  border-left: none;
+  font-size: 1.4em;
+  line-height: 1.4;
+  font-style: normal;
+  color: var(--text-primary);
+  font-weight: 500;
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+.lumen-viewer .markdown-body blockquote.pull-quote::before,
+.lumen-viewer .markdown-body blockquote[data-pull]::before {
+  content: '“';
+  display: block;
+  font-size: 2em;
+  color: var(--accent);
+  line-height: 0.5;
+  margin-bottom: 0.3em;
+}
+
+/* Drop-cap : premiere lettre du premier paragraphe en grande capitale.
+   v2.276 — opt-in via classe `.lumen-drop-cap` sur le viewer-body, OU
+   automatique sur le premier <p> qui suit un h1 (signature editorial). */
+.lumen-viewer .markdown-body h1 + p::first-letter {
+  float: left;
+  font-size: 3.4em;
+  line-height: 0.85;
+  font-weight: 700;
+  margin: 0.08em 0.08em 0 0;
+  color: var(--accent);
+  font-feature-settings: 'lnum';
+}
+
+/* ── Hr / separateur ────────────────────────────────────────────────────── */
+.lumen-viewer .markdown-body hr {
+  margin: 2.4em 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Tables : zebra discrete, sans-serif pour lisibilite tabulaire ─────── */
+.lumen-viewer .markdown-body table {
+  width: 100%;
+  margin: 1.6em 0;
+  border-collapse: collapse;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.lumen-viewer .markdown-body th {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.lumen-viewer .markdown-body td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.lumen-viewer .markdown-body tr:last-child td { border-bottom: none; }
+.lumen-viewer .markdown-body tr:nth-child(even) td {
+  background: var(--bg-hover);
+}
+.lumen-viewer .markdown-body tr:hover td {
+  background: rgba(var(--accent-rgb), .04);
+}
+
+/* ── Images : caption-friendly, ombres douces, cliquables (lightbox) ──── */
+.lumen-viewer .markdown-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  display: block;
+  margin: 1.6em auto;
+  box-shadow: var(--elevation-1);
+  cursor: zoom-in;
+  transition: transform var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+.lumen-viewer .markdown-body img:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-2);
+}
+.lumen-viewer .markdown-body a img {
+  cursor: pointer;
+}
+
+/* ── Strong / em / mark ─────────────────────────────────────────────────── */
+.lumen-viewer .markdown-body strong { color: var(--text-primary); font-weight: 700; }
+.lumen-viewer .markdown-body em { color: var(--text-primary); font-style: italic; }
+.lumen-viewer .markdown-body mark {
+  background: rgba(229, 168, 66, .25);
+  color: var(--text-primary);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BLOCS DE CODE (v2.65 — refonte v2.283)
+
+   Structure :
+   <div class="lumen-codeblock">
+     <div class="lumen-codeblock-header">
+       <span class="lumen-codeblock-lang">PYTHON</span>
+       <span class="lumen-codeblock-filename">server.py</span>   ← optionnel
+       <span class="lumen-codeblock-lines">12 lignes</span>
+       <div class="lumen-codeblock-actions">                      ← injecte JS
+         <button class="lumen-wrap-btn">…</button>
+         <button class="lumen-fold-btn">…</button>                 ← > 10 lignes
+         <button class="lumen-copy-btn">…</button>
+       </div>
+     </div>
+     <div class="lumen-codeblock-body">
+       <pre class="lumen-code-gutter">1\n2\n3\n…</pre>             ← numeros
+       <pre class="lumen-code"><code>…</code></pre>
+     </div>
+   </div>
+
+   Modificateurs :
+   - .lumen-codeblock--folded   bloc replie (max-height + fade)
+   - .lumen-codeblock--wrapped  retour a la ligne au lieu du scroll
+   ══════════════════════════════════════════════════════════════════════ */
+
+.lumen-viewer .markdown-body .lumen-codeblock {
+  margin: var(--space-lg) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--code-bg);
+  box-shadow: var(--elevation-1);
+}
+.lumen-viewer .markdown-body .lumen-codeblock-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 4px var(--space-md);
+  background: var(--code-header-bg, rgba(255, 255, 255, 0.05));
+  border-bottom: 1px solid var(--code-header-border, rgba(255, 255, 255, 0.08));
+  min-height: 32px;
+  cursor: default;
+}
+.lumen-viewer .markdown-body .lumen-codeblock--folded .lumen-codeblock-header {
+  /* Bloc plie : header cliquable pour deplier (UX Notion) */
+  cursor: pointer;
+}
+.lumen-viewer .markdown-body .lumen-codeblock-lang {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--code-lang-color, rgba(255, 255, 255, 0.6));
+  font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+  letter-spacing: .04em;
+}
+.lumen-viewer .markdown-body .lumen-codeblock-filename {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+  font-weight: 500;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-sm);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lumen-viewer .markdown-body .lumen-codeblock-lines {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.4);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+.lumen-viewer .markdown-body .lumen-codeblock-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lumen-viewer .markdown-body .lumen-codeblock-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+.lumen-viewer .markdown-body .lumen-codeblock-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.95);
+}
+.lumen-viewer .markdown-body .lumen-codeblock-icon-btn.active {
+  background: rgba(var(--accent-rgb), .22);
+  color: #fff;
+}
+.lumen-viewer .markdown-body .lumen-codeblock-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), .5);
+}
+
+/* Body : grid 2 colonnes (gutter | code) pour aligner numeros et lignes. */
+.lumen-viewer .markdown-body .lumen-codeblock-body {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  position: relative;
+  transition: max-height var(--motion-base) var(--ease-out);
+}
+.lumen-viewer .markdown-body .lumen-code-gutter {
+  margin: 0;
+  padding: var(--space-md) 12px var(--space-md) 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.32);
+  font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: right;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+  min-width: 28px;
+}
+.lumen-viewer .markdown-body .lumen-codeblock pre.lumen-code {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: var(--space-md) var(--space-lg);
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+          mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+}
+.lumen-viewer .markdown-body .lumen-codeblock--wrapped pre.lumen-code {
+  -webkit-mask-image: none;
+          mask-image: none;
+}
+.lumen-viewer .markdown-body .lumen-codeblock--wrapped pre.lumen-code code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.lumen-viewer .markdown-body .lumen-codeblock pre.lumen-code[data-scrolled-end="true"] {
+  -webkit-mask-image: none;
+          mask-image: none;
+}
+.lumen-viewer .markdown-body .lumen-codeblock pre.lumen-code code {
+  font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+  font-size: 13px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--code-text);
+  font-weight: 400;
+}
+
+/* Etat plie : on cape la hauteur du body et on ajoute un fade en bas qui
+   suggere du contenu masque. Click sur le header ou bouton ↓ pour deplier. */
+.lumen-viewer .markdown-body .lumen-codeblock--folded .lumen-codeblock-body {
+  max-height: 140px;
+  overflow: hidden;
+  position: relative;
+}
+.lumen-viewer .markdown-body .lumen-codeblock--folded .lumen-codeblock-body::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 60px;
+  background: linear-gradient(to bottom, transparent, var(--code-bg) 90%);
+  pointer-events: none;
+}
+
+/* ── Bouton Copier dans le header (v2.65 — toujours visible) ───────────── */
+.lumen-viewer .markdown-body .lumen-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.lumen-viewer .markdown-body .lumen-copy-btn:hover {
+  background: rgba(var(--accent-rgb), .18);
+  color: #fff;
+  border-color: rgba(var(--accent-rgb), .5);
+}
+.lumen-viewer .markdown-body .lumen-copy-btn.copied {
+  background: rgba(var(--color-success-rgb), .18);
+  color: #6FCF97;
+  border-color: rgba(var(--color-success-rgb), .45);
+}
+.lumen-viewer .markdown-body .lumen-copy-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), .5);
+}
+.lumen-viewer .markdown-body .lumen-copy-label {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Mermaid : SVG centre avec fond doux ──────────────────────────────── */
+.lumen-viewer .markdown-body .lumen-mermaid {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-lg);
+  margin: var(--space-lg) 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  box-shadow: var(--elevation-1);
+}
+.lumen-viewer .markdown-body .lumen-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+.lumen-viewer .markdown-body .lumen-mermaid-error {
+  padding: var(--space-md) var(--space-lg);
+  margin: var(--space-lg) 0;
+  background: rgba(var(--color-danger-rgb), .08);
+  border: 1px solid rgba(var(--color-danger-rgb), .3);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+}
+
+/* ── KaTeX : display math centre, inline dans le flux ─────────────────── */
+.lumen-viewer .markdown-body .katex-display {
+  margin: var(--space-lg) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--space-xs) 0;
+}
+.lumen-viewer .markdown-body .katex {
+  font-size: 1.05em;
+}
+.lumen-viewer .markdown-body .lumen-math-error {
+  color: var(--color-danger);
+  background: rgba(var(--color-danger-rgb), .1);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ── Admonitions / callouts (note, tip, warning, danger) ──────────────── */
+.lumen-viewer .markdown-body .lumen-admonition {
+  margin: 1.6em 0;
+  padding: 0.9em 1.2em;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  background: var(--bg-elevated);
+}
+.lumen-viewer .markdown-body .lumen-admonition-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 0.4em;
+  font-family: var(--font);
+  font-size: 0.85em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lumen-viewer .markdown-body .lumen-admonition-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.lumen-viewer .markdown-body .lumen-admonition-body > *:first-child { margin-top: 0; }
+.lumen-viewer .markdown-body .lumen-admonition-body > *:last-child { margin-bottom: 0; }
+
+.lumen-viewer .markdown-body .lumen-adm-note {
+  border-left-color: var(--accent);
+  background: rgba(var(--accent-rgb), .06);
+}
+.lumen-viewer .markdown-body .lumen-adm-note .lumen-admonition-head { color: var(--accent); }
+
+.lumen-viewer .markdown-body .lumen-adm-tip {
+  border-left-color: var(--color-success);
+  background: rgba(var(--color-success-rgb), .06);
+}
+.lumen-viewer .markdown-body .lumen-adm-tip .lumen-admonition-head { color: var(--color-success); }
+
+.lumen-viewer .markdown-body .lumen-adm-warning {
+  border-left-color: var(--color-warning);
+  background: rgba(var(--color-warning-rgb), .08);
+}
+.lumen-viewer .markdown-body .lumen-adm-warning .lumen-admonition-head { color: var(--color-warning); }
+
+.lumen-viewer .markdown-body .lumen-adm-danger {
+  border-left-color: var(--color-danger);
+  background: rgba(var(--color-danger-rgb), .06);
+}
+.lumen-viewer .markdown-body .lumen-adm-danger .lumen-admonition-head { color: var(--color-danger); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   PRINT STYLESHEET (v2.79)
+   Masque toute l'UI de l'app et ne garde que le body markdown.
+   ══════════════════════════════════════════════════════════════════════ */
+@media print {
+  body > *:not(.lumen-view):not([data-lumen-view]),
+  .lumen-sidebar,
+  .lumen-topbar,
+  .lumen-viewer-head,
+  .lumen-stale-banner,
+  .lumen-floating-nav,
+  .lumen-outline,
+  .lumen-viewer-chip,
+  .lumen-linked-travaux,
+  .lumen-viewer-nav,
+  .lumen-reading-progress,
+  .lumen-heading-anchor,
+  .lumen-lightbox,
+  .mobile-hamburger {
+    display: none !important;
+  }
+  .lumen-view, .lumen-body, .lumen-main, .lumen-viewer,
+  .lumen-viewer-main, .lumen-viewer-body {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+  .lumen-viewer-body.markdown-body {
+    padding: 0 !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+    color: #000 !important;
+  }
+  .lumen-viewer-body.markdown-body h1,
+  .lumen-viewer-body.markdown-body h2,
+  .lumen-viewer-body.markdown-body h3,
+  .lumen-viewer-body.markdown-body h4,
+  .lumen-viewer-body.markdown-body h5,
+  .lumen-viewer-body.markdown-body h6 {
+    color: #000 !important;
+    page-break-after: avoid;
+  }
+  .lumen-viewer-body.markdown-body h1 {
+    font-size: 18pt !important;
+    border-bottom: 2pt solid #000 !important;
+    padding-bottom: 0.2em;
+  }
+  .lumen-viewer-body.markdown-body h2 {
+    font-size: 15pt !important;
+    border-left: 3pt solid #000 !important;
+    padding-left: 0.4em;
+    color: #000 !important;
+  }
+  .lumen-viewer-body.markdown-body h3 {
+    font-size: 13pt !important;
+    color: #000 !important;
+  }
+  .lumen-viewer-body.markdown-body p,
+  .lumen-viewer-body.markdown-body li {
+    orphans: 3;
+    widows: 3;
+  }
+  .lumen-viewer-body.markdown-body a {
+    color: #000 !important;
+    border-bottom: 1pt dotted #666 !important;
+  }
+  .lumen-viewer-body.markdown-body :not(pre) > code {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+    border: 1pt solid #ccc !important;
+  }
+  .lumen-viewer-body.markdown-body .lumen-codeblock {
+    background: #f8f8f8 !important;
+    border: 1pt solid #ccc !important;
+    page-break-inside: avoid;
+  }
+  .lumen-viewer-body.markdown-body .lumen-codeblock-header {
+    background: #e8e8e8 !important;
+    border-bottom: 1pt solid #ccc !important;
+  }
+  .lumen-viewer-body.markdown-body .lumen-codeblock-lang {
+    color: #444 !important;
+  }
+  .lumen-viewer-body.markdown-body .lumen-codeblock pre.lumen-code code {
+    color: #000 !important;
+  }
+  .lumen-viewer-body.markdown-body .lumen-copy-btn,
+  .lumen-viewer-body.markdown-body .lumen-codeblock-actions,
+  .lumen-viewer-body.markdown-body .lumen-codeblock-icon-btn {
+    display: none !important;
+  }
+  /* Imprime le bloc deplie en entier (annule fold + masque visible). */
+  .lumen-viewer-body.markdown-body .lumen-codeblock--folded .lumen-codeblock-body {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .lumen-viewer-body.markdown-body .lumen-codeblock--folded .lumen-codeblock-body::after {
+    display: none !important;
+  }
+  /* Numeros de ligne en gris fonce pour l'impression. */
+  .lumen-viewer-body.markdown-body .lumen-code-gutter {
+    background: #eee !important;
+    color: #555 !important;
+    border-right: 1pt solid #ccc !important;
+  }
+  .lumen-viewer-body.markdown-body blockquote {
+    background: #f8f8f8 !important;
+    border-left: 3pt solid #666 !important;
+    color: #333 !important;
+    page-break-inside: avoid;
+  }
+  .lumen-viewer-body.markdown-body table {
+    page-break-inside: avoid;
+    border: 1pt solid #000 !important;
+  }
+  .lumen-viewer-body.markdown-body th {
+    background: #e8e8e8 !important;
+    color: #000 !important;
+    border-bottom: 1pt solid #000 !important;
+  }
+  .lumen-viewer-body.markdown-body td {
+    color: #000 !important;
+    border-bottom: 0.5pt solid #ccc !important;
+  }
+  .lumen-viewer-body.markdown-body img {
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: 1pt solid #ccc !important;
+    page-break-inside: avoid;
+  }
+  .lumen-viewer-body.markdown-body .lumen-admonition {
+    background: #f8f8f8 !important;
+    border: 1pt solid #999 !important;
+    border-left-width: 3pt !important;
+    page-break-inside: avoid;
+  }
+  @page {
+    margin: 1.5cm 2cm 2cm 2cm;
+    size: A4;
+  }
+}
+
+/* ── Highlights de recherche in-page ── */
+mark.lumen-find-hl {
+  background: rgba(245,158,11,.3);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+mark.lumen-find-hl.lumen-find-hl--active {
+  background: #f59e0b;
+  color: #000;
+  box-shadow: 0 0 0 2px rgba(245,158,11,.4);
+}
