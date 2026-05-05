@@ -484,24 +484,28 @@ body.sepia {
    sememeique adoucie pour fond noir profond.
 ════════════════════════════════════════════ */
 body.night {
-  --bg-rail:    #08090c;
-  --bg-sidebar: #0b0d11;
-  --bg-main:    #0f1115;
+  /* v2.289 : 3 nuances un cran plus claires + ecart entre rail/sidebar/main
+     pour creer une vraie hierarchie visuelle (ressenti Slack). Le rail
+     reste presque noir, la sidebar un cran au-dessus, le main encore au-
+     dessus pour reduire la fatigue oculaire en sessions longues. */
+  --bg-rail:    #0a0c10;   /* +2 sur le canal G, garde la profondeur */
+  --bg-sidebar: #10131a;   /* +5, demarcation legere du rail */
+  --bg-main:    #16181f;   /* +7 vs precedent, vraiment plus confortable */
   --bg-input:   #07080b;
   --bg-hover:   rgba(255,255,255,.05);
   --bg-active:  rgba(var(--accent-rgb),.16);
-  --bg-modal:   #0b0d11;
-  --bg-elevated: #15181e;
+  --bg-modal:   #10131a;
+  --bg-elevated: #1a1d25;
 
-  --bg-darkest: #040506;
-  --bg-dark:    #0b0d11;
-  --bg-medium:  #0f1115;
-  --bg-light:   #15181e;
-  --bg-primary: #040506;
+  --bg-darkest: #050608;
+  --bg-dark:    #0d0f14;
+  --bg-medium:  #16181f;
+  --bg-light:   #1a1d25;
+  --bg-primary: #050608;
 
-  --text-primary:   #E2E3E5;   /* AAA sur #0f1115 (14.6:1) et #15181e (13.7:1) */
-  --text-secondary: #B4B7BA;   /* AAA sur #0f1115 (9.4:1) et #15181e (8.8:1) */
-  --text-muted:     #898C90;   /* AA sur #0f1115 (5.3:1) et #15181e (4.95:1) */
+  --text-primary:   #E2E3E5;   /* AAA sur #16181f (~13:1) et #1a1d25 (~12:1) */
+  --text-secondary: #B4B7BA;   /* AAA sur #16181f (~8.6:1) et #1a1d25 (~8:1) */
+  --text-muted:     #898C90;   /* AA sur #16181f (~5:1) et #1a1d25 (~4.7:1) */
 
   --border:       rgba(255,255,255,.06);
   --border-input: rgba(255,255,255,.12);
@@ -531,6 +535,22 @@ body.night {
   --color-rex:       #38BDF8;
   --color-lumen:     #FBBF24;
   --color-dashboard: #A78BFA;
+}
+
+/* Gradient subtil sur les zones laterales en mode night (v2.289 — pattern
+   Slack). Teinte legerement indigo en haut qui s'estompe vers le bas, donne
+   une signature visuelle sans saturer. ~7 % d'opacite max — quasi imperceptible
+   au premier coup d'oeil mais cree de la profondeur quand on compare.
+   Le main content reste neutre pour rester reposant en lecture longue. */
+body.night .nav-rail,
+body.night .sidebar-wrapper,
+body.night .lumen-sidebar {
+  background-image: linear-gradient(
+    180deg,
+    rgba(var(--accent-rgb), 0.07) 0%,
+    rgba(var(--accent-rgb), 0.025) 30%,
+    transparent 70%
+  );
 }
 
 /* ════════════════════════════════════════════

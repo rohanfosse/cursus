@@ -143,8 +143,11 @@
   pointer-events: none;
 }
 
+/* Hover : voile leger uniquement, pour bien differencier de l'etat actif
+   (avant : --bg-active -> hover et active utilisaient la meme teinte
+   indigo, ils etaient indistinguables au premier coup d'oeil). */
 .nav-btn:hover {
-  background: var(--bg-active);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -154,8 +157,11 @@
   height: 10px;
 }
 
+/* Etat actif : fond accent plus marque (v2.289 : .18 -> .22) + barre
+   verticale gauche en accent. Le passage au .22 fait nettement ressortir
+   l'item actif sur fond sombre — ressenti Slack. */
 .nav-btn.active {
-  background: rgba(var(--accent-rgb),.18);
+  background: rgba(var(--accent-rgb),.22);
   color: var(--accent-light);
 }
 
@@ -370,9 +376,13 @@ nav[aria-label="Messages directs"] {
   color: var(--text-primary);
 }
 
+/* v2.289 : opacite passee de .12 a .20 + couleur texte alignee sur l'accent
+   pour que l'item actif "pop" comme dans Slack. A .12 le contraste sur fond
+   sombre etait insuffisant — l'utilisateur ne distinguait pas immediatement
+   ou il etait dans la liste de canaux. */
 .sidebar-item.active {
-  background: rgba(var(--accent-rgb),.12);
-  color: var(--text-primary);
+  background: rgba(var(--accent-rgb),.20);
+  color: var(--accent-light);
   font-weight: 600;
   border-radius: var(--radius-sm);
 }
