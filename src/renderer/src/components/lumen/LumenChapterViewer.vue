@@ -13,7 +13,7 @@
  */
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick, toRef, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Check, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, X, Link2, Printer, Search, Terminal, MoreHorizontal, ArrowUp } from 'lucide-vue-next'
+import { Loader2, FileText, FileDown, FileCode, Clock, User, ChevronLeft, ChevronRight, Check, ClipboardList, Plus, Calendar, RefreshCw, ChevronRight as CrumbSep, Presentation, Pencil, X, Link2, Printer, Search, Terminal, MoreHorizontal, ArrowUp, Copy, Highlighter, MessageSquarePlus, Star, BookOpen, Wrench } from 'lucide-vue-next'
 import { renderMarkdown } from '@/utils/markdown'
 import { renderTex } from '@/utils/texRenderer'
 import { renderIpynb } from '@/utils/ipynbRenderer'
@@ -31,6 +31,9 @@ import { useChapterCompanion } from '@/composables/useChapterCompanion'
 import { useChapterAccueil } from '@/composables/useChapterAccueil'
 import { useChapterEnrichment } from '@/composables/useChapterEnrichment'
 import { useImageLightbox } from '@/composables/useImageLightbox'
+import { useLumenAnnotations } from '@/composables/useLumenAnnotations'
+import { useContextMenu, type ContextMenuItem } from '@/composables/useContextMenu'
+import ContextMenu from '@/components/ui/ContextMenu.vue'
 import LumenLinkDevoirModal from '@/components/lumen/LumenLinkDevoirModal.vue'
 import LumenOutline from '@/components/lumen/LumenOutline.vue'
 import LumenAnnotations from '@/components/lumen/LumenAnnotations.vue'
@@ -38,6 +41,7 @@ import LumenAnnotations from '@/components/lumen/LumenAnnotations.vue'
 // dans son propre composant pour garder ce viewer focalise sur la lecture.
 import LumenChapterEditor from '@/components/lumen/LumenChapterEditor.vue'
 import LumenImageLightbox from '@/components/lumen/LumenImageLightbox.vue'
+import LumenAnnotPrompt from '@/components/lumen/LumenAnnotPrompt.vue'
 // Lazy : pdfjs (~3 MB) et Marp (~2 MB) ne sont charges qu au premier chapitre
 // PDF ou slides. Economise ~5 MB de parse JS au startup de chaque route.
 const LumenPdfViewer = defineAsyncComponent(() => import('@/components/lumen/LumenPdfViewer.vue'))
@@ -389,6 +393,164 @@ const enrichment = useChapterEnrichment({
 })
 const lightbox = useImageLightbox()
 
+// ── Annotations locales (v2.285) ────────────────────────────────────────
+// Etat detenu par le composable, partage avec le panneau d'annotations dans
+// le header (LumenAnnotations) via props/emits. Le clic droit sur du texte
+// dans le body markdown ouvre un menu contextuel pour copier / surligner /
+// annoter avec un commentaire.
+const repoIdRef = computed(() => props.repo.id)
+const chapterPathRef = computed(() => props.chapter.path)
+const {
+  annotations: localAnnotations,
+  add: addAnnotation,
+  remove: removeAnnotation,
+  update: updateAnnotation,
+} = useLumenAnnotations(repoIdRef, chapterPathRef)
+
+// Menu contextuel apparaissant sur clic droit dans le body markdown.
+const { state: bodyMenuState, open: openBodyMenu, close: closeBodyMenu } = useContextMenu()
+
+// Popover de saisie : commentaire (mode 'note') ou correction (mode
+// 'correction', deux champs : suggestion + raison). Ferme par Escape,
+// clic exterieur, Save, Cancel.
+const annotPrompt = ref<{ x: number; y: number; text: string; mode: 'note' | 'correction' } | null>(null)
+
+/** Considere comme "mot court" 1-3 mots — au-dela on n'offre pas l'item
+ *  Definition (le wiktionnaire perd son utilite sur des phrases longues). */
+function isLookupableTerm(text: string): boolean {
+  const wc = text.split(/\s+/).filter(Boolean).length
+  return wc >= 1 && wc <= 3 && text.length <= 60
+}
+
+function handleBodyContextMenu(e: MouseEvent) {
+  // On ne capte le clic droit que si l'utilisateur a une selection ; sinon
+  // on laisse le menu natif du navigateur (utile pour Inspect, Spell Check).
+  const sel = window.getSelection()
+  const text = sel?.toString().trim() ?? ''
+  if (!text) return
+  // Bloque si la selection contient l'editeur CodeMirror (eviter conflit).
+  if ((e.target as HTMLElement)?.closest('.cm-editor')) return
+
+  const items: ContextMenuItem[] = [
+    {
+      label: 'Copier la selection',
+      icon: Copy,
+      action: async () => {
+        try {
+          await navigator.clipboard.writeText(text)
+          showToast('Selection copiee', 'success')
+        } catch {
+          showToast('Copie impossible', 'error')
+        }
+      },
+    },
+    {
+      label: 'Rechercher dans le chapitre',
+      icon: Search,
+      action: () => {
+        chapterSearchQuery.value = text
+        chapterSearchOpen.value = true
+        nextTick(() => findInputRef.value?.focus())
+      },
+    },
+  ]
+
+  // Definition : seulement si la selection ressemble a un terme.
+  if (isLookupableTerm(text)) {
+    items.push({
+      label: `Definition de "${text.slice(0, 30)}${text.length > 30 ? '…' : ''}"`,
+      icon: BookOpen,
+      action: () => {
+        const url = `https://fr.wiktionary.org/wiki/${encodeURIComponent(text)}`
+        window.api?.openPath?.(url)
+      },
+    })
+  }
+
+  items.push(
+    {
+      label: 'Surligner',
+      icon: Highlighter,
+      separator: true,
+      action: () => {
+        const created = addAnnotation(text, '', { kind: 'note', priority: 'normal' })
+        if (created) showToast('Passage surligne', 'success')
+      },
+    },
+    {
+      label: 'Marquer comme important',
+      icon: Star,
+      action: () => {
+        const created = addAnnotation(text, '', { kind: 'note', priority: 'important' })
+        if (created) showToast('Marque comme important', 'success')
+      },
+    },
+    {
+      label: 'Annoter avec un commentaire',
+      icon: MessageSquarePlus,
+      action: () => {
+        annotPrompt.value = { x: e.clientX, y: e.clientY, text, mode: 'note' }
+      },
+    },
+    {
+      label: 'Suggerer une correction au prof',
+      icon: Wrench,
+      separator: true,
+      action: () => {
+        annotPrompt.value = { x: e.clientX, y: e.clientY, text, mode: 'correction' }
+      },
+    },
+  )
+
+  openBodyMenu(e, items)
+}
+
+/**
+ * Construit le message formate pour une correction. Utilise quand la
+ * suggestion est validee : on enregistre l'annotation localement ET on
+ * copie le message dans le clipboard pour que l'etudiant puisse coller
+ * dans son chat avec le prof. Pas de pipeline server-side pour l'instant
+ * — la collab arrive plus tard.
+ */
+function buildCorrectionClipboard(payload: { text: string; suggestion: string; comment: string }): string {
+  const lines = [
+    `Correction suggeree pour ${props.chapter.title} (${props.chapter.path})`,
+    `Original : "${payload.text}"`,
+    `Proposition : "${payload.suggestion}"`,
+  ]
+  if (payload.comment) lines.push(`Pourquoi : ${payload.comment}`)
+  return lines.join('\n')
+}
+
+async function submitAnnotPrompt(payload: { comment: string; suggestion?: string }) {
+  if (!annotPrompt.value) return
+  const { text, mode } = annotPrompt.value
+  if (mode === 'correction') {
+    const sug = (payload.suggestion ?? '').trim()
+    if (!sug) {
+      annotPrompt.value = null
+      return
+    }
+    const created = addAnnotation(text, payload.comment, {
+      kind: 'correction',
+      priority: 'normal',
+      suggestion: sug,
+    })
+    if (created) {
+      try {
+        await navigator.clipboard.writeText(buildCorrectionClipboard({ text, suggestion: sug, comment: payload.comment }))
+        showToast('Correction enregistree et copiee — colle-la dans le chat avec ton prof', 'success')
+      } catch {
+        showToast('Correction enregistree (clipboard indisponible)', 'success')
+      }
+    }
+  } else {
+    const created = addAnnotation(text, payload.comment, { kind: 'note', priority: 'normal' })
+    if (created) showToast('Annotation enregistree', 'success')
+  }
+  annotPrompt.value = null
+}
+
 function handleBodyClick(e: MouseEvent) {
   // Image click -> lightbox (sauf si l'image est dans un lien).
   if (lightbox.tryOpenFromClick(e)) return
@@ -631,8 +793,9 @@ watch(() => [props.content, props.chapter?.path], () => {
           </span>
           <LumenAnnotations
             v-if="!isPdf && !editMode"
-            :repo-id="repo.id"
-            :chapter-path="chapter.path"
+            :annotations="localAnnotations"
+            @remove="removeAnnotation"
+            @update="updateAnnotation"
           />
         </div>
       </div>
@@ -775,6 +938,7 @@ watch(() => [props.content, props.chapter?.path], () => {
           class="lumen-viewer-body markdown-body"
           :class="{ 'lumen-viewer-body--accueil': isAccueilChapter }"
           @click="handleBodyClick"
+          @contextmenu="handleBodyContextMenu"
         >
           <div v-html="html" />
           <section v-if="isAccueilChapter && accueilToc.length > 0" class="lumen-bloc-toc">
@@ -873,6 +1037,26 @@ watch(() => [props.content, props.chapter?.path], () => {
 
     <!-- Lightbox image (v2.276 — extrait v2.283) -->
     <LumenImageLightbox :src="lightbox.src.value" :alt="lightbox.alt.value" @close="lightbox.close()" />
+
+    <!-- Menu contextuel sur clic droit dans le body markdown (v2.285) -->
+    <ContextMenu
+      v-if="bodyMenuState"
+      :x="bodyMenuState.x"
+      :y="bodyMenuState.y"
+      :items="bodyMenuState.items"
+      @close="closeBodyMenu"
+    />
+
+    <!-- Popover de saisie d'annotation ou de correction (v2.285) -->
+    <LumenAnnotPrompt
+      v-if="annotPrompt"
+      :x="annotPrompt.x"
+      :y="annotPrompt.y"
+      :text="annotPrompt.text"
+      :mode="annotPrompt.mode"
+      @submit="submitAnnotPrompt"
+      @close="annotPrompt = null"
+    />
 
   </article>
 </template>
