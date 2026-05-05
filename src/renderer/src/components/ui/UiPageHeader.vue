@@ -64,13 +64,17 @@
   position: relative;
 }
 
-/* Accent par feature (alignement landing) — barre 2px en bas teintee.
-   Cf. base.css §Couleurs sectorielles. */
+/* Accent par feature (alignement landing) — barre fine en bas teintee.
+   v2.284 : passe de 2px plein a 1px + opacity 0.55 — la barre 2px etait
+   visuellement trop forte (notamment sur la section Lumen avec le
+   --color-lumen jaune/or saturated). Cf. base.css §Couleurs sectorielles.
+*/
 .ui-page-header[data-section]::after {
   content: '';
   position: absolute;
   left: 0; right: 0; bottom: -1px;
-  height: 2px;
+  height: 1px;
+  opacity: 0.55;
   pointer-events: none;
 }
 .ui-page-header[data-section="chat"]::after      { background: var(--color-chat); }

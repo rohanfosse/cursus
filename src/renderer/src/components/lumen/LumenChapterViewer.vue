@@ -797,6 +797,43 @@ watch(() => [props.content, props.chapter?.path], () => {
               </ul>
             </div>
           </section>
+
+          <!-- Navigation prev/next (refonte v2.284) : cartes pleine largeur
+               en bas du contenu, scrollent avec lui. Pattern Mintlify /
+               Stripe docs / Vue.js docs. Plus decouvrable que les boutons
+               flottants verticaux qui forçaient a deviner ou cliquer ;
+               raccourcis ←/→ restent geres par LumenView. -->
+          <nav
+            v-if="!isAccueilChapter && (prevChapter || nextChapter)"
+            class="lumen-pagenav"
+            aria-label="Navigation entre chapitres"
+          >
+            <button
+              v-if="prevChapter"
+              type="button"
+              class="lumen-pagenav-card lumen-pagenav-card--prev"
+              :aria-label="`Chapitre precedent : ${prevChapter.title}`"
+              @click="emit('navigate-prev')"
+            >
+              <span class="lumen-pagenav-label"><ChevronLeft :size="12" /> Precedent</span>
+              <span class="lumen-pagenav-title">{{ prevChapter.title }}</span>
+            </button>
+            <span v-else class="lumen-pagenav-spacer" aria-hidden="true" />
+
+            <button
+              v-if="nextChapter"
+              type="button"
+              class="lumen-pagenav-card lumen-pagenav-card--next"
+              :aria-label="`Chapitre suivant : ${nextChapter.title}`"
+              @click="emit('navigate-next')"
+            >
+              <span class="lumen-pagenav-label">Suivant <ChevronRight :size="12" /></span>
+              <span class="lumen-pagenav-title">{{ nextChapter.title }}</span>
+            </button>
+            <span v-else class="lumen-pagenav-end" aria-hidden="true">
+              <Check :size="12" /> Dernier chapitre du cours
+            </span>
+          </nav>
         </div>
         <LumenOutline
           v-if="headings.length > 0"
@@ -806,38 +843,6 @@ watch(() => [props.content, props.chapter?.path], () => {
           @toggle="outlineOpen = !outlineOpen"
           @navigate="scrollToHeading"
         />
-      </div>
-
-      <!-- Navigation prev/next : 2 boutons flottants en bordures du contenu.
-           Apparaissent au hover du viewer, gardent l'espace disponible pour
-           le contenu en permanence (cf. demande utilisateur v2.61). -->
-      <div v-if="!isMarp && !isPdf && (prevChapter || nextChapter)" class="lumen-floating-nav">
-        <button
-          v-if="prevChapter"
-          type="button"
-          class="lumen-floating-nav-btn lumen-floating-nav-btn--prev"
-          :title="`Precedent : ${prevChapter.title}`"
-          :aria-label="`Chapitre precedent : ${prevChapter.title}`"
-          @click="emit('navigate-prev')"
-        >
-          <ChevronLeft :size="18" />
-        </button>
-        <button
-          v-if="nextChapter"
-          type="button"
-          class="lumen-floating-nav-btn lumen-floating-nav-btn--next"
-          :title="`Suivant : ${nextChapter.title}`"
-          :aria-label="`Chapitre suivant : ${nextChapter.title}`"
-          @click="emit('navigate-next')"
-        >
-          <ChevronRight :size="18" />
-        </button>
-      </div>
-
-      <!-- Indicateur de fin de cours (v2.87) -->
-      <div v-if="!isMarp && !isPdf && !nextChapter && prevChapter" class="lumen-end-of-course">
-        <Check :size="16" />
-        <span>Dernier chapitre du cours</span>
       </div>
 
       <!-- Scroll-to-top FAB (v2.283) : visible apres 30 % de scroll. Utile

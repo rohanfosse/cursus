@@ -441,8 +441,12 @@ const ctxItems = computed<ContextMenuItem[]>(() => {
             >
               <ChevronRight :size="11" class="lumen-repo-chevron" :class="{ open: !collapsedRepos.has(repo.id) }" />
               <span class="lumen-repo-name">{{ displayRepoName(repo) }}</span>
+              <!-- v2.284 : compteur de progression masque tant que rien n'a
+                   ete lu — "0/N" partout cree du bruit visuel pour les
+                   etudiants qui decouvrent le cours. Reapparait des la
+                   premiere lecture. -->
               <span
-                v-if="repoReadProgress(repo).total > 0"
+                v-if="repoReadProgress(repo).read > 0 && repoReadProgress(repo).total > 0"
                 class="lumen-repo-progress"
                 :title="`${repoReadProgress(repo).read}/${repoReadProgress(repo).total} chapitres lus`"
               >{{ repoReadProgress(repo).read }}/{{ repoReadProgress(repo).total }}</span>
@@ -462,9 +466,10 @@ const ctxItems = computed<ContextMenuItem[]>(() => {
             </button>
           </div>
 
-          <!-- Progress bar (v2.106) -->
+          <!-- Progress bar (v2.106) — v2.284 : seuil > 0 pour eviter une
+               barre vide sur tous les cours non commences. -->
           <div
-            v-if="repoReadProgress(repo).total > 0 && !collapsedRepos.has(repo.id)"
+            v-if="repoReadProgress(repo).read > 0 && !collapsedRepos.has(repo.id)"
             class="lumen-repo-progress-bar"
           >
             <div

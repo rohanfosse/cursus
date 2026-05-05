@@ -477,16 +477,21 @@
   pointer-events: none;
 }
 
-/* ── Bouton Copier dans le header (v2.65 — toujours visible) ───────────── */
+/* ── Bouton Copier dans le header (v2.65 — refonte v2.284) ─────────────
+   Aligne sur le style des autres lumen-codeblock-icon-btn (Wrap/Plier)
+   pour une cohérence visuelle dans la barre d'actions. Plus de surcouche
+   visuelle au repos — apparait comme du texte cliquable, hover/active
+   apportent l'affordance. */
 .lumen-viewer .markdown-body .lumen-copy-btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 5px;
   padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  height: 26px;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.65);
   font-family: var(--font);
   font-size: 11px;
   font-weight: 600;
@@ -496,14 +501,12 @@
               border-color var(--motion-fast) var(--ease-out);
 }
 .lumen-viewer .markdown-body .lumen-copy-btn:hover {
-  background: rgba(var(--accent-rgb), .18);
-  color: #fff;
-  border-color: rgba(var(--accent-rgb), .5);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.95);
 }
 .lumen-viewer .markdown-body .lumen-copy-btn.copied {
   background: rgba(var(--color-success-rgb), .18);
   color: #6FCF97;
-  border-color: rgba(var(--color-success-rgb), .45);
 }
 .lumen-viewer .markdown-body .lumen-copy-btn:focus-visible {
   outline: none;
