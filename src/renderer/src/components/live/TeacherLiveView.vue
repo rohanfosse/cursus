@@ -693,44 +693,49 @@
 
       <!-- Tab: Accueil (default) -->
       <template v-else>
-        <!-- Hero card : identite + stats rapides + astuce -->
-        <section class="live-hero-card" aria-labelledby="live-hero-title">
-          <div class="live-hero-main">
-            <div class="live-hero-icon" aria-hidden="true">
-              <Zap :size="22" />
-            </div>
-            <div class="live-hero-text">
-              <h1 id="live-hero-title" class="live-hero-title">Live</h1>
-              <p class="live-hero-desc">Lancez une activité interactive avec vos étudiants.</p>
-            </div>
+        <!-- Hero gradient (v2.279) : alignement direct demo landing
+             — radial indigo + emerald + dot pattern, big icon halo pulse,
+             display title -0.03em letter-spacing. -->
+        <section class="live-hero" aria-labelledby="live-hero-title">
+          <div class="live-hero-icon" aria-hidden="true">
+            <Zap :size="32" />
+            <span class="live-hero-pulse" />
           </div>
-
-          <div class="live-hero-stats" role="list" aria-label="Résumé Live">
-            <div v-if="homeStats.drafts > 0" class="lh-stat lh-stat--accent" role="listitem">
-              <PencilLine :size="14" aria-hidden="true" />
-              <span class="lh-stat-value">{{ homeStats.drafts }}</span>
-              <span class="lh-stat-label">brouillon{{ homeStats.drafts > 1 ? 's' : '' }}</span>
+          <div class="live-hero-content">
+            <h1 id="live-hero-title" class="live-hero-title">
+              Live
+              <span class="live-hero-badge">Beta</span>
+            </h1>
+            <p class="live-hero-tagline">
+              Quiz, sondages, code en direct. Engage tes etudiants en temps reel.
+            </p>
+            <div class="live-hero-stats" role="list" aria-label="Resume Live">
+              <div v-if="homeStats.drafts > 0" class="lh-stat lh-stat--accent" role="listitem">
+                <PencilLine :size="13" aria-hidden="true" />
+                <span class="lh-stat-value">{{ homeStats.drafts }}</span>
+                <span class="lh-stat-label">brouillon{{ homeStats.drafts > 1 ? 's' : '' }}</span>
+              </div>
+              <div v-if="homeStats.templates > 0" class="lh-stat" role="listitem">
+                <Bookmark :size="13" aria-hidden="true" />
+                <span class="lh-stat-value">{{ homeStats.templates }}</span>
+                <span class="lh-stat-label">modele{{ homeStats.templates > 1 ? 's' : '' }}</span>
+              </div>
+              <div v-if="homeStats.archived > 0" class="lh-stat" role="listitem">
+                <FileText :size="13" aria-hidden="true" />
+                <span class="lh-stat-value">{{ homeStats.archived }}</span>
+                <span class="lh-stat-label">archivee{{ homeStats.archived > 1 ? 's' : '' }}</span>
+              </div>
+              <button
+                class="lh-stat lh-stat--shortcut"
+                type="button"
+                title="Raccourcis clavier"
+                aria-label="Afficher les raccourcis clavier"
+                @click="shortcutsOpen = true"
+              >
+                <HelpCircle :size="13" aria-hidden="true" />
+                <span class="lh-stat-label"><kbd>?</kbd> pour les raccourcis</span>
+              </button>
             </div>
-            <div v-if="homeStats.templates > 0" class="lh-stat" role="listitem">
-              <Bookmark :size="14" aria-hidden="true" />
-              <span class="lh-stat-value">{{ homeStats.templates }}</span>
-              <span class="lh-stat-label">modèle{{ homeStats.templates > 1 ? 's' : '' }}</span>
-            </div>
-            <div v-if="homeStats.archived > 0" class="lh-stat" role="listitem">
-              <FileText :size="14" aria-hidden="true" />
-              <span class="lh-stat-value">{{ homeStats.archived }}</span>
-              <span class="lh-stat-label">archivée{{ homeStats.archived > 1 ? 's' : '' }}</span>
-            </div>
-            <button
-              class="lh-stat lh-stat--shortcut"
-              type="button"
-              title="Raccourcis clavier"
-              aria-label="Afficher les raccourcis clavier"
-              @click="shortcutsOpen = true"
-            >
-              <HelpCircle :size="14" aria-hidden="true" />
-              <span class="lh-stat-label">Astuce : <kbd>?</kbd> pour les raccourcis</span>
-            </button>
           </div>
         </section>
 
@@ -794,13 +799,15 @@
           </div>
         </section>
 
-        <!-- Grille des 4 categories de création -->
+        <!-- Grille des 4 categories de creation (v2.279 : refonte tiles
+             modernes, icone large halo, gradient signature, hover lift). -->
         <section class="live-section" aria-labelledby="live-create-title">
           <header class="live-section-head">
             <h2 id="live-create-title" class="live-section-title">
-              <Sparkles :size="16" aria-hidden="true" />
-              Créer une nouvelle session
+              <Sparkles :size="18" aria-hidden="true" />
+              Creer une nouvelle session
             </h2>
+            <p class="live-section-sub">Choisis un type d'activite pour commencer.</p>
           </header>
           <div class="live-cat-grid">
             <button
@@ -810,6 +817,7 @@
               :style="{ '--cat-color': cat.color }"
               @click="openCategory(key as ActivityCategory)"
             >
+              <div class="live-cat-glow" aria-hidden="true" />
               <div class="live-cat-icon">
                 <component :is="ACTIVITY_CATEGORIES[key as ActivityCategory].icon" :size="28" />
               </div>
@@ -821,7 +829,10 @@
                 <span v-for="t in cat.types.slice(0, 3)" :key="t" class="live-cat-type">{{ t.replace(/_/g, ' ') }}</span>
                 <span v-if="cat.types.length > 3" class="live-cat-type live-cat-more">+{{ cat.types.length - 3 }}</span>
               </div>
-              <ArrowRight :size="16" class="live-cat-arrow" />
+              <span class="live-cat-cta">
+                <span>Creer</span>
+                <ArrowRight :size="14" />
+              </span>
             </button>
           </div>
         </section>
@@ -1405,15 +1416,15 @@
   }
 }
 
-/* ── Home / Landing ── */
+/* ── Home / Landing (v2.279 : largeur etendue 760 + gap genereux) ────── */
 .live-home {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 28px;
-  max-width: 680px;
+  align-items: stretch;
+  gap: 32px;
+  max-width: 760px;
   width: 100%;
-  margin-top: 48px;
+  margin-top: 24px;
 }
 .live-home-sub {
   width: 100%; max-width: 680px;
@@ -1427,79 +1438,124 @@
 }
 .live-home-back:hover { color: var(--color-live); }
 
-/* ── Hero card (accueil Live) ─────────────────────────────────────────────
-   v2.273.8 — alignement landing demo Live : teinte color-live (rouge)
-   en lieu et place de l'accent generique pour matcher la signature Live. */
-.live-hero-card {
+/* ── Hero (accueil Live) — v2.279 ─────────────────────────────────────────
+   Refonte moderne alignee landing : double radial gradient (indigo +
+   live-red) + dot pattern signature, big icon avec halo pulse, display
+   title -0.03em. Cf. .hero landing src/landing/style.css §Hero. */
+.live-hero {
   position: relative;
   width: 100%;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-lg) var(--space-xl);
-  border-radius: var(--radius-lg);
-  background:
-    radial-gradient(ellipse at top right,
-      color-mix(in srgb, var(--color-live) 10%, transparent) 0%,
-      transparent 55%),
-    var(--bg-elevated);
+  align-items: center;
+  gap: var(--space-xl);
+  padding: 36px 32px;
+  border-radius: var(--radius-bento);
   border: 1px solid var(--border);
+  background:
+    radial-gradient(ellipse 60% 80% at 0% 50%,
+      rgba(var(--accent-rgb), 0.10) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 70% at 100% 50%,
+      color-mix(in srgb, var(--color-live) 14%, transparent) 0%, transparent 70%),
+    radial-gradient(circle 1px at center,
+      color-mix(in srgb, var(--accent) 25%, transparent) 1px, transparent 1px),
+    var(--bg-elevated);
+  background-size: 100% 100%, 100% 100%, 22px 22px, 100% 100%;
   overflow: hidden;
   isolation: isolate;
 }
-/* Barre coloree en bas du hero pour rappeler le data-section="live" */
-.live-hero-card::after {
-  content: '';
-  position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
-  background: var(--color-live);
-  opacity: .85;
-}
 
-.live-hero-main {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-}
 .live-hero-icon {
-  width: 44px;
-  height: 44px;
+  position: relative;
+  width: 76px;
+  height: 76px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-live) 18%, transparent);
-  color: var(--color-live);
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--color-live) 90%, white) 0%,
+      var(--color-live) 100%);
+  color: #fff;
   flex-shrink: 0;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--color-live) 20%, transparent);
+  box-shadow:
+    0 12px 32px color-mix(in srgb, var(--color-live) 35%, transparent),
+    0 2px 6px color-mix(in srgb, var(--color-live) 25%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
-.live-hero-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* Halo pulse autour de l'icone, signature "live" — alignement
+   stat-online-dot pattern existant dans le dashboard. */
+.live-hero-pulse {
+  position: absolute;
+  inset: -6px;
+  border-radius: 28px;
+  border: 2px solid color-mix(in srgb, var(--color-live) 50%, transparent);
+  animation: live-hero-ring 2.4s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes live-hero-ring {
+  0%   { transform: scale(0.92); opacity: 0.7; }
+  100% { transform: scale(1.18); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-hero-pulse { animation: none; opacity: 0.4; }
+}
+
+.live-hero-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
 .live-hero-title {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 36px;
   font-weight: 800;
   color: var(--text-primary);
   margin: 0;
-  letter-spacing: -.2px;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.live-hero-desc {
-  font-size: 13px;
-  color: var(--text-muted);
+.live-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-live);
+  background: color-mix(in srgb, var(--color-live) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-live) 35%, transparent);
+  border-radius: 999px;
+}
+.live-hero-tagline {
+  font-size: 15px;
+  color: var(--text-secondary);
   margin: 0;
+  letter-spacing: -0.005em;
+  max-width: 540px;
 }
 
 .live-hero-stats {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-sm);
+  gap: 8px;
+  margin-top: 6px;
 }
 .lh-stat {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: var(--radius-xl);
-  background: var(--bg-hover);
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--bg-main);
   border: 1px solid var(--border);
   color: var(--text-secondary);
   font-size: 12px;
@@ -1510,19 +1566,16 @@
   border-color: color-mix(in srgb, var(--color-live) 35%, transparent);
   color: var(--color-live);
   font-weight: 700;
-  font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: .04em;
 }
 .lh-stat-value { font-weight: 700; color: inherit; font-variant-numeric: tabular-nums; }
-.lh-stat-label { color: inherit; opacity: .85; }
+.lh-stat-label { color: inherit; opacity: .9; }
 .lh-stat--shortcut {
-  margin-left: auto;
   cursor: pointer;
   transition: background var(--motion-fast) var(--ease-out),
               border-color var(--motion-fast) var(--ease-out),
               color var(--motion-fast) var(--ease-out);
   font-family: inherit;
+  margin-left: auto;
 }
 .lh-stat--shortcut:hover {
   background: var(--bg-active);
@@ -1540,7 +1593,20 @@
   margin: 0 2px;
 }
 
-/* ── Section générique (titre + compteur) ────────────────────────────── */
+/* Mobile : hero stack vertical */
+@media (max-width: 720px) {
+  .live-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    padding: 24px 20px;
+    gap: 16px;
+  }
+  .live-hero-title { font-size: 28px; }
+  .live-hero-tagline { font-size: 14px; }
+}
+
+/* ── Section générique (v2.279 : titre display landing + sous-titre) ──── */
 .live-section {
   width: 100%;
   display: flex;
@@ -1549,30 +1615,43 @@
 }
 .live-section-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-sm);
+  flex-wrap: wrap;
+  gap: 4px 16px;
 }
 .live-section-title {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-family: var(--font-display);
-  font-size: 14px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--text-primary);
   margin: 0;
-  letter-spacing: -.1px;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.live-section-title svg {
+  color: var(--color-live);
+  flex-shrink: 0;
+}
+.live-section-sub {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+  letter-spacing: -0.005em;
 }
 .live-section-count {
   font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  padding: 2px 8px;
-  border-radius: var(--radius-xl);
-  background: var(--bg-hover);
-  color: var(--text-secondary);
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-live) 12%, transparent);
+  color: var(--color-live);
   margin-left: 2px;
+  border: 1px solid color-mix(in srgb, var(--color-live) 25%, transparent);
 }
 
 /* ── Brouillons à reprendre ──────────────────────────────────────────── */
@@ -1679,87 +1758,186 @@
 }
 .live-home-input::placeholder { color: var(--text-muted); }
 
-/* ── Category grid ── */
+/* ── Category grid (v2.279 : gradient tiles modernes) ─────────────────── */
 .live-cat-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
+  gap: 16px;
   width: 100%;
 }
 .live-cat-card {
   position: relative;
-  display: flex; flex-direction: column; gap: 14px;
-  padding: 22px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-bento);
   cursor: pointer;
   text-align: left;
-  transition: transform .18s var(--ease-out), border-color .18s, box-shadow .18s, background .18s;
+  transition:
+    transform 0.32s var(--ease-spring),
+    border-color 0.2s,
+    box-shadow 0.32s var(--ease-spring);
   overflow: hidden;
   font-family: inherit;
   isolation: isolate;
 }
-/* Halo diagonal derriere la carte */
-.live-cat-card::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: radial-gradient(circle at top right,
-              color-mix(in srgb, var(--cat-color) 12%, transparent) 0%,
-              transparent 55%);
-  opacity: 0; transition: opacity .22s;
+/* Glow en haut a droite (signature visuelle bento landing) */
+.live-cat-glow {
+  position: absolute;
+  top: -40%;
+  right: -20%;
+  width: 60%;
+  height: 100%;
+  background: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--cat-color) 35%, transparent) 0%,
+    transparent 65%
+  );
+  opacity: 0.6;
   z-index: -1;
+  transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+  pointer-events: none;
 }
-/* Barre colore en haut */
+/* Barre coloree en haut, signature module */
 .live-cat-card::before {
   content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: linear-gradient(90deg, var(--cat-color), color-mix(in srgb, var(--cat-color) 50%, transparent));
-  opacity: 0; transition: opacity .2s;
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--cat-color),
+    color-mix(in srgb, var(--cat-color) 50%, transparent));
+  border-radius: var(--radius-bento) var(--radius-bento) 0 0;
 }
 .live-cat-card:hover {
   border-color: color-mix(in srgb, var(--cat-color) 55%, var(--border));
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--cat-color) 15%, rgba(0,0,0,.25));
-  transform: translateY(-2px);
+  box-shadow:
+    0 18px 40px color-mix(in srgb, var(--cat-color) 18%, transparent),
+    0 4px 12px color-mix(in srgb, var(--cat-color) 12%, transparent);
+  transform: translateY(-4px);
 }
-.live-cat-card:hover::before,
-.live-cat-card:hover::after { opacity: 1; }
+.live-cat-card:hover .live-cat-glow {
+  opacity: 1;
+  transform: scale(1.15);
+}
+.live-cat-card:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--cat-color) 30%, transparent),
+    0 18px 40px color-mix(in srgb, var(--cat-color) 18%, transparent);
+}
 .live-cat-card:disabled { opacity: .5; cursor: wait; }
 
 .live-cat-icon {
-  width: 52px; height: 52px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--cat-color) 14%, transparent);
-  color: var(--cat-color);
-  transition: transform .2s var(--ease-spring), background .15s;
+  position: relative;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--cat-color) 90%, white) 0%,
+    var(--cat-color) 100%);
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow:
+    0 8px 20px color-mix(in srgb, var(--cat-color) 35%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: transform 0.32s var(--ease-spring),
+              box-shadow 0.32s var(--ease-out);
 }
 .live-cat-card:hover .live-cat-icon {
-  transform: scale(1.08) rotate(-4deg);
-  background: color-mix(in srgb, var(--cat-color) 22%, transparent);
+  transform: scale(1.06) rotate(-3deg);
+  box-shadow:
+    0 12px 28px color-mix(in srgb, var(--cat-color) 45%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
-.live-cat-info { display: flex; flex-direction: column; gap: 2px; }
+
+.live-cat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .live-cat-label {
   font-family: var(--font-display);
-  font-size: 16px; font-weight: 800; color: var(--text-primary);
-  letter-spacing: -.1px;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
 }
-.live-cat-desc { font-size: 12px; color: var(--text-muted); }
+.live-cat-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
 .live-cat-types {
-  display: flex; flex-wrap: wrap; gap: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
 }
 .live-cat-type {
-  font-size: 10px; font-weight: 600;
-  padding: 2px 7px; border-radius: var(--radius-xs);
-  background: var(--bg-hover); color: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cat-color) 10%, transparent);
+  color: color-mix(in srgb, var(--cat-color) 80%, var(--text-secondary));
   text-transform: capitalize;
+  border: 1px solid color-mix(in srgb, var(--cat-color) 20%, transparent);
 }
-.live-cat-more { color: var(--text-muted); }
-.live-cat-arrow {
-  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
-  color: var(--text-muted); opacity: 0; transition: all .15s;
+.live-cat-more {
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  border-color: var(--border);
 }
-.live-cat-card:hover .live-cat-arrow { opacity: 1; color: var(--cat-color); }
+
+/* CTA "Creer →" en bas a droite, slide-in au hover */
+.live-cat-cta {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--cat-color);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0;
+  transform: translateX(8px);
+  transition: opacity 0.22s var(--ease-out),
+              transform 0.22s var(--ease-out);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--cat-color) 30%, transparent);
+}
+.live-cat-card:hover .live-cat-cta {
+  opacity: 1;
+  transform: translateX(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-cat-card,
+  .live-cat-card:hover,
+  .live-cat-icon,
+  .live-cat-glow,
+  .live-cat-cta {
+    transition: none;
+    transform: none;
+  }
+  .live-cat-cta { opacity: 1; transform: none; }
+}
+
+/* Mobile : 1 col */
+@media (max-width: 600px) {
+  .live-cat-grid { grid-template-columns: 1fr; }
+  .live-cat-card { padding: 20px; }
+}
 
 /* ── Category detail sub-page ── */
 .live-cat-detail {
@@ -1884,29 +2062,55 @@
   max-width: 720px;
   width: 100%;
 }
+/* Session header (v2.279 : panneau gradient avec title display landing) */
 .session-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
+  padding: 20px 24px;
+  border-radius: var(--radius-bento);
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(ellipse 60% 100% at 0% 50%,
+      color-mix(in srgb, var(--color-live) 10%, transparent) 0%, transparent 70%),
+    var(--bg-elevated);
+  overflow: hidden;
+}
+.session-header::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--color-live),
+    color-mix(in srgb, var(--color-live) 50%, transparent));
 }
 .session-info {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
 }
 .session-meta-row {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
 .session-cat-pill {
-  font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: var(--radius);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  text-transform: capitalize;
 }
 .session-title {
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 800;
   color: var(--text-primary);
-  letter-spacing: -.2px;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 0;
 }
 .session-status {
   font-family: var(--font-display);
@@ -1944,13 +2148,31 @@
   display: flex;
   gap: 8px;
 }
+/* v2.279 : btn-start aligne CTA emerald (var(--cta)) au lieu de #22c55e
+   hardcode. Halo douce au hover, micro-lift -1px (signature .nav-cta landing). */
 .btn-start {
-  display: flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
-  background: #22c55e; color: #fff; border: none; cursor: pointer;
-  transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--cta);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+  box-shadow: 0 4px 12px rgba(var(--cta-rgb), .25);
 }
-.btn-start:hover { filter: brightness(1.1); }
+.btn-start:hover {
+  background: var(--cta-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(var(--cta-rgb), .35);
+}
+.btn-start:active { transform: translateY(0); }
 .btn-end {
   display: flex; align-items: center; gap: 6px;
   padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;

@@ -1,5 +1,55 @@
 # Changelog
 
+## v2.279.0 (2026-05-05)
+
+### Refonte design Live — Accueil moderne (signature landing)
+
+Le user a flag "c'est moche" sur l'accueil Live. Refonte visuelle des 3
+ecrans cles : hero, 4 cartes de categories, header session.
+
+**Hero accueil Live (auparavant : icone 22px + titre 22px plat)** :
+
+- Triple radial gradient (indigo + live-red + dot pattern) qui matche
+  exactement la signature `.hero` de la landing.
+- Icone 76x76 avec gradient live-red + halo pulse 2.4s anime (alignement
+  signature `stat-online-dot`).
+- Titre display 36px / letter-spacing -0.03em / line-height 1.05
+  (signature `.hero-headline` landing). Badge "Beta" pill cote droit.
+- Tagline 15px secondary "Quiz, sondages, code en direct..." pour
+  positionner immediatement.
+- Stats row pills 999px avec accent live-red sur brouillons.
+
+**4 Categories cards (auparavant : tiles 22px padding plates)** :
+
+- Carre 28px padding, radius `--radius-bento` 24px (signature .bento-card
+  landing).
+- Glow radial 60% top-right en `--cat-color`, opacity 0.6 -> 1 au hover
+  + scale 1.15.
+- Barre 3px sticky top en gradient cat-color (visible permanente).
+- Icone 64x64 gradient cat-color + box-shadow tinte (rotate -3deg + scale
+  1.06 au hover, easing spring).
+- Title 20px / -0.02em (etait 16px / -0.1px).
+- Types pills tinted dans la cat-color (etait grises).
+- CTA pill "Creer →" en bas a droite, slide-in 8px au hover.
+- Hover lift -4px + shadow 18-40px tinte cat-color.
+
+**Section titles** :
+
+- Display 22px / letter-spacing -0.03em / line-height 1.15 (etait 14px
+  flat). Sous-titre optionnel pour densifier le contexte.
+- Count badge live-red tinte (etait gris neutre).
+
+**Session header (when in session)** :
+
+- Panneau radial gradient + barre 3px live-red sticky top.
+- Title 28px display landing-style (-0.03em).
+- Pills cat 999px + border (etaient carrees).
+- `.btn-start` aligne CTA emerald `var(--cta)` au lieu de `#22c55e`
+  hardcode + halo box-shadow + micro-lift -1px (signature .nav-cta).
+
+Reduced-motion respecte sur tous les nouveaux elements (pulse, glow,
+slide-in CTA).
+
 ## v2.278.0 (2026-05-05)
 
 ### Uniformisation continue : radius + display typography landing-aligned
