@@ -490,31 +490,33 @@ body.sepia {
    sememeique adoucie pour fond noir profond.
 ════════════════════════════════════════════ */
 body.night {
-  /* v2.289 : 3 nuances un cran plus claires + ecart entre rail/sidebar/main
-     pour creer une vraie hierarchie visuelle (ressenti Slack). Le rail
-     reste presque noir, la sidebar un cran au-dessus, le main encore au-
-     dessus pour reduire la fatigue oculaire en sessions longues. */
-  --bg-rail:    #0a0c10;   /* +2 sur le canal G, garde la profondeur */
-  --bg-sidebar: #10131a;   /* +5, demarcation legere du rail */
-  --bg-main:    #16181f;   /* +7 vs precedent, vraiment plus confortable */
-  --bg-input:   #07080b;
-  --bg-hover:   rgba(255,255,255,.05);
-  --bg-active:  rgba(var(--accent-rgb),.16);
-  --bg-modal:   #10131a;
-  --bg-elevated: #1a1d25;
+  /* v2.290 — Refonte palette "GitHub-like" : sous-ton bleu froid qui
+     harmonise avec l'accent indigo, plus gris et moins noir pour reduire
+     la fatigue oculaire. Bordures plus visibles (10 % au lieu de 6 %)
+     pour bien delimiter les blocs sans avoir besoin d'ombres lourdes.
+     Reference visuelle : github.com/<repo> en mode dark.
+   */
+  --bg-rail:    #0D1117;   /* GitHub bg primary */
+  --bg-sidebar: #161B22;   /* GitHub bg secondary (cards, sidebars) */
+  --bg-main:    #1C2128;   /* +1 cran pour la zone de lecture */
+  --bg-input:   #0D1117;
+  --bg-hover:   rgba(177,186,196,.08);     /* hover GitHub-like */
+  --bg-active:  rgba(var(--accent-rgb),.18);
+  --bg-modal:   #161B22;
+  --bg-elevated: #21262D;                  /* GitHub elevated state */
 
-  --bg-darkest: #050608;
-  --bg-dark:    #0d0f14;
-  --bg-medium:  #16181f;
-  --bg-light:   #1a1d25;
-  --bg-primary: #050608;
+  --bg-darkest: #010409;                   /* nearly black, pour ombres */
+  --bg-dark:    #0D1117;
+  --bg-medium:  #1C2128;
+  --bg-light:   #21262D;
+  --bg-primary: #010409;
 
-  --text-primary:   #E2E3E5;   /* AAA sur #16181f (~13:1) et #1a1d25 (~12:1) */
-  --text-secondary: #B4B7BA;   /* AAA sur #16181f (~8.6:1) et #1a1d25 (~8:1) */
-  --text-muted:     #898C90;   /* AA sur #16181f (~5:1) et #1a1d25 (~4.7:1) */
+  --text-primary:   #E6EDF3;   /* GitHub text-primary (legerement bleute) */
+  --text-secondary: #8D96A0;   /* GitHub text-secondary */
+  --text-muted:     #7D8590;   /* GitHub text-muted */
 
-  --border:       rgba(255,255,255,.06);
-  --border-input: rgba(255,255,255,.12);
+  --border:       rgba(240,246,252,.10);   /* GitHub border-default visible */
+  --border-input: rgba(240,246,252,.18);
 
   /* Ligne 1px en bas de #app — night (presque noir) */
   --app-bottom-border: rgba(255,255,255,.10);

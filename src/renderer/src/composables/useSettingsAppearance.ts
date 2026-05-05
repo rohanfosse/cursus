@@ -13,21 +13,23 @@ export type ThemeId = 'auto' | 'dark' | 'light' | 'sepia' | 'night' | 'marine' |
 import { Laptop, Coffee } from 'lucide-vue-next'
 
 export const THEMES: { id: ThemeId; label: string; icon: typeof Moon; colors: string[]; accent: string }[] = [
-  { id: 'auto',   label: 'Auto',    icon: Laptop,   colors: ['#0F0D1A', '#FAFBFC', '#1A1733'], accent: '#6366F1' },
+  { id: 'auto',   label: 'Auto',    icon: Laptop,   colors: ['#0D1117', '#FAFBFC', '#1C2128'], accent: '#6366F1' },
+  { id: 'night',  label: 'Nuit',    icon: Moon,     colors: ['#0D1117', '#161B22', '#1C2128'], accent: '#818CF8' },
   { id: 'dark',   label: 'Sombre',  icon: Monitor,  colors: ['#0F0D1A', '#15122B', '#1A1733'], accent: '#818CF8' },
   { id: 'light',  label: 'Clair',   icon: Sun,      colors: ['#F8F9FB', '#FAFBFC', '#FFFFFF'], accent: '#6366F1' },
   { id: 'sepia',  label: 'S\u00e9pia',   icon: Coffee,   colors: ['#f0ebe3', '#f5f0e8', '#faf8f4'], accent: '#c27c2c' },
-  { id: 'night',  label: 'Nuit',    icon: Moon,     colors: ['#08090c', '#0b0d11', '#0f1115'], accent: '#818CF8' },
   { id: 'marine', label: 'Marine',  icon: Waves,    colors: ['#0e1829', '#132036', '#192840'], accent: '#5B9BD5' },
 ]
 
 // 'cursus' n'est plus expose comme choix (alias legacy de 'light').
 // On migre la pref a la lecture pour les utilisateurs qui l'avaient.
 
-/** Resolve 'auto' theme to actual theme based on system preference. */
+/** Resolve 'auto' theme to actual theme based on system preference.
+ *  v2.290 — bascule vers 'night' (palette GitHub-like) au lieu de 'dark'
+ *  comme dark par defaut. */
 function resolveTheme(theme: ThemeId): string {
   if (theme !== 'auto') return theme
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'night'
 }
 
 function applyTheme(theme: ThemeId) {
@@ -65,7 +67,10 @@ function migrateThemePref(
   setPref: ReturnType<typeof usePrefs>['setPref'],
 ): ThemeId {
   const alreadyMigrated = getPref('themeMigratedLandingV2')
-  const stored = (getPref('theme') ?? 'dark') as ThemeId
+  // v2.290 : nouveau defaut = 'night' (palette GitHub-like, plus reposante
+  // que l'ancien 'dark' a base aubergine indigo). Les utilisateurs qui ont
+  // explicitement choisi 'dark' avant gardent leur choix.
+  const stored = (getPref('theme') ?? 'night') as ThemeId
   if (alreadyMigrated) return stored
 
   let migrated: ThemeId = stored
