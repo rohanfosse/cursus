@@ -262,14 +262,19 @@ body.theme-transitioning *::after {
   --color-group:      #34D399;
 
   /* Couleurs par feature - alignees sur la landing (variantes claires
-     pour theme sombre). Cf. src/landing/style.css [data-theme="dark"]. */
+     pour theme sombre). Cf. src/landing/style.css [data-theme="dark"].
+     v2.290 — refonte palette sectorielle :
+       - docs : jaune dupplique avec lumen → bleu acier (distinct)
+       - live : rouge anxiogene → orange (active mais pas alerte)
+       - lumen : jaune satur → amber (moins criard)
+       - dashboard : violet redondant avec accent → suit l'accent */
   --color-chat:      #818CF8;
   --color-devoirs:   #34D399;
-  --color-docs:      #FBBF24;
-  --color-live:      #F87171;
+  --color-docs:      #60A5FA;
+  --color-live:      #FB923C;
   --color-rex:       #38BDF8;
-  --color-lumen:     #FBBF24;
-  --color-dashboard: #A78BFA;
+  --color-lumen:     #F59E0B;
+  --color-dashboard: var(--accent);
 
   /* Dimensions de layout */
   --rail-width:    72px;
@@ -374,14 +379,15 @@ body.light, body.cursus {
   --color-info-rgb:    14,165,233;
   --color-cctl-rgb:    139,92,246;
 
-  /* Couleurs par feature - landing light */
+  /* Couleurs par feature - landing light (v2.290 refonte sectorielle).
+     Variantes saturees pour fond clair, alignees sur la palette dark. */
   --color-chat:      #6366F1;
   --color-devoirs:   #059669;
-  --color-docs:      #F59E0B;
-  --color-live:      #EF4444;
+  --color-docs:      #3B82F6;   /* bleu acier */
+  --color-live:      #EA580C;   /* orange (au lieu de rouge) */
   --color-rex:       #0EA5E9;
-  --color-lumen:     #D97706;
-  --color-dashboard: #8B5CF6;
+  --color-lumen:     #D97706;   /* amber */
+  --color-dashboard: var(--accent);
 
   /* Types de devoirs (variantes light) */
   --color-livrable:     #6366F1;
@@ -527,14 +533,16 @@ body.night {
   --color-warning-rgb: 251,191,36;
   --color-success-rgb: 52,211,153;
 
-  /* Sectorielles (heritage explicite) */
+  /* Sectorielles (heritage explicite) — refonte v2.290.
+     docs (jaune→bleu acier), live (rouge→orange), lumen (jaune→amber),
+     dashboard (violet→accent). Cf. :root pour la rationale complete. */
   --color-chat:      #818CF8;
   --color-devoirs:   #34D399;
-  --color-docs:      #FBBF24;
-  --color-live:      #F87171;
+  --color-docs:      #60A5FA;
+  --color-live:      #FB923C;
   --color-rex:       #38BDF8;
-  --color-lumen:     #FBBF24;
-  --color-dashboard: #A78BFA;
+  --color-lumen:     #F59E0B;
+  --color-dashboard: var(--accent);
 }
 
 /* Gradient subtil sur les zones laterales en mode night (v2.289 — pattern
@@ -605,14 +613,16 @@ body.marine {
   --color-warning-rgb: 251,191,36;
   --color-success-rgb: 52,211,153;
 
-  /* Sectorielles - decalees vers les bleus */
+  /* Sectorielles - decalees vers les bleus + refonte v2.290.
+     En theme marine on garde docs et chat dans la famille bleue mais
+     decales pour ne pas etre identiques. Lumen amber, live orange. */
   --color-chat:      #5AABF0;
   --color-devoirs:   #34D399;
-  --color-docs:      #FBBF24;
-  --color-live:      #F87171;
+  --color-docs:      #93C5FD;
+  --color-live:      #FB923C;
   --color-rex:       #38BDF8;
-  --color-lumen:     #FBBF24;
-  --color-dashboard: #90CAFF;
+  --color-lumen:     #F59E0B;
+  --color-dashboard: var(--accent);
 }
 
 /* (body.cursus est defini en tete avec body.light via selecteur groupe) */
