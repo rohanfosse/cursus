@@ -115,7 +115,11 @@ export function useChapterOutline(bodyRef: Ref<HTMLElement | null>) {
   const open = ref<boolean>(readInitialOpen())
   const width = ref<number>(readNumber(OUTLINE_WIDTH_KEY, DEFAULT_OUTLINE_WIDTH))
   const readingFocus = ref<boolean>(readBool(OUTLINE_FOCUS_KEY, false))
-  const numbered = ref<boolean>(readBool(OUTLINE_NUMBER_KEY, true))
+  // v2.288 : numbered off par defaut — les numeros "1.1.2" alourdissent
+  // visuellement la majorite des plans. Le toggle reste dispo dans le
+  // header pour les utilisateurs qui veulent les afficher (ex. cours
+  // tres structures avec section X exercice Y).
+  const numbered = ref<boolean>(readBool(OUTLINE_NUMBER_KEY, false))
   const readingProgress = ref<number>(0)
 
   // Chemin parent du heading courant (utile pour la tree line active).
@@ -222,10 +226,58 @@ export function useChapterOutline(bodyRef: Ref<HTMLElement | null>) {
     nextTick(() => setupScrollSpy())
   }
 
-  function scrollToHeading(id: string) {
-    const el = bodyRef.value?.querySelector<HTMLElement>(`#${CSS.escape(id)}`)
-    if (!el) return
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  /**
+   * Scroll lisse personnalise vers un heading (v2.288). On n'utilise plus
+   * `scrollIntoView({behavior: 'smooth'})` qui est trop rapide / abrupt
+   * dans Chromium ; rAF + ease-in-out cubique sur 700ms donne un mouvement
+   * doux qui aide a se reorienter dans le chapitre apres un saut. Respecte
+   * `prefers-reduced-motion` (saut instantane si l'utilisateur l'a choisi).
+   */
+  let scrollAnimationId: number | null = null
+
+  function smoothScrollToElement(container: HTMLElement, target: HTMLElement, duration = 700): void {
+    if (scrollAnimationId !== null) cancelAnimationFrame(scrollAnimationId)
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduced) {
+      container.scrollTop = computeTargetScroll(container, target)
+      return
+    }
+
+    const startTop = container.scrollTop
+    const targetTop = computeTargetScroll(container, target)
+    const distance = targetTop - startTop
+    if (distance === 0) return
+    const startTime = performance.now()
+
+    function easeInOutCubic(t: number): number {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+    }
+
+    function step(now: number) {
+      const elapsed = now - startTime
+      const progress = Math.min(1, elapsed / duration)
+      container.scrollTop = startTop + distance * easeInOutCubic(progress)
+      if (progress < 1) {
+        scrollAnimationId = requestAnimationFrame(step)
+      } else {
+        scrollAnimationId = null
+      }
+    }
+    scrollAnimationId = requestAnimationFrame(step)
+  }
+
+  function computeTargetScroll(container: HTMLElement, target: HTMLElement): number {
+    const containerRect = container.getBoundingClientRect()
+    const elementRect = target.getBoundingClientRect()
+    return container.scrollTop + (elementRect.top - containerRect.top)
+  }
+
+  function scrollToHeading(id: string): void {
+    const container = bodyRef.value
+    const el = container?.querySelector<HTMLElement>(`#${CSS.escape(id)}`)
+    if (!container || !el) return
+    smoothScrollToElement(container, el)
   }
 
   /**
@@ -248,7 +300,13 @@ export function useChapterOutline(bodyRef: Ref<HTMLElement | null>) {
     setWidth(width.value)
   })
 
-  onBeforeUnmount(disconnect)
+  onBeforeUnmount(() => {
+    disconnect()
+    if (scrollAnimationId !== null) {
+      cancelAnimationFrame(scrollAnimationId)
+      scrollAnimationId = null
+    }
+  })
 
   return {
     headings,

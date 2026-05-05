@@ -525,26 +525,8 @@ button.lumen-viewer-chip:disabled {
 
 /* Lightbox image : extrait dans LumenImageLightbox.vue (v2.283). */
 
-/* Reading progress (v2.276) : barre fine sous le header, scaleX driven par
-   le scroll. transform-origin left = scale grandit de gauche a droite.
-   Cf. Medium / Substack — signature editoriale qui rassure l'utilisateur
-   sur la longueur restante. */
-.lumen-reading-progress {
-  height: 2px;
-  margin: 0 -16px;
-  background: var(--border);
-  overflow: hidden;
-  position: relative;
-}
-.lumen-reading-progress-bar {
-  position: absolute;
-  inset: 0;
-  background: var(--accent);
-  transform-origin: left center;
-  transform: scaleX(0);
-  transition: transform var(--motion-fast) linear;
-  will-change: transform;
-}
+/* Reading progress retiree en v2.288 — redondant avec la mini-rail du
+   plan repliee + l'indicateur "X / Y" du plan deplie. */
 
 /* Breadcrumbs : fil d'ariane du header. Porte maintenant le titre du
    chapitre (v2.67.2) puisque le bloc meta redondant a ete supprime. */

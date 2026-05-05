@@ -30,9 +30,10 @@ export interface CodeEditorActions {
   import { EditorState } from '@codemirror/state'
   import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view'
   import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
-  import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, indentOnInput } from '@codemirror/language'
+  import { syntaxHighlighting, HighlightStyle, bracketMatching, indentOnInput } from '@codemirror/language'
   import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
   import { markdown } from '@codemirror/lang-markdown'
+  import { tags as t } from '@lezer/highlight'
 
   type Language = 'markdown' | 'plaintext'
 
@@ -65,6 +66,35 @@ export interface CodeEditorActions {
   // Theme inline aligne sur les tokens Cursus (dark base). On utilise
   // EditorView.theme() pour generer un theme CodeMirror sur mesure plutot
   // que d'importer @codemirror/theme-one-dark (~30KB de plus).
+  /**
+   * Highlight style custom (v2.288). On n'utilise plus `defaultHighlightStyle`
+   * qui est calibre pour fond clair — sur le bg sombre `--bg-input` certains
+   * tokens markdown (heading, monospace, list) sortaient quasi noir-sur-noir
+   * et l'editeur paraissait vide. Ici on applique des couleurs explicites
+   * tirees de la palette indigo/landing, lisibles en dark ET acceptables en
+   * light grace a la base color qui suit le theme.
+   *
+   * Couvre les tags les plus frequents en markdown (heading, emphasis, strong,
+   * link, monospace, list, quote, processingInstruction). Les autres tombent
+   * sur la couleur de base via le theme.
+   */
+  const cursusHighlight = HighlightStyle.define([
+    { tag: t.heading,                color: 'var(--accent-light, #A5B4FC)', fontWeight: '700' },
+    { tag: t.heading1,               color: 'var(--accent-light, #A5B4FC)', fontWeight: '700' },
+    { tag: t.heading2,               color: 'var(--accent-light, #A5B4FC)', fontWeight: '700' },
+    { tag: t.heading3,               color: 'var(--accent-light, #A5B4FC)', fontWeight: '600' },
+    { tag: t.strong,                 fontWeight: '700' },
+    { tag: t.emphasis,               fontStyle: 'italic' },
+    { tag: t.link,                   color: 'var(--accent, #818CF8)', textDecoration: 'underline' },
+    { tag: t.url,                    color: 'var(--accent, #818CF8)' },
+    { tag: t.quote,                  color: 'var(--text-secondary, #CBD5E1)', fontStyle: 'italic' },
+    { tag: t.monospace,              color: 'var(--accent-light, #A5B4FC)' },
+    { tag: t.list,                   color: 'var(--accent, #818CF8)' },
+    { tag: t.atom,                   color: 'var(--cta, #34D399)' },
+    { tag: t.processingInstruction,  color: 'var(--text-muted, #94A3B8)' },
+    { tag: t.contentSeparator,       color: 'var(--text-muted, #94A3B8)' },
+  ])
+
   const cursusTheme = EditorView.theme({
     '&': {
       backgroundColor: 'var(--bg-input)',
@@ -112,7 +142,7 @@ export interface CodeEditorActions {
       indentOnInput(),
       history(),
       highlightSelectionMatches(),
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      syntaxHighlighting(cursusHighlight, { fallback: true }),
       keymap.of([
         ...defaultKeymap,
         ...historyKeymap,

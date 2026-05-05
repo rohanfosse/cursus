@@ -588,7 +588,9 @@ async function enrichRender() {
   }
   if (!bodyRef.value) return
   enrichment.injectCopyButtons(bodyRef.value)
-  enrichment.injectHeadingAnchors(bodyRef.value)
+  // v2.288 : ancres "#" retirees du rendu inline. Les liens vers les sections
+  // restent accessibles via le clic droit sur un titre dans le plan
+  // (Copier l'ancre).
   rebuildOutline()
   // Si une ancre est fournie via le deep-link (ex: ouverture depuis un
   // devoir avec ?anchor=section-machin), on scrolle directement a la
@@ -795,19 +797,10 @@ watch(() => [props.content, props.chapter?.path], () => {
           />
         </div>
       </div>
-      <!-- Reading progress : barre fine de progression sous le header,
-           visible uniquement quand le chapitre a du contenu scrollable. -->
-      <div
-        v-if="readingProgress > 0 && readingProgress < 1"
-        class="lumen-reading-progress"
-        role="progressbar"
-        :aria-valuenow="Math.round(readingProgress * 100)"
-        aria-valuemin="0"
-        aria-valuemax="100"
-        :aria-label="`Progression de lecture : ${Math.round(readingProgress * 100)}%`"
-      >
-        <div class="lumen-reading-progress-bar" :style="{ transform: `scaleX(${readingProgress})` }" />
-      </div>
+      <!-- Reading progress retiree en v2.288 : redondant avec l'indicateur
+           cote droit (mini-rail du plan replie OU position "X / Y" du plan
+           deplie + chemin actif sur la tree line). Le scroll-top FAB
+           continue d'utiliser readingProgress pour son seuil 30%. -->
       <!-- Breadcrumbs : orientation rapide via project / section / chapitre -->
       <nav class="lumen-breadcrumbs" aria-label="Fil d'ariane">
         <button
