@@ -761,12 +761,15 @@
   box-shadow: 0 2px 10px color-mix(in srgb, var(--color-live) 25%, transparent);
 }
 .hero-title {
+  /* v2.278 : letter-spacing -0.03em + line-height 1.15 = signature display
+     landing (.hero-headline cf. src/landing/style.css). */
   font-family: var(--font-display);
   font-size: 26px;
   font-weight: 800;
   color: var(--text-primary);
   margin: 0;
-  letter-spacing: -.3px;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 .hero-desc {
   font-size: 14px;

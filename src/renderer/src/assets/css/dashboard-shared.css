@@ -11,7 +11,10 @@
   gap: 16px; padding: 4px 0;
 }
 .db-header-left { display: flex; align-items: center; gap: 12px; }
-.db-title { font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--text-primary); line-height: 1.2; }
+/* v2.278 : letter-spacing -0.03em + line-height 1.15 = signature display
+   landing (.hero-headline). Font-weight monte a 800 (etait 800 OK), taille
+   stable. */
+.db-title { font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: -0.03em; color: var(--text-primary); line-height: 1.15; }
 .db-date  { font-size: 12px; color: var(--text-muted); margin-top: 2px; text-transform: capitalize; }
 
 /* ── Dashboard tabs ───────────────────────────────────────────────────────── */

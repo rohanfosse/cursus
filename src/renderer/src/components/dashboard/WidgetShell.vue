@@ -70,13 +70,22 @@ function cycleSize() {
 .ws-shell {
   position: relative;
   min-height: 0;
-  border-radius: var(--radius-lg);
+  /* v2.278 : --radius-bento (24px) matche les .bento-card landing.
+     Distinct du --radius-lg (20px) utilise pour modals/cards generiques. */
+  border-radius: var(--radius-bento);
   /* Animation fluide lors du resize (Fix #2) */
   transition:
     grid-column 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     grid-row 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     box-shadow var(--motion-base) var(--ease-out),
     transform var(--motion-base) var(--ease-out);
+}
+/* v2.278 : propage le radius bento aux UiCard internes des widgets pour
+   matcher la signature .bento-card landing. UiCard reste a 20px hors
+   bento (modals, cards generiques). */
+.ws-shell :deep(.ui-card) {
+  border-radius: var(--radius-bento);
+  height: 100%;
 }
 
 /* ── Hierarchie visuelle par taille (Fix #4) ── */

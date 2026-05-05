@@ -1,5 +1,42 @@
 # Changelog
 
+## v2.278.0 (2026-05-05)
+
+### Uniformisation continue : radius + display typography landing-aligned
+
+Suite des refontes design v2.274/275/276/277, focus sur l'alignement des
+tokens de forme (radius) et de la typographie display avec la landing.
+
+**Radius tokens** :
+
+- `--radius-lg` 16 → 20 (matche `--r-md: 20px` landing). Affecte cards,
+  modals, surfaces moyennes — ~63 fichiers reprennent automatiquement
+  cette valeur (UiCard, modals, sidebars, badges containers).
+- Nouveau token `--radius-bento: 24px` qui matche le radius des
+  `.bento-card` landing. Reserve aux widgets dashboard.
+- `--radius-xl` 24 → 28 (matche `--r-lg: 28px` landing).
+- `--radius-2xl` 28 → 32 pour rester un cran au-dessus.
+
+**Application bento** : `WidgetShell.vue` propage `--radius-bento` aux
+UiCard internes via `:deep(.ui-card)` selector. Les widgets bento ont
+desormais le radius signature 24px de la landing, le UiCard generique
+(modals, listes) reste a 20px.
+
+**Display typography (signature .hero-headline landing)** :
+
+- `letter-spacing: -0.03em` (etait -0.01 / -0.02 selon endroits)
+- `line-height: 1.15` (etait 1.2)
+
+Applique a :
+
+- `.db-title` (header dashboard prof + etudiant) — dashboard-shared.css
+- `.hero-title` (StudentLiveView empty state)
+- `.lw-title` (LumenWelcome empty state)
+- `.auth-brand-name` (LoginOverlay)
+
+Les hero/headers font desormais "claquer" la signature serree et resserree
+qu'on voit sur la landing — meme caractere editorial que Substack/Stripe.
+
 ## v2.277.0 (2026-05-04)
 
 ### Live — polish 3 phases (6.5 -> 8+)

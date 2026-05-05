@@ -173,11 +173,14 @@ body.theme-transitioning *::after {
   /* Densité d'affichage (espacement entre messages) */
   --msg-spacing: 6px;
 
-  /* Rayons - alignes sur la landing (12 / 16 / 20px).
-     Anciennes valeurs (6 / 10 / 14) trop serrees pour le langage indigo. */
-  --radius-sm: 8px;
-  --radius:    12px;
-  --radius-lg: 16px;
+  /* Rayons - alignes sur la landing (12 / 20 / 28px → cf. src/landing/style.css
+     §--r-sm/md/lg). v2.278 : bump --radius-lg 16 → 20 pour matcher --r-md
+     landing (cards/modals plus douces). --radius-bento 24px nouvelle valeur
+     pour les bento cards dashboard (matche les .bento-card landing). */
+  --radius-sm:    8px;
+  --radius:       12px;
+  --radius-lg:    20px;
+  --radius-bento: 24px;
 
   /* Spacing scale */
   --space-xs: 4px;
@@ -226,13 +229,15 @@ body.theme-transitioning *::after {
   --text-xl:  20px;
   --text-2xl: 24px;
 
-  /* Échelle de rayons élargie - alignee landing */
-  --radius-xs: 4px;
-  /* --radius-sm: 8px (déjà défini) */
-  /* --radius:    12px (déjà défini) */
-  /* --radius-lg: 16px (déjà défini) */
-  --radius-xl:   24px;
-  --radius-2xl:  28px;
+  /* Échelle de rayons élargie - alignee landing (cf. --r-* plus haut).
+     v2.278 : --radius-xl matche --r-lg landing (28px). */
+  --radius-xs:   4px;
+  /* --radius-sm:    8px  (déjà défini) */
+  /* --radius:       12px (déjà défini) */
+  /* --radius-lg:    20px (déjà défini, alignement --r-md landing) */
+  /* --radius-bento: 24px (déjà défini, matche .bento-card landing) */
+  --radius-xl:   28px;
+  --radius-2xl:  32px;
   --radius-full: 50%;
 
   /* Types de devoirs - alignes sur la palette landing */

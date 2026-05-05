@@ -383,10 +383,13 @@
 }
 
 .auth-brand-name {
+  /* v2.278 : letter-spacing -0.03em + line-height 1.15 (alignement
+     .hero-headline landing). */
   font-size: 32px;
   font-weight: 800;
   color: #fff;
-  letter-spacing: -.8px;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
   margin: 0 0 6px;
 }
 

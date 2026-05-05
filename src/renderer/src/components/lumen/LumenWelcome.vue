@@ -252,11 +252,14 @@ const globalPct = computed(() => {
 }
 .lw-header-icon { color: var(--accent); flex-shrink: 0; }
 .lw-title {
+  /* v2.278 : letter-spacing -0.03em + line-height 1.15 (alignement
+     .hero-headline landing). */
   margin: 0;
   font-size: 24px;
   font-weight: 800;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 .lw-subtitle {
   margin: 2px 0 0;
