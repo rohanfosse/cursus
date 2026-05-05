@@ -1,5 +1,52 @@
 # Changelog
 
+## v2.281.0 (2026-05-05)
+
+### Live polish — sub-page categorie + mode projection
+
+Suite v2.279/280, focus sur les 2 ecrans qui restaient flat : la
+sub-page "Categorie detail" (apres clic sur une carte categorie) et le
+LivePresentationMode (mode plein ecran videoprojecteur).
+
+**Sub-page categorie (`.live-cat-detail`)** :
+
+- Header refondu en hero panel : padding 28x32, radial gradient cat-color
+  + dot pattern signature landing, barre 3px sticky top.
+- Icone 72x72 gradient solide cat-color + box-shadow tinte (etait 56x56
+  tint plat).
+- Title 32px display / -0.03em / line-height 1.1 (etait 22px / pas de
+  letter-spacing).
+- Desc 15px secondary (etait 13px muted).
+- Section titles 18px display -0.02em (etaient 12px uppercase).
+- Type cards : radius lg + hover lift -1px + glow tinte. Icone 32x32
+  pastille tinted (etait icon flat).
+- Features grid 2-col + check icon en pastille gradient cat-color (etait
+  liste verticale + dot 6px).
+- Create panel : panneau gradient + barre sticky top + CTA gradient
+  pleine largeur avec halo box-shadow + lift hover (etait flat).
+- Mobile : header stack vertical sous 600px.
+
+**LivePresentationMode (mode projection plein ecran)** :
+
+- Background : multi-layer radial (cat 22% + cat 14% + dot pattern 32px
+  + vignette top) — alignement signature `.hero` landing dramatique
+  (etait double radial simple).
+- Join panel : QR avec border 4px white (scan reliable), gradient cat
+  glassmorphism, code 28px / letter-spacing 4px + text-shadow halo
+  cat-color (etait 22px / 2px sans halo). Label uppercase tracking.
+- Type chip : box-shadow halo 28px cat-color (etait juste tinte plat).
+- Title : `clamp(36-76px)` / `-0.03em` / `line-height 1.05` + text-shadow
+  ombre profonde (etait 28-62px / -0.015em / 1.15).
+- Footer : panneau glassmorphism radius lg avec border subtle.
+- **Live indicator dot** signature : pastille cat-color 10px avec pulse
+  expand 1.6s autour du compteur de reponses. Pattern recording-light
+  (Wooclap / Mentimeter / OBS).
+- Stat number 44px / -0.02em (etait 36px / pas letter-spacing).
+- Stat label uppercase tracking 0.06em (etait pas tracked).
+- Confusion stat : pill tokenise avec border (etait juste color).
+
+Reduced-motion respecte sur live-pulse, lpm-in, lpm-pulse-warn.
+
 ## v2.280.0 (2026-05-05)
 
 ### Live polish session — activity cards + panels + buttons

@@ -134,6 +134,7 @@ function formatElapsed(s: number): string {
     <!-- Footer stats -->
     <footer class="lpm-footer">
       <div class="lpm-stat lpm-stat-big">
+        <span class="lpm-live-dot" aria-hidden="true" />
         <Users :size="28" />
         <div class="lpm-stat-val">
           <span class="lpm-stat-num">{{ responseCount }}</span>
@@ -160,24 +161,36 @@ function formatElapsed(s: number): string {
 </template>
 
 <style scoped>
+/* v2.281 : refonte mode projection — multi-layer gradient + dot pattern
+   signature landing, plus dramatique pour la salle. */
 .lpm {
   position: fixed;
   inset: 0;
   z-index: 2000;
   background:
-    radial-gradient(ellipse at top, color-mix(in srgb, var(--cat-color) 18%, transparent) 0%, transparent 55%),
-    radial-gradient(ellipse at bottom, color-mix(in srgb, var(--cat-color) 10%, transparent) 0%, transparent 50%),
-    #0a0a0f;
+    radial-gradient(ellipse 70% 60% at 25% 20%,
+      color-mix(in srgb, var(--cat-color) 22%, transparent) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 80% 80%,
+      color-mix(in srgb, var(--cat-color) 14%, transparent) 0%, transparent 55%),
+    radial-gradient(circle 1px at center,
+      rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    radial-gradient(ellipse 100% 80% at 50% 0%,
+      rgba(0, 0, 0, 0.4) 0%, transparent 60%),
+    #08080f;
+  background-size: 100% 100%, 100% 100%, 32px 32px, 100% 100%, 100% 100%;
   color: #fff;
   display: flex;
   flex-direction: column;
   padding: 24px 48px 32px;
   font-family: var(--font);
-  animation: lpm-in .28s var(--ease-out);
+  animation: lpm-in .32s var(--ease-out);
 }
 @keyframes lpm-in {
   from { opacity: 0; transform: scale(1.02); }
   to   { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lpm { animation: none; }
 }
 
 /* Header */
@@ -189,31 +202,46 @@ function formatElapsed(s: number): string {
   flex-shrink: 0;
   min-height: 40px;
 }
+/* Join panel (v2.281) : plus visible depuis le fond de salle (QR + code
+   en grand). Glassmorphism + gradient accent pour signaler "rejoignez". */
 .lpm-join {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  background: rgba(255, 255, 255, .06);
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: var(--radius);
-  backdrop-filter: blur(8px);
+  gap: 16px;
+  padding: 14px 20px;
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--cat-color) 14%, transparent) 0%,
+      rgba(255, 255, 255, 0.04) 100%);
+  border: 1px solid color-mix(in srgb, var(--cat-color) 30%, transparent);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .lpm-qr {
   border-radius: var(--radius-sm);
   flex-shrink: 0;
+  /* Bordure blanche pour les scans (les QR fonctionnent mieux sur fond clair) */
+  border: 4px solid #fff;
+  background: #fff;
 }
 .lpm-join-label {
-  font-size: 12px;
+  display: block;
+  font-size: 11px;
   color: rgba(255, 255, 255, .55);
-  font-weight: 500;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 .lpm-join-code {
+  display: block;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 800;
-  letter-spacing: 2px;
+  letter-spacing: 4px;
   color: var(--cat-color);
+  margin-top: 2px;
+  text-shadow: 0 0 24px color-mix(in srgb, var(--cat-color) 60%, transparent);
 }
 
 .lpm-header-right {
@@ -286,26 +314,32 @@ function formatElapsed(s: number): string {
   min-height: 0;
   overflow: hidden;
 }
+/* Type chip (v2.281) : gradient accent + halo subtle */
 .lpm-type-chip {
+  position: relative;
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 2px;
   color: var(--cat-color);
-  padding: 5px 14px;
+  padding: 6px 16px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--cat-color) 15%, transparent);
-  border: 1px solid color-mix(in srgb, var(--cat-color) 35%, transparent);
+  background: color-mix(in srgb, var(--cat-color) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cat-color) 40%, transparent);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--cat-color) 30%, transparent);
 }
+/* Title : signature display landing -0.03em + line-height 1.05 */
 .lpm-title {
-  font-size: clamp(28px, 5vw, 62px);
+  font-size: clamp(36px, 6vw, 76px);
   font-weight: 800;
   text-align: center;
-  line-height: 1.15;
+  line-height: 1.05;
   max-width: 1200px;
   margin: 0;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.03em;
   text-wrap: balance;
+  color: #fff;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.5);
 }
 .lpm-results {
   flex: 1;
@@ -356,14 +390,19 @@ function formatElapsed(s: number): string {
   flex: 0 0 56px;
 }
 
-/* Footer */
+/* Footer (v2.281) : stats avec live-dot pulse signature, glassy panels */
 .lpm-footer {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 40px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, .08);
+  gap: 32px;
+  padding: 18px 24px;
+  margin-top: 8px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   flex-shrink: 0;
 }
 .lpm-stat {
@@ -373,39 +412,73 @@ function formatElapsed(s: number): string {
   color: rgba(255, 255, 255, .65);
   font-size: 16px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .lpm-stat-big {
   color: #fff;
   gap: 14px;
+  position: relative;
+  padding: 6px 18px 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+}
+/* Live dot signature (recording indicator pattern) */
+.lpm-live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cat-color);
+  box-shadow: 0 0 0 0 var(--cat-color);
+  animation: lpm-live-pulse 1.6s ease-out infinite;
+  flex-shrink: 0;
+}
+@keyframes lpm-live-pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--cat-color) 70%, transparent); }
+  70%  { box-shadow: 0 0 0 12px color-mix(in srgb, var(--cat-color) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--cat-color) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lpm-live-dot { animation: none; }
 }
 .lpm-stat-val {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
 }
 .lpm-stat-num {
-  font-size: 36px;
+  font-size: 44px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
 }
 .lpm-stat-lbl {
-  font-size: 14px;
+  font-size: 13px;
   color: rgba(255, 255, 255, .55);
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 .lpm-stat-warn {
   color: #fbbf24;
+  background: rgba(251, 191, 36, 0.10);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  padding: 6px 14px;
+  border-radius: 999px;
   animation: lpm-pulse-warn .8s ease-in-out infinite alternate;
 }
 @keyframes lpm-pulse-warn {
   from { opacity: .6 }
   to   { opacity: 1 }
 }
+@media (prefers-reduced-motion: reduce) {
+  .lpm-stat-warn { animation: none; opacity: 1; }
+}
 .lpm-stat-caption {
-  font-size: 11px;
+  font-size: 10.5px;
   color: rgba(255, 255, 255, .45);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.08em;
 }
 
 @media (max-width: 900px) {

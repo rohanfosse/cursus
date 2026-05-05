@@ -1939,85 +1939,235 @@
   .live-cat-card { padding: 20px; }
 }
 
-/* ── Category detail sub-page ── */
+/* ── Category detail sub-page (v2.281 : refonte hero gradient + grids) ── */
 .live-cat-detail {
-  width: 100%; max-width: 640px;
-  display: flex; flex-direction: column; gap: 24px;
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
 }
+/* Header en hero panel : radial gradient cat-color + dot pattern subtle */
 .lcd-header {
-  display: flex; align-items: center; gap: 16px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 28px 32px;
+  border-radius: var(--radius-bento);
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(ellipse 80% 100% at 0% 50%,
+      color-mix(in srgb, var(--cat-color) 16%, transparent) 0%, transparent 70%),
+    radial-gradient(circle 1px at center,
+      color-mix(in srgb, var(--cat-color) 25%, transparent) 1px, transparent 1px),
+    var(--bg-elevated);
+  background-size: 100% 100%, 22px 22px, 100% 100%;
+  overflow: hidden;
+}
+.lcd-header::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--cat-color),
+    color-mix(in srgb, var(--cat-color) 50%, transparent));
 }
 .lcd-icon {
-  width: 56px; height: 56px;
-  display: flex; align-items: center; justify-content: center;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--cat-color) 90%, white) 0%,
+    var(--cat-color) 100%);
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow:
+    0 10px 28px color-mix(in srgb, var(--cat-color) 35%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.lcd-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 0;
+}
+.lcd-desc {
+  font-size: 15px;
+  color: var(--text-secondary);
+  letter-spacing: -0.005em;
+  margin: 4px 0 0;
+}
+.lcd-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+/* Section titles alignes sur live-section-title (display 22px / -0.03em) */
+.lcd-section-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+}
+.lcd-types-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+.lcd-type-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--cat-color) 12%, transparent);
+  transition: border-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+.lcd-type-card:hover {
+  border-color: color-mix(in srgb, var(--cat-color) 40%, var(--border));
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--cat-color) 12%, transparent);
+}
+/* Icone type avec pastille tinted */
+.lcd-type-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--cat-color) 14%, transparent);
   color: var(--cat-color);
   flex-shrink: 0;
 }
-.lcd-title {
-  font-size: 22px; font-weight: 700; color: var(--text-primary); margin: 0;
+.lcd-type-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lcd-type-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
-.lcd-desc {
-  font-size: 13px; color: var(--text-muted); margin: 2px 0 0;
+.lcd-type-id {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
 }
-.lcd-section {
-  display: flex; flex-direction: column; gap: 10px;
-}
-.lcd-section-title {
-  font-family: var(--font-display);
-  font-size: 12px; font-weight: 800; color: var(--text-muted);
-  text-transform: uppercase; letter-spacing: .06em; margin: 0;
-}
-.lcd-types-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 8px;
-}
-.lcd-type-card {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px;
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-.lcd-type-icon { color: var(--cat-color); flex-shrink: 0; }
-.lcd-type-info { display: flex; flex-direction: column; gap: 1px; }
-.lcd-type-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.lcd-type-id { font-size: 10px; color: var(--text-muted); font-family: monospace; }
 
 .lcd-features {
-  display: flex; flex-direction: column; gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
 }
 .lcd-feat {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; color: var(--text-secondary);
-  padding: 6px 10px;
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  border-left: 3px solid var(--cat-color);
 }
 .lcd-feat::before {
-  content: '';
-  width: 6px; height: 6px;
-  border-radius: 50%;
+  content: '✓';
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
   background: var(--cat-color);
+  color: #fff;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
+/* Create panel : panneau gradient avec input + big CTA */
 .lcd-create {
-  display: flex; flex-direction: column; gap: 12px;
-  padding: 20px;
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: var(--radius);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse 60% 100% at 100% 50%,
+      color-mix(in srgb, var(--cat-color) 12%, transparent) 0%, transparent 70%),
+    var(--bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--cat-color) 25%, var(--border));
+  border-radius: var(--radius-bento);
+  overflow: hidden;
+}
+.lcd-create::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--cat-color),
+    color-mix(in srgb, var(--cat-color) 50%, transparent));
 }
 .lcd-create-btn {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 12px; border-radius: var(--radius-sm);
-  font-size: 15px; font-weight: 700;
-  background: var(--cat-color); color: #fff;
-  border: none; cursor: pointer;
-  transition: all .15s; font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--cat-color) 90%, white) 0%,
+    var(--cat-color) 100%);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--cat-color) 30%, transparent);
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
+    filter var(--motion-fast) var(--ease-out);
 }
-.lcd-create-btn:hover { filter: brightness(1.1); }
+.lcd-create-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--cat-color) 40%, transparent);
+}
+.lcd-create-btn:active:not(:disabled) { transform: translateY(0); }
 .lcd-create-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lcd-type-card,
+  .lcd-type-card:hover,
+  .lcd-create-btn,
+  .lcd-create-btn:hover { transform: none; transition: none; }
+}
+@media (max-width: 600px) {
+  .lcd-header {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    padding: 20px;
+  }
+  .lcd-title { font-size: 26px; }
+  .lcd-create { padding: 18px; }
+}
 
 /* Legacy create-input (still used in session view) */
 .create-input {
