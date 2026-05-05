@@ -342,19 +342,27 @@ watch(() => props.chapter.path, () => {
 })
 
 // ── Outline (plan du chapitre) ────────────────────────────────────────────
-const { headings, activeHeadingId, open: outlineOpen, rebuild: rebuildOutline, scrollToHeading } = useChapterOutline(bodyRef)
+const {
+  headings,
+  activeHeadingId,
+  activePath: outlineActivePath,
+  open: outlineOpen,
+  width: outlineWidth,
+  readingFocus: outlineReadingFocus,
+  numbered: outlineNumbered,
+  readingProgress: outlineReadingProgress,
+  rebuild: rebuildOutline,
+  scrollToHeading,
+  MIN_OUTLINE_WIDTH,
+  MAX_OUTLINE_WIDTH,
+} = useChapterOutline(bodyRef)
 
-// ── Reading progress (v2.276) ─────────────────────────────────────────────
-// Pourcentage de lecture du chapitre (0..1). Calcule sur le scroll du body,
-// affiche en barre fine en bas du header. Signature editorial classique
-// (Medium, Substack). Deborder = 1 quand fond atteint, sinon ratio.
-const readingProgress = ref(0)
-function onBodyScroll() {
-  const el = bodyRef.value
-  if (!el) return
-  const max = el.scrollHeight - el.clientHeight
-  readingProgress.value = max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) : 0
-}
+// ── Reading progress (v2.276 — refonte v2.287) ──────────────────────────
+// Le composable useChapterOutline expose deja outlineReadingProgress qui
+// suit le scroll du body. On l'alias en readingProgress local pour ne pas
+// dupliquer le listener (deux listeners sur le meme element = 2x la charge
+// de calcul a chaque scroll event).
+const readingProgress = outlineReadingProgress
 
 /**
  * Scroll-to-top : remonte le body markdown en haut. Visible apres
@@ -364,18 +372,6 @@ function onBodyScroll() {
 function scrollToTop() {
   bodyRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
 }
-onMounted(() => {
-  // Le bodyRef est attache via v-bind:ref, attendre nextTick pour binder.
-  nextTick(() => {
-    bodyRef.value?.addEventListener('scroll', onBodyScroll, { passive: true })
-  })
-})
-onBeforeUnmount(() => {
-  bodyRef.value?.removeEventListener('scroll', onBodyScroll)
-})
-watch(() => props.chapter?.path, () => {
-  readingProgress.value = 0
-})
 
 // Banner stale : true si on lit du cache OU si le repo n'a pas ete sync
 // depuis plus d'une heure. Invite l'utilisateur a resync.
@@ -1004,8 +1000,19 @@ watch(() => [props.content, props.chapter?.path], () => {
           :headings="headings"
           :collapsed="!outlineOpen"
           :active-heading-id="activeHeadingId"
+          :active-path="outlineActivePath"
+          :width="outlineWidth"
+          :numbered="outlineNumbered"
+          :reading-focus="outlineReadingFocus"
+          :reading-progress="outlineReadingProgress"
+          :is-teacher="isTeacher"
+          :min-width="MIN_OUTLINE_WIDTH"
+          :max-width="MAX_OUTLINE_WIDTH"
           @toggle="outlineOpen = !outlineOpen"
           @navigate="scrollToHeading"
+          @update:width="outlineWidth = $event"
+          @update:numbered="outlineNumbered = $event"
+          @update:reading-focus="outlineReadingFocus = $event"
         />
       </div>
 
