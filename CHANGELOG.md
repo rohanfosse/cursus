@@ -1,5 +1,43 @@
 # Changelog
 
+## v2.282.0 (2026-05-05)
+
+### Refactor : decoupage TeacherLiveView en sous-composants
+
+`TeacherLiveView.vue` faisait 3038 lignes (3000+) — un god component qui
+melangeait : home accueil, sub-page categorie, session active, tous les
+panneaux toggle, et 1700 lignes de CSS. Refactor en 5 composants.
+
+**Composants extraits** (fichiers nouveaux, scoped CSS) :
+
+- `LiveHomeHero.vue` — hero panel accueil (title display + halo pulse +
+  stats pills + raccourci `?`). Props `stats`, emits `show-shortcuts`.
+- `LiveCategoryGrid.vue` — grille des 4 cartes Spark/Pulse/Code/Board.
+  Pas de prop (utilise `ACTIVITY_CATEGORIES` du utils), emit `select`.
+- `LiveDraftsList.vue` — section "Brouillons a reprendre" (cards UiCard
+  + actions resume/clone/delete). Props `drafts`, `draftActivityCount`,
+  emits `resume`, `clone`, `delete`.
+- `LiveTemplatesList.vue` — section "Modeles enregistres" (cards radius
+  lg + barre live-red sticky-left + load/delete). Props `templates`,
+  emits `load`, `delete`.
+- `LiveCategoryDetail.vue` — sub-page detail apres clic carte categorie
+  (header hero gradient + types grid + features grid + create panel
+  CTA gradient). Props `category` + `modelValue` (v-model titre) +
+  `loading`, emits `back`, `create`.
+
+**Bilan TeacherLiveView** :
+
+- Avant : 3038 lignes (template ~700, CSS ~1700).
+- Apres : **2653 lignes** (-385 lignes / -12.7%).
+- Imports nettoyes (Sparkles, FileText, Bookmark, PencilLine, UiCard,
+  relativeTime retires car dorenavant dans les sous-composants).
+
+Bonus : chaque composant a son CSS scoped — fini les classes globales
+qui leakent. Et chaque sous-composant peut maintenant evoluer
+independamment (ex: tester un nouveau hero sans toucher au reste).
+
+Build + tsc verts. Aucun changement comportemental, refactor pur.
+
 ## v2.281.0 (2026-05-05)
 
 ### Live polish — sub-page categorie + mode projection
