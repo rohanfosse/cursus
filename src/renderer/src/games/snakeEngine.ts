@@ -12,6 +12,29 @@ export type Dir = 'up' | 'down' | 'left' | 'right'
 
 export interface Cell { x: number; y: number }
 
+/** Type de pomme (v2.293) — power-ups qui apparaissent occasionnellement. */
+export type FoodKind = 'normal' | 'golden' | 'slow'
+
+export interface PowerFood extends Cell {
+  kind: FoodKind
+  /**
+   * Tick (compteur global) auquel la pomme expire si pas mangee. null = persiste
+   * indefiniment (cas des pommes normales). Permet d'eviter qu'une pomme dorée
+   * non mangee reste a perpetuite et finisse par scolaire le score.
+   */
+  expiresAtTick: number | null
+}
+
+/** Effets actifs (v2.293) : slow-mo qui ralentit le tick pendant N ticks. */
+export interface SnakeEffects {
+  /** Tick global a partir duquel le slow-mo expire. 0 = pas de slow-mo. */
+  slowMoUntilTick: number
+  /** Multiplicateur de score combo (v2.293) : 1, 2 ou 3. Reset si > windowMs. */
+  comboMultiplier: number
+  /** Timestamp ms du dernier food mange — pour fenetre de combo. */
+  lastEatAtMs: number
+}
+
 export interface SnakeConfig {
   width:       number
   height:      number
@@ -20,6 +43,20 @@ export interface SnakeConfig {
   tickStep:    number
   /** Accelere tous les N pommes. */
   foodPerStep: number
+  /** v2.293 : probabilite [0..1] qu'une pomme spawne en power-up. */
+  powerUpChance: number
+  /** v2.293 : multiplicateur de score pour pomme doree. */
+  goldenMultiplier: number
+  /** v2.293 : duree (en ticks) de l'effet slow-mo apres une pomme bleue. */
+  slowMoDurationTicks: number
+  /** v2.293 : facteur de ralentissement du slow-mo (1.6 = 60 % plus lent). */
+  slowMoFactor: number
+  /** v2.293 : duree (en ticks) avant expiration d'un power-up non mange. */
+  powerUpLifeTicks: number
+  /** v2.293 : fenetre (ms) entre deux pommes pour conserver le combo. */
+  comboWindowMs: number
+  /** v2.293 : combo max possible (palier max). */
+  comboMax: number
 }
 
 export const DEFAULT_SNAKE_CONFIG: SnakeConfig = {
@@ -29,6 +66,13 @@ export const DEFAULT_SNAKE_CONFIG: SnakeConfig = {
   tickMin:     60,
   tickStep:    8,
   foodPerStep: 5,
+  powerUpChance: 0.18,
+  goldenMultiplier: 3,
+  slowMoDurationTicks: 40,
+  slowMoFactor: 1.6,
+  powerUpLifeTicks: 70,
+  comboWindowMs: 4000,
+  comboMax: 3,
 }
 
 /** Directions opposees — empeche le 180 instantane. */
@@ -106,16 +150,13 @@ export function placeFood(
   w: number,
   h: number,
   rand: () => number = Math.random,
+  exclude: readonly Cell[] = [],
 ): Cell {
   if (body.length === 0) return { x: Math.floor(rand() * w), y: Math.floor(rand() * h) }
 
-  const occupied = new Set(body.map(c => `${c.x},${c.y}`))
-  // Cas pathologique : grille pleine. On renvoie la tete (l appelant est en
-  // game over imminent de toute facon).
+  const occupied = new Set([...body, ...exclude].map(c => `${c.x},${c.y}`))
   if (occupied.size >= w * h) return body[0]
 
-  // Tirage aleatoire avec fallback deterministe pour eviter la boucle
-  // infinie si rand est biaise. Max 100 essais, puis scan lineaire.
   for (let i = 0; i < 100; i++) {
     const x = Math.floor(rand() * w)
     const y = Math.floor(rand() * h)
@@ -127,6 +168,53 @@ export function placeFood(
     }
   }
   return body[0]
+}
+
+/**
+ * Decide si la pomme normale qui spawne doit etre "boostee" en power-up
+ * (golden / slow). Renvoie le kind a creer en consequence.
+ * v2.293.
+ */
+export function rollFoodKind(
+  cfg: Pick<SnakeConfig, 'powerUpChance'>,
+  rand: () => number = Math.random,
+): FoodKind {
+  if (rand() > cfg.powerUpChance) return 'normal'
+  // Parmi les power-ups, 60 % golden, 40 % slow-mo (slow plus rare car plus utile).
+  return rand() < 0.6 ? 'golden' : 'slow'
+}
+
+/**
+ * Calcule le score gagne pour une pomme mangee, en tenant compte du type
+ * de pomme (golden = ×N) et du combo multiplicateur courant.
+ * v2.293.
+ */
+export function computeFoodScore(
+  kind: FoodKind,
+  comboMultiplier: number,
+  cfg: Pick<SnakeConfig, 'goldenMultiplier'>,
+): number {
+  const base = kind === 'golden' ? 10 * cfg.goldenMultiplier : 10
+  return base * Math.max(1, comboMultiplier)
+}
+
+/**
+ * Met a jour le combo en fonction du temps ecoule depuis le dernier food
+ * mange. Si la fenetre est respectee, +1 (cap a comboMax). Sinon reset a 1.
+ * v2.293.
+ */
+export function nextCombo(
+  prevCombo: number,
+  prevEatMs: number,
+  nowMs: number,
+  cfg: Pick<SnakeConfig, 'comboWindowMs' | 'comboMax'>,
+): number {
+  if (prevEatMs === 0) return 1
+  const dt = nowMs - prevEatMs
+  if (dt <= cfg.comboWindowMs) {
+    return Math.min(cfg.comboMax, prevCombo + 1)
+  }
+  return 1
 }
 
 /**
