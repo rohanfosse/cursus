@@ -128,14 +128,19 @@ const fontSizePreview: Record<string, string> = { small: '13px', default: '14px'
         <Pipette :size="13" class="stg-group-icon" />
         <h4 class="stg-group-title">Couleur d'accent</h4>
       </div>
-      <p class="stg-group-desc">Personnalisez la couleur principale de l'interface.</p>
+      <p class="stg-group-desc">
+        Personnalise la couleur principale de l'interface — boutons, liens,
+        surlignages. Le choix par defaut suit la couleur du theme.
+      </p>
+
+      <!-- Grille presets : tile + label, sans hover-tooltip seulement -->
       <div class="sa-accent-grid">
         <button
           v-for="preset in ACCENT_PRESETS"
           :key="preset.color || 'default'"
-          class="sa-accent-btn"
+          type="button"
+          class="sa-accent-tile"
           :class="{ active: customAccent === preset.color }"
-          :title="preset.label"
           @click="customAccent = preset.color"
         >
           <span
@@ -143,8 +148,34 @@ const fontSizePreview: Record<string, string> = { small: '13px', default: '14px'
             class="sa-accent-dot"
             :style="{ background: preset.color }"
           />
-          <RotateCcw v-else :size="12" />
+          <RotateCcw v-else :size="14" class="sa-accent-default-icon" />
+          <span class="sa-accent-name">{{ preset.label }}</span>
         </button>
+      </div>
+
+      <!-- Color picker custom : input natif pour aller au-dela des presets -->
+      <div class="sa-accent-custom-row">
+        <label class="sa-accent-custom-label">
+          <input
+            type="color"
+            class="sa-accent-custom-input"
+            :value="customAccent || '#6366F1'"
+            aria-label="Choisir une couleur personnalisee"
+            @input="(e) => customAccent = (e.target as HTMLInputElement).value"
+          />
+          <span class="sa-accent-custom-text">
+            <span class="sa-accent-custom-title">Couleur personnalisee</span>
+            <span class="sa-accent-custom-value">{{ customAccent || 'aucune' }}</span>
+          </span>
+        </label>
+      </div>
+
+      <!-- Apercu live : montre l'effet sur des elements typiques -->
+      <div class="sa-accent-preview" aria-label="Apercu de la couleur d'accent">
+        <span class="sa-accent-preview-label">Apercu</span>
+        <button type="button" class="sa-accent-preview-btn" tabindex="-1">Bouton</button>
+        <a class="sa-accent-preview-link" tabindex="-1">Un lien</a>
+        <span class="sa-accent-preview-mark">surligne</span>
       </div>
     </div>
 
@@ -237,20 +268,156 @@ const fontSizePreview: Record<string, string> = { small: '13px', default: '14px'
   transition: font-size var(--motion-base) var(--ease-out);
 }
 
-/* ── Accent color grid ── */
+/* ── Accent color presets (refonte v2.286) ──
+   Tile 64x64 avec dot + nom dessous, plus lisible que la grille de 32px
+   ronds sans labels. Sept colonnes responsive, gap aere. */
 .sa-accent-grid {
-  display: flex; gap: 8px; flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
 }
-.sa-accent-btn {
-  width: 32px; height: 32px; border-radius: 50%;
-  border: 2px solid var(--border); background: var(--bg-elevated);
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: all .15s; color: var(--text-muted);
+.sa-accent-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
 }
-.sa-accent-btn:hover { border-color: var(--text-muted); transform: scale(1.1); }
-.sa-accent-btn.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
+.sa-accent-tile:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+.sa-accent-tile.active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+.sa-accent-tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
 .sa-accent-dot {
-  width: 20px; height: 20px; border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .15);
+}
+.sa-accent-default-icon {
+  color: var(--text-muted);
+  width: 24px;
+  height: 24px;
+}
+.sa-accent-name {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.sa-accent-tile.active .sa-accent-name {
+  color: var(--accent);
+}
+
+/* Color picker custom : input type=color natif + label texte hex courant */
+.sa-accent-custom-row {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.sa-accent-custom-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.sa-accent-custom-input {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+.sa-accent-custom-input::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+.sa-accent-custom-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
+.sa-accent-custom-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sa-accent-custom-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.sa-accent-custom-value {
+  font-size: 11px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  color: var(--text-muted);
+  text-transform: lowercase;
+}
+
+/* Preview live : montre comment la couleur impacte les composants types */
+.sa-accent-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+.sa-accent-preview-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+.sa-accent-preview-btn {
+  padding: 5px 12px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: default;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.sa-accent-preview-btn:hover {
+  background: var(--accent-hover);
+}
+.sa-accent-preview-link {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: default;
+}
+.sa-accent-preview-mark {
+  font-size: 12px;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .14);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
 }
 
 /* ── Preview border-radius ── */

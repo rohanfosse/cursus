@@ -6,6 +6,7 @@
 import { ref, watch } from 'vue'
 import { Monitor, Sun, Moon, Waves, Sparkles } from 'lucide-vue-next'
 import { usePrefs } from '@/composables/usePrefs'
+import { buildAccentTokens } from '@/utils/colorUtils'
 
 export type ThemeId = 'auto' | 'dark' | 'light' | 'sepia' | 'night' | 'marine' | 'cursus'
 
@@ -125,17 +126,37 @@ export function useSettingsAppearance() {
     document.documentElement.style.setProperty('--radius-sm', v === 'sharp' ? '2px' : v === 'round' ? '14px' : '8px')
   })
 
+  /**
+   * Applique l'accent custom : recalcule TOUTES les vars derivees a
+   * partir du hex fourni. Sans ca (bug v2.285) seuls --accent / --light
+   * / --subtle etaient mis a jour, laissant tous les rgba(var(--accent-rgb))
+   * sur la valeur du theme — les hovers/borders/focus n'etaient pas
+   * customises.
+   */
+  function applyCustomAccent(hex: string): void {
+    const root = document.documentElement
+    if (!hex) {
+      root.style.removeProperty('--accent')
+      root.style.removeProperty('--accent-rgb')
+      root.style.removeProperty('--accent-hover')
+      root.style.removeProperty('--accent-dark')
+      root.style.removeProperty('--accent-light')
+      root.style.removeProperty('--accent-subtle')
+      return
+    }
+    const tokens = buildAccentTokens(hex)
+    if (!tokens) return
+    root.style.setProperty('--accent', tokens.hex)
+    root.style.setProperty('--accent-rgb', tokens.rgb)
+    root.style.setProperty('--accent-hover', tokens.hover)
+    root.style.setProperty('--accent-dark', tokens.dark)
+    root.style.setProperty('--accent-light', tokens.hover)
+    root.style.setProperty('--accent-subtle', `rgba(${tokens.rgb}, .14)`)
+  }
+
   watch(customAccent, (v) => {
     setPref('customAccent', v)
-    if (v) {
-      document.documentElement.style.setProperty('--accent', v)
-      document.documentElement.style.setProperty('--accent-light', v)
-      document.documentElement.style.setProperty('--accent-subtle', v + '1a')
-    } else {
-      document.documentElement.style.removeProperty('--accent')
-      document.documentElement.style.removeProperty('--accent-light')
-      document.documentElement.style.removeProperty('--accent-subtle')
-    }
+    applyCustomAccent(v)
   })
 
   watch(highContrast, (v) => {
@@ -158,12 +179,8 @@ export function useSettingsAppearance() {
   document.documentElement.style.setProperty('--radius', initRadii[borderRadius.value] ?? '12px')
   // Apply initial animations pref
   if (!animationsEnabled.value) document.documentElement.classList.add('no-animations')
-  // Apply initial custom accent
-  if (customAccent.value) {
-    document.documentElement.style.setProperty('--accent', customAccent.value)
-    document.documentElement.style.setProperty('--accent-light', customAccent.value)
-    document.documentElement.style.setProperty('--accent-subtle', customAccent.value + '1a')
-  }
+  // Apply initial custom accent (toutes les vars derivees, cf. fix v2.286)
+  if (customAccent.value) applyCustomAccent(customAccent.value)
   // Apply initial high contrast
   if (highContrast.value) document.documentElement.classList.add('high-contrast')
 
