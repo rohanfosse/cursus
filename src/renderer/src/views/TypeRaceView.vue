@@ -1,18 +1,26 @@
 /**
- * TypeRaceView — vue plein ecran du mini-jeu typing speed (v2.171 redesign).
+ * TypeRaceView — vue plein ecran du mini-jeu typing speed.
  *
- * Design : invisible input capturant le focus (Monkeytype-style), curseur
- * anime inline dans la phrase, radial timer central, sparkline WPM live,
- * shake sur erreur, mode focus (header/leaderboard fadent pendant la
- * frappe). Ecran de fin enrichi : courbe full, PB, changement de rang.
+ * v2.292 — refonte jouabilite (6 features) :
+ *   1. Countdown 3-2-1 avant la partie (overlay arcade-y)
+ *   2. Streak / combo system avec paliers visuels (5/10/25/50/100/200)
+ *   3. Sound effects subtils (web audio synthetique, togglable)
+ *   4. "Rejouer la meme phrase" pour s'ameliorer + delta vs precedent
+ *   5. Ghost leader bar (progression fantome basee sur le WPM du leader)
+ *   6. PB spectaculaire (confettis + animation grosse pulsation)
  */
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, RotateCw, Trophy, Sparkles, Target, Gauge } from 'lucide-vue-next'
+import { ArrowLeft, RotateCw, Trophy, Sparkles, Target, Gauge, Flame, Volume2, VolumeX, Repeat } from 'lucide-vue-next'
 import { useTypeRace } from '@/composables/useTypeRace'
 import { useApi } from '@/composables/useApi'
 import { useAppStore } from '@/stores/app'
+import { celebrate } from '@/utils/celebrate'
+import {
+  isSoundEnabled, setSoundEnabled, unlockSound,
+  playKeyTone, playErrorTone, playStreakTone, playVictoryTone, playCountdownTick,
+} from '@/utils/typeRaceSounds'
 import SparklineWpm from '@/components/typerace/SparklineWpm.vue'
 import RadialTimer  from '@/components/typerace/RadialTimer.vue'
 
@@ -21,10 +29,13 @@ const appStore = useAppStore()
 const { api } = useApi()
 
 const {
-  state, phrase, typed, loading, lastResult,
+  state, phrase, typed, loading, lastResult, previousResult,
   wpmSamples, errorTick, cursorPos,
   remainingMs, progress, wpm, score, accuracy,
-  loadPhrase, onInput, cleanup,
+  streak, bestStreak, streakMilestone,
+  countdownValue,
+  loadPhrase, retrySamePhrase, onInput, cleanup,
+  consumeStreakMilestone,
   GAME_DURATION_MS,
 } = useTypeRace()
 
@@ -32,11 +43,54 @@ const inputRef = ref<HTMLInputElement | null>(null)
 const leaderboard = ref<Array<{ rank: number; name: string; bestScore: number; bestWpm: number }>>([])
 const allTimeBest = ref(0)
 const previousRank = ref<number | null>(null)
+const soundEnabled = ref(isSoundEnabled())
 
-// Anti-shake retrigger : flag CSS reseterente via `key` incrementee
 const shakeKey = ref(0)
-watch(errorTick, (n) => { if (n > 0) shakeKey.value++ })
+const milestoneAnim = ref<{ value: number; key: number } | null>(null)
 
+// ── Sons : echo des events du composable vers le synthe web audio ─────
+watch(errorTick, (n) => {
+  if (n > 0) {
+    shakeKey.value++
+    if (soundEnabled.value) playErrorTone()
+  }
+})
+watch(typed, (cur, prev) => {
+  // On joue le son SEULEMENT quand on ajoute un char (pas backspace) ET
+  // quand le streak augmente (= char correct).
+  if (cur.length > prev.length && soundEnabled.value) {
+    // streak augmente uniquement sur correct → on regarde le delta inverse.
+    // Si la frappe etait fausse, errorTick aurait deja joue son tone.
+    // Ici on joue un bip discret pour le correct.
+    if (phrase.value && cur[cur.length - 1] === phrase.value.text[cur.length - 1]) {
+      playKeyTone()
+    }
+  }
+})
+watch(streakMilestone, (m) => {
+  if (m > 0) {
+    // Trigger anim + son, puis consume le palier dans le composable.
+    milestoneAnim.value = { value: m, key: Date.now() }
+    if (soundEnabled.value) playStreakTone(m)
+    setTimeout(() => { milestoneAnim.value = null; consumeStreakMilestone() }, 1200)
+  }
+})
+watch(countdownValue, (v) => {
+  if (state.value === 'countdown' && soundEnabled.value) {
+    playCountdownTick(v)
+  }
+})
+
+function toggleSound() {
+  soundEnabled.value = !soundEnabled.value
+  setSoundEnabled(soundEnabled.value)
+  if (soundEnabled.value) {
+    unlockSound()
+    playKeyTone()
+  }
+}
+
+// ── Leaderboard + stats ────────────────────────────────────────────────
 async function refreshLeaderboard() {
   const data = await api<Array<{ rank: number; name: string; bestScore: number; bestWpm: number }>>(
     () => window.api.typeRaceLeaderboard('day'),
@@ -54,7 +108,6 @@ async function loadMyStats() {
 }
 
 async function newRound() {
-  // Capture le rang avant la partie pour calculer le delta apres
   const myRank = leaderboard.value.find((e) => e.name === appStore.currentUser?.name)?.rank ?? null
   previousRank.value = myRank
   await loadPhrase()
@@ -62,30 +115,45 @@ async function newRound() {
   inputRef.value?.focus()
 }
 
-function onPaste(e: ClipboardEvent) { e.preventDefault() }
+function onSamePhraseRetry() {
+  retrySamePhrase()
+  nextTick(() => inputRef.value?.focus())
+}
 
-// Focus de l'input : au click n'importe ou dans la zone de jeu
+function onPaste(e: ClipboardEvent) { e.preventDefault() }
 function focusInput() { inputRef.value?.focus() }
 
-// Refetch leaderboard + stats en fin de partie
+// Refetch leaderboard + stats + celebrations en fin de partie
 watch(state, async (s) => {
   if (s === 'done') {
     await refreshLeaderboard()
     await loadMyStats()
+    if (soundEnabled.value) playVictoryTone()
+    if (isPersonalBest.value) {
+      // Confettis + 2eme volee 600ms apres pour une deflagration prolongee.
+      celebrate({ origin: { x: 0.5, y: 0.45 } })
+      setTimeout(() => celebrate({ origin: { x: 0.3, y: 0.6 } }), 600)
+      setTimeout(() => celebrate({ origin: { x: 0.7, y: 0.6 } }), 1200)
+    }
   }
 })
 
-// Raccourcis clavier : Tab rejoue, Esc retourne au dashboard
+// Raccourcis clavier
 function onGlobalKeydown(e: KeyboardEvent) {
   if (e.key === 'Tab' && state.value === 'done') {
     e.preventDefault()
     newRound()
   } else if (e.key === 'Escape') {
     goBack()
+  } else if (e.key === ' ' && state.value === 'countdown') {
+    // Espace pour skip le countdown
+    e.preventDefault()
+    inputRef.value?.focus()
   }
 }
 
 onMounted(async () => {
+  unlockSound()
   await loadMyStats()
   await refreshLeaderboard()
   await newRound()
@@ -97,8 +165,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onGlobalKeydown)
 })
 
-// ── Rendu caractere par caractere (correct / incorrect / pending) ─────────
-
+// ── Rendu char par char ─────────────────────────────────────────────────
 const charStates = computed(() => {
   if (!phrase.value) return []
   const text = phrase.value.text
@@ -109,10 +176,11 @@ const charStates = computed(() => {
   })
 })
 
-// ── Derivees UX fin de partie ────────────────────────────────────────────
-
+// ── PB / rang ──────────────────────────────────────────────────────────
 const isPersonalBest = computed(() =>
-  state.value === 'done' && lastResult.value != null && lastResult.value.score > allTimeBest.value,
+  state.value === 'done' && lastResult.value != null
+  && previousResult.value == null  // pas de PB sur "rejouer meme phrase"
+  && lastResult.value.score > allTimeBest.value,
 )
 
 const currentRank = computed(() => {
@@ -127,6 +195,34 @@ const rankDelta = computed(() => {
 
 const dayLeader = computed(() => leaderboard.value[0] ?? null)
 
+// ── Ghost leader (v2.292) ──────────────────────────────────────────────
+// Position 0..1 du leader du jour dans la phrase, basee sur son WPM moyen
+// et le temps ecoule. Permet a l'utilisateur de se situer en temps reel.
+const ghostProgress = computed<number>(() => {
+  const leader = dayLeader.value
+  if (!leader || !phrase.value || state.value !== 'playing') return 0
+  // Convert leader WPM → chars/sec, puis chars tapes au temps elapsed.
+  const charsPerSec = (leader.bestWpm * 5) / 60
+  const elapsedSec = (GAME_DURATION_MS - remainingMs.value) / 1000
+  const ghostChars = charsPerSec * elapsedSec
+  return Math.min(1, ghostChars / phrase.value.text.length)
+})
+
+const ghostAhead = computed(() => ghostProgress.value > progress.value + 0.02)
+
+// ── Delta vs precedent (mode "Rejouer la meme phrase") ────────────────
+const replayDelta = computed(() => {
+  if (!lastResult.value || !previousResult.value) return null
+  return {
+    score: lastResult.value.score - previousResult.value.score,
+    wpm: lastResult.value.wpm - previousResult.value.wpm,
+    accuracy: lastResult.value.accuracy - previousResult.value.accuracy,
+  }
+})
+
+// ── Streak (v2.292) ────────────────────────────────────────────────────
+const streakHot = computed(() => streak.value >= 10)
+
 function goBack() { router.push('/dashboard') }
 </script>
 
@@ -136,13 +232,22 @@ function goBack() { router.push('/dashboard') }
     :class="{ 'tr-focus': state === 'playing' }"
     @click="focusInput"
   >
-    <!-- Header epure, fade en playing ────────────────────────────── -->
+    <!-- HEADER ─────────────────────────────────────────────────── -->
     <header class="tr-header">
       <button class="tr-icon-btn" :aria-label="'Retour au dashboard'" @click.stop="goBack">
         <ArrowLeft :size="18" />
       </button>
       <span class="tr-brand">TypeRace</span>
       <span class="tr-spacer" />
+      <button
+        class="tr-icon-btn"
+        :class="{ 'tr-icon-btn--off': !soundEnabled }"
+        :aria-label="soundEnabled ? 'Couper le son' : 'Activer le son'"
+        :title="soundEnabled ? 'Couper le son' : 'Activer le son'"
+        @click.stop="toggleSound"
+      >
+        <component :is="soundEnabled ? Volume2 : VolumeX" :size="16" />
+      </button>
       <div v-if="currentRank" class="tr-rank-chip" :title="'Ton rang aujourd\'hui'">
         <Trophy :size="12" />
         <span>#{{ currentRank }}</span>
@@ -159,7 +264,20 @@ function goBack() { router.push('/dashboard') }
           :stroke="7"
         />
 
-        <div class="tr-progress" :style="{ '--p': `${progress * 100}%` }" aria-hidden="true" />
+        <!-- Progress bars : ta progression + ghost leader -->
+        <div class="tr-progress-wrap" aria-hidden="true">
+          <div class="tr-progress" :style="{ '--p': `${progress * 100}%` }" />
+          <div
+            v-if="dayLeader && state === 'playing'"
+            class="tr-ghost-marker"
+            :class="{ 'tr-ghost-marker--ahead': ghostAhead }"
+            :style="{ left: `${ghostProgress * 100}%` }"
+            :title="`${dayLeader.name} (${dayLeader.bestWpm} WPM)`"
+          >
+            <span class="tr-ghost-marker-dot" />
+            <span class="tr-ghost-marker-label">{{ dayLeader.name }}</span>
+          </div>
+        </div>
 
         <!-- Phrase avec curseur anime inline -->
         <div
@@ -181,7 +299,7 @@ function goBack() { router.push('/dashboard') }
           <span v-if="cursorPos >= phrase.text.length" class="tr-cursor tr-cursor--end" aria-hidden="true" />
         </div>
 
-        <!-- Input invisible : capture focus + frappe -->
+        <!-- Input invisible -->
         <input
           id="tr-input"
           ref="inputRef"
@@ -197,7 +315,7 @@ function goBack() { router.push('/dashboard') }
           @paste="onPaste"
         />
 
-        <!-- Sparkline WPM live + stats integrees -->
+        <!-- Stats live + sparkline (en mode playing uniquement) -->
         <div v-if="state === 'playing'" class="tr-live">
           <SparklineWpm
             :samples="wpmSamples"
@@ -217,6 +335,15 @@ function goBack() { router.push('/dashboard') }
               <Target :size="12" />
               <strong>{{ Math.round(accuracy * 100) }}%</strong>
             </div>
+            <div
+              v-if="streak > 0"
+              class="tr-live-stat tr-live-stat--streak"
+              :class="{ 'tr-live-stat--hot': streakHot }"
+            >
+              <Flame :size="12" />
+              <strong>{{ streak }}</strong>
+              <span>combo</span>
+            </div>
             <div class="tr-live-stat tr-live-stat--score">
               <strong>{{ score }}</strong>
               <span>pts</span>
@@ -224,33 +351,80 @@ function goBack() { router.push('/dashboard') }
           </div>
         </div>
 
-        <p v-else class="tr-idle-hint">
+        <p v-else-if="state === 'idle'" class="tr-idle-hint">
           Tape la phrase pour armer le chrono. <kbd>Esc</kbd> pour quitter.
         </p>
       </section>
 
+      <!-- ═══ COUNTDOWN OVERLAY ═══ -->
+      <Transition name="tr-countdown-fade">
+        <div v-if="state === 'countdown'" class="tr-countdown" aria-live="assertive">
+          <div :key="countdownValue" class="tr-countdown-value">
+            {{ countdownValue > 0 ? countdownValue : 'GO !' }}
+          </div>
+          <p class="tr-countdown-hint">Espace ou tape pour sauter</p>
+        </div>
+      </Transition>
+
+      <!-- ═══ MILESTONE FLASH ═══ -->
+      <Transition name="tr-milestone-pop">
+        <div v-if="milestoneAnim" :key="milestoneAnim.key" class="tr-milestone" aria-live="polite">
+          <Flame :size="28" />
+          <span class="tr-milestone-value">×{{ milestoneAnim.value }}</span>
+          <span class="tr-milestone-label">combo !</span>
+        </div>
+      </Transition>
+
       <!-- ═══ Ecran de fin ═══ -->
-      <section v-else-if="state === 'done' && lastResult" class="tr-end">
+      <section v-if="state === 'done' && lastResult" class="tr-end">
         <div v-if="isPersonalBest" class="tr-pb-badge">
           <Sparkles :size="14" />
           <span>Record personnel</span>
         </div>
+        <div v-else-if="previousResult" class="tr-pb-badge tr-pb-badge--retry">
+          <Repeat :size="14" />
+          <span>Meme phrase</span>
+        </div>
 
-        <div class="tr-end-score">
+        <div class="tr-end-score" :class="{ 'tr-end-score--pb': isPersonalBest }">
           <span class="tr-end-score-value">{{ lastResult.score }}</span>
           <span class="tr-end-score-unit">pts</span>
+          <span v-if="replayDelta" class="tr-end-score-delta" :class="{
+            up: replayDelta.score > 0,
+            down: replayDelta.score < 0,
+          }">
+            {{ replayDelta.score > 0 ? '+' : '' }}{{ replayDelta.score }}
+          </span>
         </div>
 
         <div class="tr-end-metrics">
           <div class="tr-end-metric">
             <span class="tr-end-metric-label">WPM</span>
             <span class="tr-end-metric-value">{{ Math.round(lastResult.wpm) }}</span>
+            <span v-if="replayDelta" class="tr-end-metric-delta" :class="{
+              up: replayDelta.wpm > 0,
+              down: replayDelta.wpm < 0,
+            }">
+              {{ replayDelta.wpm > 0 ? '+' : '' }}{{ Math.round(replayDelta.wpm) }}
+            </span>
           </div>
           <div class="tr-end-metric">
             <span class="tr-end-metric-label">Precision</span>
             <span class="tr-end-metric-value">{{ Math.round(lastResult.accuracy * 100) }}%</span>
+            <span v-if="replayDelta" class="tr-end-metric-delta" :class="{
+              up: replayDelta.accuracy > 0,
+              down: replayDelta.accuracy < 0,
+            }">
+              {{ replayDelta.accuracy > 0 ? '+' : '' }}{{ Math.round(replayDelta.accuracy * 100) }}%
+            </span>
           </div>
-          <div v-if="currentRank" class="tr-end-metric">
+          <div class="tr-end-metric">
+            <span class="tr-end-metric-label">Meilleur combo</span>
+            <span class="tr-end-metric-value">
+              <Flame :size="14" /> {{ lastResult.bestStreak }}
+            </span>
+          </div>
+          <div v-if="currentRank && !previousResult" class="tr-end-metric">
             <span class="tr-end-metric-label">Rang</span>
             <span class="tr-end-metric-value">
               #{{ currentRank }}
@@ -274,10 +448,18 @@ function goBack() { router.push('/dashboard') }
         <div class="tr-end-actions">
           <button class="tr-btn-primary" :disabled="loading" @click.stop="newRound">
             <RotateCw :size="16" />
-            Rejouer <kbd>Tab</kbd>
+            Nouvelle phrase <kbd>Tab</kbd>
           </button>
-          <button class="tr-btn-ghost" @click.stop="goBack">Retour au dashboard</button>
+          <button class="tr-btn-secondary" :disabled="loading" @click.stop="onSamePhraseRetry">
+            <Repeat :size="14" />
+            Rejouer la meme
+          </button>
+          <button class="tr-btn-ghost" @click.stop="goBack">Retour</button>
         </div>
+
+        <p v-if="previousResult" class="tr-end-replay-note">
+          Mode entrainement : ce score n'est pas envoye au classement.
+        </p>
       </section>
 
       <!-- ═══ Leaderboard lateral ═══ -->
@@ -314,7 +496,7 @@ function goBack() { router.push('/dashboard') }
 </template>
 
 <style scoped>
-/* ── Layout & focus mode ─────────────────────────────────────────── */
+/* ── Layout & focus mode ────────────────────────────────────────── */
 .tr-layout {
   display: flex;
   flex-direction: column;
@@ -324,6 +506,7 @@ function goBack() { router.push('/dashboard') }
     radial-gradient(ellipse at top, rgba(var(--accent-rgb), .08), transparent 60%),
     var(--bg-canvas);
   cursor: text;
+  position: relative;
 }
 
 .tr-focus .tr-header,
@@ -354,9 +537,10 @@ function goBack() { router.push('/dashboard') }
   display: flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: var(--radius-sm);
   border: none; background: transparent; color: var(--text-secondary);
-  cursor: pointer; transition: background .12s;
+  cursor: pointer; transition: background .12s, color .12s;
 }
 .tr-icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.tr-icon-btn--off { color: var(--text-muted); }
 
 .tr-rank-chip {
   display: inline-flex; align-items: center; gap: 4px;
@@ -376,7 +560,7 @@ function goBack() { router.push('/dashboard') }
   overflow: hidden;
 }
 
-/* ── Zone de jeu (stage) ─────────────────────────────────────────── */
+/* ── Zone de jeu (stage) ────────────────────────────────────────── */
 .tr-stage {
   display: flex;
   flex-direction: column;
@@ -387,8 +571,13 @@ function goBack() { router.push('/dashboard') }
   overflow: auto;
 }
 
-.tr-progress {
+/* ── Progression : ta barre + marker ghost du leader ─────────────── */
+.tr-progress-wrap {
+  position: relative;
   width: min(720px, 100%);
+  padding-top: 18px;
+}
+.tr-progress {
   height: 3px;
   background: var(--border);
   border-radius: 2px;
@@ -402,6 +591,40 @@ function goBack() { router.push('/dashboard') }
   background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent), white 25%));
   transition: width 80ms linear;
   border-radius: 2px;
+}
+/* Marker fantome du leader : un point + label discret au-dessus de la barre */
+.tr-ghost-marker {
+  position: absolute;
+  top: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transform: translateX(-50%);
+  transition: left 200ms linear, color 200ms ease;
+  pointer-events: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+.tr-ghost-marker-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  border: 2px solid var(--bg-canvas, var(--bg-main));
+}
+.tr-ghost-marker-label {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 80px;
+  overflow: hidden;
+}
+.tr-ghost-marker--ahead {
+  color: var(--color-warning);
+}
+.tr-ghost-marker--ahead .tr-ghost-marker-dot {
+  background: var(--color-warning);
+  box-shadow: 0 0 0 4px rgba(var(--color-warning-rgb), .2);
 }
 
 /* Phrase : grande, lisible, curseur inline anime */
@@ -447,13 +670,11 @@ function goBack() { router.push('/dashboard') }
   height: 1em;
   margin-left: -1px;
 }
-
 @keyframes tr-blink {
   0%, 50%  { opacity: 1; }
   51%, 100%{ opacity: 0; }
 }
 
-/* Shake sur erreur : le v-bind:key incremente retrigger l'anim */
 .tr-shake { animation: tr-shake 180ms cubic-bezier(.36,.07,.19,.97); }
 @keyframes tr-shake {
   10%, 90% { transform: translateX(-1px); }
@@ -462,7 +683,6 @@ function goBack() { router.push('/dashboard') }
   40%, 60% { transform: translateX(3px); }
 }
 
-/* Input invisible mais focusable */
 .tr-input-hidden {
   position: absolute;
   left: -9999px;
@@ -470,7 +690,7 @@ function goBack() { router.push('/dashboard') }
   pointer-events: none;
 }
 
-/* Stats live + sparkline */
+/* ── Stats live ─────────────────────────────────────────────────── */
 .tr-live {
   display: flex;
   flex-direction: column;
@@ -501,6 +721,15 @@ function goBack() { router.push('/dashboard') }
   color: var(--text-primary);
 }
 .tr-live-stat--score strong { color: var(--accent); }
+.tr-live-stat--streak {
+  color: var(--color-warning);
+  transition: transform .2s, filter .2s;
+}
+.tr-live-stat--streak strong { color: var(--color-warning); }
+.tr-live-stat--streak.tr-live-stat--hot {
+  filter: drop-shadow(0 0 4px rgba(var(--color-warning-rgb), .55));
+  transform: scale(1.05);
+}
 
 .tr-idle-hint {
   margin: 0;
@@ -521,7 +750,101 @@ kbd {
   background: var(--bg-elevated);
 }
 
-/* ── Ecran de fin ────────────────────────────────────────────────── */
+/* ── Countdown overlay (v2.292) ─────────────────────────────────── */
+.tr-countdown {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: rgba(0, 0, 0, .55);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+.tr-countdown-value {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: clamp(120px, 18vw, 220px);
+  font-weight: 800;
+  color: var(--accent-light, var(--accent));
+  letter-spacing: -8px;
+  line-height: 1;
+  text-shadow: 0 0 60px rgba(var(--accent-rgb), .55);
+  animation: tr-countdown-pop .6s cubic-bezier(.34, 1.56, .64, 1);
+}
+.tr-countdown-hint {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, .65);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+@keyframes tr-countdown-pop {
+  0%   { opacity: 0; transform: scale(.4); }
+  50%  { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.tr-countdown-fade-enter-active,
+.tr-countdown-fade-leave-active {
+  transition: opacity .25s ease;
+}
+.tr-countdown-fade-enter-from,
+.tr-countdown-fade-leave-to {
+  opacity: 0;
+}
+
+/* ── Milestone flash (combo paliers) ────────────────────────────── */
+.tr-milestone {
+  position: absolute;
+  top: 35%;
+  left: 50%;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 28px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--color-warning) 70%, #000),
+    var(--color-warning));
+  color: #fff;
+  border-radius: 999px;
+  box-shadow: 0 12px 40px rgba(var(--color-warning-rgb), .45);
+  pointer-events: none;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  transform: translate(-50%, -50%);
+}
+.tr-milestone-value {
+  font-size: 36px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+.tr-milestone-label {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.tr-milestone-pop-enter-active {
+  animation: tr-milestone-in .35s cubic-bezier(.34, 1.56, .64, 1);
+}
+.tr-milestone-pop-leave-active {
+  animation: tr-milestone-out .4s ease;
+}
+@keyframes tr-milestone-in {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(-12deg); }
+  60%  { opacity: 1; transform: translate(-50%, -50%) scale(1.18) rotate(4deg); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
+}
+@keyframes tr-milestone-out {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -120%) scale(.85); }
+}
+
+/* ── Ecran de fin ───────────────────────────────────────────────── */
 .tr-end {
   display: flex;
   flex-direction: column;
@@ -549,6 +872,13 @@ kbd {
   animation: tr-pb-glow 2s ease-in-out infinite;
   box-shadow: 0 0 0 0 rgba(245, 158, 11, .4);
 }
+.tr-pb-badge--retry {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  animation: none;
+  box-shadow: none;
+  border: 1px solid var(--border);
+}
 @keyframes tr-pb-glow {
   0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, .5); }
   50%      { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
@@ -557,9 +887,17 @@ kbd {
 .tr-end-score {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
   line-height: 1;
 }
+.tr-end-score--pb .tr-end-score-value {
+  animation: tr-pb-pulse 1.4s ease-in-out infinite;
+}
+@keyframes tr-pb-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); filter: drop-shadow(0 0 24px rgba(var(--accent-rgb), .55)); }
+}
+
 .tr-end-score-value {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 96px;
@@ -567,6 +905,7 @@ kbd {
   color: var(--accent);
   letter-spacing: -3px;
   font-variant-numeric: tabular-nums;
+  transition: filter .3s;
 }
 .tr-end-score-unit {
   font-size: 18px;
@@ -574,6 +913,23 @@ kbd {
   text-transform: uppercase;
   letter-spacing: 1.5px;
   color: var(--text-muted);
+}
+.tr-end-score-delta {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  margin-left: 6px;
+}
+.tr-end-score-delta.up {
+  color: var(--color-success);
+  background: rgba(var(--color-success-rgb), .14);
+}
+.tr-end-score-delta.down {
+  color: var(--color-danger);
+  background: rgba(var(--color-danger-rgb), .14);
 }
 
 .tr-end-metrics {
@@ -583,6 +939,8 @@ kbd {
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  flex-wrap: wrap;
+  justify-content: center;
 }
 .tr-end-metric { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 70px; }
 .tr-end-metric-label {
@@ -602,6 +960,15 @@ kbd {
   align-items: baseline;
   gap: 4px;
 }
+.tr-end-metric-delta {
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.tr-end-metric-delta.up { color: var(--color-success); }
+.tr-end-metric-delta.down { color: var(--color-danger); }
+
 .tr-rank-up {
   font-size: 12px;
   font-weight: 700;
@@ -630,6 +997,8 @@ kbd {
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .tr-btn-primary {
@@ -656,6 +1025,27 @@ kbd {
   color: #fff;
 }
 
+.tr-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.tr-btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.tr-btn-secondary:disabled { opacity: .6; cursor: not-allowed; }
+
 .tr-btn-ghost {
   padding: 10px 18px;
   background: transparent;
@@ -670,7 +1060,14 @@ kbd {
 }
 .tr-btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
 
-/* ── Leaderboard ─────────────────────────────────────────────────── */
+.tr-end-replay-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+}
+
+/* ── Leaderboard ────────────────────────────────────────────────── */
 .tr-leaderboard {
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
@@ -683,16 +1080,13 @@ kbd {
   overflow: auto;
   transition: opacity .4s ease;
 }
-
 .tr-lb-title {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 12px; font-weight: 800;
   text-transform: uppercase; letter-spacing: .5px;
   color: var(--text-secondary); margin: 0;
 }
-
 .tr-lb-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 3px; }
-
 .tr-lb-row {
   display: grid;
   grid-template-columns: 22px 1fr 60px auto;
@@ -710,7 +1104,6 @@ kbd {
   color: var(--accent);
   font-weight: 700;
 }
-
 .tr-lb-rank {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -721,13 +1114,7 @@ kbd {
 .tr-lb-row--gold   .tr-lb-rank { color: #eab308; font-size: 13px; }
 .tr-lb-row--silver .tr-lb-rank { color: #94a3b8; font-size: 13px; }
 .tr-lb-row--bronze .tr-lb-rank { color: #c2884d; font-size: 13px; }
-
-.tr-lb-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+.tr-lb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tr-lb-bar {
   height: 4px;
   background: var(--border);
@@ -745,7 +1132,6 @@ kbd {
 .tr-lb-row--gold   .tr-lb-bar-fill { background: #eab308; }
 .tr-lb-row--silver .tr-lb-bar-fill { background: #94a3b8; }
 .tr-lb-row--bronze .tr-lb-bar-fill { background: #c2884d; }
-
 .tr-lb-score {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-weight: 800;
@@ -755,7 +1141,6 @@ kbd {
   text-align: right;
   color: var(--text-primary);
 }
-
 .tr-lb-empty {
   margin: 0;
   padding: 16px 10px;
@@ -765,16 +1150,22 @@ kbd {
   text-align: center;
 }
 
-/* ── Responsive ──────────────────────────────────────────────────── */
+/* ── Responsive ─────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .tr-main { grid-template-columns: 1fr; }
   .tr-leaderboard { order: 2; max-height: 260px; }
   .tr-phrase { font-size: 18px; }
   .tr-end-score-value { font-size: 72px; }
+  .tr-countdown-value { font-size: 120px; letter-spacing: -4px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tr-cursor, .tr-shake, .tr-pb-badge { animation: none !important; }
-  .tr-progress::after { transition: none !important; }
+  .tr-cursor, .tr-shake, .tr-pb-badge,
+  .tr-countdown-value, .tr-end-score--pb .tr-end-score-value,
+  .tr-milestone, .tr-live-stat--streak.tr-live-stat--hot {
+    animation: none !important;
+    transform: none !important;
+  }
+  .tr-progress::after, .tr-ghost-marker { transition: none !important; }
 }
 </style>

@@ -2,9 +2,10 @@
  * useTypeRace — logique du mini-jeu typing speed.
  *
  * Etats :
- *   'idle'    : phrase chargee, chrono en attente du 1er keystroke
- *   'playing' : chrono arme, WPM echantillonne toutes les 500ms
- *   'done'    : 60s ecoulees OU phrase tapee a fond
+ *   'idle'      : phrase chargee, en attente du compte a rebours / 1er char
+ *   'countdown' : compte a rebours 3-2-1 avant le depart (v2.292)
+ *   'playing'   : chrono arme, WPM echantillonne toutes les 500ms
+ *   'done'      : 60s ecoulees OU phrase tapee a fond
  *
  * Score : WPM (1 mot = 5 caracteres) x precision, 0-1.
  *
@@ -19,6 +20,12 @@
  *   - wpmSamples : WPM a chaque tick 500ms, pour sparkline live
  *   - errorTick  : incremente a chaque nouveau char faux (trigger shake CSS)
  *   - cursorPos  : position du curseur (= typed.length)
+ *   - streak     : nombre de chars consecutifs corrects (combo, v2.292)
+ *   - bestStreak : meilleur streak de la partie courante (v2.292)
+ *   - streakMilestone : palier atteint a l'instant (5/10/25/50/100), reset
+ *                        apres un tick — pour declencher animation (v2.292)
+ *   - countdownValue : 3, 2, 1, 0 ('GO!') pendant l'etat countdown (v2.292)
+ *   - previousResult : score precedent quand on rejoue la meme phrase (v2.292)
  */
 import { ref, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
@@ -29,11 +36,15 @@ const GAME_DURATION_MS = 60_000
 const SAMPLE_INTERVAL_MS = 500
 const MAX_SAMPLES = 120 // 60s / 500ms
 const CHARS_PER_WORD = 5
+const COUNTDOWN_TICK_MS = 700
+const COUNTDOWN_START = 3
+const STREAK_MILESTONES = [5, 10, 25, 50, 100, 200]
 
-type GameState = 'idle' | 'playing' | 'done'
+type GameState = 'idle' | 'countdown' | 'playing' | 'done'
 
 interface Phrase { id: number; text: string }
 interface SubmitResult { id: number; score: number }
+interface RoundResult { wpm: number; accuracy: number; score: number; bestStreak: number }
 
 function loadSeenIds(): number[] {
   try {
@@ -63,23 +74,29 @@ export function useTypeRace() {
   const startedAt  = ref<number | null>(null)
   const elapsedMs  = ref(0)
   const loading    = ref(false)
-  const lastResult = ref<{ wpm: number; accuracy: number; score: number } | null>(null)
+  const lastResult = ref<RoundResult | null>(null)
+  /** v2.292 : score de la run precedente (utile pour mode "Rejouer la meme phrase"). */
+  const previousResult = ref<RoundResult | null>(null)
 
-  /**
-   * Curseur d'erreur ephemere : incremente quand on ajoute un char faux.
-   * La view ecoute cette ref pour declencher une animation shake.
-   */
   const errorTick = ref(0)
-
-  /**
-   * Echantillons WPM au fil du jeu (1 toutes les 500ms). Alimente la
-   * sparkline live dans la view et le graphique de l'ecran de fin.
-   */
   const wpmSamples = ref<number[]>([])
+
+  // ── Streak / Combo (v2.292) ──────────────────────────────────────────
+  /** Streak courant : chars consecutifs corrects. Reset a 0 sur erreur ou backspace correctif. */
+  const streak = ref(0)
+  /** Meilleur streak de la partie courante. */
+  const bestStreak = ref(0)
+  /** Dernier palier atteint (5/10/25/...) — set transient, la view l'observe et reset apres animation. */
+  const streakMilestone = ref(0)
+
+  // ── Countdown (v2.292) ───────────────────────────────────────────────
+  /** Valeur courante du compte a rebours : 3 -> 2 -> 1 -> 0 (GO) -> playing. */
+  const countdownValue = ref(0)
+  let countdownTimer: ReturnType<typeof setTimeout> | null = null
 
   let tickInterval: ReturnType<typeof setInterval> | null = null
 
-  // ── Derives ────────────────────────────────────────────────────────────
+  // ── Derives ──────────────────────────────────────────────────────────
 
   const cursorPos = computed(() => typed.value.length)
 
@@ -117,7 +134,7 @@ export function useTypeRace() {
 
   const score = computed(() => Math.round(wpm.value * accuracy.value))
 
-  // ── Actions ────────────────────────────────────────────────────────────
+  // ── Actions ──────────────────────────────────────────────────────────
 
   async function loadPhrase(): Promise<void> {
     loading.value = true
@@ -127,11 +144,27 @@ export function useTypeRace() {
       if (data) {
         phrase.value = data
         saveSeenId(data.id)
+        // Reset complet (efface aussi previousResult — nouvelle phrase = pas
+        // de comparaison "same phrase" possible).
+        previousResult.value = null
         resetGame()
+        startCountdown()
       }
     } finally {
       loading.value = false
     }
+  }
+
+  /**
+   * Mode "Rejouer la meme phrase" (v2.292) : conserve la phrase et le
+   * score precedent pour comparaison. Pas de soumission au leaderboard
+   * pour le second run (anti-tricherie : on a vu la phrase une fois deja).
+   */
+  function retrySamePhrase(): void {
+    if (!phrase.value || !lastResult.value) return
+    previousResult.value = lastResult.value
+    resetGame()
+    startCountdown()
   }
 
   function resetGame(): void {
@@ -142,11 +175,57 @@ export function useTypeRace() {
     lastResult.value = null
     wpmSamples.value = []
     errorTick.value = 0
+    streak.value = 0
+    bestStreak.value = 0
+    streakMilestone.value = 0
     stopTicker()
+    cancelCountdown()
+  }
+
+  /**
+   * Lance le compte a rebours 3-2-1-GO. Le user peut demarrer plus tot
+   * en commencant a taper (skipCountdown).
+   */
+  function startCountdown(): void {
+    cancelCountdown()
+    state.value = 'countdown'
+    countdownValue.value = COUNTDOWN_START
+    tickCountdown()
+  }
+
+  function tickCountdown(): void {
+    countdownTimer = setTimeout(() => {
+      if (state.value !== 'countdown') return
+      countdownValue.value--
+      if (countdownValue.value < 0) {
+        // Fin du countdown — bascule en idle, le 1er char demarrera le chrono.
+        state.value = 'idle'
+        countdownValue.value = 0
+        countdownTimer = null
+      } else {
+        tickCountdown()
+      }
+    }, COUNTDOWN_TICK_MS)
+  }
+
+  function cancelCountdown(): void {
+    if (countdownTimer) {
+      clearTimeout(countdownTimer)
+      countdownTimer = null
+    }
+    countdownValue.value = 0
+  }
+
+  function skipCountdown(): void {
+    if (state.value !== 'countdown') return
+    cancelCountdown()
+    state.value = 'idle'
   }
 
   function onInput(value: string): void {
     if (state.value === 'done' || !phrase.value) return
+    // Si le user tape pendant le countdown, on saute directement.
+    if (state.value === 'countdown') skipCountdown()
 
     // Demarrage lazy : chrono arme au 1er char
     if (state.value === 'idle' && value.length > 0) {
@@ -155,18 +234,34 @@ export function useTypeRace() {
       startTicker()
     }
 
-    // Detection d'un nouveau char FAUX (pour declencher shake) : on
-    // regarde si le char qu'on vient d'ajouter diverge de la cible.
+    // Detection d'un nouveau char et update du streak (v2.292).
     if (value.length > typed.value.length && phrase.value) {
       const lastIdx = value.length - 1
-      if (value[lastIdx] !== phrase.value.text[lastIdx]) {
+      const isCorrect = value[lastIdx] === phrase.value.text[lastIdx]
+      if (isCorrect) {
+        streak.value++
+        if (streak.value > bestStreak.value) bestStreak.value = streak.value
+        // Trigger un palier si on atteint un de [5,10,25,50,100,200].
+        if (STREAK_MILESTONES.includes(streak.value)) {
+          streakMilestone.value = streak.value
+        }
+      } else {
+        streak.value = 0
         errorTick.value++
       }
+    } else if (value.length < typed.value.length) {
+      // Backspace : reset le streak (un correctif rompt la chaine perfect).
+      streak.value = 0
     }
 
     typed.value = value
 
     if (phrase.value.text === value) finish()
+  }
+
+  /** La view consume streakMilestone puis le remet a 0 quand l'animation a tourne. */
+  function consumeStreakMilestone(): void {
+    streakMilestone.value = 0
   }
 
   function startTicker(): void {
@@ -176,7 +271,6 @@ export function useTypeRace() {
       if (startedAt.value == null) return
       elapsedMs.value = Date.now() - startedAt.value
 
-      // Echantillonner WPM une fois par SAMPLE_INTERVAL_MS
       if (elapsedMs.value - lastSampleAt >= SAMPLE_INTERVAL_MS) {
         lastSampleAt = elapsedMs.value
         wpmSamples.value = [...wpmSamples.value, wpm.value].slice(-MAX_SAMPLES)
@@ -197,36 +291,50 @@ export function useTypeRace() {
     elapsedMs.value = durationMs
     stopTicker()
 
-    // Sample final pour que la sparkline se termine sur le score final
     wpmSamples.value = [...wpmSamples.value, wpm.value].slice(-MAX_SAMPLES)
 
     const finalWpm = wpm.value
     const finalAccuracy = accuracy.value
     const finalScore = Math.round(finalWpm * finalAccuracy)
 
-    lastResult.value = { wpm: finalWpm, accuracy: finalAccuracy, score: finalScore }
+    lastResult.value = {
+      wpm: finalWpm,
+      accuracy: finalAccuracy,
+      score: finalScore,
+      bestStreak: bestStreak.value,
+    }
 
-    await api<SubmitResult>(() => window.api.typeRaceSubmitScore({
-      phraseId:   phrase.value!.id,
-      wpm:        Math.round(finalWpm * 10) / 10,
-      accuracy:   Math.round(finalAccuracy * 1000) / 1000,
-      durationMs,
-    }))
+    // v2.292 : on ne soumet le score au leaderboard QUE si la phrase n'a
+    // pas deja ete jouee dans ce cycle (mode "Rejouer la meme phrase"
+    // serait sinon un cheat — le user a memorise la phrase).
+    const isReplay = previousResult.value != null
+    if (!isReplay) {
+      await api<SubmitResult>(() => window.api.typeRaceSubmitScore({
+        phraseId:   phrase.value!.id,
+        wpm:        Math.round(finalWpm * 10) / 10,
+        accuracy:   Math.round(finalAccuracy * 1000) / 1000,
+        durationMs,
+      }))
+    }
   }
 
   function cleanup(): void {
     stopTicker()
+    cancelCountdown()
   }
 
   return {
     // State
-    state, phrase, typed, loading, lastResult,
+    state, phrase, typed, loading, lastResult, previousResult,
     wpmSamples, errorTick,
+    streak, bestStreak, streakMilestone,
+    countdownValue,
     // Derives
     cursorPos, remainingMs, remainingSec, progress,
     correctChars, accuracy, wpm, score,
     // Actions
-    loadPhrase, resetGame, onInput, finish, cleanup,
+    loadPhrase, retrySamePhrase, resetGame, onInput, finish, cleanup,
+    skipCountdown, consumeStreakMilestone,
     // Constants
     GAME_DURATION_MS,
   }
