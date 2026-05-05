@@ -2224,47 +2224,94 @@
   text-transform: uppercase; letter-spacing: .06em;
   margin: 8px 0 2px;
 }
+/* Templates list (v2.280) : aligne sur le pattern des draft-cards
+   (radius lg + hover lift + barre top live-red), au lieu d'etre une
+   simple liste compacte. */
 .live-templates-list {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-md);
 }
 .live-template-card {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  transition: all .15s;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    transform 0.22s var(--ease-spring),
+    box-shadow 0.22s var(--ease-spring);
 }
-.live-template-card:hover { border-color: var(--border-input); }
-.ltc-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.live-template-card::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--color-live);
+  opacity: 0.4;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+.live-template-card:hover {
+  border-color: color-mix(in srgb, var(--color-live) 40%, var(--border));
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-live) 14%, transparent);
+}
+.live-template-card:hover::before { opacity: 1; }
+.ltc-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .ltc-name {
-  font-size: 13px; font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ltc-meta { font-size: 10px; color: var(--text-muted); }
-.ltc-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.ltc-meta { font-size: 11px; color: var(--text-muted); }
+.ltc-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .ltc-load {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 10px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 700;
-  background: color-mix(in srgb, var(--color-live) 8%, transparent);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-live) 12%, transparent);
   color: var(--color-live);
-  border: 1px solid color-mix(in srgb, var(--color-live) 25%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-live) 30%, transparent);
   cursor: pointer;
   font-family: inherit;
-  transition: all .15s;
+  transition: background var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
 }
-.ltc-load:hover { background: color-mix(in srgb, var(--color-live) 22%, transparent); }
+.ltc-load:hover {
+  background: color-mix(in srgb, var(--color-live) 22%, transparent);
+  transform: translateY(-1px);
+}
 .ltc-del {
-  width: 26px; height: 26px; border-radius: var(--radius-sm);
-  background: rgba(239,68,68,.08); color: #f87171;
-  border: none; cursor: pointer;
+  width: 28px; height: 28px;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: background .15s;
+  transition: all var(--motion-fast) var(--ease-out);
 }
-.ltc-del:hover { background: rgba(239,68,68,.2); }
+.ltc-del:hover {
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-template-card,
+  .live-template-card:hover,
+  .ltc-load:hover { transform: none; }
+}
 
 /* ── Floating help button ── */
 .help-fab {
@@ -2318,55 +2365,108 @@
   .teacher-live.preview-open { padding-right: 32px; }
   .preview-pane { display: none; }
 }
+/* Session meta bar (v2.280) : pills 999px tokenised, alignment landing
+   pattern. Participant bar pop quand >= 1 participant (signature live). */
 .session-meta-bar {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 .participant-bar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 12px 16px; border-radius: var(--radius-sm);
-  background: var(--bg-elevated); color: var(--text-muted);
-  font-size: 14px; font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-live) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-live) 25%, transparent);
+  color: var(--color-live);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
+.participant-bar svg { flex-shrink: 0; }
 .confusion-counter {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 12px; border-radius: var(--radius-sm);
-  background: #fef3c7; color: #d97706;
-  font-size: 12px; font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+  color: var(--color-warning);
+  font-size: 12.5px;
+  font-weight: 700;
   animation: pulse-warn .8s ease-in-out infinite alternate;
 }
+@media (prefers-reduced-motion: reduce) {
+  .confusion-counter { animation: none; }
+}
+/* Self-paced panel (v2.280) : aligne sur le pattern bento + radial subtle. */
 .self-paced-panel {
-  padding: 12px 16px;
-  background: var(--bg-elevated);
+  position: relative;
+  padding: 16px 20px;
+  background:
+    radial-gradient(ellipse 50% 100% at 100% 50%,
+      rgba(var(--accent-rgb), 0.08) 0%, transparent 70%),
+    var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  overflow: hidden;
+}
+.self-paced-panel::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    var(--accent),
+    color-mix(in srgb, var(--accent) 50%, transparent));
 }
 .sp-teacher-controls {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
+/* btn-launch-all (v2.280) : halo + micro-lift. Garde le gradient
+   blue→emerald (signature "self-paced" multi-categorie). */
 .btn-launch-all {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
   border: none;
   border-radius: var(--radius);
-  background: linear-gradient(135deg, #3b82f6, #10b981);
+  background: linear-gradient(135deg, var(--live-code), var(--live-pulse));
   color: white;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: all .15s;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--live-code) 25%, transparent);
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
+    filter var(--motion-fast) var(--ease-out);
+  align-self: flex-start;
 }
-.btn-launch-all:hover { filter: brightness(1.08); }
+.btn-launch-all:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--live-code) 35%, transparent);
+  filter: brightness(1.05);
+}
+.btn-launch-all:active { transform: translateY(0); }
 .sp-all-launched {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
-  color: #10b981;
-  font-weight: 600;
+  color: var(--live-pulse);
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--live-pulse) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--live-pulse) 30%, transparent);
+  align-self: flex-start;
 }
 .sp-progress-dashboard {
   display: flex;
@@ -2433,17 +2533,29 @@
 }
 
 /* ── Spark mode panel (Kahoot-like auto-chain) ── */
+/* Spark mode panel (v2.280) : radial spark + barre 3px sticky top.
+   Visuellement plus marquee pour signaler "tu actives le mode quiz". */
 .spark-mode-panel {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 16px 18px;
+  padding: 18px 22px;
   background:
-    linear-gradient(135deg, var(--live-spark-soft), transparent 80%),
+    radial-gradient(ellipse 60% 100% at 100% 0%,
+      color-mix(in srgb, var(--live-spark) 18%, transparent) 0%, transparent 65%),
     var(--bg-elevated);
   border: 1px solid var(--live-spark-border);
   border-radius: var(--radius-lg);
   position: relative;
+  overflow: hidden;
+}
+.spark-mode-panel::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--live-spark),
+    color-mix(in srgb, var(--live-spark) 50%, transparent));
 }
 .spm-toggle-wrap {
   display: flex;
@@ -2877,63 +2989,109 @@
 .activity-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
+/* Activity card (v2.280) : refonte bento-aligned. Barre 3px sticky-left
+   colored by category (au lieu de hover-only), icone gradient pleine,
+   hover lift -2px + glow tinte categorie. */
 .activity-card {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 14px;
+  padding: 14px 18px 14px 22px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  transition: border-color var(--motion-fast) var(--ease-out),
-              transform   var(--motion-fast) var(--ease-out),
-              box-shadow  var(--motion-fast) var(--ease-out);
+  border-radius: var(--radius-lg);
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    transform   0.22s var(--ease-spring),
+    box-shadow  0.22s var(--ease-spring);
   overflow: hidden;
 }
+/* Barre laterale colored by category — visible permanente (etait hover-only) */
 .activity-card::before {
   content: '';
   position: absolute;
   left: 0; top: 0; bottom: 0;
-  width: 3px;
+  width: 4px;
   background: var(--color-live);
-  opacity: 0;
-  transition: opacity .15s;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  transition: width 0.18s var(--ease-out);
 }
 .activity-card:hover {
-  border-color: color-mix(in srgb, var(--color-live) 35%, var(--border));
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--color-live) 14%, transparent);
+  border-color: color-mix(in srgb, var(--color-live) 40%, var(--border));
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-live) 16%, transparent);
 }
-.activity-card:hover::before { opacity: 1; }
-/* v2.277 : affordance drag-drop. Quand la card est draggable, le cursor
-   passe en grab au hover global de la card pour signaler "ca se reordonne"
-   meme avant que l'utilisateur trouve le grip handle. */
+.activity-card:hover::before { width: 5px; }
+.activity-card:focus-within {
+  border-color: color-mix(in srgb, var(--color-live) 50%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-live) 18%, transparent);
+}
 .activity-card[draggable="true"] { cursor: grab; }
 .activity-card[draggable="true"]:active { cursor: grabbing; }
-/* Barre laterale colore selon la categorie */
+/* Barre laterale par categorie */
 .activity-card:has(.cat--spark)::before { background: var(--live-spark); }
 .activity-card:has(.cat--pulse)::before { background: var(--live-pulse); }
 .activity-card:has(.cat--code)::before  { background: var(--live-code); }
 .activity-card:has(.cat--board)::before { background: var(--live-board); }
+/* Hover : glow shadow tinte par categorie */
+.activity-card:has(.cat--spark):hover { box-shadow: 0 10px 24px color-mix(in srgb, var(--live-spark) 18%, transparent); border-color: color-mix(in srgb, var(--live-spark) 40%, var(--border)); }
+.activity-card:has(.cat--pulse):hover { box-shadow: 0 10px 24px color-mix(in srgb, var(--live-pulse) 18%, transparent); border-color: color-mix(in srgb, var(--live-pulse) 40%, var(--border)); }
+.activity-card:has(.cat--code):hover  { box-shadow: 0 10px 24px color-mix(in srgb, var(--live-code) 18%, transparent);  border-color: color-mix(in srgb, var(--live-code) 40%, var(--border)); }
+.activity-card:has(.cat--board):hover { box-shadow: 0 10px 24px color-mix(in srgb, var(--live-board) 18%, transparent); border-color: color-mix(in srgb, var(--live-board) 40%, var(--border)); }
 .activity-card.closed {
   opacity: .55;
 }
+/* Icone : gradient solide categorie (etait soft tint) — signature visuelle
+   forte qui aide a scanner la liste rapidement. */
 .activity-card-icon {
-  width: 36px; height: 36px; border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-live) 12%, transparent);
-  color: var(--color-live);
-  display: flex; align-items: center; justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--color-live) 90%, white) 0%,
+    var(--color-live) 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  transition: background .15s, color .15s;
+  box-shadow:
+    0 4px 12px color-mix(in srgb, var(--color-live) 30%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: transform 0.22s var(--ease-spring);
 }
-/* Teinte de l'icone selon la categorie */
-.activity-card:has(.cat--spark) .activity-card-icon { background: var(--live-spark-soft); color: var(--live-spark); }
-.activity-card:has(.cat--pulse) .activity-card-icon { background: var(--live-pulse-soft); color: var(--live-pulse); }
-.activity-card:has(.cat--code)  .activity-card-icon { background: var(--live-code-soft);  color: var(--live-code); }
-.activity-card:has(.cat--board) .activity-card-icon { background: var(--live-board-soft); color: var(--live-board); }
+.activity-card:hover .activity-card-icon {
+  transform: scale(1.05) rotate(-2deg);
+}
+/* Gradient icone par categorie */
+.activity-card:has(.cat--spark) .activity-card-icon {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--live-spark) 90%, white) 0%, var(--live-spark) 100%);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--live-spark) 30%, transparent), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.activity-card:has(.cat--pulse) .activity-card-icon {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--live-pulse) 90%, white) 0%, var(--live-pulse) 100%);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--live-pulse) 30%, transparent), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.activity-card:has(.cat--code) .activity-card-icon {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--live-code) 90%, white) 0%, var(--live-code) 100%);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--live-code) 30%, transparent), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.activity-card:has(.cat--board) .activity-card-icon {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--live-board) 90%, white) 0%, var(--live-board) 100%);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--live-board) 30%, transparent), inset 0 1px 0 rgba(255,255,255,.18);
+}
+@media (prefers-reduced-motion: reduce) {
+  .activity-card,
+  .activity-card:hover,
+  .activity-card-icon,
+  .activity-card:hover .activity-card-icon {
+    transform: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+}
 .activity-card-body {
   flex: 1;
   display: flex;
@@ -2974,20 +3132,46 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .activity-card-done {
-  font-size: 11px; font-weight: 600;
-  color: #22c55e; background: rgba(34,197,94,.12);
-  padding: 2px 8px; border-radius: var(--radius-xs);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cta);
+  background: rgba(var(--cta-rgb), 0.12);
+  border: 1px solid rgba(var(--cta-rgb), 0.30);
+  padding: 3px 9px;
+  border-radius: 999px;
 }
 .activity-card-actions {
   display: flex; gap: 6px; flex-shrink: 0;
 }
+/* btn-launch (v2.280) : aligne CTA emerald + halo + micro-lift, signature
+   .nav-cta landing. */
 .btn-launch {
-  display: flex; align-items: center; gap: 4px;
-  padding: 6px 12px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600;
-  background: #22c55e; color: #fff; border: none;
-  cursor: pointer; transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--cta);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(var(--cta-rgb), 0.30);
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    transform   var(--motion-fast) var(--ease-out),
+    box-shadow  var(--motion-fast) var(--ease-out);
 }
-.btn-launch:hover { filter: brightness(1.1); }
+.btn-launch:hover {
+  background: var(--cta-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(var(--cta-rgb), 0.40);
+}
+.btn-launch:active { transform: translateY(0); }
 .btn-edit-activity {
   width: 28px; height: 28px; border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--color-live) 8%, transparent);

@@ -1,5 +1,64 @@
 # Changelog
 
+## v2.280.0 (2026-05-05)
+
+### Live polish session — activity cards + panels + buttons
+
+Suite de la refonte v2.279, focus sur la session active : la liste
+d'activites, les panneaux toggle (Spark mode / Self-paced) et les
+boutons d'action sont alignes sur le langage moderne.
+
+**Activity cards (etait flat row + barre hover-only)** :
+
+- Radius `--radius-lg` 20px (etait `--radius` 12px).
+- Barre coloree 4px sticky-left **permanente** (etait hover-only) avec
+  thickness 5px au hover.
+- Icone 42x42 **gradient solide** par categorie (etait soft tint plat) +
+  box-shadow tinte + spring rotate -2deg au hover.
+- Hover lift -2px + box-shadow 24px tinte categorie (etait juste change
+  de border-color).
+- Focus-within ring tinte, accessibilite clavier.
+
+**Activity-card-done badge** :
+
+- Pill 999px tinte CTA emerald + bordure (etait carre vert flat).
+
+**btn-launch (par activite)** :
+
+- Aligne CTA emerald `var(--cta)` + halo box-shadow + micro-lift -1px
+  (etait `#22c55e` hardcode + filter brightness).
+
+**btn-launch-all (mode self-paced)** :
+
+- Garde gradient signature blue→pulse (multi-categorie) mais ajoute
+  halo box-shadow tinte + micro-lift au hover.
+
+**Self-paced panel** :
+
+- Radius lg + radial gradient indigo subtle + barre 2px sticky top
+  accent (etait flat var(--bg-elevated)).
+- `.sp-all-launched` passe en pill tinted pulse.
+
+**Spark mode panel** :
+
+- Radial gradient spark coin top-right + barre 3px sticky top spark
+  (etait gradient lineaire transparent simple).
+
+**Templates list** :
+
+- Cards radius `--radius-lg` (etait sm), barre 3px live-red sticky-left,
+  hover lift -2px + glow tinte (etait juste border-color change).
+- Title 14px / -0.01em, "Utiliser" pill 999px (etait 11px carre).
+- Bouton supprimer ghost-style avec hover danger.
+
+**Session meta bar** :
+
+- Participant bar pill 999px tinte live-red (etait rect plat gris).
+- Confusion counter pill 999px tokenise (etait `#fef3c7` hardcode).
+
+Reduced-motion respecte sur tous les nouveaux mouvements (lift, rotate,
+glow). TypeScript build vert.
+
 ## v2.279.0 (2026-05-05)
 
 ### Refonte design Live — Accueil moderne (signature landing)
