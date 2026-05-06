@@ -30,6 +30,89 @@ function getTransporter() {
   return transporter;
 }
 
+// ─── Shell HTML partage ────────────────────────────────────────────────────
+//
+// Design lignes directrices pour les emails transactionnels :
+//   - typo system, taille confortable (15px), line-height 1.6
+//   - palette restreinte : blanc + slate-900 (texte) + slate-600
+//     (secondaire) + un seul accent indigo pour les CTA
+//   - aucune barre coloree pleine largeur (look "SaaS bruyant"), aucun
+//     emoji, aucun em-dash, aucun separateur visuel decoratif (<hr>)
+//   - cadre tres discret (border 1px slate-200 + radius 8px) qui isole
+//     visuellement le mail dans la boite reception sans tape-a-l'oeil
+//   - pas de hero block colore : eyebrow + titre + corps de texte
+//   - footer minimal une ligne, slate-400
+//
+// Compatibility :
+//   - tables pour les colonnes (Outlook 2013-19 ne supporte pas flexbox)
+//   - styles inline (Gmail strip <style>)
+//   - max-width 580px (large lecture sur desktop, deborde pas mobile)
+
+function emailShell({ eyebrow, title, intro, bodyHtml, cta, footnote }) {
+  const ctaHtml = cta && cta.url
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0 8px;">
+         <tr><td style="border-radius: 8px; background: #4338ca;">
+           <a href="${escHtml(cta.url)}" style="display: inline-block; padding: 12px 24px; color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">${escHtml(cta.label)}</a>
+         </td></tr>
+       </table>`
+    : '';
+
+  const introHtml = intro
+    ? `<p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">${intro}</p>`
+    : '';
+
+  const footnoteHtml = footnote
+    ? `<p style="margin: 24px 0 0; font-size: 13px; line-height: 1.55; color: #64748b;">${footnote}</p>`
+    : '';
+
+  // Note : on n'inclut volontairement pas le mot "Cursus" dans le footer
+  // pour rester sobre en pilote — l'identite est portee par le From et
+  // par l'eyebrow. Le brandLine reste discret (slate-400 11px).
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escHtml(title)}</title>
+</head>
+<body style="margin: 0; padding: 24px 16px; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse: collapse;">
+    <tr><td align="center">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="580" style="max-width: 580px; width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <tr><td style="padding: 36px 36px 32px;">
+          ${eyebrow ? `<p style="margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #4338ca;">${escHtml(eyebrow)}</p>` : ''}
+          <h1 style="margin: 0 0 18px; font-size: 22px; font-weight: 700; line-height: 1.3; color: #0f172a;">${escHtml(title)}</h1>
+          ${introHtml}
+          ${bodyHtml || ''}
+          ${ctaHtml}
+          ${footnoteHtml}
+        </td></tr>
+      </table>
+      <p style="margin: 16px 0 0; font-size: 11px; color: #94a3b8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">cursus.school</p>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+/**
+ * Construit un tableau "Détails" cle-valeur dans le style sobre du shell.
+ * `rows` : Array<{ label: string, value: string, mono?: boolean }>
+ */
+function detailsTable(rows) {
+  if (!rows || rows.length === 0) return '';
+  const trs = rows.map(r => `
+    <tr>
+      <td style="padding: 10px 16px 10px 0; font-size: 13px; color: #64748b; vertical-align: top; white-space: nowrap; width: 130px;">${escHtml(r.label)}</td>
+      <td style="padding: 10px 0; font-size: 14px; color: #0f172a; font-weight: 600;${r.mono ? " font-family: 'SFMono-Regular', Menlo, Consolas, monospace;" : ''}">${r.value /* deja escape par l'appelant si HTML necessaire */}</td>
+    </tr>
+  `).join('');
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin: 4px 0 0; border-collapse: collapse;">
+      ${trs}
+    </table>`;
+}
+
 async function sendBookingConfirmation({ to, tutorName, teacherName, studentName, eventTitle, startDatetime, endDatetime, teamsJoinUrl, cancelUrl }) {
   const t = getTransporter();
   if (!t) {
@@ -48,45 +131,48 @@ async function sendBookingConfirmation({ to, tutorName, teacherName, studentName
   const safeJoin = safeHttpUrl(teamsJoinUrl);
   const safeCancel = safeHttpUrl(cancelUrl);
 
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-      <div style="background: #3b82f6; color: white; padding: 20px 24px; border-radius: 12px 12px 0 0;">
-        <h1 style="margin: 0; font-size: 20px;">RDV confirme</h1>
-        <p style="margin: 4px 0 0; opacity: 0.9; font-size: 14px;">${escHtml(eventTitle)}</p>
-      </div>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
-        <p style="margin: 0 0 16px;">Bonjour <strong>${escHtml(tutorName)}</strong>,</p>
-        <p style="margin: 0 0 16px;">Votre rendez-vous a bien ete reserve :</p>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
-          <tr><td style="padding: 8px 0; color: #64748b; width: 120px;">Date</td><td style="padding: 8px 0; font-weight: 600;">${dateStr}</td></tr>
-          <tr><td style="padding: 8px 0; color: #64748b;">Horaire</td><td style="padding: 8px 0; font-weight: 600;">${timeStr} - ${endTime}</td></tr>
-          <tr><td style="padding: 8px 0; color: #64748b;">Enseignant</td><td style="padding: 8px 0;">${escHtml(teacherName)}</td></tr>
-          <tr><td style="padding: 8px 0; color: #64748b;">Etudiant</td><td style="padding: 8px 0;">${escHtml(studentName)}</td></tr>
-        </table>
-        ${safeJoin ? `
-          <a href="${escHtml(safeJoin)}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin-bottom: 16px;">
-            Rejoindre la visioconference
-          </a>
-        ` : ''}
-        ${safeCancel ? `
-          <p style="margin: 16px 0 0; font-size: 13px; color: #64748b;">
-            Besoin d'annuler ou reporter ?
-            <a href="${escHtml(safeCancel)}" style="color: #3b82f6;">Cliquez ici</a>
-          </p>
-        ` : ''}
-      </div>
-      <p style="text-align: center; font-size: 11px; color: #94a3b8; margin-top: 16px;">
-        Envoye par Cursus &mdash; cursus.school
-      </p>
-    </div>
-  `;
+  const details = detailsTable([
+    { label: 'Date',       value: escHtml(dateStr) },
+    { label: 'Horaire',    value: `${escHtml(timeStr)} a ${escHtml(endTime)}`, mono: true },
+    { label: 'Type',       value: escHtml(eventTitle) },
+    { label: 'Enseignant', value: escHtml(teacherName || '') },
+    { label: 'Etudiant',   value: escHtml(studentName || '') },
+  ]);
+
+  const cancelLine = safeCancel
+    ? `Pour annuler ou reporter ce rendez-vous, <a href="${escHtml(safeCancel)}" style="color: #4338ca; text-decoration: underline;">cliquez ici</a>.`
+    : '';
+
+  const html = emailShell({
+    eyebrow: 'Rendez-vous confirme',
+    title: eventTitle,
+    intro: `Bonjour ${escHtml(tutorName)}, votre rendez-vous a bien ete enregistre. Voici les informations a conserver.`,
+    bodyHtml: details,
+    cta: safeJoin ? { label: 'Rejoindre la visioconference', url: safeJoin } : null,
+    footnote: cancelLine,
+  });
+
+  const text = [
+    `Rendez-vous confirme : ${eventTitle}`,
+    '',
+    `Bonjour ${tutorName},`,
+    'Votre rendez-vous a bien ete enregistre.',
+    '',
+    `Date     : ${dateStr}`,
+    `Horaire  : ${timeStr} a ${endTime}`,
+    `Avec     : ${teacherName || '-'}`,
+    `Etudiant : ${studentName || '-'}`,
+    '',
+    safeJoin   ? `Visio    : ${safeJoin}`   : '',
+    safeCancel ? `Annuler  : ${safeCancel}` : '',
+  ].filter(Boolean).join('\n');
 
   try {
     await t.sendMail({
       from: SMTP_FROM,
       to,
-      subject: `RDV confirme : ${eventTitle} - ${dateStr} ${timeStr}`,
-      html,
+      subject: `Rendez-vous confirme : ${eventTitle} le ${dateStr} a ${timeStr}`,
+      html, text,
     });
     return true;
   } catch (err) {
@@ -104,25 +190,31 @@ async function sendBookingCancellation({ to, tutorName, eventTitle, startDatetim
   const timeStr = startDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
   const safeRebook = safeHttpUrl(rebookUrl);
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-      <div style="background: #ef4444; color: white; padding: 20px 24px; border-radius: 12px 12px 0 0;">
-        <h1 style="margin: 0; font-size: 20px;">RDV annule</h1>
-      </div>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
-        <p>Bonjour <strong>${escHtml(tutorName)}</strong>,</p>
-        <p>Votre rendez-vous <strong>${escHtml(eventTitle)}</strong> du <strong>${dateStr} a ${timeStr}</strong> a ete annule.</p>
-        ${safeRebook ? `<p><a href="${escHtml(safeRebook)}" style="color: #3b82f6; font-weight: 600;">Reserver un nouveau creneau</a></p>` : ''}
-      </div>
-    </div>
-  `;
+
+  const html = emailShell({
+    eyebrow: 'Rendez-vous annule',
+    title: eventTitle,
+    intro: `Bonjour ${escHtml(tutorName)}, le rendez-vous prevu le <strong>${escHtml(dateStr)} a ${escHtml(timeStr)}</strong> a ete annule.`,
+    bodyHtml: '',
+    cta: safeRebook ? { label: 'Reserver un nouveau creneau', url: safeRebook } : null,
+    footnote: '',
+  });
+
+  const text = [
+    `Rendez-vous annule : ${eventTitle}`,
+    '',
+    `Bonjour ${tutorName},`,
+    `Le rendez-vous prevu le ${dateStr} a ${timeStr} a ete annule.`,
+    '',
+    safeRebook ? `Reserver un nouveau creneau : ${safeRebook}` : '',
+  ].filter(Boolean).join('\n');
 
   try {
     await t.sendMail({
       from: SMTP_FROM,
       to,
-      subject: `RDV annule : ${eventTitle} - ${dateStr}`,
-      html,
+      subject: `Rendez-vous annule : ${eventTitle} (${dateStr})`,
+      html, text,
     });
     return true;
   } catch (err) {
@@ -140,25 +232,40 @@ async function sendBookingReminder({ to, tutorName, teacherName, eventTitle, sta
   const timeStr = startDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
   const safeJoin = safeHttpUrl(teamsJoinUrl);
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-      <div style="background: #f59e0b; color: white; padding: 20px 24px; border-radius: 12px 12px 0 0;">
-        <h1 style="margin: 0; font-size: 20px;">Rappel RDV demain</h1>
-      </div>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
-        <p>Bonjour <strong>${escHtml(tutorName)}</strong>,</p>
-        <p>Pour rappel, votre rendez-vous <strong>${escHtml(eventTitle)}</strong> avec <strong>${escHtml(teacherName)}</strong> est prevu :</p>
-        <p style="font-size: 16px; font-weight: 700; color: #111827;">${dateStr} a ${timeStr}</p>
-        ${safeJoin ? `<a href="${escHtml(safeJoin)}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; margin-top: 8px;">Rejoindre la visioconference</a>` : ''}
-      </div>
-    </div>
-  `;
+
+  const details = detailsTable([
+    { label: 'Date',    value: escHtml(dateStr) },
+    { label: 'Horaire', value: escHtml(timeStr), mono: true },
+    { label: 'Avec',    value: escHtml(teacherName || '') },
+  ]);
+
+  const html = emailShell({
+    eyebrow: 'Rappel rendez-vous',
+    title: eventTitle,
+    intro: `Bonjour ${escHtml(tutorName)}, votre rendez-vous est prevu demain. Voici un rappel pour ne pas l'oublier.`,
+    bodyHtml: details,
+    cta: safeJoin ? { label: 'Rejoindre la visioconference', url: safeJoin } : null,
+    footnote: '',
+  });
+
+  const text = [
+    `Rappel rendez-vous : ${eventTitle}`,
+    '',
+    `Bonjour ${tutorName},`,
+    'Votre rendez-vous est prevu demain.',
+    '',
+    `Date    : ${dateStr}`,
+    `Horaire : ${timeStr}`,
+    `Avec    : ${teacherName || '-'}`,
+    '',
+    safeJoin ? `Visio   : ${safeJoin}` : '',
+  ].filter(Boolean).join('\n');
 
   try {
     await t.sendMail({
       from: SMTP_FROM, to,
-      subject: `Rappel : ${escHtml(eventTitle)} demain a ${timeStr}`,
-      html,
+      subject: `Rappel : ${eventTitle} demain a ${timeStr}`,
+      html, text,
     });
     return true;
   } catch (err) {
@@ -176,24 +283,30 @@ async function sendBookingReschedule({ to, tutorName, eventTitle, oldDatetime, r
   const timeStr = oldDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
   const safeRebook = safeHttpUrl(rebookUrl);
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-      <div style="background: #3b82f6; color: white; padding: 20px 24px; border-radius: 12px 12px 0 0;">
-        <h1 style="margin: 0; font-size: 20px;">RDV reporte</h1>
-      </div>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
-        <p>Bonjour <strong>${escHtml(tutorName)}</strong>,</p>
-        <p>Votre rendez-vous <strong>${escHtml(eventTitle)}</strong> du <strong>${dateStr} a ${timeStr}</strong> a ete reporte.</p>
-        ${safeRebook ? `<p><a href="${escHtml(safeRebook)}" style="display: inline-block; background: #3b82f6; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600;">Choisir un nouveau creneau</a></p>` : ''}
-      </div>
-    </div>
-  `;
+
+  const html = emailShell({
+    eyebrow: 'Rendez-vous reporte',
+    title: eventTitle,
+    intro: `Bonjour ${escHtml(tutorName)}, le rendez-vous prevu le <strong>${escHtml(dateStr)} a ${escHtml(timeStr)}</strong> a ete reporte. Vous pouvez choisir un nouveau creneau ci-dessous.`,
+    bodyHtml: '',
+    cta: safeRebook ? { label: 'Choisir un nouveau creneau', url: safeRebook } : null,
+    footnote: '',
+  });
+
+  const text = [
+    `Rendez-vous reporte : ${eventTitle}`,
+    '',
+    `Bonjour ${tutorName},`,
+    `Le rendez-vous prevu le ${dateStr} a ${timeStr} a ete reporte.`,
+    '',
+    safeRebook ? `Nouveau creneau : ${safeRebook}` : '',
+  ].filter(Boolean).join('\n');
 
   try {
     await t.sendMail({
       from: SMTP_FROM, to,
-      subject: `RDV reporte : ${escHtml(eventTitle)}`,
-      html,
+      subject: `Rendez-vous reporte : ${eventTitle}`,
+      html, text,
     });
     return true;
   } catch (err) {
@@ -227,39 +340,47 @@ async function sendCampaignInvite({ to, studentName, teacherName, campaignTitle,
     log.warn('Skipping campaign invite : invalid booking URL', { bookingUrl });
     return false;
   }
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-      <div style="background: #6366f1; color: white; padding: 20px 24px; border-radius: 12px 12px 0 0;">
-        <h1 style="margin: 0; font-size: 20px;">${escHtml(campaignTitle)}</h1>
-        <p style="margin: 4px 0 0; opacity: 0.9; font-size: 14px;">Reservation d'un rendez-vous</p>
-      </div>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
-        <p style="margin: 0 0 16px;">Bonjour <strong>${escHtml(studentName)}</strong>,</p>
-        <p style="margin: 0 0 16px;">${escHtml(teacherName)} t'invite a reserver un rendez-vous.</p>
-        ${campaignDescription ? `<p style="margin: 0 0 16px; color: #475569;">${escHtml(campaignDescription)}</p>` : ''}
-        ${deadlineStr ? `<p style="margin: 0 0 16px; font-size: 13px; color: #64748b;">A reserver avant le <strong>${deadlineStr}</strong>.</p>` : ''}
-        <p style="margin: 24px 0;">
-          <a href="${escHtml(safeBooking)}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px;">
-            Choisir mon creneau
-          </a>
-        </p>
-        <p style="margin: 16px 0 0; font-size: 12px; color: #94a3b8;">
-          Lien personnel — ne pas le partager.
-        </p>
-      </div>
-      <p style="text-align: center; font-size: 11px; color: #94a3b8; margin-top: 16px;">
-        Envoye par Cursus &mdash; cursus.school
-      </p>
-    </div>
-  `;
+  // Body : description de campagne (si fournie) + deadline (si fournie),
+  // chacune dans un paragraphe sobre. Pas de blocs colores ni de listes
+  // a puces decoratives — on reste sur du texte courant.
+  const descParagraph = campaignDescription
+    ? `<p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">${escHtml(campaignDescription)}</p>`
+    : '';
+  const deadlineParagraph = deadlineStr
+    ? `<p style="margin: 0 0 16px; font-size: 14px; line-height: 1.5; color: #475569;">A reserver avant le <strong style="color: #0f172a;">${escHtml(deadlineStr)}</strong>.</p>`
+    : '';
+
+  const html = emailShell({
+    eyebrow: 'Invitation a un rendez-vous',
+    title: campaignTitle,
+    intro: `Bonjour ${escHtml(studentName)}, <strong>${escHtml(teacherName)}</strong> vous invite a reserver un creneau pour ce rendez-vous.`,
+    bodyHtml: `${descParagraph}${deadlineParagraph}`,
+    cta: { label: 'Choisir mon creneau', url: safeBooking },
+    footnote: 'Ce lien est personnel et associe a votre adresse mail. Merci de ne pas le transferer a un tiers.',
+  });
+
+  const text = [
+    `Invitation : ${campaignTitle}`,
+    '',
+    `Bonjour ${studentName},`,
+    `${teacherName} vous invite a reserver un creneau pour ce rendez-vous.`,
+    '',
+    campaignDescription ? campaignDescription : '',
+    campaignDescription ? '' : '',
+    deadlineStr ? `A reserver avant le ${deadlineStr}.` : '',
+    deadlineStr ? '' : '',
+    `Pour choisir votre creneau : ${safeBooking}`,
+    '',
+    'Ce lien est personnel et associe a votre adresse mail. Merci de ne pas le transferer.',
+  ].filter(Boolean).join('\n');
 
   try {
     await t.sendMail({
       from: SMTP_FROM,
       to,
       replyTo: notifyEmail || undefined,
-      subject: `[${campaignTitle}] Reserve ton creneau`,
-      html,
+      subject: `${campaignTitle} : choisissez votre creneau`,
+      html, text,
     });
     return true;
   } catch (err) {
@@ -289,34 +410,47 @@ async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmai
   // javascript:/data: que zod a pu laisser passer (fallback_visio_url custom).
   const safeJoin = safeHttpUrl(joinUrl);
   const safeCancel = safeHttpUrl(cancelUrl);
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-      <div style="background: #22c55e; color: white; padding: 20px 24px; border-radius: 12px 12px 0 0;">
-        <h1 style="margin: 0; font-size: 20px;">RDV confirme</h1>
-        <p style="margin: 4px 0 0; opacity: 0.9; font-size: 14px;">${escHtml(eventTitle)}</p>
-      </div>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
-          <tr><td style="padding: 8px 0; color: #64748b; width: 130px;">Date</td><td style="padding: 8px 0; font-weight: 600;">${dateStr}</td></tr>
-          <tr><td style="padding: 8px 0; color: #64748b;">Horaire</td><td style="padding: 8px 0; font-weight: 600;">${timeStr} - ${endTime}</td></tr>
-          <tr><td style="padding: 8px 0; color: #64748b;">Enseignant</td><td style="padding: 8px 0;">${escHtml(teacherName || '-')}</td></tr>
-          <tr><td style="padding: 8px 0; color: #64748b;">Etudiant</td><td style="padding: 8px 0;">${escHtml(studentName || '-')}</td></tr>
-          ${tutorName ? `<tr><td style="padding: 8px 0; color: #64748b;">Tuteur entreprise</td><td style="padding: 8px 0;">${escHtml(tutorName)}</td></tr>` : ''}
-        </table>
-        ${safeJoin ? `
-          <p>
-            <a href="${escHtml(safeJoin)}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
-              Rejoindre la visioconference
-            </a>
-          </p>
-        ` : ''}
-        <p style="margin: 16px 0 0; font-size: 13px; color: #64748b;">
-          L'invitation est jointe a ce mail (.ics). Ouvre-la pour ajouter le RDV a ton calendrier.
-        </p>
-        ${safeCancel ? `<p style="margin: 8px 0 0; font-size: 12px; color: #94a3b8;">Annuler ou reporter : <a href="${escHtml(safeCancel)}" style="color: #3b82f6;">cliquez ici</a></p>` : ''}
-      </div>
-    </div>
-  `;
+  const detailsRows = [
+    { label: 'Date',       value: escHtml(dateStr) },
+    { label: 'Horaire',    value: `${escHtml(timeStr)} a ${escHtml(endTime)}`, mono: true },
+    { label: 'Enseignant', value: escHtml(teacherName || '-') },
+    { label: 'Etudiant',   value: escHtml(studentName || '-') },
+  ];
+  if (tutorName) detailsRows.push({ label: 'Tuteur entreprise', value: escHtml(tutorName) });
+  const details = detailsTable(detailsRows);
+
+  const footnoteParts = [
+    'Une invitation calendrier (.ics) est jointe a cet email. Ouvrez-la pour ajouter le rendez-vous a votre agenda.',
+  ];
+  if (safeCancel) {
+    footnoteParts.push(`Pour annuler ou reporter, <a href="${escHtml(safeCancel)}" style="color: #4338ca; text-decoration: underline;">cliquez ici</a>.`);
+  }
+
+  const html = emailShell({
+    eyebrow: 'Rendez-vous confirme',
+    title: eventTitle,
+    intro: 'Le rendez-vous est confirme pour les trois parties. Voici les informations a conserver.',
+    bodyHtml: details,
+    cta: safeJoin ? { label: 'Rejoindre la visioconference', url: safeJoin } : null,
+    footnote: footnoteParts.join('<br>'),
+  });
+
+  const text = [
+    `Rendez-vous confirme : ${eventTitle}`,
+    '',
+    'Le rendez-vous est confirme pour les trois parties.',
+    '',
+    `Date              : ${dateStr}`,
+    `Horaire           : ${timeStr} a ${endTime}`,
+    `Enseignant        : ${teacherName || '-'}`,
+    `Etudiant          : ${studentName || '-'}`,
+    tutorName ? `Tuteur entreprise : ${tutorName}` : '',
+    '',
+    safeJoin   ? `Visio   : ${safeJoin}`   : '',
+    safeCancel ? `Annuler : ${safeCancel}` : '',
+    '',
+    'Une invitation calendrier (.ics) est jointe a cet email.',
+  ].filter(Boolean).join('\n');
 
   const recipients = [studentEmail, tutorEmail, teacherEmail].filter(Boolean);
   if (!recipients.length) return false;
@@ -332,8 +466,8 @@ async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmai
       from: SMTP_FROM,
       to: recipients.join(', '),
       replyTo: teacherEmail || undefined,
-      subject: `RDV confirme : ${eventTitle} - ${dateStr} ${timeStr}`,
-      html,
+      subject: `Rendez-vous confirme : ${eventTitle} le ${dateStr} a ${timeStr}`,
+      html, text,
       attachments,
       icalEvent: icsContent ? { method: 'REQUEST', content: icsContent } : undefined,
     });
