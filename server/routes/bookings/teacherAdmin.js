@@ -264,11 +264,12 @@ router.post('/direct', requireRole('teacher'), validate(createDirectSchema), wra
       eventTypeId,
       studentId,
       teacherId: req.user.id,
-      // tutor_* champs NOT NULL en schema : la "creation directe" n'a
-      // pas de tuteur tiers, on reuse les coordonnees de l'etudiant
-      // pour satisfaire la contrainte sans introduire de migration.
-      tutorName:  student.name,
-      tutorEmail: student.email,
+      // tutor_* NOT NULL en schema sans migration possible. La "creation
+      // directe" n'a pas de tuteur tiers : on passe une chaine vide.
+      // Avant on reusait student.name ce qui fait apparaitre l'etudiant
+      // comme "tuteur" cote UI. bookingHasRealTutor filtre les vides.
+      tutorName:  '',
+      tutorEmail: '',
       startDatetime,
       endDatetime,
       bufferMinutes: eventType.buffer_minutes || 0,
@@ -294,7 +295,7 @@ router.post('/direct', requireRole('teacher'), validate(createDirectSchema), wra
     for (const c of created) {
       io.to(`user:${req.user.id}`).emit('booking:new', {
         bookingId: c.id,
-        tutorName: c.studentName,
+        tutorName: '',
         studentName: c.studentName,
         eventTitle: eventType.title,
         startDatetime,

@@ -155,12 +155,16 @@ router.post('/public/campaign/:token/book', publicBookingLimiter, perTokenLimite
     // Utilise l'event_type "fantome" cree avec la campagne (createCampaign).
     // Permet de respecter la FK bookings.event_type_id sans polluer la liste
     // publique d'event-types (filtree via slug __campaign_%).
+    // tutor_* champs NOT NULL en schema sans migration possible. Avant on
+    // copiait c.student_name dedans pour les campagnes sans tuteur, ce qui
+    // affichait l'etudiant comme "tuteur" cote dashboard. Maintenant on
+    // passe une chaine vide : le frontend (bookingHasRealTutor) la filtre.
     const booking = queries.createBookingAtomic({
       eventTypeId: c.event_type_id,
       studentId:   c.student_id,
       teacherId:   c.teacher_id,
-      tutorName:   tutorName || c.student_name,
-      tutorEmail:  tutorEmail || studentEmail,
+      tutorName:   tutorName || '',
+      tutorEmail:  tutorEmail || '',
       startDatetime, endDatetime,
       bufferMinutes: c.buffer_minutes || 0,
     })
@@ -229,12 +233,13 @@ router.post('/public/campaign/:token/book', publicBookingLimiter, perTokenLimite
       } catch { /* ignore */ }
     }
 
-    // Socket push au prof
+    // Socket push au prof. tutorName n'est envoye que s'il existe
+    // vraiment ; sinon le client utilise studentName comme nom principal.
     const io = req.app.get('io')
     if (io) {
       io.to(`user:${c.teacher_id}`).emit('booking:new', {
         bookingId: booking.id,
-        tutorName: tutorName || c.student_name,
+        tutorName: tutorName || '',
         studentName: c.student_name,
         eventTitle: c.title,
         startDatetime,

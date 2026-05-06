@@ -40,6 +40,39 @@ export function detectUserTimezone(): string {
 export const DAY_INITIALS_FR = ['L', 'M', 'M', 'J', 'V', 'S', 'D'] as const
 
 /**
+ * Indique si un booking a un VRAI tuteur entreprise distinct de l'etudiant.
+ *
+ * Contexte : pour des raisons historiques (schema bookings.tutor_name
+ * NOT NULL sans migration), les RDV non-tripartites stockent le nom de
+ * l'etudiant dans tutor_name. C'est faux semantiquement — l'etudiant
+ * n'est pas son propre tuteur. Cette fonction filtre ces faux positifs
+ * pour que l'UI n'affiche pas le bloc "Tuteur entreprise" alors qu'il
+ * n'y en a pas.
+ *
+ * Heuristique : tutor_name doit etre rempli, non-vide, et different de
+ * student_name. On compare aussi tutor_email a student_email pour les
+ * cas ou les noms different mais l'email est le meme (alias, etc.).
+ */
+export interface BookingLike {
+  tutor_name?: string | null
+  tutor_email?: string | null
+  student_name?: string | null
+  student_email?: string | null
+}
+
+export function bookingHasRealTutor(bk: BookingLike | null | undefined): boolean {
+  if (!bk) return false
+  const tName = (bk.tutor_name || '').trim()
+  if (!tName) return false
+  const sName = (bk.student_name || '').trim()
+  if (sName && tName.toLowerCase() === sName.toLowerCase()) return false
+  const tEmail = (bk.tutor_email || '').trim().toLowerCase()
+  const sEmail = (bk.student_email || '').trim().toLowerCase()
+  if (tEmail && sEmail && tEmail === sEmail) return false
+  return true
+}
+
+/**
  * Mappe un code d'erreur backend vers un titre d'erreur lisible.
  * Utilise par BookingFlow pour la step error pleine largeur.
  */

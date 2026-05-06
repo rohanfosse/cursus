@@ -15,6 +15,7 @@ import { Plus, LayoutList, CalendarDays, Calendar, Clock } from 'lucide-vue-next
 import BookingCalendarView from './BookingCalendarView.vue'
 import CreateBookingModal from '@/components/booking/CreateBookingModal.vue'
 import BookingDetailModal from '@/components/booking/BookingDetailModal.vue'
+import { bookingHasRealTutor } from '@/utils/bookingHelpers'
 import { type Booking, type BookingHandle } from '@/composables/useBooking'
 
 interface BookingStudent { id: number; name?: string; email?: string; promo_id?: number; promo_name?: string }
@@ -130,8 +131,8 @@ function openDetail(bk: Booking) {
         </div>
         <div v-if="bk.event_type_title" class="bk-type">{{ bk.event_type_title }}</div>
         <div class="bk-people">
-          <span v-if="bk.tutor_name" class="bk-person">{{ bk.tutor_name }}</span>
           <span v-if="bk.student_name" class="bk-person">{{ bk.student_name }}</span>
+          <span v-if="bookingHasRealTutor(bk)" class="bk-person">{{ bk.tutor_name }}</span>
         </div>
         <span class="bk-badge" :class="booking.statusClass(bk.status)">
           {{ booking.statusLabel(bk.status) }}

@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   toIso, fmtDateLong, fmtTime, detectUserTimezone, bookingErrorTitle,
-  DAY_INITIALS_FR,
+  DAY_INITIALS_FR, bookingHasRealTutor,
 } from '@/utils/bookingHelpers'
 
 describe('toIso', () => {
@@ -96,5 +96,40 @@ describe('DAY_INITIALS_FR', () => {
 
   it('matche le pattern L-M-M-J-V-S-D (FR)', () => {
     expect(DAY_INITIALS_FR.join('')).toBe('LMMJVSD')
+  })
+})
+
+describe('bookingHasRealTutor', () => {
+  it('false quand tutor_name vide', () => {
+    expect(bookingHasRealTutor({ tutor_name: '', student_name: 'Alice' })).toBe(false)
+    expect(bookingHasRealTutor({ tutor_name: null, student_name: 'Alice' })).toBe(false)
+    expect(bookingHasRealTutor({ student_name: 'Alice' })).toBe(false)
+  })
+
+  it('false quand tutor_name == student_name (cas legacy v < 2.317)', () => {
+    expect(bookingHasRealTutor({ tutor_name: 'Alice Dupont', student_name: 'Alice Dupont' })).toBe(false)
+    // Insensible a la casse + espaces
+    expect(bookingHasRealTutor({ tutor_name: 'alice dupont', student_name: 'Alice DUPONT' })).toBe(false)
+    expect(bookingHasRealTutor({ tutor_name: '  Alice  ', student_name: 'Alice' })).toBe(false)
+  })
+
+  it('false quand tutor_email == student_email (alias / meme adresse)', () => {
+    expect(bookingHasRealTutor({
+      tutor_name: 'Bob', student_name: 'Alice',
+      tutor_email: 'a@x.fr', student_email: 'a@x.fr',
+    })).toBe(false)
+  })
+
+  it('true quand tutor different de student', () => {
+    expect(bookingHasRealTutor({ tutor_name: 'Bob', student_name: 'Alice' })).toBe(true)
+    expect(bookingHasRealTutor({
+      tutor_name: 'Bob', tutor_email: 'b@x.fr',
+      student_name: 'Alice', student_email: 'a@x.fr',
+    })).toBe(true)
+  })
+
+  it('false sur entree null/undefined', () => {
+    expect(bookingHasRealTutor(null)).toBe(false)
+    expect(bookingHasRealTutor(undefined)).toBe(false)
   })
 })

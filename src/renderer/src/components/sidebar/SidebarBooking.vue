@@ -18,6 +18,7 @@
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Calendar, Clock, Plus, Video, Settings } from 'lucide-vue-next'
+import { bookingHasRealTutor } from '@/utils/bookingHelpers'
 import { useBooking } from '@/composables/useBooking'
 import { useMicrosoftConnection } from '@/composables/useMicrosoftConnection'
 import { useSmtpStatus } from '@/composables/useSmtpStatus'
@@ -112,7 +113,10 @@ const upcomingBookings = computed<UpcomingItem[]>(() => {
       date: bk.date,
       startTime: bk.start_time,
       title: bk.event_type_title || 'Rendez-vous',
-      with: bk.tutor_name || bk.student_name || '',
+      // Affichage prioritaire de l'etudiant ; le tuteur n'apparait que si
+      // c'est un VRAI tuteur entreprise (pas la copie student_name->tutor_name
+      // historique). Cf. bookingHasRealTutor.
+      with: bk.student_name || (bookingHasRealTutor(bk) ? bk.tutor_name : '') || '',
       visioUrl: bk.visio_url,
       relative: relativeWhen(t),
       accent: eventTypeColor(bk.event_type_title),

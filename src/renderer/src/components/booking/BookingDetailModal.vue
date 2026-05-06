@@ -14,6 +14,7 @@ import { computed } from 'vue'
 import { Calendar, Clock, User, Briefcase, Video, Tag } from 'lucide-vue-next'
 import Modal from '@/components/ui/Modal.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import { bookingHasRealTutor } from '@/utils/bookingHelpers'
 import type { Booking, BookingHandle } from '@/composables/useBooking'
 
 interface Props {
@@ -99,7 +100,7 @@ const durationMinutes = computed<number>(() => {
             <span class="bdm-row-value">{{ booking.student_name }}</span>
           </div>
         </li>
-        <li v-if="booking.tutor_name" class="bdm-row">
+        <li v-if="bookingHasRealTutor(booking)" class="bdm-row">
           <Briefcase :size="15" aria-hidden="true" />
           <div>
             <span class="bdm-row-label">Tuteur entreprise</span>

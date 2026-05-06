@@ -6,6 +6,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { bookingHasRealTutor } from '@/utils/bookingHelpers'
 import type { Booking, EventType } from '@/composables/useBooking'
 
 const props = defineProps<{
@@ -27,7 +28,9 @@ const emit = defineEmits<{
 // On snap au quart d'heure (15 min) par defaut, qui est le pas le plus
 // commun pour les rendez-vous en visite tripartite.
 const SNAP_MINUTES = 15
-const HOUR_RANGE = 13  // 8h-21h, comme la grille
+// Grille 8h–18h : 10 heures de plage. Avant 8h-21h (13h) qui ecrasait
+// les blocs courts. Cf demande pilote : "creneaux un peu plus grands".
+const HOUR_RANGE = 10
 const HOUR_START = 8
 
 function onDayBodyClick(e: MouseEvent, day: { iso: string }) {
@@ -86,8 +89,8 @@ const weekLabel = computed(() => {
 
 const isThisWeek = computed(() => weekOffset.value === 0)
 
-// Hours displayed (8h-20h)
-const hours = Array.from({ length: 13 }, (_, i) => i + 8)
+// Heures affichees (8h, 9h, ..., 18h = 11 lignes pour 10h de plage).
+const hours = Array.from({ length: HOUR_RANGE + 1 }, (_, i) => i + HOUR_START)
 
 // Map bookings to day columns
 const bookingsByDay = computed(() => {
@@ -109,17 +112,17 @@ function bookingColor(bk: Booking): string {
 
 /**
  * Position d'un bloc dans la colonne jour. Hauteur strictement
- * proportionnelle a la duree (en % de la grille 13h). Pas de min-height
- * artificiel : un RDV de 30 min fait visuellement la moitie d'un de 60.
- * Le minimum visuel pour la cliquabilite est gere par le hit-area du
- * bloc (padding) + cursor pointer, pas par un height force.
+ * proportionnelle a la duree (en % de la grille HOUR_RANGE). Pas de
+ * min-height artificiel : un RDV de 30 min fait visuellement la moitie
+ * d'un de 60. Le minimum visuel pour la cliquabilite est gere par le
+ * hit-area du bloc (padding) + cursor pointer, pas par un height force.
  */
 function blockStyle(bk: Booking): Record<string, string> {
   const [sh, sm] = (bk.start_time || '09:00').split(':').map(Number)
   const [eh, em] = (bk.end_time || '10:00').split(':').map(Number)
-  const startMin = sh * 60 + sm - 8 * 60
-  const endMin = eh * 60 + em - 8 * 60
-  const totalMin = 13 * 60
+  const startMin = sh * 60 + sm - HOUR_START * 60
+  const endMin = eh * 60 + em - HOUR_START * 60
+  const totalMin = HOUR_RANGE * 60
   const top = Math.max(0, (startMin / totalMin) * 100)
   const height = Math.max(0.5, ((endMin - startMin) / totalMin) * 100)
   return {
@@ -133,9 +136,10 @@ function blockStyle(bk: Booking): Record<string, string> {
 const nowPosition = computed(() => {
   if (!isThisWeek.value) return null
   const now = new Date()
-  const min = now.getHours() * 60 + now.getMinutes() - 8 * 60
-  if (min < 0 || min > 13 * 60) return null
-  return (min / (13 * 60)) * 100
+  const min = now.getHours() * 60 + now.getMinutes() - HOUR_START * 60
+  const totalMin = HOUR_RANGE * 60
+  if (min < 0 || min > totalMin) return null
+  return (min / totalMin) * 100
 })
 
 const todayIso = new Date().toISOString().slice(0, 10)
@@ -176,8 +180,8 @@ const todayIso = new Date().toISOString().slice(0, 10)
           :title="`Cliquer pour creer un RDV — ${d.label}`"
           @click="onDayBodyClick($event, d)"
         >
-          <!-- Hour lines -->
-          <div v-for="h in hours" :key="h" class="bcv-hour-line" :style="{ top: `${((h - 8) / 13) * 100}%` }" />
+          <!-- Lignes horaires : alignees sur HOUR_START + HOUR_RANGE. -->
+          <div v-for="h in hours" :key="h" class="bcv-hour-line" :style="{ top: `${((h - HOUR_START) / HOUR_RANGE) * 100}%` }" />
 
           <!-- Now indicator -->
           <div v-if="nowPosition !== null && d.iso === todayIso" class="bcv-now" :style="{ top: `${nowPosition}%` }" />
@@ -192,14 +196,14 @@ const todayIso = new Date().toISOString().slice(0, 10)
             role="button"
             tabindex="0"
             :style="blockStyle(bk)"
-            :title="`${(bk.start_time || '').slice(0, 5)}–${(bk.end_time || '').slice(0, 5)} · ${bk.event_type_title || 'RDV'}${bk.tutor_name ? ' · ' + bk.tutor_name : ''}`"
+            :title="`${(bk.start_time || '').slice(0, 5)}–${(bk.end_time || '').slice(0, 5)} · ${bk.event_type_title || 'RDV'}${bk.student_name ? ' · ' + bk.student_name : ''}${bookingHasRealTutor(bk) ? ' (+ ' + bk.tutor_name + ')' : ''}`"
             :aria-label="`${bk.event_type_title || 'Rendez-vous'} le ${bk.date} de ${(bk.start_time || '').slice(0, 5)} a ${(bk.end_time || '').slice(0, 5)}`"
             @click.stop="emit('booking-click', bk)"
             @keydown.enter.prevent="emit('booking-click', bk)"
             @keydown.space.prevent="emit('booking-click', bk)"
           >
             <span class="bcv-block-time">{{ (bk.start_time || '').slice(0, 5) }}</span>
-            <span class="bcv-block-name">{{ bk.tutor_name || bk.student_name || '' }}</span>
+            <span class="bcv-block-name">{{ bk.student_name || (bookingHasRealTutor(bk) ? bk.tutor_name : '') || '' }}</span>
           </div>
         </div>
       </div>
@@ -224,16 +228,23 @@ const todayIso = new Date().toISOString().slice(0, 10)
   background: var(--accent); color: #fff; border: none; cursor: pointer; margin-left: auto;
 }
 
-.bcv-grid { display: flex; gap: 0; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--border); min-height: 300px; overflow-x: auto; }
+/* min-height augmentee (300 -> 380) pour des creneaux plus visibles
+   maintenant qu'on a 10h de plage au lieu de 13h. */
+.bcv-grid { display: flex; gap: 0; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--border); min-height: 380px; overflow-x: auto; }
 
 .bcv-hours {
-  display: flex; flex-direction: column; width: 36px; flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 36px;
+  flex-shrink: 0;
   padding-top: 28px; /* offset for day header */
+  padding-bottom: 0;
 }
 .bcv-hour {
-  height: calc(100% / 13); min-height: 22px;
   font-size: 9px; color: var(--text-muted); text-align: right; padding-right: 4px;
   display: flex; align-items: flex-start; justify-content: flex-end;
+  line-height: 1;
 }
 
 .bcv-day { flex: 1; min-width: 0; border-left: 1px solid var(--border); display: flex; flex-direction: column; }
