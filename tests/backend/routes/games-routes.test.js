@@ -58,7 +58,7 @@ describe('POST /api/games/:gameId/scores', () => {
 
   it('rejette un game_id inconnu', async () => {
     const res = await request(app)
-      .post('/api/games/tetris/scores')
+      .post('/api/games/pacman/scores')
       .set('Authorization', `Bearer ${studentToken}`)
       .send({ score: 100, durationMs: 10000 })
     expect(res.status).toBe(404)
