@@ -199,6 +199,7 @@ router.post('/public/campaign/:token/book', publicBookingLimiter, perTokenLimite
     if (teacherEmail) attendees.push({ email: teacherEmail, name: c.teacher_name })
 
     const cancelUrl = `${SERVER_URL}/#/book/cancel/${booking.cancel_token}`
+    const confirmUrl = `${SERVER_URL}/#/book/confirm/${booking.cancel_token}`
     const icsContent = generateIcs({
       title: `${c.title} - ${c.student_name}`,
       startDatetime, endDatetime,
@@ -222,16 +223,18 @@ router.post('/public/campaign/:token/book', publicBookingLimiter, perTokenLimite
       startDatetime, endDatetime,
       joinUrl,
       cancelUrl,
+      confirmUrl,
       icsContent,
+      // v87 (deep interview Q7) : enrichissement saisi par le prof, applique
+      // avec macros {{prenom_etudiant}} cote email.js.
+      location:  c.location,
+      agenda:    c.agenda,
+      documents: c.documents,
     })
 
-    // Reminder 24h avant
-    const reminderAt = new Date(startMs - 24 * 3600000).toISOString()
-    if (new Date(reminderAt) > new Date()) {
-      try {
-        queries.createBookingReminder(booking.id, 'email_tutor_24h', reminderAt)
-      } catch { /* ignore */ }
-    }
+    // Decision pilote v2.318 (Q15) : pas de mail rappel auto au tuteur
+    // pour les campagnes non plus. L'.ics deja envoye (METHOD:REQUEST)
+    // genere une notif Outlook native cote tuteur.
 
     // Socket push au prof. tutorName n'est envoye que s'il existe
     // vraiment ; sinon le client utilise studentName comme nom principal.

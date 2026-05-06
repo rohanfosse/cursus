@@ -6,12 +6,31 @@ const nodemailer = require('nodemailer');
 const log = require('../utils/logger');
 
 const { escHtml, safeHttpUrl } = require('../utils/escHtml');
+const { interpolateMacros, buildMacroVars } = require('../utils/emailMacros');
 
 const SMTP_HOST = process.env.SMTP_HOST || '';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
 const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
 const SMTP_FROM = process.env.SMTP_FROM || 'noreply@cursus.school';
+
+/**
+ * Construit l'en-tete From RFC 5322 avec display name = nom du prof.
+ * Pattern : `Prenom Nom <noreply@cursus.school>`. Si teacherName est vide,
+ * on retombe sur l'adresse seule. Decision pilote (deep interview Q14) :
+ * pas de mention "via Cursus" pour que le mail apparaisse comme venant
+ * du prof — l'identite Cursus est portee par le branding visuel + footer.
+ *
+ * Securite : on echappe " et \ dans le display name pour eviter qu'un nom
+ * malveillant brise le parsing RFC. Les autres caracteres speciaux sont
+ * tolerees par les mailers grace au quoting double-quote.
+ */
+function formatFrom(teacherName) {
+  const name = String(teacherName || '').trim()
+  if (!name) return SMTP_FROM
+  const safe = name.replace(/[\\"]/g, '')
+  return `"${safe}" <${SMTP_FROM}>`
+}
 
 let transporter = null;
 
@@ -51,7 +70,7 @@ function getTransporter() {
 function emailShell({ eyebrow, title, intro, bodyHtml, cta, footnote }) {
   const ctaHtml = cta && cta.url
     ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0 8px;">
-         <tr><td style="border-radius: 8px; background: #4338ca;">
+         <tr><td style="border-radius: 8px; background: #6366F1;">
            <a href="${escHtml(cta.url)}" style="display: inline-block; padding: 12px 24px; color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">${escHtml(cta.label)}</a>
          </td></tr>
        </table>`
@@ -80,7 +99,7 @@ function emailShell({ eyebrow, title, intro, bodyHtml, cta, footnote }) {
     <tr><td align="center">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="580" style="max-width: 580px; width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;">
         <tr><td style="padding: 36px 36px 32px;">
-          ${eyebrow ? `<p style="margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #4338ca;">${escHtml(eyebrow)}</p>` : ''}
+          ${eyebrow ? `<p style="margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #6366F1;">${escHtml(eyebrow)}</p>` : ''}
           <h1 style="margin: 0 0 18px; font-size: 22px; font-weight: 700; line-height: 1.3; color: #0f172a;">${escHtml(title)}</h1>
           ${introHtml}
           ${bodyHtml || ''}
@@ -113,6 +132,10 @@ function detailsTable(rows) {
     </table>`;
 }
 
+/**
+ * Mail confirmation d'un RDV simple (lien public ou token attendee).
+ * Vouvoiement (destinataire = tuteur entreprise externe le plus souvent).
+ */
 async function sendBookingConfirmation({ to, tutorName, teacherName, studentName, eventTitle, startDatetime, endDatetime, teamsJoinUrl, cancelUrl }) {
   const t = getTransporter();
   if (!t) {
@@ -140,7 +163,7 @@ async function sendBookingConfirmation({ to, tutorName, teacherName, studentName
   ]);
 
   const cancelLine = safeCancel
-    ? `Pour annuler ou reporter ce rendez-vous, <a href="${escHtml(safeCancel)}" style="color: #4338ca; text-decoration: underline;">cliquez ici</a>.`
+    ? `Pour annuler ou reporter ce rendez-vous, <a href="${escHtml(safeCancel)}" style="color: #6366F1; text-decoration: underline;">cliquez ici</a>.`
     : '';
 
   const html = emailShell({
@@ -169,7 +192,7 @@ async function sendBookingConfirmation({ to, tutorName, teacherName, studentName
 
   try {
     await t.sendMail({
-      from: SMTP_FROM,
+      from: formatFrom(teacherName),
       to,
       subject: `Rendez-vous confirmé : ${eventTitle} le ${dateStr} à ${timeStr}`,
       html, text,
@@ -181,7 +204,8 @@ async function sendBookingConfirmation({ to, tutorName, teacherName, studentName
   }
 }
 
-async function sendBookingCancellation({ to, tutorName, eventTitle, startDatetime, rebookUrl }) {
+/** Mail d'annulation envoye au tuteur (vouvoiement). */
+async function sendBookingCancellation({ to, tutorName, teacherName, eventTitle, startDatetime, rebookUrl }) {
   const t = getTransporter();
   if (!t) return false;
 
@@ -211,7 +235,7 @@ async function sendBookingCancellation({ to, tutorName, eventTitle, startDatetim
 
   try {
     await t.sendMail({
-      from: SMTP_FROM,
+      from: formatFrom(teacherName),
       to,
       subject: `Rendez-vous annulé : ${eventTitle} (${dateStr})`,
       html, text,
@@ -223,6 +247,12 @@ async function sendBookingCancellation({ to, tutorName, eventTitle, startDatetim
   }
 }
 
+/**
+ * Mail de rappel J-1.
+ * Note v2.318 : plus appele en production. Decision pilote (Q15) :
+ * l'invitation calendrier .ics suffit, le rappel auto est redondant.
+ * Garde sa fonction au cas ou on reactive.
+ */
 async function sendBookingReminder({ to, tutorName, teacherName, eventTitle, startDatetime, teamsJoinUrl }) {
   const t = getTransporter();
   if (!t) return false;
@@ -263,7 +293,7 @@ async function sendBookingReminder({ to, tutorName, teacherName, eventTitle, sta
 
   try {
     await t.sendMail({
-      from: SMTP_FROM, to,
+      from: formatFrom(teacherName), to,
       subject: `Rappel : ${eventTitle} demain à ${timeStr}`,
       html, text,
     });
@@ -274,7 +304,8 @@ async function sendBookingReminder({ to, tutorName, teacherName, eventTitle, sta
   }
 }
 
-async function sendBookingReschedule({ to, tutorName, eventTitle, oldDatetime, rebookUrl }) {
+/** Mail de report envoye au tuteur (vouvoiement). */
+async function sendBookingReschedule({ to, tutorName, teacherName, eventTitle, oldDatetime, rebookUrl }) {
   const t = getTransporter();
   if (!t) return false;
 
@@ -304,7 +335,7 @@ async function sendBookingReschedule({ to, tutorName, eventTitle, oldDatetime, r
 
   try {
     await t.sendMail({
-      from: SMTP_FROM, to,
+      from: formatFrom(teacherName), to,
       subject: `Rendez-vous reporté : ${eventTitle}`,
       html, text,
     });
@@ -340,46 +371,59 @@ async function sendCampaignInvite({ to, studentName, teacherName, campaignTitle,
     log.warn('Skipping campaign invite : invalid booking URL', { bookingUrl });
     return false;
   }
+  // Substitution des macros saisies par le prof dans la description.
+  // Ex : "Bonjour {{prenom_etudiant}}, on fait le point sur ton stage."
+  // -> "Bonjour Jean, on fait le point sur ton stage."
+  // Application AVANT escapeHtml : les valeurs vars sont du texte brut.
+  const interpolatedDesc = campaignDescription
+    ? interpolateMacros(campaignDescription, buildMacroVars({
+        studentName, teacherName, campaignTitle,
+        // pas de date/heure encore : la reservation n'est pas faite
+      }))
+    : '';
+
   // Body : description de campagne (si fournie) + deadline (si fournie),
   // chacune dans un paragraphe sobre. Pas de blocs colores ni de listes
   // a puces decoratives — on reste sur du texte courant.
-  const descParagraph = campaignDescription
-    ? `<p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">${escHtml(campaignDescription)}</p>`
+  const descParagraph = interpolatedDesc
+    ? `<p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155; white-space: pre-wrap;">${escHtml(interpolatedDesc)}</p>`
     : '';
   const deadlineParagraph = deadlineStr
     ? `<p style="margin: 0 0 16px; font-size: 14px; line-height: 1.5; color: #475569;">À réserver avant le <strong style="color: #0f172a;">${escHtml(deadlineStr)}</strong>.</p>`
     : '';
 
+  // Tutoiement : destinataire = etudiant. Decision pilote (Q5) : tu pour
+  // les etudiants, vous pour les tuteurs/profs externes.
   const html = emailShell({
     eyebrow: 'Invitation à un rendez-vous',
     title: campaignTitle,
-    intro: `Bonjour ${escHtml(studentName)}, <strong>${escHtml(teacherName)}</strong> vous invite à réserver un créneau pour ce rendez-vous.`,
+    intro: `Bonjour ${escHtml(studentName)}, <strong>${escHtml(teacherName)}</strong> t'invite à réserver un créneau pour ce rendez-vous.`,
     bodyHtml: `${descParagraph}${deadlineParagraph}`,
     cta: { label: 'Choisir mon créneau', url: safeBooking },
-    footnote: 'Ce lien est personnel et associé à votre adresse mail. Merci de ne pas le transférer à un tiers.',
+    footnote: 'Ce lien est personnel et associé à ton adresse mail. Merci de ne pas le transférer à un tiers.',
   });
 
   const text = [
     `Invitation : ${campaignTitle}`,
     '',
     `Bonjour ${studentName},`,
-    `${teacherName} vous invite à réserver un créneau pour ce rendez-vous.`,
+    `${teacherName} t'invite à réserver un créneau pour ce rendez-vous.`,
     '',
-    campaignDescription ? campaignDescription : '',
-    campaignDescription ? '' : '',
+    interpolatedDesc ? interpolatedDesc : '',
+    interpolatedDesc ? '' : '',
     deadlineStr ? `À réserver avant le ${deadlineStr}.` : '',
     deadlineStr ? '' : '',
-    `Pour choisir votre créneau : ${safeBooking}`,
+    `Pour choisir ton créneau : ${safeBooking}`,
     '',
-    'Ce lien est personnel et associé à votre adresse mail. Merci de ne pas le transférer.',
+    'Ce lien est personnel et associé à ton adresse mail. Merci de ne pas le transférer.',
   ].filter(Boolean).join('\n');
 
   try {
     await t.sendMail({
-      from: SMTP_FROM,
+      from: formatFrom(teacherName),
       to,
       replyTo: notifyEmail || undefined,
-      subject: `${campaignTitle} : choisissez votre créneau`,
+      subject: `${campaignTitle} : choisis ton créneau`,
       html, text,
     });
     return true;
@@ -394,7 +438,15 @@ async function sendCampaignInvite({ to, studentName, teacherName, campaignTitle,
  * Tous les destinataires recoivent le meme contenu et la meme invitation calendar
  * (METHOD:REQUEST -> Outlook propose Accepter/Refuser).
  */
-async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmail, tutorName, teacherEmail, teacherName, eventTitle, startDatetime, endDatetime, joinUrl, cancelUrl, icsContent }) {
+/**
+ * Mail tripartite. Champs optionnels enrichis (deep interview Q7) :
+ * `location` (lieu si presentiel), `agenda` (ordre du jour), `documents`
+ * (a apporter). Affiches dans le mail seulement si fournis.
+ *
+ * `confirmUrl` (Q4) : si fourni, ajoute un lien "Confirmer ma presence"
+ * dans le footnote, en plus du CTA "Rejoindre la visio".
+ */
+async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmail, tutorName, teacherEmail, teacherName, eventTitle, startDatetime, endDatetime, joinUrl, cancelUrl, icsContent, location, agenda, documents, confirmUrl }) {
   const t = getTransporter();
   if (!t) {
     log.warn('Skipping tripartite confirmation (SMTP not configured)');
@@ -410,6 +462,7 @@ async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmai
   // javascript:/data: que zod a pu laisser passer (fallback_visio_url custom).
   const safeJoin = safeHttpUrl(joinUrl);
   const safeCancel = safeHttpUrl(cancelUrl);
+  const safeConfirm = safeHttpUrl(confirmUrl);
   const detailsRows = [
     { label: 'Date',       value: escHtml(dateStr) },
     { label: 'Horaire',    value: `${escHtml(timeStr)} à ${escHtml(endTime)}`, mono: true },
@@ -417,20 +470,46 @@ async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmai
     { label: 'Étudiant',   value: escHtml(studentName || '-') },
   ];
   if (tutorName) detailsRows.push({ label: 'Tuteur entreprise', value: escHtml(tutorName) });
+  if (location)  detailsRows.push({ label: 'Lieu',              value: escHtml(location) });
   const details = detailsTable(detailsRows);
+
+  // Application des macros sur agenda + documents (le prof peut y mettre
+  // {{prenom_etudiant}}, {{date_rdv}}, etc.).
+  const macroVars = buildMacroVars({
+    studentName, teacherName, campaignTitle: eventTitle, startDatetime,
+    durationMinutes: Math.round((new Date(endDatetime) - new Date(startDatetime)) / 60000),
+  })
+  const interpolatedAgenda    = agenda    ? interpolateMacros(agenda,    macroVars) : ''
+  const interpolatedDocuments = documents ? interpolateMacros(documents, macroVars) : ''
+
+  // Sections enrichies (deep interview Q7) : ordre du jour + documents.
+  // Chacune dans son propre paragraphe titre. Affiche seulement si renseigne.
+  function sectionBlock(label, content) {
+    if (!content) return ''
+    return `
+      <div style="margin: 18px 0 0;">
+        <p style="margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #64748b;">${escHtml(label)}</p>
+        <div style="margin: 0; font-size: 14px; line-height: 1.55; color: #0f172a; white-space: pre-wrap;">${escHtml(content)}</div>
+      </div>
+    `
+  }
+  const enrichedHtml = sectionBlock('Ordre du jour', interpolatedAgenda) + sectionBlock('À apporter', interpolatedDocuments)
 
   const footnoteParts = [
     'Une invitation calendrier (.ics) est jointe à cet email. Ouvrez-la pour ajouter le rendez-vous à votre agenda.',
   ];
+  if (safeConfirm) {
+    footnoteParts.push(`<a href="${escHtml(safeConfirm)}" style="color: #6366F1; text-decoration: underline; font-weight: 600;">Confirmer ma présence</a> en un clic — le prof saura que vous serez bien là.`);
+  }
   if (safeCancel) {
-    footnoteParts.push(`Pour annuler ou reporter, <a href="${escHtml(safeCancel)}" style="color: #4338ca; text-decoration: underline;">cliquez ici</a>.`);
+    footnoteParts.push(`Pour annuler ou reporter, <a href="${escHtml(safeCancel)}" style="color: #6366F1; text-decoration: underline;">cliquez ici</a>.`);
   }
 
   const html = emailShell({
     eyebrow: 'Rendez-vous confirmé',
     title: eventTitle,
     intro: 'Le rendez-vous est confirmé pour les trois parties. Voici les informations à conserver.',
-    bodyHtml: details,
+    bodyHtml: details + enrichedHtml,
     cta: safeJoin ? { label: 'Rejoindre la visioconférence', url: safeJoin } : null,
     footnote: footnoteParts.join('<br>'),
   });
@@ -445,9 +524,15 @@ async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmai
     `Enseignant        : ${teacherName || '-'}`,
     `Étudiant          : ${studentName || '-'}`,
     tutorName ? `Tuteur entreprise : ${tutorName}` : '',
+    location  ? `Lieu              : ${location}` : '',
     '',
-    safeJoin   ? `Visio   : ${safeJoin}`   : '',
-    safeCancel ? `Annuler : ${safeCancel}` : '',
+    interpolatedAgenda    ? `Ordre du jour :\n${interpolatedAgenda}` : '',
+    interpolatedAgenda    ? '' : '',
+    interpolatedDocuments ? `À apporter :\n${interpolatedDocuments}` : '',
+    interpolatedDocuments ? '' : '',
+    safeJoin    ? `Visio    : ${safeJoin}`    : '',
+    safeConfirm ? `Confirmer ma présence : ${safeConfirm}` : '',
+    safeCancel  ? `Annuler  : ${safeCancel}`  : '',
     '',
     'Une invitation calendrier (.ics) est jointe à cet email.',
   ].filter(Boolean).join('\n');
@@ -463,7 +548,7 @@ async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmai
 
   try {
     await t.sendMail({
-      from: SMTP_FROM,
+      from: formatFrom(teacherName),
       to: recipients.join(', '),
       replyTo: teacherEmail || undefined,
       subject: `Rendez-vous confirmé : ${eventTitle} le ${dateStr} à ${timeStr}`,

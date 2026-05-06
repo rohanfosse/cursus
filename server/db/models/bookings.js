@@ -212,6 +212,17 @@ function cancelBooking(id) {
   getDb().prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").run(id);
 }
 
+/**
+ * Marque le booking comme "presence confirmee" par l'attendee (lien dans le
+ * mail). Idempotent : si deja confirme, on ne touche pas le timestamp pour
+ * preserver la 1re date. Retourne le booking mis a jour.
+ */
+function confirmBookingPresence(id) {
+  const db = getDb();
+  db.prepare("UPDATE bookings SET confirmed_at = COALESCE(confirmed_at, datetime('now')) WHERE id = ?").run(id);
+  return db.prepare('SELECT * FROM bookings WHERE id = ?').get(id) || null;
+}
+
 function getBookingsForTeacher(teacherId, { from, to } = {}) {
   let sql = 'SELECT b.*, bet.title AS event_title FROM bookings b JOIN booking_event_types bet ON bet.id = b.event_type_id WHERE b.teacher_id = ?';
   const params = [teacherId];
@@ -344,7 +355,7 @@ module.exports = {
   getAvailabilityOverrides, setAvailabilityOverrides,
   getOrCreateToken, getTokenData, getPublicEventTypeBySlug,
   createBookingAtomic, updateBookingTeamsInfo,
-  getBookingByCancelToken, getBookingById, getBookingForToken, cancelBooking, rescheduleBooking,
+  getBookingByCancelToken, getBookingById, getBookingForToken, cancelBooking, confirmBookingPresence, rescheduleBooking,
   getBookingsForTeacher, getBookingsForSlot,
   getMicrosoftToken, saveMicrosoftToken, deleteMicrosoftToken,
   saveOAuthState, consumeOAuthState, pruneExpiredOAuthStates,

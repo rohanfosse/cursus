@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 86;
+const CURRENT_VERSION = 88;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -2047,6 +2047,22 @@ function runMigrations(db) {
           WHERE new.dm_student_id IS NULL AND new.deleted_at IS NULL;
         END;
       `);
+    },
+
+    // v87 (deep interview email Q7+Q10) : enrichissement des campagnes
+    // de RDV avec lieu (presentiel), ordre du jour et documents a apporter,
+    // affiches dans le mail tripartite. Champs nullables : feature optionnelle.
+    (db) => {
+      tryAlter(db, "ALTER TABLE booking_campaigns ADD COLUMN location TEXT");
+      tryAlter(db, "ALTER TABLE booking_campaigns ADD COLUMN agenda TEXT");
+      tryAlter(db, "ALTER TABLE booking_campaigns ADD COLUMN documents TEXT");
+    },
+
+    // v88 (deep interview Q4) : timestamp de confirmation de presence par
+    // l'attendee via lien dans le mail. Action idempotente (1 seule conf
+    // possible par booking, le 2eme clic redirige vers la page recap).
+    (db) => {
+      tryAlter(db, "ALTER TABLE bookings ADD COLUMN confirmed_at TEXT");
     },
   ];
 

@@ -144,6 +144,50 @@ router.post('/public/reschedule/:cancelToken', publicBookingLimiter, async (req,
   }
 })
 
+// ── POST /public/confirm/:cancelToken (presence confirmee) ────────────
+//
+// v88 (deep interview Q4) : permet a l'attendee de confirmer sa presence
+// depuis le mail tripartite. On reuse `cancel_token` comme token opaque
+// (deja unique par booking, deja distribue dans le mail). Idempotent.
+
+router.post('/public/confirm/:cancelToken', publicBookingLimiter, async (req, res) => {
+  try {
+    const booking = queries.getBookingByCancelToken(req.params.cancelToken)
+    if (!booking) return res.status(404).json({ ok: false, error: 'Reservation introuvable' })
+    if (booking.status === 'cancelled') {
+      return res.status(409).json({ ok: false, error: 'Ce rendez-vous a deja ete annule.', code: 'cancelled' })
+    }
+    const updated = queries.confirmBookingPresence(booking.id)
+
+    // Notif au prof : un attendee vient de confirmer (in-app uniquement,
+    // pas de mail — eviterait de spammer le prof a chaque confirmation).
+    const io = req.app.get('io')
+    if (io) {
+      io.to(`user:${booking.teacher_id}`).emit('booking:confirmed', {
+        bookingId: booking.id,
+        tutorName: booking.tutor_name,
+        studentName: booking.student_name,
+        eventTitle: booking.event_title,
+        confirmedAt: updated?.confirmed_at,
+      })
+    }
+
+    log.info('booking_presence_confirmed', { bookingId: booking.id, alreadyConfirmed: !!booking.confirmed_at })
+    res.json({ ok: true, data: {
+      bookingId: booking.id,
+      eventTitle: booking.event_title,
+      startDatetime: booking.start_datetime,
+      endDatetime: booking.end_datetime,
+      teacherName: booking.teacher_name,
+      confirmedAt: updated?.confirmed_at,
+      alreadyConfirmed: !!booking.confirmed_at,
+    } })
+  } catch (err) {
+    log.warn('confirm_error', { error: err.message })
+    res.status(500).json({ ok: false, error: 'Erreur lors de la confirmation.' })
+  }
+})
+
 // ── GET /public/:token/booking/:bookingId/ics ─────────────────────────
 
 router.get('/public/:token/booking/:bookingId/ics', publicBookingLimiter, publicBookingPerTokenLimiter, requireBookingToken, (req, res) => {

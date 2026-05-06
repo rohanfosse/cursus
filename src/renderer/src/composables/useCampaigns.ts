@@ -75,6 +75,11 @@ export interface CampaignDraft {
   useJitsi?: boolean
   fallbackVisioUrl?: string | null
   timezone?: string
+  // v87 (deep interview Q7) : champs optionnels affiches dans le mail
+  // tripartite. Acceptent les macros {{prenom_etudiant}}, {{date_rdv}}, etc.
+  location?: string
+  agenda?: string
+  documents?: string
 }
 
 export function useCampaigns() {

@@ -59,6 +59,8 @@ function createCampaign({
   teacherId, title, description, durationMinutes, bufferMinutes, color,
   startDate, endDate, hebdoRules, excludedDates, promoId,
   withTutor, notifyEmail, useJitsi, fallbackVisioUrl, timezone,
+  // v87 (deep interview Q7) : enrichissement tripartite — optionnels, nullables.
+  location, agenda, documents,
 }) {
   const db = getDb()
   // Atomic : event_type fantome + campagne dans la meme tx pour cohérence FK.
@@ -84,8 +86,9 @@ function createCampaign({
       INSERT INTO booking_campaigns
         (teacher_id, event_type_id, title, description, duration_minutes, buffer_minutes, color,
          start_date, end_date, hebdo_rules, excluded_dates, promo_id,
-         with_tutor, notify_email, use_jitsi, fallback_visio_url, timezone)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         with_tutor, notify_email, use_jitsi, fallback_visio_url, timezone,
+         location, agenda, documents)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       teacherId,
       eventTypeId,
@@ -104,6 +107,9 @@ function createCampaign({
       useJitsi ? 1 : 0,
       fallbackVisioUrl || null,
       timezone || 'Europe/Paris',
+      location  || null,
+      agenda    || null,
+      documents || null,
     )
     return res.lastInsertRowid
   })
@@ -114,7 +120,8 @@ function createCampaign({
 function updateCampaign(id, fields) {
   const allowed = ['title', 'description', 'duration_minutes', 'buffer_minutes', 'color',
     'start_date', 'end_date', 'hebdo_rules', 'excluded_dates', 'promo_id',
-    'with_tutor', 'notify_email', 'use_jitsi', 'fallback_visio_url', 'timezone', 'status', 'launched_at']
+    'with_tutor', 'notify_email', 'use_jitsi', 'fallback_visio_url', 'timezone', 'status', 'launched_at',
+    'location', 'agenda', 'documents']
   const sets = []
   const vals = []
   for (const k of allowed) {

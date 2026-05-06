@@ -265,14 +265,13 @@ router.post('/public/:token/book', publicBookingLimiter, publicBookingPerTokenLi
       })
     }
 
-    // Reminders 24h avant (atomique : 2 inserts en tx)
+    // Reminder 24h avant pour le prof uniquement (notification in-app via socket).
+    // Decision pilote v2.318 (Q15) : pas de mail rappel auto au tuteur,
+    // l'invitation calendrier .ics suffit. On garde la notif in-app au prof.
     const reminderAt = new Date(new Date(startDatetime).getTime() - 24 * 3600000).toISOString()
     if (new Date(reminderAt) > new Date()) {
       try {
-        getDb().transaction(() => {
-          queries.createBookingReminder(booking.id, 'email_tutor_24h', reminderAt)
-          queries.createBookingReminder(booking.id, 'email_teacher_24h', reminderAt)
-        })()
+        queries.createBookingReminder(booking.id, 'email_teacher_24h', reminderAt)
       } catch (err) {
         log.warn('booking_reminder_insert_failed', { bookingId: booking.id, error: err.message })
       }
@@ -562,13 +561,12 @@ router.post('/public/event/:slug/book', publicBookingLimiter, publicEventPerSlug
       })
     }
 
+    // Decision pilote v2.318 (Q15) : pas de mail rappel auto au tuteur,
+    // seul le rappel in-app au prof est conserve.
     const reminderAt = new Date(new Date(startDatetime).getTime() - 24 * 3600000).toISOString()
     if (new Date(reminderAt) > new Date()) {
       try {
-        getDb().transaction(() => {
-          queries.createBookingReminder(booking.id, 'email_tutor_24h', reminderAt)
-          queries.createBookingReminder(booking.id, 'email_teacher_24h', reminderAt)
-        })()
+        queries.createBookingReminder(booking.id, 'email_teacher_24h', reminderAt)
       } catch (err) {
         log.warn('booking_reminder_insert_failed', { bookingId: booking.id, error: err.message })
       }

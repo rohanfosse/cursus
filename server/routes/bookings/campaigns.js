@@ -58,6 +58,11 @@ const campaignFields = z.object({
     ),
   ).optional(),
   timezone: z.string().max(50).optional(),
+  // v87 (deep interview Q7) — enrichissement tripartite. Tous optionnels,
+  // limitations laxistes pour laisser le prof ecrire ce qu'il veut.
+  location:  z.string().max(300).optional(),
+  agenda:    z.string().max(2000).optional(),
+  documents: z.string().max(2000).optional(),
 })
 
 const createCampaignSchema = campaignFields.refine(
@@ -176,6 +181,7 @@ router.patch('/campaigns/:id', requireRole('teacher'), validate(updateCampaignSc
     hebdoRules: 'hebdo_rules', excludedDates: 'excluded_dates', promoId: 'promo_id',
     withTutor: 'with_tutor', notifyEmail: 'notify_email', useJitsi: 'use_jitsi',
     fallbackVisioUrl: 'fallback_visio_url', timezone: 'timezone',
+    location: 'location', agenda: 'agenda', documents: 'documents',
   }
   for (const [camel, snake] of Object.entries(map)) {
     if (req.body[camel] !== undefined) {

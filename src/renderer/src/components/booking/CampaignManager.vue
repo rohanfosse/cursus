@@ -81,6 +81,10 @@ interface FormState {
   withTutor: boolean
   notifyEmail: string
   useJitsi: boolean
+  // v87 (deep interview Q7) : enrichissement tripartite
+  location: string
+  agenda: string
+  documents: string
 }
 
 function emptyForm(): FormState {
@@ -98,8 +102,18 @@ function emptyForm(): FormState {
     withTutor: true,
     notifyEmail: props.defaultNotifyEmail || '',
     useJitsi: true,
+    location: '',
+    agenda: '',
+    documents: '',
   }
 }
+
+// Macros disponibles pour la description / agenda / documents.
+// Affiches sous les champs concerns pour aider le prof.
+const AVAILABLE_MACROS = [
+  '{{prenom_etudiant}}', '{{nom_etudiant}}', '{{nom_prof}}',
+  '{{titre_campagne}}', '{{date_rdv}}', '{{heure_rdv}}', '{{duree}}',
+] as const
 
 const form = ref<FormState>(emptyForm())
 const newExclusion = ref('')
@@ -147,6 +161,9 @@ async function onSubmit() {
   const c = await createCampaign({
     title: form.value.title.trim(),
     description: form.value.description.trim() || undefined,
+    location:    form.value.location.trim() || undefined,
+    agenda:      form.value.agenda.trim() || undefined,
+    documents:   form.value.documents.trim() || undefined,
     durationMinutes: form.value.durationMinutes,
     bufferMinutes: form.value.bufferMinutes,
     color: form.value.color,
@@ -478,9 +495,13 @@ onMounted(() => {
               v-model="form.description"
               class="form-textarea"
               rows="2"
-              placeholder="ex. Bilan mi-parcours du stage. Le tuteur entreprise est invite."
+              placeholder="ex. Bonjour {{prenom_etudiant}}, on fait le point sur ton stage."
               maxlength="500"
             />
+            <p class="cm-macros-hint">
+              Variables :
+              <code v-for="m in AVAILABLE_MACROS" :key="m">{{ m }}</code>
+            </p>
           </div>
 
           <div class="cm-field">
@@ -612,6 +633,52 @@ onMounted(() => {
                 </button>
               </span>
             </div>
+          </div>
+
+          <!-- v87 (deep interview Q7) : enrichissement contenu mail tripartite.
+               Tous optionnels, affiches dans la confirmation envoyee aux 3 parties. -->
+          <div class="cm-field cm-field--full">
+            <label class="cm-label" for="cm-location">
+              Lieu (si presentiel)
+              <span class="cm-label-hint">Optionnel — affiche dans le mail confirmation</span>
+            </label>
+            <input
+              id="cm-location"
+              v-model="form.location"
+              class="form-input"
+              placeholder="ex. Campus CESI Bordeaux, salle B204"
+              maxlength="300"
+            />
+          </div>
+
+          <div class="cm-field cm-field--full">
+            <label class="cm-label" for="cm-agenda">
+              Ordre du jour
+              <span class="cm-label-hint">Optionnel — variables prenom_etudiant, date_rdv, etc. acceptees</span>
+            </label>
+            <textarea
+              id="cm-agenda"
+              v-model="form.agenda"
+              class="form-textarea"
+              rows="3"
+              placeholder="ex.\n1. Retour sur les missions du semestre\n2. Difficultes rencontrees\n3. Objectifs de fin d'annee"
+              maxlength="2000"
+            />
+          </div>
+
+          <div class="cm-field cm-field--full">
+            <label class="cm-label" for="cm-documents">
+              Documents a apporter
+              <span class="cm-label-hint">Optionnel</span>
+            </label>
+            <textarea
+              id="cm-documents"
+              v-model="form.documents"
+              class="form-textarea"
+              rows="2"
+              placeholder="ex. Convention de stage, derniere fiche d'evaluation, CV a jour"
+              maxlength="2000"
+            />
           </div>
 
           <!-- Options visite + visio -->
@@ -985,6 +1052,26 @@ onMounted(() => {
   color: var(--text-muted);
   font-style: italic;
   line-height: 1.5;
+}
+
+/* Liste des macros disponibles sous le champ description. Sobre, code-mono. */
+.cm-macros-hint {
+  margin: var(--space-xs) 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.cm-macros-hint code {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 1px 6px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  border-radius: var(--radius-xs);
+  font-weight: 600;
 }
 
 /* Palette couleurs */
