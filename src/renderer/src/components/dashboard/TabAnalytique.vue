@@ -136,29 +136,50 @@ function setRange(range: '7d' | '30d' | 'all') {
 .analytics-quick-stats { display: flex; gap: 12px; flex-wrap: wrap; }
 .analytics-stat {
   flex: 1; min-width: 100px;
-  background: var(--bg-secondary); border-radius: var(--radius-sm); padding: 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 14px;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
 }
-.analytics-stat-value { font-size: 22px; font-weight: 700; color: var(--text-primary); }
-.analytics-stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
-.analytics-card { background: var(--bg-secondary); border-radius: var(--radius-sm); padding: 16px; }
-.analytics-card-title {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 14px;
+.analytics-stat-value { font-size: 26px; font-weight: 800; color: var(--text-primary); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.analytics-stat-label { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.analytics-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
 }
+.analytics-card-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 14px;
+}
+.analytics-card-title svg { color: var(--text-muted); }
 .analytics-bars { display: flex; flex-direction: column; gap: 6px; }
-.analytics-bar-row { display: flex; align-items: center; gap: 8px; }
+.analytics-bar-row { display: flex; align-items: center; gap: 10px; }
 .analytics-bar-label { width: 40px; flex-shrink: 0; font-size: 11px; color: var(--text-muted); text-align: right; }
-.analytics-bar-label-wide { width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.analytics-bar-track { flex: 1; height: 18px; background: var(--bg-hover); border-radius: var(--radius-xs); overflow: hidden; }
-.analytics-bar-fill { height: 100%; border-radius: var(--radius-xs); transition: width var(--motion-slow) var(--ease-out); }
-.analytics-bar-count { width: 32px; flex-shrink: 0; font-size: 11px; color: var(--text-secondary); text-align: right; font-variant-numeric: tabular-nums; }
+.analytics-bar-label-wide { width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.analytics-bar-track {
+  flex: 1; height: 14px;
+  /* Track plus contraste que le parent : sur le theme `dark` (bg-elevated
+     #221E45), --bg-canvas est plus sombre, ce qui donne un creneau
+     visible meme quand la barre fill est a 0%. Avant on utilisait
+     --bg-hover (rgba accent .08) qui se confondait avec le card. */
+  background: color-mix(in srgb, var(--bg-canvas) 60%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.analytics-bar-fill { height: 100%; border-radius: 999px; transition: width var(--motion-slow) var(--ease-out); }
+.analytics-bar-count { width: 36px; flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--text-secondary); text-align: right; font-variant-numeric: tabular-nums; }
 .analytics-trend-chart { display: flex; gap: 8px; align-items: flex-end; padding: 12px 4px 0; height: 120px; }
 .analytics-trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
-.analytics-trend-count { font-size: 11px; font-weight: 600; color: var(--text-secondary); min-height: 16px; }
+.analytics-trend-count { font-size: 11px; font-weight: 600; color: var(--text-secondary); min-height: 16px; font-variant-numeric: tabular-nums; }
 .analytics-trend-bar-bg {
   flex: 1; width: 100%; max-width: 32px;
-  background: var(--bg-hover); border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--bg-canvas) 60%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  border-radius: var(--radius-xs);
   display: flex; align-items: flex-end; overflow: hidden;
 }
 .analytics-trend-bar-fill {

@@ -133,10 +133,10 @@ async function sendBookingConfirmation({ to, tutorName, teacherName, studentName
 
   const details = detailsTable([
     { label: 'Date',       value: escHtml(dateStr) },
-    { label: 'Horaire',    value: `${escHtml(timeStr)} a ${escHtml(endTime)}`, mono: true },
+    { label: 'Horaire',    value: `${escHtml(timeStr)} à ${escHtml(endTime)}`, mono: true },
     { label: 'Type',       value: escHtml(eventTitle) },
     { label: 'Enseignant', value: escHtml(teacherName || '') },
-    { label: 'Etudiant',   value: escHtml(studentName || '') },
+    { label: 'Étudiant',   value: escHtml(studentName || '') },
   ]);
 
   const cancelLine = safeCancel
@@ -144,34 +144,34 @@ async function sendBookingConfirmation({ to, tutorName, teacherName, studentName
     : '';
 
   const html = emailShell({
-    eyebrow: 'Rendez-vous confirme',
+    eyebrow: 'Rendez-vous confirmé',
     title: eventTitle,
-    intro: `Bonjour ${escHtml(tutorName)}, votre rendez-vous a bien ete enregistre. Voici les informations a conserver.`,
+    intro: `Bonjour ${escHtml(tutorName)}, votre rendez-vous a bien été enregistré. Voici les informations à conserver.`,
     bodyHtml: details,
-    cta: safeJoin ? { label: 'Rejoindre la visioconference', url: safeJoin } : null,
+    cta: safeJoin ? { label: 'Rejoindre la visioconférence', url: safeJoin } : null,
     footnote: cancelLine,
   });
 
   const text = [
-    `Rendez-vous confirme : ${eventTitle}`,
+    `Rendez-vous confirmé : ${eventTitle}`,
     '',
     `Bonjour ${tutorName},`,
-    'Votre rendez-vous a bien ete enregistre.',
+    'Votre rendez-vous a bien été enregistré.',
     '',
-    `Date     : ${dateStr}`,
-    `Horaire  : ${timeStr} a ${endTime}`,
-    `Avec     : ${teacherName || '-'}`,
-    `Etudiant : ${studentName || '-'}`,
+    `Date      : ${dateStr}`,
+    `Horaire   : ${timeStr} à ${endTime}`,
+    `Avec      : ${teacherName || '-'}`,
+    `Étudiant  : ${studentName || '-'}`,
     '',
-    safeJoin   ? `Visio    : ${safeJoin}`   : '',
-    safeCancel ? `Annuler  : ${safeCancel}` : '',
+    safeJoin   ? `Visio     : ${safeJoin}`   : '',
+    safeCancel ? `Annuler   : ${safeCancel}` : '',
   ].filter(Boolean).join('\n');
 
   try {
     await t.sendMail({
       from: SMTP_FROM,
       to,
-      subject: `Rendez-vous confirme : ${eventTitle} le ${dateStr} a ${timeStr}`,
+      subject: `Rendez-vous confirmé : ${eventTitle} le ${dateStr} à ${timeStr}`,
       html, text,
     });
     return true;
@@ -192,28 +192,28 @@ async function sendBookingCancellation({ to, tutorName, eventTitle, startDatetim
   const safeRebook = safeHttpUrl(rebookUrl);
 
   const html = emailShell({
-    eyebrow: 'Rendez-vous annule',
+    eyebrow: 'Rendez-vous annulé',
     title: eventTitle,
-    intro: `Bonjour ${escHtml(tutorName)}, le rendez-vous prevu le <strong>${escHtml(dateStr)} a ${escHtml(timeStr)}</strong> a ete annule.`,
+    intro: `Bonjour ${escHtml(tutorName)}, le rendez-vous prévu le <strong>${escHtml(dateStr)} à ${escHtml(timeStr)}</strong> a été annulé.`,
     bodyHtml: '',
-    cta: safeRebook ? { label: 'Reserver un nouveau creneau', url: safeRebook } : null,
+    cta: safeRebook ? { label: 'Réserver un nouveau créneau', url: safeRebook } : null,
     footnote: '',
   });
 
   const text = [
-    `Rendez-vous annule : ${eventTitle}`,
+    `Rendez-vous annulé : ${eventTitle}`,
     '',
     `Bonjour ${tutorName},`,
-    `Le rendez-vous prevu le ${dateStr} a ${timeStr} a ete annule.`,
+    `Le rendez-vous prévu le ${dateStr} à ${timeStr} a été annulé.`,
     '',
-    safeRebook ? `Reserver un nouveau creneau : ${safeRebook}` : '',
+    safeRebook ? `Réserver un nouveau créneau : ${safeRebook}` : '',
   ].filter(Boolean).join('\n');
 
   try {
     await t.sendMail({
       from: SMTP_FROM,
       to,
-      subject: `Rendez-vous annule : ${eventTitle} (${dateStr})`,
+      subject: `Rendez-vous annulé : ${eventTitle} (${dateStr})`,
       html, text,
     });
     return true;
@@ -242,9 +242,9 @@ async function sendBookingReminder({ to, tutorName, teacherName, eventTitle, sta
   const html = emailShell({
     eyebrow: 'Rappel rendez-vous',
     title: eventTitle,
-    intro: `Bonjour ${escHtml(tutorName)}, votre rendez-vous est prevu demain. Voici un rappel pour ne pas l'oublier.`,
+    intro: `Bonjour ${escHtml(tutorName)}, votre rendez-vous est prévu demain. Voici un rappel pour ne pas l'oublier.`,
     bodyHtml: details,
-    cta: safeJoin ? { label: 'Rejoindre la visioconference', url: safeJoin } : null,
+    cta: safeJoin ? { label: 'Rejoindre la visioconférence', url: safeJoin } : null,
     footnote: '',
   });
 
@@ -252,7 +252,7 @@ async function sendBookingReminder({ to, tutorName, teacherName, eventTitle, sta
     `Rappel rendez-vous : ${eventTitle}`,
     '',
     `Bonjour ${tutorName},`,
-    'Votre rendez-vous est prevu demain.',
+    'Votre rendez-vous est prévu demain.',
     '',
     `Date    : ${dateStr}`,
     `Horaire : ${timeStr}`,
@@ -264,7 +264,7 @@ async function sendBookingReminder({ to, tutorName, teacherName, eventTitle, sta
   try {
     await t.sendMail({
       from: SMTP_FROM, to,
-      subject: `Rappel : ${eventTitle} demain a ${timeStr}`,
+      subject: `Rappel : ${eventTitle} demain à ${timeStr}`,
       html, text,
     });
     return true;
@@ -285,27 +285,27 @@ async function sendBookingReschedule({ to, tutorName, eventTitle, oldDatetime, r
   const safeRebook = safeHttpUrl(rebookUrl);
 
   const html = emailShell({
-    eyebrow: 'Rendez-vous reporte',
+    eyebrow: 'Rendez-vous reporté',
     title: eventTitle,
-    intro: `Bonjour ${escHtml(tutorName)}, le rendez-vous prevu le <strong>${escHtml(dateStr)} a ${escHtml(timeStr)}</strong> a ete reporte. Vous pouvez choisir un nouveau creneau ci-dessous.`,
+    intro: `Bonjour ${escHtml(tutorName)}, le rendez-vous prévu le <strong>${escHtml(dateStr)} à ${escHtml(timeStr)}</strong> a été reporté. Vous pouvez choisir un nouveau créneau ci-dessous.`,
     bodyHtml: '',
-    cta: safeRebook ? { label: 'Choisir un nouveau creneau', url: safeRebook } : null,
+    cta: safeRebook ? { label: 'Choisir un nouveau créneau', url: safeRebook } : null,
     footnote: '',
   });
 
   const text = [
-    `Rendez-vous reporte : ${eventTitle}`,
+    `Rendez-vous reporté : ${eventTitle}`,
     '',
     `Bonjour ${tutorName},`,
-    `Le rendez-vous prevu le ${dateStr} a ${timeStr} a ete reporte.`,
+    `Le rendez-vous prévu le ${dateStr} à ${timeStr} a été reporté.`,
     '',
-    safeRebook ? `Nouveau creneau : ${safeRebook}` : '',
+    safeRebook ? `Nouveau créneau : ${safeRebook}` : '',
   ].filter(Boolean).join('\n');
 
   try {
     await t.sendMail({
       from: SMTP_FROM, to,
-      subject: `Rendez-vous reporte : ${eventTitle}`,
+      subject: `Rendez-vous reporté : ${eventTitle}`,
       html, text,
     });
     return true;
@@ -347,31 +347,31 @@ async function sendCampaignInvite({ to, studentName, teacherName, campaignTitle,
     ? `<p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">${escHtml(campaignDescription)}</p>`
     : '';
   const deadlineParagraph = deadlineStr
-    ? `<p style="margin: 0 0 16px; font-size: 14px; line-height: 1.5; color: #475569;">A reserver avant le <strong style="color: #0f172a;">${escHtml(deadlineStr)}</strong>.</p>`
+    ? `<p style="margin: 0 0 16px; font-size: 14px; line-height: 1.5; color: #475569;">À réserver avant le <strong style="color: #0f172a;">${escHtml(deadlineStr)}</strong>.</p>`
     : '';
 
   const html = emailShell({
-    eyebrow: 'Invitation a un rendez-vous',
+    eyebrow: 'Invitation à un rendez-vous',
     title: campaignTitle,
-    intro: `Bonjour ${escHtml(studentName)}, <strong>${escHtml(teacherName)}</strong> vous invite a reserver un creneau pour ce rendez-vous.`,
+    intro: `Bonjour ${escHtml(studentName)}, <strong>${escHtml(teacherName)}</strong> vous invite à réserver un créneau pour ce rendez-vous.`,
     bodyHtml: `${descParagraph}${deadlineParagraph}`,
-    cta: { label: 'Choisir mon creneau', url: safeBooking },
-    footnote: 'Ce lien est personnel et associe a votre adresse mail. Merci de ne pas le transferer a un tiers.',
+    cta: { label: 'Choisir mon créneau', url: safeBooking },
+    footnote: 'Ce lien est personnel et associé à votre adresse mail. Merci de ne pas le transférer à un tiers.',
   });
 
   const text = [
     `Invitation : ${campaignTitle}`,
     '',
     `Bonjour ${studentName},`,
-    `${teacherName} vous invite a reserver un creneau pour ce rendez-vous.`,
+    `${teacherName} vous invite à réserver un créneau pour ce rendez-vous.`,
     '',
     campaignDescription ? campaignDescription : '',
     campaignDescription ? '' : '',
-    deadlineStr ? `A reserver avant le ${deadlineStr}.` : '',
+    deadlineStr ? `À réserver avant le ${deadlineStr}.` : '',
     deadlineStr ? '' : '',
-    `Pour choisir votre creneau : ${safeBooking}`,
+    `Pour choisir votre créneau : ${safeBooking}`,
     '',
-    'Ce lien est personnel et associe a votre adresse mail. Merci de ne pas le transferer.',
+    'Ce lien est personnel et associé à votre adresse mail. Merci de ne pas le transférer.',
   ].filter(Boolean).join('\n');
 
   try {
@@ -379,7 +379,7 @@ async function sendCampaignInvite({ to, studentName, teacherName, campaignTitle,
       from: SMTP_FROM,
       to,
       replyTo: notifyEmail || undefined,
-      subject: `${campaignTitle} : choisissez votre creneau`,
+      subject: `${campaignTitle} : choisissez votre créneau`,
       html, text,
     });
     return true;
@@ -412,44 +412,44 @@ async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmai
   const safeCancel = safeHttpUrl(cancelUrl);
   const detailsRows = [
     { label: 'Date',       value: escHtml(dateStr) },
-    { label: 'Horaire',    value: `${escHtml(timeStr)} a ${escHtml(endTime)}`, mono: true },
+    { label: 'Horaire',    value: `${escHtml(timeStr)} à ${escHtml(endTime)}`, mono: true },
     { label: 'Enseignant', value: escHtml(teacherName || '-') },
-    { label: 'Etudiant',   value: escHtml(studentName || '-') },
+    { label: 'Étudiant',   value: escHtml(studentName || '-') },
   ];
   if (tutorName) detailsRows.push({ label: 'Tuteur entreprise', value: escHtml(tutorName) });
   const details = detailsTable(detailsRows);
 
   const footnoteParts = [
-    'Une invitation calendrier (.ics) est jointe a cet email. Ouvrez-la pour ajouter le rendez-vous a votre agenda.',
+    'Une invitation calendrier (.ics) est jointe à cet email. Ouvrez-la pour ajouter le rendez-vous à votre agenda.',
   ];
   if (safeCancel) {
     footnoteParts.push(`Pour annuler ou reporter, <a href="${escHtml(safeCancel)}" style="color: #4338ca; text-decoration: underline;">cliquez ici</a>.`);
   }
 
   const html = emailShell({
-    eyebrow: 'Rendez-vous confirme',
+    eyebrow: 'Rendez-vous confirmé',
     title: eventTitle,
-    intro: 'Le rendez-vous est confirme pour les trois parties. Voici les informations a conserver.',
+    intro: 'Le rendez-vous est confirmé pour les trois parties. Voici les informations à conserver.',
     bodyHtml: details,
-    cta: safeJoin ? { label: 'Rejoindre la visioconference', url: safeJoin } : null,
+    cta: safeJoin ? { label: 'Rejoindre la visioconférence', url: safeJoin } : null,
     footnote: footnoteParts.join('<br>'),
   });
 
   const text = [
-    `Rendez-vous confirme : ${eventTitle}`,
+    `Rendez-vous confirmé : ${eventTitle}`,
     '',
-    'Le rendez-vous est confirme pour les trois parties.',
+    'Le rendez-vous est confirmé pour les trois parties.',
     '',
     `Date              : ${dateStr}`,
-    `Horaire           : ${timeStr} a ${endTime}`,
+    `Horaire           : ${timeStr} à ${endTime}`,
     `Enseignant        : ${teacherName || '-'}`,
-    `Etudiant          : ${studentName || '-'}`,
+    `Étudiant          : ${studentName || '-'}`,
     tutorName ? `Tuteur entreprise : ${tutorName}` : '',
     '',
     safeJoin   ? `Visio   : ${safeJoin}`   : '',
     safeCancel ? `Annuler : ${safeCancel}` : '',
     '',
-    'Une invitation calendrier (.ics) est jointe a cet email.',
+    'Une invitation calendrier (.ics) est jointe à cet email.',
   ].filter(Boolean).join('\n');
 
   const recipients = [studentEmail, tutorEmail, teacherEmail].filter(Boolean);
@@ -466,7 +466,7 @@ async function sendTripartiteConfirmation({ studentEmail, studentName, tutorEmai
       from: SMTP_FROM,
       to: recipients.join(', '),
       replyTo: teacherEmail || undefined,
-      subject: `Rendez-vous confirme : ${eventTitle} le ${dateStr} a ${timeStr}`,
+      subject: `Rendez-vous confirmé : ${eventTitle} le ${dateStr} à ${timeStr}`,
       html, text,
       attachments,
       icalEvent: icsContent ? { method: 'REQUEST', content: icsContent } : undefined,
