@@ -240,7 +240,7 @@ app.get('/health', (_req, res) => {
       ok: true,
       version: require('../package.json').version,
       uptime: Math.floor(process.uptime()),
-      connections: onlineUsers.size,
+      connections: io?.engine?.clientsCount ?? 0,
       memory: Math.round(mem.heapUsed / 1024 / 1024),
       rss: Math.round(mem.rss / 1024 / 1024),
     }
