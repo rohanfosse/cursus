@@ -1,27 +1,24 @@
 <script setup lang="ts">
 /**
- * SidebarBooking — refonte v2.303 :
- *   - CTA primaire "+ Nouveau RDV" en haut de la sidebar (ouvre la
- *     modale CreateBookingModal directement, sans passer par TabBooking)
- *   - Header simplifie : icone + titre + sous-titre, pas de blockmark
- *     redondant avec NavRail
- *   - Statut Microsoft : pill compacte sans gear (gear redirige vers
- *     parametres mais l'icone n'apporte pas d'info, on simplifie)
- *   - Stats : 3 chiffres alignes en ligne (semaine / en attente /
- *     campagnes) plutot qu'une grille 2x2 plus dense
- *   - Prochains RDV : carte + barre d'accent gauche tintee par event-type,
- *     timestamps relatifs lisibles
- *   - Configuration (event-types / dispos / campagnes) regroupee dans
- *     un panneau "Configuration" en bas, depliable
+ * SidebarBooking — sidebar de la page Rendez-vous.
+ *
+ * Refonte v2.314.1 : simplification suite a la refonte de la page
+ * principale (qui absorbe maintenant les stats + tabs config). La sidebar
+ * ne garde que ce qui est *complementaire* au contenu de la page :
+ *
+ *   - Header compact (icone + titre)
+ *   - CTA primaire "+ Nouveau RDV" (raccourci visible depuis tout
+ *     ecran de l'app, ouvre directement le modal CreateBookingModal)
+ *   - Statuts services (MS + SMTP) — consolides en 1 chip si tout OK
+ *   - Liste des prochains RDV (5) — utile car visible quel que soit
+ *     l'onglet actif de la page principale
+ *
+ * Plus de doublon de stats (deja dans la stats-strip de TabBooking) ni
+ * de "Configuration depliable" (les tabs de TabBooking suffisent).
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import {
-  Calendar, CalendarPlus, CalendarRange, Clock, AlertCircle,
-  Settings, Plus, Video, ChevronDown, ChevronRight,
-} from 'lucide-vue-next'
+import { Calendar, Clock, Plus, Video, Settings } from 'lucide-vue-next'
 import { useBooking } from '@/composables/useBooking'
-import { useCampaigns } from '@/composables/useCampaigns'
 import { useMicrosoftConnection } from '@/composables/useMicrosoftConnection'
 import { useSmtpStatus } from '@/composables/useSmtpStatus'
 import { useModalsStore } from '@/stores/modals'
@@ -29,11 +26,9 @@ import { useAppStore } from '@/stores/app'
 import CreateBookingModal from '@/components/booking/CreateBookingModal.vue'
 import SmtpStatusModal from '@/components/booking/SmtpStatusModal.vue'
 
-const router = useRouter()
 const modals = useModalsStore()
 const appStore = useAppStore()
 const booking = useBooking()
-const { campaigns, fetchAll: fetchCampaigns } = useCampaigns()
 const { connected: msConnected, refresh: refreshMs } = useMicrosoftConnection()
 const smtp = useSmtpStatus()
 const showSmtpModal = ref(false)
@@ -84,33 +79,7 @@ function openCreateModal() {
   showCreateModal.value = true
 }
 
-function emitCreateType() {
-  // Le bouton "Nouveau type" du header de TabBooking ecoute cet event.
-  window.dispatchEvent(new CustomEvent('cursus:booking-create-type'))
-}
-
 function openSettings() { modals.settings = true }
-
-// ── Stats compactes ───────────────────────────────────────────────────────
-
-const activeTypes = computed(() => booking.eventTypes.value.filter(et => et.is_active).length)
-const activeCampaigns = computed(() => campaigns.value.filter(c => c.status === 'active').length)
-const draftCampaigns = computed(() => campaigns.value.filter(c => c.status === 'draft').length)
-const pendingCount = computed(() => booking.bookings.value.filter(b => b.status === 'pending').length)
-
-const bookingsThisWeek = computed(() => {
-  const now = new Date()
-  const day = now.getDay()
-  const offset = day === 0 ? 6 : day - 1
-  const start = new Date(now); start.setDate(now.getDate() - offset); start.setHours(0, 0, 0, 0)
-  const end = new Date(start); end.setDate(start.getDate() + 7)
-  let count = 0
-  for (const bk of booking.bookings.value) {
-    const d = new Date(`${bk.date}T${bk.start_time}`)
-    if (d >= start && d < end && bk.status !== 'cancelled') count++
-  }
-  return count
-})
 
 // ── Prochains RDV ─────────────────────────────────────────────────────────
 
@@ -168,16 +137,11 @@ function relativeWhen(t: number): string {
     + ' ' + tD.toTimeString().slice(0, 5)
 }
 
-// ── Configuration depliable ──────────────────────────────────────────────
-
-const configOpen = ref(false)
-
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 
 onMounted(() => {
   booking.fetchAll()
   booking.initSocketListeners()
-  fetchCampaigns()
   refreshMs()
   smtp.refresh()
   loadStudents()
@@ -189,13 +153,6 @@ onUnmounted(() => {
   booking.disposeSocketListeners()
   window.removeEventListener('cursus:booking-open-create', openCreateModal)
 })
-
-// Navigation interne — clic sur stats → page complete.
-function goToBooking() {
-  if (router.currentRoute.value.name !== 'booking') {
-    router.push({ name: 'booking' })
-  }
-}
 </script>
 
 <template>
@@ -258,30 +215,6 @@ function goToBooking() {
       </template>
     </div>
 
-    <!-- Stats : 3 chiffres en ligne -->
-    <div class="sb-bk-stats" role="group" aria-label="Vue d'ensemble">
-      <button type="button" class="sb-bk-stat" @click="goToBooking">
-        <span class="sb-bk-stat-value">{{ bookingsThisWeek }}</span>
-        <span class="sb-bk-stat-label">cette semaine</span>
-      </button>
-      <button
-        type="button"
-        class="sb-bk-stat"
-        :class="{ 'sb-bk-stat--alert': pendingCount > 0 }"
-        @click="goToBooking"
-      >
-        <AlertCircle v-if="pendingCount > 0" :size="11" class="sb-bk-stat-icon" aria-hidden="true" />
-        <span class="sb-bk-stat-value">{{ pendingCount }}</span>
-        <span class="sb-bk-stat-label">en attente</span>
-      </button>
-      <button type="button" class="sb-bk-stat" @click="goToBooking">
-        <span class="sb-bk-stat-value">
-          {{ activeCampaigns }}<span v-if="draftCampaigns" class="sb-bk-stat-suffix">+{{ draftCampaigns }}</span>
-        </span>
-        <span class="sb-bk-stat-label">campagnes</span>
-      </button>
-    </div>
-
     <!-- Prochains RDV -->
     <section class="sb-bk-section">
       <header class="sb-bk-section-header">
@@ -319,30 +252,6 @@ function goToBooking() {
           </div>
         </li>
       </ul>
-    </section>
-
-    <!-- Configuration depliable -->
-    <section class="sb-bk-config">
-      <button
-        type="button"
-        class="sb-bk-config-toggle"
-        :aria-expanded="configOpen"
-        @click="configOpen = !configOpen"
-      >
-        <component :is="configOpen ? ChevronDown : ChevronRight" :size="11" />
-        <span>Configuration</span>
-        <span class="sb-bk-config-meta">{{ activeTypes }} types · {{ activeCampaigns + draftCampaigns }} campagnes</span>
-      </button>
-      <div v-if="configOpen" class="sb-bk-config-actions">
-        <button type="button" class="sb-bk-config-action" @click="emitCreateType">
-          <CalendarPlus :size="12" />
-          <span>Nouveau type de RDV</span>
-        </button>
-        <button type="button" class="sb-bk-config-action" @click="goToBooking">
-          <CalendarRange :size="12" />
-          <span>Gerer les campagnes</span>
-        </button>
-      </div>
     </section>
 
     <!-- Modale de creation -->
@@ -459,57 +368,6 @@ function goToBooking() {
 }
 .sb-bk-service-gear { color: var(--text-muted); flex-shrink: 0; }
 
-/* ── Stats : 3 chiffres en ligne ── */
-.sb-bk-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 5px;
-}
-.sb-bk-stat {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 7px 9px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font-family: inherit;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
-}
-.sb-bk-stat:hover {
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
-  background: var(--bg-hover);
-}
-.sb-bk-stat:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.sb-bk-stat--alert {
-  border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
-  background: color-mix(in srgb, var(--color-warning) 8%, var(--bg-elevated));
-}
-.sb-bk-stat--alert .sb-bk-stat-icon { color: var(--color-warning); }
-.sb-bk-stat-icon { position: absolute; top: 6px; right: 7px; }
-.sb-bk-stat-value {
-  font-size: 18px; font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-.sb-bk-stat-label {
-  font-size: 10px; font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: .04em;
-  line-height: 1.2;
-}
-.sb-bk-stat-suffix {
-  font-size: 11px; font-weight: 600;
-  color: var(--text-muted);
-  margin-left: 2px;
-}
-
 /* ── Sections ── */
 .sb-bk-section { display: flex; flex-direction: column; gap: 4px; }
 .sb-bk-section-header {
@@ -614,64 +472,8 @@ function goToBooking() {
 .sb-bk-upcoming-visio:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
 .sb-bk-upcoming-visio:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
-/* ── Configuration ── */
-.sb-bk-config {
-  margin-top: 4px;
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-}
-.sb-bk-config-toggle {
-  display: flex; align-items: center; gap: 6px;
-  width: 100%;
-  padding: 4px 4px;
-  background: transparent; border: none;
-  font-family: inherit;
-  font-size: 10px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .06em;
-  color: var(--text-muted);
-  cursor: pointer;
-  text-align: left;
-}
-.sb-bk-config-toggle:hover { color: var(--text-secondary); }
-.sb-bk-config-meta {
-  margin-left: auto;
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: .02em;
-  text-transform: none;
-  color: var(--text-muted);
-}
-.sb-bk-config-actions {
-  display: flex; flex-direction: column; gap: 3px;
-  margin-top: 4px;
-}
-.sb-bk-config-action {
-  display: flex; align-items: center; gap: 8px;
-  padding: 6px 10px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-  transition: all var(--motion-fast) var(--ease-out);
-}
-.sb-bk-config-action:hover {
-  border-style: solid;
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-  color: var(--accent);
-}
-.sb-bk-config-action:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-
 @media (prefers-reduced-motion: reduce) {
   .sb-bk-cta-primary,
-  .sb-bk-stat,
-  .sb-bk-ms-row,
-  .sb-bk-config-action,
   .sb-bk-upcoming-item,
   .sb-bk-upcoming-visio { transition: none; }
 }

@@ -14,6 +14,7 @@ import { ref } from 'vue'
 import { Plus, LayoutList, CalendarDays, Calendar, Clock } from 'lucide-vue-next'
 import BookingCalendarView from './BookingCalendarView.vue'
 import CreateBookingModal from '@/components/booking/CreateBookingModal.vue'
+import BookingDetailModal from '@/components/booking/BookingDetailModal.vue'
 import { type Booking, type BookingHandle } from '@/composables/useBooking'
 
 interface BookingStudent { id: number; name?: string; email?: string; promo_id?: number; promo_name?: string }
@@ -46,6 +47,16 @@ function onSlotClick(payload: { date: string; startTime: string }) {
 function bookingColor(bk: Booking): string {
   const et = props.booking.eventTypes.value.find(e => e.title === bk.event_type_title)
   return et?.color ?? 'var(--color-rex)'
+}
+
+// ── Modal detail ──────────────────────────────────────────────────────────
+
+const showDetailModal = ref(false)
+const detailBooking = ref<Booking | null>(null)
+
+function openDetail(bk: Booking) {
+  detailBooking.value = bk
+  showDetailModal.value = true
 }
 </script>
 
@@ -97,14 +108,18 @@ function bookingColor(bk: Booking): string {
       :bookings="booking.sortedBookings.value"
       :event-types="booking.eventTypes.value"
       @slot-click="onSlotClick"
+      @booking-click="openDetail"
     />
 
     <div v-else class="booking-list">
-      <div
+      <button
         v-for="bk in booking.sortedBookings.value"
         :key="bk.id"
+        type="button"
         class="booking-card"
         :style="{ '--bk-accent': bookingColor(bk) }"
+        :aria-label="`Detail du RDV ${bk.event_type_title || ''} le ${booking.formatDate(bk.date)} a ${booking.formatTime(bk.start_time)}`"
+        @click="openDetail(bk)"
       >
         <div class="bk-date">
           <Calendar :size="11" aria-hidden="true" /> {{ booking.formatDate(bk.date) }}
@@ -121,7 +136,7 @@ function bookingColor(bk: Booking): string {
         <span class="bk-badge" :class="booking.statusClass(bk.status)">
           {{ booking.statusLabel(bk.status) }}
         </span>
-      </div>
+      </button>
       <div v-if="booking.sortedBookings.value.length === 0" class="empty-state">
         <p>Aucun rendez-vous a venir.</p>
         <button type="button" class="empty-cta" @click="openCreateBlank">
@@ -137,6 +152,13 @@ function bookingColor(bk: Booking): string {
       :booking="booking"
       :students="props.allStudents ?? []"
       :prefill="createPrefill"
+    />
+
+    <!-- Modale detail (clic sur bloc calendrier ou carte liste) -->
+    <BookingDetailModal
+      v-model="showDetailModal"
+      :booking="detailBooking"
+      :booking-handle="booking"
     />
   </div>
 </template>
@@ -218,12 +240,21 @@ function bookingColor(bk: Booking): string {
   grid-template-columns: auto auto 1fr auto;
   align-items: center;
   gap: var(--space-sm);
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
   transition: transform var(--motion-fast) var(--ease-out),
               box-shadow var(--motion-fast) var(--ease-out);
 }
 .booking-card:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 14px color-mix(in srgb, var(--bk-accent) 16%, transparent);
+}
+.booking-card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 .bk-date, .bk-time {
   display: inline-flex;

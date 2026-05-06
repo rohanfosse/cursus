@@ -1,5 +1,55 @@
 # Changelog
 
+## v2.315.0 (2026-05-06)
+
+### Page RDV : sidebar simplifiee + modal de detail au clic sur le calendrier
+
+Suite a la refonte v2.314 : la sidebar restait redondante (stats deja
+visibles dans la stats-strip de la page principale, "Configuration
+depliable" qui dupliquait les tabs). En meme temps, manque ergo : on
+voyait un RDV dans le calendrier mais on ne pouvait pas cliquer dessus
+pour avoir le detail.
+
+**SidebarBooking.vue**
+
+- Retire le bandeau de 3 stats (cette semaine / en attente / campagnes)
+  : redondant avec la stats-strip de la page principale qui les expose
+  deja en chips cliquables.
+- Retire le panneau "Configuration depliable" : les tabs de la page
+  principale (Types / Campagnes / Disponibilites) sont l'endroit
+  canonique. Le bouton "Nouveau type" est en haut de la page.
+- Plus de routes ni d'event custom 'cursus:booking-create-type' ni de
+  composable useCampaigns dans la sidebar.
+- Sidebar reduite a : header, CTA "Nouveau RDV", chips services, liste
+  des prochains RDV. Plus court d'environ 200 px.
+
+**BookingCalendarView.vue**
+
+- Bloc evenement maintenant cliquable. Emit booking-click au clic ou
+  Enter/Space. Curseur pointer, hover lift + shadow, focus-visible
+  outline blanc.
+- Hauteur du bloc strictement proportionnelle a la duree (suppression
+  du min-height de 2 % qui ecrasait les RDV courts). Un RDV de 30 min
+  fait visuellement la moitie d'un de 60 min.
+- aria-label complet pour lecture d'ecran.
+
+**BookingDetailModal.vue (nouveau)**
+
+- Modal lecture seule. Affiche : type avec dot couleur, statut badge,
+  date longue, plage horaire + duree, etudiant, tuteur entreprise,
+  lien visio.
+- Actions : Fermer + "Rejoindre la visio" (lien direct si visio_url).
+- Pas d'edition pour l'instant (pas d'endpoint d'annulation cote
+  prof : seulement via le lien email d'invitation).
+
+**TabBookingMyBookings.vue**
+
+- Cards de la liste deviennent des boutons cliquables (au lieu de div
+  passifs). Cohrence avec le calendrier : clic n'importe ou ouvre le
+  detail.
+- Cable l'event booking-click du calendrier vers openDetail() qui
+  ouvre BookingDetailModal pre-rempli.
+
 ## v2.314.0 (2026-05-06)
 
 ### Refonte page RDV : sobriete, suppression des redondances, lisibilite

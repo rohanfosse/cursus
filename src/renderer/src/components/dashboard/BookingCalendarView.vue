@@ -15,6 +15,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'slot-click', payload: { date: string; startTime: string }): void
+  (e: 'booking-click', booking: Booking): void
 }>()
 
 // ── Click-to-create (style Outlook) ─────────────────────────────────────
@@ -106,14 +107,21 @@ function bookingColor(bk: Booking): string {
   return et?.color || '#6366f1'
 }
 
-// Position a booking block within the day column
+/**
+ * Position d'un bloc dans la colonne jour. Hauteur strictement
+ * proportionnelle a la duree (en % de la grille 13h). Pas de min-height
+ * artificiel : un RDV de 30 min fait visuellement la moitie d'un de 60.
+ * Le minimum visuel pour la cliquabilite est gere par le hit-area du
+ * bloc (padding) + cursor pointer, pas par un height force.
+ */
 function blockStyle(bk: Booking): Record<string, string> {
   const [sh, sm] = (bk.start_time || '09:00').split(':').map(Number)
   const [eh, em] = (bk.end_time || '10:00').split(':').map(Number)
-  const startMin = sh * 60 + sm - 8 * 60 // offset from 8h
+  const startMin = sh * 60 + sm - 8 * 60
   const endMin = eh * 60 + em - 8 * 60
-  const top = Math.max(0, (startMin / (13 * 60)) * 100)
-  const height = Math.max(2, ((endMin - startMin) / (13 * 60)) * 100)
+  const totalMin = 13 * 60
+  const top = Math.max(0, (startMin / totalMin) * 100)
+  const height = Math.max(0.5, ((endMin - startMin) / totalMin) * 100)
   return {
     top: `${top}%`,
     height: `${height}%`,
@@ -174,14 +182,21 @@ const todayIso = new Date().toISOString().slice(0, 10)
           <!-- Now indicator -->
           <div v-if="nowPosition !== null && d.iso === todayIso" class="bcv-now" :style="{ top: `${nowPosition}%` }" />
 
-          <!-- Booking blocks (stopPropagation pour ne pas declencher slot-click) -->
+          <!-- Booking blocks. Click ouvre le modal detail. stop pour ne pas
+               trigger le slot-click du day-body parent. role="button" pour
+               keyboard a11y (Enter/Space). -->
           <div
             v-for="bk in bookingsByDay[d.iso] || []"
             :key="bk.id"
             class="bcv-block"
+            role="button"
+            tabindex="0"
             :style="blockStyle(bk)"
-            :title="`${bk.start_time}-${bk.end_time} ${bk.tutor_name || ''} (${bk.event_type_title || ''})`"
-            @click.stop
+            :title="`${(bk.start_time || '').slice(0, 5)}–${(bk.end_time || '').slice(0, 5)} · ${bk.event_type_title || 'RDV'}${bk.tutor_name ? ' · ' + bk.tutor_name : ''}`"
+            :aria-label="`${bk.event_type_title || 'Rendez-vous'} le ${bk.date} de ${(bk.start_time || '').slice(0, 5)} a ${(bk.end_time || '').slice(0, 5)}`"
+            @click.stop="emit('booking-click', bk)"
+            @keydown.enter.prevent="emit('booking-click', bk)"
+            @keydown.space.prevent="emit('booking-click', bk)"
           >
             <span class="bcv-block-time">{{ (bk.start_time || '').slice(0, 5) }}</span>
             <span class="bcv-block-name">{{ bk.tutor_name || bk.student_name || '' }}</span>
@@ -256,10 +271,24 @@ const todayIso = new Date().toISOString().slice(0, 10)
   position: absolute; left: 2px; right: 2px; border-radius: var(--radius-xs);
   padding: 2px 4px; overflow: hidden; z-index: 1;
   color: #fff; font-size: 9px; line-height: 1.3;
-  cursor: default; transition: opacity 0.12s;
+  cursor: pointer;
+  transition: filter 0.12s var(--ease-out), box-shadow 0.12s var(--ease-out);
   display: flex; flex-direction: column; gap: 0;
+  border: none;
+  font-family: inherit;
+  text-align: left;
 }
-.bcv-block:hover { opacity: 0.85; }
+.bcv-block:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  z-index: 2;
+}
+.bcv-block:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -3px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 40%, transparent);
+  z-index: 2;
+}
 .bcv-block-time { font-weight: 700; }
 .bcv-block-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
