@@ -40,8 +40,14 @@ function applyTheme(theme: ThemeId) {
   setTimeout(() => document.body.classList.remove('theme-transitioning'), 350)
   // Mirror cote main : configure BrowserWindow.backgroundColor au prochain
   // boot (evite les "taches sombres" pendant le splash en theme clair).
-  // window.api.setTheme est expose par le preload (electron uniquement).
-  window.api?.setTheme?.(resolved).catch(() => { /* no-op en mode web */ })
+  // window.api.setTheme est expose par le preload (electron uniquement) ;
+  // en web le shim renvoie undefined (pas une Promise), d'ou la garde
+  // typeof.catch — sans elle, .catch() sur undefined throw et crashe le
+  // setup() de SettingsModal qui retombe via ErrorBoundary.
+  const themeResult = window.api?.setTheme?.(resolved) as Promise<unknown> | undefined
+  if (themeResult && typeof themeResult.catch === 'function') {
+    themeResult.catch(() => { /* no-op en mode web */ })
+  }
 }
 
 // Listen for system theme changes (for 'auto' mode)

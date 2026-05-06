@@ -334,11 +334,17 @@
       const isPublicRoute = hashPath === '/demo' || hashPath.startsWith('/book/')
       if (!isPublicRoute) {
         router.replace(resolveStartRoute())
+        // Inits user-side : modules autorises, bookmarks, statuts, msg
+        // programmes. Sur une route publique (page de booking ouverte
+        // depuis un mail), ces appels n'ont pas lieu d'etre — au mieux
+        // ils deflagrent les fallbacks "Action non disponible sur le
+        // web", au pire ils crashent ErrorBoundary (cf. bug pilote
+        // 2026-05-06 : SettingsModal -> setTheme().catch() crash).
+        loadModules()
+        bookmarksStore.initIds()
+        statusesStore.init(appStore.currentUser?.id ?? null)
+        scheduledStore.load()
       }
-      loadModules()
-      bookmarksStore.initIds()
-      statusesStore.init(appStore.currentUser?.id ?? null)
-      scheduledStore.load()
     }
 
     // Init/reset stores par-user suivant l'etat de session
