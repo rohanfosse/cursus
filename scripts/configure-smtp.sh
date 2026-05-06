@@ -156,21 +156,58 @@ echo
 echo "Recreate du conteneur cursus-server..."
 cd "$APP_DIR"
 
-# Si le runtime compose est plus ancien que le repo (ne liste pas SMTP_X
-# dans environment:), il faut le synchroniser sinon le restart applique
-# les anciennes regles et les vars SMTP du .env ne traversent pas.
-REPO_COMPOSE=""
-for candidate in "$APP_DIR/repo/docker-compose.yml" "$APP_DIR/repo/docker-compose.prod.yml"; do
-  if [ -f "$candidate" ]; then REPO_COMPOSE="$candidate"; break; fi
-done
+# Si le runtime compose ne liste pas SMTP_X dans environment:, on ajoute
+# les lignes manquantes en place — sans toucher au reste (preserve
+# image:/build: et toutes les autres options du compose runtime, qui
+# differe du repo selon le mode deploy : repo = build local, runtime
+# = image GHCR).
+COMPOSE_FILE="$APP_DIR/docker-compose.yml"
+if [ -f "$COMPOSE_FILE" ] && ! grep -qE '^\s*-\s*SMTP_HOST=' "$COMPOSE_FILE" 2>/dev/null; then
+  echo "Patch de $COMPOSE_FILE : ajout des vars SMTP/SERVER_URL dans environment:"
+  cp "$COMPOSE_FILE" "$COMPOSE_FILE.bak.$(date +%Y%m%d-%H%M%S)"
 
-if [ -n "$REPO_COMPOSE" ] && [ -f "$APP_DIR/docker-compose.yml" ]; then
-  if ! grep -q '^\s*-\s*SMTP_HOST=' "$APP_DIR/docker-compose.yml" 2>/dev/null; then
-    if grep -q '^\s*-\s*SMTP_HOST=' "$REPO_COMPOSE" 2>/dev/null; then
-      echo "Mise a jour de $APP_DIR/docker-compose.yml depuis le repo (manque SMTP_X dans environment:)..."
-      cp "$APP_DIR/docker-compose.yml" "$APP_DIR/docker-compose.yml.bak.$(date +%Y%m%d-%H%M%S)"
-      cp "$REPO_COMPOSE" "$APP_DIR/docker-compose.yml"
-    fi
+  # Insere les vars apres le bloc environment: existant. On detecte la
+  # derniere ligne `      - QUELQUECHOSE=...` qui suit `environment:` et
+  # on ajoute apres. Implementation awk : machine a etat 2 phases.
+  awk '
+    BEGIN { in_env = 0; injected = 0 }
+    /^[[:space:]]*environment:[[:space:]]*$/ { print; in_env = 1; next }
+    in_env && injected == 0 && /^[[:space:]]*-[[:space:]]/ { print; last_env_line = NR; next }
+    in_env && injected == 0 && !/^[[:space:]]*-[[:space:]]/ {
+      # Premiere ligne hors du bloc env: -> on injecte juste avant.
+      print "      # SMTP + URL publique (ajoute par configure-smtp.sh)"
+      print "      - SERVER_URL=${SERVER_URL:-https://app.cursus.school}"
+      print "      - SMTP_HOST=${SMTP_HOST:-}"
+      print "      - SMTP_PORT=${SMTP_PORT:-587}"
+      print "      - SMTP_USER=${SMTP_USER:-}"
+      print "      - SMTP_PASS=${SMTP_PASS:-}"
+      print "      - SMTP_FROM=${SMTP_FROM:-}"
+      injected = 1
+      in_env = 0
+    }
+    { print }
+    END {
+      # Cas defensif : si la section etait au tout-bas du fichier sans
+      # autre cle apres, on append a la fin.
+      if (in_env == 1 && injected == 0) {
+        print "      # SMTP + URL publique (ajoute par configure-smtp.sh)"
+        print "      - SERVER_URL=${SERVER_URL:-https://app.cursus.school}"
+        print "      - SMTP_HOST=${SMTP_HOST:-}"
+        print "      - SMTP_PORT=${SMTP_PORT:-587}"
+        print "      - SMTP_USER=${SMTP_USER:-}"
+        print "      - SMTP_PASS=${SMTP_PASS:-}"
+        print "      - SMTP_FROM=${SMTP_FROM:-}"
+      }
+    }
+  ' "$COMPOSE_FILE" > "$COMPOSE_FILE.new"
+
+  if [ -s "$COMPOSE_FILE.new" ]; then
+    mv "$COMPOSE_FILE.new" "$COMPOSE_FILE"
+    echo "OK — runtime compose patche."
+  else
+    echo "ECHEC du patch awk — restauration du backup."
+    rm -f "$COMPOSE_FILE.new"
+    exit 1
   fi
 fi
 
