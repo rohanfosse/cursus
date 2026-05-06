@@ -269,6 +269,42 @@ export function useBooking() {
     }
   }
 
+  // ── Creation directe (style Outlook) ─────────────────────────────────────
+  //
+  // Le prof cree un RDV pour 1+ etudiants sans passer par le flow public-token
+  // (pas d'email d'invite, pas de tutor externe). Backend = POST /direct.
+
+  async function createDirectBooking(payload: {
+    eventTypeId: number
+    studentIds: number[]
+    startDatetime: string
+    durationMinutes?: number
+  }): Promise<{ created: number; skipped: number; eventTypeTitle?: string } | null> {
+    try {
+      const res = await window.api.createBookingDirect(toRawPayload(payload))
+      if (res.ok && res.data) {
+        const data = res.data as { created: Array<unknown>; skipped: Array<unknown>; eventTypeTitle?: string }
+        const created = data.created.length
+        const skipped = data.skipped.length
+        if (created > 0) {
+          const msg = skipped > 0
+            ? `${created} RDV cree(s), ${skipped} ignore(s) (creneau deja pris).`
+            : created === 1 ? 'RDV cree.' : `${created} RDV crees.`
+          showToast(msg, 'success')
+        } else {
+          showToast('Aucun RDV cree — creneau deja pris pour tous les etudiants.', 'error')
+        }
+        await fetchAll()  // refresh la liste pour le calendrier
+        return { created, skipped, eventTypeTitle: data.eventTypeTitle }
+      }
+      showToast(res.error || 'Erreur lors de la creation du RDV', 'error')
+      return null
+    } catch {
+      showToast('Erreur lors de la creation du RDV', 'error')
+      return null
+    }
+  }
+
   // ── Real-time socket listeners ──────────────────────────────────────────
 
   let unsubBookingNew: (() => void) | null = null
@@ -323,6 +359,7 @@ export function useBooking() {
     fetchAll,
     createEventType, toggleActive, togglePublic, toggleJitsi, getPublicUrl, deleteEventType, generateLink, generateBulkLinks,
     addSlot, removeSlot, saveAvailability,
+    createDirectBooking,
     initSocketListeners, disposeSocketListeners,
     // Helpers
     formatDate, formatTime, statusLabel, statusClass,

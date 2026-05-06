@@ -13,6 +13,45 @@ const props = defineProps<{
   eventTypes: EventType[]
 }>()
 
+const emit = defineEmits<{
+  (e: 'slot-click', payload: { date: string; startTime: string }): void
+}>()
+
+// ── Click-to-create (style Outlook) ─────────────────────────────────────
+//
+// L'utilisateur clique dans une zone vide de la grille -> on calcule
+// la date + l'heure depuis la position relative du clic et on emet
+// `slot-click`. Le parent ouvre la modale CreateBookingModal pre-remplie.
+//
+// On snap au quart d'heure (15 min) par defaut, qui est le pas le plus
+// commun pour les rendez-vous en visite tripartite.
+const SNAP_MINUTES = 15
+const HOUR_RANGE = 13  // 8h-21h, comme la grille
+const HOUR_START = 8
+
+function onDayBodyClick(e: MouseEvent, day: { iso: string }) {
+  // Si l'utilisateur clique sur un booking block (qui stopPropagation)
+  // on ne devrait pas arriver ici. Defensive : on filtre quand meme.
+  const target = e.target as HTMLElement | null
+  if (target?.closest('.bcv-block')) return
+
+  const body = e.currentTarget as HTMLElement
+  const rect = body.getBoundingClientRect()
+  if (rect.height <= 0) return
+  const offsetY = e.clientY - rect.top
+  const ratio = Math.max(0, Math.min(1, offsetY / rect.height))
+  const totalMinutes = ratio * HOUR_RANGE * 60
+  // Snap au 15 min
+  const snapped = Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES
+  const h = HOUR_START + Math.floor(snapped / 60)
+  const m = snapped % 60
+  // Borne haute : ne pas creer un creneau qui demarre apres la derniere heure visible
+  if (h >= HOUR_START + HOUR_RANGE) return
+  const hh = String(h).padStart(2, '0')
+  const mm = String(m).padStart(2, '0')
+  emit('slot-click', { date: day.iso, startTime: `${hh}:${mm}` })
+}
+
 const weekOffset = ref(0)
 
 const weekStart = computed(() => {
@@ -122,20 +161,27 @@ const todayIso = new Date().toISOString().slice(0, 10)
         :class="{ 'bcv-day--today': d.iso === todayIso }"
       >
         <div class="bcv-day-header">{{ d.label }}</div>
-        <div class="bcv-day-body">
+        <div
+          class="bcv-day-body"
+          role="button"
+          tabindex="0"
+          :title="`Cliquer pour creer un RDV — ${d.label}`"
+          @click="onDayBodyClick($event, d)"
+        >
           <!-- Hour lines -->
           <div v-for="h in hours" :key="h" class="bcv-hour-line" :style="{ top: `${((h - 8) / 13) * 100}%` }" />
 
           <!-- Now indicator -->
           <div v-if="nowPosition !== null && d.iso === todayIso" class="bcv-now" :style="{ top: `${nowPosition}%` }" />
 
-          <!-- Booking blocks -->
+          <!-- Booking blocks (stopPropagation pour ne pas declencher slot-click) -->
           <div
             v-for="bk in bookingsByDay[d.iso] || []"
             :key="bk.id"
             class="bcv-block"
             :style="blockStyle(bk)"
             :title="`${bk.start_time}-${bk.end_time} ${bk.tutor_name || ''} (${bk.event_type_title || ''})`"
+            @click.stop
           >
             <span class="bcv-block-time">{{ (bk.start_time || '').slice(0, 5) }}</span>
             <span class="bcv-block-name">{{ bk.tutor_name || bk.student_name || '' }}</span>
@@ -183,7 +229,14 @@ const todayIso = new Date().toISOString().slice(0, 10)
   text-transform: capitalize;
 }
 .bcv-day--today .bcv-day-header { color: var(--accent); font-weight: 700; }
-.bcv-day-body { position: relative; flex: 1; min-height: 260px; }
+.bcv-day-body {
+  position: relative; flex: 1; min-height: 260px;
+  cursor: cell;  /* feedback Outlook-style : "tu peux cliquer pour creer" */
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.bcv-day-body:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+.bcv-day-body:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.bcv-block { cursor: pointer; }
 
 .bcv-hour-line {
   position: absolute; left: 0; right: 0; height: 0;

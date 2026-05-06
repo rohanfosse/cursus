@@ -316,7 +316,11 @@ onUnmounted(() => {
       </div>
 
       <div class="bk-view-pane">
-        <TabBookingMyBookings v-if="activeView === 'bookings'" :booking="booking" />
+        <TabBookingMyBookings
+          v-if="activeView === 'bookings'"
+          :booking="booking"
+          :all-students="allStudents"
+        />
         <TabBookingEventTypes
           v-else-if="activeView === 'types'"
           :booking="booking"

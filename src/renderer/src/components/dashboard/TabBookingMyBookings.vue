@@ -5,16 +5,41 @@
  * Toggle entre vue calendrier (BookingCalendarView) et vue liste.
  * Vue liste : carte par RDV avec date, heure, type, parties prenantes
  * et badge de statut.
+ *
+ * v2.303 : click sur une zone vide de la grille calendrier ouvre la
+ * modale CreateBookingModal pre-remplie (date + heure de debut),
+ * comportement style Outlook.
  */
 import { ref } from 'vue'
-import { Users, LayoutList, CalendarDays, Calendar, Clock } from 'lucide-vue-next'
+import { Plus, Users, LayoutList, CalendarDays, Calendar, Clock } from 'lucide-vue-next'
 import BookingCalendarView from './BookingCalendarView.vue'
+import CreateBookingModal from '@/components/booking/CreateBookingModal.vue'
 import { type BookingHandle } from '@/composables/useBooking'
 
-const props = defineProps<{ booking: BookingHandle }>()
-void props // utilise via destructuration template
+interface BookingStudent { id: number; name?: string; email?: string; promo_id?: number; promo_name?: string }
+
+const props = defineProps<{
+  booking: BookingHandle
+  /** Etudiants disponibles pour la creation de RDV (passes par TabBooking depuis BookingView). */
+  allStudents?: BookingStudent[]
+}>()
 
 const bookingsView = ref<'list' | 'calendar'>('calendar')
+
+// ── Creation directe ──────────────────────────────────────────────────────
+
+const showCreateModal = ref(false)
+const createPrefill = ref<{ date?: string; startTime?: string } | null>(null)
+
+function openCreateBlank() {
+  createPrefill.value = null
+  showCreateModal.value = true
+}
+
+function onSlotClick(payload: { date: string; startTime: string }) {
+  createPrefill.value = { date: payload.date, startTime: payload.startTime }
+  showCreateModal.value = true
+}
 </script>
 
 <template>
@@ -53,12 +78,17 @@ const bookingsView = ref<'list' | 'calendar'>('calendar')
           <LayoutList :size="12" />
         </button>
       </div>
+      <button type="button" class="add-btn" title="Creer un RDV pour 1+ etudiants" @click="openCreateBlank">
+        <Plus :size="13" />
+        <span>Nouveau RDV</span>
+      </button>
     </div>
 
     <BookingCalendarView
       v-if="bookingsView === 'calendar'"
       :bookings="booking.sortedBookings.value"
       :event-types="booking.eventTypes.value"
+      @slot-click="onSlotClick"
     />
 
     <div v-else class="booking-list">
@@ -80,9 +110,21 @@ const bookingsView = ref<'list' | 'calendar'>('calendar')
         </span>
       </div>
       <div v-if="booking.sortedBookings.value.length === 0" class="empty-state">
-        Aucun rendez-vous a venir
+        <p>Aucun rendez-vous a venir.</p>
+        <button type="button" class="empty-cta" @click="openCreateBlank">
+          <Plus :size="13" />
+          <span>Creer un RDV</span>
+        </button>
       </div>
     </div>
+
+    <!-- Modale de creation directe (style Outlook) -->
+    <CreateBookingModal
+      v-model="showCreateModal"
+      :booking="booking"
+      :students="props.allStudents ?? []"
+      :prefill="createPrefill"
+    />
   </div>
 </template>
 
@@ -120,6 +162,25 @@ const bookingsView = ref<'list' | 'calendar'>('calendar')
 }
 
 .view-toggle { display: flex; gap: 2px; margin-left: auto; }
+
+.add-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px;
+  margin-left: 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter var(--motion-fast) var(--ease-out), transform .06s var(--ease-out);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.add-btn:hover { filter: brightness(1.08); }
+.add-btn:active { transform: translateY(1px); }
+.add-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .view-btn {
   display: flex;
   align-items: center;
@@ -206,5 +267,24 @@ const bookingsView = ref<'list' | 'calendar'>('calendar')
   background: color-mix(in srgb, var(--color-danger) 15%, transparent);
   color: var(--color-danger);
 }
-.empty-state { text-align: center; font-size: 12px; color: var(--text-muted); padding: 20px 0; }
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center; font-size: 12px; color: var(--text-muted); padding: 24px 0 18px;
+}
+.empty-state p { margin: 0; }
+.empty-cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.empty-cta:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.empty-cta:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 </style>

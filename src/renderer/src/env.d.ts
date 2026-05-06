@@ -478,6 +478,7 @@ declare global {
       closeBookingCampaign(id: number): Promise<IpcResponse<unknown>>
       getBookingCampaignSlots(id: number): Promise<IpcResponse<Array<{ start: string; end: string; date: string; time: string }>>>
       getMyBookings(from?: string, to?: string): Promise<IpcResponse<unknown[]>>
+      createBookingDirect(payload: { eventTypeId: number; studentIds: number[]; startDatetime: string; durationMinutes?: number }): Promise<IpcResponse<{ created: Array<{ id: number; studentId: number; studentName: string }>; skipped: Array<{ studentId: number; studentName: string; reason: string }>; eventTypeTitle: string }>>
       startBookingOAuth(): Promise<IpcResponse<{ url: string }>>
       getBookingOAuthStatus(): Promise<IpcResponse<{ connected: boolean; expiresAt?: string }>>
       disconnectBookingOAuth(): Promise<IpcResponse<null>>
