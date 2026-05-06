@@ -1,0 +1,60 @@
+# Compose runtime production (VPS) — utilise l'image GHCR pre-buildee
+# au lieu de `build: .` (qui est pour le dev local).
+#
+# Installation initiale :
+#   1. Copie ce fichier en /opt/cursus/docker-compose.yml
+#   2. Cree /opt/cursus/.env avec au minimum JWT_SECRET et DEPLOY_SECRET
+#   3. docker compose pull && docker compose up -d
+#
+# Mise a jour :
+#   - Auto via webhook GitHub Actions (cf. routes/deploy.js)
+#   - Manuel : docker compose pull && docker compose up -d --force-recreate
+#
+# Configuration SMTP : utilise scripts/configure-smtp.sh, qui patche
+# /opt/cursus/.env et restart proprement.
+
+services:
+  cursus:
+    image: ghcr.io/rohanfosse/cursus:latest
+    container_name: cursus-server
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "3001:3001"
+    volumes:
+      - cursus-db:/data/db
+      - cursus-uploads:/data/uploads
+      - deploy-signal:/deploy-signal
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://app.cursus.school}
+      - DB_PATH=/data/db/cursus.db
+      - UPLOAD_DIR=/data/uploads
+      - DEPLOY_SECRET=${DEPLOY_SECRET}
+      # Cloudflare Turnstile : si absent, le captcha public est skippe.
+      - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY:-}
+      # URL publique utilisee pour les liens d'invitation (campagnes booking).
+      - SERVER_URL=${SERVER_URL:-https://app.cursus.school}
+      # SMTP : si SMTP_HOST est vide, l'envoi de mails est desactive.
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  cursus-db:
+  cursus-uploads:
+  deploy-signal:
