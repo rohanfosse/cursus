@@ -47,10 +47,23 @@ function invoke(channel: string, ...args: unknown[]): Promise<unknown> {
 function setBadge()   { ipcRenderer.send('badge:set') }
 function clearBadge() { ipcRenderer.send('badge:clear') }
 
+/**
+ * Ecrit une ligne dans le fichier de log Electron principal
+ * (%APPDATA%/cursus/logs/main.log via electron-log). Utile pour tracer
+ * depuis le renderer des evenements metier persistants apres un reload
+ * (soumission de score, creation de campagne, etc.).
+ */
+function logToFile(level: 'info' | 'warn' | 'error', tag: string, message: string, meta?: unknown): void {
+  try {
+    ipcRenderer.send('renderer:log', level, tag, message, meta)
+  } catch { /* ne jamais casser une route metier a cause du logger */ }
+}
+
 // ─── Exposition à la page renderer ───────────────────────────────────────────
 contextBridge.exposeInMainWorld('api', {
   setBadge,
   clearBadge,
+  logToFile,
 
   // ── Auth / session ──────────────────────────────────────────────────────────
   setToken: (token: string) => {

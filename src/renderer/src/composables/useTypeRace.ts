@@ -309,12 +309,24 @@ export function useTypeRace() {
     // serait sinon un cheat — le user a memorise la phrase).
     const isReplay = previousResult.value != null
     if (!isReplay) {
-      await api<SubmitResult>(() => window.api.typeRaceSubmitScore({
+      const payload = {
         phraseId:   phrase.value!.id,
         wpm:        Math.round(finalWpm * 10) / 10,
         accuracy:   Math.round(finalAccuracy * 1000) / 1000,
         durationMs,
-      }))
+      }
+      // Log entry pour qu'une partie qui ne s'enregistre pas laisse une
+      // trace persistante dans %APPDATA%/cursus/logs/main.log — le toast
+      // d'erreur disparait sinon sans laisser d'info debuggable.
+      window.api.logToFile?.('info', 'typerace', 'submit_attempt', payload)
+      const result = await api<SubmitResult>(
+        () => window.api.typeRaceSubmitScore(payload),
+      )
+      if (result) {
+        window.api.logToFile?.('info', 'typerace', 'submit_ok', { id: result.id, score: result.score })
+      } else {
+        window.api.logToFile?.('error', 'typerace', 'submit_failed', { ...payload, finalScore })
+      }
     }
   }
 

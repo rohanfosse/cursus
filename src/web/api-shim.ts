@@ -326,6 +326,7 @@ const SILENT_FALLBACKS = new Set<string>([
   'onRuntimeError',
   'setBadge',
   'clearBadge',
+  'logToFile',
   'onPollUpdate',
   'onStatusChange',
   'offlineWrite',
@@ -366,6 +367,13 @@ const apiImpl = {
   // ── Badge (no-op en web) ────────────────────────────────────────────────────
   setBadge() {},
   clearBadge() {},
+  // logToFile : pas de fichier persistant en web — fallback console pour
+  // garder la trace dans DevTools.
+  logToFile(level: 'info' | 'warn' | 'error', tag: string, message: string, meta?: unknown) {
+    const fn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.info
+    if (meta !== undefined) fn(`[${tag}]`, message, meta)
+    else fn(`[${tag}]`, message)
+  },
 
   // ── Auth / session ──────────────────────────────────────────────────────────
   setToken(token: string) {

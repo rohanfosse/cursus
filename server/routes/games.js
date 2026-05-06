@@ -57,22 +57,34 @@ router.post('/:gameId/scores', validate(scoreSchema), wrap((req) => {
 
   if (!isScoreCoherent(gameId, score, durationMs)) {
     log.warn('game_suspicious_score', {
-      gameId, userId: req.user.id, score, durationMs,
+      gameId, userId: req.user.id, userType: req.user.type, score, durationMs,
     })
     throw new AppError('Score incoherent (anti-triche)', 400)
   }
 
   const promoId = req.user.type === 'student' ? (req.user.promo_id ?? null) : null
-  const { id } = queries.insertGameScore({
-    gameId,
-    userType: req.user.type,
-    userId:   req.user.id,
-    promoId,
-    score,
-    durationMs,
-    meta,
-  })
-  return { id, score }
+  try {
+    const { id } = queries.insertGameScore({
+      gameId,
+      userType: req.user.type,
+      userId:   req.user.id,
+      promoId,
+      score,
+      durationMs,
+      meta,
+    })
+    log.info('game_score_saved', {
+      id, gameId, userId: req.user.id, userType: req.user.type, score, durationMs,
+    })
+    return { id, score }
+  } catch (err) {
+    log.error('game_score_insert_failed', {
+      gameId, userId: req.user.id, userType: req.user.type,
+      error: err.message, code: err.code, stack: err.stack,
+      score, durationMs,
+    })
+    throw err
+  }
 }))
 
 // ── GET /:gameId/leaderboard ───────────────────────────────────────────────

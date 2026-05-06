@@ -76,11 +76,19 @@ router.post('/scores', validate(scoreSchema), wrap((req) => {
   const { phraseId, wpm, accuracy, durationMs } = req.body
   const phrases = loadPhrases()
   const phrase = phrases.find((p) => p.id === phraseId)
-  if (!phrase) throw new NotFoundError('Phrase inconnue')
+  if (!phrase) {
+    log.warn('typerace_score_phrase_missing', {
+      userId: req.user.id, userType: req.user.type, phraseId,
+    })
+    throw new NotFoundError('Phrase inconnue')
+  }
 
   if (!isScoreCoherent(phrase, wpm, durationMs)) {
     log.warn('typerace_suspicious_score', {
-      userId: req.user.id, wpm, durationMs, phraseId,
+      userId: req.user.id, userType: req.user.type,
+      wpm, durationMs, phraseId,
+      phraseWords: phrase.text.trim().split(/\s+/).length,
+      phraseChars: phrase.text.length,
     })
     throw new AppError('Score incoherent (anti-triche)', 400)
   }
@@ -90,17 +98,29 @@ router.post('/scores', validate(scoreSchema), wrap((req) => {
     ? (req.user.promo_id ?? null)
     : null // teachers : promo_id null
 
-  const { id } = queries.insertScore({
-    userType: req.user.type,
-    userId:   req.user.id,
-    promoId,
-    phraseId,
-    wpm,
-    accuracy,
-    score,
-    durationMs,
-  })
-  return { id, score }
+  try {
+    const { id } = queries.insertScore({
+      userType: req.user.type,
+      userId:   req.user.id,
+      promoId,
+      phraseId,
+      wpm,
+      accuracy,
+      score,
+      durationMs,
+    })
+    log.info('typerace_score_saved', {
+      id, userId: req.user.id, userType: req.user.type, score, wpm, accuracy, durationMs,
+    })
+    return { id, score }
+  } catch (err) {
+    log.error('typerace_score_insert_failed', {
+      userId: req.user.id, userType: req.user.type,
+      error: err.message, code: err.code, stack: err.stack,
+      phraseId, wpm, accuracy, durationMs,
+    })
+    throw err
+  }
 }))
 
 // ── GET /leaderboard ─────────────────────────────────────────────────────────

@@ -102,24 +102,39 @@ router.get('/campaigns', requireRole('teacher'), wrap((req) => {
 }))
 
 router.post('/campaigns', requireRole('teacher'), validate(createCampaignSchema), wrap((req) => {
+  // Snapshot scalaire du payload — exclut les rules/excludedDates qui
+  // peuvent etre verbeuses, mais garde tout le reste pour le debug.
+  const payloadSnapshot = {
+    title: req.body.title,
+    promoId: req.body.promoId,
+    durationMinutes: req.body.durationMinutes,
+    startDate: req.body.startDate,
+    endDate: req.body.endDate,
+    hebdoRulesCount: Array.isArray(req.body.hebdoRules) ? req.body.hebdoRules.length : 0,
+    excludedDatesCount: Array.isArray(req.body.excludedDates) ? req.body.excludedDates.length : 0,
+    withTutor: !!req.body.withTutor,
+    useJitsi:  !!req.body.useJitsi,
+  }
+  log.info('campaign_create_attempt', { teacherId: req.user.id, ...payloadSnapshot })
   try {
     const c = queries.createCampaign({ teacherId: req.user.id, ...req.body })
     // Auto-generer les invites pour la promo cible
+    let invitesGenerated = 0
     if (c.promo_id) {
       const students = queries.getStudents(c.promo_id) || []
       queries.ensureInvitesForStudents(c.id, students.map(s => s.id))
+      invitesGenerated = students.length
     }
     const refreshed = queries.getCampaignById(c.id)
-    log.info('campaign_created', { campaignId: c.id, teacherId: req.user.id, promoId: c.promo_id })
+    log.info('campaign_created', { campaignId: c.id, teacherId: req.user.id, promoId: c.promo_id, invitesGenerated })
     return { ...parseCampaignJson(refreshed), invites: queries.listInvites(c.id) }
   } catch (err) {
-    // Loggue avec contexte pour faciliter le debug en prod (le wrap masque
-    // le message detaille au client, mais on garde la trace serveur).
     log.error('campaign_create_failed', {
       teacherId: req.user.id,
       error: err.message,
+      code: err.code,
       stack: err.stack,
-      payloadKeys: Object.keys(req.body || {}),
+      ...payloadSnapshot,
     })
     throw err
   }

@@ -261,6 +261,23 @@ function createWindow(splash: BrowserWindow | null): void {
     }
   })
 
+  // Pont renderer -> electron-log : permet aux composables Vue d'ecrire
+  // dans %APPDATA%/cursus/logs/main.log avec un tag clair, pour debugger
+  // les flux qui passent par /api (ex. soumission de score, creation de
+  // campagne) sans avoir a ouvrir DevTools.
+  type RendererLogLevel = 'info' | 'warn' | 'error'
+  const ALLOWED_LEVELS: ReadonlySet<RendererLogLevel> = new Set(['info', 'warn', 'error'])
+  ipcMain.on('renderer:log', (_e, level: string, tag: string, message: string, meta?: unknown) => {
+    const lvl: RendererLogLevel = ALLOWED_LEVELS.has(level as RendererLogLevel) ? (level as RendererLogLevel) : 'info'
+    const safeTag = String(tag || 'renderer').slice(0, 64)
+    const safeMsg = String(message || '').slice(0, 2000)
+    if (meta !== undefined) {
+      log[lvl](`[${safeTag}] ${safeMsg}`, meta)
+    } else {
+      log[lvl](`[${safeTag}] ${safeMsg}`)
+    }
+  })
+
   // En développement, electron-vite fournit l'URL du serveur Vite (HMR)
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])

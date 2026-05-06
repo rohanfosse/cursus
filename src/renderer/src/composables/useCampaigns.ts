@@ -109,17 +109,33 @@ export function useCampaigns() {
   }
 
   async function createCampaign(payload: CampaignDraft): Promise<Campaign | null> {
+    // Snapshot leger pour les logs : on retire les rules pour rester
+    // lisible mais on garde les champs structurants (title, dates, promo).
+    const logPayload = {
+      title: payload.title,
+      promoId: payload.promoId,
+      durationMinutes: payload.durationMinutes,
+      startDate: payload.startDate,
+      endDate: payload.endDate,
+      hebdoRulesCount: payload.hebdoRules?.length ?? 0,
+      excludedDatesCount: payload.excludedDates?.length ?? 0,
+    }
+    window.api.logToFile?.('info', 'campaign', 'create_attempt', logPayload)
     try {
       const res = await window.api.createBookingCampaign(payload)
       if (res.ok && res.data) {
         const c = res.data as Campaign
+        window.api.logToFile?.('info', 'campaign', 'create_ok', { id: c.id, title: c.title, inviteCount: c.invite_count ?? 0 })
         await fetchAll()
         showToast(`Campagne "${c.title}" creee — ${c.invite_count ?? 0} etudiants pre-invites`, 'success')
         return c
       }
+      window.api.logToFile?.('error', 'campaign', 'create_failed', { ...logPayload, serverError: res.error ?? null })
       showToast(res.error || 'Erreur a la creation', 'error')
       return null
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      window.api.logToFile?.('error', 'campaign', 'create_threw', { ...logPayload, error: msg })
       showToast('Erreur a la creation', 'error')
       return null
     }

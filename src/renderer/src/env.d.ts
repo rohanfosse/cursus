@@ -21,6 +21,9 @@ declare global {
       setBadge(): void
       clearBadge(): void
 
+      /** Ecrit une ligne dans %APPDATA%/cursus/logs/main.log (fallback console.* en web). */
+      logToFile(level: 'info' | 'warn' | 'error', tag: string, message: string, meta?: unknown): void
+
       // Auth / session
       setToken(token: string): void
       clearAuth(): void

@@ -77,14 +77,20 @@ export function useArcadeGame(gameId: string) {
     elapsedMs.value = durationMs
     lastResult.value = { score: score.value, durationMs }
 
-    await api<{ id: number; score: number }>(
-      () => window.api.gameSubmitScore(gameId, {
-        score: score.value,
-        durationMs,
-        meta,
-      }),
+    const payload = { score: score.value, durationMs, meta }
+    window.api.logToFile?.('info', `game:${gameId}`, 'submit_attempt', payload)
+    const result = await api<{ id: number; score: number }>(
+      () => window.api.gameSubmitScore(gameId, payload),
       { silent: true },
     )
+    if (result) {
+      window.api.logToFile?.('info', `game:${gameId}`, 'submit_ok', { id: result.id, score: result.score })
+    } else {
+      // silent:true masque le toast — sans ce log, un score perdu serait
+      // invisible. Important pour les jeux ou l'utilisateur enchaine vite
+      // et ne verifierait pas le leaderboard.
+      window.api.logToFile?.('error', `game:${gameId}`, 'submit_failed', payload)
+    }
     // Refresh leaderboard + stats apres submit
     await Promise.all([refreshLeaderboard(), refreshMyStats()])
   }
