@@ -57,6 +57,7 @@ const router = createRouter({
     // Public booking pages (no auth required)
     { path: '/book/c/:token',        component: () => import('@/views/BookingCampaignView.vue'),    name: 'booking-campaign',     meta: { public: true } },
     { path: '/book/e/:slug',         component: () => import('@/views/BookingPublicEventView.vue'), name: 'booking-public-event', meta: { public: true } },
+    { path: '/book/u/:slug',         component: () => import('@/views/BookingTeacherView.vue'),    name: 'booking-teacher',      meta: { public: true } },
     { path: '/book/:token',          component: () => import('@/views/BookingPublicView.vue'),     name: 'booking-public',       meta: { public: true } },
     { path: '/book/cancel/:token',   component: () => import('@/views/BookingCancelView.vue'),     name: 'booking-cancel',       meta: { public: true } },
     { path: '/book/confirm/:token',  component: () => import('@/views/BookingConfirmView.vue'),    name: 'booking-confirm',      meta: { public: true } },

@@ -401,6 +401,47 @@ function requirePublicEventType(req, res, next) {
   next()
 }
 
+// ── GET /public/teacher/:slug (page profil prof, "Calendly-like") ─────
+//
+// v89 : permet a un prof de partager une URL /book/u/:slug en signature
+// mail. La page liste les event-types actifs ET publics du prof. L'URL
+// est stable (slug auto-genere a partir du nom, dedup par suffixe).
+//
+// Securite : pas de donnees sensibles exposees (juste nom + email pro
+// pour le replyTo, et la liste des types deja flag is_public). Rate
+// limit par slug pour bloquer l'enumeration.
+
+const publicTeacherPerSlugLimiter = require('express-rate-limit')({
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req) => `teacherSlug:${req.params.slug || 'none'}`,
+  message: { ok: false, error: 'Trop de tentatives sur ce lien.' },
+})
+
+router.get('/public/teacher/:slug', publicBookingLimiter, publicTeacherPerSlugLimiter, wrap((req) => {
+  if (!SLUG_RE.test(req.params.slug || '')) {
+    const err = new Error('Lien invalide.'); err.statusCode = 404; err.code = 'invalid_link'; throw err
+  }
+  const data = queries.getPublicTeacherBySlug(req.params.slug)
+  if (!data) {
+    const err = new Error('Profil introuvable.'); err.statusCode = 404; err.code = 'not_found'; throw err
+  }
+  return {
+    teacher: {
+      name: data.teacher.name,
+      slug: data.teacher.slug,
+    },
+    eventTypes: data.eventTypes.map(et => ({
+      slug: et.slug,
+      title: et.title,
+      description: et.description,
+      durationMinutes: et.duration_minutes,
+      color: et.color,
+    })),
+  }
+}))
+
 // ── GET /public/event/:slug ───────────────────────────────────────────
 
 router.get('/public/event/:slug', publicBookingLimiter, publicEventPerSlugLimiter, requirePublicEventType, wrap((req) => {

@@ -137,6 +137,36 @@ function getTokenData(token) {
  * (utile pour afficher un message specifique a l'etudiant).
  * Champs alignes sur getTokenData() pour reutiliser generateSlots / createBookingAtomic.
  */
+/**
+ * Page profil public d'un enseignant accessible via /book/u/:slug.
+ *
+ * Retourne le profil + la liste de ses event-types actifs ET publics
+ * (ceux qu'il a explicitement marques comme partageables). Les event-types
+ * "fantomes" generes par les campagnes (slug `__campaign_%`) sont filtres
+ * pour ne pas polluer la liste publique.
+ */
+function getPublicTeacherBySlug(slug) {
+  const teacher = getDb().prepare(`
+    SELECT id, name, email, public_slug
+    FROM teachers
+    WHERE public_slug = ?
+  `).get(slug);
+  if (!teacher) return null;
+  const eventTypes = getDb().prepare(`
+    SELECT id, title, slug, description, duration_minutes, color, use_jitsi
+    FROM booking_event_types
+    WHERE teacher_id = ?
+      AND is_active = 1
+      AND is_public = 1
+      AND slug NOT LIKE '\\_\\_campaign\\_%' ESCAPE '\\'
+    ORDER BY created_at ASC
+  `).all(teacher.id);
+  return {
+    teacher: { id: teacher.id, name: teacher.name, email: teacher.email, slug: teacher.public_slug },
+    eventTypes,
+  };
+}
+
 function getPublicEventTypeBySlug(slug) {
   return getDb().prepare(`
     SELECT bet.id           AS event_type_id,
@@ -353,7 +383,7 @@ module.exports = {
   createEventType, updateEventType, deleteEventType,
   getAvailabilityRules, setAvailabilityRules,
   getAvailabilityOverrides, setAvailabilityOverrides,
-  getOrCreateToken, getTokenData, getPublicEventTypeBySlug,
+  getOrCreateToken, getTokenData, getPublicEventTypeBySlug, getPublicTeacherBySlug,
   createBookingAtomic, updateBookingTeamsInfo,
   getBookingByCancelToken, getBookingById, getBookingForToken, cancelBooking, confirmBookingPresence, rescheduleBooking,
   getBookingsForTeacher, getBookingsForSlot,

@@ -474,6 +474,7 @@ contextBridge.exposeInMainWorld('api', {
   createBookingToken:        (eventTypeId: number, studentId: number) => post('/api/bookings/tokens', { eventTypeId, studentId }),
   createBulkBookingTokens:   (eventTypeId: number, promoId: number) => post('/api/bookings/tokens/bulk', { eventTypeId, promoId }),
   getBookingPublicLink:      (eventTypeId: number)        => get(`/api/bookings/event-types/${eventTypeId}/public-link`),
+  getMyBookingProfileLink:   ()                           => get('/api/bookings/me/public-link'),
   // Campagnes de RDV (visites tripartites planifiees sur une periode)
   getBookingCampaigns:       ()                           => get('/api/bookings/campaigns'),
   createBookingCampaign:     (payload: unknown)           => post('/api/bookings/campaigns', payload),

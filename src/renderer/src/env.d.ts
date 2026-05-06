@@ -484,6 +484,7 @@ declare global {
       createBookingToken(eventTypeId: number, studentId: number): Promise<IpcResponse<{ token: string; bookingUrl: string }>>
       createBulkBookingTokens(eventTypeId: number, promoId: number): Promise<IpcResponse<{ studentId: number; studentName: string; bookingUrl: string }[]>>
       getBookingPublicLink(eventTypeId: number): Promise<IpcResponse<{ publicUrl: string; isPublic: boolean; isActive: boolean; slug: string }>>
+      getMyBookingProfileLink(): Promise<IpcResponse<{ slug: string | null; publicUrl: string | null }>>
       // Campagnes
       getBookingCampaigns(): Promise<IpcResponse<unknown[]>>
       createBookingCampaign(payload: unknown): Promise<IpcResponse<unknown>>

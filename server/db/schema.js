@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 88;
+const CURRENT_VERSION = 89;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -2064,6 +2064,31 @@ function runMigrations(db) {
     (db) => {
       tryAlter(db, "ALTER TABLE bookings ADD COLUMN confirmed_at TEXT");
     },
+
+    // v89 : slug public par enseignant pour la page profil "Calendly-like"
+    // accessible via /book/u/:slug (utilisable en signature mail). Auto-fill
+    // des profs existants avec slugify(name) + dedup numerique.
+    (db) => {
+      tryAlter(db, "ALTER TABLE teachers ADD COLUMN public_slug TEXT");
+      // Auto-fill : slugify le nom, deduplique en ajoutant -2, -3, ... si
+      // collision. Procedural en JS car SQLite n'a ni regex ni fonction
+      // string assez puissante pour faire ca en SQL pur.
+      const teachers = db.prepare("SELECT id, name FROM teachers WHERE public_slug IS NULL OR public_slug = ''").all();
+      const existingSlugs = new Set(
+        db.prepare("SELECT public_slug FROM teachers WHERE public_slug IS NOT NULL AND public_slug != ''")
+          .all().map(r => r.public_slug)
+      );
+      const updateStmt = db.prepare("UPDATE teachers SET public_slug = ? WHERE id = ?");
+      for (const t of teachers) {
+        const base = slugify(t.name || `prof-${t.id}`) || `prof-${t.id}`;
+        let slug = base;
+        let n = 2;
+        while (existingSlugs.has(slug)) { slug = `${base}-${n++}`; }
+        existingSlugs.add(slug);
+        updateStmt.run(slug, t.id);
+      }
+      db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_teachers_public_slug ON teachers(public_slug)");
+    },
   ];
 
   db.transaction(() => {
@@ -2076,6 +2101,17 @@ function runMigrations(db) {
 
 function tryAlter(db, sql) {
   try { db.exec(sql); } catch { /* colonne déjà présente - ignoré */ }
+}
+
+/** Slugify ASCII safe : lowercase, accents stripped, non-alphanum -> dash, trim. */
+function slugify(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
 }
 
 module.exports = { initSchema, runMigrations };

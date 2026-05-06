@@ -126,6 +126,21 @@ router.get('/event-types/:id/public-link', requireRole('teacher'), wrap((req) =>
   }
 }))
 
+// v89 : URL profil "Calendly-like" du prof connecte. Stable, a coller en
+// signature mail. Le slug est auto-genere depuis le nom (cf. migration v89)
+// avec dedup numerique en cas de collision.
+router.get('/me/public-link', requireRole('teacher'), wrap((req) => {
+  const row = require('../../db/connection').getDb()
+    .prepare('SELECT public_slug FROM teachers WHERE id = ?').get(req.user.id)
+  if (!row || !row.public_slug) {
+    return { slug: null, publicUrl: null }
+  }
+  return {
+    slug: row.public_slug,
+    publicUrl: `${SERVER_URL}/#/book/u/${row.public_slug}`,
+  }
+}))
+
 // ── Availability Rules ─────────────────────────────────────────────────
 
 router.get('/availability', requireRole('teacher'), wrap((req) => {

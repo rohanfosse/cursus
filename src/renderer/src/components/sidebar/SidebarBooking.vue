@@ -17,7 +17,7 @@
  * de "Configuration depliable" (les tabs de TabBooking suffisent).
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { Calendar, Clock, Plus, Video, Settings } from 'lucide-vue-next'
+import { Calendar, Clock, Plus, Video, Settings, Link2, Check, Copy } from 'lucide-vue-next'
 import { bookingHasRealTutor } from '@/utils/bookingHelpers'
 import { useBooking } from '@/composables/useBooking'
 import { useMicrosoftConnection } from '@/composables/useMicrosoftConnection'
@@ -81,6 +81,33 @@ function openCreateModal() {
 }
 
 function openSettings() { modals.settings = true }
+
+// ── Mon lien public (v89, deep interview "page profil prof") ──────────
+//
+// URL stable du type cursus.school/#/book/u/<slug> que le prof peut coller
+// en signature mail. Affichee dans la sidebar avec bouton copier rapide.
+const profileLink = ref<string | null>(null)
+const profileLinkCopied = ref(false)
+let profileLinkCopyTimer: ReturnType<typeof setTimeout> | null = null
+
+async function loadProfileLink() {
+  try {
+    const res = await window.api.getMyBookingProfileLink()
+    if (res?.ok && res.data?.publicUrl) {
+      profileLink.value = res.data.publicUrl
+    }
+  } catch { /* silencieux : feature secondaire */ }
+}
+
+async function copyProfileLink() {
+  if (!profileLink.value) return
+  try {
+    await navigator.clipboard.writeText(profileLink.value)
+    profileLinkCopied.value = true
+    if (profileLinkCopyTimer) clearTimeout(profileLinkCopyTimer)
+    profileLinkCopyTimer = setTimeout(() => { profileLinkCopied.value = false }, 2000)
+  } catch { /* ignore — la plupart des contextes electron autorisent clipboard */ }
+}
 
 // ── Prochains RDV ─────────────────────────────────────────────────────────
 
@@ -149,6 +176,7 @@ onMounted(() => {
   refreshMs()
   smtp.refresh()
   loadStudents()
+  loadProfileLink()
 
   window.addEventListener('cursus:booking-open-create', openCreateModal)
 })
@@ -156,6 +184,7 @@ onMounted(() => {
 onUnmounted(() => {
   booking.disposeSocketListeners()
   window.removeEventListener('cursus:booking-open-create', openCreateModal)
+  if (profileLinkCopyTimer) clearTimeout(profileLinkCopyTimer)
 })
 </script>
 
@@ -177,6 +206,32 @@ onUnmounted(() => {
       <Plus :size="14" />
       <span>Nouveau RDV</span>
     </button>
+
+    <!-- Mon lien public (Calendly-like) — a coller en signature mail -->
+    <div v-if="profileLink" class="sb-bk-profile-link">
+      <div class="sb-bk-profile-link-head">
+        <Link2 :size="11" />
+        <span>Mon lien public</span>
+        <a
+          class="sb-bk-profile-link-open"
+          :href="profileLink"
+          target="_blank"
+          rel="noopener"
+          title="Ouvrir dans le navigateur"
+        >Ouvrir</a>
+      </div>
+      <button
+        type="button"
+        class="sb-bk-profile-link-copy"
+        :title="profileLink"
+        :aria-label="profileLinkCopied ? 'Lien copie' : 'Copier le lien public'"
+        @click="copyProfileLink"
+      >
+        <span class="sb-bk-profile-link-url">{{ profileLink.replace(/^https?:\/\//, '').replace(/\/#\//, '/') }}</span>
+        <Check v-if="profileLinkCopied" :size="12" class="sb-bk-profile-link-icon sb-bk-profile-link-icon--ok" />
+        <Copy v-else :size="12" class="sb-bk-profile-link-icon" />
+      </button>
+    </div>
 
     <!-- Statuts services. v2.314.1 : si tout est OK, on consolide en 1
          indicateur discret. Si un service est en panne, on detaille pour
@@ -324,6 +379,68 @@ onUnmounted(() => {
 .sb-bk-cta-primary:hover { filter: brightness(1.08); }
 .sb-bk-cta-primary:active { transform: translateY(1px); box-shadow: 0 1px 3px color-mix(in srgb, var(--accent) 30%, transparent); }
 .sb-bk-cta-primary:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ── Mon lien public (v89) ── */
+.sb-bk-profile-link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-elevated));
+}
+.sb-bk-profile-link-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--accent);
+}
+.sb-bk-profile-link-head > span { flex: 1; }
+.sb-bk-profile-link-open {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  transition: background var(--motion-fast) var(--ease-out);
+}
+.sb-bk-profile-link-open:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.sb-bk-profile-link-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+.sb-bk-profile-link-copy:hover { background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated)); color: var(--text-primary); }
+.sb-bk-profile-link-copy:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sb-bk-profile-link-url {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sb-bk-profile-link-icon { color: var(--text-muted); flex-shrink: 0; }
+.sb-bk-profile-link-icon--ok { color: var(--color-success); }
 
 /* ── Services chips (Microsoft + SMTP) ── */
 .sb-bk-services {
