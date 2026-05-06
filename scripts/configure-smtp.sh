@@ -88,34 +88,69 @@ chmod 600 "$ENV_FILE"
 echo "Variables ecrites dans $ENV_FILE."
 echo
 
-# Test rapide nodemailer.verify avant de recreer le conteneur — evite de
-# couper le service si la config est mauvaise.
+# Test rapide nodemailer.verify AVANT de recreer le conteneur — evite de
+# couper le service si la config est mauvaise. On execute le test DANS
+# le conteneur cursus-server qui tourne deja (a deja nodemailer dans
+# node_modules, donc pas de npm install dans un conteneur jetable qui
+# faillait souvent par manque de reseau/registry).
 echo "Test de connexion SMTP..."
-docker run --rm \
-  -e SMTP_HOST="$SMTP_HOST" \
-  -e SMTP_PORT="$SMTP_PORT" \
-  -e SMTP_USER="$SMTP_USER" \
-  -e SMTP_PASS="$SMTP_PASS" \
-  node:20-alpine sh -c '
-    npm install --silent --no-fund --no-audit nodemailer 2>/dev/null && \
-    node -e "
-const t = require(\"nodemailer\").createTransport({
+if ! docker ps --format '{{.Names}}' | grep -q '^cursus-server$'; then
+  echo "Le conteneur cursus-server n'est pas demarre — on saute le test pre-deploy."
+  echo "Verifie l'etat SMTP depuis l'app (Sidebar RDV → chip Email) apres restart."
+  SKIP_TEST=1
+else
+  SKIP_TEST=0
+fi
+
+if [ "$SKIP_TEST" = "0" ]; then
+  # docker exec -e injecte les NOUVELLES vars sans toucher au container env
+  # courant. Le test utilise donc bien la config qu'on s'apprete a appliquer.
+  TEST_OUTPUT=$(docker exec \
+    -e SMTP_HOST="$SMTP_HOST" \
+    -e SMTP_PORT="$SMTP_PORT" \
+    -e SMTP_USER="$SMTP_USER" \
+    -e SMTP_PASS="$SMTP_PASS" \
+    cursus-server node -e "
+const t = require('nodemailer').createTransport({
   host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || \"587\", 10),
-  secure: process.env.SMTP_PORT === \"465\",
+  port: parseInt(process.env.SMTP_PORT || '587', 10),
+  secure: process.env.SMTP_PORT === '465',
   auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000,
 });
-t.verify().then(() => { console.log(\"SMTP OK\"); process.exit(0); })
-.catch(e => { console.error(\"SMTP FAIL:\", e.message); process.exit(1); });
-"
-  ' || {
+t.verify().then(() => { console.log('SMTP_OK'); process.exit(0); })
+.catch(e => { console.log('SMTP_FAIL:' + (e.code ? '[' + e.code + '] ' : '') + e.message); process.exit(1); });
+" 2>&1) || TEST_FAILED=1
+
+  echo "$TEST_OUTPUT"
+
+  if [ "${TEST_FAILED:-0}" = "1" ]; then
     echo
-    echo "ECHEC du test SMTP. Le .env a ete sauvegarde mais NON applique."
+    echo "─── Diagnostic ───"
+    case "$TEST_OUTPUT" in
+      *EAUTH*|*Invalid\ login*|*535*)
+        echo "Auth refusee — verifie SMTP_USER + SMTP_PASS chez ton provider."
+        ;;
+      *ETIMEDOUT*|*timeout*)
+        echo "Timeout — port bloque par le firewall sortant ? Essaie SMTP_PORT=587 (STARTTLS) au lieu de 465 (SSL)."
+        ;;
+      *ECONNREFUSED*)
+        echo "Connexion refusee — verifie SMTP_HOST + SMTP_PORT."
+        ;;
+      *ENOTFOUND*|*EAI_AGAIN*)
+        echo "DNS impossible — verifie SMTP_HOST (typo ?)."
+        ;;
+      *self-signed*|*unable\ to\ verify*)
+        echo "Probleme certificat TLS — Hostinger/Porkbun normalement OK, peut etre un proxy/MITM ?"
+        ;;
+    esac
+    echo
+    echo "Le .env a ete sauvegarde mais NON applique."
     echo "Restauration du backup : cp $BACKUP_FILE $ENV_FILE"
     cp "$BACKUP_FILE" "$ENV_FILE"
     exit 1
-  }
+  fi
+fi
 
 echo
 echo "Recreate du conteneur cursus-server..."
