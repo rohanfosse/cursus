@@ -75,7 +75,8 @@ describe('useTypeRace', () => {
       })
       await game.loadPhrase()
       expect(game.phrase.value).toEqual({ id: 42, text: 'Bonjour le monde' })
-      // v2.292 : loadPhrase declenche le countdown (3-2-1) avant idle.
+      // loadPhrase declenche un countdown 3-2-1 ; idle n'est atteint
+      // qu'apres skip ou expiration.
       expect(game.state.value).toBe('countdown')
     })
 
@@ -126,9 +127,9 @@ describe('useTypeRace', () => {
       await game.loadPhrase()
     })
 
-    it('idle -> playing au 1er caractere', () => {
-      // v2.292 : loadPhrase ouvre sur countdown — onInput skip le countdown
-      // (-> idle) puis enchaine sur playing au 1er caractere.
+    it('countdown -> playing au 1er caractere (skip auto)', () => {
+      // onInput pendant countdown skip le timer (-> idle) puis enchaine
+      // sur playing au 1er caractere — comportement conserve.
       expect(game.state.value).toBe('countdown')
       game.onInput('B')
       expect(game.state.value).toBe('playing')

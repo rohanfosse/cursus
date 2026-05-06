@@ -99,16 +99,38 @@ const SHAPES: Record<PieceKind, readonly ShapeMatrix[]> = {
   S: SHAPE_S, Z: SHAPE_Z, J: SHAPE_J, L: SHAPE_L,
 }
 
+/**
+ * Offsets locaux (dx, dy) precalcules pour chaque (kind, rotation). Permet
+ * a `pieceCells` de retourner directement les coordonnees plateau sans
+ * iterer sur la matrice 4x4 a chaque appel — gain notable dans la boucle
+ * de rendu 60 fps.
+ */
+const CELL_OFFSETS: Record<PieceKind, ReadonlyArray<ReadonlyArray<readonly [number, number]>>> = (() => {
+  const kinds: readonly PieceKind[] = ['I', 'O', 'T', 'S', 'Z', 'J', 'L']
+  const out = {} as Record<PieceKind, Array<Array<readonly [number, number]>>>
+  for (const kind of kinds) {
+    out[kind] = []
+    for (let rot = 0; rot < 4; rot++) {
+      const shape = SHAPES[kind][rot]
+      const offsets: Array<readonly [number, number]> = []
+      for (let dy = 0; dy < shape.length; dy++) {
+        for (let dx = 0; dx < shape[dy].length; dx++) {
+          if (shape[dy][dx]) offsets.push([dx, dy])
+        }
+      }
+      out[kind].push(offsets)
+    }
+  }
+  return out
+})()
+
 /** Liste des cellules pleines d'une piece, en coordonnees plateau. */
 export function pieceCells(piece: Piece): Array<{ x: number; y: number }> {
-  const shape = SHAPES[piece.kind][piece.rotation]
-  const cells: Array<{ x: number; y: number }> = []
-  for (let dy = 0; dy < shape.length; dy++) {
-    for (let dx = 0; dx < shape[dy].length; dx++) {
-      if (shape[dy][dx]) {
-        cells.push({ x: piece.x + dx, y: piece.y + dy })
-      }
-    }
+  const offsets = CELL_OFFSETS[piece.kind][piece.rotation]
+  const cells: Array<{ x: number; y: number }> = new Array(offsets.length)
+  for (let i = 0; i < offsets.length; i++) {
+    const [dx, dy] = offsets[i]
+    cells[i] = { x: piece.x + dx, y: piece.y + dy }
   }
   return cells
 }

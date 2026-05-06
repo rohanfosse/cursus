@@ -1,5 +1,5 @@
 /**
- * TetrisView — mini-jeu Tetris moderne (v2.296).
+ * TetrisView — mini-jeu Tetris moderne.
  *
  * Features modernes :
  *   1. SRS rotations + wall kicks (incl. T-spin detection 3-corner)
@@ -43,6 +43,7 @@ import {
   playLockTone, playHardDropTone, playRotateTone, playHoldTone,
   playLineClearTone, playTSpinTone, playLevelUpTone,
 } from '@/utils/arcadeSounds'
+import { parseHex } from '@/utils/colorUtils'
 
 const gameMeta = GAMES.find(g => g.id === 'tetris')
 
@@ -79,15 +80,16 @@ const LOCK_DELAY_MS = 500
 const LOCK_RESET_MAX = 15
 const lockTimer = ref<number | null>(null)
 const lockResetCount = ref(0)
-const isLocking = ref(false)
 
-const tickCount = ref(0)
 let gravityInterval: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setTimeout> | null = null
+let clearAnimTimer: ReturnType<typeof setTimeout> | null = null
 let lastKickIndex = -1     // -1 = derniere action n'etait pas une rotation
 let softDropDistance = 0   // pour scoring du soft drop
 
-// Particles + flash + shake (game feel)
+// Particles + flash + shake (game feel). Les particules ne sont jamais
+// lues depuis le template — on garde un tableau mute, sans reactivite Vue,
+// pour eviter le cout de spread/filter et de notifications a chaque frame.
 interface Particle {
   x: number; y: number
   vx: number; vy: number
@@ -96,7 +98,8 @@ interface Particle {
   color: string
   size: number
 }
-const particles = ref<Particle[]>([])
+const PARTICLE_HARD_CAP = 300
+const particles: Particle[] = []
 const flashIntensity = ref(0)
 const shakeIntensity = ref(0)  // px de decalage aleatoire pendant N frames
 const clearingRows = ref<number[]>([])  // rangees en cours d'animation de clear
@@ -105,6 +108,15 @@ const CLEAR_ANIM_MS = 220
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const animationFrameId = ref<number | null>(null)
+
+/**
+ * Ghost piece (silhouette d'atterrissage) — recalcule uniquement quand
+ * `current` ou `board` change. Sans ce cache, `ghostPiece()` walkait le
+ * board chaque frame du render loop (60 fps), allouant a chaque iteration.
+ */
+const cachedGhost = computed<Piece | null>(() =>
+  current.value ? ghostPiece(board.value, current.value) : null,
+)
 
 // ── Couleurs SRS standard ──────────────────────────────────────────────────
 const PIECE_COLORS: Record<PieceKind, { core: string; light: string; shadow: string }> = {
@@ -129,16 +141,16 @@ function initGame() {
   combo.value = -1
   backToBack.value = false
   lastClearLabel.value = null
-  particles.value = []
+  particles.length = 0
   flashIntensity.value = 0
   shakeIntensity.value = 0
   clearingRows.value = []
   gameOver.value = false
   isPaused.value = false
-  tickCount.value = 0
   lastKickIndex = -1
   softDropDistance = 0
   cancelLockTimer()
+  cancelClearAnim()
 }
 
 function spawnNext(): boolean {
@@ -216,24 +228,25 @@ function softGravityStep() {
   const moved = tryMove(board.value, current.value, 0, 1)
   if (moved) {
     current.value = moved
-    isLocking.value = false
     cancelLockTimer()
   } else {
-    // En contact avec une surface — armer le lock timer
     armLockTimer()
   }
   game.tick()
-  tickCount.value++
 }
 
 // ── Lock delay ─────────────────────────────────────────────────────────────
-function armLockTimer() {
-  if (lockTimer.value != null) return  // deja arme
-  isLocking.value = true
+function scheduleLock() {
   lockTimer.value = window.setTimeout(() => {
     lockTimer.value = null
     lockCurrentPiece()
   }, LOCK_DELAY_MS)
+}
+
+/** Arme le timer si la piece touche une surface et qu'aucun timer ne tourne. */
+function armLockTimer() {
+  if (lockTimer.value != null) return
+  scheduleLock()
 }
 
 function cancelLockTimer() {
@@ -241,19 +254,26 @@ function cancelLockTimer() {
     clearTimeout(lockTimer.value)
     lockTimer.value = null
   }
-  isLocking.value = false
 }
 
-/** Reset le lock timer si on a encore du budget de resets (anti-stall). */
+/**
+ * Re-arme le timer si une piece au sol bouge / tourne — anti-stall :
+ * limite a LOCK_RESET_MAX resets. No-op si aucun timer ne tourne (piece
+ * encore en l'air).
+ */
 function bumpLockTimer() {
   if (lockTimer.value == null) return
   if (lockResetCount.value >= LOCK_RESET_MAX) return
   clearTimeout(lockTimer.value)
   lockResetCount.value++
-  lockTimer.value = window.setTimeout(() => {
-    lockTimer.value = null
-    lockCurrentPiece()
-  }, LOCK_DELAY_MS)
+  scheduleLock()
+}
+
+function cancelClearAnim() {
+  if (clearAnimTimer != null) {
+    clearTimeout(clearAnimTimer)
+    clearAnimTimer = null
+  }
 }
 
 // ── Verrouillage de la piece + clear ───────────────────────────────────────
@@ -316,12 +336,16 @@ function lockCurrentPiece() {
     if (newLevel > level.value) {
       level.value = newLevel
       if (soundEnabled.value) playLevelUpTone()
-      restartGravityForLevel()
+      startGravity()
     }
     linesCleared.value = totalLines
 
-    // Apres le delai de l'animation, applique le board sans les lignes
-    setTimeout(() => {
+    // Apres le delai de l'animation, applique le board sans les lignes.
+    // Le timer est trace pour pouvoir l'annuler si le composant unmount
+    // pendant l'animation — sinon spawnNext() poursuivrait sur des refs
+    // detruits et pourrait declencher un endRun fantome.
+    clearAnimTimer = setTimeout(() => {
+      clearAnimTimer = null
       board.value = result.board
       clearingRows.value = []
       lockResetCount.value = 0
@@ -336,14 +360,6 @@ function lockCurrentPiece() {
     if (soundEnabled.value) playLockTone()
     spawnNext()
   }
-}
-
-function restartGravityForLevel() {
-  stopGravity()
-  gravityInterval = setInterval(() => {
-    if (game.state.value !== 'playing' || isPaused.value || clearingRows.value.length > 0) return
-    softGravityStep()
-  }, gravityMs(level.value))
 }
 
 function triggerGameOver() {
@@ -451,46 +467,44 @@ function toggleSound() {
 
 // ── Particles ──────────────────────────────────────────────────────────────
 function spawnLineParticles(x: number, y: number, kind: PieceKind | null) {
+  if (particles.length >= PARTICLE_HARD_CAP) return
   const colors = kind ? PIECE_COLORS[kind] : PIECE_COLORS.I
   const cx = x * CELL + CELL / 2
   // Adjust pour le buffer : les y >= BUFFER sont visibles a y - BUFFER
   const cy = (y - BOARD_BUFFER) * CELL + CELL / 2
-  const rgb = hexToRgb(colors.core)
+  const rgb = parseHex(colors.core) ?? { r: 255, g: 255, b: 255 }
+  const colorPrefix = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b},`
   for (let i = 0; i < 4; i++) {
     const angle = Math.random() * Math.PI * 2
     const speed = 1 + Math.random() * 3
-    particles.value.push({
+    particles.push({
       x: cx, y: cy,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed - 1,
       life: 1,
       decay: 0.025 + Math.random() * 0.025,
-      color: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b},`,
+      color: colorPrefix,
       size: 2 + Math.random() * 3,
     })
   }
 }
 
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const h = hex.replace('#', '')
-  return {
-    r: parseInt(h.slice(0, 2), 16),
-    g: parseInt(h.slice(2, 4), 16),
-    b: parseInt(h.slice(4, 6), 16),
-  }
-}
-
+/** Avance et compacte le tableau in-place (pas de nouvelles allocations). */
 function updateParticles() {
-  if (particles.value.length === 0) return
-  particles.value = particles.value
-    .map(p => ({
-      ...p,
-      x: p.x + p.vx,
-      y: p.y + p.vy,
-      vy: p.vy + 0.18,  // gravite
-      life: p.life - p.decay,
-    }))
-    .filter(p => p.life > 0)
+  if (particles.length === 0) return
+  let write = 0
+  for (let read = 0; read < particles.length; read++) {
+    const p = particles[read]
+    p.x += p.vx
+    p.y += p.vy
+    p.vy += 0.18  // gravite
+    p.life -= p.decay
+    if (p.life > 0) {
+      if (write !== read) particles[write] = p
+      write++
+    }
+  }
+  particles.length = write
 }
 
 // ── Render loop (60 fps) ───────────────────────────────────────────────────
@@ -580,24 +594,27 @@ function render() {
 
   // Ghost piece + piece courante (skip pendant l'animation de clear)
   if (current.value && clearingRows.value.length === 0) {
-    const ghost = ghostPiece(board.value, current.value)
-    for (const c of pieceCells(ghost)) {
-      const visualY = c.y - BOARD_BUFFER
-      if (visualY >= 0) drawGhostBlock(ctx, c.x, visualY, current.value.kind)
+    const ghost = cachedGhost.value
+    if (ghost) {
+      for (const c of pieceCells(ghost)) {
+        const visualY = c.y - BOARD_BUFFER
+        if (visualY >= 0) drawGhostBlock(ctx, c.x, visualY, current.value.kind)
+      }
     }
+    const isLocking = lockTimer.value != null
     for (const c of pieceCells(current.value)) {
       const visualY = c.y - BOARD_BUFFER
       if (visualY >= 0) {
         drawBlock(
           ctx, c.x, visualY, current.value.kind,
-          isLocking.value ? 0.65 + Math.sin(performance.now() / 100) * 0.2 : 1,
+          isLocking ? 0.65 + Math.sin(performance.now() / 100) * 0.2 : 1,
         )
       }
     }
   }
 
   // Particles
-  for (const p of particles.value) {
+  for (const p of particles) {
     ctx.fillStyle = `${p.color}${p.life})`
     ctx.beginPath()
     ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2)
@@ -738,8 +755,7 @@ function onKeydown(e: KeyboardEvent) {
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 onMounted(async () => {
   unlockArcadeSound()
-  await game.refreshLeaderboard()
-  await game.refreshMyStats()
+  await Promise.all([game.refreshLeaderboard(), game.refreshMyStats()])
   initGame()
   startRenderLoop()
   window.addEventListener('keydown', onKeydown)
@@ -749,6 +765,7 @@ onBeforeUnmount(() => {
   stopGravity()
   cancelLockTimer()
   cancelCountdown()
+  cancelClearAnim()
   stopRenderLoop()
   window.removeEventListener('keydown', onKeydown)
 })
