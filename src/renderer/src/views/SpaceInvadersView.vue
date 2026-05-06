@@ -40,10 +40,25 @@ const H = 560
 const PLAYER_W = 40
 const PLAYER_H = 20
 const PLAYER_Y = H - 40
-const PLAYER_SPEED = 5
-const BULLET_SPEED = 8
+// v2.295 — game feel : remplace PLAYER_SPEED constant par un systeme avec
+// inertie (acceleration + friction). Le vaisseau prend un peu d'elan et
+// derape legerement quand on relache la touche, donne du poids.
+const PLAYER_ACCEL = 0.85
+const PLAYER_FRICTION = 0.86
+const PLAYER_MAX_SPEED = 6.2
+const BULLET_SPEED = 9
 const BULLET_COOLDOWN = 280
 const RAPID_FIRE_COOLDOWN = 140
+// Game feel constants (v2.295)
+const RECOIL_AMOUNT = 5            // px que le vaisseau plonge sur tir
+const RECOIL_DECAY = 0.78
+const MUZZLE_FLASH_MS = 90
+const HIT_FLASH_MS = 60            // alien blanchi avant de mourir
+const HIT_STOP_FRAMES_KILL = 3     // freeze 3 frames sur kill alien
+const HIT_STOP_FRAMES_UFO = 6      // freeze 6 frames sur UFO (gros punch)
+const HIT_STOP_FRAMES_PLAYER = 8   // freeze 8 frames quand joueur touche
+const SHAKE_DECAY = 0.84
+const DAMAGE_FLASH_MS = 280
 const ALIEN_ROWS = 4
 const ALIEN_COLS = 8
 const ALIEN_W = 38
@@ -70,17 +85,34 @@ const BUNKER_ROWS = 3
 const BUNKER_Y = H - 110
 
 // ── Types ──────────────────────────────────────────────────────────────
-interface Alien { x: number; y: number; row: number; alive: boolean }
-interface Bullet { x: number; y: number; vy: number }
+interface Alien {
+  x: number; y: number; row: number; alive: boolean
+  /** Timestamp ms jusqu'auquel l'alien est rendu en flash blanc (hit registered, v2.295). */
+  hitFlashUntil: number
+}
+interface Bullet {
+  x: number; y: number; vy: number
+  /** Y de la frame precedente, pour dessiner un trail stretche. v2.295. */
+  prevY: number
+  /** Tag pour distinguer triple-shot (couleur differente). */
+  triple?: boolean
+}
 type PowerKind = 'triple' | 'rapid' | 'shield' | 'life'
 interface PowerUp { x: number; y: number; kind: PowerKind }
-interface ActiveBuff { triple: number; rapid: number }  // timestamps d'expiration
+interface ActiveBuff { triple: number; rapid: number }
 interface Ufo { x: number; vx: number; points: number; alive: boolean }
 interface BunkerBlock { x: number; y: number; alive: boolean }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; decay: number; color: string; size: number }
+/** Onde de choc circulaire qui se propage depuis une explosion. v2.295. */
+interface Shockwave { x: number; y: number; radius: number; maxRadius: number; alpha: number; color: string }
+/** Flash de tir (rect lumineux a la sortie du canon). v2.295. */
+interface MuzzleFlash { x: number; y: number; until: number; intensity: number }
 
 // ── Etat ───────────────────────────────────────────────────────────────
 const playerX = ref(W / 2 - PLAYER_W / 2)
+// v2.295 — game feel : velocity + offsets pour inertie / recoil
+const playerVx = ref(0)
+const playerYOffset = ref(0)  // recoil down (decay vers 0)
 const aliens = ref<Alien[]>([])
 const bullets = ref<Bullet[]>([])
 const alienBullets = ref<Bullet[]>([])
@@ -90,6 +122,11 @@ const hasShield = ref(false)
 const ufo = ref<Ufo | null>(null)
 const bunkers = ref<BunkerBlock[]>([])
 const particles = ref<Particle[]>([])
+// v2.295 — effets visuels game feel
+const shockwaves = ref<Shockwave[]>([])
+const muzzleFlashes = ref<MuzzleFlash[]>([])
+const screenShake = ref(0)         // magnitude px, decay vers 0
+const damageFlashUntil = ref(0)    // timestamp ms d'arret du flash rouge
 const wave = ref(1)
 const lives = ref(INITIAL_LIVES)
 const alienDir = ref<1 | -1>(1)
@@ -103,6 +140,7 @@ let lastShotAt = 0
 let lastUfoAt = 0
 let rafId: number | null = null
 let countdownTimer: ReturnType<typeof setTimeout> | null = null
+let hitStopFrames = 0   // v2.295 : freeze N frames de simulation apres un kill
 const keys = new Set<string>()
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 
@@ -124,6 +162,7 @@ function spawnWave(n: number) {
         y: 50 + r * ALIEN_GAP_Y,
         row: r,
         alive: true,
+        hitFlashUntil: 0,
       })
     }
   }
@@ -155,12 +194,19 @@ function startGame() {
   wave.value = 1
   lives.value = INITIAL_LIVES
   playerX.value = W / 2 - PLAYER_W / 2
+  playerVx.value = 0
+  playerYOffset.value = 0
   gameOverReason.value = null
   buffs.value = { triple: 0, rapid: 0 }
   hasShield.value = false
   ufo.value = null
   powerups.value = []
   particles.value = []
+  shockwaves.value = []
+  muzzleFlashes.value = []
+  screenShake.value = 0
+  damageFlashUntil.value = 0
+  hitStopFrames = 0
   isPaused.value = false
   spawnWave(1)
   buildBunkers()
@@ -230,32 +276,66 @@ function stopLoop() {
 function update() {
   game.tick()
 
-  // Joueur
-  if (keys.has('arrowleft') || keys.has('q') || keys.has('a')) {
-    playerX.value = Math.max(0, playerX.value - PLAYER_SPEED)
+  // v2.295 — hit-stop : freeze N frames apres un kill significatif. On
+  // continue a decremter le compteur mais on skip le reste de l'update
+  // pour donner cette sensation de "punch" iconique (Souls / Hades / Celeste).
+  if (hitStopFrames > 0) {
+    hitStopFrames--
+    return
   }
-  if (keys.has('arrowright') || keys.has('d')) {
-    playerX.value = Math.min(W - PLAYER_W, playerX.value + PLAYER_SPEED)
-  }
+
+  // Decay des effets visuels persistants
+  playerYOffset.value *= RECOIL_DECAY
+  if (playerYOffset.value < 0.1) playerYOffset.value = 0
+  screenShake.value *= SHAKE_DECAY
+  if (screenShake.value < 0.2) screenShake.value = 0
+
+  // Joueur — inertie : on accumule de la vitesse (cap PLAYER_MAX_SPEED) et
+  // on applique de la friction quand aucune touche n'est pressee. Donne
+  // une sensation de poids vs le mouvement instantane precedent.
+  const goingLeft = keys.has('arrowleft') || keys.has('q') || keys.has('a')
+  const goingRight = keys.has('arrowright') || keys.has('d')
+  if (goingLeft && !goingRight)  playerVx.value -= PLAYER_ACCEL
+  else if (goingRight && !goingLeft) playerVx.value += PLAYER_ACCEL
+  else                              playerVx.value *= PLAYER_FRICTION
+  playerVx.value = Math.max(-PLAYER_MAX_SPEED, Math.min(PLAYER_MAX_SPEED, playerVx.value))
+  // Stop sec quand vitesse infime, pour eviter les "creep" residuels.
+  if (Math.abs(playerVx.value) < 0.05) playerVx.value = 0
+
+  playerX.value += playerVx.value
+  // Bord : on coupe la vitesse a l'impact (et on ne traverse pas).
+  if (playerX.value < 0) { playerX.value = 0; playerVx.value = 0 }
+  if (playerX.value > W - PLAYER_W) { playerX.value = W - PLAYER_W; playerVx.value = 0 }
 
   // Tir joueur (single ou triple selon power-up)
   if ((keys.has(' ') || keys.has('space')) && Date.now() - lastShotAt > cooldownNow.value) {
     lastShotAt = Date.now()
     const cx = playerX.value + PLAYER_W / 2
+    const startY = PLAYER_Y - 4
     if (tripleActive.value) {
       bullets.value.push(
-        { x: cx,        y: PLAYER_Y, vy: -BULLET_SPEED },
-        { x: cx - 14,   y: PLAYER_Y + 4, vy: -BULLET_SPEED },
-        { x: cx + 14,   y: PLAYER_Y + 4, vy: -BULLET_SPEED },
+        { x: cx,      y: startY,     prevY: startY + 1, vy: -BULLET_SPEED, triple: true },
+        { x: cx - 14, y: startY + 4, prevY: startY + 5, vy: -BULLET_SPEED, triple: true },
+        { x: cx + 14, y: startY + 4, prevY: startY + 5, vy: -BULLET_SPEED, triple: true },
       )
     } else {
-      bullets.value.push({ x: cx, y: PLAYER_Y, vy: -BULLET_SPEED })
+      bullets.value.push({ x: cx, y: startY, prevY: startY + 1, vy: -BULLET_SPEED })
     }
+    // Recoil + muzzle flash + son
+    playerYOffset.value = RECOIL_AMOUNT
+    muzzleFlashes.value.push({
+      x: cx,
+      y: PLAYER_Y - 2,
+      until: Date.now() + MUZZLE_FLASH_MS,
+      intensity: 1,
+    })
     if (soundEnabled.value) playLaserTone()
   }
 
-  // Bullets joueur
-  bullets.value = bullets.value.map((b) => ({ ...b, y: b.y + b.vy })).filter((b) => b.y > -10)
+  // Bullets joueur — track prevY pour le trail
+  bullets.value = bullets.value
+    .map((b) => ({ ...b, prevY: b.y, y: b.y + b.vy }))
+    .filter((b) => b.y > -10)
 
   // Aliens
   let hitEdge = false
@@ -273,10 +353,17 @@ function update() {
   for (const a of aliens.value) {
     if (!a.alive) continue
     if (Math.random() < ALIEN_BULLET_CHANCE) {
-      alienBullets.value.push({ x: a.x + ALIEN_W / 2, y: a.y + ALIEN_H, vy: ALIEN_BULLET_SPEED })
+      alienBullets.value.push({
+        x: a.x + ALIEN_W / 2,
+        y: a.y + ALIEN_H,
+        prevY: a.y + ALIEN_H - 1,
+        vy: ALIEN_BULLET_SPEED,
+      })
     }
   }
-  alienBullets.value = alienBullets.value.map((b) => ({ ...b, y: b.y + b.vy })).filter((b) => b.y < H + 10)
+  alienBullets.value = alienBullets.value
+    .map((b) => ({ ...b, prevY: b.y, y: b.y + b.vy }))
+    .filter((b) => b.y < H + 10)
 
   // UFO bonus : spawn occasionnel
   if (!ufo.value && Date.now() - lastUfoAt > UFO_INTERVAL_MS && Math.random() < 0.4) {
@@ -319,7 +406,11 @@ function update() {
       && b.y >= UFO_Y && b.y <= UFO_Y + UFO_H) {
       const ufoPoints = ufo.value.points * (1 + (wave.value - 1) * 0.2)
       game.addScore(Math.round(ufoPoints))
-      spawnExplosion(ufo.value.x + UFO_W / 2, UFO_Y + UFO_H / 2, '#facc15', 30)
+      spawnExplosion(ufo.value.x + UFO_W / 2, UFO_Y + UFO_H / 2, '#facc15', 38)
+      spawnShockwave(ufo.value.x + UFO_W / 2, UFO_Y + UFO_H / 2, 70, '#facc15')
+      // UFO = gros punch : hit-stop ample + shake fort
+      hitStopFrames = HIT_STOP_FRAMES_UFO
+      screenShake.value = Math.max(screenShake.value, 8)
       if (soundEnabled.value) playPowerUpTone()
       ufo.value = null
       hit = true
@@ -332,9 +423,17 @@ function update() {
           a.alive = false
           const points = alienPoints(a.row) * (1 + (wave.value - 1) * 0.2)
           game.addScore(Math.round(points))
-          spawnExplosion(a.x + ALIEN_W / 2, a.y + ALIEN_H / 2, alienColor(a.row), 14)
+          // Hit flash blanc pris en compte au render via lookup hitFlashUntil sur
+          // les aliens MORTS aussi : on garde a.alive=false mais la frame courante
+          // affiche encore le flash car le draw lit hitFlashUntil. Pour simplifier
+          // on spawne directement l'explosion (pas de "dying" intermediaire) — le
+          // joueur perçoit le punch via hit-stop + shake + shockwave.
+          spawnExplosion(a.x + ALIEN_W / 2, a.y + ALIEN_H / 2, alienColor(a.row), 18)
+          spawnShockwave(a.x + ALIEN_W / 2, a.y + ALIEN_H / 2, 32, alienColor(a.row))
+          // Petit hit-stop + shake leger sur kill alien
+          hitStopFrames = Math.max(hitStopFrames, HIT_STOP_FRAMES_KILL)
+          screenShake.value = Math.max(screenShake.value, 3)
           if (soundEnabled.value) playExplosionTone()
-          // Drop power-up ?
           if (Math.random() < POWERUP_DROP_CHANCE) {
             const kind = randomPowerKind()
             powerups.value.push({ x: a.x + ALIEN_W / 2 - POWERUP_SIZE / 2, y: a.y + ALIEN_H, kind })
@@ -384,11 +483,18 @@ function update() {
     if (hitsPlayer) {
       if (hasShield.value) {
         hasShield.value = false
-        spawnExplosion(playerX.value + PLAYER_W / 2, PLAYER_Y, '#22d3ee', 20)
+        spawnExplosion(playerX.value + PLAYER_W / 2, PLAYER_Y, '#22d3ee', 28)
+        spawnShockwave(playerX.value + PLAYER_W / 2, PLAYER_Y, 50, '#60a5fa')
+        screenShake.value = Math.max(screenShake.value, 5)
         if (soundEnabled.value) playEatTone()
       } else {
         lives.value -= 1
-        spawnExplosion(playerX.value + PLAYER_W / 2, PLAYER_Y, '#f87171', 22)
+        spawnExplosion(playerX.value + PLAYER_W / 2, PLAYER_Y, '#f87171', 32)
+        spawnShockwave(playerX.value + PLAYER_W / 2, PLAYER_Y, 70, '#f87171')
+        // Hit player = gros punch + flash rouge plein ecran + shake violent
+        hitStopFrames = HIT_STOP_FRAMES_PLAYER
+        screenShake.value = Math.max(screenShake.value, 12)
+        damageFlashUntil.value = Date.now() + DAMAGE_FLASH_MS
         if (soundEnabled.value) playExplosionTone()
         if (lives.value <= 0) return gameOver('Eliminated')
       }
@@ -413,8 +519,10 @@ function update() {
     if (wave.value % 3 === 1) buildBunkers()
   }
 
-  // Particles
+  // Effets visuels game feel
   updateParticles()
+  updateShockwaves()
+  updateMuzzleFlashes()
 }
 
 function alienPoints(row: number): number {
@@ -470,6 +578,31 @@ function updateParticles() {
     .filter((p) => p.life > 0)
 }
 
+/**
+ * Spawn d'une onde de choc circulaire qui se propage. v2.295.
+ * Decroit en alpha en s'agrandissant — donne un effet "boom" visuel.
+ */
+function spawnShockwave(cx: number, cy: number, maxRadius: number, color: string): void {
+  shockwaves.value.push({ x: cx, y: cy, radius: 4, maxRadius, alpha: 0.85, color })
+}
+
+function updateShockwaves(): void {
+  if (shockwaves.value.length === 0) return
+  shockwaves.value = shockwaves.value
+    .map((s) => ({
+      ...s,
+      radius: s.radius + (s.maxRadius - s.radius) * 0.18,
+      alpha: s.alpha * 0.86,
+    }))
+    .filter((s) => s.alpha > 0.04)
+}
+
+function updateMuzzleFlashes(): void {
+  if (muzzleFlashes.value.length === 0) return
+  const now = Date.now()
+  muzzleFlashes.value = muzzleFlashes.value.filter((m) => m.until > now)
+}
+
 function gameOver(reason: string) {
   gameOverReason.value = reason
   stopLoop()
@@ -477,12 +610,22 @@ function gameOver(reason: string) {
   game.endRun({ wave: wave.value, livesLeft: lives.value })
 }
 
-// ── Rendu ──────────────────────────────────────────────────────────────
+// ── Rendu (refonte v2.295 — game feel) ────────────────────────────────
 function render() {
   const canvas = canvasRef.value
   if (!canvas) return
   const ctx = canvas.getContext('2d')
   if (!ctx) return
+
+  ctx.save()
+
+  // Screen shake : translate aleatoire dont l'amplitude decroit. Apply
+  // sur tout le rendu (sauf l'overlay damage flash qui reste fixe).
+  if (screenShake.value > 0.5) {
+    const dx = (Math.random() - 0.5) * screenShake.value * 2
+    const dy = (Math.random() - 0.5) * screenShake.value * 2
+    ctx.translate(dx, dy)
+  }
 
   // Fond etoile
   ctx.fillStyle = '#050815'
@@ -494,85 +637,221 @@ function render() {
     ctx.fillRect(x, y, 1, 1)
   }
 
-  // UFO
+  // Shockwaves (rendus EN ARRIERE des aliens / joueur — emergent du fond)
+  for (const s of shockwaves.value) {
+    ctx.strokeStyle = hexToRgba(s.color, s.alpha)
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2)
+    ctx.stroke()
+    // Anneau interne plus subtil pour effet "double pulse"
+    ctx.strokeStyle = hexToRgba(s.color, s.alpha * 0.4)
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.arc(s.x, s.y, s.radius * 0.65, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+
+  // UFO avec halo
   if (ufo.value) {
+    const cx = ufo.value.x + UFO_W / 2
+    const cy = UFO_Y + UFO_H / 2
+    const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, UFO_W * 0.8)
+    grad.addColorStop(0, 'rgba(250, 204, 21, 0.5)')
+    grad.addColorStop(1, 'rgba(250, 204, 21, 0)')
+    ctx.fillStyle = grad
+    ctx.fillRect(ufo.value.x - 20, UFO_Y - 14, UFO_W + 40, UFO_H + 28)
     ctx.fillStyle = '#facc15'
     ctx.beginPath()
-    ctx.ellipse(ufo.value.x + UFO_W / 2, UFO_Y + UFO_H / 2, UFO_W / 2, UFO_H / 2, 0, 0, Math.PI * 2)
+    ctx.ellipse(cx, cy, UFO_W / 2, UFO_H / 2, 0, 0, Math.PI * 2)
     ctx.fill()
     ctx.fillStyle = '#fef3c7'
     ctx.beginPath()
-    ctx.ellipse(ufo.value.x + UFO_W / 2, UFO_Y + UFO_H / 2 - 2, UFO_W / 4, UFO_H / 3, 0, 0, Math.PI * 2)
+    ctx.ellipse(cx, cy - 2, UFO_W / 4, UFO_H / 3, 0, 0, Math.PI * 2)
     ctx.fill()
   }
 
-  // Aliens
+  // Aliens — flash blanc temporaire applique en overlay si hitFlashUntil > now
+  const now = Date.now()
   for (const a of aliens.value) {
     if (!a.alive) continue
-    ctx.fillStyle = alienColor(a.row)
+    const isFlashing = a.hitFlashUntil > now
+    ctx.fillStyle = isFlashing ? '#ffffff' : alienColor(a.row)
     ctx.fillRect(a.x + 6, a.y + 6, ALIEN_W - 12, ALIEN_H - 10)
     ctx.fillRect(a.x, a.y + 10, 6, 8)
     ctx.fillRect(a.x + ALIEN_W - 6, a.y + 10, 6, 8)
-    ctx.fillStyle = '#0a0e1a'
-    ctx.fillRect(a.x + 12, a.y + 12, 4, 4)
-    ctx.fillRect(a.x + ALIEN_W - 16, a.y + 12, 4, 4)
+    if (!isFlashing) {
+      ctx.fillStyle = '#0a0e1a'
+      ctx.fillRect(a.x + 12, a.y + 12, 4, 4)
+      ctx.fillRect(a.x + ALIEN_W - 16, a.y + 12, 4, 4)
+    }
   }
 
-  // Bunkers (chaque block individuel)
+  // Bunkers
   ctx.fillStyle = '#34d399'
   for (const blk of bunkers.value) {
     if (!blk.alive) continue
     ctx.fillRect(blk.x, blk.y, BUNKER_BLOCK, BUNKER_BLOCK)
   }
 
-  // Power-ups qui tombent
-  for (const p of powerups.value) {
-    drawPowerUp(ctx, p)
-  }
+  // Power-ups
+  for (const p of powerups.value) drawPowerUp(ctx, p)
 
-  // Particles
+  // Particles (avec glow leger via ombre ctx)
+  ctx.save()
+  ctx.shadowBlur = 8
   particles.value.forEach((p) => {
-    const m = p.color.match(/^#([0-9a-f]{6})$/i)
-    if (m) {
-      const r = parseInt(m[1].slice(0,2), 16)
-      const g = parseInt(m[1].slice(2,4), 16)
-      const bb = parseInt(m[1].slice(4,6), 16)
-      ctx.fillStyle = `rgba(${r},${g},${bb},${p.life})`
-    } else {
-      ctx.fillStyle = p.color
-    }
+    ctx.shadowColor = p.color
+    ctx.fillStyle = hexToRgba(p.color, p.life)
     ctx.beginPath()
     ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2)
     ctx.fill()
   })
+  ctx.restore()
 
-  // Joueur (triangle vaisseau + shield si actif)
-  ctx.fillStyle = '#22d3ee'
+  // Bullets joueur — gradient + glow + trail base sur prevY
+  drawPlayerBullets(ctx)
+
+  // Bullets aliens — laser rouge avec glow
+  drawAlienBullets(ctx)
+
+  // Joueur (avec recoil offset Y) + muzzle flash
+  drawPlayer(ctx)
+
+  // Muzzle flashes (apres le joueur pour passer dessus)
+  drawMuzzleFlashes(ctx)
+
+  ctx.restore()  // unshake
+
+  // Damage flash plein ecran : superpose APRES le restore pour rester
+  // ancre au canvas, peu importe le shake. Pulse leger pour donner du
+  // rythme.
+  if (damageFlashUntil.value > now) {
+    const remaining = (damageFlashUntil.value - now) / DAMAGE_FLASH_MS
+    const alpha = remaining * 0.35
+    ctx.fillStyle = `rgba(248, 113, 113, ${alpha})`
+    ctx.fillRect(0, 0, W, H)
+  }
+}
+
+/**
+ * Convertit un hex (#rrggbb) en string rgba avec alpha. Ignore les
+ * formats invalides en retombant sur la valeur d'origine — utile car
+ * on melange parfois des couleurs hex et rgb dans les particles.
+ */
+function hexToRgba(color: string, alpha: number): string {
+  const m = color.match(/^#([0-9a-f]{6})$/i)
+  if (!m) return color
+  const r = parseInt(m[1].slice(0, 2), 16)
+  const g = parseInt(m[1].slice(2, 4), 16)
+  const b = parseInt(m[1].slice(4, 6), 16)
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
+function drawPlayer(ctx: CanvasRenderingContext2D): void {
+  const yOff = playerYOffset.value
+  const baseColor = '#22d3ee'
+  // Glow autour du vaisseau (subtil, dynamique selon recoil)
+  const glow = 8 + yOff * 1.5
+  ctx.save()
+  ctx.shadowBlur = glow
+  ctx.shadowColor = baseColor
+  ctx.fillStyle = baseColor
   ctx.beginPath()
-  ctx.moveTo(playerX.value + PLAYER_W / 2, PLAYER_Y)
-  ctx.lineTo(playerX.value, PLAYER_Y + PLAYER_H)
-  ctx.lineTo(playerX.value + PLAYER_W, PLAYER_Y + PLAYER_H)
+  ctx.moveTo(playerX.value + PLAYER_W / 2, PLAYER_Y + yOff)
+  ctx.lineTo(playerX.value, PLAYER_Y + PLAYER_H + yOff)
+  ctx.lineTo(playerX.value + PLAYER_W, PLAYER_Y + PLAYER_H + yOff)
   ctx.closePath()
   ctx.fill()
-  ctx.fillStyle = '#67e8f9'
-  ctx.fillRect(playerX.value + PLAYER_W / 2 - 2, PLAYER_Y - 4, 4, 6)
+  ctx.restore()
 
-  // Shield bubble
+  // Canon central plus clair
+  ctx.fillStyle = '#67e8f9'
+  ctx.fillRect(playerX.value + PLAYER_W / 2 - 2, PLAYER_Y - 4 + yOff, 4, 6)
+
+  // Reacteur arriere — petit triangle qui clignote selon vitesse
+  const speedRatio = Math.abs(playerVx.value) / PLAYER_MAX_SPEED
+  if (speedRatio > 0.1) {
+    ctx.fillStyle = `rgba(255, 200, 80, ${0.4 + speedRatio * 0.6})`
+    const flameH = 4 + speedRatio * 8
+    const fcx = playerX.value + PLAYER_W / 2
+    ctx.beginPath()
+    ctx.moveTo(fcx - 4, PLAYER_Y + PLAYER_H + yOff)
+    ctx.lineTo(fcx,     PLAYER_Y + PLAYER_H + yOff + flameH)
+    ctx.lineTo(fcx + 4, PLAYER_Y + PLAYER_H + yOff)
+    ctx.closePath()
+    ctx.fill()
+  }
+
+  // Shield bubble pulsant
   if (hasShield.value) {
+    const pulse = 1 + Math.sin(Date.now() * 0.01) * 0.05
     ctx.strokeStyle = 'rgba(96, 165, 250, .85)'
     ctx.lineWidth = 2
     ctx.beginPath()
-    ctx.arc(playerX.value + PLAYER_W / 2, PLAYER_Y + PLAYER_H / 2, PLAYER_W / 2 + 10, 0, Math.PI * 2)
+    ctx.arc(playerX.value + PLAYER_W / 2, PLAYER_Y + PLAYER_H / 2 + yOff, (PLAYER_W / 2 + 10) * pulse, 0, Math.PI * 2)
+    ctx.stroke()
+    // Halo interne
+    ctx.strokeStyle = 'rgba(96, 165, 250, .25)'
+    ctx.lineWidth = 6
+    ctx.beginPath()
+    ctx.arc(playerX.value + PLAYER_W / 2, PLAYER_Y + PLAYER_H / 2 + yOff, (PLAYER_W / 2 + 10) * pulse, 0, Math.PI * 2)
     ctx.stroke()
   }
+}
 
-  // Bullets joueur (triple shot teint different si actif)
-  ctx.fillStyle = tripleActive.value ? '#a78bfa' : '#fde047'
-  for (const b of bullets.value) ctx.fillRect(b.x - 1, b.y, 3, 10)
+function drawPlayerBullets(ctx: CanvasRenderingContext2D): void {
+  ctx.save()
+  for (const b of bullets.value) {
+    const color = b.triple ? '#a78bfa' : '#fde047'
+    const glowColor = b.triple ? '#c4b5fd' : '#fef9c3'
+    // Trail : segment du prevY au y courant avec gradient
+    ctx.shadowBlur = 14
+    ctx.shadowColor = color
+    const grad = ctx.createLinearGradient(b.x, b.prevY + 6, b.x, b.y)
+    grad.addColorStop(0, hexToRgba(color, 0))
+    grad.addColorStop(0.4, hexToRgba(color, 0.7))
+    grad.addColorStop(1, glowColor)
+    ctx.fillStyle = grad
+    ctx.fillRect(b.x - 1.5, b.y, 3, Math.max(10, b.prevY - b.y + 10))
+  }
+  ctx.restore()
+}
 
-  // Bullets aliens
-  ctx.fillStyle = '#f87171'
-  for (const b of alienBullets.value) ctx.fillRect(b.x - 1, b.y, 3, 10)
+function drawAlienBullets(ctx: CanvasRenderingContext2D): void {
+  ctx.save()
+  for (const b of alienBullets.value) {
+    ctx.shadowBlur = 10
+    ctx.shadowColor = '#f87171'
+    const grad = ctx.createLinearGradient(b.x, b.prevY - 6, b.x, b.y + 10)
+    grad.addColorStop(0, 'rgba(248, 113, 113, 0)')
+    grad.addColorStop(0.5, 'rgba(248, 113, 113, 0.7)')
+    grad.addColorStop(1, '#fecaca')
+    ctx.fillStyle = grad
+    ctx.fillRect(b.x - 1.5, b.prevY, 3, b.y - b.prevY + 10)
+  }
+  ctx.restore()
+}
+
+function drawMuzzleFlashes(ctx: CanvasRenderingContext2D): void {
+  if (muzzleFlashes.value.length === 0) return
+  const now = Date.now()
+  ctx.save()
+  for (const m of muzzleFlashes.value) {
+    const remaining = (m.until - now) / MUZZLE_FLASH_MS
+    if (remaining <= 0) continue
+    const intensity = remaining * m.intensity
+    const radius = 14 * (1.5 - remaining)  // grandit en s'estompant
+    const grad = ctx.createRadialGradient(m.x, m.y, 1, m.x, m.y, radius)
+    grad.addColorStop(0, `rgba(255, 250, 200, ${intensity})`)
+    grad.addColorStop(0.5, `rgba(253, 224, 71, ${intensity * 0.5})`)
+    grad.addColorStop(1, 'rgba(253, 224, 71, 0)')
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.arc(m.x, m.y, radius, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  ctx.restore()
 }
 
 function drawPowerUp(ctx: CanvasRenderingContext2D, p: PowerUp) {
