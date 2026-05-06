@@ -15,6 +15,8 @@ export interface ToastEntry {
   detail?: string
   onUndo?: () => void
   timer?: ReturnType<typeof setTimeout>
+  /** Timestamp ms de creation — utilise par Toast.vue pour le hover-pause. */
+  _startedAt: number
 }
 
 // ─── Etat partage (singleton) ───────────────────────────────────────────────
@@ -43,7 +45,7 @@ export function useToast() {
     // Add to queue
     const id = `toast_${++_idCounter}_${Date.now()}`
     const duration = type === 'error' ? 8000 : 4000
-    const entry: ToastEntry = { id, message: msg, type, detail }
+    const entry: ToastEntry = { id, message: msg, type, detail, _startedAt: Date.now() }
     entry.timer = setTimeout(() => removeToast(id), duration)
     toastQueue.value = [entry, ...toastQueue.value].slice(0, MAX_VISIBLE)
 
