@@ -233,14 +233,28 @@ export function useApi() {
       if (existing) return existing
     }
 
+    /**
+     * Trace persistante de tout echec passant par useApi. Tag derive du
+     * `context` (ex. 'devoir', 'submit', 'channel') pour pouvoir filtrer
+     * dans main.log. Silent: true ne supprime PAS le log — un score
+     * arcade qui plante doit toujours laisser une trace, sinon il
+     * disparait totalement.
+     */
+    const logFailure = (kind: string, payload: Record<string, unknown>) => {
+      try {
+        window.api?.logToFile?.('error', `useApi:${context ?? 'generic'}`, kind, payload)
+      } catch { /* never break a route on logger failure */ }
+    }
+
     const exec = async (): Promise<T | null> => {
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
           const res = await withTimeout(call(), timeoutMs, signal)
           if (!res?.ok) {
             // Erreur métier — pas de retry
+            const serverError = res?.error || ''
+            logFailure('business_error', { serverError, attempt })
             if (!silent) {
-              const serverError = res?.error || ''
               const ctx = context ? ERROR_CONTEXT[context] : null
               const autoKey = serverError ? detectErrorContext(serverError) : null
               const autoCtx = autoKey ? ERROR_CONTEXT[autoKey] : null
@@ -266,7 +280,13 @@ export function useApi() {
             continue
           }
 
-          // Dernière tentative échouée
+          // Dernière tentative échouée — toujours log, peu importe silent.
+          const message = normalizeMessage(err)
+          const stack = err instanceof Error ? err.stack?.slice(0, 1000) : undefined
+          if (isTimeoutError(err))      logFailure('timeout',  { message, attempt })
+          else if (isNetworkError(err)) logFailure('network',  { message, attempt })
+          else                          logFailure('thrown',   { message, stack, attempt })
+
           if (!silent) {
             if (isTimeoutError(err)) {
               showToastSafe(showToast, ERROR_CONTEXT.timeout.msg, ERROR_CONTEXT.timeout.detail)
@@ -274,7 +294,6 @@ export function useApi() {
               const retryMsg = retries > 0 ? ` (${retries + 1} tentatives échouées)` : ''
               showToastSafe(showToast, ERROR_CONTEXT.network.msg + retryMsg, ERROR_CONTEXT.network.detail)
             } else {
-              const message = normalizeMessage(err)
               const ctx = context ? ERROR_CONTEXT[context] : null
               showToastSafe(
                 showToast,

@@ -22,6 +22,7 @@ import { useToast } from '@/composables/useToast'
 import { validateFile } from '@/utils/fileValidation'
 import { validateUrl } from '@/utils/urlValidation'
 import { celebrate } from '@/utils/celebrate'
+import { reportError } from '@/utils/reportError'
 import type { Devoir } from '@/types'
 
 export type DepositMode = 'file' | 'link'
@@ -100,8 +101,10 @@ export function useStudentDepositInline(isExpired: (deadline: string) => boolean
         showToast(uploadRes?.error ?? 'Erreur lors du chargement du fichier.', 'error')
       }
     } catch (err) {
-      console.warn('[deposit] uploadFile a echoue', err)
-      showToast('Erreur reseau lors de l\'upload. Verifie ta connexion.', 'error')
+      showToast(reportError(err, {
+        tag: 'deposit', op: 'upload_file_picker',
+        userMessage: 'Erreur reseau lors de l\'upload. Verifie ta connexion.',
+      }), 'error')
     } finally {
       uploading.value = false
       uploadProgress.value = 0
@@ -156,8 +159,11 @@ export function useStudentDepositInline(isExpired: (deadline: string) => boolean
         showToast(uploadRes?.error ?? 'Erreur lors du chargement du fichier.', 'error')
       }
     } catch (err) {
-      console.warn('[deposit] drop uploadFile a echoue', err)
-      showToast('Erreur reseau lors de l\'upload.', 'error')
+      showToast(reportError(err, {
+        tag: 'deposit', op: 'upload_file_drop',
+        meta: { fileName: dropped.name, fileSize: dropped.size },
+        userMessage: 'Erreur reseau lors de l\'upload.',
+      }), 'error')
     } finally {
       uploading.value = false
       uploadProgress.value = 0
@@ -211,8 +217,11 @@ export function useStudentDepositInline(isExpired: (deadline: string) => boolean
         showToast('Erreur lors du depot. Reessaie dans un instant.', 'error')
       }
     } catch (err) {
-      console.warn('[deposit] submit a echoue', err)
-      showToast('Erreur reseau lors du depot.', 'error')
+      showToast(reportError(err, {
+        tag: 'deposit', op: 'submit',
+        meta: { devoirId: devoir.id, mode: mode.value, hasFile: !!file.value },
+        userMessage: 'Erreur reseau lors du depot.',
+      }), 'error')
     } finally {
       depositing.value = false
     }

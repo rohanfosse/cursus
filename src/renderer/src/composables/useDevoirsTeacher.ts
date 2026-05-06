@@ -9,6 +9,7 @@ import { useModalsStore }  from '@/stores/modals'
 import { useToast }        from '@/composables/useToast'
 import { deadlineClass }   from '@/utils/date'
 import { isRattrapage, isEventType } from '@/utils/devoir'
+import { reportError }     from '@/utils/reportError'
 import type { GanttRow }   from '@/types'
 
 // ── LocalStorage keys : preferences prof ──────────────────────────────────────
@@ -111,7 +112,13 @@ export function useDevoirsTeacher() {
       await window.api.updateTravailPublished({ travailId: id, published: true })
       showToast('Devoir publié.', 'success')
       loadView()
-    } catch (err) { console.warn('[publishDevoir]', err); showToast('Erreur.', 'error') }
+    } catch (err) {
+      showToast(reportError(err, {
+        tag: 'devoir', op: 'publish_inline',
+        meta: { devoirId: id },
+        userMessage: 'Erreur lors de la publication.',
+      }), 'error')
+    }
   }
 
   async function publishAllDrafts() {

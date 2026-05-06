@@ -6,6 +6,7 @@ import { ref, computed } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { useToast } from '@/composables/useToast'
+import { reportError } from '@/utils/reportError'
 
 /** Validates a note value: allows A-F (case-insensitive), empty, or numeric */
 function isValidNote(v: string): boolean {
@@ -52,8 +53,11 @@ export function useTeacherGrading() {
       const promoId = appStore.activePromoId
       if (promoId) await travauxStore.fetchRendus(promoId)
     } catch (err) {
-      console.warn('[saveGrade]', err)
-      showToast('Erreur lors de la sauvegarde de la note.', 'error')
+      showToast(reportError(err, {
+        tag: 'devoir', op: 'save_grade',
+        meta: { depotId, hasNote: !!pendingNoteValue.value.trim(), hasFeedback: !!pendingFeedbackValue.value.trim() },
+        userMessage: 'Erreur lors de la sauvegarde de la note.',
+      }), 'error')
     } finally {
       savingGrade.value = false
     }

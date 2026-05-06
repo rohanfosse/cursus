@@ -9,6 +9,8 @@ import { useModalsStore } from '@/stores/modals'
 import { useTravauxStore } from '@/stores/travaux'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { reportError } from '@/utils/reportError'
+import { toRawPayload } from '@/utils/ipcSafe'
 
 type CtxDevoir = (Devoir | GanttRow) & { is_published?: boolean | number }
 
@@ -39,7 +41,13 @@ export function useDevoirContextMenu(loadView: () => Promise<void>) {
       await window.api.updateTravailPublished({ travailId: d.id, published: newVal })
       showToast(newVal ? 'Devoir publié.' : 'Devoir dépublié.', 'success')
       loadView()
-    } catch (err) { console.warn('[ctxPublishToggle]', err); showToast('Erreur.', 'error') }
+    } catch (err) {
+      showToast(reportError(err, {
+        tag: 'devoir', op: 'publish_toggle',
+        meta: { devoirId: d.id, newVal },
+        userMessage: 'Erreur lors de la (de)publication du devoir.',
+      }), 'error')
+    }
     closeCtxMenu()
   }
 
@@ -49,7 +57,7 @@ export function useDevoirContextMenu(loadView: () => Promise<void>) {
     const ok = await confirm(`Dupliquer « ${d.title} » ?`, 'info', 'Dupliquer')
     if (!ok) { closeCtxMenu(); return }
     try {
-      await window.api.createTravail({
+      await window.api.createTravail(toRawPayload({
         title: d.title + ' (copie)',
         description: d.description || '',
         deadline: d.deadline,
@@ -59,10 +67,16 @@ export function useDevoirContextMenu(loadView: () => Promise<void>) {
         category: d.category || '',
         room: (d as CtxDevoir & { room?: string }).room || '',
         published: false,
-      })
+      }))
       showToast('Devoir dupliqué (brouillon).', 'success')
       loadView()
-    } catch (err) { console.warn('[ctxDuplicate]', err); showToast('Erreur lors de la duplication.', 'error') }
+    } catch (err) {
+      showToast(reportError(err, {
+        tag: 'devoir', op: 'duplicate',
+        meta: { sourceId: d.id, title: d.title },
+        userMessage: 'Erreur lors de la duplication.',
+      }), 'error')
+    }
     closeCtxMenu()
   }
 
@@ -75,7 +89,13 @@ export function useDevoirContextMenu(loadView: () => Promise<void>) {
       await window.api.deleteTravail(d.id)
       showToast('Devoir supprimé.', 'success')
       loadView()
-    } catch (err) { console.warn('[ctxDelete]', err); showToast('Erreur.', 'error') }
+    } catch (err) {
+      showToast(reportError(err, {
+        tag: 'devoir', op: 'delete',
+        meta: { devoirId: d.id, title: d.title },
+        userMessage: 'Erreur lors de la suppression.',
+      }), 'error')
+    }
     closeCtxMenu()
   }
 

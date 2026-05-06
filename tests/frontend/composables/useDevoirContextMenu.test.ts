@@ -122,7 +122,7 @@ describe('useDevoirContextMenu', () => {
       const { openCtxMenu, ctxPublishToggle } = useDevoirContextMenu(loadView)
       openCtxMenu(makeMouseEvent(), makeDevoir() as never)
       await ctxPublishToggle()
-      expect(showToastMock).toHaveBeenCalledWith('Erreur.', 'error')
+      expect(showToastMock).toHaveBeenCalledWith('Erreur lors de la (de)publication du devoir.', 'error')
     })
 
     it('does nothing when no devoir selected', async () => {
@@ -201,7 +201,7 @@ describe('useDevoirContextMenu', () => {
       const { openCtxMenu, ctxDelete } = useDevoirContextMenu(loadView)
       openCtxMenu(makeMouseEvent(), makeDevoir() as never)
       await ctxDelete()
-      expect(showToastMock).toHaveBeenCalledWith('Erreur.', 'error')
+      expect(showToastMock).toHaveBeenCalledWith('Erreur lors de la suppression.', 'error')
     })
 
     it('does nothing when no devoir selected', async () => {

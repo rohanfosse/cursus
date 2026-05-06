@@ -8,6 +8,8 @@ import { useApi } from '@/composables/useApi'
 import { useAppStore } from '@/stores/app'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { reportError } from '@/utils/reportError'
+import { toRawPayload } from '@/utils/ipcSafe'
 import type { Promotion } from '@/types'
 import type { Role } from '@/utils/permissions'
 import { avatarColor } from '@/utils/format'
@@ -105,28 +107,50 @@ async function changeRole(role: TeacherRole) {
   })
   if (!ok) return
   savingRole.value = true
-  const res = await window.api.adminSetTeacherRole(props.userId, role)
-  savingRole.value = false
-  if (res?.ok) {
-    showToast(`Rôle mis à jour : ${roleLabel}.`, 'success')
-    emit('updated')
-    await loadDetail()
-  } else {
-    showToast(res?.error ?? 'Impossible de changer le rôle.', 'error')
+  try {
+    const res = await window.api.adminSetTeacherRole(props.userId, role)
+    if (res?.ok) {
+      showToast(`Rôle mis à jour : ${roleLabel}.`, 'success')
+      emit('updated')
+      await loadDetail()
+    } else {
+      window.api.logToFile?.('error', 'admin', 'set_role_business_error',
+        { userId: props.userId, role, serverError: res?.error ?? null })
+      showToast(res?.error ?? 'Impossible de changer le rôle.', 'error')
+    }
+  } catch (err) {
+    showToast(reportError(err, {
+      tag: 'admin', op: 'set_role',
+      meta: { userId: props.userId, role },
+      userMessage: 'Impossible de changer le rôle.',
+    }), 'error')
+  } finally {
+    savingRole.value = false
   }
 }
 
 async function addPromo() {
   if (!promoToAdd.value) return
   savingPromo.value = true
-  const res = await window.api.adminAssignPromo(props.userId, promoToAdd.value)
-  savingPromo.value = false
-  if (res?.ok) {
-    showToast('Promo ajoutée.', 'success')
-    promoToAdd.value = null
-    await loadAssignedPromos()
-  } else {
-    showToast(res?.error ?? 'Erreur lors de l\'ajout de la promo.', 'error')
+  try {
+    const res = await window.api.adminAssignPromo(props.userId, promoToAdd.value)
+    if (res?.ok) {
+      showToast('Promo ajoutée.', 'success')
+      promoToAdd.value = null
+      await loadAssignedPromos()
+    } else {
+      window.api.logToFile?.('error', 'admin', 'assign_promo_business_error',
+        { userId: props.userId, promoId: promoToAdd.value, serverError: res?.error ?? null })
+      showToast(res?.error ?? 'Erreur lors de l\'ajout de la promo.', 'error')
+    }
+  } catch (err) {
+    showToast(reportError(err, {
+      tag: 'admin', op: 'assign_promo',
+      meta: { userId: props.userId, promoId: promoToAdd.value },
+      userMessage: 'Erreur lors de l\'ajout de la promo.',
+    }), 'error')
+  } finally {
+    savingPromo.value = false
   }
 }
 
@@ -138,13 +162,24 @@ async function removePromo(promoId: number, promoName: string) {
   })
   if (!ok) return
   savingPromo.value = true
-  const res = await window.api.adminUnassignPromo(props.userId, promoId)
-  savingPromo.value = false
-  if (res?.ok) {
-    showToast('Promo retirée.', 'success')
-    await loadAssignedPromos()
-  } else {
-    showToast(res?.error ?? 'Erreur lors du retrait de la promo.', 'error')
+  try {
+    const res = await window.api.adminUnassignPromo(props.userId, promoId)
+    if (res?.ok) {
+      showToast('Promo retirée.', 'success')
+      await loadAssignedPromos()
+    } else {
+      window.api.logToFile?.('error', 'admin', 'unassign_promo_business_error',
+        { userId: props.userId, promoId, serverError: res?.error ?? null })
+      showToast(res?.error ?? 'Erreur lors du retrait de la promo.', 'error')
+    }
+  } catch (err) {
+    showToast(reportError(err, {
+      tag: 'admin', op: 'unassign_promo',
+      meta: { userId: props.userId, promoId, promoName },
+      userMessage: 'Erreur lors du retrait de la promo.',
+    }), 'error')
+  } finally {
+    savingPromo.value = false
   }
 }
 
@@ -163,14 +198,25 @@ async function saveUser() {
   if (form.value.email !== detail.value.email) payload.email = form.value.email.trim()
   if (!isTeacherLike.value && form.value.promo_id !== detail.value.promo_id) payload.promo_id = form.value.promo_id
 
-  const res = await window.api.adminUpdateUser(props.userId, payload)
-  saving.value = false
-  if (res?.ok) {
-    showToast('Utilisateur mis a jour.', 'success')
-    emit('updated')
-    await loadDetail()
-  } else {
-    showToast(res?.error ?? 'Erreur lors de la mise a jour.', 'error')
+  try {
+    const res = await window.api.adminUpdateUser(props.userId, toRawPayload(payload))
+    if (res?.ok) {
+      showToast('Utilisateur mis a jour.', 'success')
+      emit('updated')
+      await loadDetail()
+    } else {
+      window.api.logToFile?.('error', 'admin', 'update_user_business_error',
+        { userId: props.userId, fields: Object.keys(payload), serverError: res?.error ?? null })
+      showToast(res?.error ?? 'Erreur lors de la mise a jour.', 'error')
+    }
+  } catch (err) {
+    showToast(reportError(err, {
+      tag: 'admin', op: 'update_user',
+      meta: { userId: props.userId, fields: Object.keys(payload) },
+      userMessage: 'Erreur lors de la mise a jour.',
+    }), 'error')
+  } finally {
+    saving.value = false
   }
 }
 
@@ -203,13 +249,23 @@ async function deleteUser() {
   })
   if (!ok) return
 
-  const res = await window.api.adminDeleteUser(props.userId)
-  if (res?.ok) {
-    showToast('Utilisateur supprime.', 'success')
-    emit('updated')
-    emit('close')
-  } else {
-    showToast(res?.error ?? 'Erreur lors de la suppression.', 'error')
+  try {
+    const res = await window.api.adminDeleteUser(props.userId)
+    if (res?.ok) {
+      showToast('Utilisateur supprime.', 'success')
+      emit('updated')
+      emit('close')
+    } else {
+      window.api.logToFile?.('error', 'admin', 'delete_user_business_error',
+        { userId: props.userId, name: detail.value?.name, serverError: res?.error ?? null })
+      showToast(res?.error ?? 'Erreur lors de la suppression.', 'error')
+    }
+  } catch (err) {
+    showToast(reportError(err, {
+      tag: 'admin', op: 'delete_user',
+      meta: { userId: props.userId, name: detail.value?.name },
+      userMessage: 'Erreur lors de la suppression.',
+    }), 'error')
   }
 }
 
