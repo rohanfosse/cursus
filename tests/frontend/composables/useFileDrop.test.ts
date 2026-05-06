@@ -32,6 +32,9 @@ const mockAddChannelDocument = vi.fn()
   onPresenceUpdate: vi.fn(() => () => {}),
   getTeacherChannels: vi.fn().mockResolvedValue({ ok: true, data: [] }),
   addChannelDocument: mockAddChannelDocument,
+  // Mock du wrapper webUtils.getPathForFile expose v2.301 : renvoie la
+  // valeur stockee dans `.path` du File (mockee via makeElectronFile).
+  getPathForFile: vi.fn((f: File) => (f as File & { path?: string }).path || ''),
 }
 
 import { useFileDrop } from '@/composables/useFileDrop'

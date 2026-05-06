@@ -139,9 +139,10 @@ export function useStudentDepositInline(isExpired: (deadline: string) => boolean
     // Validation cote client avant upload
     if (!validateLocalFile(dropped.name, dropped.size)) return
 
-    // En contexte Electron, File expose .path (non-standard). Sans ca on ne peut
-    // pas lancer uploadFile qui attend un chemin local.
-    const filePath = (dropped as File & { path?: string }).path
+    // Electron 32+ : file.path supprime de Chromium pour la securite. On
+    // passe par window.api.getPathForFile (preload webUtils.getPathForFile)
+    // qui renvoie '' si le fichier ne vient pas d'un drop OS.
+    const filePath = window.api.getPathForFile?.(dropped) || ''
     if (!filePath) {
       showToast('Depose le fichier depuis l\'explorateur Windows/macOS, pas depuis un navigateur.', 'error')
       return

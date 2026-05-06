@@ -327,6 +327,7 @@ const SILENT_FALLBACKS = new Set<string>([
   'setBadge',
   'clearBadge',
   'logToFile',
+  'getPathForFile',
   'onPollUpdate',
   'onStatusChange',
   'offlineWrite',
@@ -374,6 +375,9 @@ const apiImpl = {
     if (meta !== undefined) fn(`[${tag}]`, message, meta)
     else fn(`[${tag}]`, message)
   },
+  // En web on n'a pas de chemin local pour les drops — renvoie '' pour
+  // que l'appelant bascule sur l'upload via FormData.
+  getPathForFile(_file: File): string { return '' },
 
   // ── Auth / session ──────────────────────────────────────────────────────────
   setToken(token: string) {

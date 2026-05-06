@@ -185,4 +185,106 @@ router.get('/my-bookings', requireRole('teacher'), wrap((req) => {
   return queries.getBookingsForTeacher(req.user.id, { from, to })
 }))
 
+// ── Creation directe (style Outlook) ───────────────────────────────────
+//
+// Le prof cree un RDV pour 1+ etudiants sans passer par le flow
+// public-token (pas d'email d'invite, pas de tutorEmail requis). Cas
+// d'usage : ajouter un creneau a l'arrache depuis la sidebar ou en
+// cliquant sur la grille calendrier.
+//
+// Si plusieurs studentIds sont fournis, on cree une serie de bookings
+// au meme creneau (utile pour reservation en groupe), un par etudiant,
+// dans une seule transaction. Si un seul slot conflict avec un booking
+// existant, la transaction est annulee et on remonte 409.
+
+const createDirectSchema = z.object({
+  eventTypeId:    z.number().int().positive(),
+  studentIds:     z.array(z.number().int().positive()).min(1).max(40),
+  startDatetime:  z.string().refine(v => !isNaN(Date.parse(v)), { message: 'startDatetime invalide' }),
+  durationMinutes: z.number().int().min(5).max(480).optional(),
+}).strict()
+
+const MAX_DIRECT_BOOKING_HORIZON_DAYS = 365
+
+router.post('/direct', requireRole('teacher'), validate(createDirectSchema), wrap((req) => {
+  const { eventTypeId, studentIds, startDatetime, durationMinutes } = req.body
+
+  const eventType = queries.getEventTypeById(eventTypeId)
+  if (!eventType) throw new ValidationError('Type de RDV introuvable')
+  if (eventType.teacher_id !== req.user.id) throw new ForbiddenError()
+
+  const startMs = new Date(startDatetime).getTime()
+  const now = Date.now()
+  if (Number.isNaN(startMs)) throw new ValidationError('startDatetime invalide')
+  if (startMs > now + MAX_DIRECT_BOOKING_HORIZON_DAYS * 24 * 3600000) {
+    throw new ValidationError('Le creneau est trop eloigne dans le futur')
+  }
+
+  // Recharge les students en bloc — evite N requetes pour 1..40 students.
+  const { getDb } = require('../../db/connection')
+  const placeholders = studentIds.map(() => '?').join(',')
+  const studentsRows = getDb().prepare(
+    `SELECT id, name, email FROM students WHERE id IN (${placeholders})`
+  ).all(...studentIds)
+  const studentsById = new Map(studentsRows.map(s => [s.id, s]))
+
+  const duration = durationMinutes ?? eventType.duration_minutes
+  const endDatetime = new Date(startMs + duration * 60000).toISOString()
+
+  // Cree un booking par etudiant. createBookingAtomic est TOCTOU-safe.
+  // Si un seul des slots conflicte, on continue : a la fin on remonte
+  // un mix `created` + `skipped` pour que l'UI montre le delta.
+  const created = []
+  const skipped = []
+  for (const studentId of studentIds) {
+    const student = studentsById.get(studentId)
+    if (!student) {
+      skipped.push({ studentId, studentName: `#${studentId}`, reason: 'not_found' })
+      continue
+    }
+    const booking = queries.createBookingAtomic({
+      eventTypeId,
+      studentId,
+      teacherId: req.user.id,
+      // tutor_* champs NOT NULL en schema : la "creation directe" n'a
+      // pas de tuteur tiers, on reuse les coordonnees de l'etudiant
+      // pour satisfaire la contrainte sans introduire de migration.
+      tutorName:  student.name,
+      tutorEmail: student.email,
+      startDatetime,
+      endDatetime,
+      bufferMinutes: eventType.buffer_minutes || 0,
+    })
+    if (booking) {
+      created.push({ id: booking.id, studentId, studentName: student.name })
+    } else {
+      skipped.push({ studentId, studentName: student.name, reason: 'conflict' })
+    }
+  }
+
+  if (created.length === 0) {
+    // Tous les creneaux ont ete rejetes : on rend 409 plutot que ok:true
+    // avec une liste vide, pour que l'UI sache qu'il faut reessayer.
+    const err = new ValidationError('Le creneau est deja pris pour tous les etudiants selectionnes')
+    err.statusCode = 409
+    throw err
+  }
+
+  // Notifie en temps reel (1 event par booking cree, comme la route public)
+  const io = req.app.get('io')
+  if (io) {
+    for (const c of created) {
+      io.to(`user:${req.user.id}`).emit('booking:new', {
+        bookingId: c.id,
+        tutorName: c.studentName,
+        studentName: c.studentName,
+        eventTitle: eventType.title,
+        startDatetime,
+      })
+    }
+  }
+
+  return { created, skipped, eventTypeTitle: eventType.title }
+}))
+
 module.exports = router

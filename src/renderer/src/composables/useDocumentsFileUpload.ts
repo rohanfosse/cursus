@@ -126,8 +126,8 @@ export function useDocumentsFileUpload() {
         continue
       }
 
-      // Electron : file.path disponible, on garde le chemin local
-      const electronPath = (file as unknown as { path?: string }).path
+      // Electron 32+ : file.path supprime → webUtils.getPathForFile.
+      const electronPath = window.api.getPathForFile?.(file) || ''
       if (electronPath) {
         addPendingIfNew({ path: electronPath, name: file.name })
         continue

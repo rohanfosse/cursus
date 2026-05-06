@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { io, Socket } from 'socket.io-client'
 import {
   SERVER_URL, safeAtob, setJwtToken, getJwtToken, setUnauthorizedHandler,
@@ -48,6 +48,18 @@ function setBadge()   { ipcRenderer.send('badge:set') }
 function clearBadge() { ipcRenderer.send('badge:clear') }
 
 /**
+ * Recupere le chemin local d'un fichier drag-and-drop. Necessaire depuis
+ * Electron 32+ : `file.path` (non-standard) a ete supprime de Chromium
+ * pour des raisons de securite. La nouvelle API `webUtils.getPathForFile`
+ * retourne le path local depuis un Blob/File ; renvoie '' si le fichier
+ * provient d'une source web (pas un drop OS).
+ */
+function getPathForFile(file: File): string {
+  try { return webUtils.getPathForFile(file) || '' }
+  catch { return '' }
+}
+
+/**
  * Ecrit une ligne dans le fichier de log Electron principal
  * (%APPDATA%/cursus/logs/main.log via electron-log). Utile pour tracer
  * depuis le renderer des evenements metier persistants apres un reload
@@ -64,6 +76,7 @@ contextBridge.exposeInMainWorld('api', {
   setBadge,
   clearBadge,
   logToFile,
+  getPathForFile,
 
   // ── Auth / session ──────────────────────────────────────────────────────────
   setToken: (token: string) => {
@@ -478,6 +491,9 @@ contextBridge.exposeInMainWorld('api', {
     const q = qs.toString()
     return get(`/api/bookings/my-bookings${q ? '?' + q : ''}`)
   },
+  /** Creation directe (style Outlook) — un RDV pour 1+ etudiants. */
+  createBookingDirect:       (payload: { eventTypeId: number; studentIds: number[]; startDatetime: string; durationMinutes?: number }) =>
+    post('/api/bookings/direct', payload),
   startBookingOAuth:         ()                          => get('/api/bookings/oauth/start'),
   getBookingOAuthStatus:     ()                          => get('/api/bookings/oauth/status'),
   disconnectBookingOAuth:    ()                          => del('/api/bookings/oauth/disconnect'),

@@ -24,6 +24,13 @@ declare global {
       /** Ecrit une ligne dans %APPDATA%/cursus/logs/main.log (fallback console.* en web). */
       logToFile(level: 'info' | 'warn' | 'error', tag: string, message: string, meta?: unknown): void
 
+      /**
+       * Retourne le chemin local d'un File drag-droppe depuis l'OS.
+       * Renvoie '' en web ou si le fichier ne vient pas d'un drop OS.
+       * Remplace l'ancien `file.path` supprime par Chromium / Electron 32+.
+       */
+      getPathForFile(file: File): string
+
       // Auth / session
       setToken(token: string): void
       clearAuth(): void

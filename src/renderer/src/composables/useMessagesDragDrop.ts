@@ -50,7 +50,9 @@ export function useMessagesDragDrop(onAfterDmUpload?: () => void) {
   }
 
   async function uploadDmFile(file: File) {
-    const electronPath = (file as unknown as { path?: string }).path
+    // Electron 32+ a supprime file.path (securite Chromium). On passe par
+    // window.api.getPathForFile (preload webUtils) qui renvoie '' en web.
+    const electronPath = window.api.getPathForFile?.(file) || ''
     if (electronPath) {
       const res = await window.api.uploadFile(electronPath) as { ok: boolean; data?: { url: string; file_size?: number } } | null
       if (res?.ok && res.data) return { url: res.data.url, fileSize: res.data.file_size || 0 }
@@ -81,8 +83,14 @@ export function useMessagesDragDrop(onAfterDmUpload?: () => void) {
 
     // ── Mode canal : ajouter aux documents ─────────────────────────────
     if (appStore.activeChannelId) {
-      const path = (file as unknown as { path?: string }).path
-      if (!path) return
+      const path = window.api.getPathForFile?.(file) || ''
+      if (!path) {
+        // Path indisponible : drop depuis un navigateur ou un site web,
+        // pas depuis l'explorateur OS. On signale plutot que de rester
+        // silencieux (cas Electron 38+ ou utilisateur sur web build).
+        showToast('Glisse le fichier depuis l\'explorateur Windows / Finder, pas depuis un navigateur.', 'error')
+        return
+      }
       pendingDoc.value = { name: file.name, path }
       docAddName.value = file.name
       docAddCat.value = ''

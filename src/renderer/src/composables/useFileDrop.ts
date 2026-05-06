@@ -79,8 +79,8 @@ export function useFileDrop(options: FileDropOptions = {}) {
       return
     }
 
-    // Electron : file.path disponible
-    const electronPath = (file as unknown as { path?: string }).path
+    // Electron 32+ : file.path supprime → webUtils.getPathForFile.
+    const electronPath = window.api.getPathForFile?.(file) || ''
     if (electronPath) {
       pendingFile.value = { name: file.name, path: electronPath }
       return

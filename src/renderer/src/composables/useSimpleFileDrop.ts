@@ -218,7 +218,8 @@ export function useSimpleFileDrop(opts: UseSimpleFileDropOptions): UseSimpleFile
     for (const file of files) {
       const check = validateFile(file)
       if (!check.ok) { errors.push(check.reason!); continue }
-      const electronPath = (file as unknown as { path?: string }).path ?? null
+      // Electron 32+ : file.path supprime → webUtils.getPathForFile.
+      const electronPath = window.api.getPathForFile?.(file) || null
       if (requireElectronPath && !electronPath) {
         errors.push(`"${file.name}" : chemin Electron indisponible.`)
         continue
