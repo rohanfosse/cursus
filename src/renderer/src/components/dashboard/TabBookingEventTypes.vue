@@ -191,11 +191,14 @@ onUnmounted(() => {
 
 <template>
   <div class="col col-types">
-    <div class="col-header">
-      <CalendarPlus :size="14" aria-hidden="true" />
-      <span>Types d'evenements</span>
+    <!-- Toolbar discret : compteur + filtre. Pas de titre repete (deja
+         affiche par la tab "Types" du parent). -->
+    <div class="col-toolbar">
       <span class="col-count" :title="`${booking.eventTypes.value.length} type(s) configure(s)`">
-        {{ booking.eventTypes.value.length }}
+        <template v-if="booking.eventTypes.value.length">
+          {{ booking.eventTypes.value.length }} type<template v-if="booking.eventTypes.value.length > 1">s</template>
+        </template>
+        <template v-else><span class="col-count--empty">Aucun type</span></template>
       </span>
     </div>
 
@@ -506,28 +509,20 @@ onUnmounted(() => {
   gap: var(--space-sm);
   min-width: 0;
 }
-.col-header {
+.col-toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--text-primary);
   padding-bottom: var(--space-xs);
   border-bottom: 1px solid var(--border);
 }
 .col-count {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  background: var(--bg-hover);
-  padding: 1px 7px;
-  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
-  margin-left: auto;
 }
+.col-count--empty { color: var(--text-muted); font-style: italic; font-weight: 500; }
 
 .filter-row {
   position: relative;

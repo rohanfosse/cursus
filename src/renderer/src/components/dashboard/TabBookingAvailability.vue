@@ -7,7 +7,7 @@
  * Le bouton "Enregistrer" envoie l'ensemble au backend.
  */
 import { ref, computed } from 'vue'
-import { Settings, Trash2, Plus, Check } from 'lucide-vue-next'
+import { Trash2, Plus, Check } from 'lucide-vue-next'
 import { type BookingHandle } from '@/composables/useBooking'
 
 const props = defineProps<{ booking: BookingHandle }>()
@@ -40,17 +40,14 @@ function onAddSlot(day: number) {
 
 <template>
   <div class="col col-availability">
-    <div class="col-header">
-      <Settings :size="14" aria-hidden="true" />
-      <span>Disponibilites</span>
-      <span
-        v-if="totalRules > 0"
-        class="col-count"
-        :title="`${totalRules} creneau(x) recurrent(s)`"
-      >
-        {{ totalRules }}
+    <!-- Sous-titre informatif (pas de gros titre repete : la tab le dit). -->
+    <p class="col-subtitle">
+      Definis tes plages hebdomadaires recurrentes — Cursus s'en sert pour proposer
+      des creneaux aux etudiants.
+      <span v-if="totalRules > 0" class="col-subtitle-meta">
+        <span aria-hidden="true">·</span> {{ totalRules }} creneau<template v-if="totalRules > 1">x</template>
       </span>
-    </div>
+    </p>
 
     <div class="week-grid">
       <div v-for="day in DAY_NUMBERS" :key="day" class="day-block">
@@ -123,27 +120,16 @@ function onAddSlot(day: number) {
   gap: var(--space-sm);
   min-width: 0;
 }
-.col-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--text-primary);
-  padding-bottom: var(--space-xs);
-  border-bottom: 1px solid var(--border);
-}
-.col-count {
-  font-size: 11px;
-  font-weight: 700;
+.col-subtitle {
+  margin: 0;
+  font-size: 12.5px;
   color: var(--text-muted);
-  background: var(--bg-hover);
-  padding: 1px 7px;
-  border-radius: 999px;
+  line-height: 1.5;
+}
+.col-subtitle-meta {
   font-variant-numeric: tabular-nums;
-  margin-left: auto;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 /* v2.273.7 — alignement sur landing .rdv-day :

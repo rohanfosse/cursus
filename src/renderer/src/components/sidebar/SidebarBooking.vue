@@ -55,6 +55,13 @@ const smtpChipLabel = computed(() => {
   return 'SMTP operationnel'
 })
 
+/**
+ * Quand les deux services sont OK on consolide en 1 seule chip discrete.
+ * Sinon on affiche les chips detaillees pour montrer ce qui ne va pas.
+ * Reduit le bruit visuel en regime normal (90% du temps tout est vert).
+ */
+const allServicesOk = computed(() => msConnected.value && smtpChipState.value === 'ok')
+
 const allStudents = ref<Array<{ id: number; name?: string; email?: string; promo_id?: number; promo_name?: string }>>([])
 
 async function loadStudents() {
@@ -208,33 +215,47 @@ function goToBooking() {
     <button type="button" class="sb-bk-cta-primary" @click="openCreateModal">
       <Plus :size="14" />
       <span>Nouveau RDV</span>
-      <span class="sb-bk-cta-hint">creer pour 1+ etudiants</span>
     </button>
 
-    <!-- Statuts services (Microsoft / SMTP) -->
-    <div class="sb-bk-services">
+    <!-- Statuts services. v2.314.1 : si tout est OK, on consolide en 1
+         indicateur discret. Si un service est en panne, on detaille pour
+         que le prof voie tout de suite ce qui ne va pas. -->
+    <div class="sb-bk-services" :class="{ 'sb-bk-services--single': allServicesOk }">
       <button
+        v-if="allServicesOk"
         type="button"
-        class="sb-bk-service"
-        :class="msConnected ? 'sb-bk-service--ok' : 'sb-bk-service--ko'"
-        :title="msConnected ? 'Microsoft connecte (Teams + Outlook) — gerer dans Parametres' : 'Microsoft non connecte — cliquer pour configurer'"
+        class="sb-bk-service sb-bk-service--ok"
+        title="Microsoft + Email operationnels — cliquer pour gerer"
         @click="openSettings"
       >
         <span class="sb-bk-service-dot" aria-hidden="true" />
-        <span class="sb-bk-service-label">{{ msConnected ? 'Microsoft' : 'MS non connecte' }}</span>
+        <span class="sb-bk-service-label">Services connectes</span>
         <Settings :size="11" class="sb-bk-service-gear" aria-hidden="true" />
       </button>
-      <button
-        type="button"
-        class="sb-bk-service"
-        :class="`sb-bk-service--${smtpChipState}`"
-        :title="smtpChipLabel + ' — cliquer pour le diagnostic'"
-        @click="showSmtpModal = true"
-      >
-        <span class="sb-bk-service-dot" aria-hidden="true" />
-        <span class="sb-bk-service-label">{{ smtp.status.value?.configured ? 'Email' : 'SMTP KO' }}</span>
-        <Settings :size="11" class="sb-bk-service-gear" aria-hidden="true" />
-      </button>
+      <template v-else>
+        <button
+          type="button"
+          class="sb-bk-service"
+          :class="msConnected ? 'sb-bk-service--ok' : 'sb-bk-service--ko'"
+          :title="msConnected ? 'Microsoft connecte (Teams + Outlook) — gerer dans Parametres' : 'Microsoft non connecte — cliquer pour configurer'"
+          @click="openSettings"
+        >
+          <span class="sb-bk-service-dot" aria-hidden="true" />
+          <span class="sb-bk-service-label">{{ msConnected ? 'Microsoft' : 'MS non connecte' }}</span>
+          <Settings :size="11" class="sb-bk-service-gear" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="sb-bk-service"
+          :class="`sb-bk-service--${smtpChipState}`"
+          :title="smtpChipLabel + ' — cliquer pour le diagnostic'"
+          @click="showSmtpModal = true"
+        >
+          <span class="sb-bk-service-dot" aria-hidden="true" />
+          <span class="sb-bk-service-label">{{ smtp.status.value?.configured ? 'Email' : 'SMTP KO' }}</span>
+          <Settings :size="11" class="sb-bk-service-gear" aria-hidden="true" />
+        </button>
+      </template>
     </div>
 
     <!-- Stats : 3 chiffres en ligne -->
@@ -390,13 +411,6 @@ function goToBooking() {
 .sb-bk-cta-primary:hover { filter: brightness(1.08); }
 .sb-bk-cta-primary:active { transform: translateY(1px); box-shadow: 0 1px 3px color-mix(in srgb, var(--accent) 30%, transparent); }
 .sb-bk-cta-primary:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.sb-bk-cta-hint {
-  margin-left: auto;
-  font-size: 10.5px;
-  font-weight: 500;
-  opacity: .85;
-  white-space: nowrap;
-}
 
 /* ── Services chips (Microsoft + SMTP) ── */
 .sb-bk-services {
@@ -404,6 +418,7 @@ function goToBooking() {
   grid-template-columns: 1fr 1fr;
   gap: 5px;
 }
+.sb-bk-services--single { grid-template-columns: 1fr; }
 .sb-bk-service {
   display: flex; align-items: center; gap: 5px;
   padding: 6px 8px;

@@ -9,7 +9,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import {
-  Calendar, Plus, Send, Trash2, X, Check, Clock, Users, BellRing,
+  Plus, Send, Trash2, X, Check, Clock, Users, BellRing,
   ChevronDown, ChevronRight, AlertCircle, Copy, MailCheck, Sparkles,
   CalendarOff, Briefcase, Video, Eye,
 } from 'lucide-vue-next'
@@ -286,43 +286,25 @@ onMounted(() => {
 
 <template>
   <section class="cm">
-    <!-- Header : titre + CTA principal -->
+    <!-- Header allege (v2.314) : la page est deja dans une tab dediee
+         "Campagnes", on n'a plus besoin du gros titre + bandeau de stats.
+         On garde le sous-titre informatif + un resume inline + le CTA. -->
     <header class="cm-header">
       <div class="cm-title-block">
-        <h2 class="cm-title">
-          <Calendar :size="16" />
-          Campagnes de RDV
-        </h2>
-        <p class="cm-subtitle">Visites tripartites planifiees sur une periode donnee.</p>
+        <p class="cm-subtitle">
+          Visites tripartites planifiees sur une periode donnee.
+          <span v-if="campaigns.length" class="cm-subtitle-meta">
+            <span aria-hidden="true">·</span>
+            {{ totalsStats.bookedTotal }}/{{ totalsStats.invitedTotal }} RDV reserves
+            <span v-if="totalsStats.invitedTotal" class="cm-subtitle-pct">({{ totalsBookedPct }}%)</span>
+          </span>
+        </p>
       </div>
       <UiButton variant="cta" size="sm" @click="showCreate = true">
         <template #leading><Plus :size="14" /></template>
         Nouvelle campagne
       </UiButton>
     </header>
-
-    <!-- Bandeau stats (uniquement si au moins une campagne) -->
-    <div v-if="campaigns.length" class="cm-stats">
-      <div class="cm-stat">
-        <span class="cm-stat-label">Brouillons</span>
-        <span class="cm-stat-value">{{ totalsStats.drafts }}</span>
-      </div>
-      <div class="cm-stat cm-stat--accent">
-        <span class="cm-stat-label">Actives</span>
-        <span class="cm-stat-value">{{ totalsStats.active }}</span>
-      </div>
-      <div class="cm-stat">
-        <span class="cm-stat-label">Cloturees</span>
-        <span class="cm-stat-value">{{ totalsStats.closed }}</span>
-      </div>
-      <div class="cm-stat cm-stat--wide">
-        <span class="cm-stat-label">Reservations</span>
-        <span class="cm-stat-value">
-          {{ totalsStats.bookedTotal }} / {{ totalsStats.invitedTotal }}
-          <span class="cm-stat-pct">({{ totalsBookedPct }}%)</span>
-        </span>
-      </div>
-    </div>
 
     <!-- Liste -->
     <div v-if="loading && !campaigns.length" class="cm-loading" aria-busy="true">
@@ -709,72 +691,26 @@ onMounted(() => {
   gap: var(--space-md);
 }
 
-/* Header */
+/* Header allege (sans titre h2 ni bandeau de stats redondants) */
 .cm-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
 }
-.cm-title-block { display: flex; flex-direction: column; gap: 2px; }
-.cm-title {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
+.cm-title-block { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .cm-subtitle {
   margin: 0;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--text-muted);
   line-height: 1.5;
 }
-
-/* ── Stats bandeau ────────────────────────────────────────────────────── */
-.cm-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) 2fr;
-  gap: var(--space-sm);
-}
-@media (max-width: 640px) {
-  .cm-stats { grid-template-columns: repeat(2, 1fr); }
-  .cm-stat--wide { grid-column: 1 / -1; }
-}
-.cm-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-.cm-stat--accent {
-  border-color: rgba(var(--accent-rgb), .35);
-  background: rgba(var(--accent-rgb), .06);
-}
-.cm-stat-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  color: var(--text-muted);
-}
-.cm-stat-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
+.cm-subtitle-meta {
   font-variant-numeric: tabular-nums;
-}
-.cm-stat-pct {
-  font-size: 12px;
+  color: var(--text-secondary);
   font-weight: 600;
-  color: var(--text-muted);
-  margin-left: var(--space-xs);
 }
+.cm-subtitle-pct { color: var(--text-muted); font-weight: 500; }
 
 /* ── Loading skeleton ─────────────────────────────────────────────────── */
 .cm-loading {

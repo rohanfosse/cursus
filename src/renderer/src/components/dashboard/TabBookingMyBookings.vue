@@ -11,10 +11,10 @@
  * comportement style Outlook.
  */
 import { ref } from 'vue'
-import { Plus, Users, LayoutList, CalendarDays, Calendar, Clock } from 'lucide-vue-next'
+import { Plus, LayoutList, CalendarDays, Calendar, Clock } from 'lucide-vue-next'
 import BookingCalendarView from './BookingCalendarView.vue'
 import CreateBookingModal from '@/components/booking/CreateBookingModal.vue'
-import { type BookingHandle } from '@/composables/useBooking'
+import { type Booking, type BookingHandle } from '@/composables/useBooking'
 
 interface BookingStudent { id: number; name?: string; email?: string; promo_id?: number; promo_name?: string }
 
@@ -40,20 +40,28 @@ function onSlotClick(payload: { date: string; startTime: string }) {
   createPrefill.value = { date: payload.date, startTime: payload.startTime }
   showCreateModal.value = true
 }
+
+/** Couleur visuelle d'un RDV : prend la couleur de son event_type (cohérence
+ *  avec la sidebar et la grille calendrier), retombe sur color-rex sinon. */
+function bookingColor(bk: Booking): string {
+  const et = props.booking.eventTypes.value.find(e => e.title === bk.event_type_title)
+  return et?.color ?? 'var(--color-rex)'
+}
 </script>
 
 <template>
   <div class="col col-bookings">
-    <div class="col-header">
-      <Users :size="14" aria-hidden="true" />
-      <span>Mes RDV</span>
+    <!-- Toolbar discret : compteur + toggle vue + CTA. Pas de titre repete
+         (deja affiche par la tab "Mes rendez-vous" du parent). -->
+    <div class="col-toolbar">
       <span
         v-if="booking.sortedBookings.value.length > 0"
         class="col-count"
-        :title="`${booking.sortedBookings.value.length} RDV`"
+        :title="`${booking.sortedBookings.value.length} RDV au total`"
       >
-        {{ booking.sortedBookings.value.length }}
+        {{ booking.sortedBookings.value.length }} RDV
       </span>
+      <span v-else class="col-count col-count--empty">Aucun RDV</span>
       <div class="view-toggle" role="tablist" aria-label="Vue des RDV">
         <button
           type="button"
@@ -92,7 +100,12 @@ function onSlotClick(payload: { date: string; startTime: string }) {
     />
 
     <div v-else class="booking-list">
-      <div v-for="bk in booking.sortedBookings.value" :key="bk.id" class="booking-card">
+      <div
+        v-for="bk in booking.sortedBookings.value"
+        :key="bk.id"
+        class="booking-card"
+        :style="{ '--bk-accent': bookingColor(bk) }"
+      >
         <div class="bk-date">
           <Calendar :size="11" aria-hidden="true" /> {{ booking.formatDate(bk.date) }}
         </div>
@@ -139,27 +152,20 @@ function onSlotClick(payload: { date: string; startTime: string }) {
   gap: var(--space-sm);
   min-width: 0;
 }
-.col-header {
+.col-toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--text-primary);
   padding-bottom: var(--space-xs);
   border-bottom: 1px solid var(--border);
 }
 .col-count {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  background: var(--bg-hover);
-  padding: 1px 7px;
-  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
+.col-count--empty { color: var(--text-muted); font-style: italic; font-weight: 500; }
 
 .view-toggle { display: flex; gap: 2px; margin-left: auto; }
 
@@ -202,9 +208,10 @@ function onSlotClick(payload: { date: string; startTime: string }) {
    colonne date a gauche (rex teint), info au milieu, badge a droite. */
 .booking-list { display: flex; flex-direction: column; gap: 8px; max-height: 440px; overflow-y: auto; padding-right: 2px; }
 .booking-card {
+  --bk-accent: var(--color-rex);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--color-rex);
+  border-left: 3px solid var(--bk-accent);
   border-radius: var(--radius);
   padding: 10px var(--space-md);
   display: grid;
@@ -216,7 +223,7 @@ function onSlotClick(payload: { date: string; startTime: string }) {
 }
 .booking-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-rex) 14%, transparent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--bk-accent) 16%, transparent);
 }
 .bk-date, .bk-time {
   display: inline-flex;
@@ -225,7 +232,7 @@ function onSlotClick(payload: { date: string; startTime: string }) {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  color: var(--color-rex);
+  color: var(--bk-accent);
 }
 .bk-time { color: var(--text-secondary); }
 .bk-type {

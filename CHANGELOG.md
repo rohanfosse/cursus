@@ -1,5 +1,63 @@
 # Changelog
 
+## v2.314.0 (2026-05-06)
+
+### Refonte page RDV : sobriete, suppression des redondances, lisibilite
+
+Audit honnete de la page Rendez-vous : 11 KPI sur la meme page (sidebar
++ header + CampaignManager), triple representation du "Prochain RDV",
+double pill Microsoft, CampaignManager force en bandeau permanent
+au-dessus du contenu utile. Resultat : ~250 px de hauteur avant le
+contenu utile, page bruyante.
+
+**Changements TabBooking.vue (page principale)**
+
+- Pill Microsoft du header supprimee : la sidebar la contient deja.
+- Callout "Prochain RDV < 24h" supprime : doublon avec la liste des
+  prochains RDV deja affichee dans la sidebar.
+- Stats strip refondue : 4 cards verticales 22 px -> 4 chips
+  horizontaux compacts qui filtrent l'onglet correspondant. Hauteur
+  divisee, continuum visuel avec les pills tabs.
+- CampaignManager passe en 4eme tab (au lieu d'un bandeau permanent
+  au-dessus). Les visites tripartites sont une feature ponctuelle.
+- Nouvel ordre des tabs : Mes RDV (default) / Types / Campagnes /
+  Disponibilites.
+
+**TabBookingMyBookings.vue**
+
+- Border-left dynamique : utilise `event_type.color` au lieu de
+  `var(--color-rex)` fige. Coherent avec sidebar + grille calendrier.
+- Header `col-header` redondant avec le label de la tab supprime ->
+  toolbar discret avec compteur + toggle vue + CTA.
+
+**TabBookingEventTypes.vue / TabBookingAvailability.vue**
+
+- Headers internes (icone + titre identique a la tab parent) supprimes
+  au profit d'un toolbar/sous-titre discret. Reduction de 30 px par
+  composant.
+
+**CampaignManager.vue**
+
+- Header h2 + sous-titre + 4 KPI bandeau (drafts/active/closed/
+  reservations) -> simple sous-titre informatif inline avec ratio
+  "X/Y RDV reserves (Z %)" + CTA. ~70 lignes de CSS retirees.
+
+**SidebarBooking.vue**
+
+- CTA hint "creer pour 1+ etudiants" supprime (redondant avec le
+  bouton "Nouveau RDV" qui ouvre la modale evidente).
+- Services chips MS+SMTP : si tout est OK on consolide en 1 chip
+  discrete "Services connectes". Si un service est en panne ou
+  warning, on detaille comme avant. Reduit le bruit visuel en regime
+  normal (90 % du temps tout est vert).
+
+**Bilan**
+
+- ~250-300 px de hauteur en moins avant le contenu utile.
+- Plus de doublon d'info entre sidebar et page.
+- Couleurs coherentes entre sidebar / liste RDV / grille calendrier.
+- Build OK, 56 tests booking passent.
+
 ## v2.282.0 (2026-05-05)
 
 ### Refactor : decoupage TeacherLiveView en sous-composants
