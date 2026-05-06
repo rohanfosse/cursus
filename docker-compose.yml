@@ -28,6 +28,16 @@ services:
       - DEPLOY_SECRET=${DEPLOY_SECRET}
       # Cloudflare Turnstile : si absent, le captcha public est skippe.
       - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY:-}
+      # URL publique utilisee pour generer les liens d'invitation des
+      # campagnes booking. Si absent, fallback https://app.cursus.school.
+      - SERVER_URL=${SERVER_URL:-https://app.cursus.school}
+      # SMTP : si SMTP_HOST est vide, l'envoi de mails est desactive
+      # (campagnes lancees -> aucun mail, mais liens copiables manuellement).
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
       interval: 30s
