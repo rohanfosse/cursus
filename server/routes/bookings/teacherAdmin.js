@@ -182,7 +182,25 @@ router.post('/tokens/bulk', requireRole('teacher'), validate(bulkTokensSchema), 
 router.get('/my-bookings', requireRole('teacher'), wrap((req) => {
   const from = req.query.from && !isNaN(Date.parse(req.query.from)) ? req.query.from : undefined
   const to   = req.query.to   && !isNaN(Date.parse(req.query.to))   ? req.query.to   : undefined
-  return queries.getBookingsForTeacher(req.user.id, { from, to })
+  // Transforme le shape DB (start_datetime ISO + event_title) vers le shape
+  // attendu par le frontend (date YYYY-MM-DD + start_time HH:MM:SS +
+  // event_type_title). Sans cette projection, sortedBookings.value cote
+  // composable expose `bk.date` undefined → cards "Invalid Date" partout.
+  return queries.getBookingsForTeacher(req.user.id, { from, to }).map(bk => {
+    const start = new Date(bk.start_datetime)
+    const end   = new Date(bk.end_datetime)
+    const pad = (n) => String(n).padStart(2, '0')
+    const isoDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    const isoTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    return {
+      ...bk,
+      date:                isoDate(start),
+      start_time:          isoTime(start),
+      end_time:            isoTime(end),
+      event_type_title:    bk.event_title,
+      visio_url:           bk.teams_join_url || null,
+    }
+  })
 }))
 
 // ── Creation directe (style Outlook) ───────────────────────────────────

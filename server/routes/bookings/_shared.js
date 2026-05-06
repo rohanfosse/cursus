@@ -7,7 +7,14 @@ const log       = require('../../utils/logger')
 const graph     = require('../../services/microsoftGraph')
 const { getValidMsToken } = require('../../utils/msToken')
 
-const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3001'
+// SERVER_URL est utilise pour generer les liens publics envoyes par mail
+// (campagnes, tokens etudiants, cancel link). Si l'env var n'est pas set
+// en production, on tombe sur app.cursus.school plutot que localhost
+// (qui faisait que les liens d'invitation pointaient vers la machine
+// locale du serveur, inutilisables en mail). Pour un deploiement custom,
+// override via la var d'env SERVER_URL.
+const SERVER_URL = process.env.SERVER_URL
+  || (process.env.NODE_ENV === 'production' ? 'https://app.cursus.school' : 'http://localhost:3001')
 const GRAPH_TIMEOUT_MS = 8_000
 
 // ── Rate limiters publics ────────────────────────────────────────────────

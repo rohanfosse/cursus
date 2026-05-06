@@ -141,7 +141,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { id: 'documents', label: 'Documents',  title: 'Documents',                                  icon: FileText,        isVisible: () => appStore.isStaff },
   { id: 'fichiers',  label: 'Fichiers',   title: 'Fichiers partagés par les étudiants',        icon: Paperclip,       isVisible: () => appStore.isTeacher && !isDemoTeacher() },
   { id: 'agenda',    label: 'Calendrier', title: 'Calendrier',                                 icon: Calendar,        isVisible: () => !isDemo() },
-  { id: 'booking',   label: 'Rendez-vous', title: 'Rendez-vous (mini-Calendly + campagnes)',   icon: CalendarCheck,   isVisible: () => appStore.isTeacher },
+  { id: 'booking',   label: 'RDV',         title: 'Rendez-vous (mini-Calendly + campagnes)',   icon: CalendarCheck,   isVisible: () => appStore.isTeacher },
   // Live : toujours visible pour les etudiants tant que le module est actif —
   // ils peuvent rejoindre une session en cours OU revoir/refaire d'anciennes
   // sessions terminees en mode entrainement (cf. StudentLiveView "Sessions
