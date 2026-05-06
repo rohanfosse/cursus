@@ -6,6 +6,7 @@
  */
 import { ref, computed } from 'vue'
 import { useToast } from '@/composables/useToast'
+import { toRawPayload } from '@/utils/ipcSafe'
 
 export interface HebdoRule {
   dayOfWeek: number
@@ -122,7 +123,9 @@ export function useCampaigns() {
     }
     window.api.logToFile?.('info', 'campaign', 'create_attempt', logPayload)
     try {
-      const res = await window.api.createBookingCampaign(payload)
+      // toRawPayload : strip la reactivite Vue avant traversee contextBridge
+      // (cf. utils/ipcSafe). Sans ca un Proxy reactive plante structuredClone.
+      const res = await window.api.createBookingCampaign(toRawPayload(payload))
       if (res.ok && res.data) {
         const c = res.data as Campaign
         window.api.logToFile?.('info', 'campaign', 'create_ok', { id: c.id, title: c.title, inviteCount: c.invite_count ?? 0 })
@@ -143,7 +146,7 @@ export function useCampaigns() {
 
   async function updateCampaign(id: number, fields: Partial<CampaignDraft>) {
     try {
-      const res = await window.api.updateBookingCampaign(id, fields)
+      const res = await window.api.updateBookingCampaign(id, toRawPayload(fields))
       if (res.ok) {
         await fetchAll()
         showToast('Campagne mise a jour', 'success')

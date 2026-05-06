@@ -9,6 +9,7 @@
   import Modal from '@/components/ui/Modal.vue'
   import { parseCategoryIcon } from '@/utils/categoryIcon'
   import { isoForDatetimeLocal } from '@/utils/date'
+  import { toRawPayload } from '@/utils/ipcSafe'
   import type { Student, Group } from '@/types'
   import { STORAGE_KEYS } from '@/constants'
 
@@ -87,7 +88,7 @@
       const res = await window.api.createGroup({ name: newGroupName.value.trim(), promoId: appStore.activePromoId })
       if (!res?.ok) return
       const newId = res.data.id
-      await window.api.setGroupMembers({ groupId: newId, memberIds: newGroupMembers.value })
+      await window.api.setGroupMembers(toRawPayload({ groupId: newId, memberIds: newGroupMembers.value }))
       groupMembers.value[newId] = [...newGroupMembers.value]
 
       // Rafraîchir la liste des groupes

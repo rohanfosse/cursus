@@ -6,6 +6,7 @@
   import { useApi }      from '@/composables/useApi'
   import { CATEGORY_ICONS, parseCategoryIcon } from '@/utils/categoryIcon'
   import Modal from '@/components/ui/Modal.vue'
+  import { toRawPayload } from '@/utils/ipcSafe'
   import type { Student } from '@/types'
 
   const props = defineProps<{ modelValue: boolean }>()
@@ -91,14 +92,14 @@
     creating.value = true
     try {
       const result = await api(
-        () => window.api.createChannel({
+        () => window.api.createChannel(toRawPayload({
           name:      channelName.value.trim(),
           promoId:   appStore.activePromoId,
           type:      channelType.value,
           isPrivate: visibility.value === 'private',
           members:   visibility.value === 'private' ? [...members.value] : [],
           category,
-        }),
+        })),
         'channel',
       )
       if (result !== null) {

@@ -7,6 +7,7 @@
   import { useTravauxStore } from '@/stores/travaux'
   import { useToast }        from '@/composables/useToast'
   import Modal from '@/components/ui/Modal.vue'
+  import { toRawPayload } from '@/utils/ipcSafe'
   import type { Rubric, RubricCriterion, RubricScore } from '@/types'
 
   const props = defineProps<{ modelValue: boolean }>()
@@ -153,7 +154,7 @@
           points:       scores.value[c.id] ?? 0,
         })),
       }
-      const res = await window.api.setDepotScores(payload)
+      const res = await window.api.setDepotScores(toRawPayload(payload))
       if (res?.ok) {
         showToast('Scores enregistrés', 'success')
         emit('update:modelValue', false)

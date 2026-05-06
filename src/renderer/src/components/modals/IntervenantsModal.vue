@@ -10,6 +10,7 @@ import { useContextMenu } from '@/composables/useContextMenu'
 import type { Channel, Promotion } from '@/types'
 import { ROLE_LABELS } from '@/constants'
 import ContextMenu, { type ContextMenuItem } from '@/components/ui/ContextMenu.vue'
+import { toRawPayload } from '@/utils/ipcSafe'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit  = defineEmits<{ 'update:modelValue': [boolean] }>()
@@ -125,10 +126,10 @@ function isAssigned(taId: number, channelId: number): boolean {
 async function saveChannels(taId: number) {
   loadingAssign.value = true
   try {
-    const res = await window.api.setTeacherChannels({
+    const res = await window.api.setTeacherChannels(toRawPayload({
       teacherId:  taId,
       channelIds: assignments.value[taId] ?? [],
-    })
+    }))
     if (!res?.ok) { showToast('Erreur lors de la sauvegarde.', 'error'); return }
     showToast('Canaux mis à jour.', 'success')
     expandedTaId.value = null

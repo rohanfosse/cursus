@@ -4,6 +4,7 @@
   import { useAppStore } from '@/stores/app'
   import { useToast }    from '@/composables/useToast'
   import { ROLE_LABELS } from '@/constants'
+  import { toRawPayload } from '@/utils/ipcSafe'
 
   const emit = defineEmits<{ (e: 'close'): void }>()
 
@@ -65,7 +66,7 @@
     const newIds = [...memberIds.value, studentId]
     saving.value = true
     try {
-      await window.api.updateChannelMembers({ channelId: channel.value.id, members: newIds })
+      await window.api.updateChannelMembers(toRawPayload({ channelId: channel.value.id, members: newIds }))
       channel.value = { ...channel.value, members: JSON.stringify(newIds) }
       showToast('Membre ajouté.', 'success')
     } finally { saving.value = false }
@@ -76,7 +77,7 @@
     const newIds = memberIds.value.filter(id => id !== studentId)
     saving.value = true
     try {
-      await window.api.updateChannelMembers({ channelId: channel.value.id, members: newIds })
+      await window.api.updateChannelMembers(toRawPayload({ channelId: channel.value.id, members: newIds }))
       channel.value = { ...channel.value, members: JSON.stringify(newIds) }
       showToast('Membre retiré.', 'success')
     } finally { saving.value = false }

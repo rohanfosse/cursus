@@ -6,6 +6,7 @@ import { ref, computed } from 'vue'
 import { useToast } from '@/composables/useToast'
 import { formatBookingDate, formatBookingTime } from '@/utils/bookingDate'
 import { SERVER_URL } from '@/composables/useBookingApi'
+import { toRawPayload } from '@/utils/ipcSafe'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ export function useBooking() {
     duration_minutes: number; buffer_minutes?: number; timezone?: string; color: string; fallback_visio_url?: string
   }) {
     try {
-      const res = await window.api.createBookingEventType(data)
+      const res = await window.api.createBookingEventType(toRawPayload(data))
       if (res.ok) {
         showToast('Type de rendez-vous cree', 'success')
         const etRes = await window.api.getBookingEventTypes()
