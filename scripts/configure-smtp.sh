@@ -155,6 +155,25 @@ fi
 echo
 echo "Recreate du conteneur cursus-server..."
 cd "$APP_DIR"
+
+# Si le runtime compose est plus ancien que le repo (ne liste pas SMTP_X
+# dans environment:), il faut le synchroniser sinon le restart applique
+# les anciennes regles et les vars SMTP du .env ne traversent pas.
+REPO_COMPOSE=""
+for candidate in "$APP_DIR/repo/docker-compose.yml" "$APP_DIR/repo/docker-compose.prod.yml"; do
+  if [ -f "$candidate" ]; then REPO_COMPOSE="$candidate"; break; fi
+done
+
+if [ -n "$REPO_COMPOSE" ] && [ -f "$APP_DIR/docker-compose.yml" ]; then
+  if ! grep -q '^\s*-\s*SMTP_HOST=' "$APP_DIR/docker-compose.yml" 2>/dev/null; then
+    if grep -q '^\s*-\s*SMTP_HOST=' "$REPO_COMPOSE" 2>/dev/null; then
+      echo "Mise a jour de $APP_DIR/docker-compose.yml depuis le repo (manque SMTP_X dans environment:)..."
+      cp "$APP_DIR/docker-compose.yml" "$APP_DIR/docker-compose.yml.bak.$(date +%Y%m%d-%H%M%S)"
+      cp "$REPO_COMPOSE" "$APP_DIR/docker-compose.yml"
+    fi
+  fi
+fi
+
 docker compose up -d --force-recreate
 
 echo
