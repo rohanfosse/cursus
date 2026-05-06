@@ -26,6 +26,11 @@ beforeAll(() => {
 
   app = express()
   app.use(express.json())
+  // Routes publiques (pas d'auth requise) montees AVANT le auth router
+  // pour matcher la prod (cf. server/index.js : ces 3 sous-routeurs sont
+  // exposes hors authMiddleware pour que les liens d'invitation envoyes
+  // par mail soient consommables sans Bearer token).
+  app.use('/api/bookings', require('../../../server/routes/bookings-public'))
   app.use('/api/bookings', require('../../../server/routes/bookings'))
 }, 30_000)
 

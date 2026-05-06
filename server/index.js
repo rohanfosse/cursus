@@ -104,6 +104,13 @@ app.use('/api/update', require('./routes/update-config'))
 // ── Abonnement iCal public (/ical/:token.ics) — sans JWT, auth par token opaque
 app.use('/ical', require('./routes/public-ical'))
 
+// ── Routes booking publiques — sans JWT ─────────────────────────────────────
+// Mountees AVANT authMiddleware sinon les liens d'invitation envoyes par
+// mail (publicBooking, cancellation, campaignPublic) tombent en 401. Chaque
+// sous-route valide son propre token opaque (booking_token, cancel_token,
+// invite_token) et a son rate limiter — pas de fuite.
+app.use('/api/bookings', require('./routes/bookings-public'))
+
 // ── Middleware JWT pour toutes les routes /api/* suivantes ─────────────────────
 const authMiddleware = require('./middleware/auth')
 app.use('/api', authMiddleware)
