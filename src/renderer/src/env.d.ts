@@ -301,6 +301,23 @@ declare global {
       adminAssignPromo(id: number, promoId: number): Promise<IpcResponse<{ teacherId: number; promoId: number }>>
       adminUnassignPromo(id: number, promoId: number): Promise<IpcResponse<null>>
 
+      // Admin — Diagnostic SMTP
+      getSmtpStatus(): Promise<IpcResponse<{
+        configured: boolean
+        host: string | null
+        port: number
+        secure: boolean
+        userMasked: string
+        from: string | null
+        fromAddress: string
+        fromMatchesUser: boolean
+        sourceLabel: string
+        reachable: boolean
+        error: string | null
+        errorCode?: string | null
+      }>>
+      sendSmtpTest(to: string): Promise<IpcResponse<{ messageId: string; accepted: string[]; response: string | null }>>
+
       // Admin — Stats
       adminGetStats(): Promise<IpcResponse<{
         counts: { students: number; teachers: number; promotions: number; channels: number; messages: number; travaux: number; depots: number }

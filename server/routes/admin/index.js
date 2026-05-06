@@ -41,6 +41,7 @@ router.use(requireAdmin, require('./moderation'))
 router.use(requireAdmin, require('./scheduled'))
 router.use(requireAdmin, require('./import'))
 router.use(requireAdmin, require('./feedback'))
+router.use(requireAdmin, require('./smtp'))
 
 // ── Config lecture : accessible aux responsables (lecture seule banner) ────────────
 const { settingsRead, modulesRead, modulesMetaRead } = require('./settings-read')

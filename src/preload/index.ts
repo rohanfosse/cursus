@@ -666,6 +666,10 @@ contextBridge.exposeInMainWorld('api', {
   getModules: () => get('/api/admin/modules'),
   setModuleEnabled: (module: string, enabled: boolean) => post('/api/admin/modules', { module, enabled }),
 
+  // ── Diagnostic SMTP (admin teacher) ─────────────────────────────────────
+  getSmtpStatus:  () => get('/api/admin/smtp/status'),
+  sendSmtpTest:   (to: string) => post('/api/admin/smtp/test', { to }),
+
   // ── Signatures ──────────────────────────────────────────────────────────
   createSignatureRequest: (data: { message_id: number; dm_student_id: number; file_url: string; file_name: string }) =>
     post('/api/signatures', data),

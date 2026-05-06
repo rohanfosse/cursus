@@ -23,14 +23,37 @@ import {
 import { useBooking } from '@/composables/useBooking'
 import { useCampaigns } from '@/composables/useCampaigns'
 import { useMicrosoftConnection } from '@/composables/useMicrosoftConnection'
+import { useSmtpStatus } from '@/composables/useSmtpStatus'
 import { useModalsStore } from '@/stores/modals'
+import { useAppStore } from '@/stores/app'
 import CreateBookingModal from '@/components/booking/CreateBookingModal.vue'
+import SmtpStatusModal from '@/components/booking/SmtpStatusModal.vue'
 
 const router = useRouter()
 const modals = useModalsStore()
+const appStore = useAppStore()
 const booking = useBooking()
 const { campaigns, fetchAll: fetchCampaigns } = useCampaigns()
 const { connected: msConnected, refresh: refreshMs } = useMicrosoftConnection()
+const smtp = useSmtpStatus()
+const showSmtpModal = ref(false)
+
+const smtpChipState = computed<'ok' | 'warn' | 'ko'>(() => {
+  const s = smtp.status.value
+  if (!s) return 'ko'
+  if (!s.configured) return 'ko'
+  if (!s.reachable) return 'warn'
+  if (!s.fromMatchesUser) return 'warn'
+  return 'ok'
+})
+const smtpChipLabel = computed(() => {
+  const s = smtp.status.value
+  if (!s) return 'SMTP : statut inconnu'
+  if (!s.configured) return 'SMTP non configure'
+  if (!s.reachable) return 'SMTP injoignable'
+  if (!s.fromMatchesUser) return 'SMTP : From mismatch'
+  return 'SMTP operationnel'
+})
 
 const allStudents = ref<Array<{ id: number; name?: string; email?: string; promo_id?: number; promo_name?: string }>>([])
 
@@ -149,6 +172,7 @@ onMounted(() => {
   booking.initSocketListeners()
   fetchCampaigns()
   refreshMs()
+  smtp.refresh()
   loadStudents()
 
   window.addEventListener('cursus:booking-open-create', openCreateModal)
@@ -187,18 +211,31 @@ function goToBooking() {
       <span class="sb-bk-cta-hint">creer pour 1+ etudiants</span>
     </button>
 
-    <!-- Statut Microsoft -->
-    <button
-      type="button"
-      class="sb-bk-ms-row"
-      :class="msConnected ? 'sb-bk-ms-row--ok' : 'sb-bk-ms-row--ko'"
-      :title="msConnected ? 'Microsoft connecte — gerer dans Parametres' : 'Microsoft non connecte — cliquer pour configurer'"
-      @click="openSettings"
-    >
-      <span class="sb-bk-ms-dot" aria-hidden="true" />
-      <span class="sb-bk-ms-label">{{ msConnected ? 'Microsoft connecte' : 'Microsoft non connecte' }}</span>
-      <Settings :size="11" class="sb-bk-ms-gear" aria-hidden="true" />
-    </button>
+    <!-- Statuts services (Microsoft / SMTP) -->
+    <div class="sb-bk-services">
+      <button
+        type="button"
+        class="sb-bk-service"
+        :class="msConnected ? 'sb-bk-service--ok' : 'sb-bk-service--ko'"
+        :title="msConnected ? 'Microsoft connecte (Teams + Outlook) — gerer dans Parametres' : 'Microsoft non connecte — cliquer pour configurer'"
+        @click="openSettings"
+      >
+        <span class="sb-bk-service-dot" aria-hidden="true" />
+        <span class="sb-bk-service-label">{{ msConnected ? 'Microsoft' : 'MS non connecte' }}</span>
+        <Settings :size="11" class="sb-bk-service-gear" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        class="sb-bk-service"
+        :class="`sb-bk-service--${smtpChipState}`"
+        :title="smtpChipLabel + ' — cliquer pour le diagnostic'"
+        @click="showSmtpModal = true"
+      >
+        <span class="sb-bk-service-dot" aria-hidden="true" />
+        <span class="sb-bk-service-label">{{ smtp.status.value?.configured ? 'Email' : 'SMTP KO' }}</span>
+        <Settings :size="11" class="sb-bk-service-gear" aria-hidden="true" />
+      </button>
+    </div>
 
     <!-- Stats : 3 chiffres en ligne -->
     <div class="sb-bk-stats" role="group" aria-label="Vue d'ensemble">
@@ -293,6 +330,12 @@ function goToBooking() {
       :booking="booking"
       :students="allStudents"
     />
+
+    <!-- Modale diagnostic SMTP -->
+    <SmtpStatusModal
+      v-model="showSmtpModal"
+      :default-test-email="appStore.currentUser?.email ?? ''"
+    />
   </div>
 </template>
 
@@ -355,37 +398,51 @@ function goToBooking() {
   white-space: nowrap;
 }
 
-/* ── Microsoft pill ── */
-.sb-bk-ms-row {
-  display: flex; align-items: center; gap: 6px;
-  width: 100%;
-  padding: 6px 10px;
+/* ── Services chips (Microsoft + SMTP) ── */
+.sb-bk-services {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.sb-bk-service {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-elevated);
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 11px; font-weight: 600;
+  font-size: 10.5px; font-weight: 600;
   cursor: pointer;
   text-align: left;
   transition: background var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
+  min-width: 0;
 }
-.sb-bk-ms-row:hover { background: var(--bg-hover); border-color: var(--border-input); }
-.sb-bk-ms-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.sb-bk-ms-row--ok {
+.sb-bk-service:hover { background: var(--bg-hover); border-color: var(--border-input); }
+.sb-bk-service:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sb-bk-service--ok {
   color: var(--color-success);
   border-color: color-mix(in srgb, var(--color-success) 35%, transparent);
   background: color-mix(in srgb, var(--color-success) 8%, var(--bg-elevated));
 }
-.sb-bk-ms-row--ko { color: var(--text-muted); }
-.sb-bk-ms-dot {
+.sb-bk-service--ok .sb-bk-service-dot { background: var(--color-success); }
+.sb-bk-service--warn {
+  color: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
+  background: color-mix(in srgb, var(--color-warning) 8%, var(--bg-elevated));
+}
+.sb-bk-service--warn .sb-bk-service-dot { background: var(--color-warning); }
+.sb-bk-service--ko { color: var(--text-muted); }
+.sb-bk-service-dot {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--text-muted);
   flex-shrink: 0;
 }
-.sb-bk-ms-row--ok .sb-bk-ms-dot { background: var(--color-success); }
-.sb-bk-ms-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sb-bk-ms-gear { color: var(--text-muted); flex-shrink: 0; }
+.sb-bk-service-label {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sb-bk-service-gear { color: var(--text-muted); flex-shrink: 0; }
 
 /* ── Stats : 3 chiffres en ligne ── */
 .sb-bk-stats {
