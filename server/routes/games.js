@@ -24,6 +24,7 @@ const { AppError } = require('../utils/errors')
 const MAX_SCORE_PER_SECOND = {
   snake:          15,    // ~10 pts/sec en pointe humain (food + speed bonus)
   space_invaders: 60,    // aliens en rafale + multiplicateurs de wave
+  tetris:         300,   // tetris back-to-back = 1200 pts en ~5 sec, soit 240 pts/s ; on garde de la marge
 }
 
 const KNOWN_GAMES = new Set(Object.keys(MAX_SCORE_PER_SECOND))

@@ -133,3 +133,56 @@ export function playLaserTone(): void {
 export function playExplosionTone(): void {
   playTone({ freq: 200, durationMs: 200, gain: 0.07, freqEnd: 50, type: 'sawtooth' })
 }
+
+/** Lock d'une piece Tetris : clic mat tres court. */
+export function playLockTone(): void {
+  playTone({ freq: 220, durationMs: 50, gain: 0.04, type: 'square' })
+}
+
+/** Hard drop Tetris : "thud" descendant. */
+export function playHardDropTone(): void {
+  playTone({ freq: 380, durationMs: 90, gain: 0.06, freqEnd: 110, type: 'square' })
+}
+
+/** Rotation Tetris : tick discret. */
+export function playRotateTone(): void {
+  playTone({ freq: 1100, durationMs: 35, gain: 0.025, type: 'sine' })
+}
+
+/** Hold Tetris : double bip ascendant rapide. */
+export function playHoldTone(): void {
+  playTone({ freq: 600, durationMs: 50, gain: 0.04, type: 'sine' })
+  setTimeout(() => playTone({ freq: 900, durationMs: 50, gain: 0.04, type: 'sine' }), 40)
+}
+
+/** Line clear Tetris : son qui depend du nombre de lignes. 4 = Tetris officiel. */
+export function playLineClearTone(lines: number): void {
+  if (!isArcadeSoundEnabled()) return
+  if (lines >= 4) {
+    // Tetris : arpege brillant ascendant
+    ;[660, 880, 1100, 1320, 1760].forEach((freq, i) => {
+      setTimeout(() => playTone({ freq, durationMs: 90, gain: 0.06, type: 'sine' }), i * 55)
+    })
+  } else {
+    const base = 600 + lines * 120
+    ;[base, base * 1.25].forEach((freq, i) => {
+      setTimeout(() => playTone({ freq, durationMs: 70, gain: 0.05, type: 'sine' }), i * 60)
+    })
+  }
+}
+
+/** T-spin reussi : son magique court. */
+export function playTSpinTone(): void {
+  if (!isArcadeSoundEnabled()) return
+  ;[988, 1318, 1760].forEach((freq, i) => {
+    setTimeout(() => playTone({ freq, durationMs: 80, gain: 0.05, type: 'triangle' }), i * 45)
+  })
+}
+
+/** Level up : trio brillant. */
+export function playLevelUpTone(): void {
+  if (!isArcadeSoundEnabled()) return
+  ;[523, 659, 784, 1047].forEach((freq, i) => {
+    setTimeout(() => playTone({ freq, durationMs: 110, gain: 0.06, type: 'sine' }), i * 70)
+  })
+}

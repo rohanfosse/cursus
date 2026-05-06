@@ -48,6 +48,7 @@ const router = createRouter({
     { path: '/typerace',       component: () => import('@/views/TypeRaceView.vue'),       name: 'typerace',       meta: { requiredModule: 'games' } },
     { path: '/snake',          component: () => import('@/views/SnakeView.vue'),          name: 'snake',          meta: { requiredModule: 'games' } },
     { path: '/space-invaders', component: () => import('@/views/SpaceInvadersView.vue'),  name: 'space-invaders', meta: { requiredModule: 'games' } },
+    { path: '/tetris',         component: () => import('@/views/TetrisView.vue'),         name: 'tetris',         meta: { requiredModule: 'games' } },
     { path: '/fichiers',   component: () => import('@/views/FilesView.vue'),  name: 'fichiers', meta: { requiredRole: 'teacher' } },
     { path: '/signets',    component: () => import('@/views/BookmarksView.vue'), name: 'signets' },
     { path: '/admin',      component: () => import('@/views/AdminView.vue'),    name: 'admin', meta: { requiredRole: 'admin' } },

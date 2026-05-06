@@ -9,7 +9,7 @@
  * Pas besoin de toucher a la sidebar ni au hub.
  */
 import type { Component } from 'vue'
-import { Keyboard, Joystick, Rocket } from 'lucide-vue-next'
+import { Keyboard, Joystick, Rocket, Blocks } from 'lucide-vue-next'
 
 export interface Game {
   id:          string
@@ -56,5 +56,15 @@ export const GAMES: Game[] = [
     route:       '/space-invaders',
     badge:       'new',
     accent:      '#22d3ee',
+  },
+  {
+    id:          'tetris',
+    label:       'Tetris',
+    icon:        Blocks,
+    tagline:     'Empile, aligne, casse 4 lignes d\'un coup',
+    description: 'Tetris moderne avec rotations SRS, 7-bag randomizer, hold piece, ghost et T-spins. Score Guideline officiel avec combos et back-to-back.',
+    route:       '/tetris',
+    badge:       'new',
+    accent:      '#a855f7',
   },
 ]
