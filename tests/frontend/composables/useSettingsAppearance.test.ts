@@ -68,7 +68,7 @@ describe('useSettingsAppearance', () => {
   it('exports 6 theme definitions (landing-aligned)', () => {
     expect(THEMES).toHaveLength(6)
     const ids = THEMES.map((t) => t.id)
-    expect(ids).toEqual(['auto', 'dark', 'light', 'sepia', 'night', 'marine'])
+    expect(ids).toEqual(['auto', 'night', 'dark', 'light', 'sepia', 'marine'])
   })
 
   // ── Default values ────────────────────────────────────────────────────────

@@ -75,7 +75,8 @@ describe('useTypeRace', () => {
       })
       await game.loadPhrase()
       expect(game.phrase.value).toEqual({ id: 42, text: 'Bonjour le monde' })
-      expect(game.state.value).toBe('idle')
+      // v2.292 : loadPhrase declenche le countdown (3-2-1) avant idle.
+      expect(game.state.value).toBe('countdown')
     })
 
     it('passe les seen ids au backend pour exclusion', async () => {
@@ -126,7 +127,9 @@ describe('useTypeRace', () => {
     })
 
     it('idle -> playing au 1er caractere', () => {
-      expect(game.state.value).toBe('idle')
+      // v2.292 : loadPhrase ouvre sur countdown — onInput skip le countdown
+      // (-> idle) puis enchaine sur playing au 1er caractere.
+      expect(game.state.value).toBe('countdown')
       game.onInput('B')
       expect(game.state.value).toBe('playing')
     })
