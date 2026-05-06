@@ -39,8 +39,23 @@ const bookSchema = z.object({
 
 function loadInviteContext(req, res, next) {
   const data = queries.getCampaignByInviteToken(req.params.token)
-  if (!data) return res.status(404).json({ ok: false, error: 'Lien introuvable.', code: 'not_found' })
+  if (!data) {
+    // Trace explicite pour diagnostiquer "Lien introuvable" remontes par
+    // les pilotes : token tronque (8 chars suffisent pour matcher en log)
+    // + IP. Pas de PII car le token ne donne acces qu'a ses propres infos.
+    log.warn('[campaign-public] not_found', {
+      tokenPrefix: String(req.params.token || '').slice(0, 8),
+      ip: req.ip,
+    })
+    return res.status(404).json({ ok: false, error: 'Lien introuvable.', code: 'not_found' })
+  }
   if (data.status === 'closed') return res.status(410).json({ ok: false, error: 'Campagne cloturee.', code: 'closed' })
+  // Fallback noms si LEFT JOIN a renvoye NULL (student supprime de la promo
+  // entre l'envoi de l'invitation et le clic, prof retire). On affiche un
+  // libelle generique cote frontend plutot qu'un crash ou un faux 404.
+  if (!data.student_name) data.student_name = 'Etudiant invite'
+  if (!data.student_email) data.student_email = ''
+  if (!data.teacher_name) data.teacher_name = 'Enseignant'
   // Une campagne en draft signifie que les mails ne sont pas encore envoyes ;
   // on accepte quand meme l'acces si quelqu'un a recupere le lien (preview).
   req.inviteData = data

@@ -21,7 +21,7 @@
   import { useDemoTyping } from '@/composables/useDemoTyping'
   import { useDemoMessagesPoll } from '@/composables/useDemoMessagesPoll'
   import { resolveStartRoute } from '@/router'
-  import { reportError }    from '@/utils/errorReporter'
+  import { reportError, isBenignError }    from '@/utils/errorReporter'
   import { MessageSquare, FileText, Camera, Lock, Trash2, Download, UserX, Download as DownloadIcon, RefreshCw, Shield, Scale, Clock, Mail, Globe, Eye, Pencil, ChevronDown, Server, Zap } from 'lucide-vue-next'
   import Toast        from '@/components/ui/Toast.vue'
   import ConfirmModal from '@/components/ui/ConfirmModal.vue'
@@ -209,10 +209,14 @@
   }
 
   // ── Global error handler ──────────────────────────────────────────────────
+  // isBenignError() filtre les erreurs vendor minifie connues qui ne valent
+  // pas un toast utilisateur (cf. errorReporter.ts BENIGN_ERROR_PATTERNS).
   onErrorCaptured((err) => {
     console.error('[ErrorBoundary]', err)
     reportError(err, { source: 'vue' })
-    showToast('Une erreur est survenue. Utilisez le bouton de feedback pour la signaler.', 'error')
+    if (!isBenignError(err)) {
+      showToast('Une erreur est survenue. Utilisez le bouton de feedback pour la signaler.', 'error')
+    }
     return false
   })
 
@@ -301,16 +305,22 @@
       showToast(`${e.detail.title} - ${e.detail.body}`, 'info')
     }) as EventListener)
 
-    // Global error handlers
+    // Global error handlers — benign errors (vendor noise) loggees mais
+    // pas remontees a l'utilisateur ni au backend.
     window.onerror = (_msg, _src, _line, _col, err) => {
-      console.error('[GlobalError]', err)
-      reportError(err ?? String(_msg), { source: 'window' })
-      showToast('Une erreur est survenue. Utilisez le bouton de feedback pour la signaler.', 'error')
+      const e = err ?? String(_msg)
+      console.error('[GlobalError]', e)
+      reportError(e, { source: 'window' })
+      if (!isBenignError(e)) {
+        showToast('Une erreur est survenue. Utilisez le bouton de feedback pour la signaler.', 'error')
+      }
     }
     window.onunhandledrejection = (e: PromiseRejectionEvent) => {
       console.error('[UnhandledRejection]', e.reason)
       reportError(e.reason, { source: 'unhandled_rejection' })
-      showToast('Une erreur est survenue. Utilisez le bouton de feedback pour la signaler.', 'error')
+      if (!isBenignError(e.reason)) {
+        showToast('Une erreur est survenue. Utilisez le bouton de feedback pour la signaler.', 'error')
+      }
     }
 
     // Network status listeners

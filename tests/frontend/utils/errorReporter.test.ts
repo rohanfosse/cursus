@@ -11,7 +11,7 @@
  * - Header Authorization si token present
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { reportError, __resetErrorReporterForTests__ } from '@/utils/errorReporter'
+import { reportError, __resetErrorReporterForTests__, isBenignError } from '@/utils/errorReporter'
 
 const SESSION_KEY = 'cc_session'
 
@@ -177,6 +177,37 @@ describe('resilience', () => {
     })
     await reportError(new Error('initial'))
     // Un seul call en tout : le reentrant est bloque
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+})
+
+describe('isBenignError', () => {
+  it('matche "tooltipContainer does not exist" (vendor minifie non localise)', () => {
+    expect(isBenignError(new Error('tooltipContainer does not exist'))).toBe(true)
+    expect(isBenignError('Error: tooltipContainer does not exist')).toBe(true)
+  })
+
+  it('matche les ResizeObserver loop messages (bruit navigateur)', () => {
+    expect(isBenignError(new Error('ResizeObserver loop limit exceeded'))).toBe(true)
+    expect(isBenignError(new Error('ResizeObserver loop completed with undelivered notifications.'))).toBe(true)
+  })
+
+  it('ignore les erreurs reelles', () => {
+    expect(isBenignError(new Error('TypeError: x is undefined'))).toBe(false)
+    expect(isBenignError('boom')).toBe(false)
+    expect(isBenignError(null)).toBe(false)
+    expect(isBenignError({})).toBe(false)
+  })
+
+  it('reportError skip le POST pour une erreur benigne', async () => {
+    await reportError(new Error('tooltipContainer does not exist'))
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('reportError envoie pour une erreur reelle apres une benigne (dedup independant)', async () => {
+    await reportError(new Error('tooltipContainer does not exist'))
+    expect(fetchMock).not.toHaveBeenCalled()
+    await reportError(new Error('real error'))
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 })

@@ -10,11 +10,37 @@
 //   contre les boucles de rendu Vue qui emettent la meme erreur en rafale)
 // - Debounce par identite de message (1 seconde)
 // - Cap hard de N rapports par session pour eviter les DOS auto-inflige
+// - Filtre des erreurs benignes connues (cf. isBenignError) qui ne meritent
+//   ni toast utilisateur ni report serveur — typiquement bruit de scripts
+//   externes (extensions navigateur, captcha, etc.) qu'on n'a pas pu
+//   localiser sans source maps actifs (cf. CHANGELOG v2.255.0).
 
 import { getAuthToken } from '@/utils/auth'
 
 const MAX_REPORTS_PER_SESSION = 50
 const DEDUP_WINDOW_MS = 1000
+
+/**
+ * Patterns d'erreurs connues comme inoffensives. Matchees sur err.message.
+ * Si match : on skip le report ET le toast utilisateur (cf. App.vue).
+ *
+ * Garde-fou : ces erreurs sont quand meme loggees en console pour faciliter
+ * le diagnostic ; on ne les "mange" pas, on les rend juste discretes.
+ */
+const BENIGN_ERROR_PATTERNS: readonly RegExp[] = [
+  // "tooltipContainer does not exist" — vendor minifie non localise (cf.
+  // v2.255.0). Ne plante pas l'app, mais genere un toast intempestif sur
+  // les pages publiques de booking. A reactiver si on retrouve la source.
+  /tooltipContainer does not exist/i,
+  // ResizeObserver loop benign : navigateur interne, jamais actionnable.
+  /ResizeObserver loop (limit exceeded|completed with undelivered notifications)/i,
+] as const
+
+export function isBenignError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : (typeof err === 'string' ? err : '')
+  if (!msg) return false
+  return BENIGN_ERROR_PATTERNS.some(re => re.test(msg))
+}
 
 type ErrorContext = {
   page?: string
@@ -52,6 +78,9 @@ function normalizeError(err: unknown): { message: string; stack: string | null }
 export async function reportError(err: unknown, ctx: ErrorContext = {}): Promise<void> {
   if (isReportingError) return
   if (reportsSent >= MAX_REPORTS_PER_SESSION) return
+  // Ne pas pourrir le panel admin avec les erreurs benignes connues.
+  // Console only (deja log par App.vue avant l'appel).
+  if (isBenignError(err)) return
 
   const { message, stack } = normalizeError(err)
 

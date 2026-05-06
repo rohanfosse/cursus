@@ -31,7 +31,17 @@ function getCampaignById(id) {
   return getDb().prepare('SELECT * FROM booking_campaigns WHERE id = ?').get(id) || null
 }
 
-/** Charge une campagne via le token d'invitation etudiant (page publique /book/c/:token). */
+/**
+ * Charge une campagne via le token d'invitation etudiant (page publique
+ * /book/c/:token).
+ *
+ * IMPORTANT — LEFT JOIN students/users : on tolere les FK orphelines
+ * (student supprime de la promo, prof retire) pour ne pas afficher
+ * "Lien introuvable" alors que l'invite existe vraiment. Le frontend
+ * affichera alors un nom de fallback. Le INNER JOIN sur booking_campaigns
+ * reste car une invite sans campagne n'a aucun sens (et c'est ON DELETE
+ * CASCADE de toute facon).
+ */
 function getCampaignByInviteToken(token) {
   return getDb().prepare(`
     SELECT c.*, ci.id AS invite_id, ci.student_id, ci.booking_id,
@@ -39,8 +49,8 @@ function getCampaignByInviteToken(token) {
            u.name AS teacher_name
     FROM booking_campaign_invites ci
     JOIN booking_campaigns c ON c.id = ci.campaign_id
-    JOIN students s ON s.id = ci.student_id
-    JOIN users u ON u.id = c.teacher_id
+    LEFT JOIN students s ON s.id = ci.student_id
+    LEFT JOIN users u ON u.id = c.teacher_id
     WHERE ci.token = ?
   `).get(token) || null
 }

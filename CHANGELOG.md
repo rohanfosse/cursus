@@ -1,5 +1,38 @@
 # Changelog
 
+## v2.316.0 (2026-05-06)
+
+### Fix : "Lien introuvable" sur invitations campagne + filtre erreur tooltipContainer
+
+**Cas remonte par le pilote** : `https://app.cursus.school/#/book/c/TOKEN`
+affichait "Lien introuvable" pour une invitation pourtant valide. Cause :
+la query `getCampaignByInviteToken` faisait des `INNER JOIN students` et
+`JOIN users`, donc si l'etudiant ou le prof avait ete supprime entre
+l'envoi de l'invitation et le clic, la query renvoyait null comme si
+l'invite n'existait pas. Or `booking_campaign_invites.student_id` n'a
+pas de FK CASCADE — les FK orphelines sont possibles.
+
+Server fixes :
+
+- `getCampaignByInviteToken` : passe en `LEFT JOIN students/users`. Une
+  invite avec FK orpheline n'est plus traitee comme inexistante.
+- `loadInviteContext` (campaignPublic.js) : fallback texte "Etudiant
+  invite" / "Enseignant" si les noms sont null. Affiche le 404 reel
+  uniquement si l'invite n'existe pas en DB.
+- Log diagnostic `[campaign-public] not_found` avec prefixe du token
+  (8 chars) + IP pour traquer les futurs cas.
+
+**Filtre erreur "tooltipContainer does not exist"** : cette erreur
+benigne (vendor minifie non localise, cf. v2.255.0 qui n'avait pas pu
+la traquer) generait un toast intempestif sur les pages publiques de
+booking. Ajout d'un filtre `isBenignError()` dans `errorReporter.ts` :
+
+- Ne genere plus de toast utilisateur ni de report serveur pour les
+  erreurs match `BENIGN_ERROR_PATTERNS`.
+- Toujours log en console pour diagnostic.
+- Couvre aussi les ResizeObserver loop (autre bruit navigateur).
+- 21 tests passent (5 nouveaux pour `isBenignError`).
+
 ## v2.315.0 (2026-05-06)
 
 ### Page RDV : sidebar simplifiee + modal de detail au clic sur le calendrier
