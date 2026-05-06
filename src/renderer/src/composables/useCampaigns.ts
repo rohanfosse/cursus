@@ -182,7 +182,23 @@ export function useCampaigns() {
       const res = await window.api.launchBookingCampaign(id)
       if (res.ok && res.data) {
         await fetchAll()
-        showToast(`Campagne lancee : ${res.data.sent} mail(s) envoye(s)`, 'success')
+        const { sent, skipped, alreadyInvited } = res.data as { sent: number; skipped: number; alreadyInvited: number }
+        if (sent > 0) {
+          showToast(`Campagne lancee : ${sent} mail(s) envoye(s)`, 'success')
+        } else if (skipped > 0) {
+          // Skipped > 0 alors que sent = 0 : SMTP non configure ou en echec.
+          // On bascule sur un toast info avec consigne (la campagne est
+          // lancee, juste les mails ne sont pas partis — l'utilisateur
+          // peut copier les liens manuellement).
+          showToast(
+            `Campagne active. Aucun mail envoye (${skipped} en attente) — verifie la config SMTP ou copie les liens individuels.`,
+            'info',
+          )
+        } else if (alreadyInvited > 0) {
+          showToast(`Tous les etudiants ont deja ete invites (${alreadyInvited}).`, 'info')
+        } else {
+          showToast('Campagne active.', 'success')
+        }
         return true
       }
       showToast(res.error || 'Erreur', 'error')
@@ -197,7 +213,17 @@ export function useCampaigns() {
     try {
       const res = await window.api.remindBookingCampaign(id)
       if (res.ok && res.data) {
-        showToast(`${res.data.sent} relance(s) envoyee(s) sur ${res.data.pending} en attente`, 'success')
+        const { sent, pending } = res.data as { sent: number; pending: number }
+        if (sent > 0) {
+          showToast(`${sent} relance(s) envoyee(s) sur ${pending} en attente`, 'success')
+        } else if (pending > 0) {
+          showToast(
+            `${pending} etudiant(s) en attente mais aucun mail envoye — verifie la config SMTP ou copie les liens individuels.`,
+            'info',
+          )
+        } else {
+          showToast('Aucun etudiant en attente de relance.', 'info')
+        }
         return true
       }
       showToast(res.error || 'Erreur', 'error')

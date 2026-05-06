@@ -98,7 +98,16 @@ function getCampaignBookings(campaignId) {
 // ── Routes admin (prof) ────────────────────────────────────────────────
 
 router.get('/campaigns', requireRole('teacher'), wrap((req) => {
-  return queries.getCampaigns(req.user.id).map(parseCampaignJson)
+  // On attache la liste des invites a chaque campagne pour que l'UI
+  // affiche le tableau des etudiants pre-invites sans avoir a refetcher
+  // /campaigns/:id a l'expansion. invite_count est aussi expose, mais
+  // CampaignManager.vue itere sur `c.invites` directement.
+  // N+1 mais negligeable a l'echelle attendue (typique : 5-10 campagnes
+  // par prof * ~30 etudiants).
+  return queries.getCampaigns(req.user.id).map(c => ({
+    ...parseCampaignJson(c),
+    invites: queries.listInvites(c.id),
+  }))
 }))
 
 router.post('/campaigns', requireRole('teacher'), validate(createCampaignSchema), wrap((req) => {
