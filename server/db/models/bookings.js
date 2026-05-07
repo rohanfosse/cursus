@@ -258,7 +258,7 @@ function getBookingsForTeacher(teacherId, { from, to } = {}) {
   // et l'agenda — sans ce JOIN, le titre du RDV cote calendrier perd l'info
   // "avec X" qui aide a identifier le creneau d'un coup d'oeil).
   let sql = `
-    SELECT b.*, bet.title AS event_title, bet.color AS event_type_color, s.name AS student_name
+    SELECT b.*, bet.title AS event_title, bet.color AS event_type_color, s.name AS student_name, s.email AS student_email
     FROM bookings b
     JOIN booking_event_types bet ON bet.id = b.event_type_id
     LEFT JOIN students s ON s.id = b.student_id
@@ -269,6 +269,40 @@ function getBookingsForTeacher(teacherId, { from, to } = {}) {
   if (to) { sql += ' AND b.start_datetime < ?'; params.push(to); }
   sql += " AND b.status = 'confirmed' ORDER BY b.start_datetime ASC";
   return getDb().prepare(sql).all(...params);
+}
+
+/**
+ * Bookings vus cote etudiant : un etudiant voit ses propres RDV (ou il est
+ * l'invite). On JOIN teachers pour exposer le nom du prof — utile dans
+ * l'agenda etudiant (titre du bloc = "RDV avec X").
+ */
+function getBookingsForStudent(studentId, { from, to } = {}) {
+  let sql = `
+    SELECT b.*, bet.title AS event_title, bet.color AS event_type_color,
+           s.name AS student_name, s.email AS student_email, u.name AS teacher_name
+    FROM bookings b
+    JOIN booking_event_types bet ON bet.id = b.event_type_id
+    LEFT JOIN students s ON s.id = b.student_id
+    LEFT JOIN teachers u ON u.id = b.teacher_id
+    WHERE b.student_id = ?`;
+  const params = [studentId];
+  if (from) { sql += ' AND b.end_datetime > ?'; params.push(from); }
+  if (to) { sql += ' AND b.start_datetime < ?'; params.push(to); }
+  sql += " AND b.status = 'confirmed' ORDER BY b.start_datetime ASC";
+  return getDb().prepare(sql).all(...params);
+}
+
+/**
+ * Met a jour la salle (room) d'un RDV. teacherId pour le check d'ownership :
+ * un prof ne peut modifier que ses propres RDV. Renvoie le booking mis a jour
+ * ou null si non trouve / non autorise.
+ */
+function updateBookingRoom(bookingId, teacherId, room) {
+  const db = getDb();
+  const bk = db.prepare('SELECT * FROM bookings WHERE id = ? AND teacher_id = ?').get(bookingId, teacherId);
+  if (!bk) return null;
+  db.prepare('UPDATE bookings SET room = ? WHERE id = ?').run(room || null, bookingId);
+  return db.prepare('SELECT * FROM bookings WHERE id = ?').get(bookingId);
 }
 
 function getBookingsForSlot(teacherId, startDatetime, endDatetime) {
@@ -394,7 +428,7 @@ module.exports = {
   getOrCreateToken, getTokenData, getPublicEventTypeBySlug, getPublicTeacherBySlug,
   createBookingAtomic, updateBookingTeamsInfo,
   getBookingByCancelToken, getBookingById, getBookingForToken, cancelBooking, confirmBookingPresence, rescheduleBooking,
-  getBookingsForTeacher, getBookingsForSlot,
+  getBookingsForTeacher, getBookingsForStudent, getBookingsForSlot, updateBookingRoom,
   getMicrosoftToken, saveMicrosoftToken, deleteMicrosoftToken,
   saveOAuthState, consumeOAuthState, pruneExpiredOAuthStates,
   createBookingReminder, getDueReminders, markReminderSent,

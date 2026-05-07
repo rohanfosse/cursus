@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 90;
+const CURRENT_VERSION = 91;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -2133,6 +2133,13 @@ function runMigrations(db) {
         CREATE INDEX IF NOT EXISTS idx_pce_sub ON promo_calendar_events(subscription_id);
         CREATE INDEX IF NOT EXISTS idx_pce_start ON promo_calendar_events(start_at);
       `);
+    },
+
+    // v91 : Booking — colonne `room` (salle physique) optionnelle. Sert quand
+    // le RDV n'a pas de visio (RDV en presentiel) : le prof entre la salle
+    // dans la modale de detail, l'etudiant la voit en lecture seule.
+    (db) => {
+      tryAlter(db, 'ALTER TABLE bookings ADD COLUMN room TEXT');
     },
   ];
 

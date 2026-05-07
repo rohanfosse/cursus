@@ -39,10 +39,15 @@ export interface Booking {
   start_time: string
   end_time: string
   student_name?: string
+  student_email?: string
   tutor_name?: string
+  tutor_email?: string
+  teacher_name?: string
   status: string
   event_type_title?: string
   visio_url?: string
+  /** Salle physique (presentiel) — alternative a la visio. Optionnel. */
+  room?: string | null
 }
 
 // ── Composable ───────────────────────────────────────────────────────────────

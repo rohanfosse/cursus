@@ -194,14 +194,26 @@ router.post('/tokens/bulk', requireRole('teacher'), validate(bulkTokensSchema), 
 
 // ── My Bookings ────────────────────────────────────────────────────────
 
-router.get('/my-bookings', requireRole('teacher'), wrap((req) => {
+// Route role-aware : un prof voit ses RDV cote organisateur, un etudiant
+// voit ceux ou il est l'invite. Le shape de retour est identique (date +
+// start_time/end_time + event_type_title) pour que le frontend agenda les
+// affiche pareil. Cote etudiant, on expose teacher_name pour que le titre
+// du bloc dans le calendrier indique "RDV avec Mme. Lambert" au lieu de
+// "RDV avec Toi".
+router.get('/my-bookings', wrap((req) => {
   const from = req.query.from && !isNaN(Date.parse(req.query.from)) ? req.query.from : undefined
   const to   = req.query.to   && !isNaN(Date.parse(req.query.to))   ? req.query.to   : undefined
-  // Transforme le shape DB (start_datetime ISO + event_title) vers le shape
-  // attendu par le frontend (date YYYY-MM-DD + start_time HH:MM:SS +
-  // event_type_title). Sans cette projection, sortedBookings.value cote
-  // composable expose `bk.date` undefined → cards "Invalid Date" partout.
-  return queries.getBookingsForTeacher(req.user.id, { from, to }).map(bk => {
+
+  let rows
+  if (req.user.type === 'student') {
+    rows = queries.getBookingsForStudent(req.user.id, { from, to })
+  } else if (req.user.type === 'teacher' || req.user.type === 'admin' || req.user.type === 'ta') {
+    rows = queries.getBookingsForTeacher(req.user.id, { from, to })
+  } else {
+    return []
+  }
+
+  return rows.map(bk => {
     const start = new Date(bk.start_datetime)
     const end   = new Date(bk.end_datetime)
     const pad = (n) => String(n).padStart(2, '0')
@@ -215,8 +227,29 @@ router.get('/my-bookings', requireRole('teacher'), wrap((req) => {
       event_type_title:    bk.event_title,
       event_type_color:    bk.event_type_color || null,
       visio_url:           bk.teams_join_url || null,
+      teacher_name:        bk.teacher_name || null,
+      room:                bk.room || null,
     }
   })
+}))
+
+// ── Update room (salle physique pour les RDV en presentiel sans visio) ────
+//
+// Champ optionnel : si le prof remplace une visio Teams par un RDV en
+// presentiel, il peut indiquer la salle ici. L'etudiant la verra dans son
+// agenda en lecture seule. Limite : 80 chars (B12, "Bureau du prof", "Salle
+// projet 2eme etage", etc.). Pas de validation regex parce que les noms de
+// salle CESI sont incoherents : "B12", "B-12", "Salle 312", "Amphi A".
+const updateRoomSchema = z.object({
+  room: z.string().max(80).nullable().optional(),
+})
+router.patch('/:id/room', requireRole('teacher'), validate(updateRoomSchema), wrap((req) => {
+  const id = Number(req.params.id)
+  if (!Number.isFinite(id)) throw new ValidationError('id invalide')
+  const room = req.body.room == null ? null : String(req.body.room).trim()
+  const updated = queries.updateBookingRoom(id, req.user.id, room)
+  if (!updated) throw new ForbiddenError("Vous n'etes pas proprietaire de ce RDV")
+  return { id, room: updated.room }
 }))
 
 // ── Creation directe (style Outlook) ───────────────────────────────────

@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useApi } from '@/composables/useApi'
 import { normalizePromoColor } from '@/utils/promoPalette'
+import { enrichExternalEvent, colorForKind } from '@/utils/externalEventEnrichment'
+import { bookingHasRealTutor } from '@/utils/bookingHelpers'
 import type { CalendarEvent, Reminder } from '@/types'
 
 export interface PromoCalendar {
@@ -52,8 +54,12 @@ interface BookingRow {
   end_time: string
   status: string
   student_name?: string | null
+  student_email?: string | null
   tutor_name?: string | null
+  tutor_email?: string | null
+  teacher_name?: string | null
   visio_url?: string | null
+  room?: string | null
   event_type_title?: string | null
   event_type_color?: string | null
 }
@@ -203,19 +209,46 @@ function buildExternalEvent(ev: ExternalCalendarEvent): CalendarEvent | null {
     startStr = fmtDateTime(sd)
     endStr = fmtDateTime(ed)
   }
+
+  // Enrichissement : on parse "Workshop 1 - Auth w/ M. Deshors" pour extraire
+  // intervenant, kind (workshop/prosit/...), kindLabel et salle inferee.
+  // La couleur utilisee dans la grille suit le kind (Workshop bleu, Prosit
+  // violet, etc.) plutot que la couleur de l'abonnement — donne un code
+  // visuel coherent par type de cours, identique pour toutes les promos.
+  const enriched = enrichExternalEvent({
+    summary: ev.summary,
+    location: ev.location,
+    description: ev.description,
+  })
+  const eventColor = enriched.kind === 'autre'
+    ? (ev.subscription_color || EXTERNAL_COLOR)
+    : colorForKind(enriched.kind)
+
+  // Titre affiche : on prefixe par "WS1 -" / "Prosit Aller 3 -" si applicable
+  // pour rester scannable dans la grille meme quand le bloc est etroit.
+  const displayedTitle = enriched.kindLabel
+    ? (enriched.cleanTitle && enriched.cleanTitle !== enriched.kindLabel
+        ? `${enriched.kindLabel} - ${enriched.cleanTitle}`
+        : enriched.kindLabel)
+    : (enriched.cleanTitle || ev.summary || 'Cours')
+
   return {
     id: `external-${ev.id}`,
     start: startStr,
     end: endStr,
-    title: ev.summary || ev.subscription_label || 'Cours',
-    color: ev.subscription_color || EXTERNAL_COLOR,
+    title: displayedTitle,
+    color: eventColor,
     eventType: 'external',
     sourceId: ev.id,
-    category: ev.subscription_label || null,
-    location: ev.location || null,
+    category: enriched.kindLabel || ev.subscription_label || null,
+    location: ev.location || enriched.inferredLocation || null,
     externalSubscriptionLabel: ev.subscription_label || null,
-    externalLocation: ev.location || null,
+    externalLocation: ev.location || enriched.inferredLocation || null,
     externalDescription: ev.description || null,
+    externalKind: enriched.kind,
+    externalKindLabel: enriched.kindLabel,
+    externalIntervenant: enriched.intervenant,
+    externalRawTitle: ev.summary || null,
     promoId: ev.promo_id,
     allDay: isAllDay,
     draggable: false,
@@ -226,9 +259,23 @@ function buildBookingEvent(bk: BookingRow): CalendarEvent | null {
   if (!bk.date || !bk.start_time || !bk.end_time) return null
   const startStr = `${bk.date} ${bk.start_time.slice(0, 5)}`
   const endStr   = `${bk.date} ${bk.end_time.slice(0, 5)}`
+  // Le "qui" affiche dans le titre depend du role : un prof voit le nom de
+  // l'etudiant, un etudiant voit le nom du prof. Le backend renseigne l'un
+  // ou l'autre selon le call (getBookingsForStudent vs getBookingsForTeacher).
+  const counterparty = bk.teacher_name || bk.student_name || ''
   const title = bk.event_type_title
-    ? `${bk.event_type_title}${bk.student_name ? ' - ' + bk.student_name : ''}`
-    : `RDV${bk.student_name ? ' - ' + bk.student_name : ''}`
+    ? `${bk.event_type_title}${counterparty ? ' - ' + counterparty : ''}`
+    : `RDV${counterparty ? ' - ' + counterparty : ''}`
+  // bookingHasRealTutor : un "tuteur" qui est en realite l'etudiant lui-meme
+  // (cas RDV simple non-tripartite, ou le backend met le student dans tutor_*)
+  // ne doit pas s'afficher comme tuteur. On filtre ici plutot que dans la vue
+  // pour que la donnee soit propre des qu'elle sort du store.
+  const realTutor = bookingHasRealTutor({
+    tutor_name: bk.tutor_name ?? null,
+    tutor_email: bk.tutor_email ?? null,
+    student_name: bk.student_name ?? null,
+    student_email: bk.student_email ?? null,
+  })
   return {
     id: `booking-${bk.id}`,
     start: startStr,
@@ -239,10 +286,13 @@ function buildBookingEvent(bk: BookingRow): CalendarEvent | null {
     sourceId: bk.id,
     category: bk.event_type_title ?? null,
     bookingStudentName: bk.student_name ?? null,
-    bookingTutorName: bk.tutor_name ?? null,
+    bookingTutorName: realTutor ? (bk.tutor_name ?? null) : null,
     bookingVisioUrl: bk.visio_url ?? null,
+    bookingRoom: bk.room ?? null,
     bookingStatus: bk.status ?? null,
     bookingEventTypeTitle: bk.event_type_title ?? null,
+    // Cote etudiant : on stocke le nom du prof dans organizer (champ generique).
+    organizer: bk.teacher_name ?? null,
     allDay: false,
     draggable: false,
   }

@@ -495,6 +495,9 @@ contextBridge.exposeInMainWorld('api', {
   /** Creation directe (style Outlook) — un RDV pour 1+ etudiants. */
   createBookingDirect:       (payload: { eventTypeId: number; studentIds: number[]; startDatetime: string; durationMinutes?: number }) =>
     post('/api/bookings/direct', payload),
+  /** Update room (salle physique) sur un RDV. Prof uniquement. */
+  updateBookingRoom:         (id: number, room: string | null) =>
+    patch(`/api/bookings/${id}/room`, { room }),
   startBookingOAuth:         ()                          => get('/api/bookings/oauth/start'),
   getBookingOAuthStatus:     ()                          => get('/api/bookings/oauth/status'),
   disconnectBookingOAuth:    ()                          => del('/api/bookings/oauth/disconnect'),

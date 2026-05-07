@@ -524,12 +524,18 @@ export interface CalendarEvent {
   bookingStudentName?: string | null
   bookingTutorName?: string | null
   bookingVisioUrl?: string | null
+  bookingRoom?: string | null
   bookingStatus?: string | null
   bookingEventTypeTitle?: string | null
   // External-specific (when eventType === 'external' — abonnement ICS Outlook publie)
   externalSubscriptionLabel?: string | null
   externalLocation?: string | null
   externalDescription?: string | null
+  /** Enrichissement derive du summary (intervenant, kind, salle inferee). */
+  externalKind?: string | null
+  externalKindLabel?: string | null
+  externalIntervenant?: string | null
+  externalRawTitle?: string | null
   /** Vue-cal: affiche l'evenement comme barre horizontale en haut de la journee. */
   allDay?: boolean
   /** Vue-cal : l'evenement peut etre deplace par drag (reminders + deadlines prof uniquement). */

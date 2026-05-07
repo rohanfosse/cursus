@@ -23,6 +23,7 @@ import { useAgendaKeyboardShortcuts } from '@/composables/useAgendaKeyboardShort
 import { useConfirm } from '@/composables/useConfirm'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import { getISOWeekNumber, startOfISOWeek } from '@/utils/date'
+import { enrichExternalEvent, colorForKind } from '@/utils/externalEventEnrichment'
 import type { CalendarEvent } from '@/types'
 
 const appStore  = useAppStore()
@@ -363,6 +364,13 @@ function eventTypeLabel(type: string): string {
   return 'Rappel'
 }
 
+function externalKindLabel(ev: CalendarEvent): string {
+  if (ev.eventType !== 'external') return eventTypeLabel(ev.eventType)
+  // Si on a un kindLabel structure (Workshop 1, Prosit Aller 3, ...), on
+  // l'utilise comme label de type — c'est plus parlant que "Cours" generique.
+  return ev.externalKindLabel || 'Cours'
+}
+
 function statusLabel(s?: string): string {
   if (s === 'submitted') return 'Rendu'
   if (s === 'late') return 'En retard'
@@ -535,7 +543,7 @@ watch(() => route.query, (q) => {
         <label class="ag-filter-check">
           <input v-model="showReminders" type="checkbox" /> Rappels
         </label>
-        <label v-if="isTeacher" class="ag-filter-check">
+        <label class="ag-filter-check">
           <input v-model="showBookings" type="checkbox" /> RDV
         </label>
         <label class="ag-filter-check">
@@ -670,10 +678,18 @@ watch(() => route.query, (q) => {
 
           <div class="agenda-detail-body">
             <header class="agenda-detail-head">
-              <span class="agenda-detail-type">{{ eventTypeLabel(selectedEvent.eventType) }}</span>
+              <span
+                class="agenda-detail-type"
+                :class="{ 'agenda-detail-type--external': selectedEvent.eventType === 'external' && selectedEvent.externalKind }"
+                :style="selectedEvent.eventType === 'external' && selectedEvent.externalKind ? { '--kind-color': selectedEvent.color } : {}"
+              >{{ externalKindLabel(selectedEvent) }}</span>
               <button type="button" class="agenda-detail-close" aria-label="Fermer le panneau de détails" @click="closeDetail"><X :size="14" aria-hidden="true" /></button>
             </header>
-            <h2 id="agenda-detail-title" class="agenda-detail-title">{{ selectedEvent.title }}</h2>
+            <h2 id="agenda-detail-title" class="agenda-detail-title">
+              {{ selectedEvent.eventType === 'external' && selectedEvent.externalKindLabel && selectedEvent.title.startsWith(selectedEvent.externalKindLabel + ' - ')
+                ? selectedEvent.title.slice(selectedEvent.externalKindLabel.length + 3)
+                : selectedEvent.title }}
+            </h2>
 
             <div class="agenda-detail-meta-list">
               <div class="agenda-detail-meta">
@@ -684,7 +700,7 @@ watch(() => route.query, (q) => {
                 <span class="agenda-detail-promo-dot" :style="{ background: selectedEvent.promoColor }" aria-hidden="true" />
                 <span>{{ selectedEvent.promoName }}</span>
               </div>
-              <div v-if="selectedEvent.category" class="agenda-detail-meta">
+              <div v-if="selectedEvent.category && selectedEvent.eventType !== 'external'" class="agenda-detail-meta">
                 <Tag :size="14" aria-hidden="true" />
                 <span>{{ selectedEvent.category }}</span>
               </div>
@@ -692,12 +708,20 @@ watch(() => route.query, (q) => {
                 <MapPin :size="14" aria-hidden="true" />
                 <span>{{ selectedEvent.location }}</span>
               </div>
-              <div v-if="selectedEvent.organizer" class="agenda-detail-meta">
+              <!-- Booking cote etudiant : on affiche le prof (organizer) en
+                   premier avec un libelle clair "Prof". Sinon (cote prof ou
+                   autre type d'event), on garde l'affichage neutre. -->
+              <div v-if="selectedEvent.eventType === 'booking' && selectedEvent.organizer && !isTeacher" class="agenda-detail-meta">
+                <User :size="14" aria-hidden="true" />
+                <span><span class="agenda-detail-meta-label">Prof</span> {{ selectedEvent.organizer }}</span>
+              </div>
+              <div v-else-if="selectedEvent.organizer" class="agenda-detail-meta">
                 <User :size="14" aria-hidden="true" />
                 <span>{{ selectedEvent.organizer }}</span>
               </div>
-              <!-- Booking : etudiant + tuteur + visio en lecture -->
-              <div v-if="selectedEvent.bookingStudentName" class="agenda-detail-meta">
+              <!-- Booking cote prof : nom de l'etudiant (jamais affiche cote
+                   etudiant — son propre nom n'apporte aucune info). -->
+              <div v-if="selectedEvent.bookingStudentName && isTeacher" class="agenda-detail-meta">
                 <User :size="14" aria-hidden="true" />
                 <span><span class="agenda-detail-meta-label">Etudiant</span> {{ selectedEvent.bookingStudentName }}</span>
               </div>
@@ -711,18 +735,31 @@ watch(() => route.query, (q) => {
                   Lien visioconference
                 </a>
               </div>
-              <!-- External (cours Outlook publie) : label calendrier + lieu -->
+              <!-- Salle physique pour les RDV en presentiel (sans visio) -->
+              <div v-if="selectedEvent.eventType === 'booking' && !selectedEvent.bookingVisioUrl && selectedEvent.bookingRoom" class="agenda-detail-meta">
+                <MapPin :size="14" aria-hidden="true" />
+                <span><span class="agenda-detail-meta-label">Salle</span> {{ selectedEvent.bookingRoom }}</span>
+              </div>
+              <!-- External (cours Outlook publie) : intervenant, salle, calendrier source -->
+              <div v-if="selectedEvent.externalIntervenant" class="agenda-detail-meta">
+                <User :size="14" aria-hidden="true" />
+                <span><span class="agenda-detail-meta-label">Intervenant</span> {{ selectedEvent.externalIntervenant }}</span>
+              </div>
+              <div v-if="selectedEvent.externalLocation" class="agenda-detail-meta">
+                <MapPin :size="14" aria-hidden="true" />
+                <span><span class="agenda-detail-meta-label">Salle</span> {{ selectedEvent.externalLocation }}</span>
+              </div>
               <div v-if="selectedEvent.externalSubscriptionLabel" class="agenda-detail-meta">
                 <CalIcon :size="14" aria-hidden="true" />
                 <span><span class="agenda-detail-meta-label">Calendrier</span> {{ selectedEvent.externalSubscriptionLabel }}</span>
               </div>
-              <div v-if="selectedEvent.externalLocation" class="agenda-detail-meta">
-                <MapPin :size="14" aria-hidden="true" />
-                <span>{{ selectedEvent.externalLocation }}</span>
+              <div v-if="selectedEvent.eventType === 'external' && selectedEvent.externalRawTitle && selectedEvent.externalRawTitle !== selectedEvent.title" class="agenda-detail-meta agenda-detail-meta--raw">
+                <Tag :size="14" aria-hidden="true" />
+                <span><span class="agenda-detail-meta-label">Titre original</span> {{ selectedEvent.externalRawTitle }}</span>
               </div>
             </div>
 
-            <div v-if="selectedEvent.eventType === 'external' && selectedEvent.externalDescription" class="agenda-detail-description">
+            <div v-if="selectedEvent.eventType === 'external' && selectedEvent.externalDescription && selectedEvent.externalDescription.trim()" class="agenda-detail-description">
               {{ selectedEvent.externalDescription }}
             </div>
 
@@ -1003,10 +1040,30 @@ watch(() => route.query, (q) => {
   font-size: 10.5px; font-weight: 700; color: var(--text-muted); flex: 1;
   text-transform: uppercase; letter-spacing: 0.08em;
 }
+/* Pour les events externes (cours Outlook), on affiche le kindLabel en chip
+   teinte de la couleur du kind — donne un signal visuel fort dans le panneau
+   de details. */
+.agenda-detail-type--external {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--kind-color, var(--accent)) 16%, var(--bg-elevated));
+  color: var(--kind-color, var(--accent));
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+.agenda-detail-meta--raw {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
 .agenda-detail-close {
   background: none; border: none; color: var(--text-muted); cursor: pointer;
   padding: 6px; border-radius: var(--radius-sm);
   transition: background-color 0.12s, color 0.12s;
+  margin-left: auto; /* Pousse a droite quel que soit le flex du sibling type. */
 }
 .agenda-detail-close:hover { background: var(--bg-hover); color: var(--text-primary); }
 .agenda-detail-title {
