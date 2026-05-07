@@ -43,6 +43,8 @@ const showDeadlines  = ref(true)
 const showStartDates = ref(true)
 const showReminders  = ref(true)
 const showOutlook    = ref(true)
+const showBookings   = ref(true)
+const showExternal   = ref(true)
 const hiddenPromos   = ref(new Set<number>())
 const showFilters    = ref(false)
 const searchQuery    = ref('')
@@ -57,9 +59,11 @@ export function useAgendaFilters() {
       if (e.eventType === 'start_date' && !showStartDates.value) return false
       if (e.eventType === 'reminder'   && !showReminders.value)  return false
       if (e.eventType === 'outlook'    && !showOutlook.value)    return false
+      if (e.eventType === 'booking'    && !showBookings.value)   return false
+      if (e.eventType === 'external'   && !showExternal.value)   return false
       if (e.promoId && hiddenPromos.value.has(e.promoId))        return false
       if (q) {
-        const hay = `${normalize(e.title)} ${normalize(e.promoName ?? '')} ${normalize(e.category ?? '')} ${normalize(e.organizer ?? '')} ${normalize(e.location ?? '')}`
+        const hay = `${normalize(e.title)} ${normalize(e.promoName ?? '')} ${normalize(e.category ?? '')} ${normalize(e.organizer ?? '')} ${normalize(e.location ?? '')} ${normalize(e.bookingStudentName ?? '')} ${normalize(e.bookingTutorName ?? '')} ${normalize(e.externalLocation ?? '')}`
         if (!hay.includes(q)) return false
       }
       return true
@@ -76,7 +80,7 @@ export function useAgendaFilters() {
   })
 
   return {
-    showDeadlines, showStartDates, showReminders, showOutlook, hiddenPromos, showFilters,
+    showDeadlines, showStartDates, showReminders, showOutlook, showBookings, showExternal, hiddenPromos, showFilters,
     searchQuery,
     filteredEvents,
   }

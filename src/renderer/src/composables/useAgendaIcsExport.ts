@@ -90,6 +90,8 @@ function eventTypeLabel(t: string): string {
   if (t === 'deadline') return 'Echeance'
   if (t === 'start_date') return 'Demarrage'
   if (t === 'outlook') return 'Outlook'
+  if (t === 'booking') return 'Rendez-vous'
+  if (t === 'external') return 'Cours'
   return 'Rappel'
 }
 

@@ -213,6 +213,7 @@ router.get('/my-bookings', requireRole('teacher'), wrap((req) => {
       start_time:          isoTime(start),
       end_time:            isoTime(end),
       event_type_title:    bk.event_title,
+      event_type_color:    bk.event_type_color || null,
       visio_url:           bk.teams_join_url || null,
     }
   })

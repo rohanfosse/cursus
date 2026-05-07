@@ -44,10 +44,42 @@ interface OutlookEvent {
   categories: string[]
 }
 
+/** RDV (Booking) tels que retournes par /api/bookings/my-bookings. */
+interface BookingRow {
+  id: number
+  date: string
+  start_time: string
+  end_time: string
+  status: string
+  student_name?: string | null
+  tutor_name?: string | null
+  visio_url?: string | null
+  event_type_title?: string | null
+  event_type_color?: string | null
+}
+
+/** Event ICS externe (Outlook publie / Google public). */
+interface ExternalCalendarEvent {
+  id: number
+  subscription_id: number
+  subscription_label: string
+  subscription_color: string | null
+  uid: string | null
+  start_at: string
+  end_at: string
+  is_all_day: number
+  summary: string
+  location: string
+  description: string
+  promo_id: number
+}
+
 // ─── Helpers date ────────────────────────────────────────────────────────────
 
 const REMINDER_COLOR = '#22c55e'
 const OUTLOOK_COLOR  = '#0ea5e9'
+const BOOKING_COLOR  = '#a855f7'
+const EXTERNAL_COLOR = '#0ea5e9'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -154,6 +186,68 @@ function buildReminderEvent(r: Reminder): CalendarEvent | null {
   }
 }
 
+function buildExternalEvent(ev: ExternalCalendarEvent): CalendarEvent | null {
+  if (!ev.start_at || !ev.end_at) return null
+  // Format les datetimes ICS (ISO ou 'YYYY-MM-DD' all-day) vers le format
+  // attendu par AgendaTimeGrid : 'YYYY-MM-DD HH:MM' ou 'YYYY-MM-DD'.
+  const isAllDay = ev.is_all_day === 1
+  let startStr: string
+  let endStr: string
+  if (isAllDay) {
+    startStr = ev.start_at.slice(0, 10)
+    endStr = ev.end_at.slice(0, 10)
+  } else {
+    const sd = new Date(ev.start_at)
+    const ed = new Date(ev.end_at)
+    if (isNaN(sd.getTime()) || isNaN(ed.getTime())) return null
+    startStr = fmtDateTime(sd)
+    endStr = fmtDateTime(ed)
+  }
+  return {
+    id: `external-${ev.id}`,
+    start: startStr,
+    end: endStr,
+    title: ev.summary || ev.subscription_label || 'Cours',
+    color: ev.subscription_color || EXTERNAL_COLOR,
+    eventType: 'external',
+    sourceId: ev.id,
+    category: ev.subscription_label || null,
+    location: ev.location || null,
+    externalSubscriptionLabel: ev.subscription_label || null,
+    externalLocation: ev.location || null,
+    externalDescription: ev.description || null,
+    promoId: ev.promo_id,
+    allDay: isAllDay,
+    draggable: false,
+  }
+}
+
+function buildBookingEvent(bk: BookingRow): CalendarEvent | null {
+  if (!bk.date || !bk.start_time || !bk.end_time) return null
+  const startStr = `${bk.date} ${bk.start_time.slice(0, 5)}`
+  const endStr   = `${bk.date} ${bk.end_time.slice(0, 5)}`
+  const title = bk.event_type_title
+    ? `${bk.event_type_title}${bk.student_name ? ' - ' + bk.student_name : ''}`
+    : `RDV${bk.student_name ? ' - ' + bk.student_name : ''}`
+  return {
+    id: `booking-${bk.id}`,
+    start: startStr,
+    end: endStr,
+    title,
+    color: bk.event_type_color || BOOKING_COLOR,
+    eventType: 'booking',
+    sourceId: bk.id,
+    category: bk.event_type_title ?? null,
+    bookingStudentName: bk.student_name ?? null,
+    bookingTutorName: bk.tutor_name ?? null,
+    bookingVisioUrl: bk.visio_url ?? null,
+    bookingStatus: bk.status ?? null,
+    bookingEventTypeTitle: bk.event_type_title ?? null,
+    allDay: false,
+    draggable: false,
+  }
+}
+
 function buildOutlookEvent(ev: OutlookEvent): CalendarEvent | null {
   const sd = new Date(ev.start)
   const ed = new Date(ev.end)
@@ -199,11 +293,15 @@ export const useAgendaStore = defineStore('agenda', () => {
 
   const reminders = ref<Reminder[]>([])
   const ganttRows = ref<GanttRow[]>([])
+  const bookings  = ref<BookingRow[]>([])
+  const externalEvents = ref<ExternalCalendarEvent[]>([])
   const loading   = ref(false)
 
   const outlookEvents    = ref<OutlookEvent[]>([])
   const outlookConnected = ref(false)
   const outlookEnabled   = ref(true)
+  const bookingsEnabled  = ref(true)
+  const externalEnabled  = ref(true)
 
   // Dedup : requête fetchEvents concurrente pour le même pid = réutilisation
   let inflightFetch: { pid: number; promise: Promise<void> } | null = null
@@ -258,6 +356,20 @@ export const useAgendaStore = defineStore('agenda', () => {
       }
     }
 
+    if (bookingsEnabled.value) {
+      for (const bk of bookings.value) {
+        const built = buildBookingEvent(bk)
+        if (built) list.push(built)
+      }
+    }
+
+    if (externalEnabled.value) {
+      for (const ev of externalEvents.value) {
+        const built = buildExternalEvent(ev)
+        if (built) list.push(built)
+      }
+    }
+
     return list.sort((a, b) => a.start.localeCompare(b.start))
   })
 
@@ -271,12 +383,25 @@ export const useAgendaStore = defineStore('agenda', () => {
     loading.value = true
     const promise = (async () => {
       try {
-        const [gantt, rems] = await Promise.all([
+        const [gantt, rems, bks, exts] = await Promise.all([
           api<GanttRow[]>(() => window.api.getGanttData(pid) as unknown as Promise<{ ok: boolean; data?: GanttRow[] | null; error?: string }>),
           api<Reminder[]>(() => window.api.getReminders()),
+          // getMyBookings n'existe que cote prof — l'erreur silencieuse rend la requete safe pour les eleves.
+          api<BookingRow[]>(
+            () => window.api.getMyBookings() as unknown as Promise<{ ok: boolean; data?: BookingRow[] | null; error?: string }>,
+            { silent: true },
+          ),
+          // Abonnements ICS externes (Outlook publie / Google public). Silencieux : si
+          // pas configure, juste pas d'events affiches.
+          api<ExternalCalendarEvent[]>(
+            () => window.api.getPromoCalendarEvents() as unknown as Promise<{ ok: boolean; data?: ExternalCalendarEvent[] | null; error?: string }>,
+            { silent: true },
+          ),
         ])
         if (gantt) ganttRows.value = gantt
         if (rems)  reminders.value = rems
+        if (Array.isArray(bks)) bookings.value = bks
+        if (Array.isArray(exts)) externalEvents.value = exts
       } finally {
         loading.value = false
       }
@@ -330,6 +455,16 @@ export const useAgendaStore = defineStore('agenda', () => {
   function toggleOutlookSync(enabled: boolean): void {
     outlookEnabled.value = enabled
     if (!enabled) outlookEvents.value = []
+  }
+
+  /** Toggle l'affichage des RDV (bookings) dans l'agenda. Ne purge pas le cache : un re-toggle ON instant. */
+  function toggleBookings(enabled: boolean): void {
+    bookingsEnabled.value = enabled
+  }
+
+  /** Toggle des events ICS externes (calendriers Outlook publies par promo). */
+  function toggleExternal(enabled: boolean): void {
+    externalEnabled.value = enabled
   }
 
   async function createReminder(payload: Omit<Reminder, 'id' | 'created_at'>): Promise<boolean> {
@@ -396,10 +531,14 @@ export const useAgendaStore = defineStore('agenda', () => {
   }
 
   return {
-    reminders, ganttRows, events, promos, categories, loading,
+    reminders, ganttRows, bookings, externalEvents, events, promos, categories, loading,
     fetchEvents, createReminder, updateReminder, updateEventDate, deleteReminder,
     // Outlook sync
     outlookEvents, outlookConnected, outlookEnabled,
     fetchOutlookEvents, toggleOutlookSync,
+    // Bookings (RDV)
+    bookingsEnabled, toggleBookings,
+    // External ICS subscriptions
+    externalEnabled, toggleExternal,
   }
 })

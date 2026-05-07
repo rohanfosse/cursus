@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 89;
+const CURRENT_VERSION = 90;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -2088,6 +2088,51 @@ function runMigrations(db) {
         updateStmt.run(slug, t.id);
       }
       db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_teachers_public_slug ON teachers(public_slug)");
+    },
+
+    // v90 : Abonnement ICS externe par promo (Outlook publie / Google Calendar
+    // public / iCloud share). Le prof colle l'URL ICS, on poll toutes les 30
+    // min, on cache les events parses dans promo_calendar_events. Affiche dans
+    // l'agenda etudiant + prof. Pas d'OAuth ni d'admin consent : marche tant
+    // que l'URL est accessible publiquement.
+    //
+    // ics_url_enc est chiffre (l'URL contient un token aleatoire qui donne
+    // acces au calendrier en lecture). teacher_id = owner pour CRUD/audit.
+    // promo_id ON DELETE CASCADE : supprime les abonnements quand on supprime
+    // une promo.
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS promo_calendar_subscriptions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          promo_id INTEGER NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+          teacher_id INTEGER NOT NULL,
+          label TEXT NOT NULL,
+          ics_url_enc TEXT NOT NULL,
+          color TEXT,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          last_fetched_at TEXT,
+          last_error TEXT,
+          last_event_count INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_pcs_promo ON promo_calendar_subscriptions(promo_id);
+        CREATE INDEX IF NOT EXISTS idx_pcs_teacher ON promo_calendar_subscriptions(teacher_id);
+
+        CREATE TABLE IF NOT EXISTS promo_calendar_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          subscription_id INTEGER NOT NULL REFERENCES promo_calendar_subscriptions(id) ON DELETE CASCADE,
+          uid TEXT,
+          start_at TEXT NOT NULL,
+          end_at TEXT NOT NULL,
+          is_all_day INTEGER NOT NULL DEFAULT 0,
+          summary TEXT,
+          location TEXT,
+          description TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_pce_sub ON promo_calendar_events(subscription_id);
+        CREATE INDEX IF NOT EXISTS idx_pce_start ON promo_calendar_events(start_at);
+      `);
     },
   ];
 

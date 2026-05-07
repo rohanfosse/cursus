@@ -506,6 +506,27 @@ declare global {
       rotateCalendarFeedToken(): Promise<IpcResponse<{ token: string; url: string }>>
       revokeCalendarFeedToken(): Promise<IpcResponse<{ revoked: boolean }>>
 
+      // Promo calendar subscriptions (URL ICS publique, pull-only)
+      listPromoCalendarSubscriptions(): Promise<IpcResponse<Array<{
+        id: number; promo_id: number; teacher_id: number; label: string; color: string | null;
+        ics_url_masked: string; is_active: number;
+        last_fetched_at: string | null; last_error: string | null; last_event_count: number;
+        created_at: string; updated_at: string;
+        promo_name?: string; promo_color?: string;
+      }>>>
+      createPromoCalendarSubscription(payload: { promo_id: number; label: string; ics_url: string; color?: string | null }):
+        Promise<IpcResponse<{ id: number; promo_id: number; label: string; ics_url_masked: string; last_event_count: number; last_error: string | null }>>
+      updatePromoCalendarSubscription(id: number, payload: { label?: string; color?: string | null; is_active?: boolean }):
+        Promise<IpcResponse<unknown>>
+      deletePromoCalendarSubscription(id: number): Promise<IpcResponse<{ id: number }>>
+      refreshPromoCalendarSubscription(id: number): Promise<IpcResponse<unknown>>
+      getPromoCalendarEvents(from?: string, to?: string): Promise<IpcResponse<Array<{
+        id: number; subscription_id: number; subscription_label: string; subscription_color: string | null;
+        uid: string | null; start_at: string; end_at: string; is_all_day: number;
+        summary: string; location: string; description: string;
+        promo_id: number;
+      }>>>
+
       // TypeRace (mini-jeu typing speed)
       typeRaceRandomPhrase(excludeIds?: number[]): Promise<IpcResponse<{ id: number; text: string }>>
       typeRaceSubmitScore(payload: { phraseId: number; wpm: number; accuracy: number; durationMs: number }): Promise<IpcResponse<{ id: number; score: number }>>

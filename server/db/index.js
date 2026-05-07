@@ -29,6 +29,7 @@ const bookmarks      = require('./models/bookmarks');
 const scheduled      = require('./models/scheduled');
 const statuses       = require('./models/statuses');
 const linkPreviews   = require('./models/linkPreviews');
+const promoCalendarSubscriptions = require('./models/promoCalendarSubscriptions');
 
 // Initialisation complète : schema + migrations + seed
 function init() {
@@ -67,4 +68,5 @@ module.exports = {
   ...scheduled,
   ...statuses,
   ...linkPreviews,
+  promoCalendarSubscriptions,
 };

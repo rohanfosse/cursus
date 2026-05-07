@@ -506,7 +506,7 @@ export interface CalendarEvent {
   end: string
   title: string
   color: string
-  eventType: 'deadline' | 'start_date' | 'reminder' | 'outlook'
+  eventType: 'deadline' | 'start_date' | 'reminder' | 'outlook' | 'booking' | 'external'
   sourceId: number
   category?: string | null
   submissionStatus?: 'submitted' | 'pending' | 'late' | 'upcoming'
@@ -520,6 +520,16 @@ export interface CalendarEvent {
   teamsJoinUrl?: string | null
   location?: string | null
   organizer?: string | null
+  // Booking-specific (when eventType === 'booking')
+  bookingStudentName?: string | null
+  bookingTutorName?: string | null
+  bookingVisioUrl?: string | null
+  bookingStatus?: string | null
+  bookingEventTypeTitle?: string | null
+  // External-specific (when eventType === 'external' — abonnement ICS Outlook publie)
+  externalSubscriptionLabel?: string | null
+  externalLocation?: string | null
+  externalDescription?: string | null
   /** Vue-cal: affiche l'evenement comme barre horizontale en haut de la journee. */
   allDay?: boolean
   /** Vue-cal : l'evenement peut etre deplace par drag (reminders + deadlines prof uniquement). */

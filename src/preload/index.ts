@@ -504,6 +504,24 @@ contextBridge.exposeInMainWorld('api', {
   rotateCalendarFeedToken:   ()                          => post('/api/calendar/feed-token', {}),
   revokeCalendarFeedToken:   ()                          => del('/api/calendar/feed-token'),
 
+  // ── Promo calendar subscriptions (URL ICS Outlook publie / Google public) ──
+  // Le prof colle l'URL ICS, le serveur poll, les events apparaissent dans
+  // l'agenda etudiant + prof. Lecture seule, pas d'OAuth.
+  listPromoCalendarSubscriptions: () => get('/api/calendar-subscriptions'),
+  createPromoCalendarSubscription: (payload: { promo_id: number; label: string; ics_url: string; color?: string | null }) =>
+    post('/api/calendar-subscriptions', payload),
+  updatePromoCalendarSubscription: (id: number, payload: { label?: string; color?: string | null; is_active?: boolean }) =>
+    patch(`/api/calendar-subscriptions/${id}`, payload),
+  deletePromoCalendarSubscription: (id: number) => del(`/api/calendar-subscriptions/${id}`),
+  refreshPromoCalendarSubscription: (id: number) => post(`/api/calendar-subscriptions/${id}/refresh`, {}),
+  getPromoCalendarEvents: (from?: string, to?: string) => {
+    const qs = new URLSearchParams()
+    if (from) qs.set('from', from)
+    if (to) qs.set('to', to)
+    const q = qs.toString()
+    return get(`/api/calendar-subscriptions/events${q ? '?' + q : ''}`)
+  },
+
   // ── TypeRace (mini-jeu typing speed + leaderboard) ────────────────────────
   typeRaceRandomPhrase:   (excludeIds: number[] = []) => {
     const q = excludeIds.length ? `?exclude=${excludeIds.join(',')}` : ''

@@ -214,49 +214,50 @@ const todayIso = new Date().toISOString().slice(0, 10)
 <style scoped>
 .bcv { display: flex; flex-direction: column; gap: 8px; }
 
-.bcv-nav { display: flex; align-items: center; gap: 6px; }
+.bcv-nav { display: flex; align-items: center; gap: 8px; }
 .bcv-nav-btn {
   display: flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; border-radius: var(--radius-xs); border: none;
+  width: 28px; height: 28px; border-radius: var(--radius-sm); border: none;
   background: var(--bg-main); color: var(--text-muted); cursor: pointer;
   transition: all 0.12s;
 }
 .bcv-nav-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-.bcv-week-label { font-size: 12px; font-weight: 600; color: var(--text-primary); min-width: 120px; text-align: center; }
+.bcv-week-label { font-size: 13px; font-weight: 600; color: var(--text-primary); min-width: 140px; text-align: center; font-variant-numeric: tabular-nums; }
 .bcv-today-btn {
-  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-xs);
+  font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: var(--radius-sm);
   background: var(--accent); color: #fff; border: none; cursor: pointer; margin-left: auto;
 }
 
-/* min-height augmentee (300 -> 380) pour des creneaux plus visibles
-   maintenant qu'on a 10h de plage au lieu de 13h. */
-.bcv-grid { display: flex; gap: 0; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--border); min-height: 380px; overflow-x: auto; }
+/* min-height augmentee (380 -> 600) suite au feedback pilote :
+   creneaux plus lisibles + plus de marge pour cliquer dans les zones vides. */
+.bcv-grid { display: flex; gap: 0; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--border); min-height: 600px; overflow-x: auto; }
 
 .bcv-hours {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  width: 36px;
+  width: 48px;
   flex-shrink: 0;
-  padding-top: 28px; /* offset for day header */
+  padding-top: 36px; /* offset for day header (plus haut maintenant) */
   padding-bottom: 0;
 }
 .bcv-hour {
-  font-size: 9px; color: var(--text-muted); text-align: right; padding-right: 4px;
+  font-size: 11px; color: var(--text-muted); text-align: right; padding-right: 6px;
   display: flex; align-items: flex-start; justify-content: flex-end;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .bcv-day { flex: 1; min-width: 0; border-left: 1px solid var(--border); display: flex; flex-direction: column; }
 .bcv-day--today { background: rgba(99, 102, 241, 0.04); }
 .bcv-day-header {
-  font-size: 10px; font-weight: 600; text-align: center; padding: 6px 2px;
+  font-size: 12px; font-weight: 600; text-align: center; padding: 9px 2px;
   color: var(--text-secondary); border-bottom: 1px solid var(--border);
   text-transform: capitalize;
 }
 .bcv-day--today .bcv-day-header { color: var(--accent); font-weight: 700; }
 .bcv-day-body {
-  position: relative; flex: 1; min-height: 260px;
+  position: relative; flex: 1; min-height: 460px;
   cursor: cell;  /* feedback Outlook-style : "tu peux cliquer pour creer" */
   transition: background var(--motion-fast) var(--ease-out);
 }
@@ -279,19 +280,21 @@ const todayIso = new Date().toISOString().slice(0, 10)
 }
 
 .bcv-block {
-  position: absolute; left: 2px; right: 2px; border-radius: var(--radius-xs);
-  padding: 2px 4px; overflow: hidden; z-index: 1;
-  color: #fff; font-size: 9px; line-height: 1.3;
+  position: absolute; left: 3px; right: 3px; border-radius: var(--radius-sm);
+  padding: 4px 7px; overflow: hidden; z-index: 1;
+  color: #fff; font-size: 11px; line-height: 1.3;
   cursor: pointer;
-  transition: filter 0.12s var(--ease-out), box-shadow 0.12s var(--ease-out);
-  display: flex; flex-direction: column; gap: 0;
+  transition: filter 0.12s var(--ease-out), box-shadow 0.12s var(--ease-out), transform 0.12s var(--ease-out);
+  display: flex; flex-direction: column; gap: 1px;
   border: none;
   font-family: inherit;
   text-align: left;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.10);
 }
 .bcv-block:hover {
   filter: brightness(1.08);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  transform: translateY(-1px);
   z-index: 2;
 }
 .bcv-block:focus-visible {
@@ -300,6 +303,6 @@ const todayIso = new Date().toISOString().slice(0, 10)
   box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 40%, transparent);
   z-index: 2;
 }
-.bcv-block-time { font-weight: 700; }
-.bcv-block-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bcv-block-time { font-weight: 700; font-size: 11px; font-variant-numeric: tabular-nums; opacity: 0.92; }
+.bcv-block-name { font-weight: 600; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

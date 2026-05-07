@@ -254,7 +254,15 @@ function confirmBookingPresence(id) {
 }
 
 function getBookingsForTeacher(teacherId, { from, to } = {}) {
-  let sql = 'SELECT b.*, bet.title AS event_title FROM bookings b JOIN booking_event_types bet ON bet.id = b.event_type_id WHERE b.teacher_id = ?';
+  // JOIN students pour exposer student_name (utilise par les cards "Mes RDV"
+  // et l'agenda — sans ce JOIN, le titre du RDV cote calendrier perd l'info
+  // "avec X" qui aide a identifier le creneau d'un coup d'oeil).
+  let sql = `
+    SELECT b.*, bet.title AS event_title, bet.color AS event_type_color, s.name AS student_name
+    FROM bookings b
+    JOIN booking_event_types bet ON bet.id = b.event_type_id
+    LEFT JOIN students s ON s.id = b.student_id
+    WHERE b.teacher_id = ?`;
   const params = [teacherId];
   // Use overlap check: include bookings that overlap with the [from, to] window
   if (from) { sql += ' AND b.end_datetime > ?'; params.push(from); }

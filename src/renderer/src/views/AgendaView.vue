@@ -7,10 +7,11 @@ import AgendaDayNotes from '@/components/agenda/AgendaDayNotes.vue'
 import AgendaTimeGrid from '@/components/agenda/AgendaTimeGrid.vue'
 import AgendaMonthGrid from '@/components/agenda/AgendaMonthGrid.vue'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
+import ExternalCalendarsModal from '@/components/agenda/ExternalCalendarsModal.vue'
 import { useContextMenu, type ContextMenuItem } from '@/composables/useContextMenu'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Plus, Trash2, RefreshCw, X, Clock, Tag, ExternalLink, ChevronLeft, ChevronRight, Check, AlertCircle, Download, Filter, Copy, Edit3, Calendar as CalIcon, MapPin, User, MoreHorizontal, Search } from 'lucide-vue-next'
+import { Plus, Trash2, RefreshCw, X, Clock, Tag, ExternalLink, ChevronLeft, ChevronRight, Check, AlertCircle, Download, Filter, Copy, Edit3, Calendar as CalIcon, MapPin, User, MoreHorizontal, Search, Video, Briefcase, Globe } from 'lucide-vue-next'
 import { useAppStore }   from '@/stores/app'
 import { useAgendaStore } from '@/stores/agenda'
 import { useToast } from '@/composables/useToast'
@@ -38,7 +39,7 @@ const fetchPromoId = computed(() => isTeacher.value ? 0 : promoId.value)
 
 // ── Filters ───────────────────────────────────────────────────────────────
 const {
-  showDeadlines, showStartDates, showReminders, showOutlook, showFilters,
+  showDeadlines, showStartDates, showReminders, showOutlook, showBookings, showExternal, showFilters,
   searchQuery,
   filteredEvents,
 } = useAgendaFilters()
@@ -354,7 +355,12 @@ function formatFullDate(iso: string): string {
 }
 
 function eventTypeLabel(type: string): string {
-  return type === 'deadline' ? 'Echeance' : type === 'start_date' ? 'Demarrage' : 'Rappel'
+  if (type === 'deadline') return 'Echeance'
+  if (type === 'start_date') return 'Demarrage'
+  if (type === 'outlook') return 'Outlook'
+  if (type === 'booking') return 'Rendez-vous'
+  if (type === 'external') return 'Cours'
+  return 'Rappel'
 }
 
 function statusLabel(s?: string): string {
@@ -363,6 +369,9 @@ function statusLabel(s?: string): string {
   if (s === 'pending') return 'A rendre'
   return ''
 }
+
+// ── Calendriers externes (URL ICS Outlook publie) ───────────────────────
+const externalModalOpen = ref(false)
 
 // ── More menu (kebab) ───────────────────────────────────────────────────
 // Le listener document est strictement couple a l'etat ouvert : ajoute a
@@ -387,6 +396,8 @@ onBeforeUnmount(() => document.removeEventListener('click', closeMore))
 
 // ── Load ─────────────────────────────────────────────────────────────────
 let cleanupListener: (() => void) | null = null
+let cleanupBookingNew: (() => void) | null = null
+let cleanupBookingCancelled: (() => void) | null = null
 
 const { load: loadOutlook, start: startOutlookPolling } = useAgendaOutlookPolling(isTeacher, showOutlook, selectedDate)
 
@@ -421,9 +432,15 @@ onMounted(() => {
     activeView.value = 'day'
   }
   cleanupListener = window.api.onAssignmentNew?.(() => { load() }) ?? null
+  // Refresh quand un RDV est cree ou annule (socket) pour que les bookings
+  // apparaissent immediatement dans l'agenda sans attendre une reload.
+  cleanupBookingNew = window.api.onBookingNew?.(() => { load() }) ?? null
+  cleanupBookingCancelled = window.api.onBookingCancelled?.(() => { load() }) ?? null
 })
 onBeforeUnmount(() => {
   cleanupListener?.()
+  cleanupBookingNew?.()
+  cleanupBookingCancelled?.()
 })
 watch(() => promoId.value, load)
 watch(() => route.query, (q) => {
@@ -492,6 +509,9 @@ watch(() => route.query, (q) => {
             <button class="ag-more-item" role="menuitem" :class="{ 'ag-more-item--active': showFilters }" @click="showFilters = !showFilters; closeMore()">
               <Filter :size="14" /> {{ showFilters ? 'Masquer les filtres' : 'Afficher les filtres' }}
             </button>
+            <button v-if="isTeacher" class="ag-more-item" role="menuitem" @click="externalModalOpen = true; closeMore()">
+              <Globe :size="14" /> Calendriers externes
+            </button>
             <button class="ag-more-item" role="menuitem" @click="exportIcs(); closeMore()">
               <Download :size="14" /> Exporter (.ics)
             </button>
@@ -514,6 +534,12 @@ watch(() => route.query, (q) => {
         </label>
         <label class="ag-filter-check">
           <input v-model="showReminders" type="checkbox" /> Rappels
+        </label>
+        <label v-if="isTeacher" class="ag-filter-check">
+          <input v-model="showBookings" type="checkbox" /> RDV
+        </label>
+        <label class="ag-filter-check">
+          <input v-model="showExternal" type="checkbox" /> Cours
         </label>
         <label v-if="isTeacher" class="ag-filter-check">
           <input v-model="showOutlook" type="checkbox" /> Outlook
@@ -670,6 +696,34 @@ watch(() => route.query, (q) => {
                 <User :size="14" aria-hidden="true" />
                 <span>{{ selectedEvent.organizer }}</span>
               </div>
+              <!-- Booking : etudiant + tuteur + visio en lecture -->
+              <div v-if="selectedEvent.bookingStudentName" class="agenda-detail-meta">
+                <User :size="14" aria-hidden="true" />
+                <span><span class="agenda-detail-meta-label">Etudiant</span> {{ selectedEvent.bookingStudentName }}</span>
+              </div>
+              <div v-if="selectedEvent.bookingTutorName" class="agenda-detail-meta">
+                <Briefcase :size="14" aria-hidden="true" />
+                <span><span class="agenda-detail-meta-label">Tuteur</span> {{ selectedEvent.bookingTutorName }}</span>
+              </div>
+              <div v-if="selectedEvent.bookingVisioUrl" class="agenda-detail-meta">
+                <Video :size="14" aria-hidden="true" />
+                <a :href="selectedEvent.bookingVisioUrl" target="_blank" rel="noopener" class="agenda-detail-link">
+                  Lien visioconference
+                </a>
+              </div>
+              <!-- External (cours Outlook publie) : label calendrier + lieu -->
+              <div v-if="selectedEvent.externalSubscriptionLabel" class="agenda-detail-meta">
+                <CalIcon :size="14" aria-hidden="true" />
+                <span><span class="agenda-detail-meta-label">Calendrier</span> {{ selectedEvent.externalSubscriptionLabel }}</span>
+              </div>
+              <div v-if="selectedEvent.externalLocation" class="agenda-detail-meta">
+                <MapPin :size="14" aria-hidden="true" />
+                <span>{{ selectedEvent.externalLocation }}</span>
+              </div>
+            </div>
+
+            <div v-if="selectedEvent.eventType === 'external' && selectedEvent.externalDescription" class="agenda-detail-description">
+              {{ selectedEvent.externalDescription }}
             </div>
 
             <!-- Statut rendu avec progress bar -->
@@ -701,12 +755,34 @@ watch(() => route.query, (q) => {
             >
               <ExternalLink :size="14" aria-hidden="true" /> Voir le devoir
             </button>
+            <a
+              v-if="selectedEvent.eventType === 'booking' && selectedEvent.bookingVisioUrl"
+              :href="selectedEvent.bookingVisioUrl"
+              target="_blank"
+              rel="noopener"
+              class="ag-btn ag-btn--accent ag-btn--block"
+            >
+              <Video :size="14" aria-hidden="true" /> Rejoindre la visio
+            </a>
+            <button
+              v-if="selectedEvent.eventType === 'booking'"
+              class="ag-btn ag-btn--ghost ag-btn--block"
+              @click="router.push({ name: 'booking' }); closeDetail()"
+            >
+              <ExternalLink :size="14" aria-hidden="true" /> Ouvrir dans Rendez-vous
+            </button>
             <button v-if="isTeacher && selectedEvent.eventType === 'reminder'" class="ag-btn ag-btn--danger ag-btn--block" @click="removeReminder(selectedEvent.sourceId)">
               <Trash2 :size="14" aria-hidden="true" /> Supprimer
             </button>
           </footer>
         </aside>
       </Transition>
+
+      <!-- Modale calendriers externes (gestion des abonnements ICS) -->
+      <ExternalCalendarsModal
+        v-model="externalModalOpen"
+        @changed="load"
+      />
 
       <!-- New reminder form -->
       <Transition name="detail-slide">
@@ -953,6 +1029,31 @@ watch(() => route.query, (q) => {
 .agenda-detail-meta svg { color: var(--text-muted); flex-shrink: 0; }
 .agenda-detail-promo-dot {
   width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
+}
+.agenda-detail-meta-label {
+  font-size: 11px; font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  margin-right: 6px;
+}
+.agenda-detail-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  word-break: break-all;
+}
+.agenda-detail-link:hover { text-decoration: underline; }
+.agenda-detail-description {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border-left: 3px solid var(--border);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+  line-height: 1.4;
+  max-height: 180px;
+  overflow-y: auto;
 }
 
 /* Status card avec progress bar */
