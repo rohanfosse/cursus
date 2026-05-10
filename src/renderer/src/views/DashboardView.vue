@@ -15,8 +15,6 @@ import { useFrise }            from '@/composables/useFrise'
 import { useTeacherAnalytics } from '@/composables/useTeacherAnalytics'
 import { useActionCenter }     from '@/composables/useActionCenter'
 
-const props = defineProps<{ toggleSidebar?: () => void }>()
-
 const appStore     = useAppStore()
 const modals       = useModalsStore()
 const travauxStore = useTravauxStore()
@@ -173,7 +171,6 @@ onUnmounted(() => {
     <!-- ════════════════════ VUE PROFESSEUR ════════════════════ -->
     <DashboardTeacher
       v-if="appStore.isTeacher"
-      :toggle-sidebar="props.toggleSidebar"
       :loading-teacher="loadingTeacher"
       :greeting-name="greetingName"
       :today="today"
@@ -262,7 +259,6 @@ onUnmounted(() => {
     <!-- ════════════════════ VUE ÉTUDIANT ════════════════════ -->
     <DashboardStudent
       v-else
-      :toggle-sidebar="props.toggleSidebar"
       :greeting-name="greetingName"
       :today="today"
       :loading-student="loadingStudent"

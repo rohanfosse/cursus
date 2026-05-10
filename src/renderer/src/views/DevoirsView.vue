@@ -18,8 +18,6 @@ import TeacherProjectDetail from '@/components/devoirs/TeacherProjectDetail.vue'
 import TeacherRendusView    from '@/components/devoirs/TeacherRendusView.vue'
 import DevoirContextMenu    from '@/components/devoirs/DevoirContextMenu.vue'
 
-const props = defineProps<{ toggleSidebar?: () => void }>()
-
 const appStore     = useAppStore()
 const travauxStore = useTravauxStore()
 const modals       = useModalsStore()
@@ -90,7 +88,7 @@ watch(() => appStore.activeChannelId, () => {
   <ErrorBoundary label="Devoirs">
   <div class="devoirs-area">
 
-    <DevoirsHeader :toggle-sidebar="props.toggleSidebar" />
+    <DevoirsHeader />
 
     <div class="devoirs-content">
 

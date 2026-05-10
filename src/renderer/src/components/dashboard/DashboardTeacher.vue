@@ -45,7 +45,6 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 // ── Props ────────────────────────────────────────────────────────────────────
 const props = defineProps<{
-  toggleSidebar?: () => void
   loadingTeacher: boolean
   greetingName: string
   today: string
@@ -208,7 +207,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onDashKeydown))
 
   <template v-else>
     <TeacherHeader
-      :toggle-sidebar="props.toggleSidebar"
       :greeting-name="greetingName"
       :today="today"
       :promos="promos"

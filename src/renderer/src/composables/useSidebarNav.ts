@@ -47,8 +47,7 @@ export function useSidebarNav(emit: (event: 'navigate') => void) {
           icon:   MessageSquare,
           active: !appStore.activeChannelId && !appStore.activeDmStudentId,
           action: () => {
-            appStore.activeChannelId   = null
-            appStore.activeDmStudentId = null
+            appStore.closeActiveConversation()
             router.push('/messages')
           },
         }

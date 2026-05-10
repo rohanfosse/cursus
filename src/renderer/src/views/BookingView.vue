@@ -14,8 +14,6 @@ import { ref, onMounted } from 'vue'
 import TabBooking from '@/components/dashboard/TabBooking.vue'
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
 
-defineProps<{ toggleSidebar?: () => void }>()
-
 interface BookingStudent { id: number; name?: string; email?: string; promo_id?: number }
 
 const allStudents = ref<BookingStudent[]>([])
@@ -33,7 +31,7 @@ onMounted(async () => {
 <template>
   <ErrorBoundary label="Rendez-vous">
     <div class="booking-view">
-      <TabBooking :all-students="allStudents" :toggle-sidebar="toggleSidebar" />
+      <TabBooking :all-students="allStudents" />
     </div>
   </ErrorBoundary>
 </template>

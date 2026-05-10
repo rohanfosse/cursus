@@ -1,5 +1,70 @@
 # Changelog
 
+## v2.324.0 (2026-05-10)
+
+### Refactoring : 6 dettes techniques liquidees apres l'audit mobile
+
+Suite au /simplify de la v2.323.0 qui avait identifie 6 chantiers de
+dette technique reportes "pour scope". Aucun changement de comportement
+visible utilisateur, uniquement de la propre.
+
+**1. `closeActiveConversation()` dans `appStore`**
+Avant : 4 sites (MessagesView, useSidebarNav, useSidebarActions x2)
+faisaient leur propre sequence d'assignations directes sur
+`activeChannelId` / `activeDmStudentId` / `activeChannelName`.
+Risque : oublier un champ dans une suppression de canal et laisser
+le header afficher l'ancien nom. Maintenant : une action centralisee
+qui reset aussi `activeDmPeerId`, `activeChannelDescription`,
+`activeChannelIsPrivate`, `activeChannelMemberCount`,
+`activeChannelArchived`. Sites migres.
+
+**2. `useUnreadCounts()` composable partage**
+Avant : NavRail, MobileNav, MobileAppsSheet, App.vue calculaient chacun
+leur `Object.values(...).reduce(...)` sur `unread`/`unreadDms`/
+`mentionChannels` et leur `notificationHistory.filter(!read)` — 4
+implementations divergentes (taskbar incluait grade/deadline, l'autre
+non...). Risque que le badge Windows differe du badge UI sur la meme
+machine. Maintenant : un composable expose `channelUnread`,
+`channelMentions`, `dmUnread`, `messagesBadge`, `notificationsUnread`,
+`taskbarBadge` (tous des `ComputedRef<number>`).
+
+**3. Routes nommees**
+`router.push('/agenda')` -> `router.push({ name: 'agenda' })` partout
+ou les paths etaient en dur (MobileNav, MobileAppsSheet). Si un path
+change, les noms restent.
+
+**4. `useUiStore` + suppression du prop drilling toggleSidebar**
+Avant : `App.vue` declarait `sidebarOpen` + `toggleSidebar` et les
+poussait via `:toggle-sidebar="toggleSidebar"` a 14 vues (Admin,
+Bookmarks, Dashboard, Devoirs, Documents, Files, Lumen, Messages,
+Agenda, Booking, Games, TabBooking, DashboardTeacher, DashboardStudent,
+TeacherHeader, DevoirsHeader). Chaque vue redeclarait la prop puis la
+transmettait a `MobileMenuButton`. Maintenant : un store Pinia
+`useUiStore` expose `sidebarOpen`, `sidebarCollapsed`, `toggleSidebar`,
+`closeSidebar`, `openSidebar`, `toggleSidebarCollapsed`. Aucune prop a
+threader. `MobileMenuButton` lit le store directement.
+
+**5. `useNavItems()` composable partage**
+Avant : `NavRail` et `MobileAppsSheet` declaraient chacun leur liste
+d'items (Dashboard, Messages, Devoirs, Lumen, Documents, Fichiers,
+Agenda, Booking, Live, Jeux, Admin) avec des regles `isVisible()`
+quasi-identiques mais reecrites a la main. Risque que l'un evolue sans
+l'autre. Maintenant : la liste maitre est dans `composables/useNavItems.ts`,
+chaque consommateur la filtre selon son besoin (`MOBILE_BAR_IDS`
+exporte aussi pour eviter les doublons entre MobileNav et la sheet).
+
+**6. `BottomSheet` primitive (`components/ui/BottomSheet.vue`)**
+Pattern iOS/Android non trivial : slide-in, backdrop, swipe-down,
+escape, body-scroll-lock avec save/restore, force-close sur changement
+de route, Teleport. Etait inline dans MobileAppsSheet. Extrait pour
+permettre la reutilisation (futures sheets : filtres mobile sur Devoirs
+/ Documents, picker de date mobile, etc.).
+
+**Bonus** : nettoyage des imports `Menu` orphelins dans 6 fichiers
+(remplaces par `MobileMenuButton`), suppression de classes CSS mortes
+(`adm-menu-btn`, `bm-menu-btn`, `mobile-hamburger` quand le bouton
+inline a disparu).
+
 ## v2.323.0 (2026-05-07)
 
 ### Refonte mobile : barre Plus + liste conversations + hamburger universel

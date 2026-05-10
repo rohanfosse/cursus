@@ -302,6 +302,26 @@ export const useAppStore = defineStore('app', () => {
   const activeChannelIsPrivate   = ref<boolean>(false)
   const activeChannelMemberCount = ref<number | null>(null)
 
+  /**
+   * Ferme la conversation active (canal ou DM).
+   *
+   * Centralise la remise a zero du triplet `activeChannelId` /
+   * `activeDmStudentId` / `activeChannelName`. Auparavant chaque appelant
+   * (MessagesView, useSidebarNav, useSidebarActions) faisait sa propre
+   * sequence d'assignations, et un oubli (par ex. ne pas reset
+   * `activeChannelName`) etait visible dans le header de la vue suivante.
+   */
+  function closeActiveConversation(): void {
+    activeChannelId.value   = null
+    activeDmStudentId.value = null
+    activeDmPeerId.value    = null
+    activeChannelName.value = ''
+    activeChannelDescription.value = ''
+    activeChannelIsPrivate.value = false
+    activeChannelMemberCount.value = null
+    activeChannelArchived.value = false
+  }
+
   function openChannel(id: number, promoId: number, name: string, type: 'chat' | 'annonce' = 'chat', description?: string, archived = false, isPrivate = false, memberCount: number | null = null) {
     activeChannelId.value   = id
     activeDmStudentId.value = null
@@ -602,7 +622,7 @@ export const useAppStore = defineStore('app', () => {
     // actions
     restoreSession, login, logout, updateSessionToken, impersonate, clearMustChangePassword,
     startSimulation, stopSimulation,
-    openChannel, openDm, markRead, markDmRead, markAllRead, loadTaChannels,
+    openChannel, openDm, closeActiveConversation, markRead, markDmRead, markAllRead, loadTaChannels,
     addNotification, muteDm, unmuteDm, isDmMuted,
     onlineUsers, isUserOnline, sessionExpiredMessage, dismissSessionExpired,
     initUnreadListener, initOnlineListener, initSocketListener, initPresenceListener, initAuthExpiredListener,

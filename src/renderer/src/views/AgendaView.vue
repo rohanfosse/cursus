@@ -9,8 +9,6 @@ import AgendaMonthGrid from '@/components/agenda/AgendaMonthGrid.vue'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ExternalCalendarsModal from '@/components/agenda/ExternalCalendarsModal.vue'
 import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
-
-defineProps<{ toggleSidebar?: () => void }>()
 import { useContextMenu, type ContextMenuItem } from '@/composables/useContextMenu'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -470,7 +468,7 @@ watch(() => route.query, (q) => {
     <!-- Toolbar -->
     <header class="agenda-toolbar" role="toolbar" aria-label="Barre d'outils du calendrier">
       <div class="agenda-toolbar-left">
-        <MobileMenuButton :toggle-sidebar="toggleSidebar" />
+        <MobileMenuButton />
         <button type="button" class="ag-today-btn" title="Aujourd'hui (T)" aria-label="Aller à aujourd'hui" @click="goToday">Aujourd'hui</button>
         <div class="ag-nav-arrows" role="group" aria-label="Navigation par période">
           <button type="button" class="ag-nav-btn" title="Période précédente" aria-label="Période précédente" @click="goPrev"><ChevronLeft :size="16" aria-hidden="true" /></button>

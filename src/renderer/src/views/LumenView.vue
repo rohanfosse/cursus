@@ -32,8 +32,6 @@ import LumenNotePanel from '@/components/lumen/LumenNotePanel.vue'
 import LumenWelcome from '@/components/lumen/LumenWelcome.vue'
 import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
 
-defineProps<{ toggleSidebar?: () => void }>()
-
 const lumenStore = useLumenStore()
 const appStore   = useAppStore()
 const route      = useRoute()
@@ -507,7 +505,7 @@ function handleNavigateLumenLink(payload: { repoName: string; path: string }) {
   <div class="lumen-view">
     <UiPageHeader section="lumen" class="lumen-topbar">
       <template #leading>
-        <MobileMenuButton :toggle-sidebar="toggleSidebar" />
+        <MobileMenuButton />
       </template>
       <template #title>
         <div class="lumen-brand">

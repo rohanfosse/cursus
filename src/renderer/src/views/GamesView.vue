@@ -11,9 +11,7 @@ import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import { Gamepad2 } from 'lucide-vue-next'
 import { GAMES } from '@/games/registry'
 import GameCard from '@/components/games/GameCard.vue'
-
-interface Props { toggleSidebar?: () => void }
-defineProps<Props>()
+import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
 </script>
 
 <template>
@@ -21,9 +19,12 @@ defineProps<Props>()
     <UiPageHeader
       title="Jeux"
       subtitle="Mini-jeux Cursus avec leaderboard quotidien"
-      :icon="Gamepad2"
-      :toggle-sidebar="toggleSidebar"
-    />
+    >
+      <template #leading>
+        <MobileMenuButton />
+        <Gamepad2 :size="18" aria-hidden="true" />
+      </template>
+    </UiPageHeader>
 
     <main class="games-body">
       <p class="games-intro">

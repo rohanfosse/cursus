@@ -3,6 +3,8 @@
   import { useRouter, useRoute } from 'vue-router'
   import { useAppStore }      from '@/stores/app'
   import { useModalsStore }   from '@/stores/modals'
+  import { useUiStore }       from '@/stores/ui'
+  import { storeToRefs }      from 'pinia'
   import { useMessagesStore } from '@/stores/messages'
   import { useLiveStore }     from '@/stores/live'
   import { useBookmarksStore } from '@/stores/bookmarks'
@@ -20,6 +22,7 @@
   import { useDemoNotifications } from '@/composables/useDemoNotifications'
   import { useDemoTyping } from '@/composables/useDemoTyping'
   import { useDemoMessagesPoll } from '@/composables/useDemoMessagesPoll'
+  import { useUnreadCounts } from '@/composables/useUnreadCounts'
   import { resolveStartRoute } from '@/router'
   import { reportError, isBenignError }    from '@/utils/errorReporter'
   import { MessageSquare, FileText, Camera, Lock, Trash2, Download, UserX, Download as DownloadIcon, RefreshCw, Shield, Scale, Clock, Mail, Globe, Eye, Pencil, ChevronDown, Server, Zap } from 'lucide-vue-next'
@@ -121,15 +124,12 @@
   // Toast discret pour la connexion socket (extrait dans useSocketReconnectToast).
   useSocketReconnectToast()
 
-  // ── Mobile sidebar drawer ──────────────────────────────────────────────────
-  const sidebarOpen = ref(false)
-  const sidebarCollapsed = ref(localStorage.getItem('sidebar-collapsed') === '1')
-  function toggleSidebar() { sidebarOpen.value = !sidebarOpen.value }
-  function closeSidebar()  { sidebarOpen.value = false }
-  function toggleSidebarCollapse() {
-    sidebarCollapsed.value = !sidebarCollapsed.value
-    localStorage.setItem('sidebar-collapsed', sidebarCollapsed.value ? '1' : '0')
-  }
+  // ── Mobile sidebar drawer (etat dans useUiStore) ──────────────────────────
+  const uiStore = useUiStore()
+  const { sidebarOpen, sidebarCollapsed } = storeToRefs(uiStore)
+  const toggleSidebar = uiStore.toggleSidebar
+  const closeSidebar  = uiStore.closeSidebar
+  const toggleSidebarCollapse = uiStore.toggleSidebarCollapsed
 
   // ── Mobile swipe navigation (ouvre/ferme la sidebar par glissement) ───────
   useSwipeNav(sidebarOpen, toggleSidebar)
@@ -249,12 +249,7 @@
     live: 'Live',
   }
 
-  const totalUnreadBadge = computed(() => {
-    const dmCount = Object.values(appStore.unreadDms ?? {}).reduce((a: number, b) => a + (b as number), 0)
-    const mentionCount = Object.values(appStore.mentionChannels ?? {}).reduce((a: number, b) => a + (b as number), 0)
-    const notifUnread = appStore.notificationHistory.filter(n => !n.read && ['grade', 'deadline', 'assignment', 'spark', 'pulse', 'live'].includes(n.category)).length
-    return dmCount + mentionCount + notifUnread
-  })
+  const { taskbarBadge: totalUnreadBadge } = useUnreadCounts()
 
   // Badge barre des taches Windows (debounce 200ms pour eviter les IPC repetitifs)
   let _badgeTimer: ReturnType<typeof setTimeout> | null = null
@@ -513,7 +508,7 @@
     <main id="main-content" class="main-wrapper" :class="{ 'main-with-banner': appStore.isSimulating || !appStore.isOnline }">
       <!-- Vue active (messages / travaux / documents) -->
       <RouterView v-slot="{ Component }">
-        <component :is="Component" :key="$route.path" :toggle-sidebar="toggleSidebar" />
+        <component :is="Component" :key="$route.path" />
       </RouterView>
     </main>
     </div><!-- /.app-columns -->

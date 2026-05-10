@@ -33,7 +33,6 @@ import { useCampaigns } from '@/composables/useCampaigns'
 
 defineProps<{
   allStudents: Array<{ id: number; name?: string; email?: string; promo_id?: number }>
-  toggleSidebar?: () => void
 }>()
 
 const booking = useBooking()
@@ -125,7 +124,7 @@ function selectStat(view: BookingView) {
       :sticky="false"
     >
       <template #leading>
-        <MobileMenuButton :toggle-sidebar="toggleSidebar" />
+        <MobileMenuButton />
         <Calendar :size="18" aria-hidden="true" class="hdr-icon" />
       </template>
       <template #actions>

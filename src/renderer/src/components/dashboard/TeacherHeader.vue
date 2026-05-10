@@ -5,11 +5,10 @@
  * Stats are displayed in the Bento TabAccueil tiles instead.
  */
 <script setup lang="ts">
-import { Menu } from 'lucide-vue-next'
+import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
 import type { Promotion } from '@/types'
 
 defineProps<{
-  toggleSidebar?: () => void
   greetingName: string
   today: string
   promos: Promotion[]
@@ -24,9 +23,7 @@ const emit = defineEmits<{
 <template>
   <div class="db-header">
     <div class="db-header-left">
-      <button v-if="toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="toggleSidebar">
-        <Menu :size="22" />
-      </button>
+      <MobileMenuButton />
       <div>
         <h1 class="db-title">Bonjour, {{ greetingName }}</h1>
         <p class="db-date">{{ today }}</p>

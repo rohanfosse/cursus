@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { ref, defineAsyncComponent } from 'vue'
-import { Users, Puzzle, BarChart3, Menu, ExternalLink, type LucideIcon } from 'lucide-vue-next'
+import { Users, Puzzle, BarChart3, ExternalLink, type LucideIcon } from 'lucide-vue-next'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
+import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
 import { getAuthToken } from '@/utils/auth'
 
 const AdminUsers   = defineAsyncComponent(() => import('@/components/admin/AdminUsers.vue'))
 const AdminModules = defineAsyncComponent(() => import('@/components/admin/AdminModules.vue'))
 const AdminStats   = defineAsyncComponent(() => import('@/components/admin/AdminStats.vue'))
-
-defineProps<{ toggleSidebar?: () => void }>()
 
 type Tab = 'users' | 'modules' | 'stats'
 
@@ -33,12 +32,7 @@ function openExternalOps() {
   <div class="admin-view">
     <UiPageHeader title="Administration" subtitle="Utilisateurs, modules et statistiques de la plateforme">
       <template #leading>
-        <button
-          v-if="toggleSidebar"
-          class="adm-menu-btn"
-          aria-label="Ouvrir le menu"
-          @click="toggleSidebar"
-        ><Menu :size="18" /></button>
+        <MobileMenuButton />
       </template>
       <template #actions>
         <button
@@ -82,19 +76,6 @@ function openExternalOps() {
   height: 100%;
   background: var(--bg-main);
   overflow: hidden;
-}
-
-.adm-menu-btn {
-  display: none;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 6px;
-  color: var(--text-primary);
-  cursor: pointer;
-}
-@media (max-width: 900px) {
-  .adm-menu-btn { display: inline-flex; align-items: center; }
 }
 
 .adm-external {

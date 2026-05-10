@@ -5,7 +5,8 @@
  */
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
-import { FolderOpen, Award, CalendarDays, Home, Menu, Zap, Settings } from 'lucide-vue-next'
+import { FolderOpen, Award, CalendarDays, Home, Zap, Settings } from 'lucide-vue-next'
+import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
 import type { StudentProjectCard } from '@/composables/useDashboardStudent'
 import type { FriseMilestone, FrisePromo } from '@/composables/useFrise'
 import type { GradedDevoir } from './StudentGradesTab.vue'
@@ -25,7 +26,6 @@ const { showToast } = useToast()
 
 // ── Props ────────────────────────────────────────────────────────────────────
 const props = defineProps<{
-  toggleSidebar?: () => void
   greetingName: string
   today: string
   loadingStudent: boolean
@@ -123,9 +123,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onDashKeydown))
     <!-- Header (meme design que pilote) -->
     <div class="db-header">
       <div class="db-header-left">
-        <button v-if="props.toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="props.toggleSidebar">
-          <Menu :size="22" />
-        </button>
+        <MobileMenuButton />
         <div>
           <h1 class="db-title">Bonjour, {{ greetingName }}</h1>
           <p class="db-date">{{ today }}</p>

@@ -3,7 +3,7 @@
   import UiPageHeader from '@/components/ui/UiPageHeader.vue'
   import { computed, ref, watch } from 'vue'
   import {
-    Plus, Trash2, Search, X, FolderOpen, Menu,
+    Plus, Trash2, Search, X, FolderOpen,
     LayoutGrid, List, Grid3x3, Star, SlidersHorizontal,
   } from 'lucide-vue-next'
   import { safeGetJSON, safeSetJSON } from '@/utils/safeStorage'
@@ -30,8 +30,7 @@
   import { useFileDrop } from '@/composables/useFileDrop'
   import { useToast } from '@/composables/useToast'
   import DropOverlay from '@/components/ui/DropOverlay.vue'
-
-  const props = defineProps<{ toggleSidebar?: () => void }>()
+  import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
 
   const api      = window.api
   const appStore = useAppStore()
@@ -146,9 +145,7 @@
     <!-- ── Header ─────────────────────────────────────────────────────── -->
     <UiPageHeader wrap section="docs" class="docs-header">
       <template #leading>
-        <button v-if="props.toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="props.toggleSidebar">
-          <Menu :size="22" />
-        </button>
+        <MobileMenuButton />
         <FolderOpen :size="18" class="docs-header-icon" />
       </template>
       <template #title>

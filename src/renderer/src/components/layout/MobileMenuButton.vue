@@ -1,25 +1,35 @@
 /**
  * MobileMenuButton - hamburger reutilisable pour les en-tetes de page.
  *
- * Visible uniquement <= 768px (mobile). Cache totalement sur desktop pour
- * eviter les doublons avec le NavRail. Utiliser dans le slot "leading" de
- * UiPageHeader ou directement en debut de header custom.
+ * Visible uniquement <= 768px. Lit `toggleSidebar` directement depuis
+ * `useUiStore`, donc aucune prop a passer depuis les vues parentes.
+ *
+ * Si on a besoin d'un comportement custom (ex. fermer un panneau avant
+ * d'ouvrir le drawer), passer la prop `onTap` qui prend le pas sur
+ * l'action par defaut.
  */
 <script setup lang="ts">
 import { Menu } from 'lucide-vue-next'
+import { useUiStore } from '@/stores/ui'
 
-defineProps<{
-  toggleSidebar?: () => void
+const props = defineProps<{
+  onTap?: () => void
 }>()
+
+const ui = useUiStore()
+
+function handleTap(): void {
+  if (props.onTap) props.onTap()
+  else ui.toggleSidebar()
+}
 </script>
 
 <template>
   <button
-    v-if="toggleSidebar"
     class="mobile-menu-btn"
     aria-label="Ouvrir le menu"
     type="button"
-    @click="toggleSidebar"
+    @click="handleTap"
   >
     <Menu :size="22" />
   </button>

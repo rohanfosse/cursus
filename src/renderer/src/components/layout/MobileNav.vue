@@ -17,6 +17,7 @@ import { useAppStore }    from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { useLiveStore }   from '@/stores/live'
 import { useModules }     from '@/composables/useModules'
+import { useUnreadCounts } from '@/composables/useUnreadCounts'
 import MobileAppsSheet from './MobileAppsSheet.vue'
 
 const appStore     = useAppStore()
@@ -25,24 +26,17 @@ const liveStore    = useLiveStore()
 const { isEnabled } = useModules()
 const router       = useRouter()
 const route        = useRoute()
+const counts       = useUnreadCounts()
 
-const pendingCount = computed(() => travauxStore.urgentPendingCount)
-const totalMsgUnread = computed(() => {
-  const dmCount = Object.values(appStore.unreadDms ?? {}).reduce((a: number, b) => a + (b as number), 0)
-  const chCount = Object.values(appStore.unread ?? {}).reduce((a: number, b) => a + (b as number), 0)
-  return dmCount + chCount
-})
+const pendingCount     = computed(() => travauxStore.urgentPendingCount)
+const totalMsgUnread   = computed(() => counts.dmUnread.value + counts.channelUnread.value)
+const unreadNotifsCount = counts.notificationsUnread
 
-// Pastille de notification globale sur le bouton "Plus" :
-// - rouge pulsante si une session live est en cours pour l'etudiant
-//   (sans cet indicateur, l'etudiant raterait la session puisque Live
-//   est desormais dans la sheet et plus dans la barre principale)
-// - sinon point bleu si notifications non lues (cloche absente sur mobile)
+// Pastille rouge pulsante sur "Plus" si une session Live est en cours
+// pour l'etudiant. Sans cet indicateur, l'etudiant raterait la session
+// puisque Live est dans la sheet et plus dans la barre principale.
 const hasActiveLive = computed(() =>
   isEnabled('live') && !appStore.isStaff && !!liveStore.currentSession && liveStore.currentSession.status !== 'ended',
-)
-const unreadNotifsCount = computed(() =>
-  appStore.notificationHistory.filter(n => !n.read).length,
 )
 
 const showAppsSheet = ref(false)
@@ -55,7 +49,7 @@ function closeAppsSheet(): void { showAppsSheet.value = false }
     <button
       class="mobile-nav-btn"
       :class="{ active: route.name === 'dashboard' }"
-      @click="router.push('/dashboard')"
+      @click="router.push({ name: 'dashboard' })"
     >
       <LayoutDashboard :size="20" />
       <span>Accueil</span>
@@ -64,7 +58,7 @@ function closeAppsSheet(): void { showAppsSheet.value = false }
     <button
       class="mobile-nav-btn"
       :class="{ active: route.name === 'messages' }"
-      @click="router.push('/messages')"
+      @click="router.push({ name: 'messages' })"
     >
       <MessageSquare :size="20" />
       <span>Messages</span>
@@ -76,7 +70,7 @@ function closeAppsSheet(): void { showAppsSheet.value = false }
     <button
       class="mobile-nav-btn"
       :class="{ active: route.name === 'devoirs' }"
-      @click="router.push('/devoirs')"
+      @click="router.push({ name: 'devoirs' })"
     >
       <BookOpen :size="20" />
       <span>Devoirs</span>
@@ -88,7 +82,7 @@ function closeAppsSheet(): void { showAppsSheet.value = false }
     <button
       class="mobile-nav-btn"
       :class="{ active: route.name === 'agenda' }"
-      @click="router.push('/agenda')"
+      @click="router.push({ name: 'agenda' })"
     >
       <Calendar :size="20" />
       <span>Agenda</span>

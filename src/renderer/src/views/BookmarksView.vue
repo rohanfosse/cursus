@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Bookmark, BookmarkX, Hash, User, Menu, Clock, Quote } from 'lucide-vue-next'
+import { Bookmark, BookmarkX, Hash, User, Clock, Quote } from 'lucide-vue-next'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import Avatar from '@/components/ui/Avatar.vue'
+import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
 import { useBookmarksStore, type BookmarkItem } from '@/stores/bookmarks'
 import { useAppStore } from '@/stores/app'
 import { useToast } from '@/composables/useToast'
 import { renderMessageContent } from '@/utils/html'
 import { relativeTime } from '@/utils/date'
 import { avatarColor } from '@/utils/format'
-
-defineProps<{ toggleSidebar?: () => void }>()
 
 const store = useBookmarksStore()
 const appStore = useAppStore()
@@ -77,12 +76,7 @@ function goToMessage(b: BookmarkItem) {
   <div class="bookmarks-view">
     <UiPageHeader title="Signets" :subtitle="`${store.count} message${store.count > 1 ? 's' : ''} sauvegardé${store.count > 1 ? 's' : ''}`" section="chat" wrap>
       <template #leading>
-        <button
-          v-if="toggleSidebar"
-          class="bm-menu-btn"
-          aria-label="Ouvrir le menu"
-          @click="toggleSidebar"
-        ><Menu :size="18" /></button>
+        <MobileMenuButton />
         <span class="bm-head-icon" aria-hidden="true">
           <Bookmark :size="18" />
         </span>
@@ -270,16 +264,6 @@ function goToMessage(b: BookmarkItem) {
   min-width: 16px;
   text-align: center;
 }
-
-.bm-menu-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  cursor: pointer;
-  padding: var(--space-xs);
-  border-radius: var(--radius-sm);
-}
-.bm-menu-btn:hover { background: var(--bg-hover); }
 
 /* Empty */
 .bm-empty {

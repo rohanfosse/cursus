@@ -188,7 +188,7 @@ export function useSidebarActions(
             if (!await confirm(`Supprimer le canal « #${ch.name} » et tous ses messages ? Cette action est irréversible.`, 'danger', 'Supprimer')) return
             const res = await api(() => window.api.deleteChannel(ch.id), 'channel')
             if (res === null) return
-            if (appStore.activeChannelId === ch.id) appStore.activeChannelId = null
+            if (appStore.activeChannelId === ch.id) appStore.closeActiveConversation()
             await loadTeacherChannels()
             showToast('Canal supprimé.', 'success')
           },
@@ -203,7 +203,7 @@ export function useSidebarActions(
   async function archiveChannel(channelId: number) {
     const res = await api(() => window.api.archiveChannel(channelId), 'channel')
     if (res === null) return
-    if (appStore.activeChannelId === channelId) appStore.activeChannelId = null
+    if (appStore.activeChannelId === channelId) appStore.closeActiveConversation()
     await loadTeacherChannels()
     showToast('Canal archive.', 'success')
   }

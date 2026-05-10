@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch, type Component } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
-  MessageSquare, BookOpen, FileText, LayoutDashboard, Bell, Flame,
-  Shield, Zap, Paperclip, Lightbulb, Calendar, CalendarCheck, Gamepad2,
+  Bell, Flame, Shield,
   PanelLeftClose, PanelLeftOpen, EyeOff, Eye, ArrowUp, ArrowDown, RotateCcw,
-  Bookmark, Smile, Trash2, MoreHorizontal, WifiOff,
+  Smile, Trash2, MoreHorizontal, WifiOff,
 } from 'lucide-vue-next'
 import UserStatusPicker from '@/components/modals/UserStatusPicker.vue'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
@@ -17,9 +16,10 @@ import { useTravauxStore } from '@/stores/travaux'
 import { useLiveStore } from '@/stores/live'
 import { useStatusesStore } from '@/stores/statuses'
 import { useToast } from '@/composables/useToast'
-import { useModules } from '@/composables/useModules'
 import { useNavRailOrder } from '@/composables/useNavRailOrder'
 import { useDemoMission } from '@/composables/useDemoMission'
+import { useUnreadCounts } from '@/composables/useUnreadCounts'
+import { useNavItems, type ResolvedNavItem, type NavItemId } from '@/composables/useNavItems'
 import { avatarColor } from '@/utils/format'
 import { formatExpiryShort } from '@/utils/date'
 import logoUrl from '@/assets/logo.png'
@@ -36,7 +36,7 @@ const travauxStore  = useTravauxStore()
 const liveStore     = useLiveStore()
 const statusesStore = useStatusesStore()
 const { showToast } = useToast()
-const { isEnabled } = useModules()
+const { items: navItemsList, itemById: navItemsById } = useNavItems()
 
 const router = useRouter()
 const route  = useRoute()
@@ -59,16 +59,10 @@ const devoirProgress = computed(() => {
   const done = travauxStore.devoirs.filter(t => t.depot_id != null).length
   return Math.round((done / total) * 100)
 })
-const unreadCount = computed(() =>
-  Object.values(appStore.unread).reduce((a, b) => a + b, 0),
-)
-const mentionCount = computed(() =>
-  Object.values(appStore.mentionChannels).reduce((a, b) => a + b, 0),
-)
-const msgBadgeCount = computed(() => {
-  const dmCount = Object.values(appStore.unreadDms ?? {}).reduce((a: number, b) => a + (b as number), 0)
-  return dmCount + mentionCount.value
-})
+const counts        = useUnreadCounts()
+const unreadCount   = counts.channelUnread
+const mentionCount  = counts.channelMentions
+const msgBadgeCount = counts.messagesBadge
 
 // Mode demo : pulse "A essayer" sur les onglets pas encore visites. Disparait
 // au 1er clic (la mission s'auto-coche au passage sur la route). Seul affichage
@@ -97,74 +91,22 @@ const showStatusPicker  = ref(false)
 const showMorePopup     = ref(false)
 const moreBtnRef        = ref<HTMLButtonElement | null>(null)
 
-// ── Configuration des onglets ───────────────────────────────────────────────
-// Ajouter un onglet = ajouter une ligne à `NAV_ITEMS`. L'ordre par défaut,
-// l'affichage conditionnel (rôle/module), l'icône, le libellé et les routes
-// actives dérivent de cette seule config.
-type NavItemId =
-  | 'dashboard' | 'messages' | 'signets' | 'devoirs' | 'lumen'
-  | 'documents' | 'fichiers' | 'agenda'  | 'booking' | 'live' | 'jeux'
-
-interface NavItem {
-  readonly id: NavItemId
-  readonly label: string
-  readonly title: string
-  readonly icon: Component
-  readonly isVisible: () => boolean
-  /** Noms de routes qui activent ce bouton. Défaut : [id]. */
-  readonly activeRoutes?: readonly string[]
-}
-
-// Audit UX : on masque les onglets accessoires en demo pour que les
-// features-vedettes ressortent en 30 s. Sans filtre :
-//   teacher = 10 items, student = 8 items -> trop pour un 1er coup d'oeil.
-// Apres filtre demo :
-//   teacher = 6 (Accueil + Messages, Devoirs, Cours, Documents, Rdv, Live)
-//   student = 6 (Accueil + Messages, Devoirs, Cours, Live, Jeux)
-// Un vrai utilisateur (non-demo) garde l'integralite des onglets.
-//
-// Onglets caches pour TOUT visiteur demo : Signets (utilite obscure pour
-// un nouvel utilisateur), Calendrier (redondant avec Devoirs/Rdv en demo).
-// Onglets caches uniquement pour teacher demo : Fichiers (doublon avec
-// Documents + Devoirs > Rendus), Jeux (anecdotique en contexte tuteur).
-// Le student demo garde Jeux : c'est un wow factor (TypeRace) qui
-// demontre l'aspect ludique du produit.
-const isDemo = () => appStore.currentUser?.demo === true
-const isDemoTeacher = () => isDemo() && appStore.isTeacher
-
-const NAV_ITEMS: readonly NavItem[] = [
-  { id: 'dashboard', label: 'Accueil',    title: 'Tableau de bord',                            icon: LayoutDashboard, isVisible: () => true },
-  { id: 'messages',  label: 'Messages',   title: 'Messages',                                   icon: MessageSquare,   isVisible: () => true },
-  { id: 'signets',   label: 'Signets',    title: 'Signets (messages sauvegardés)',             icon: Bookmark,        isVisible: () => !isDemo() },
-  { id: 'devoirs',   label: 'Devoirs',    title: 'Devoirs',                                    icon: BookOpen,        isVisible: () => true },
-  { id: 'lumen',     label: 'Cours',      title: 'Cours',                                      icon: Lightbulb,       isVisible: () => isEnabled('lumen') },
-  { id: 'documents', label: 'Documents',  title: 'Documents',                                  icon: FileText,        isVisible: () => appStore.isStaff },
-  { id: 'fichiers',  label: 'Fichiers',   title: 'Fichiers partagés par les étudiants',        icon: Paperclip,       isVisible: () => appStore.isTeacher && !isDemoTeacher() },
-  { id: 'agenda',    label: 'Calendrier', title: 'Calendrier',                                 icon: Calendar,        isVisible: () => !isDemo() },
-  { id: 'booking',   label: 'RDV',         title: 'Rendez-vous (mini-Calendly + campagnes)',   icon: CalendarCheck,   isVisible: () => appStore.isTeacher },
-  // Live : toujours visible pour les etudiants tant que le module est actif —
-  // ils peuvent rejoindre une session en cours OU revoir/refaire d'anciennes
-  // sessions terminees en mode entrainement (cf. StudentLiveView "Sessions
-  // passees"). Avant on cachait l'onglet hors session active, ce qui rendait
-  // la fonctionnalite review invisible aux etudiants.
-  { id: 'live',      label: 'Live',       title: 'Live (quiz, feedback, code, tableau)',       icon: Zap,             isVisible: () => isEnabled('live') },
-  { id: 'jeux',      label: 'Jeux',       title: 'Jeux (TypeRace, Snake, Space Invaders, ...)', icon: Gamepad2,        isVisible: () => (appStore.isTeacher || isEnabled('games')) && !isDemoTeacher(), activeRoutes: ['jeux', 'typerace', 'snake', 'space-invaders'] },
-]
-
-// Lookup non-réactif : NAV_ITEMS ne change jamais, inutile de passer par un computed.
-const NAV_ITEM_BY_ID = Object.freeze(
-  Object.fromEntries(NAV_ITEMS.map(i => [i.id, i])) as Record<NavItemId, NavItem>,
+// ── Onglets : source de verite dans `useNavItems` (composable partage avec
+//    MobileAppsSheet). NavRail filtre l'item 'admin' qui dispose ici de son
+//    propre bouton dedie en bas du rail. Les regles de visibilite (mode
+//    demo, rôle, modules) sont decrites dans le composable. Cf. l'audit
+//    UX du mode demo dans useNavItems.ts pour la justification du filtre.
+const NAV_ITEMS = computed<readonly ResolvedNavItem[]>(() =>
+  navItemsList.value.filter(i => i.id !== 'admin'),
 )
 
-// Les ids viennent du composable `useNavRailOrder` qui utilise `string`.
-// Ces helpers font donc la narrow : un id inconnu renvoie un fallback neutre.
 function navItemLabel(id: string): string {
-  return NAV_ITEM_BY_ID[id as NavItemId]?.label ?? id
+  return navItemsById.value[id as NavItemId]?.label ?? id
 }
 function isNavVisible(id: string): boolean {
-  return NAV_ITEM_BY_ID[id as NavItemId]?.isVisible() ?? false
+  return navItemsById.value[id as NavItemId]?.visible ?? false
 }
-function isItemActive(item: NavItem): boolean {
+function isItemActive(item: ResolvedNavItem): boolean {
   const name = route.name as string | undefined
   if (!name) return false
   const routes = item.activeRoutes ?? [item.id]
@@ -172,7 +114,7 @@ function isItemActive(item: NavItem): boolean {
 }
 
 // ── Ordre personnalisable + masquage ────────────────────────────────────────
-const DEFAULT_ORDER: readonly NavItemId[] = NAV_ITEMS.map(i => i.id)
+const DEFAULT_ORDER: readonly NavItemId[] = NAV_ITEMS.value.map(i => i.id)
 const {
   effectiveOrder: navOrder,
   hiddenIds:      navHiddenIds,
@@ -185,12 +127,12 @@ const {
 } = useNavRailOrder(DEFAULT_ORDER)
 
 /** Onglets visibles dans l'ordre choisi — filtrage rôle/module + masquage utilisateur. */
-const visibleNavItems = computed<NavItem[]>(() => {
-  const items: NavItem[] = []
+const visibleNavItems = computed<ResolvedNavItem[]>(() => {
+  const items: ResolvedNavItem[] = []
   for (const id of navOrder.value) {
-    const item = NAV_ITEM_BY_ID[id as NavItemId]
+    const item = navItemsById.value[id as NavItemId]
     if (!item) continue
-    if (!item.isVisible()) continue
+    if (!item.visible) continue
     if (isNavHidden(id)) continue
     items.push(item)
   }
@@ -203,10 +145,10 @@ const hiddenVisibleNavIds = computed(() =>
 )
 
 /** Onglets masqués résolus en NavItem (avec icône/label) pour la grille "..." */
-const hiddenVisibleNavItems = computed<NavItem[]>(() => {
-  const items: NavItem[] = []
+const hiddenVisibleNavItems = computed<ResolvedNavItem[]>(() => {
+  const items: ResolvedNavItem[] = []
   for (const id of hiddenVisibleNavIds.value) {
-    const item = NAV_ITEM_BY_ID[id as NavItemId]
+    const item = navItemsById.value[id as NavItemId]
     if (item) items.push(item)
   }
   return items

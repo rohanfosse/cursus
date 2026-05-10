@@ -22,8 +22,6 @@
   import { deadlineClass } from '@/utils/date'
   import { authUrl } from '@/utils/auth'
 
-  const props = defineProps<{ toggleSidebar?: () => void }>()
-
   const appStore      = useAppStore()
   const messagesStore = useMessagesStore()
   const travauxStore  = useTravauxStore()
@@ -165,9 +163,7 @@
   // liste plein ecran (MessagesMobileList). Sur desktop ce bouton est cache
   // par CSS.
   function leaveActiveConversation(): void {
-    appStore.activeChannelId    = null
-    appStore.activeDmStudentId  = null
-    appStore.activeChannelName  = ''
+    appStore.closeActiveConversation()
     rightPanel.value = null
   }
 </script>

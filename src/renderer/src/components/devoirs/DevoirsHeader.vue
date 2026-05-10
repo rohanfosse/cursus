@@ -4,14 +4,11 @@
  * (Messages, Lumen, Agenda, Documents). Cf. design-system/cursus/MASTER.md §7.
  */
 <script setup lang="ts">
-import { BookOpen, Plus, Menu } from 'lucide-vue-next'
+import { BookOpen, Plus } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useModalsStore } from '@/stores/modals'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
-
-defineProps<{
-  toggleSidebar?: () => void
-}>()
+import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
 
 const appStore = useAppStore()
 const modals   = useModalsStore()
@@ -20,9 +17,7 @@ const modals   = useModalsStore()
 <template>
   <UiPageHeader section="devoirs">
     <template #leading>
-      <button v-if="toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="toggleSidebar">
-        <Menu :size="22" />
-      </button>
+      <MobileMenuButton />
     </template>
 
     <template #title>
