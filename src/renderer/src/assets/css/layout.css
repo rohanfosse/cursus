@@ -1060,6 +1060,28 @@ nav[aria-label="Messages directs"] {
     padding-top: env(safe-area-inset-top, 0);
   }
 
+  /* Clavier mobile (Chrome Android principalement) : la barre de saisie
+     `.message-input-area` reste a `bottom: 0` du viewport layout meme
+     quand le clavier est ouvert. Sans compensation, elle se retrouve
+     cachee derriere. `useMobileKeyboard` pose `--mobile-kb-h` sur
+     `<html>` egal a la hauteur du clavier visible — on translate
+     l'input vers le haut d'autant. iOS Safari resize le viewport
+     automatiquement donc kb-h y reste a 0 : pas de double offset. */
+  .message-input-area {
+    transform: translateY(calc(-1 * var(--mobile-kb-h, 0px)));
+    transition: transform .18s ease-out;
+  }
+
+  /* Quand le clavier est ouvert, la barre du bas mobile masque la zone
+     de saisie. On la cache et on rend son padding au main pour laisser
+     la place. */
+  html.has-mobile-keyboard .mobile-nav {
+    display: none !important;
+  }
+  html.has-mobile-keyboard .main-wrapper {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
   /* ── Header compact ── */
   .channel-header,
   .page-header {

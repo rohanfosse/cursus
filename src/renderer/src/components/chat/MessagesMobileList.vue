@@ -26,7 +26,7 @@ const appStore = useAppStore()
 const { state: ctx } = useContextMenu()
 
 // Composables sidebar partages : meme source de verite que la sidebar desktop.
-const { sortedChannelGroups, dmStudents, load, setLoadRecentDmContacts } = useSidebarData()
+const { sortedChannelGroups, dmStudents, loading, load, setLoadRecentDmContacts } = useSidebarData()
 const { selectChannel } = useSidebarNav(emit)
 const {
   loadRecentDmContacts, recentDmContacts, dmContactsToShow, selectDm,
@@ -127,6 +127,23 @@ function onTapDm(s: Student): void {
     </header>
 
     <div class="msg-mobile-scroll">
+      <!-- Skeleton de chargement initial : 5 lignes pulsantes pour eviter
+           le flash empty -> liste qui apparaissait au mount d'un user lent. -->
+      <div
+        v-if="loading && filteredChannelGroups.length === 0 && filteredDmContacts.length === 0"
+        class="msg-mobile-skeleton"
+        aria-busy="true"
+        aria-label="Chargement des conversations"
+      >
+        <div v-for="i in 5" :key="i" class="msg-mobile-skeleton-row">
+          <div class="msg-mobile-skeleton-avatar" />
+          <div class="msg-mobile-skeleton-text">
+            <div class="msg-mobile-skeleton-line msg-mobile-skeleton-line--title" />
+            <div class="msg-mobile-skeleton-line msg-mobile-skeleton-line--preview" />
+          </div>
+        </div>
+      </div>
+
       <!-- Salons -->
       <div v-for="group in filteredChannelGroups" :key="group.key" class="msg-mobile-section">
         <div v-if="filteredChannelGroups.length > 1" class="msg-mobile-section-title">
@@ -417,5 +434,48 @@ function onTapDm(s: Student): void {
 .msg-mobile-empty p {
   font-size: 13px;
   margin: 0;
+}
+
+.msg-mobile-skeleton {
+  padding-top: 12px;
+}
+.msg-mobile-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.msg-mobile-skeleton-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full, 999px);
+  background: var(--bg-active, var(--bg-elevated));
+  animation: msg-skeleton-pulse 1.6s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.msg-mobile-skeleton-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.msg-mobile-skeleton-line {
+  height: 11px;
+  border-radius: 4px;
+  background: var(--bg-active, var(--bg-elevated));
+  animation: msg-skeleton-pulse 1.6s ease-in-out infinite;
+}
+.msg-mobile-skeleton-line--title   { width: 55%; }
+.msg-mobile-skeleton-line--preview { width: 80%; opacity: .55; }
+@keyframes msg-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .msg-mobile-skeleton-avatar,
+  .msg-mobile-skeleton-line {
+    animation: none !important;
+  }
 }
 </style>

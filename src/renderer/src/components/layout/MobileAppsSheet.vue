@@ -118,6 +118,8 @@ function closeNotifs(): void {
             v-if="item.badge?.()"
             class="apps-sheet-tile-badge"
             :class="{ 'apps-sheet-tile-badge--count': item.variant === 'unread' }"
+            :role="item.variant === 'live' ? 'status' : undefined"
+            :aria-live="item.variant === 'live' ? 'polite' : undefined"
           >
             {{ item.badge?.() }}
           </span>

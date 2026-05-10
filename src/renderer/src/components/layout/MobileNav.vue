@@ -98,10 +98,18 @@ function closeAppsSheet(): void { showAppsSheet.value = false }
     >
       <Grid3x3 :size="20" />
       <span>Plus</span>
-      <span v-if="hasActiveLive" class="mobile-nav-live-dot" aria-label="Live en cours" />
+      <span
+        v-if="hasActiveLive"
+        class="mobile-nav-live-dot"
+        role="status"
+        aria-live="polite"
+        aria-label="Session Live en cours"
+      />
       <span
         v-else-if="unreadNotifsCount > 0"
         class="mobile-nav-badge"
+        role="status"
+        aria-live="polite"
         :aria-label="`${unreadNotifsCount} notification${unreadNotifsCount > 1 ? 's' : ''} non lue${unreadNotifsCount > 1 ? 's' : ''}`"
       >
         {{ unreadNotifsCount > 9 ? '9+' : unreadNotifsCount }}

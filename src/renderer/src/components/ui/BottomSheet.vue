@@ -7,6 +7,9 @@
  *  - Backdrop semi-transparent + blur (tap = fermeture)
  *  - Swipe-down sur la sheet (threshold 80px) = fermeture
  *  - Escape = fermeture
+ *  - Focus trap : Tab / Shift+Tab cyclent dans la sheet ; le focus initial
+ *    revient au bouton de fermeture, le focus precedent est restaure a la
+ *    fermeture
  *  - Body scroll lock pendant l'ouverture (avec save/restore pour ne pas
  *    clobber un overflow:hidden defini par une autre modale)
  *  - Force-close au changement de route (evite scroll-lock orphelin)
@@ -19,9 +22,10 @@
  * Premier consommateur : MobileAppsSheet. Pensee aussi pour la future
  * sheet de filtres mobile sur Devoirs/Documents.
  */
-import { onUnmounted, watch } from 'vue'
+import { onUnmounted, ref, toRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { X } from 'lucide-vue-next'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 
 const props = defineProps<{
   open: boolean
@@ -34,6 +38,8 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 
 const route = useRoute()
+const sheetEl = ref<HTMLElement | null>(null)
+useFocusTrap(sheetEl, toRef(props, 'open'))
 
 // Sauvegarde la valeur initiale de body.overflow pour la restaurer
 // proprement apres fermeture (evite de clobber un overflow:hidden defini
@@ -110,6 +116,7 @@ function handleClose(): void {
     <Transition name="sheet-slide">
       <div
         v-if="open"
+        ref="sheetEl"
         class="bottom-sheet"
         role="dialog"
         aria-modal="true"

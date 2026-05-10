@@ -1,5 +1,58 @@
 # Changelog
 
+## v2.326.0 (2026-05-10)
+
+### Mobile : keyboard handling, a11y, skeleton chargement
+
+**1. `useMobileKeyboard()` composable + CSS keyboard-aware**
+
+Probleme : sur Chrome Android, quand l'etudiant tape sur le champ de
+saisie d'un message, le clavier mobile s'ouvre mais la barre
+`.message-input-area` reste a `bottom: 0` du viewport layout
+(qui n'a pas bouge), donc elle se retrouve cachee derriere le clavier.
+iOS Safari resize automatiquement, mais pas Chrome Android.
+
+Solution : le composable lit `window.visualViewport.height`,
+calcule la hauteur du clavier et expose `--mobile-kb-h` sur `<html>`
++ classe `.has-mobile-keyboard`. Le CSS translate la barre de saisie
+vers le haut et masque la `MobileNav` (qui de toute facon est
+inutilisable clavier ouvert et masque la zone de saisie).
+
+**2. BottomSheet : focus trap (a11y)**
+
+Le `useFocusTrap` existant (deja utilise par Modal/ConfirmModal) est
+maintenant appele sur la sheet quand elle est ouverte. Tab et
+Shift+Tab cyclent dans la sheet, le focus initial revient au premier
+element focusable, le focus precedent est restaure a la fermeture.
+Critique pour les utilisateurs au clavier / lecteur d'ecran qui
+sinon perdaient leur focus dans le contenu derriere.
+
+**3. Aria-live sur badges Live et Notifications**
+
+Sur le bouton "Plus" de MobileNav, la pastille rouge "Live en cours"
+et le compteur de notifications non lues etaient muets pour les
+lecteurs d'ecran. Maintenant `role="status"` + `aria-live="polite"` :
+le SR annonce automatiquement "Session Live en cours" quand une
+session demarre, et "X notifications non lues" quand le compteur
+change. Idem dans MobileAppsSheet pour le badge "En cours" Live.
+
+**4. PWA install : meta tags supplementaires**
+
+`apple-mobile-web-app-title="Cursus"` (nom court a l'ecran d'accueil
+iOS), `mobile-web-app-capable="yes"` (Android non-Chrome),
+`application-name="Cursus"` (Windows tile, autres OS).
+
+**5. MessagesMobileList : skeleton de chargement**
+
+Avant : flash empty -> liste qui apparaissait au mount d'un user
+lent. Maintenant : 5 lignes pulsantes (avatar + 2 lignes de texte)
+visibles tant que `loading.value === true` et que la liste est vide.
+Anim respecte `prefers-reduced-motion`.
+
+### Touch targets supplementaires
+`.btn-icon` etait passe a 44x44 sur mobile en v2.325 mais le commentaire
+faisait reference a la mauvaise version. Documentation corrigee.
+
 ## v2.325.0 (2026-05-10)
 
 ### Mobile : install PWA + perf MessagesMobileList + cache sidebar

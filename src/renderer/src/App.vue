@@ -14,6 +14,7 @@
   import { useToast }       from '@/composables/useToast'
   import { useAppListeners } from '@/composables/useAppListeners'
   import { useSwipeNav }    from '@/composables/useSwipeNav'
+  import { useMobileKeyboard } from '@/composables/useMobileKeyboard'
   import { useModules }     from '@/composables/useModules'
   import { useLumenFocus }  from '@/composables/useLumenFocus'
   import { useSocketReconnectToast } from '@/composables/useSocketReconnectToast'
@@ -134,6 +135,9 @@
 
   // ── Mobile swipe navigation (ouvre/ferme la sidebar par glissement) ───────
   useSwipeNav(sidebarOpen, toggleSidebar)
+
+  // ── Visual Viewport : detecte le clavier mobile et expose --mobile-kb-h ───
+  useMobileKeyboard()
 
   // ── Changement de mot de passe forcé (première connexion) ─────────────────
   const showForcedPasswordChange = computed(() =>
