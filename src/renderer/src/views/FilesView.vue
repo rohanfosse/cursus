@@ -15,6 +15,9 @@ import { useApi }      from '@/composables/useApi'
 import { useSlashFocusSearch } from '@/composables/useSlashFocusSearch'
 import { relativeTime } from '@/utils/date'
 import { authUrl }      from '@/utils/auth'
+import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
+
+defineProps<{ toggleSidebar?: () => void }>()
 
 const appStore = useAppStore()
 const documentsStore = useDocumentsStore()
@@ -160,6 +163,7 @@ function toggleCollapse(studentId: number) {
     <div class="fv-header">
       <div class="fv-header-top">
         <div class="fv-title-block">
+          <MobileMenuButton :toggle-sidebar="toggleSidebar" />
           <div class="fv-title-icon-wrap">
             <FolderOpen :size="18" />
           </div>

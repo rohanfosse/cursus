@@ -1,8 +1,9 @@
 <script setup lang="ts">
   import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
   import EmptyState from '@/components/ui/EmptyState.vue'
+  import MessagesMobileList from '@/components/chat/MessagesMobileList.vue'
   import { computed, watch, ref, nextTick, onMounted, onUnmounted } from 'vue'
-  import { Search, X as XIcon, ClipboardList, BookCheck, FileText, FolderPlus, X as Close, CalendarRange, Users, FolderOpen, Menu, MessageSquare, Megaphone, Paperclip, Image as ImageIcon, ExternalLink, Clock } from 'lucide-vue-next'
+  import { Search, X as XIcon, ClipboardList, BookCheck, FileText, FolderPlus, X as Close, CalendarRange, Users, FolderOpen, ChevronLeft, MessageSquare, Megaphone, Paperclip, Image as ImageIcon, ExternalLink, Clock } from 'lucide-vue-next'
   import { useAppStore }      from '@/stores/app'
   import { useMessagesStore } from '@/stores/messages'
   import { useTravauxStore }  from '@/stores/travaux'
@@ -159,6 +160,16 @@
       type: appStore.activeChannelType,
     }
   })
+
+  // Bouton retour mobile : ferme la conversation active pour revenir a la
+  // liste plein ecran (MessagesMobileList). Sur desktop ce bouton est cache
+  // par CSS.
+  function leaveActiveConversation(): void {
+    appStore.activeChannelId    = null
+    appStore.activeDmStudentId  = null
+    appStore.activeChannelName  = ''
+    rightPanel.value = null
+  }
 </script>
 
 <template>
@@ -174,11 +185,10 @@
     <!-- En-tête du canal -->
     <header v-if="appStore.activeChannelId || appStore.activeDmStudentId" id="channel-header" class="channel-header">
       <div class="channel-header-left">
-        <button v-if="props.toggleSidebar" class="mobile-hamburger" aria-label="Ouvrir le menu" @click="props.toggleSidebar">
-          <Menu :size="22" />
+        <button class="mobile-back" aria-label="Retour aux conversations" @click="leaveActiveConversation">
+          <ChevronLeft :size="24" />
         </button>
 
-        <!-- Icône DM -->
         <span v-if="appStore.activeDmStudentId" class="dm-header-icon">
           <MessageSquare :size="20" />
         </span>
@@ -436,9 +446,10 @@
       </Transition>
     </div>
 
-    <!-- Aucun canal sélectionné - écran d'accueil -->
-    <div v-else id="no-channel-hint" class="no-channel-hint">
-      <EmptyState
+    <template v-else>
+      <MessagesMobileList class="msg-mobile-only" />
+      <div id="no-channel-hint" class="no-channel-hint msg-desktop-only">
+        <EmptyState
         size="lg"
         :icon="MessageSquare"
         :title="`Bienvenue${appStore.currentUser ? ', ' + appStore.currentUser.name.split(' ')[0] : ''} !`"
@@ -462,8 +473,9 @@
             <span><strong>Recherche</strong> - Utilisez <kbd class="welcome-kbd">Ctrl+K</kbd> pour rechercher partout</span>
           </div>
         </div>
-      </EmptyState>
-    </div>
+        </EmptyState>
+      </div>
+    </template>
 
     <!-- Modal gestion messages programmes -->
     <ScheduledMessagesModal v-model="showScheduledModal" />
@@ -501,6 +513,39 @@
 <style scoped>
 /* ── #main-area doit être position:relative pour l'overlay ── */
 #main-area { position: relative; display: flex; flex-direction: column; min-height: 0; }
+
+/* ── Toggle desktop/mobile ──────────────────────────────────────────
+   La liste plein ecran mobile n'apparait qu'en <= 768px ; l'empty state
+   actuel (welcome + hints) reste pour le desktop. Permet de garder les
+   deux UX distinctes sans dupliquer la logique de selection. */
+.msg-mobile-only  { display: none; }
+.msg-desktop-only { display: flex; flex: 1; }
+@media (max-width: 768px) {
+  .msg-mobile-only  { display: flex; flex: 1; min-height: 0; }
+  .msg-desktop-only { display: none; }
+}
+
+/* ── Bouton retour mobile (header conversation) ──────────────────── */
+.mobile-back {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 6px;
+  margin-right: 4px;
+  border-radius: var(--radius-sm);
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+}
+.mobile-back:active {
+  background: var(--bg-hover);
+}
+@media (max-width: 768px) {
+  .mobile-back { display: inline-flex; }
+}
 
 /* ── Corps canal (messages + panels) ── */
 .channel-body {

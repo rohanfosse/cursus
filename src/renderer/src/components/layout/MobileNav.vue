@@ -1,15 +1,23 @@
 /**
- * MobileNav - barre de navigation fixe en bas pour les écrans < 768px.
- * Reprend les mêmes destinations que NavRail en format horizontal.
+ * MobileNav - barre de navigation fixe en bas pour les ecrans < 768px.
+ *
+ * 5 emplacements fixes : 4 destinations principales + 1 bouton "Plus" qui
+ * ouvre une bottom sheet (MobileAppsSheet) avec les apps secondaires
+ * (Documents, Calendrier, RDV, Fichiers, Signets, Jeux, Admin, Live).
+ *
+ * Live : reste accessible via la sheet avec badge "En cours" pulsant quand
+ * une session est active. Les invites Live arrivent deja en pop-up plein
+ * ecran (cf. App.vue / live-invite-popup), donc pas de regression urgence.
  */
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { LayoutDashboard, MessageSquare, BookOpen, Lightbulb, Zap } from 'lucide-vue-next'
+import { LayoutDashboard, MessageSquare, BookOpen, Calendar, Grid3x3 } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useTravauxStore } from '@/stores/travaux'
 import { useLiveStore }   from '@/stores/live'
 import { useModules }     from '@/composables/useModules'
+import MobileAppsSheet from './MobileAppsSheet.vue'
 
 const appStore     = useAppStore()
 const travauxStore = useTravauxStore()
@@ -24,9 +32,22 @@ const totalMsgUnread = computed(() => {
   const chCount = Object.values(appStore.unread ?? {}).reduce((a: number, b) => a + (b as number), 0)
   return dmCount + chCount
 })
-const showLive     = computed(() =>
-  isEnabled('live') && !appStore.isStaff && liveStore.currentSession && liveStore.currentSession.status !== 'ended',
+
+// Pastille de notification globale sur le bouton "Plus" :
+// - rouge pulsante si une session live est en cours pour l'etudiant
+//   (sans cet indicateur, l'etudiant raterait la session puisque Live
+//   est desormais dans la sheet et plus dans la barre principale)
+// - sinon point bleu si notifications non lues (cloche absente sur mobile)
+const hasActiveLive = computed(() =>
+  isEnabled('live') && !appStore.isStaff && !!liveStore.currentSession && liveStore.currentSession.status !== 'ended',
 )
+const unreadNotifsCount = computed(() =>
+  appStore.notificationHistory.filter(n => !n.read).length,
+)
+
+const showAppsSheet = ref(false)
+function openAppsSheet(): void  { showAppsSheet.value = true }
+function closeAppsSheet(): void { showAppsSheet.value = false }
 </script>
 
 <template>
@@ -65,26 +86,36 @@ const showLive     = computed(() =>
     </button>
 
     <button
-      v-if="isEnabled('lumen')"
       class="mobile-nav-btn"
-      :class="{ active: route.name === 'lumen' }"
-      @click="router.push('/lumen')"
+      :class="{ active: route.name === 'agenda' }"
+      @click="router.push('/agenda')"
     >
-      <Lightbulb :size="20" />
-      <span>Cours</span>
+      <Calendar :size="20" />
+      <span>Agenda</span>
     </button>
 
     <button
-      v-if="showLive"
-      class="mobile-nav-btn"
-      :class="{ active: route.name === 'live' }"
-      @click="router.push('/live')"
+      class="mobile-nav-btn mobile-nav-btn-more"
+      :class="{ active: showAppsSheet }"
+      :aria-haspopup="'dialog'"
+      :aria-expanded="showAppsSheet"
+      aria-label="Plus d'applications"
+      @click="openAppsSheet"
     >
-      <Zap :size="20" />
-      <span>Live</span>
-      <span class="mobile-nav-live-dot" />
+      <Grid3x3 :size="20" />
+      <span>Plus</span>
+      <span v-if="hasActiveLive" class="mobile-nav-live-dot" aria-label="Live en cours" />
+      <span
+        v-else-if="unreadNotifsCount > 0"
+        class="mobile-nav-badge"
+        :aria-label="`${unreadNotifsCount} notification${unreadNotifsCount > 1 ? 's' : ''} non lue${unreadNotifsCount > 1 ? 's' : ''}`"
+      >
+        {{ unreadNotifsCount > 9 ? '9+' : unreadNotifsCount }}
+      </span>
     </button>
   </nav>
+
+  <MobileAppsSheet :open="showAppsSheet" @close="closeAppsSheet" />
 </template>
 
 <style scoped>
@@ -173,12 +204,23 @@ const showLive     = computed(() =>
   animation: live-pulse 1.5s infinite;
 }
 
-.mobile-nav-live-dot--pulse {
-  background: #14b8a6;
+.mobile-nav-btn-more :deep(svg) {
+  color: var(--text-muted);
+  transition: color var(--t-fast);
+}
+.mobile-nav-btn-more.active :deep(svg),
+.mobile-nav-btn-more:active :deep(svg) {
+  color: var(--accent);
 }
 
 @keyframes live-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-nav-live-dot {
+    animation: none !important;
+  }
 }
 </style>

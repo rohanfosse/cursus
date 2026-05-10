@@ -1031,6 +1031,33 @@ nav[aria-label="Messages directs"] {
   .main-wrapper {
     width: 100%;
     padding-bottom: calc(56px + env(safe-area-inset-bottom, 0));
+    /* Bloque le rebond du scroll body quand on atteint le haut/bas
+       en mobile (pull-to-refresh natif intempestif sur Chrome/Safari). */
+    overscroll-behavior-y: contain;
+  }
+
+  /* Tap reactivity : 300ms double-tap zoom delay supprime sur tout
+     element interactif. Indispensable sur les vues "liste" (Messages
+     mobile, sheet apps) ou la latence est tres visible. */
+  button,
+  [role="button"],
+  a,
+  input,
+  select,
+  textarea,
+  .mobile-nav-btn,
+  .msg-mobile-row,
+  .apps-sheet-tile {
+    touch-action: manipulation;
+  }
+
+  /* Header mobile : compense le notch sur Safari/Chrome standalone. */
+  .channel-header,
+  .page-header,
+  .agenda-toolbar,
+  .ui-page-header,
+  .fv-header {
+    padding-top: env(safe-area-inset-top, 0);
   }
 
   /* ── Header compact ── */

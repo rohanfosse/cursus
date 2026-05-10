@@ -1,5 +1,86 @@
 # Changelog
 
+## v2.323.0 (2026-05-07)
+
+### Refonte mobile : barre Plus + liste conversations + hamburger universel
+
+**Pourquoi** : audit mobile sur la version pilote a revele 4 trous bloquants
+qui empechaient un usage fluide depuis un smartphone.
+
+1. **Choix du correspondant impossible sur Messages** : sur `/messages` sans
+   canal actif, l'empty state demandait de "selectionner un salon dans la
+   barre laterale" mais aucune barre n'etait visible et le hamburger
+   n'apparaissait que si un canal etait deja choisi. Catch-22.
+
+2. **Apps secondaires inaccessibles** : MobileNav listait 5 destinations en
+   dur (Accueil/Messages/Devoirs/Cours/Live). Documents, Calendrier, RDV,
+   Fichiers, Signets, Jeux, Admin etaient invisibles sur mobile. Aucun
+   equivalent du "Plus" desktop.
+
+3. **Hamburger absent sur 5 vues** : Agenda, Booking (prof), Files, Lumen
+   ne disposaient pas du bouton menu en mobile. Acces sidebar uniquement
+   via swipe (non decouvrable).
+
+4. **Notifications inaccessibles** : la cloche n'existait que dans NavRail
+   desktop. Sur mobile, l'historique des notifs etait entierement invisible.
+
+### Changements
+
+**Barre du bas (5 emplacements fixes)** :
+`Accueil  ·  Messages  ·  Devoirs  ·  Agenda  ·  Plus`
+
+Cours descend en haut de la sheet Plus. Live aussi (l'invitation Live
+arrive deja en pop-up plein ecran via `live-invite-popup`, donc pas de
+regression urgence). Le bouton Plus porte une pastille rouge pulsante
+quand une session live est en cours pour l'etudiant, ou un compteur bleu
+si des notifications sont non lues.
+
+**Bottom sheet "Plus"** (`MobileAppsSheet.vue`) :
+
+- Slide-in depuis le bas, swipe-down pour fermer, tap sur backdrop OK,
+  Escape OK. Bloque le scroll de la page derriere quand ouverte.
+- Grille 3 colonnes : Notifications (badge unread), Live (badge "En
+  cours"), Cours, RDV (prof), Documents (staff), Fichiers (prof),
+  Signets, Jeux, Administration. Filtre par role / module.
+- Tap sur Notifications ouvre le `NotificationPanel` en plein ecran
+  mobile (overlay au-dessus de la sheet).
+
+**MessagesView mobile : liste de conversations plein ecran** :
+
+- `MessagesMobileList.vue` remplace l'empty state sur `/messages` quand
+  aucun canal/DM n'est actif et viewport <= 768px.
+- Affiche : recherche unifiee, salons groupes par categorie (avec
+  unread/mention), DMs recents (avec preview, en ligne, unread).
+- Tap sur un salon/DM ouvre la conversation. Bouton retour `<` dans le
+  header revient a la liste sans repasser par la sidebar.
+- Reutilise `useSidebarData`, `useSidebarDm`, `useSidebarNav` : zero
+  duplication de business logic.
+
+**Hamburger universel** :
+
+- Composant `MobileMenuButton.vue` (40x40 hit area, visible uniquement
+  <= 768px) injecte dans Agenda, Booking (TabBooking), Files, Lumen.
+- Permet d'ouvrir le drawer sidebar global pour acceder aux contextes
+  metier (mini-cal Agenda, repos Lumen, etc.) sans dependre du swipe.
+
+**Hardening mobile global (layout.css)** :
+
+- `touch-action: manipulation` sur tous les elements interactifs en
+  <= 768px (supprime la latence 300ms du double-tap zoom).
+- `overscroll-behavior-y: contain` sur `.main-wrapper` (bloque le
+  rebond pull-to-refresh natif intempestif sur Chrome/Safari).
+- `padding-top: env(safe-area-inset-top)` sur les en-tetes de page
+  (channel-header, page-header, agenda-toolbar, ui-page-header,
+  fv-header) pour gerer le notch en mode standalone PWA.
+
+**Fichiers** :
+
+- `src/renderer/src/components/layout/MobileAppsSheet.vue` (nouveau)
+- `src/renderer/src/components/layout/MobileMenuButton.vue` (nouveau)
+- `src/renderer/src/components/chat/MessagesMobileList.vue` (nouveau)
+- `MobileNav.vue`, `MessagesView.vue`, `AgendaView.vue`, `BookingView.vue`,
+  `FilesView.vue`, `LumenView.vue`, `TabBooking.vue`, `layout.css` (modifies)
+
 ## v2.316.0 (2026-05-06)
 
 ### Fix : "Lien introuvable" sur invitations campagne + filtre erreur tooltipContainer

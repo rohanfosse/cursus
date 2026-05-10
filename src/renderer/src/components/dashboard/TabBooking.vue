@@ -26,12 +26,14 @@ import TabBookingAvailability from './TabBookingAvailability.vue'
 import TabBookingMyBookings from './TabBookingMyBookings.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import { useBooking } from '@/composables/useBooking'
 import { useCampaigns } from '@/composables/useCampaigns'
 
 defineProps<{
   allStudents: Array<{ id: number; name?: string; email?: string; promo_id?: number }>
+  toggleSidebar?: () => void
 }>()
 
 const booking = useBooking()
@@ -123,6 +125,7 @@ function selectStat(view: BookingView) {
       :sticky="false"
     >
       <template #leading>
+        <MobileMenuButton :toggle-sidebar="toggleSidebar" />
         <Calendar :size="18" aria-hidden="true" class="hdr-icon" />
       </template>
       <template #actions>
