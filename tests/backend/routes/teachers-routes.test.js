@@ -6,7 +6,7 @@ const { setupTestDb, teardownTestDb, getTestDb } = require('../helpers/setup')
 const { JWT_SECRET } = require('../helpers/fixtures')
 
 let app, db
-let teacherToken, studentToken
+let teacherToken, studentToken, adminToken
 
 beforeAll(() => {
   setupTestDb()
@@ -20,6 +20,7 @@ beforeAll(() => {
   // Tokens
   teacherToken = jwt.sign({ id: -1, name: 'Prof Test', type: 'teacher', promo_id: null }, JWT_SECRET)
   studentToken = jwt.sign({ id: 1, name: 'Jean Dupont', type: 'student', promo_id: 1 }, JWT_SECRET)
+  adminToken   = jwt.sign({ id: -99, name: 'Admin Test', type: 'admin', promo_id: null }, JWT_SECRET)
 
   // Express app
   app = express()
@@ -54,21 +55,25 @@ describe('GET /api/teachers', () => {
 
 // ═══════════════════════════════════════════
 //  POST /api/teachers — create intervenant
+//
+//  v2.331 (audit H-2) : passe a requireRole('admin'). Avant, un teacher
+//  pouvait creer arbitrairement des TA puis leur affecter promos/projets
+//  (privilege escalation). Maintenant : admin uniquement.
 // ═══════════════════════════════════════════
 describe('POST /api/teachers', () => {
-  it('teacher CAN create an intervenant (200)', async () => {
+  it('admin CAN create an intervenant (200)', async () => {
     const res = await request(app)
       .post('/api/teachers')
-      .set('Authorization', `Bearer ${teacherToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'Nouveau TA', email: 'ta@test.fr' })
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
   })
 
-  it('teacher CAN create with explicit password', async () => {
+  it('admin CAN create with explicit password', async () => {
     const res = await request(app)
       .post('/api/teachers')
-      .set('Authorization', `Bearer ${teacherToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'TA Pass', email: 'tapass@test.fr', password: 'SecurePass1!' })
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
@@ -78,16 +83,24 @@ describe('POST /api/teachers', () => {
     // First creation
     await request(app)
       .post('/api/teachers')
-      .set('Authorization', `Bearer ${teacherToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'Dup', email: 'dup@test.fr' })
     // Second with same email
     const res = await request(app)
       .post('/api/teachers')
-      .set('Authorization', `Bearer ${teacherToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'Dup2', email: 'dup@test.fr' })
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(res.body.ok).toBe(false)
     expect(res.body.error).toMatch(/email/i)
+  })
+
+  it('teacher CANNOT create an intervenant (403, anti-escalation)', async () => {
+    const res = await request(app)
+      .post('/api/teachers')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ name: 'EscalationAttempt', email: 'esc@test.fr' })
+    expect(res.status).toBe(403)
   })
 
   it('student CANNOT create an intervenant (403)', async () => {
@@ -104,12 +117,11 @@ describe('POST /api/teachers', () => {
 // ═══════════════════════════════════════════
 describe('DELETE /api/teachers/:id', () => {
   let taId
-  const adminToken = jwt.sign({ id: -99, name: 'Admin Test', type: 'admin', promo_id: null }, JWT_SECRET)
 
   beforeAll(async () => {
     const res = await request(app)
       .post('/api/teachers')
-      .set('Authorization', `Bearer ${teacherToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'TA to Delete', email: 'tadelete@test.fr' })
     // Get the TA from the list
     const listRes = await request(app)

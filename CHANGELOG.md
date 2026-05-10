@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.331.1 (2026-05-10)
+
+### Hotfix tests : alignement sur les nouvelles regles d'authorization
+
+Les tests `teachers-routes.test.js` et `promotions-isolation.test.js`
+encodaient l'ancien comportement (vulnerable) :
+- teacher pouvait creer des intervenants TA -> maintenant admin only
+- teacher pouvait creer/modifier toute promo -> maintenant admin pour
+  POST, requirePromoAdmin (membre de teacher_promos) pour PATCH
+
+Tests mis a jour pour utiliser `adminToken` la ou requireRole('admin')
+est exige, et seedant `teacher_promos (1, 1)` pour que le PATCH par le
+prof passe sur sa propre promo. Ajout de tests anti-regression :
+- `teacher CANNOT create an intervenant (403)`
+- `prof ne peut PLUS creer une promo (403)`
+- `prof NON-responsable d'une autre promo ne peut pas la modifier (403)`
+
+110 fichiers, 1755 tests, tous OK.
+
 ## v2.331.0 (2026-05-10)
 
 ### Sprint 1 securite : 7 fixes pre-pilote + bouton suppression compte RGPD

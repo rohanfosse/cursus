@@ -6,7 +6,7 @@ const { setupTestDb, teardownTestDb, getTestDb } = require('../helpers/setup')
 const { JWT_SECRET } = require('../helpers/fixtures')
 
 let app
-let studentToken, student2Token, teacherToken
+let studentToken, student2Token, teacherToken, adminToken
 
 beforeAll(() => {
   setupTestDb()
@@ -19,11 +19,15 @@ beforeAll(() => {
     `INSERT OR IGNORE INTO students (id, promo_id, name, email, avatar_initials, password, must_change_password)
      VALUES (2, 2, 'Alice Martin', 'alice@test.fr', 'AM', 'hash', 0)`
   ).run()
+  // Teacher 1 doit etre responsable de promo 1 pour le PATCH (cf. v2.331 CR-1
+  // qui exige requirePromoAdmin sur PATCH /promotions/:id).
+  db.exec(`INSERT OR IGNORE INTO teacher_promos (teacher_id, promo_id) VALUES (1, 1)`)
 
   // Tokens
   studentToken  = jwt.sign({ id: 1, name: 'Jean Dupont', type: 'student', promo_id: 1 }, JWT_SECRET)
   student2Token = jwt.sign({ id: 2, name: 'Alice Martin', type: 'student', promo_id: 2 }, JWT_SECRET)
   teacherToken  = jwt.sign({ id: -1, name: 'Prof Test', type: 'teacher', promo_id: null }, JWT_SECRET)
+  adminToken    = jwt.sign({ id: -99, name: 'Admin Test', type: 'admin', promo_id: null }, JWT_SECRET)
 
   // Express app
   app = express()
@@ -100,7 +104,8 @@ describe('GET /api/promotions/:promoId/channels', () => {
 })
 
 // ═══════════════════════════════════════════
-//  POST /api/promotions — requireTeacher
+//  POST /api/promotions — admin only depuis v2.331 (audit CR-1)
+//  Avant : tout teacher pouvait creer une promo arbitraire.
 // ═══════════════════════════════════════════
 describe('POST /api/promotions', () => {
   it('etudiant ne peut pas creer une promo (403)', async () => {
@@ -111,10 +116,18 @@ describe('POST /api/promotions', () => {
     expect(res.status).toBe(403)
   })
 
-  it('prof peut creer une promo', async () => {
+  it('prof ne peut PLUS creer une promo (403, anti-escalation)', async () => {
     const res = await request(app)
       .post('/api/promotions')
       .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ name: 'Promo Hack', color: '#FF0000' })
+    expect(res.status).toBe(403)
+  })
+
+  it('admin peut creer une promo', async () => {
+    const res = await request(app)
+      .post('/api/promotions')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'Promo C', color: '#27AE60' })
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
@@ -122,7 +135,8 @@ describe('POST /api/promotions', () => {
 })
 
 // ═══════════════════════════════════════════
-//  PATCH /api/promotions/:id — requireTeacher
+//  PATCH /api/promotions/:id — requirePromoAdmin depuis v2.331 (audit CR-1)
+//  Le prof doit etre responsable de la promo (teacher_promos).
 // ═══════════════════════════════════════════
 describe('PATCH /api/promotions/:id', () => {
   it('etudiant ne peut pas modifier une promo (403)', async () => {
@@ -133,13 +147,23 @@ describe('PATCH /api/promotions/:id', () => {
     expect(res.status).toBe(403)
   })
 
-  it('prof peut modifier une promo', async () => {
+  it('prof responsable de la promo peut la modifier', async () => {
+    // teacher_promos (1, 1) est seede dans le beforeAll
     const res = await request(app)
       .patch('/api/promotions/1')
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({ name: 'Promo Renamed' })
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
+  })
+
+  it('prof NON-responsable d\'une autre promo ne peut pas la modifier (403)', async () => {
+    // teacher 1 n'est PAS dans teacher_promos pour promo 2
+    const res = await request(app)
+      .patch('/api/promotions/2')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ name: 'CrossPromoHack' })
+    expect(res.status).toBe(403)
   })
 })
 
@@ -148,13 +172,13 @@ describe('PATCH /api/promotions/:id', () => {
 // ═══════════════════════════════════════════
 describe('DELETE /api/promotions/:id', () => {
   let emptyPromoId
-  const adminToken = jwt.sign({ id: -99, name: 'Admin Test', type: 'admin', promo_id: null }, JWT_SECRET)
 
   beforeAll(async () => {
-    // Creer une promo vide (sans etudiants) pour pouvoir la supprimer
+    // Creer une promo vide (sans etudiants) pour pouvoir la supprimer.
+    // Depuis v2.331, POST /api/promotions exige admin.
     const res = await request(app)
       .post('/api/promotions')
-      .set('Authorization', `Bearer ${teacherToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'Promo Jetable', color: '#AAAAAA' })
     emptyPromoId = typeof res.body.data === 'number' ? res.body.data : (res.body.data?.lastInsertRowid ?? res.body.data?.id ?? 99)
   })
