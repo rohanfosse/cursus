@@ -1,5 +1,32 @@
 # Changelog
 
+## v2.327.0 (2026-05-10)
+
+### Mobile a11y : sidebar drawer focus trap + MessageInput IME hints
+
+**1. Sidebar drawer mobile : focus trap + role=dialog**
+
+Quand le drawer s'ouvre (tap hamburger ou swipe), il devient une
+vraie modale plein ecran sur mobile. Auparavant, Tab faisait
+fuir le focus vers le contenu derriere le backdrop (chat, devoirs,
+etc.). Maintenant : `useFocusTrap` cycle Tab/Shift+Tab dans la
+sidebar, le focus initial revient au premier element focusable, et
+le focus precedent est restaure a la fermeture. Le drawer prend
+aussi `role="dialog"`, `aria-modal="true"`, `aria-label="Menu
+lateral"`, et `Escape` le ferme. Sur desktop : `sidebarOpen` reste
+toujours `false`, donc le trap ne s'active jamais (zero impact
+desktop).
+
+**2. MessageInput : enterkeyhint + autocapitalize + spellcheck**
+
+Sur mobile, le clavier affichait par defaut "Entree" comme touche
+d'action. `enterkeyhint="send"` la transforme en "Envoyer" sur les
+claviers qui le supportent (Gboard, SwiftKey, iOS QuickType).
+N'affecte pas le comportement (Enter fait toujours saut de ligne,
+Cmd+Enter envoie selon prefs) — seulement l'icone du clavier.
+`autocapitalize="sentences"` met une majuscule auto en debut de
+phrase (UX standard chat). `spellcheck="true"` explicite.
+
 ## v2.326.0 (2026-05-10)
 
 ### Mobile : keyboard handling, a11y, skeleton chargement

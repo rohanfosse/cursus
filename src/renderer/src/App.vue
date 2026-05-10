@@ -15,6 +15,7 @@
   import { useAppListeners } from '@/composables/useAppListeners'
   import { useSwipeNav }    from '@/composables/useSwipeNav'
   import { useMobileKeyboard } from '@/composables/useMobileKeyboard'
+  import { useFocusTrap }   from '@/composables/useFocusTrap'
   import { useModules }     from '@/composables/useModules'
   import { useLumenFocus }  from '@/composables/useLumenFocus'
   import { useSocketReconnectToast } from '@/composables/useSocketReconnectToast'
@@ -138,6 +139,12 @@
 
   // ── Visual Viewport : detecte le clavier mobile et expose --mobile-kb-h ───
   useMobileKeyboard()
+
+  // ── Sidebar mobile : focus trap quand le drawer est ouvert ────────────────
+  // En mobile la sidebar devient une vraie modale plein ecran ; sans trap,
+  // Tab faisait fuir le focus vers le contenu derriere le backdrop.
+  const sidebarEl = ref<HTMLElement | null>(null)
+  useFocusTrap(sidebarEl, sidebarOpen)
 
   // ── Changement de mot de passe forcé (première connexion) ─────────────────
   const showForcedPasswordChange = computed(() =>
@@ -503,9 +510,14 @@
     <div class="sidebar-backdrop" :class="{ visible: sidebarOpen }" @click="closeSidebar" />
 
     <aside
+      ref="sidebarEl"
       v-show="!isLumenFocus"
       class="sidebar-wrapper"
       :class="{ 'sidebar-with-banner': appStore.isSimulating || !appStore.isOnline, 'mobile-open': sidebarOpen, 'sidebar-wrapper--collapsed': sidebarCollapsed }"
+      :role="sidebarOpen ? 'dialog' : undefined"
+      :aria-modal="sidebarOpen ? 'true' : undefined"
+      :aria-label="sidebarOpen ? 'Menu lateral' : undefined"
+      @keydown.esc="closeSidebar"
     >
       <SidebarWrapper @navigate="closeSidebar" />
     </aside>
