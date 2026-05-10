@@ -1,5 +1,68 @@
 # Changelog
 
+## v2.325.0 (2026-05-10)
+
+### Mobile : install PWA + perf MessagesMobileList + cache sidebar
+
+**1. Bandeau d'installation PWA (`PwaInstallBanner.vue`)**
+
+Avant : sur mobile web, aucun signal que Cursus est installable. Sur
+Chrome Android le menu "Installer l'application" est cache dans le
+menu trois-points. Sur iOS Safari il faut connaitre le geste
+"Partager > Sur l'ecran d'accueil" — la majorite des etudiants ne
+le decouvrira jamais. Maintenant : un bandeau visible en bas de
+page mobile :
+
+- Android/Chrome : ecoute `beforeinstallprompt`, bouton "Installer"
+  declenche le prompt natif.
+- iOS Safari : detection UA + bandeau "Comment ?" qui ouvre une
+  modale avec les 3 etapes Partager > Sur l'ecran d'accueil >
+  Ajouter, illustrees avec leurs icones.
+- Persistance : si l'utilisateur dismiss, on ne re-affiche pas
+  pendant 30 jours. Si l'app est deja en `display-mode: standalone`,
+  jamais affiche.
+
+**2. MessagesMobileList : O(N×M) -> O(1) via Sets/Maps**
+
+Avant : pour chaque ligne DM rendue, `appStore.isUserOnline(name)`
+faisait un `.some()` sur `onlineUsers` (O(M)) et `getDmPreview()` un
+`.find()` sur `recentDmContacts`. Avec 30 utilisateurs en ligne et
+50 DMs, ca faisait 1500 comparaisons string par re-render.
+
+Maintenant : `onlineUserNames` (Set) et `dmPreviewByName` (Map) sont
+des computed construits une fois, lookups en O(1) dans le template.
+
+**3. `useSidebarData.load()` deduplique via TTL 30s**
+
+Avant : a chaque mount de `MessagesMobileList` (l'utilisateur entre
+puis sort d'une conversation), `load()` declenchait getPromotions +
+getStudents + getChannels + getRecentDms — meme si les donnees
+etaient fraiches. Maintenant : un timestamp par scope (staff /
+student) court-circuite les fetch dans les 30s. Force-reload via
+`load(true)` ou `invalidateLoadCache()` apres impersonation /
+changement de promo.
+
+Bonus : `loadTeacherSidebar` parallelise maintenant
+`loadTeacherChannels()` et `loadRecentDmContacts()` au lieu de les
+sequentialiser.
+
+**4. Touch targets `.btn-icon` : 40x40 -> 44x44 sur mobile**
+
+WCAG 2.2 recommande 44x44 (AAA) pour les actions tactiles. Sur les
+en-tetes channel-header / page-header / agenda-toolbar, les boutons
+icone (recherche, filtres, fichiers, members) etaient a 40x40, juste
+sous le seuil. Idem `modal-close`. Reactions restent a 40x40 (densite
+voulue).
+
+**Skip** apres analyse :
+- Compteur de notifs unread incremental dans le store : la version
+  computed actuelle est deja memoizee par Vue/Pinia, le filter ne
+  re-run que sur mutation de `notificationHistory`. Pas de perf
+  reelle a gagner sous N=100.
+- Race `setLoadRecentDmContacts` : faux positif de la review. Chaque
+  appel a `useSidebarData()` cree un closure isole, pas de partage
+  d'etat entre Sidebar et MessagesMobileList.
+
 ## v2.324.0 (2026-05-10)
 
 ### Refactoring : 6 dettes techniques liquidees apres l'audit mobile

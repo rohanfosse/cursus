@@ -30,6 +30,7 @@
   import ConfirmModal from '@/components/ui/ConfirmModal.vue'
   import NavRail    from '@/components/layout/NavRail.vue'
   import MobileNav  from '@/components/layout/MobileNav.vue'
+  import PwaInstallBanner from '@/components/layout/PwaInstallBanner.vue'
   import TitleBar   from '@/components/layout/TitleBar.vue'
   import DemoBanner from '@/components/layout/DemoBanner.vue'
   import DemoOnboardingTour from '@/components/demo/DemoOnboardingTour.vue'
@@ -515,6 +516,9 @@
 
     <!-- Navigation mobile (bottom bar, < 768px) -->
     <MobileNav />
+
+    <!-- Bandeau d'installation PWA (mobile non-standalone uniquement) -->
+    <PwaInstallBanner />
 
     <!-- Bouton flottant feedback (étudiants uniquement) -->
     <button

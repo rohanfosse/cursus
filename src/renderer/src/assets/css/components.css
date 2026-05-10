@@ -1757,16 +1757,18 @@ body.sepia .msg-text .code-block pre.hljs {
    RESPONSIVE - Touch targets & mobile (≤ 768px)
 ════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  /* Agrandir les cibles tactiles */
+  /* Agrandir les cibles tactiles : WCAG 2.2 AA recommande 24x24, AAA 44x44.
+     On vise 44x44 pour les actions principales (header, modal close,
+     reactions) afin de rester confortable sur petit pouce/index. */
   .btn-icon {
-    width: 40px;
-    height: 40px;
-    padding: 8px;
+    width: 44px;
+    height: 44px;
+    padding: 10px;
   }
 
   .modal-close {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
   }
 
   .reaction-picker-btn {

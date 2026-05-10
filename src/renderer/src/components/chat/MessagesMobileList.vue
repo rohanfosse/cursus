@@ -29,7 +29,7 @@ const { state: ctx } = useContextMenu()
 const { sortedChannelGroups, dmStudents, load, setLoadRecentDmContacts } = useSidebarData()
 const { selectChannel } = useSidebarNav(emit)
 const {
-  loadRecentDmContacts, dmContactsToShow, getDmPreview, selectDm,
+  loadRecentDmContacts, recentDmContacts, dmContactsToShow, selectDm,
 } = useSidebarDm(dmStudents, ctx, emit)
 
 setLoadRecentDmContacts(loadRecentDmContacts)
@@ -54,8 +54,27 @@ const filteredDmContacts = computed(() => {
   return dmContactsToShow.value.filter(s => s.name.toLowerCase().includes(q))
 })
 
-// O(1) lookups partages par toutes les rangees DM/canal — sinon le rendu
-// d'une liste de 100 contacts re-itere onlineUsers/unread pour chaque ligne.
+// Lookups precalcules au render pour eviter O(N) par ligne :
+//  - `appStore.isUserOnline(name)` faisait `.some()` sur onlineUsers
+//    (O(M)) puis etait appele une fois par ligne (O(N×M)).
+//  - `getDmPreview(name)` faisait `.find()` sur recentDmContacts pareil.
+// Avec une liste de 30 etudiants en ligne et 50 DMs, c'etait 1500
+// comparaisons string par re-render. Maintenant : Sets/Maps construits
+// une fois et requetes en O(1).
+const onlineUserNames = computed(() => {
+  const set = new Set<string>()
+  for (const u of (appStore.onlineUsers ?? [])) set.add(u.name)
+  return set
+})
+
+const dmPreviewByName = computed(() => {
+  const map = new Map<string, string>()
+  for (const c of recentDmContacts.value) {
+    if (c.last_message_preview) map.set(c.name, c.last_message_preview.substring(0, 40))
+  }
+  return map
+})
+
 function channelUnread(id: number): number {
   return appStore.unread[id] ?? 0
 }
@@ -156,13 +175,13 @@ function onTapDm(s: Student): void {
           <span class="msg-mobile-row-avatar" :style="avatarStyle(s)">
             <span v-if="!s.photo_data">{{ initials(s.name) }}</span>
             <img v-else :src="s.photo_data" :alt="s.name" />
-            <span v-if="appStore.isUserOnline(s.name)" class="msg-mobile-row-online" aria-label="En ligne" />
+            <span v-if="onlineUserNames.has(s.name)" class="msg-mobile-row-online" aria-label="En ligne" />
           </span>
           <span class="msg-mobile-row-body">
             <span class="msg-mobile-row-title">
               <span class="msg-mobile-row-name">{{ s.name }}</span>
             </span>
-            <span class="msg-mobile-row-preview">{{ getDmPreview(s.name) || (s.id < 0 ? 'Enseignant' : 'Etudiant') }}</span>
+            <span class="msg-mobile-row-preview">{{ dmPreviewByName.get(s.name) || (s.id < 0 ? 'Enseignant' : 'Etudiant') }}</span>
           </span>
           <span v-if="dmUnread(s.name) > 0" class="msg-mobile-row-badge">
             {{ dmUnread(s.name) > 9 ? '9+' : dmUnread(s.name) }}

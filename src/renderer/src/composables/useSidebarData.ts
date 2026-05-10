@@ -1,12 +1,20 @@
 /**
- * Chargement des données sidebar : promotions, canaux, étudiants, groupes par catégorie.
- * Used by AppSidebar.vue
+ * Chargement des donnees sidebar : promotions, canaux, etudiants, groupes par categorie.
+ * Used by AppSidebar.vue and MessagesMobileList.vue.
+ *
+ * Dedup `load()` : sur mobile, MessagesMobileList se monte/demonte a chaque
+ * fois que l'utilisateur entre/sort d'une conversation. Sans cache, chaque
+ * mount declenchait getPromotions + getStudents + getChannels + getRecentDms
+ * meme si les donnees etaient deja a jour. Avec un TTL, on saute les fetch
+ * recents et on respecte le mode offline.
  */
 import { ref, computed } from 'vue'
 import { useAppStore } from '@/stores/app'
 import type { Channel, Student, Promotion } from '@/types'
 
 export const NO_CAT = '__no_category__'
+
+const LOAD_TTL_MS = 30_000
 
 export interface CategoryGroup {
   label: string
@@ -21,6 +29,13 @@ export function useSidebarData() {
   const channels   = ref<Channel[]>([])
   const students   = ref<Student[]>([])
   const loading    = ref(false)
+
+  // Timestamp du dernier `load()` reussi par scope (staff vs student).
+  // Le scope change si on impersonate ou si la promo change ; les flags
+  // sont invalides en consequence par les listeners qui appellent
+  // `forceReload()` apres ces transitions.
+  let lastLoadStaff:   number = 0
+  let lastLoadStudent: number = 0
 
   const user = computed(() => appStore.currentUser)
 
@@ -60,8 +75,11 @@ export function useSidebarData() {
       if (promotions.value.length && !appStore.activePromoId) {
         appStore.activePromoId = promotions.value[0].id
       }
-      await loadTeacherChannels()
-      await _loadRecentDmContacts()
+      // Channels et DMs en parallele : independants une fois la promo connue.
+      await Promise.all([
+        loadTeacherChannels(),
+        _loadRecentDmContacts(),
+      ])
     } finally {
       loading.value = false
     }
@@ -86,9 +104,29 @@ export function useSidebarData() {
     }
   }
 
-  async function load() {
-    if (appStore.isStaff) await loadTeacherSidebar()
-    else await loadStudentSidebar()
+  /**
+   * Charge la sidebar selon le role courant.
+   * @param force passe a true pour ignorer le TTL (utile sur change de promo,
+   *              fin d'impersonation, recovery socket, etc.)
+   */
+  async function load(force = false) {
+    const now = Date.now()
+    if (appStore.isStaff) {
+      if (!force && now - lastLoadStaff < LOAD_TTL_MS) return
+      await loadTeacherSidebar()
+      lastLoadStaff = Date.now()
+    } else {
+      if (!force && now - lastLoadStudent < LOAD_TTL_MS) return
+      await loadStudentSidebar()
+      lastLoadStudent = Date.now()
+    }
+  }
+
+  /** Force la prochaine `load()` a refaire les fetch. Appele apres un
+   *  changement de promo, fin d'impersonation, etc. */
+  function invalidateLoadCache(): void {
+    lastLoadStaff = 0
+    lastLoadStudent = 0
   }
 
   // ── Canaux visibles ─────────────────────────────────────────────────────
@@ -193,5 +231,6 @@ export function useSidebarData() {
     dmStudents,
     selectPromo,
     setLoadRecentDmContacts,
+    invalidateLoadCache,
   }
 }
