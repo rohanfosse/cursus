@@ -423,6 +423,7 @@ const apiImpl = {
 
   changePassword:    (userId: number, isTeacher: boolean, currentPwd: string, newPwd: string) =>
     post('/api/auth/change-password', { userId, isTeacher, currentPwd, newPwd }),
+  deleteAccount:     (payload: { password: string; confirmation: string }) => del('/api/auth/account', payload),
   exportPersonalData:(studentId: number) => get(`/api/auth/export/${studentId}`),
   getStudentByEmail: (email: string)     => get(`/api/auth/student-by-email?email=${encodeURIComponent(email)}`),
   registerStudent:   (payload: unknown)  => post('/api/auth/register', payload),

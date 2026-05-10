@@ -12,21 +12,36 @@ const log        = require('./utils/logger')
 const PORT   = process.env.PORT       ?? 3001
 const ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:5173'
 
-// ── Vérifications de sécurité au démarrage ──────────────────────────────────
+// ── Verifications de securite au demarrage ──────────────────────────────────
+// En non-development, on fail-fast sur les configurations dangereuses plutot
+// que de continuer en mode degrade. Auparavant un NODE_ENV=staging passait au
+// travers (le check ne couvrait que NODE_ENV=production), laissant le serveur
+// boote sur 'changeme-dev-secret' ou un fallback CORS=localhost.
+const IS_DEV = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || !process.env.NODE_ENV
+
 const SECRET = process.env.JWT_SECRET ?? 'changeme-dev-secret'
-if (process.env.NODE_ENV === 'production') {
+if (!IS_DEV) {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-    console.error('[SECURITY] JWT_SECRET absent ou trop court (min 32 caractères). Arrêt du serveur.')
+    console.error('[SECURITY] JWT_SECRET absent ou trop court (min 32 caracteres). Arret du serveur.')
     process.exit(1)
   }
-  if (!process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '*') {
-    log.warn('cors_wildcard', { msg: 'CORS_ORIGIN non défini ou wildcard (*) — utilisation du domaine par défaut.' })
+  // CORS_ORIGIN doit etre configure en non-dev. Sans ca, le fallback
+  // localhost:5173 (acceptable en dev) devient une faille en prod : un
+  // attaquant qui exploite XSS sur une page tierce peut faire des
+  // requetes credentialed.
+  if (!process.env.CORS_ORIGIN) {
+    console.error('[SECURITY] CORS_ORIGIN absent en non-development. Arret du serveur (NODE_ENV=' + process.env.NODE_ENV + ').')
+    process.exit(1)
+  }
+  if (process.env.CORS_ORIGIN === '*') {
+    console.error('[SECURITY] CORS_ORIGIN=* est interdit en non-development. Arret du serveur.')
+    process.exit(1)
   }
   if (!process.env.DEPLOY_SECRET || process.env.DEPLOY_SECRET.length < 16) {
-    log.warn('deploy_secret_missing', { msg: 'DEPLOY_SECRET absent ou trop court — webhook de déploiement désactivé.' })
+    log.warn('deploy_secret_missing', { msg: 'DEPLOY_SECRET absent ou trop court — webhook de deploiement desactive.' })
   }
 } else if (!process.env.JWT_SECRET) {
-  log.warn('jwt_secret_default', { msg: 'JWT_SECRET non défini — secret par défaut utilisé. Ne pas utiliser en dehors du développement local.' })
+  log.warn('jwt_secret_default', { msg: 'JWT_SECRET non defini — secret par defaut utilise. Ne pas utiliser en dehors du developpement local.' })
 }
 
 const app    = express()
@@ -217,12 +232,35 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 app.use('/uploads', (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ ok: false, error: 'Non authentifié' })
+  let user
   try {
-    jwt.verify(token, SECRET)
-    next()
+    user = jwt.verify(token, SECRET, { algorithms: ['HS256'] })
   } catch {
     return res.status(401).json({ ok: false, error: 'Token invalide' })
   }
+
+  // Scope check : avant de servir le fichier, on verifie via la table
+  // `uploads` que l'utilisateur peut y acceder. Pour les fichiers legacy
+  // (avant la migration v92, donc pas de row), fallback "tout JWT valide
+  // passe" pour ne pas casser les URLs deja stockees dans messages/depots.
+  // Apres deployment + transition, on pourra durcir.
+  try {
+    const filename = decodeURIComponent(req.path.replace(/^\/+/, '').split('/')[0] || '')
+    if (filename) {
+      const { canAccessUpload } = require('./db/models/uploads')
+      if (!canAccessUpload(user, filename)) {
+        return res.status(403).json({ ok: false, error: 'Accès refusé.' })
+      }
+    }
+  } catch (err) {
+    log.warn('uploads_scope_check_failed', { error: err.message, path: req.path })
+    // En cas d'erreur de check : fail closed sauf en dev pour eviter les
+    // surprises au pilote.
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(500).json({ ok: false, error: 'Erreur lors de la verification.' })
+    }
+  }
+  next()
 }, express.static(UPLOAD_DIR, {
   setHeaders: (res, filePath) => {
     // Forcer le téléchargement sauf pour les images (affichage inline autorisé)

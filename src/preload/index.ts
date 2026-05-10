@@ -143,6 +143,11 @@ contextBridge.exposeInMainWorld('api', {
   changePassword: (userId: number, isTeacher: boolean, currentPwd: string, newPwd: string) =>
     post('/api/auth/change-password', { userId, isTeacher, currentPwd, newPwd }),
 
+  // Suppression du compte (RGPD) : anonymise cote serveur, exige password
+  // + confirmation = 'SUPPRIMER'.
+  deleteAccount: (payload: { password: string; confirmation: string }) =>
+    del('/api/auth/account', payload),
+
   exportPersonalData: (studentId: number) => get(`/api/auth/export/${studentId}`),
 
   getStudentByEmail: (email: string) => get(`/api/auth/student-by-email?email=${encodeURIComponent(email)}`),

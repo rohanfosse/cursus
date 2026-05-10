@@ -28,11 +28,26 @@ router.get('/:id/assignments', (req, res, next) => {
   }
   next()
 }, wrap((req) => queries.getStudentTravaux(Number(req.params.id))))
+// Photo etudiant : un student ne peut modifier que la sienne. Un teacher
+// ne peut modifier que celles des etudiants de SES promos (admin bypass).
+// Avant : un teacher pouvait ecraser la photo de tout etudiant cross-promo
+// avec n'importe quoi (XSS-reflechi via SVG dataURI possible).
+const { requirePromoAdmin } = require('../middleware/authorize')
+const { getDb } = require('../db/connection')
+const studentPromoFromBody = (req) => {
+  const id = Number(req.body?.studentId)
+  if (!id) return null
+  const row = getDb().prepare('SELECT promo_id FROM students WHERE id = ?').get(id)
+  return row?.promo_id ?? null
+}
 router.post('/photo', (req, res, next) => {
-  if (req.user?.type === 'student' && req.user.id !== req.body.studentId) {
-    return res.status(403).json({ ok: false, error: 'Vous ne pouvez modifier que votre propre photo.' })
+  if (req.user?.type === 'student') {
+    if (Number(req.user.id) !== Number(req.body?.studentId)) {
+      return res.status(403).json({ ok: false, error: 'Vous ne pouvez modifier que votre propre photo.' })
+    }
+    return next()
   }
-  next()
+  return requirePromoAdmin(studentPromoFromBody)(req, res, next)
 }, wrap((req) => queries.updateStudentPhoto(req.body.studentId, req.body.photoData)))
 router.post('/bulk-import',        requireRole('teacher'), wrap((req) => queries.bulkImportStudents(req.body.promoId, req.body.rows)))
 

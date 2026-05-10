@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 91;
+const CURRENT_VERSION = 93;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -2140,6 +2140,43 @@ function runMigrations(db) {
     // dans la modale de detail, l'etudiant la voit en lecture seule.
     (db) => {
       tryAlter(db, 'ALTER TABLE bookings ADD COLUMN room TEXT');
+    },
+
+    // v92 : Securite uploads — table `uploads` qui trace chaque fichier
+    // par owner et scope (kind / channel_id / dm_peer_id). Permet au
+    // middleware /uploads de verifier l'autorisation au-dela du simple
+    // "JWT valide" (cf. audit H-1). Les fichiers existants n'ont pas
+    // d'entree — le middleware applique un fallback legacy "auth only"
+    // pour eviter de casser les URLs deja stockees dans messages/depots.
+    (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS uploads (
+          filename     TEXT PRIMARY KEY,
+          owner_id     INTEGER NOT NULL,
+          owner_type   TEXT NOT NULL,
+          kind         TEXT NOT NULL,
+          channel_id   INTEGER,
+          dm_peer_id   INTEGER,
+          travail_id   INTEGER,
+          file_size    INTEGER,
+          original_name TEXT,
+          created_at   TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+        );
+        CREATE INDEX IF NOT EXISTS idx_uploads_owner   ON uploads(owner_id, owner_type);
+        CREATE INDEX IF NOT EXISTS idx_uploads_channel ON uploads(channel_id);
+        CREATE INDEX IF NOT EXISTS idx_uploads_travail ON uploads(travail_id);
+        CREATE INDEX IF NOT EXISTS idx_uploads_kind    ON uploads(kind);
+      `);
+    },
+
+    // v93 : RGPD droit a l'effacement — colonne `deleted_at` sur students.
+    // Anonymisation plutot que hard delete pour preserver l'integrite
+    // pedagogique (notes, audit_log, references aux messages signes par
+    // l'etudiant) tout en respectant le droit a l'oubli RGPD : nom devient
+    // "Compte supprime #<id>", email/photo/password sont effaces.
+    (db) => {
+      tryAlter(db, 'ALTER TABLE students ADD COLUMN deleted_at TEXT');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_students_deleted ON students(deleted_at)');
     },
   ];
 

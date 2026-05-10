@@ -149,6 +149,60 @@ export function useSettingsAccount(emit: (evt: 'update:modelValue', v: boolean) 
     }, 200)
   }
 
+  // ── Suppression de compte (RGPD) ──────────────────────────────────────────
+  // Anonymise le compte cote serveur : la row student est preservee pour
+  // l'integrite des FK (depots, audit log) mais nom/email/photo/password sont
+  // effaces. Necessite mot de passe + saisie 'SUPPRIMER' pour confirmer.
+  const showDeleteAccount = ref(false)
+  const deletePassword    = ref('')
+  const deleteConfirmText = ref('')
+  const deleting          = ref(false)
+
+  function openDeleteAccount(): void {
+    deletePassword.value    = ''
+    deleteConfirmText.value = ''
+    showDeleteAccount.value = true
+  }
+
+  async function confirmDeleteAccount(): Promise<void> {
+    if (deleting.value) return
+    if (deleteConfirmText.value !== 'SUPPRIMER') {
+      showToast("Saisissez 'SUPPRIMER' pour confirmer.", 'error')
+      return
+    }
+    if (!deletePassword.value) {
+      showToast('Mot de passe requis.', 'error')
+      return
+    }
+    deleting.value = true
+    try {
+      const res = await window.api.deleteAccount({
+        password:     deletePassword.value,
+        confirmation: 'SUPPRIMER',
+      })
+      if (!res?.ok) {
+        showToast(res?.error ?? 'Erreur lors de la suppression.', 'error')
+        return
+      }
+      // Compte anonymise -> on logout immediatement.
+      emit('update:modelValue', false)
+      appStore.logout()
+      router.replace('/')
+      showToast('Compte supprime. Vos donnees ont ete anonymisees.', 'info')
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Erreur lors de la suppression.', 'error')
+    } finally {
+      deleting.value = false
+      showDeleteAccount.value = false
+    }
+  }
+
+  function cancelDeleteAccount(): void {
+    showDeleteAccount.value = false
+    deletePassword.value    = ''
+    deleteConfirmText.value = ''
+  }
+
   return {
     pendingPhoto,
     photoChanged,
@@ -167,5 +221,12 @@ export function useSettingsAccount(emit: (evt: 'update:modelValue', v: boolean) 
     resetting,
     resetDemoData,
     openPrivacyFromSettings,
+    showDeleteAccount,
+    deletePassword,
+    deleteConfirmText,
+    deleting,
+    openDeleteAccount,
+    confirmDeleteAccount,
+    cancelDeleteAccount,
   }
 }

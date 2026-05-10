@@ -147,6 +147,7 @@ declare global {
       getIdentities(): Promise<IpcResponse<Student[]>>
       loginWithCredentials(email: string, password: string): Promise<IpcResponse<User>>
       changePassword(userId: number, isTeacher: boolean, currentPwd: string, newPwd: string): Promise<IpcResponse<null>>
+      deleteAccount(payload: { password: string; confirmation: string }): Promise<IpcResponse<null>>
       exportPersonalData(studentId: number): Promise<IpcResponse<object>>
 
       // Upload fichier vers le serveur → URL publique + taille

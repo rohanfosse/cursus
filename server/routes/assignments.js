@@ -4,7 +4,11 @@ const { z }   = require('zod')
 const queries = require('../db/index')
 const { validate } = require('../middleware/validate')
 const wrap         = require('../utils/wrap')
-const { requireRole, requirePromo, promoFromParam, promoFromChannel, promoFromTravail, requireTravailOwner, requireReminderOwner } = require('../middleware/authorize')
+const {
+  requireRole, requirePromo, requirePromoAdmin,
+  promoFromParam, promoFromChannel, promoFromTravail, promoFromBodyChannel,
+  requireTravailOwner, requireReminderOwner,
+} = require('../middleware/authorize')
 
 /** Borne temporelle arbitraire (1er janvier 2020) — deadline anterieure = client casse. */
 const MIN_DEADLINE_MS = new Date('2020-01-01T00:00:00Z').getTime()
@@ -55,7 +59,16 @@ router.get('/',                         requirePromo(promoFromChannel), wrap((re
 router.get('/:id',                      requirePromo(promoFromTravail), wrap((req) => queries.getTravailById(Number(req.params.id))))
 router.get('/:id/suivi',                requirePromo(promoFromTravail), wrap((req) => queries.getTravauxSuivi(Number(req.params.id))))
 router.get('/:id/group-members',        requirePromo(promoFromTravail), wrap((req) => queries.getTravailGroupMembers(Number(req.params.id))))
-router.post('/', requireRole('teacher'), validate(createAssignmentSchema), wrap((req) => queries.createTravail(req.body)))
+// Creation d'un devoir : le teacher doit gerer la promo du canal cible.
+// Avant : req.body.promoId/channelId etaient acceptes sans verifier l'ownership,
+// permettant a tout teacher de creer des devoirs/soutenances dans une autre
+// promo (perturbation calendrier, emails/notifs aux etudiants Y).
+router.post('/',
+  requireRole('teacher'),
+  validate(createAssignmentSchema),
+  requirePromoAdmin(promoFromBodyChannel),
+  wrap((req) => queries.createTravail(req.body)),
+)
 router.post('/publish', requireRole('teacher'), requireTravailOwner, async (req, res) => {
   try {
     const result = queries.updateTravailPublished(req.body)
@@ -77,12 +90,20 @@ router.post('/publish', requireRole('teacher'), requireTravailOwner, async (req,
     res.json({ ok: true, data: result })
   } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
 })
-router.post('/schedule', requireRole('teacher'), wrap((req) => {
+// Schedule : ownership check via requireTravailOwner (qui supporte body.travailId).
+// Avant : aucun check, tout teacher pouvait schedule la publication d'un devoir
+// d'une autre promo.
+router.post('/schedule', requireRole('teacher'), requireTravailOwner, wrap((req) => {
   const { travailId, scheduledAt } = req.body
   if (!travailId) throw new Error('travailId requis')
   return queries.updateTravail(travailId, { scheduledPublishAt: scheduledAt ?? null })
 }))
-router.post('/group-member',            requireRole('teacher'), wrap((req) => queries.setTravailGroupMember(req.body)))
+// Group-member : verifie que le devoir cible appartient a la promo geree.
+// Avant : aucun check, tout teacher pouvait modifier les groupes d'un devoir
+// cross-promo.
+router.post('/group-member', requireRole('teacher'), requireTravailOwner,
+  wrap((req) => queries.setTravailGroupMember(req.body)),
+)
 router.post('/:id/mark-missing',        requireRole('teacher'), requireTravailOwner, wrap((req) => queries.markNonSubmittedAsD(Number(req.params.id))))
 router.delete('/:id',                   requireRole('teacher'), requireTravailOwner, wrap((req) => queries.deleteTravail(Number(req.params.id))))
 router.patch('/:id',                    requireRole('teacher'), requireTravailOwner, wrap((req) => queries.updateTravail(Number(req.params.id), req.body)))

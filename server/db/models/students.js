@@ -382,10 +382,47 @@ function completeOnboarding(studentId) {
   return getDb().prepare('UPDATE students SET onboarding_done = 1 WHERE id = ?').run(studentId)
 }
 
+/**
+ * RGPD droit a l'effacement — anonymise le compte au lieu de hard delete.
+ *
+ * Garde la row student (preserve les FK : depots, audit_log, messages) mais
+ * efface les PII (name, email, photo) et bloque toute reconnexion (password
+ * remplace par un hash impossible a deviner). `deleted_at` permet de filtrer
+ * dans les listings.
+ *
+ * Le caller doit avoir verifie le mot de passe avant d'appeler cette fonction.
+ *
+ * @param {number} studentId
+ * @returns {{ ok: true, name: string }} le nom anonymise (pour logging)
+ */
+function anonymizeStudentAccount(studentId) {
+  const db = getDb();
+  const id = Number(studentId);
+  if (!id) throw new Error('ID etudiant invalide.');
+  const existing = db.prepare('SELECT id FROM students WHERE id = ?').get(id);
+  if (!existing) throw new Error('Compte introuvable.');
+  const anonName = `Compte supprime #${id}`;
+  // Password rendu impossible a matcher (hash random hex 60 char). Pas un
+  // bcrypt valide, donc bcrypt.compareSync renverra false sans crash.
+  const impossibleHash = require('crypto').randomBytes(30).toString('hex');
+  db.prepare(`
+    UPDATE students
+    SET name = ?,
+        email = NULL,
+        photo_data = NULL,
+        password = ?,
+        avatar_initials = '??',
+        deleted_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(anonName, impossibleHash, id);
+  return { ok: true, name: anonName };
+}
+
 module.exports = {
   getStudents, getAllStudents, getStudentProfile,
   getStudentByEmail, loginWithCredentials, registerStudent,
   changePassword, exportStudentData,
   getIdentities, bulkImportStudents, getClasseStats, updateStudentPhoto, updateTeacherPhoto,
   findUserByName, getOnboardingStatus, completeOnboarding,
+  anonymizeStudentAccount,
 };

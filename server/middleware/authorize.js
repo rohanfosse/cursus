@@ -49,9 +49,40 @@ function requirePromo(getPromoId) {
   }
 }
 
-/** Lookup : channelId → promo_id */
+/** Lookup : channelId → promo_id (params.channelId | query.channelId) */
 function promoFromChannel(req) {
   const channelId = Number(req.params.channelId ?? req.query.channelId)
+  if (!channelId) return null
+  const ch = getDb().prepare('SELECT promo_id FROM channels WHERE id = ?').get(channelId)
+  return ch?.promo_id ?? null
+}
+
+/** Lookup : params.id treated as channel id → promo_id.
+ *  Pour les routes type /channels/:id/... ou l'id est passe en parametre
+ *  generique. Combine avec `requirePromoAdmin` pour bloquer les ops
+ *  cross-promo sur les canaux. */
+function promoFromChannelIdParam(req) {
+  const channelId = Number(req.params.id)
+  if (!channelId) return null
+  const ch = getDb().prepare('SELECT promo_id FROM channels WHERE id = ?').get(channelId)
+  return ch?.promo_id ?? null
+}
+
+/** Lookup : body.promoId | params.id (route /promotions/:id) → promo_id */
+function promoFromIdParam(req) {
+  return Number(req.params.id) || null
+}
+
+/** Lookup : body.promoId */
+function promoFromBody(req) {
+  return Number(req.body?.promoId) || null
+}
+
+/** Lookup : body.channelId → promo_id. Pour les routes qui creent des
+ *  ressources rattachees a un canal (ex: assignments). Combine avec
+ *  `requirePromoAdmin` pour bloquer la creation cross-promo. */
+function promoFromBodyChannel(req) {
+  const channelId = Number(req.body?.channelId)
   if (!channelId) return null
   const ch = getDb().prepare('SELECT promo_id FROM channels WHERE id = ?').get(channelId)
   return ch?.promo_id ?? null
@@ -408,6 +439,10 @@ module.exports = {
   requirePromoMember,
   requirePromoAdmin,
   promoFromChannel,
+  promoFromChannelIdParam,
+  promoFromIdParam,
+  promoFromBody,
+  promoFromBodyChannel,
   promoFromParam,
   promoFromTravail,
   requireMessageOwner,

@@ -29,6 +29,14 @@ const changePasswordSchema = z.object({
   newPwd:     z.string().min(8, 'Le nouveau mot de passe doit contenir au moins 8 caractères'),
 })
 
+// Suppression de compte : exige le mot de passe + texte de confirmation
+// strict pour eviter une suppression accidentelle. Le mot de passe est
+// reverifie cote serveur pour bloquer une session detournee.
+const deleteAccountSchema = z.object({
+  password:     z.string().min(1, 'Mot de passe requis'),
+  confirmation: z.literal('SUPPRIMER', { message: "Saisissez exactement 'SUPPRIMER' pour confirmer" }),
+})
+
 const wrap = require('../utils/wrap')
 
 // ── Rate-limiters (anti brute-force) ─────────────────────────────────────────
@@ -122,8 +130,23 @@ router.get('/student-by-email', auth, (req, res, next) => {
   next()
 }, wrap((req) => queries.getStudentByEmail(req.query.email)))
 
-// GET /api/auth/find-user?name=X  (tous les utilisateurs — utilisé pour ouvrir un DM)
-router.get('/find-user', auth, wrap((req) => queries.findUserByName(req.query.name)))
+// GET /api/auth/find-user?name=X  (utilise pour ouvrir un DM)
+//
+// Restriction same-promo pour les students : un etudiant ne peut chercher
+// qu'un autre etudiant de SA promo (ou un enseignant, qui est cross-promo
+// par nature). Sans ca, n'importe quel etudiant pouvait enumerer le
+// directory complet de l'ecole en testant des noms.
+router.get('/find-user', auth, wrap((req) => {
+  const target = queries.findUserByName(req.query.name)
+  if (!target) return null
+  // Teachers/admins/TAs : pas de restriction (peuvent DM cross-promo).
+  if (req.user?.type !== 'student') return target
+  // Target = enseignant : autorise.
+  if (target.type !== 'student') return target
+  // Target = etudiant : doit etre la meme promo que le requester.
+  if (target.promo_id !== req.user?.promo_id) return null
+  return target
+}))
 
 // GET /api/auth/teachers  (requiert JWT - retourne les enseignants visibles pour les DMs)
 router.get('/teachers', auth, wrap(() => {
@@ -137,6 +160,29 @@ router.get('/teachers', auth, wrap(() => {
     photo_data: t.photo_data ?? null,
     type: t.role,
   }))
+}))
+
+// DELETE /api/auth/account — RGPD droit a l'effacement.
+//
+// Anonymise le compte (preserve les FK : depots/notes/audit log restent pour
+// la formation) au lieu de hard delete. Exige password + texte 'SUPPRIMER'.
+// Reserve aux students : la suppression d'un compte teacher/admin demande
+// l'intervention d'un admin (cf. routes/teachers.js DELETE /:id).
+router.delete('/account', auth, validate(deleteAccountSchema), wrap(async (req) => {
+  if (req.user?.type !== 'student') {
+    throw new ForbiddenError('La suppression d\'un compte enseignant doit etre faite par un administrateur.')
+  }
+  const studentId = Number(req.user.id)
+  // Re-verifie le mot de passe pour bloquer une session detournee
+  // (token vole via XSS ou reseau non-HTTPS).
+  const bcrypt = require('bcryptjs')
+  const { getDb } = require('../db/connection')
+  const row = getDb().prepare('SELECT password FROM students WHERE id = ?').get(studentId)
+  if (!row || !bcrypt.compareSync(req.body.password, row.password)) {
+    throw new AppError('Mot de passe incorrect.', 401)
+  }
+  queries.anonymizeStudentAccount(studentId)
+  return { ok: true }
 }))
 
 // POST /api/auth/register

@@ -1,5 +1,76 @@
 # Changelog
 
+## v2.331.0 (2026-05-10)
+
+### Sprint 1 securite : 7 fixes pre-pilote + bouton suppression compte RGPD
+
+Suite a l'audit backend du 10 mai. Tous les criticals + highs identifies
+qui menacent l'isolation cross-promo et le pilote CESI sept 2026 sont
+desormais bloques cote serveur.
+
+**CR-1 (CRITICAL) — IDOR cluster promotions + canaux** :
+N'importe quel teacher pouvait avant `PATCH /api/promotions/:id` (renommer
+une autre promo), `DELETE /channels/:id` (supprimer un canal cross-promo),
+`POST /channels/members` (ajouter/retirer des etudiants), categories
+rename, etc. Maintenant tous ces endpoints exigent `requirePromoAdmin`
+(verifie `teacher_promos`). Ajout des helpers `promoFromChannelIdParam`,
+`promoFromIdParam`, `promoFromBody`, `promoFromBodyChannel`.
+
+**CR-2 (CRITICAL) — Assignments cross-promo** :
+`POST /api/assignments` accept ait `req.body.channelId` sans verifier
+l'ownership. Maintenant : `requirePromoAdmin(promoFromBodyChannel)`.
+Idem pour `/schedule` et `/group-member` (ajout `requireTravailOwner`).
+
+**H-1 (HIGH) — /uploads scope check** :
+Avant : tout JWT valide pouvait fetcher tout fichier `/uploads/<X>`.
+Maintenant : nouvelle table `uploads(filename, owner_id, owner_type, kind,
+channel_id, dm_peer_id, travail_id, ...)` (migration v92) + middleware
+`canAccessUpload` qui verifie owner OR scope (canal, DM, devoir).
+`POST /api/files/upload` accepte `kind` + `channelId/dmPeerId/travailId`
+en form-data pour tracker. Fallback legacy "JWT only" pour les fichiers
+existants sans row (transition douce).
+
+**H-2 (HIGH) — Privilege escalation TA** :
+`POST /api/teachers` passe de `requireRole('teacher')` a
+`requireRole('admin')`. Avant : tout teacher pouvait creer arbitrairement
+des comptes TA et leur affecter des projets/promos.
+
+**H-3 (HIGH) — Photo write ownership** :
+- Photo etudiant : ownership check pour students (lui-meme uniquement),
+  `requirePromoAdmin` pour teachers, admin bypass.
+- Photo teacher : `req.user.id === target` (sauf admin). Avant : tout
+  teacher pouvait ecraser la photo de tout user (XSS-reflechi via SVG
+  dataURI possible).
+
+**H-4 (HIGH) — find-user enumeration cross-promo** :
+`GET /api/auth/find-user?name=X` filtre maintenant pour les students :
+ne retourne un autre student que s'il est dans la meme promo. Teachers
+restent visibles (DMs cross-promo). Avant : enumeration possible du
+directory complet de l'ecole.
+
+**H-5 (HIGH) — CORS_ORIGIN fail-fast** :
+En non-development (production / staging / preprod), refuse de demarrer
+si `CORS_ORIGIN` absent ou `*`. Avant : warning + fallback localhost,
+qui passait a la trappe en cas de NODE_ENV mal positionne.
+
+### Bonus : Parametres > Suppression de compte (RGPD Art. 17)
+
+Section "Session" en bas de "Mon compte" avec :
+- Bouton **Se deconnecter** (etait deja dans la sidebar du modal mais
+  pas visible sur tabs mobile).
+- Bouton **Supprimer mon compte** (etudiants uniquement). Modale de
+  confirmation avec saisie du mot de passe + texte 'SUPPRIMER' a
+  taper exactement.
+
+Cote serveur : `DELETE /api/auth/account` anonymise au lieu de hard
+delete : nom devient "Compte supprime #<id>", email/photo/password
+effaces, `deleted_at` set. Preserve l'integrite pedagogique (FK
+depots/notes/audit_log) tout en respectant le droit a l'oubli.
+Migration v93 ajoute `students.deleted_at`.
+
+Tests d'integration cross-promo + ownership : reportes dans une
+release dediee (v2.332).
+
 ## v2.330.0 (2026-05-10)
 
 ### Mobile : acces aux Parametres dans la sheet "Plus"
