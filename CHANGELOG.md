@@ -1,5 +1,40 @@
 # Changelog
 
+## v2.328.0 (2026-05-10)
+
+### TitleBar : boutons fenetre Windows alignes Fluent UI
+
+Les boutons reduire / agrandir / fermer utilisaient des icones lucide
+(stroke-width 2.5) qui rendaient flou a 10px et les proportions
+n'etaient pas alignees sur Win11 natif. Resultat : les boutons
+ressemblaient a "des boutons custom d'une app Electron", pas a des
+controles natifs Windows.
+
+**Changements** :
+
+- **Icones SVG inline** dessinees a la main avec `stroke-width: 1` et
+  `shape-rendering: crispEdges` / `geometricPrecision`. Rendu
+  pixel-perfect a 10x10. Geometrie copiee des Segoe Fluent Icons :
+  - Reduire : trait horizontal centre (E921)
+  - Agrandir : carre simple (E922)
+  - Restaurer : deux carres superposes (E923)
+  - Fermer : X (E8BB)
+- **Hover instantane** (suppression de la transition 200ms) — Win11
+  natif n'a pas de fade au hover.
+- **Etat fenetre inactive** : `window.addEventListener('blur'/'focus')`
+  detecte la perte de focus, les boutons passent a `opacity: .65`
+  comme les autres apps Windows quand elles ne sont pas au premier
+  plan. Restoration au hover pour la clarte UX.
+- **Hover min/max** : `rgba(255,255,255,.08)` (matche l'effet
+  Mica/Acrylic Win11) au lieu de `--bg-elevated` (qui rendait un fond
+  mal contraste sur certains themes).
+- **Hover close** : conserve #C42B1C (rouge Fluent), ajoute un etat
+  pressed a #B32613 (Win11 a deux variantes hover/press).
+- **Focus ring** : 1px aligne sur la bordure interne (norme Win11),
+  au lieu de 2px outset.
+- **Themes clairs** : adaptations parallele pour light / sepia /
+  cursus (couleurs plus contrastees, hover noir 6%).
+
 ## v2.327.0 (2026-05-10)
 
 ### Mobile a11y : sidebar drawer focus trap + MessageInput IME hints
