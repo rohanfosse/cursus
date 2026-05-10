@@ -1,5 +1,33 @@
 # Changelog
 
+## v2.329.0 (2026-05-10)
+
+### Fix : doublon boutons fenetre Windows + alignement overlay
+
+La v2.328 avait introduit des boutons custom reduire/agrandir/fermer
+dans la titlebar Vue. Probleme : Electron utilise deja
+`titleBarOverlay` (cf. main/index.ts) qui affiche les VRAIS boutons
+natifs Windows en haut a droite. Resultat : doublon visible — les
+boutons natifs Windows a droite + mes boutons custom au centre.
+
+Decision : retirer les boutons custom. Les natifs gerent eux-memes
+hover Mica/Acrylic, snap layouts, preview au survol, animations,
+window inactive — toute reimplementation custom donne au mieux 80%
+de l'experience native.
+
+**Changements** :
+
+- `TitleBar.vue` : retrait des 3 boutons custom. La barre devient
+  juste une zone draggable + le gradient de fond qui prolonge les
+  colonnes du dessous (rail / sidebar / main).
+- `titleBarOverlay.height` : 36px -> 32px. Aligne sur
+  `--titlebar-height` CSS. Avant, les boutons natifs depassaient de
+  4px sous la zone draggable.
+- `THEME_COLORS.titlebar` : matche desormais `--bg-main` (zone droite
+  ou sont places les boutons), au lieu de `--bg-rail` (gauche). Sur
+  themes dark/night/marine, plus de bande sombre dissociee derriere
+  les boutons natifs.
+
 ## v2.328.0 (2026-05-10)
 
 ### TitleBar : boutons fenetre Windows alignes Fluent UI

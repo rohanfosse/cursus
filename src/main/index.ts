@@ -11,14 +11,19 @@ import { initUpdater, stopUpdater, getPendingUpdate, quitAndInstall } from './up
 type StoredTheme = 'auto' | 'dark' | 'light' | 'sepia' | 'night' | 'marine' | 'cursus'
 interface ThemeColors { background: string; titlebar: string; symbol: string }
 
+// `titlebar` doit matcher `--bg-main` (zone droite du gradient) car c'est
+// LA-BAS que Windows place les boutons natifs (haut-droit). Avant, on
+// utilisait `--bg-rail` comme couleur titlebar — ca creait une bande
+// sombre visible derriere les boutons natifs sur les themes dark/night/
+// marine, dissocie du reste de la barre.
 const THEME_COLORS: Record<StoredTheme, ThemeColors> = {
   auto:   { background: '#FFFFFF', titlebar: '#FFFFFF', symbol: '#475569' },
   light:  { background: '#FFFFFF', titlebar: '#FFFFFF', symbol: '#475569' },
   cursus: { background: '#FFFFFF', titlebar: '#FFFFFF', symbol: '#475569' },
   sepia:  { background: '#faf8f4', titlebar: '#faf8f4', symbol: '#655a4c' },
-  dark:   { background: '#1A1733', titlebar: '#0F0D1A', symbol: '#94A3B8' },
-  night:  { background: '#0f1115', titlebar: '#08090c', symbol: '#898C90' },
-  marine: { background: '#192840', titlebar: '#0e1829', symbol: '#9FB6CC' },
+  dark:   { background: '#1A1733', titlebar: '#1A1733', symbol: '#94A3B8' },
+  night:  { background: '#1C2128', titlebar: '#1C2128', symbol: '#898C90' },
+  marine: { background: '#192840', titlebar: '#192840', symbol: '#9FB6CC' },
 }
 
 function getStoredTheme(): StoredTheme {
@@ -126,10 +131,14 @@ function createWindow(splash: BrowserWindow | null): void {
     icon: join(__dirname, '../../resources/icon.png'),
     backgroundColor: colors.background,
     titleBarStyle: 'hidden',
+    // Hauteur 32px = standard Windows 11 titlebar + alignee sur la
+    // variable CSS `--titlebar-height` (renderer/assets/css/layout.css).
+    // Avant : 36px ne matchait pas la titlebar custom de 32px, les boutons
+    // natifs depassaient de 4px sous la zone draggable.
     titleBarOverlay: {
       color: colors.titlebar,
       symbolColor: colors.symbol,
-      height: 36,
+      height: 32,
     },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -240,7 +249,7 @@ function createWindow(splash: BrowserWindow | null): void {
         win.setTitleBarOverlay({
           color: colors.titlebar,
           symbolColor: colors.symbol,
-          height: 36,
+          height: 32,
         })
       }
       return { ok: true, data: null }
