@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.331.2 (2026-05-10)
+
+### Hotfix prod 502 : revert CORS_ORIGIN fail-fast
+
+La v2.331 introduisait un `process.exit(1)` si `CORS_ORIGIN` etait
+absent ou wildcard en non-development (audit H-5). Probleme : les
+deploiements existants dont le `.env` n'avait pas CORS_ORIGIN
+defini ont vu le serveur entrer en crash loop -> 502 cote reverse
+proxy -> coupure totale du pilote.
+
+Compromis : on garde le fail-fast strict pour `JWT_SECRET` (vraie
+faille : tokens forgeables) mais on passe a un `log.error` bruyant
+sans exit pour `CORS_ORIGIN` manquant ou wildcard. L'admin doit
+corriger au plus tot, mais le service reste up.
+
+Comportement :
+- JWT_SECRET absent ou < 32 chars en non-dev -> exit 1 (inchange)
+- CORS_ORIGIN absent en non-dev -> log error + fallback localhost
+- CORS_ORIGIN=* en non-dev -> log error + warning
+
+Le serveur log clairement quel parametre manque pour faciliter le
+diagnostic via les logs centralisees.
+
 ## v2.331.1 (2026-05-10)
 
 ### Hotfix tests : alignement sur les nouvelles regles d'authorization

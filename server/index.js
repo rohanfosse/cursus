@@ -13,10 +13,11 @@ const PORT   = process.env.PORT       ?? 3001
 const ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:5173'
 
 // ── Verifications de securite au demarrage ──────────────────────────────────
-// En non-development, on fail-fast sur les configurations dangereuses plutot
-// que de continuer en mode degrade. Auparavant un NODE_ENV=staging passait au
-// travers (le check ne couvrait que NODE_ENV=production), laissant le serveur
-// boote sur 'changeme-dev-secret' ou un fallback CORS=localhost.
+// JWT_SECRET : fail-fast en non-dev (faille reelle : forgeabilite de tokens).
+// CORS_ORIGIN : warn bruyant mais pas d'exit. Hotfix v2.331.2 : le fail-fast
+// CORS de v2.331 a brique des prods avec .env mal configures (502 au pilote).
+// L'admin doit corriger CORS_ORIGIN au plus tot, mais le serveur reste up
+// pour eviter la coupure totale.
 const IS_DEV = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || !process.env.NODE_ENV
 
 const SECRET = process.env.JWT_SECRET ?? 'changeme-dev-secret'
@@ -25,17 +26,18 @@ if (!IS_DEV) {
     console.error('[SECURITY] JWT_SECRET absent ou trop court (min 32 caracteres). Arret du serveur.')
     process.exit(1)
   }
-  // CORS_ORIGIN doit etre configure en non-dev. Sans ca, le fallback
-  // localhost:5173 (acceptable en dev) devient une faille en prod : un
-  // attaquant qui exploite XSS sur une page tierce peut faire des
-  // requetes credentialed.
+  // CORS_ORIGIN doit etre configure en non-dev. Le fallback localhost:5173
+  // devient une faille en prod, mais on prefere logger fort et continuer
+  // plutot que crasher (ce qui couperait l'app entiere).
   if (!process.env.CORS_ORIGIN) {
-    console.error('[SECURITY] CORS_ORIGIN absent en non-development. Arret du serveur (NODE_ENV=' + process.env.NODE_ENV + ').')
-    process.exit(1)
-  }
-  if (process.env.CORS_ORIGIN === '*') {
-    console.error('[SECURITY] CORS_ORIGIN=* est interdit en non-development. Arret du serveur.')
-    process.exit(1)
+    log.error('cors_origin_missing', {
+      msg: '[SECURITY] CORS_ORIGIN absent en non-development. Le serveur demarre avec localhost:5173 par defaut, ce qui est une mauvaise configuration de production. Definissez CORS_ORIGIN dans .env immediatement.',
+      nodeEnv: process.env.NODE_ENV,
+    })
+  } else if (process.env.CORS_ORIGIN === '*') {
+    log.error('cors_origin_wildcard', {
+      msg: '[SECURITY] CORS_ORIGIN=* en non-development. Risque de fuite credentialed. Limitez a votre domaine.',
+    })
   }
   if (!process.env.DEPLOY_SECRET || process.env.DEPLOY_SECRET.length < 16) {
     log.warn('deploy_secret_missing', { msg: 'DEPLOY_SECRET absent ou trop court — webhook de deploiement desactive.' })
