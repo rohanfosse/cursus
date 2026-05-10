@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.330.0 (2026-05-10)
+
+### Mobile : acces aux Parametres dans la sheet "Plus"
+
+Avant : sur mobile, le bouton avatar (qui ouvre SettingsModal sur
+desktop via NavRail) n'existait pas — l'utilisateur n'avait aucun
+acces aux parametres : theme, taille de police, densite,
+deconnexion, RGPD, changement de mot de passe, etc.
+
+Maintenant : item "Parametres" en bas de la sheet "Plus", au-dessous
+des apps secondaires. Tap -> ferme la sheet + ouvre `SettingsModal`
+en plein ecran (qui est deja responsive grace au @media max-width
+768px de la modale).
+
+Action item (pas une route), donc pas de routeName ni de variant
+particulier — juste l'icone Settings + label.
+
 ## v2.329.0 (2026-05-10)
 
 ### Fix : doublon boutons fenetre Windows + alignement overlay

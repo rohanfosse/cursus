@@ -13,9 +13,10 @@
 <script setup lang="ts">
 import { computed, ref, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { Bell } from 'lucide-vue-next'
+import { Bell, Settings } from 'lucide-vue-next'
 import { useAppStore }    from '@/stores/app'
 import { useLiveStore }   from '@/stores/live'
+import { useModalsStore } from '@/stores/modals'
 import { useUnreadCounts } from '@/composables/useUnreadCounts'
 import { useNavItems, MOBILE_BAR_IDS, type NavItemId } from '@/composables/useNavItems'
 import BottomSheet from '@/components/ui/BottomSheet.vue'
@@ -37,6 +38,7 @@ const emit = defineEmits<{ close: [] }>()
 const router    = useRouter()
 const appStore  = useAppStore()
 const liveStore = useLiveStore()
+const modals    = useModalsStore()
 
 const showNotifs = ref(false)
 
@@ -79,6 +81,18 @@ const visibleItems = computed<SheetItem[]>(() => {
       ...(id === 'live' ? { badge: liveBadge, variant: 'live' as const } : {}),
     })
   }
+  // Parametres en bas de la sheet (action, pas route). Equivalent du bouton
+  // avatar -> SettingsModal du NavRail desktop. Avant : aucun acces aux
+  // parametres en mobile (theme, deconnexion, RGPD, mot de passe...).
+  sheetItems.push({
+    id: 'settings',
+    label: 'Paramètres',
+    icon: Settings,
+    action: () => {
+      emit('close')
+      modals.settings = true
+    },
+  })
   return sheetItems
 })
 
