@@ -745,21 +745,90 @@ function deleteReminder(id) {
 
 // ── Error reports (monitoring interne) ──────────────────────────────────────
 
-function reportError({ userId, userName, userType, page, message, stack, userAgent, appVersion }) {
+// `source` distingue l'origine de l'erreur (cf. migration v94) :
+//   - 'frontend' : Vue errorHandler, window.onerror, unhandled promise rejection cote client (defaut)
+//   - 'server'   : log.error() du backend (intercepte par le logger)
+//   - 'uncaught' : process.on('uncaughtException') Node
+//   - 'rejection': process.on('unhandledRejection') Node
+//   - 'boot'     : fail-fast au demarrage (avant que le HTTP soit up)
+const VALID_SOURCES = new Set(['frontend', 'server', 'uncaught', 'rejection', 'boot'])
+const VALID_LEVELS  = new Set(['warn', 'error', 'fatal'])
+
+function reportError({ userId, userName, userType, page, message, stack, userAgent, appVersion, source, level, meta }) {
+  const src = VALID_SOURCES.has(source) ? source : 'frontend'
+  const lvl = VALID_LEVELS.has(level) ? level : 'error'
+  const metaJson = meta ? safeJsonStringify(meta) : null
   return getDb().prepare(`
-    INSERT INTO error_reports (user_id, user_name, user_type, page, message, stack, user_agent, app_version)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(userId ?? null, userName ?? null, userType ? safeUserType(userType) : null, page ?? null, message, stack ?? null, userAgent ?? null, appVersion ?? null)
+    INSERT INTO error_reports
+      (user_id, user_name, user_type, page, message, stack, user_agent, app_version, source, level, meta_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    userId ?? null,
+    userName ?? null,
+    userType ? safeUserType(userType) : null,
+    page ?? null,
+    message,
+    stack ?? null,
+    userAgent ?? null,
+    appVersion ?? null,
+    src,
+    lvl,
+    metaJson,
+  )
 }
 
-function getErrorReports({ limit = 50, offset = 0 } = {}) {
-  return getDb().prepare(`
-    SELECT * FROM error_reports ORDER BY created_at DESC LIMIT ? OFFSET ?
-  `).all(limit, offset)
+function safeJsonStringify(obj) {
+  try {
+    return JSON.stringify(obj).substring(0, 4000)
+  } catch {
+    return null
+  }
 }
 
-function getErrorReportsCount() {
-  return getDb().prepare('SELECT COUNT(*) AS count FROM error_reports').get().count
+/**
+ * Liste des error reports avec filtres.
+ * @param {object} opts
+ * @param {number} [opts.limit=50]
+ * @param {number} [opts.offset=0]
+ * @param {string|null} [opts.source]  Filtre source (frontend|server|uncaught|rejection|boot)
+ * @param {string|null} [opts.level]   Filtre level (warn|error|fatal)
+ * @param {string|null} [opts.since]   Date ISO ou 'YYYY-MM-DD' pour `created_at >= ?`
+ */
+function getErrorReports({ limit = 50, offset = 0, source = null, level = null, since = null } = {}) {
+  const conditions = []
+  const params = []
+  if (source && VALID_SOURCES.has(source)) { conditions.push('source = ?'); params.push(source) }
+  if (level  && VALID_LEVELS.has(level))   { conditions.push('level = ?');  params.push(level) }
+  if (since)                                { conditions.push('created_at >= ?'); params.push(since) }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  params.push(limit, offset)
+  return getDb().prepare(`
+    SELECT * FROM error_reports ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?
+  `).all(...params)
+}
+
+function getErrorReportsCount({ source = null, level = null, since = null } = {}) {
+  const conditions = []
+  const params = []
+  if (source && VALID_SOURCES.has(source)) { conditions.push('source = ?'); params.push(source) }
+  if (level  && VALID_LEVELS.has(level))   { conditions.push('level = ?');  params.push(level) }
+  if (since)                                { conditions.push('created_at >= ?'); params.push(since) }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  return getDb().prepare(`SELECT COUNT(*) AS count FROM error_reports ${where}`).get(...params).count
+}
+
+/**
+ * Stats agreges par source sur les dernieres 24h. Utile pour le dashboard
+ * admin (savoir vite si une nouvelle vague d'errors arrive).
+ */
+function getErrorReportsStats() {
+  return getDb().prepare(`
+    SELECT source, level, COUNT(*) AS count
+    FROM error_reports
+    WHERE created_at >= datetime('now', '-24 hours')
+    GROUP BY source, level
+    ORDER BY count DESC
+  `).all()
 }
 
 function clearErrorReports() {
@@ -794,5 +863,5 @@ module.exports = {
   // Rappels enseignant
   getReminders, createReminder, updateReminder, deleteReminder,
   // Error reports
-  reportError, getErrorReports, getErrorReportsCount, clearErrorReports,
+  reportError, getErrorReports, getErrorReportsCount, getErrorReportsStats, clearErrorReports,
 }

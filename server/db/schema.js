@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 93;
+const CURRENT_VERSION = 94;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -2177,6 +2177,24 @@ function runMigrations(db) {
     (db) => {
       tryAlter(db, 'ALTER TABLE students ADD COLUMN deleted_at TEXT');
       db.exec('CREATE INDEX IF NOT EXISTS idx_students_deleted ON students(deleted_at)');
+    },
+
+    // v94 : Logs centralisees — colonnes `source` et `level` sur error_reports
+    // pour distinguer :
+    //   - source : 'frontend' (errors Vue / window.onerror), 'server' (log.error
+    //     du backend), 'uncaught' (uncaughtException Node), 'rejection'
+    //     (unhandledRejection), 'boot' (process.exit fail-fast au demarrage)
+    //   - level : 'warn' | 'error' | 'fatal' pour filtrage et alertes
+    // Sans cette distinction, impossible de filtrer "uncaught seulement" ou
+    // "boot failures" depuis l'admin, ni de seuils d'alerte differents par
+    // source. Defaut 'frontend' / 'error' pour preserver le sens des rows
+    // existants (avant v94, seuls les errors frontend etaient enregistres).
+    (db) => {
+      tryAlter(db, "ALTER TABLE error_reports ADD COLUMN source TEXT DEFAULT 'frontend'");
+      tryAlter(db, "ALTER TABLE error_reports ADD COLUMN level TEXT DEFAULT 'error'");
+      tryAlter(db, "ALTER TABLE error_reports ADD COLUMN meta_json TEXT");
+      db.exec('CREATE INDEX IF NOT EXISTS idx_error_reports_source ON error_reports(source, created_at DESC)');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_error_reports_level ON error_reports(level, created_at DESC)');
     },
   ];
 

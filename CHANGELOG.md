@@ -1,5 +1,65 @@
 # Changelog
 
+## v2.335.0 (2026-05-11)
+
+### Logs centralises backend : uncaught + boot + alertes mail
+
+Suite a l'incident 502 CORS_ORIGIN (impossible de debug sans SSH au VPS),
+mise en place d'une infrastructure log centralisee qui evite le drama.
+Self-hosted, sans dependance SaaS, en s'appuyant sur la table
+`error_reports` deja en place pour les errors frontend.
+
+**1. Migration DB v94 — schema error_reports etendu** :
+
+- `source` : 'frontend' | 'server' | 'uncaught' | 'rejection' | 'boot'
+- `level` : 'warn' | 'error' | 'fatal'
+- `meta_json` : contexte structure (route, params, userId, etc.)
+- Index sur (source, created_at DESC) + (level, created_at DESC)
+
+**2. Logger backend enhanced** :
+
+`log.error()` insere desormais aussi dans `error_reports` (en plus du JSON
+stdout existant). `log.warn()` opt-in via `meta.persist = true`. La
+capture est best effort : si la DB est down ou la table absente, le log
+stdout reste fiable.
+
+**3. Uncaught exceptions + unhandled rejections** :
+
+`process.on('uncaughtException')` et `'unhandledRejection'` capturent et
+persistent. Avant : un crash Node tuait juste le container avec rien
+en DB. Maintenant : trace structuree avec stack + origin dans
+`/api/admin/error-reports?source=uncaught`. Le process exit apres 200ms
+pour laisser le flush des logs (politique Node recommandee : etat
+potentiellement corrompu apres uncaught).
+
+**4. Boot failures persistantes** :
+
+Les `process.exit(1)` au demarrage (JWT_SECRET absent, etc.) appellent
+desormais `logBootFailure()` qui append a `/data/db/boot-errors.log`
+(meme volume Docker persistant que la DB SQLite). Endpoint admin
+`GET /api/admin/boot-errors` pour le lire sans SSH. Suite a l'incident
+v2.331 ou il a fallu SSH pour voir le crash CORS_ORIGIN.
+
+**5. Endpoint admin filtre** :
+
+`GET /api/admin/error-reports?source=X&level=Y&since=ISO` pour cibler
+une investigation. `GET /api/admin/error-reports/stats` retourne le
+breakdown 24h par source/level pour dashboard sante pilote.
+
+**6. Alertes mail burst** :
+
+`server/services/errorAlerts.js` envoie un mail a `ADMIN_NOTIFY_EMAIL`
+quand un seuil d'errors par source est depasse en 5 min :
+
+- boot : 1 (toute boot failure = alerte immediate)
+- uncaught : 3
+- rejection : 10
+- server : 10
+- frontend : 20
+
+Cooldown 60min entre alertes pour eviter le spam. Opt-in :
+no-op si `ADMIN_NOTIFY_EMAIL` ou SMTP non configures.
+
 ## v2.334.0 (2026-05-11)
 
 ### Test anti-regression parite shim/preload + 22 routes Live V2

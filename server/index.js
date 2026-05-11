@@ -37,9 +37,38 @@ const ORIGIN = process.env.CORS_ORIGIN
 // CORS de v2.331 a brique des prods avec .env mal configures (502 au pilote).
 // L'admin doit corriger CORS_ORIGIN au plus tot, mais le serveur reste up
 // pour eviter la coupure totale.
+// Persistance des boot failures hors stdout : a ce stade la DB n'est pas
+// encore initialisee (donc on ne peut pas utiliser log.error() qui ecrit
+// dans error_reports). On append a un fichier flat dans le meme volume
+// Docker persistant que la DB SQLite (`/data/db/boot-errors.log` par
+// defaut). L'admin peut ensuite cat ce fichier via SSH ou un endpoint si
+// le serveur ne demarre pas.
+function logBootFailure(reason, meta = {}) {
+  const fsSync = require('fs')
+  const pathMod = require('path')
+  try {
+    const dbPath = process.env.DB_PATH || pathMod.join(__dirname, '../data/db/cursus.db')
+    const logFile = pathMod.join(pathMod.dirname(dbPath), 'boot-errors.log')
+    const entry = JSON.stringify({
+      ts: new Date().toISOString(),
+      reason,
+      nodeEnv: process.env.NODE_ENV,
+      pid: process.pid,
+      version: (() => { try { return require('../package.json').version } catch { return 'unknown' } })(),
+      ...meta,
+    }) + '\n'
+    fsSync.appendFileSync(logFile, entry, { mode: 0o600 })
+  } catch {
+    /* Best effort : si on ne peut pas ecrire (volume non monte, perms),
+       on tombe au moins sur le console.error d'au dessus. */
+  }
+  console.error(`[BOOT_FAILURE] ${reason}`, meta)
+}
+
 const SECRET = process.env.JWT_SECRET ?? 'changeme-dev-secret'
 if (!IS_DEV) {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    logBootFailure('JWT_SECRET absent ou trop court', { length: process.env.JWT_SECRET?.length ?? 0 })
     console.error('[SECURITY] JWT_SECRET absent ou trop court (min 32 caracteres). Arret du serveur.')
     process.exit(1)
   }
@@ -393,6 +422,10 @@ require('./socket')(io, queries, SECRET)
 // ── Initialisation DB ─────────────────────────────────────────────────────────
 queries.init()
 log.info('db_initialized')
+// La DB est up : on peut maintenant persister les errors dans error_reports.
+// Avant ce point, les log.error() partent uniquement sur stderr (capture DB
+// no-op tant que enableDbCapture() n'a pas ete appele).
+log.enableDbCapture()
 
 // Migration tokens GitHub legacy : chiffre au boot tous les tokens stockes
 // en clair (vestige v2.32.x avant le chiffrement AES-GCM). Idempotent.
@@ -476,3 +509,36 @@ async function shutdown() {
 }
 process.on('SIGTERM', shutdown)
 process.on('SIGINT',  shutdown)
+
+// ── Capture des exceptions non gerees ─────────────────────────────────────
+// Sans ces handlers, une uncaughtException ou unhandledRejection :
+//   - tue le processus Node (uncaughtException) -> container restart loop
+//   - ou pollue stderr sans trace persistante (unhandledRejection)
+//
+// Avec : on logge via log.error() qui persiste dans error_reports, donc
+// l'admin peut voir le contexte du crash via /admin-monitor sans SSH.
+// On laisse le process mourir apres une uncaughtException (politique Node
+// recommandee : l'etat est potentiellement corrompu) — Docker restart unless
+// le fera rebooter. Pour unhandledRejection on continue (suit la deprecation
+// Node 15+ qui les transforme en uncaughtException, mais en mode best effort).
+process.on('uncaughtException', (err, origin) => {
+  log.error('uncaught_exception', {
+    error: err?.message ?? String(err),
+    stack: err?.stack ?? null,
+    origin,
+    source: 'uncaught',
+    level: 'fatal',
+  })
+  // Laisse le temps au log d'etre flush avant exit (sinon stderr buffer perdu).
+  setTimeout(() => process.exit(1), 200).unref()
+})
+
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason))
+  log.error('unhandled_rejection', {
+    error: err.message,
+    stack: err.stack ?? null,
+    source: 'rejection',
+    level: 'error',
+  })
+})
