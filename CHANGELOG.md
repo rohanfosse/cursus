@@ -1,5 +1,56 @@
 # Changelog
 
+## v2.337.0 (2026-05-11)
+
+### Dashboard Santé admin — health enrichi avec alertes glanceables
+
+Suite logs centralises v2.335 + dashboard errors v2.336, mise en place
+du dashboard sante complet : snapshot du serveur en un coup d'oeil,
+seuils d'alerte calcules automatiquement, mise en avant des problemes
+avant qu'ils ne deviennent un incident.
+
+**Backend (`server/services/healthCheck.js` + `/api/admin/health`)** :
+
+Le service `buildHealthSnapshot({ io, hocuspocus })` collecte par
+section, chaque section wrappee try/catch (si une echoue le reste est
+servi quand meme avec un `collectionErrors[]`) :
+
+- **system** : version app + Node, PID, uptime, env, plateforme, memoire (heap/RSS/external)
+- **disk** : `df -B1 /` sur Linux (total/used/avail/pct), taille DB SQLite,
+  total uploads + count, total backups + count
+- **db** : migration version (PRAGMA user_version), nb tables,
+  rowsByTable pour students/teachers/messages/depots/channels/promotions/cahiers/audit_log/page_visits
+- **backup** : dernier backup (date, taille, age en heures), flag `stale`
+  si > 24h, total backups
+- **sockets** : Socket.io clients + Hocuspocus open docs (Yjs)
+- **scheduler** : messages programmes en attente + prochain
+- **modules** : actifs / inactifs depuis app_config
+- **smtp** : configure + host/port + adminNotifyEmail flag
+- **errors24h** : total + critical (boot+uncaught) + breakdown par source
+- **activity** : users actifs 5min, messages 1h, depots 24h
+
+Endpoint expose sur `/api/admin/health` (admin only — leak des stats
+pedagogiques). `/health` public reste minimaliste pour monitoring externe.
+
+**UI `AdminHealth.vue`** :
+
+- **Bandeau de statut global** avec bordure gauche coloree (vert/orange/rouge)
+  selon `overallStatus` calcule a partir d'alertes :
+  - critical : DB down, disque >= 90%, backup > 48h, errors critiques > 0
+  - warn : disque >= 75%, memoire RSS > 1 GB, backup > 24h, errors > 50, SMTP off
+- **Liste d'alertes actives** au-dessus des cards si non vide
+- **11 cards thematiques** : Systeme, Memoire, Disque (avec barre %),
+  Database, Backups, Connexions, Activite, Scheduler, Erreurs 24h,
+  SMTP, Modules
+- Auto-refresh 30s + bouton manuel
+- Cards qui passent en orange si seuil depasse (kv-warn, kv-critical)
+
+**Onglet "Santé" en premier dans /admin** (devant Erreurs) — c'est la
+landing page admin par defaut maintenant.
+
+**APIs preload + shim + types** : `adminGetHealth()` ajoute aux 3 couches,
+test de parite valide.
+
 ## v2.336.0 (2026-05-11)
 
 ### Dashboard admin Erreurs — monitoring glanceable

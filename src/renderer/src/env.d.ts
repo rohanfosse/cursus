@@ -338,6 +338,42 @@ declare global {
       adminGetLastSeen(): Promise<IpcResponse<Array<{ id: number; name: string; email: string; promo_id: number | null; promo_name: string | null; last_seen: string | null; days_absent: number | null }>>>
       adminGetInactive(days: number): Promise<IpcResponse<Array<{ id: number; name: string; email: string; promo_id: number | null; promo_name: string | null; last_seen: string | null }>>>
 
+      // Admin — Error reports (monitoring interne, cf. v2.335 / v2.336)
+      adminGetErrorReports(params?: { source?: string; level?: string; since?: string; limit?: number; offset?: number }): Promise<IpcResponse<{
+        items: Array<{
+          id: number; created_at: string;
+          source: 'frontend' | 'server' | 'uncaught' | 'rejection' | 'boot' | null
+          level: 'warn' | 'error' | 'fatal' | null
+          message: string; stack: string | null;
+          page: string | null; user_name: string | null; user_type: string | null;
+          app_version: string | null; user_agent: string | null; meta_json: string | null
+        }>
+        total: number
+      }>>
+      adminGetErrorReportsStats(): Promise<IpcResponse<Array<{ source: string; level: string; count: number }>>>
+      adminGetBootErrors(): Promise<IpcResponse<{
+        entries: Array<{ ts: string; reason: string; nodeEnv: string | null; pid: number | null; version?: string; length?: number; raw?: string }>
+        total?: number
+        message?: string
+      }>>
+      adminClearErrorReports(): Promise<IpcResponse<null>>
+
+      // Admin — Health detaille (snapshot complet)
+      adminGetHealth(): Promise<IpcResponse<{
+        ts: string
+        system: { version: string; nodeVersion: string; pid: number; uptime_s: number; nodeEnv: string; platform: string; memory: { heapUsedMB: number; heapTotalMB: number; rssMB: number; externalMB: number } }
+        disk: { rootDisk: { totalGB: number; usedGB: number; availGB: number; usedPct: number } | null; dbBytes: number | null; uploads: { bytes: number | null; count: number | null }; backups: { bytes: number | null; count: number | null } }
+        db: { ok: boolean; migrationVersion?: number; tables?: number; rowsByTable?: Record<string, number>; error?: string }
+        backup: { configured: boolean; total?: number; lastBackup: { name: string; mtime: string; bytes: number } | null; lastBackupAgeHours: number | null; stale?: boolean; error?: string }
+        sockets: { socketIo: { clients: number } | null; hocuspocus: { openDocs: number } | null }
+        scheduler: { pendingMessages: number | null; nextScheduledAt?: string | null }
+        modules: Record<string, boolean>
+        smtp: { configured: boolean; host: string | null; port: number; fromConfigured: boolean; adminNotifyEmail: boolean }
+        errors24h: { total: number; critical: number; bySource: Record<string, number> } | null
+        activity: { activeUsers5min: number; messagesLast1h: number; depotsLast24h: number } | null
+        collectionErrors: Array<{ section: string; error: string }>
+      }>>
+
       // Intervenants
       getIntervenants(): Promise<IpcResponse<{ id: number; name: string; email: string; role: string }[]>>
       createIntervenant(payload: Record<string, unknown> & { name: string; email: string }): Promise<IpcResponse<number>>

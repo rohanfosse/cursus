@@ -1169,6 +1169,7 @@ const apiImpl = {
   adminGetErrorReportsStats: () => get('/api/admin/error-reports/stats'),
   adminGetBootErrors:        () => get('/api/admin/boot-errors'),
   adminClearErrorReports:    () => del('/api/admin/error-reports'),
+  adminGetHealth:            () => get('/api/admin/health'),
 
   // ── Projects ───────────────────────────────────────────────────────────
   getProjectsByPromo:      (promoId: number)   => get(`/api/projects/promo/${promoId}`),

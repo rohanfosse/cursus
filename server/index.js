@@ -458,6 +458,8 @@ app.use((err, _req, res, _next) => {
 // ── Hocuspocus (Yjs) pour cahiers collaboratifs temps reel ──────────────────
 const { attachHocuspocus } = require('./yjs/hocuspocus')
 const hocuspocus = attachHocuspocus(server, { jwtSecret: SECRET })
+// Expose pour /api/admin/health qui veut le nb de docs Yjs ouverts.
+app.set('hocuspocus', hocuspocus)
 
 // ── Démarrage ─────────────────────────────────────────────────────────────────
 // Skip le listen() quand le module est require() (ex. tests Vitest qui ont

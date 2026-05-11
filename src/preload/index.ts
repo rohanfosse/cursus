@@ -769,6 +769,7 @@ contextBridge.exposeInMainWorld('api', {
   adminGetErrorReportsStats: () => get('/api/admin/error-reports/stats'),
   adminGetBootErrors:        () => get('/api/admin/boot-errors'),
   adminClearErrorReports:    () => del('/api/admin/error-reports'),
+  adminGetHealth:            () => get('/api/admin/health'),
 
   // ── Shell ───────────────────────────────────────────────────────────────────
   openPath: async (filePath: string) => {

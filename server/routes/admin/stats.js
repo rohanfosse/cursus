@@ -126,6 +126,28 @@ router.get('/boot-errors', (req, res) => {
   }
 })
 
+// ── Health detaille (admin only) ───────────────────────────────────────────
+//
+// Snapshot complet : systeme, disque, DB, backups, sockets, scheduler,
+// modules, SMTP, errors 24h, activite. Distinct de /health public (qui reste
+// minimaliste : uptime + DB ping) parce qu'il leak des stats pedagogiques
+// (compte messages, depots, etc.) qu'on ne veut pas exposer hors auth.
+router.get('/health', (req, res) => {
+  try {
+    const { buildHealthSnapshot } = require('../../services/healthCheck')
+    // hocuspocus est stocke par server/index.js dans app.set('hocuspocus') pour
+    // permettre au service de compter les docs Yjs ouverts. Si pas dispo
+    // (boot order), le service skip proprement la section.
+    const snapshot = buildHealthSnapshot({
+      io: req.app.get('io'),
+      hocuspocus: req.app.get('hocuspocus'),
+    })
+    res.json({ ok: true, data: snapshot })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
 router.delete('/error-reports', (req, res) => {
   try {
     if (!isSystemAdmin(req.user?.type)) {

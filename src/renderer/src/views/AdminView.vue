@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, defineAsyncComponent } from 'vue'
-import { Users, Puzzle, BarChart3, AlertTriangle, ExternalLink, type LucideIcon } from 'lucide-vue-next'
+import { Users, Puzzle, BarChart3, AlertTriangle, HeartPulse, ExternalLink, type LucideIcon } from 'lucide-vue-next'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
 import { getAuthToken } from '@/utils/auth'
@@ -10,10 +10,11 @@ const AdminUsers   = defineAsyncComponent(() => import('@/components/admin/Admin
 const AdminModules = defineAsyncComponent(() => import('@/components/admin/AdminModules.vue'))
 const AdminStats   = defineAsyncComponent(() => import('@/components/admin/AdminStats.vue'))
 const AdminErrors  = defineAsyncComponent(() => import('@/components/admin/AdminErrors.vue'))
+const AdminHealth  = defineAsyncComponent(() => import('@/components/admin/AdminHealth.vue'))
 
-type Tab = 'errors' | 'stats' | 'users' | 'modules'
+type Tab = 'health' | 'errors' | 'stats' | 'users' | 'modules'
 
-const activeTab = ref<Tab>('errors')
+const activeTab = ref<Tab>('health')
 
 // Compteur errors 24h pour le badge sur l'onglet — sert d'alerte glanceable
 // au top de l'admin. Critique = boot + uncaught (apparait en rouge).
@@ -42,6 +43,7 @@ onUnmounted(() => { if (badgeTimer) clearInterval(badgeTimer) })
 
 interface TabDef { id: Tab; label: string; icon: LucideIcon }
 const tabs = computed<TabDef[]>(() => [
+  { id: 'health',  label: 'Santé',        icon: HeartPulse },
   { id: 'errors',  label: 'Erreurs',      icon: AlertTriangle },
   { id: 'stats',   label: 'Statistiques', icon: BarChart3 },
   { id: 'users',   label: 'Utilisateurs', icon: Users },
@@ -101,7 +103,8 @@ function openExternalOps() {
     </nav>
 
     <div class="adm-body">
-      <AdminErrors  v-if="activeTab === 'errors'" />
+      <AdminHealth  v-if="activeTab === 'health'" />
+      <AdminErrors  v-else-if="activeTab === 'errors'" />
       <AdminStats   v-else-if="activeTab === 'stats'" />
       <AdminUsers   v-else-if="activeTab === 'users'" />
       <AdminModules v-else-if="activeTab === 'modules'" />
