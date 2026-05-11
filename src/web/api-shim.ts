@@ -1155,6 +1155,21 @@ const apiImpl = {
   adminGetLastSeen: () => get('/api/admin/last-seen'),
   adminGetInactive: (days: number) => get(`/api/admin/inactive?days=${days}`),
 
+  // ── Error reports / monitoring interne ──────────────────────────────────
+  adminGetErrorReports: (params: { source?: string; level?: string; since?: string; limit?: number; offset?: number } = {}) => {
+    const qs = new URLSearchParams()
+    if (params.source) qs.set('source', params.source)
+    if (params.level)  qs.set('level', params.level)
+    if (params.since)  qs.set('since', params.since)
+    if (params.limit)  qs.set('limit', String(params.limit))
+    if (params.offset) qs.set('offset', String(params.offset))
+    const q = qs.toString()
+    return get(`/api/admin/error-reports${q ? '?' + q : ''}`)
+  },
+  adminGetErrorReportsStats: () => get('/api/admin/error-reports/stats'),
+  adminGetBootErrors:        () => get('/api/admin/boot-errors'),
+  adminClearErrorReports:    () => del('/api/admin/error-reports'),
+
   // ── Projects ───────────────────────────────────────────────────────────
   getProjectsByPromo:      (promoId: number)   => get(`/api/projects/promo/${promoId}`),
   getProjectById:          (id: number)        => get(`/api/projects/${id}`),

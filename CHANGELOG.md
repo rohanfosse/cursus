@@ -1,5 +1,43 @@
 # Changelog
 
+## v2.336.0 (2026-05-11)
+
+### Dashboard admin Erreurs — monitoring glanceable
+
+Suite a la mise en place du log centralise backend (v2.335),
+materialisation cote UI admin pour rendre l'info exploitable sans SSH.
+
+**Nouvel onglet "Erreurs" dans /admin** (place EN PREMIER pour priorite
+visuelle, devant Stats/Users/Modules) :
+
+- **Badge sur l'onglet** : compteur 24h. Rouge pulsant si > 0 boot ou
+  uncaught (alerte glanceable au survol de la page admin). Gris sinon.
+  Refresh auto toutes les 60s.
+- **Header summary** : compteur grand 24h + ligne "X critiques" rouge
+  ou "Aucune erreur critique" en vert pour scanner en 0.5s.
+- **5 stat cards** une par source (boot, uncaught, rejection, server,
+  frontend). Click sur une card filtre la liste sur cette source.
+  Card avec fatals = bordure rouge + count rouge.
+- **Section Boot failures** affichee EN HAUT si non vide (background
+  rouge soft) : c'est la cause des 502 type incident v2.331, jamais
+  noyer ces lignes dans la liste generale.
+- **Filtres temporels** : 1h / 24h / 7j / Tout (UX click instantane).
+- **Liste expand-collapse** : ligne summary compacte, click pour deplier
+  stack + meta + user-agent + version. Border-left coloree par source
+  pour scanner rapidement.
+- **Auto-refresh 30s** : toggle pour suivre un incident en live.
+- **Purge** : bouton avec confirm pour nettoyer apres investigation.
+
+**APIs branchees** :
+
+`adminGetErrorReports({source, level, since, limit, offset})`,
+`adminGetErrorReportsStats()`, `adminGetBootErrors()`,
+`adminClearErrorReports()` — ajoutees en preload Electron + web shim
+(test de parite v2.334 valide).
+
+**Responsive mobile** : la liste passe en colonnes empilees < 640px,
+les stat cards en grid auto-fit 150px min.
+
 ## v2.335.0 (2026-05-11)
 
 ### Logs centralises backend : uncaught + boot + alertes mail

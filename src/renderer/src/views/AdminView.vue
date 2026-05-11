@@ -1,23 +1,52 @@
 <script setup lang="ts">
-import { ref, defineAsyncComponent } from 'vue'
-import { Users, Puzzle, BarChart3, ExternalLink, type LucideIcon } from 'lucide-vue-next'
+import { computed, onMounted, onUnmounted, ref, defineAsyncComponent } from 'vue'
+import { Users, Puzzle, BarChart3, AlertTriangle, ExternalLink, type LucideIcon } from 'lucide-vue-next'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import MobileMenuButton from '@/components/layout/MobileMenuButton.vue'
 import { getAuthToken } from '@/utils/auth'
+import { useApi } from '@/composables/useApi'
 
 const AdminUsers   = defineAsyncComponent(() => import('@/components/admin/AdminUsers.vue'))
 const AdminModules = defineAsyncComponent(() => import('@/components/admin/AdminModules.vue'))
 const AdminStats   = defineAsyncComponent(() => import('@/components/admin/AdminStats.vue'))
+const AdminErrors  = defineAsyncComponent(() => import('@/components/admin/AdminErrors.vue'))
 
-type Tab = 'users' | 'modules' | 'stats'
+type Tab = 'errors' | 'stats' | 'users' | 'modules'
 
-const activeTab = ref<Tab>('stats')
+const activeTab = ref<Tab>('errors')
 
-const tabs: Array<{ id: Tab; label: string; icon: LucideIcon }> = [
+// Compteur errors 24h pour le badge sur l'onglet — sert d'alerte glanceable
+// au top de l'admin. Critique = boot + uncaught (apparait en rouge).
+const { api } = useApi()
+const errorsCount24h = ref(0)
+const errorsCriticalCount24h = ref(0)
+
+interface StatsRow { source: string; level: string; count: number }
+
+async function loadErrorBadge(): Promise<void> {
+  const res = await api(() => window.api.adminGetErrorReportsStats())
+  if (!Array.isArray(res)) return
+  const rows = res as StatsRow[]
+  errorsCount24h.value = rows.reduce((s, r) => s + r.count, 0)
+  errorsCriticalCount24h.value = rows
+    .filter(r => r.source === 'boot' || r.source === 'uncaught')
+    .reduce((s, r) => s + r.count, 0)
+}
+
+let badgeTimer: ReturnType<typeof setInterval> | null = null
+onMounted(() => {
+  loadErrorBadge()
+  badgeTimer = setInterval(() => loadErrorBadge(), 60_000)
+})
+onUnmounted(() => { if (badgeTimer) clearInterval(badgeTimer) })
+
+interface TabDef { id: Tab; label: string; icon: LucideIcon }
+const tabs = computed<TabDef[]>(() => [
+  { id: 'errors',  label: 'Erreurs',      icon: AlertTriangle },
   { id: 'stats',   label: 'Statistiques', icon: BarChart3 },
   { id: 'users',   label: 'Utilisateurs', icon: Users },
   { id: 'modules', label: 'Modules',      icon: Puzzle },
-]
+])
 
 function openExternalOps() {
   const token = getAuthToken()
@@ -51,18 +80,29 @@ function openExternalOps() {
         v-for="t in tabs"
         :key="t.id"
         class="adm-tab"
-        :class="{ 'adm-tab--active': activeTab === t.id }"
+        :class="[
+          { 'adm-tab--active': activeTab === t.id },
+          { 'adm-tab--alert': t.id === 'errors' && errorsCriticalCount24h > 0 },
+        ]"
         :aria-selected="activeTab === t.id"
         role="tab"
         @click="activeTab = t.id"
       >
         <component :is="t.icon" :size="15" />
         <span>{{ t.label }}</span>
+        <!-- Badge sur l'onglet Erreurs : rouge pulsant si critiques, gris sinon -->
+        <span
+          v-if="t.id === 'errors' && errorsCount24h > 0"
+          class="adm-tab-badge"
+          :class="{ 'adm-tab-badge--alert': errorsCriticalCount24h > 0 }"
+          :aria-label="`${errorsCount24h} erreur(s) sur 24h${errorsCriticalCount24h ? `, dont ${errorsCriticalCount24h} critique(s)` : ''}`"
+        >{{ errorsCount24h > 99 ? '99+' : errorsCount24h }}</span>
       </button>
     </nav>
 
     <div class="adm-body">
-      <AdminStats   v-if="activeTab === 'stats'" />
+      <AdminErrors  v-if="activeTab === 'errors'" />
+      <AdminStats   v-else-if="activeTab === 'stats'" />
       <AdminUsers   v-else-if="activeTab === 'users'" />
       <AdminModules v-else-if="activeTab === 'modules'" />
     </div>
@@ -128,6 +168,45 @@ function openExternalOps() {
   background: rgba(var(--accent-rgb), 0.12);
   color: var(--accent);
   border-color: rgba(var(--accent-rgb), 0.3);
+}
+
+/* Onglet Erreurs en mode alerte (boot/uncaught presents en 24h) : bordure
+   rouge persistante pour attirer l'oeil meme sans cliquer dessus. */
+.adm-tab--alert {
+  border-color: rgba(var(--color-danger-rgb, 220, 38, 38), .5);
+  color: var(--color-danger);
+}
+.adm-tab--alert:hover {
+  background: rgba(var(--color-danger-rgb, 220, 38, 38), .08);
+  color: var(--color-danger);
+}
+
+.adm-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: var(--bg-active);
+  color: var(--text-secondary);
+  border-radius: var(--radius-full, 999px);
+  font-variant-numeric: tabular-nums;
+  margin-left: 2px;
+}
+.adm-tab-badge--alert {
+  background: var(--color-danger);
+  color: white;
+  animation: badge-pulse 2.4s ease-in-out infinite;
+}
+@keyframes badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--color-danger-rgb, 220, 38, 38), .5); }
+  50%      { box-shadow: 0 0 0 6px rgba(var(--color-danger-rgb, 220, 38, 38), 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .adm-tab-badge--alert { animation: none; }
 }
 
 .adm-body {
