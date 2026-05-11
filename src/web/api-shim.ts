@@ -1085,6 +1085,168 @@ const apiImpl = {
     typingCallbacks.push(cb)
     return () => { const i = typingCallbacks.indexOf(cb); if (i !== -1) typingCallbacks.splice(i, 1) }
   },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // SHIM CATCH-UP v2.333 — routes HTTP qui existaient dans preload Electron
+  // mais pas dans le shim web. Sans ces routes, les features
+  // correspondantes etaient soit silencieusement cassees (fallback Proxy
+  // renvoie { ok: false }), soit completement invisibles en mode mobile/PWA.
+  // ════════════════════════════════════════════════════════════════════════
+
+  // ── Onboarding etudiants (premier login) ───────────────────────────────
+  getOnboardingStatus: (_studentId: number) => get('/api/students/onboarding-status'),
+  completeOnboarding:  (_studentId: number) => post('/api/students/complete-onboarding', {}),
+
+  // ── Statuts personnels (emoji + texte, expirable) ──────────────────────
+  getMyStatus:     () => get('/api/me/status'),
+  setMyStatus:     (payload: { emoji: string | null; text: string | null; expiresAt: string | null }) =>
+    put('/api/me/status', payload),
+  clearMyStatus:   () => del('/api/me/status'),
+  listUserStatuses: () => get('/api/statuses'),
+
+  // ── DMs ────────────────────────────────────────────────────────────────
+  getRecentDmContacts: (studentId: number, limit?: number) =>
+    get(`/api/messages/dm-contacts/${studentId}${limit ? `?limit=${limit}` : ''}`),
+
+  // ── Messages programmes ────────────────────────────────────────────────
+  listScheduledMessages:  () => get('/api/messages/scheduled/mine'),
+  createScheduledMessage: (payload: unknown) => post('/api/messages/scheduled', payload),
+  updateScheduledMessage: (id: number, payload: unknown) => patch(`/api/messages/scheduled/${id}`, payload),
+  deleteScheduledMessage: (id: number) => del(`/api/messages/scheduled/${id}`),
+
+  // ── Link preview ───────────────────────────────────────────────────────
+  resolveLinkPreviews: (urls: string[]) => post('/api/link-preview/resolve', { urls }),
+  linkPreviewImageUrl: (url: string) => `${SERVER_URL}/api/link-preview/image?url=${encodeURIComponent(url)}`,
+
+  // ── Modules admin (activation features) ────────────────────────────────
+  getModules:        () => get('/api/admin/modules'),
+  setModuleEnabled:  (module: string, enabled: boolean) => post('/api/admin/modules', { module, enabled }),
+
+  // ── SMTP (admin) ───────────────────────────────────────────────────────
+  getSmtpStatus: () => get('/api/admin/smtp/status'),
+  sendSmtpTest:  (to: string) => post('/api/admin/smtp/test', { to }),
+
+  // ── Admin users ────────────────────────────────────────────────────────
+  adminGetUsers: (params: { search?: string; promo_id?: number | null; type?: string | null; page?: number; limit?: number } = {}) => {
+    const qs = new URLSearchParams()
+    if (params.search) qs.set('search', params.search)
+    if (params.promo_id != null) qs.set('promo_id', String(params.promo_id))
+    if (params.type) qs.set('type', params.type)
+    if (params.page) qs.set('page', String(params.page))
+    if (params.limit) qs.set('limit', String(params.limit))
+    const q = qs.toString()
+    return get(`/api/admin/users${q ? '?' + q : ''}`)
+  },
+  adminGetUserDetail:    (id: number) => get(`/api/admin/users/${id}`),
+  adminUpdateUser:       (id: number, payload: { name?: string; email?: string; promo_id?: number | null }) =>
+    patch(`/api/admin/users/${id}`, payload),
+  adminDeleteUser:       (id: number) => del(`/api/admin/users/${id}`),
+  adminResetPassword:    (id: number) => post(`/api/admin/users/${id}/reset-password`, {}),
+  adminSetTeacherRole:   (id: number, role: 'teacher' | 'ta' | 'admin') =>
+    patch(`/api/admin/users/${id}/role`, { role }),
+  adminGetTeacherPromos: (id: number) => get(`/api/admin/users/${id}/promos`),
+  adminAssignPromo:      (id: number, promoId: number) =>
+    post(`/api/admin/users/${id}/promos`, { promoId }),
+  adminUnassignPromo:    (id: number, promoId: number) =>
+    del(`/api/admin/users/${id}/promos/${promoId}`),
+  adminGetStats:    () => get('/api/admin/stats'),
+  adminGetHeatmap:  () => get('/api/admin/heatmap'),
+  adminGetAdoption: () => get('/api/admin/adoption'),
+  adminGetLastSeen: () => get('/api/admin/last-seen'),
+  adminGetInactive: (days: number) => get(`/api/admin/inactive?days=${days}`),
+
+  // ── Projects ───────────────────────────────────────────────────────────
+  getProjectsByPromo:      (promoId: number)   => get(`/api/projects/promo/${promoId}`),
+  getProjectById:          (id: number)        => get(`/api/projects/${id}`),
+  createProject:           (payload: unknown)  => post('/api/projects', payload),
+  updateProject:           (id: number, payload: unknown) => patch(`/api/projects/${id}`, payload),
+  deleteProject:           (id: number)        => del(`/api/projects/${id}`),
+  getProjectDocs:          (projectId: number) => get(`/api/projects/${projectId}/documents`),
+  getProjectTravaux:       (projectId: number) => get(`/api/projects/${projectId}/travaux`),
+  addTravailToProject:     (projectId: number, travailId: number) =>
+    post(`/api/projects/${projectId}/travaux`, { travailId }),
+  removeTravailFromProject: (projectId: number, travailId: number) =>
+    del(`/api/projects/${projectId}/travaux/${travailId}`),
+  getProjectTas:           (projectId: number) => get(`/api/projects/${projectId}/tas`),
+  assignTaToProject:       (teacherId: number, projectId: number) =>
+    post(`/api/projects/${projectId}/tas`, { teacherId }),
+  unassignTaFromProject:   (teacherId: number, projectId: number) =>
+    del(`/api/projects/${projectId}/tas/${teacherId}`),
+  getTaProjects:           (teacherId: number) => get(`/api/projects/ta/${teacherId}`),
+
+  // ── Cahiers collaboratifs (Yjs) ────────────────────────────────────────
+  getCahiers: (promoId: number, project?: string | null) => {
+    const qs = new URLSearchParams()
+    qs.set('promoId', String(promoId))
+    if (project) qs.set('project', project)
+    return get(`/api/cahiers?${qs.toString()}`)
+  },
+  getCahierById:      (id: number) => get(`/api/cahiers/${id}`),
+  createCahier:       (payload: unknown) => post('/api/cahiers', payload),
+  renameCahier:       (id: number, title: string) => patch(`/api/cahiers/${id}`, { title }),
+  deleteCahier:       (id: number) => del(`/api/cahiers/${id}`),
+  getCahierYjsState:  (id: number) => get(`/api/cahiers/${id}/state`),
+  saveCahierYjsState: (id: number, base64State: string) => patch(`/api/cahiers/${id}/state`, { state: base64State }),
+
+  // ── Live sessions (CRUD prof) ──────────────────────────────────────────
+  getLiveSessionsForPromo: (promoId: number) => get(`/api/live/sessions/promo/${promoId}`),
+  cloneLiveSession:        (id: number, payload: unknown) => post(`/api/live/sessions/${id}/clone`, payload),
+  deleteLiveSession:       (id: number) => del(`/api/live/sessions/${id}`),
+  updateLiveActivity:      (id: number, payload: unknown) => patch(`/api/live/activities/${id}`, payload),
+  reorderLiveActivities:   (sessionId: number, order: number[]) =>
+    patch(`/api/live/sessions/${sessionId}/activities/reorder`, { order }),
+
+  // Confusion + poll (signaux live)
+  getConfusionCount:   (sessionId: number) => get(`/api/live-v2/sessions/${sessionId}/confused`),
+  sendConfusionSignal: (sessionId: number, active: boolean) =>
+    post(`/api/live-v2/sessions/${sessionId}/confused`, { active }),
+  voteOnPoll: (messageId: number, options: number[]) =>
+    post(`/api/messages/${messageId}/vote`, { options }),
+
+  // ── Outlook events (sync prof Microsoft Graph) ─────────────────────────
+  createOutlookEvent: (payload: { subject: string; startDateTime: string; endDateTime: string; body?: string; attendees?: Array<{ email: string; name?: string }>; createTeams?: boolean }) =>
+    post('/api/calendar/outlook/events', payload),
+  deleteOutlookEvent: (id: string) =>
+    del(`/api/calendar/outlook/events/${encodeURIComponent(id)}`),
+
+  // ── Lumen (fichiers chapitre via GitHub PUT/POST) ──────────────────────
+  createLumenChapterFile: (repoId: number, body: { path: string; content: string; message?: string }) =>
+    post(`/api/lumen/repos/${repoId}/file`, body),
+  updateLumenChapterFile: (repoId: number, body: { path: string; content: string; sha: string; message?: string }) =>
+    put(`/api/lumen/repos/${repoId}/file`, body),
+
+  // Export notes : recupere via /my-notes puis serialise en JSON. Sans Electron
+  // pas de save dialog natif — on telecharge un .json (le format ZIP local
+  // necessitait jszip cote main, surdimensionne pour le web).
+  downloadLumenNotesExport: async () => {
+    const resp = await get('/api/lumen/my-notes') as { ok: boolean; data?: { notes: unknown[] }; error?: string }
+    if (!resp?.ok) return { ok: false, error: resp?.error ?? 'Impossible de recuperer les notes' }
+    const blob = new Blob([JSON.stringify(resp.data?.notes ?? [], null, 2)], { type: 'application/json' })
+    const dlUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = dlUrl
+    a.download = `lumen-notes-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(dlUrl)
+    return { ok: true, data: { count: (resp.data?.notes ?? []).length } }
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // APIs Electron-only — no-op explicit en mode web (au lieu du Proxy
+  // fallback). Avantage : pas de "console.debug" repete + signature
+  // explicite pour TypeScript.
+  // ════════════════════════════════════════════════════════════════════════
+
+  setTheme:               (_theme: string) => Promise.resolve({ ok: true, data: null }),
+  clearAuth:              () => { setJwtToken(null) },
+  openLogsFolder:         () => Promise.resolve({ ok: false, error: 'Logs accessibles via la console du navigateur (DevTools).' }),
+  offlineRead:            (_key: string) => Promise.resolve({ ok: false, error: 'Cache offline indisponible en web.' }),
+  offlineClear:           () => Promise.resolve({ ok: true, data: null }),
+  updaterQuitAndInstall:  () => { /* PWA : le SW gere les MAJ */ },
+  getUpdaterRemoteConfig: () => Promise.resolve({ ok: true, data: { betaOptIn: false } }),
+  setUpdaterBetaOptIn:    (_enabled: boolean) => Promise.resolve({ ok: true, data: null }),
+  onUpdaterError:         (_cb: (error: string) => void) => () => {},
+  onUpdaterProgress:      (_cb: (percent: number) => void) => () => {},
 }
 
 // Wrap dans un Proxy : route les proprietes inconnues vers makeWebFallback.

@@ -1,5 +1,61 @@
 # Changelog
 
+## v2.333.0 (2026-05-11)
+
+### Web shim catch-up : 74 APIs alignees sur le preload Electron
+
+Suite a l'incident "calendriers de promo invisibles en mobile" (v2.332,
+cause : `getPromoCalendarEvents` manquait au web shim), audit complet
+preload (329 cles) vs web shim (250 cles avant fix).
+
+**Resultat audit** : 83 fonctions presentes dans `src/preload/index.ts`
+mais absentes de `src/web/api-shim.ts`. Le mecanisme Proxy/fallback du
+shim retournait silencieusement `{ ok: false }` -> features cassees mais
+pas de crash, donc pas detecte avant le pilote.
+
+**Ajoute (74 routes HTTP)** :
+
+- Onboarding etudiant (2) : getOnboardingStatus, completeOnboarding
+- Statuts personnels (4) : getMyStatus, setMyStatus, clearMyStatus, listUserStatuses
+- DMs (1) : getRecentDmContacts (path corrige `/api/messages/dm-contacts/:id`)
+- Messages programmes (4) : list/create/update/delete
+- Link preview (2) : resolveLinkPreviews, linkPreviewImageUrl
+- Modules admin (2) : getModules, setModuleEnabled
+- SMTP admin (2) : getSmtpStatus, sendSmtpTest
+- Admin users (14) : adminGetUsers/Detail/Stats/Heatmap/Adoption/LastSeen/Inactive/TeacherPromos, adminUpdate/Delete/ResetPassword/SetTeacherRole/AssignPromo/UnassignPromo
+- Projects (13) : getProjectsByPromo/ById/Docs/Tas/Travaux/TaProjects, create/update/delete, add/removeTravailFromProject, assign/unassignTaFromProject
+- Cahiers (7) : list/getById/create/rename/delete/getYjsState/saveYjsState
+- Live (5) : getLiveSessionsForPromo, cloneLiveSession, deleteLiveSession, updateLiveActivity, reorderLiveActivities
+- Confusion + poll (3) : getConfusionCount, sendConfusionSignal, voteOnPoll
+- Outlook (2) : createOutlookEvent, deleteOutlookEvent
+- Lumen (3) : createLumenChapterFile, updateLumenChapterFile, downloadLumenNotesExport (adapte web : telecharge JSON au lieu de ZIP local)
+
+**Ajoute (10 natives Electron, no-op explicites)** :
+
+setTheme, clearAuth, openLogsFolder, offlineRead, offlineClear,
+updaterQuitAndInstall, getUpdaterRemoteConfig, setUpdaterBetaOptIn,
+onUpdaterError, onUpdaterProgress. Retournent { ok: true } neutres
+ou unsubscribe no-op au lieu de tomber dans le Proxy fallback.
+
+**Restent (9, scope live/realtime non bloquant pilote)** :
+
+- emitLiveCodeUpdate (socket emit live code prof)
+- onLiveBoardUpdate, onLiveCodeUpdate, onLiveConfusionUpdate,
+  onLiveSelfPacedUpdate, onPollUpdate, onStatusChange (socket listeners
+  live + status presence)
+- onRuntimeError (Electron-only, deja dans SILENT_FALLBACKS)
+- offlineWrite (Electron-only)
+
+Ces 9 manques degradent la fonctionnalite Live en mode web (les
+participants verraient les changements seulement apres refresh), mais
+les sessions live se font en presentiel desktop pour le pilote CESI.
+A cabler dans une release dediee si besoin.
+
+**Outils audit** : `comm -23 preload-keys shim-keys` permet de
+detecter rapidement les nouveaux trous a chaque release.
+Idealement ajouter un test d'integration qui valide
+que toutes les cles preload existent dans le shim.
+
 ## v2.332.0 (2026-05-11)
 
 ### Mobile : login/signup fluide + APIs agenda/booking manquantes en web shim
