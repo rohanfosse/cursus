@@ -1,5 +1,61 @@
 # Changelog
 
+## v2.332.0 (2026-05-11)
+
+### Mobile : login/signup fluide + APIs agenda/booking manquantes en web shim
+
+**1. Login/Signup mobile : refonte single-column fluide**
+
+Avant : layout 2 colonnes desktop applique tel quel sur mobile. Panneau
+brand 42% gaspille l'espace, `.auth-row-2` (prenom+nom, promo+password)
+restait en grid 2 colonnes sur ecran etroit (champs ecrases), inputs en
+14px declenchaient le zoom iOS au focus.
+
+Maintenant en `<= 768px` :
+
+- **Single column** : `auth-shell` passe en `flex-direction: column`,
+  brand devient bandeau compact en haut (logo + nom seulement, tagline
+  + feature-list masques).
+- **Champs empiles** : `.auth-row-2` -> 1 colonne.
+- **Inputs 16px** : pas de zoom iOS au focus. Padding 12-14, min-height 46.
+- **Touch targets 44-48px** : submit, secondary, password toggle, back.
+- **Safe-area-inset top/bottom** : padding adapte au notch.
+- **Actions stack** : retour + submit empiles verticalement (submit
+  en premier visuellement via `column-reverse`).
+- **Petit mobile (≤ 380px)** : padding encore reduit, logo 36px.
+- **`touch-action: manipulation`** sur tous les elements interactifs
+  (no double-tap zoom delay).
+
+**2. Bug agenda mobile : `getPromoCalendarEvents` absent du web shim**
+
+Symptome : sur mobile/web, l'agenda n'affichait jamais les events des
+calendriers de promo (cours via abonnements ICS Outlook/Google publics).
+
+Root cause : `src/web/api-shim.ts` n'exposait PAS `getPromoCalendarEvents`
+(ni les autres routes calendar-subscriptions ni les routes booking).
+Le store agenda fetche en `Promise.all` avec `silent: true` -> l'erreur
+est avalee, `externalEvents` reste vide, aucun event affiche.
+
+Ajout au web shim :
+
+- `getPromoCalendarEvents`, `list/create/update/delete/refreshPromoCalendarSubscription`
+- `getOutlookEvents` (sync Microsoft Graph cote prof)
+- `getCalendarFeedUrl` (l'URL iCal pour souscrire externalement)
+- `getReminders` / `createReminder` / `updateReminder` / `deleteReminder`
+  (rappels enseignant dans l'agenda)
+- `updateTravail` / `updateTravailScheduled` (drag-to-reschedule
+  deadline depuis l'agenda)
+- **Tout le bloc booking** : `getBookingEventTypes`,
+  `getBookingAvailability`, `setBookingAvailability`, `getMyBookings`,
+  campagnes, OAuth Microsoft, etc. Sans ces routes la page RDV etait
+  egalement cassee en mode mobile/PWA.
+
+C'est l'explication de pourquoi plein de features marchaient en
+Electron desktop mais pas en mobile/PWA : le web shim avait pris du
+retard sur le preload Electron. Audit complet shim/preload a faire
+pour eclaircir les autres trous (ex : potentiellement Outlook
+events, signature, lumen).
+
 ## v2.331.3 (2026-05-11)
 
 ### CORS multi-origines + default safe

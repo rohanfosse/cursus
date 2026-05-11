@@ -520,9 +520,18 @@ const apiImpl = {
   getTravaux:             (channelId: number) => get(`/api/assignments?channelId=${channelId}`),
   getTravailById:         (travailId: number) => get(`/api/assignments/${travailId}`),
   createTravail:          (payload: unknown)  => post('/api/assignments', payload),
+  updateTravail:          (id: number, payload: unknown) => patch(`/api/assignments/${id}`, payload),
   deleteTravail:          (id: number)        => del(`/api/assignments/${id}`),
   getTravauxSuivi:        (travailId: number) => get(`/api/assignments/${travailId}/suivi`),
   updateTravailPublished: (payload: unknown)  => post('/api/assignments/publish', payload),
+  updateTravailScheduled: (payload: { travailId: number; scheduledAt: string | null }) =>
+    post('/api/assignments/schedule', payload),
+
+  // Rappels enseignant (utilises par l'agenda)
+  getReminders:    (promoTag?: string) => get(`/api/assignments/reminders${promoTag ? `?promoTag=${encodeURIComponent(promoTag)}` : ''}`),
+  createReminder:  (payload: unknown)             => post('/api/assignments/reminders', payload),
+  updateReminder:  (id: number, payload: unknown) => patch(`/api/assignments/reminders/${id}`, payload),
+  deleteReminder:  (id: number)                   => del(`/api/assignments/reminders/${id}`),
   getTravailCategories:   (promoId: number)   => get(`/api/assignments/categories?promoId=${promoId}`),
   getGanttData:           (promoId: number, channelId?: number) => get(`/api/assignments/gantt?promoId=${promoId}${channelId ? `&channelId=${channelId}` : ''}`),
   getAllRendus:            (promoId: number)   => get(`/api/assignments/rendus?promoId=${promoId}`),
@@ -656,10 +665,79 @@ const apiImpl = {
     return () => { const i = liveScoresUpdateCallbacks.indexOf(cb); if (i !== -1) liveScoresUpdateCallbacks.splice(i, 1) }
   },
 
+  // ── Booking (mini-Calendly) ─────────────────────────────────────────────
+  // Toutes les routes booking : sans elles, page Rendez-vous + agenda
+  // "Mes RDV" cassees en mode web/PWA.
+  getBookingEventTypes:    () => get('/api/bookings/event-types'),
+  createBookingEventType:  (payload: unknown) => post('/api/bookings/event-types', payload),
+  updateBookingEventType:  (id: number, payload: unknown) => patch(`/api/bookings/event-types/${id}`, payload),
+  deleteBookingEventType:  (id: number) => del(`/api/bookings/event-types/${id}`),
+  getBookingAvailability:  () => get('/api/bookings/availability'),
+  setBookingAvailability:  (rules: unknown) => put('/api/bookings/availability', { rules }),
+  createBookingToken:      (eventTypeId: number, studentId: number) =>
+    post('/api/bookings/tokens', { eventTypeId, studentId }),
+  createBulkBookingTokens: (eventTypeId: number, promoId: number) =>
+    post('/api/bookings/tokens/bulk', { eventTypeId, promoId }),
+  getBookingPublicLink:    (eventTypeId: number) => get(`/api/bookings/event-types/${eventTypeId}/public-link`),
+  getMyBookingProfileLink: () => get('/api/bookings/me/public-link'),
+
+  getBookingCampaigns:     () => get('/api/bookings/campaigns'),
+  createBookingCampaign:   (payload: unknown) => post('/api/bookings/campaigns', payload),
+  getBookingCampaign:      (id: number) => get(`/api/bookings/campaigns/${id}`),
+  updateBookingCampaign:   (id: number, payload: unknown) => patch(`/api/bookings/campaigns/${id}`, payload),
+  deleteBookingCampaign:   (id: number) => del(`/api/bookings/campaigns/${id}`),
+  launchBookingCampaign:   (id: number) => post(`/api/bookings/campaigns/${id}/launch`, {}),
+  remindBookingCampaign:   (id: number) => post(`/api/bookings/campaigns/${id}/remind`, {}),
+  closeBookingCampaign:    (id: number) => post(`/api/bookings/campaigns/${id}/close`, {}),
+  getBookingCampaignSlots: (id: number) => get(`/api/bookings/campaigns/${id}/slots`),
+  getMyBookings: (from?: string, to?: string) => {
+    const qs = new URLSearchParams()
+    if (from) qs.set('from', from)
+    if (to) qs.set('to', to)
+    const q = qs.toString()
+    return get(`/api/bookings/my-bookings${q ? '?' + q : ''}`)
+  },
+  createBookingDirect: (payload: { eventTypeId: number; studentIds: number[]; startDatetime: string; durationMinutes?: number }) =>
+    post('/api/bookings/direct', payload),
+  updateBookingRoom: (id: number, room: string | null) =>
+    patch(`/api/bookings/${id}/room`, { room }),
+
+  // OAuth Microsoft pour sync calendrier prof. En web : le redirect OAuth
+  // doit pointer vers le domaine de l'app (cf. config Microsoft Graph).
+  startBookingOAuth:      () => get('/api/bookings/oauth/start'),
+  getBookingOAuthStatus:  () => get('/api/bookings/oauth/status'),
+  disconnectBookingOAuth: () => del('/api/bookings/oauth/disconnect'),
+
   // Calendar iCal feed (abonnement externe)
   getCalendarFeedToken:       ()                      => get('/api/calendar/feed-token'),
   rotateCalendarFeedToken:    ()                      => post('/api/calendar/feed-token', {}),
   revokeCalendarFeedToken:    ()                      => del('/api/calendar/feed-token'),
+  getCalendarFeedUrl:         ()                      => `${SERVER_URL}/api/calendar/feed.ics`,
+
+  // Outlook events (calendrier prof connecte via Microsoft Graph). Web/PWA :
+  // les profs peuvent voir leurs events si le token MS Graph est valide
+  // cote serveur. Aucune action OAuth client necessaire ici.
+  getOutlookEvents: (from: string, to: string) =>
+    get(`/api/calendar/outlook/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+
+  // Promo calendar subscriptions (URL ICS publique : Outlook / Google).
+  // CRITIQUE : sans ces routes en web shim, l'agenda mobile/PWA ne
+  // recevait JAMAIS les events de cours (le store .getPromoCalendarEvents
+  // throw silencieusement, externalEvents reste vide).
+  listPromoCalendarSubscriptions:   () => get('/api/calendar-subscriptions'),
+  createPromoCalendarSubscription:  (payload: { promo_id: number; label: string; ics_url: string; color?: string | null }) =>
+    post('/api/calendar-subscriptions', payload),
+  updatePromoCalendarSubscription:  (id: number, payload: { label?: string; color?: string | null; is_active?: boolean }) =>
+    patch(`/api/calendar-subscriptions/${id}`, payload),
+  deletePromoCalendarSubscription:  (id: number) => del(`/api/calendar-subscriptions/${id}`),
+  refreshPromoCalendarSubscription: (id: number) => post(`/api/calendar-subscriptions/${id}/refresh`, {}),
+  getPromoCalendarEvents: (from?: string, to?: string) => {
+    const qs = new URLSearchParams()
+    if (from) qs.set('from', from)
+    if (to) qs.set('to', to)
+    const q = qs.toString()
+    return get(`/api/calendar-subscriptions/events${q ? '?' + q : ''}`)
+  },
 
   // TypeRace (mini-jeu typing speed)
   typeRaceRandomPhrase:       (excludeIds: number[] = []) => {

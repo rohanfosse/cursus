@@ -826,4 +826,177 @@
   line-height: 1.5;
   margin: 0;
 }
+
+/* ════════════════════════════════════════════
+   MOBILE (≤ 768px) — single-column fluide
+════════════════════════════════════════════════
+   Avant : layout 2 colonnes desktop applique tel quel sur mobile,
+   panneau brand 42% gaspille l'espace, .auth-row-2 reste en grid 2col
+   sur ecran etroit (champs ecrases), inputs en 14px declenchent le
+   zoom iOS au focus. Maintenant : single-column, brand compact en
+   haut, champs empiles, font-size 16px sur inputs (anti-zoom iOS),
+   touch targets 44px, safe-area pour notch.
+*/
+@media (max-width: 768px) {
+  .auth-shell {
+    flex-direction: column;
+    height: 100dvh;  /* dvh prend en compte la barre URL mobile */
+  }
+
+  /* Brand : bandeau compact en haut au lieu de panneau lateral 42% */
+  .auth-brand {
+    flex: 0 0 auto;
+    padding: calc(20px + env(safe-area-inset-top, 0)) 20px 16px;
+  }
+  .auth-brand-inner {
+    flex-direction: row;
+    align-items: center;
+    max-width: none;
+    width: 100%;
+    gap: 14px;
+  }
+  .auth-brand-logo {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 0;
+  }
+  .auth-brand-name {
+    font-size: 20px;
+    margin: 0;
+  }
+  .auth-brand-tagline {
+    display: none;  /* place precieuse sur mobile */
+  }
+  .auth-feature-list {
+    display: none;  /* idem — on les revoit dans le dashboard apres login */
+  }
+  .auth-brand::before,
+  .auth-brand::after {
+    display: none;  /* cercles decoratifs supprimes */
+  }
+
+  /* Formulaire : pleine largeur, padding mobile-friendly */
+  .auth-form-panel {
+    flex: 1;
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0));
+    align-items: flex-start;
+    min-height: 0;
+  }
+  .auth-card,
+  .auth-card-wide {
+    max-width: 100%;
+  }
+  .auth-card-title {
+    font-size: 20px;
+  }
+  .auth-card-sub {
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+
+  /* Inputs : 16px = pas de zoom iOS au focus, padding plus genereux */
+  .auth-input {
+    font-size: 16px;
+    padding: 12px 14px;
+    min-height: 46px;
+  }
+  .auth-input-pwd { padding-right: 48px; }
+
+  /* Toggle password : plus grand pour le pouce */
+  .auth-pwd-toggle {
+    padding: 10px;
+    min-width: 44px;
+    min-height: 44px;
+    right: 4px;
+  }
+
+  /* Boutons : touch target 48px, font-size un poil plus gros */
+  .auth-submit {
+    min-height: 48px;
+    font-size: 15px;
+    padding: 13px;
+  }
+  .auth-secondary-btn,
+  .auth-back-btn {
+    min-height: 46px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  /* Stack vertical des grilles 2 colonnes (prenom/nom, promo/password) */
+  .auth-row-2 {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  /* Actions du register : empiler boutons retour + submit */
+  .auth-form-actions {
+    flex-direction: column-reverse;  /* submit en premier visuellement */
+    gap: 8px;
+  }
+  .auth-back-btn,
+  .auth-submit-flex {
+    width: 100%;
+  }
+
+  /* Avatar register plus grand pour faciliter le tap */
+  .auth-avatar-preview {
+    width: 64px;
+    height: 64px;
+    font-size: 22px;
+  }
+  .auth-avatar-row {
+    gap: 12px;
+  }
+  .auth-avatar-actions {
+    flex: 1;
+    gap: 6px;
+  }
+  .auth-outline-btn {
+    min-height: 40px;
+    font-size: 13px;
+  }
+
+  /* Remember me + forgot : un poil plus aere */
+  .auth-remember {
+    font-size: 14px;
+    padding: 4px 0;
+  }
+  .auth-remember-check {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Sur les mobiles tres petits (≤ 380px) : encore plus compact */
+  @media (max-width: 380px) {
+    .auth-brand {
+      padding: calc(14px + env(safe-area-inset-top, 0)) 16px 12px;
+    }
+    .auth-form-panel {
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0));
+    }
+    .auth-brand-name {
+      font-size: 18px;
+    }
+    .auth-brand-logo {
+      width: 36px;
+      height: 36px;
+    }
+  }
+}
+
+/* Touch reactivity sur tout element interactif mobile */
+@media (hover: none) and (pointer: coarse) {
+  .auth-submit,
+  .auth-secondary-btn,
+  .auth-back-btn,
+  .auth-outline-btn,
+  .auth-link-btn,
+  .auth-pwd-toggle,
+  .auth-forgot-link,
+  .auth-input,
+  .auth-avatar-preview {
+    touch-action: manipulation;
+  }
+}
 </style>
