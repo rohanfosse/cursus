@@ -1188,6 +1188,38 @@ const apiImpl = {
   getCahierYjsState:  (id: number) => get(`/api/cahiers/${id}/state`),
   saveCahierYjsState: (id: number, base64State: string) => patch(`/api/cahiers/${id}/state`, { state: base64State }),
 
+  // ── Live V2 (sessions unified) — toute l'API CRUD ──────────────────────
+  createLiveV2Session:       (payload: unknown) => post('/api/live-v2/sessions', payload),
+  cloneLiveV2Session:        (id: number, payload: unknown) => post(`/api/live-v2/sessions/${id}/clone`, payload),
+  reorderLiveV2Activities:   (sessionId: number, order: number[]) =>
+    patch(`/api/live-v2/sessions/${sessionId}/activities/reorder`, { order }),
+  updateLiveV2SessionStatus: (id: number, status: string) => patch(`/api/live-v2/sessions/${id}/status`, { status }),
+  deleteLiveV2Session:       (id: number) => del(`/api/live-v2/sessions/${id}`),
+  addLiveV2Activity:         (sessionId: number, payload: unknown) =>
+    post(`/api/live-v2/sessions/${sessionId}/activities`, payload),
+  updateLiveV2Activity:      (id: number, payload: unknown) => patch(`/api/live-v2/activities/${id}`, payload),
+  deleteLiveV2Activity:      (id: number) => del(`/api/live-v2/activities/${id}`),
+  setLiveV2ActivityStatus:   (id: number, status: string, extra?: unknown) =>
+    patch(`/api/live-v2/activities/${id}/status`, { status, ...(extra as object || {}) }),
+  toggleLiveV2Pin:           (responseId: number, pinned: boolean) =>
+    post(`/api/live-v2/responses/${responseId}/pin`, { pinned }),
+  saveLiveV2CodeSnapshot:    (activityId: number, content: string) =>
+    patch(`/api/live-v2/activities/${activityId}/code-snapshot`, { content }),
+  exportLiveV2SessionCsv:    (sessionId: number) => get(`/api/live-v2/sessions/${sessionId}/export-csv`),
+  // Board (cartes interactives — pour le mode collab live)
+  getLiveV2BoardCards:   (activityId: number) => get(`/api/live-v2/activities/${activityId}/cards`),
+  addLiveV2BoardCard:    (activityId: number, payload: unknown) => post(`/api/live-v2/activities/${activityId}/cards`, payload),
+  updateLiveV2BoardCard: (cardId: number, payload: unknown) => patch(`/api/live-v2/cards/${cardId}`, payload),
+  deleteLiveV2BoardCard: (cardId: number) => del(`/api/live-v2/cards/${cardId}`),
+  voteLiveV2BoardCard:   (cardId: number, vote: boolean) => post(`/api/live-v2/cards/${cardId}/vote`, { vote }),
+  hideLiveV2BoardCard:   (cardId: number, hidden: boolean) => patch(`/api/live-v2/cards/${cardId}/hide`, { hidden }),
+  // Self-paced + launch + progress
+  toggleLiveV2SelfPaced: (sessionId: number, selfPaced: boolean) =>
+    patch(`/api/live-v2/sessions/${sessionId}/self-paced`, { selfPaced }),
+  launchAllLiveV2:       (sessionId: number) => post(`/api/live-v2/sessions/${sessionId}/launch-all`, {}),
+  getLiveV2Progress:     (sessionId: number) => get(`/api/live-v2/sessions/${sessionId}/progress`),
+  getLiveV2MyResponses:  (sessionId: number) => get(`/api/live-v2/sessions/${sessionId}/my-responses`),
+
   // ── Live sessions (CRUD prof) ──────────────────────────────────────────
   getLiveSessionsForPromo: (promoId: number) => get(`/api/live/sessions/promo/${promoId}`),
   cloneLiveSession:        (id: number, payload: unknown) => post(`/api/live/sessions/${id}/clone`, payload),

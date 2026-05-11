@@ -1,5 +1,50 @@
 # Changelog
 
+## v2.334.0 (2026-05-11)
+
+### Test anti-regression parite shim/preload + 22 routes Live V2
+
+Suite a l'audit v2.333 (74 routes manquantes), creation du test
+d'integration `tests/backend/shim-vs-preload.test.js` qui parse les
+deux fichiers et fail si une methode preload manque dans le shim web
+sans etre whitelistee. Le test a immediatement remonte **22 routes
+Live V2 supplementaires** que l'audit manuel n'avait pas detectees
+(le grep matchait juste les noms exacts comme `getLiveSessionsForPromo`,
+pas les variantes `getLiveV2*`).
+
+**Routes Live V2 ajoutees** (22) :
+
+- Sessions : createLiveV2Session, cloneLiveV2Session, deleteLiveV2Session,
+  reorderLiveV2Activities, updateLiveV2SessionStatus
+- Activities : addLiveV2Activity, updateLiveV2Activity, deleteLiveV2Activity,
+  setLiveV2ActivityStatus, saveLiveV2CodeSnapshot, exportLiveV2SessionCsv
+- Board (cartes interactives) : getLiveV2BoardCards, addLiveV2BoardCard,
+  updateLiveV2BoardCard, deleteLiveV2BoardCard, voteLiveV2BoardCard,
+  hideLiveV2BoardCard
+- Misc : toggleLiveV2Pin, toggleLiveV2SelfPaced, launchAllLiveV2,
+  getLiveV2Progress, getLiveV2MyResponses
+
+**Test parite (3 checks)** :
+
+1. Aucune cle preload manquante dans le shim (hors whitelist)
+2. La whitelist ne contient pas d'entrees deja dans le shim
+   (anti-faux-negatif)
+3. La whitelist ne contient pas d'entrees absentes du preload
+   (anti-bruit)
+
+**Whitelist** (9 entrees) :
+
+Realtime live (`onLiveBoardUpdate`, `onLiveCodeUpdate`,
+`onLiveConfusionUpdate`, `onLiveSelfPacedUpdate`, `emitLiveCodeUpdate`,
+`onPollUpdate`, `onStatusChange`) : a cabler sur socket.io dans une
+release dediee — sessions live se font en presentiel desktop pour le
+pilote CESI sept 2026.
+
+Electron-only (`onRuntimeError`, `offlineWrite`) : pas d'equivalent
+web pertinent.
+
+Chaque ajout/retrait de la whitelist doit etre justifie en commentaire.
+
 ## v2.333.0 (2026-05-11)
 
 ### Web shim catch-up : 74 APIs alignees sur le preload Electron
