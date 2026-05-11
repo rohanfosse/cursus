@@ -1,6 +1,6 @@
 {
   "name": "cursus",
-  "version": "2.337.0",
+  "version": "2.338.0",
   "description": "Cursus - Suivez votre parcours de formation",
   "main": "out/main/index.js",
   "scripts": {
@@ -188,9 +188,23 @@
       "artifactName": "Cursus-${version}-mac.${ext}"
     },
     "linux": {
-      "target": "AppImage",
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb",      "arch": ["x64"] }
+      ],
       "icon": "resources/icon.png",
-      "artifactName": "Cursus-${version}-linux.${ext}"
+      "artifactName": "Cursus-${version}-linux-${arch}.${ext}",
+      "category": "Education",
+      "synopsis": "Plateforme pedagogique tout-en-un",
+      "description": "Messagerie temps reel, devoirs, documents, agenda et suivi de formation pour enseignants et etudiants.",
+      "desktop": {
+        "entry": {
+          "Name": "Cursus",
+          "Comment": "Plateforme pedagogique",
+          "Categories": "Education;Office;",
+          "StartupWMClass": "Cursus"
+        }
+      }
     },
     "publish": {
       "provider": "github",

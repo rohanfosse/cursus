@@ -13,7 +13,8 @@
       "Grep",
       "Agent",
       "Bash",
-      "WebFetch"
+      "WebFetch",
+      "Bash(git push:*)"
     ]
   }
 }

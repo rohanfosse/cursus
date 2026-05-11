@@ -19,11 +19,23 @@ async function getLatestRelease() {
   return releaseCache
 }
 
-const EXT_MAP = { windows: '.exe', mac: '.dmg' }
+// Mapping plateforme -> extension.
+// Linux peut servir 2 formats : AppImage (universel) ou deb (Debian/Ubuntu).
+// `linux` retourne AppImage par defaut. `linux-deb` retourne le .deb explicitement.
+const EXT_MAP = {
+  windows: '.exe',
+  mac:     '.dmg',
+  linux:   '.AppImage',
+  'linux-deb': '.deb',
+}
 
 router.get('/:platform', async (req, res) => {
   const ext = EXT_MAP[req.params.platform]
-  if (!ext) return res.status(404).json({ error: 'Plateforme inconnue. Utiliser: windows, mac' })
+  if (!ext) {
+    return res.status(404).json({
+      error: 'Plateforme inconnue. Utiliser: windows, mac, linux, linux-deb',
+    })
+  }
 
   try {
     const release = await getLatestRelease()
