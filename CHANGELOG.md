@@ -1,5 +1,25 @@
 # Changelog
 
+## v2.331.3 (2026-05-11)
+
+### CORS multi-origines + default safe
+
+Suite a l'incident 502 pilote du 11 mai (CORS_ORIGIN=* dans .env du VPS
+declenchait fail-fast v2.331.0, container en restart loop, webhook
+injoignable). v2.331.2 a leve le fail-fast. v2.331.3 ameliore le
+parsing :
+
+- **Multi-domaines** : `CORS_ORIGIN=https://app.cursus.school,https://cursus.school`
+  fonctionne maintenant (split + tableau passe a cors npm).
+- **Wildcard `*`** : accepte (avec log.error bruyant pour rappeler la
+  faille) au lieu de crasher.
+- **Default safe** : si `CORS_ORIGIN` absent en prod, on passe `null`
+  a cors() = fail-closed (refuse tout). Avant : fallback localhost,
+  qui en prod etait une faille (XSS tierce -> requetes credentialed).
+- **Aide a la decouverte** : la fonction `parseCorsOrigin` est typee
+  pour permettre une migration future vers une regex ou liste de
+  patterns sans casser le contrat.
+
 ## v2.331.2 (2026-05-10)
 
 ### Hotfix prod 502 : revert CORS_ORIGIN fail-fast

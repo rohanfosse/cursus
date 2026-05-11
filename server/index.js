@@ -9,8 +9,27 @@ const jwt        = require('jsonwebtoken')
 const queries    = require('./db/index')
 const log        = require('./utils/logger')
 
-const PORT   = process.env.PORT       ?? 3001
-const ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:5173'
+const PORT = process.env.PORT ?? 3001
+
+// CORS_ORIGIN accepte un seul domaine ou une liste separee par virgules.
+// Ex : "https://app.cursus.school" ou "https://app.cursus.school,https://cursus.school"
+//
+// Defaut en developpement : http://localhost:5173 (vite dev server).
+// Defaut en production : null = cors() refuse tout (fail closed).
+// L'admin DOIT configurer CORS_ORIGIN en prod, mais on prefere refuser
+// les requetes cross-origin plutot que d'autoriser localhost en cas
+// d'oubli.
+function parseCorsOrigin(raw) {
+  if (!raw) return null
+  if (raw === '*') return '*'  // delegue a cors() qui acceptera *
+  const list = raw.split(',').map(s => s.trim()).filter(Boolean)
+  return list.length === 1 ? list[0] : list
+}
+
+const IS_DEV = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || !process.env.NODE_ENV
+const ORIGIN = process.env.CORS_ORIGIN
+  ? parseCorsOrigin(process.env.CORS_ORIGIN)
+  : (IS_DEV ? 'http://localhost:5173' : null)
 
 // ── Verifications de securite au demarrage ──────────────────────────────────
 // JWT_SECRET : fail-fast en non-dev (faille reelle : forgeabilite de tokens).
@@ -18,8 +37,6 @@ const ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:5173'
 // CORS de v2.331 a brique des prods avec .env mal configures (502 au pilote).
 // L'admin doit corriger CORS_ORIGIN au plus tot, mais le serveur reste up
 // pour eviter la coupure totale.
-const IS_DEV = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || !process.env.NODE_ENV
-
 const SECRET = process.env.JWT_SECRET ?? 'changeme-dev-secret'
 if (!IS_DEV) {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
