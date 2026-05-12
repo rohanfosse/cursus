@@ -98,11 +98,23 @@ router.post('/login', loginLimiter, validate(loginSchema), wrap(async (req) => {
 }))
 
 // POST /api/auth/refresh — renouveler le JWT si encore valide (< 7j)
+//
+// Securite : on NE recopie PAS le payload du token entrant. On re-resout
+// l'utilisateur en base pour :
+//   1. Bloquer les comptes anonymises (RGPD /auth/account) — sans ce check,
+//      un etudiant supprime peut refresh indefiniment pendant 7 jours.
+//   2. Refleter les changements de role/promo intervenus depuis l'emission
+//      du token precedent (demotion teacher -> TA, changement de promo,
+//      suppression de compte cote admin).
 router.post('/refresh', auth, (req, res) => {
+  const fresh = queries.getActiveUserForRefresh(req.user?.id)
+  if (!fresh) {
+    return res.status(401).json({ ok: false, error: 'Compte introuvable ou supprime.' })
+  }
   try {
     const secret = req.app.get('jwtSecret')
     const token = jwt.sign(
-      { id: req.user.id, name: req.user.name, type: req.user.type, promo_id: req.user.promo_id },
+      { id: fresh.id, name: fresh.name, type: fresh.type, promo_id: fresh.promo_id },
       secret,
       { expiresIn: '7d' },
     )

@@ -143,9 +143,12 @@ function loginWithCredentials(email, password) {
     };
   }
 
-  // 2. Chercher dans students (alias explicite pour éviter que p.name écrase s.name)
+  // 2. Chercher dans students (alias explicite pour éviter que p.name écrase s.name).
+  // `deleted_at IS NULL` bloque les comptes anonymises (RGPD). Defense en
+  // profondeur : le hash impossible empeche deja le match, mais ce filtre
+  // rend l'intention explicite et evite un appel bcrypt inutile.
   const student = db.prepare(
-    'SELECT s.*, p.name AS promo_name FROM students s JOIN promotions p ON s.promo_id = p.id WHERE LOWER(s.email) = LOWER(?)'
+    'SELECT s.*, p.name AS promo_name FROM students s JOIN promotions p ON s.promo_id = p.id WHERE LOWER(s.email) = LOWER(?) AND s.deleted_at IS NULL'
   ).get(email.trim());
 
   if (!student) return null;
@@ -402,20 +405,62 @@ function anonymizeStudentAccount(studentId) {
   const existing = db.prepare('SELECT id FROM students WHERE id = ?').get(id);
   if (!existing) throw new Error('Compte introuvable.');
   const anonName = `Compte supprime #${id}`;
+  // students.email est NOT NULL UNIQUE — on ne peut pas mettre NULL. On
+  // ecrit un placeholder unique et non routable (.invalid est RFC 6761
+  // garanti non delivrable) qui empeche aussi toute reconnexion ulterieure
+  // via /auth/login (l'email reel a ete reattribuable a personne).
+  const anonEmail = `compte-supprime-${id}@anonyme.invalid`;
   // Password rendu impossible a matcher (hash random hex 60 char). Pas un
   // bcrypt valide, donc bcrypt.compareSync renverra false sans crash.
   const impossibleHash = require('crypto').randomBytes(30).toString('hex');
   db.prepare(`
     UPDATE students
     SET name = ?,
-        email = NULL,
+        email = ?,
         photo_data = NULL,
         password = ?,
         avatar_initials = '??',
         deleted_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(anonName, impossibleHash, id);
+  `).run(anonName, anonEmail, impossibleHash, id);
   return { ok: true, name: anonName };
+}
+
+/**
+ * Re-resolve un utilisateur pour /api/auth/refresh.
+ *
+ * Le JWT sortant doit refleter l'etat actuel en base, pas l'etat fige au
+ * moment de l'emission du token precedent :
+ * - student supprime (RGPD, deleted_at set)        -> null (401)
+ * - student qui a change de promo                   -> nouveau promo_id
+ * - teacher dont le role a change (admin -> ta...) -> nouveau role
+ * - utilisateur dont la row a disparu              -> null (401)
+ *
+ * Convention id : students.id > 0, teachers stockes en negatif dans le JWT
+ * (-teachers.id) cf. loginWithCredentials.
+ *
+ * @param {number} tokenId - req.user.id (peut etre negatif pour teachers)
+ * @returns {{ id: number, name: string, type: string, promo_id: number|null } | null}
+ */
+function getActiveUserForRefresh(tokenId) {
+  const db = getDb();
+  const id = Number(tokenId);
+  if (!Number.isFinite(id) || id === 0) return null;
+  if (id > 0) {
+    // Student : on filtre les comptes anonymises (deleted_at) pour empecher
+    // qu'un token vole d'un compte supprime soit reconduit indefiniment.
+    const row = db.prepare(
+      'SELECT id, name, promo_id FROM students WHERE id = ? AND deleted_at IS NULL'
+    ).get(id);
+    if (!row) return null;
+    return { id: row.id, name: row.name, type: 'student', promo_id: row.promo_id };
+  }
+  // Teacher / admin / TA : id stocke negatif dans le JWT.
+  const row = db.prepare(
+    'SELECT id, name, role FROM teachers WHERE id = ?'
+  ).get(-id);
+  if (!row) return null;
+  return { id: -row.id, name: row.name, type: row.role, promo_id: null };
 }
 
 module.exports = {
@@ -424,5 +469,5 @@ module.exports = {
   changePassword, exportStudentData,
   getIdentities, bulkImportStudents, getClasseStats, updateStudentPhoto, updateTeacherPhoto,
   findUserByName, getOnboardingStatus, completeOnboarding,
-  anonymizeStudentAccount,
+  anonymizeStudentAccount, getActiveUserForRefresh,
 };

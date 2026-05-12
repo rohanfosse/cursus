@@ -1,5 +1,63 @@
 # Changelog
 
+## v2.339.0 (2026-05-12)
+
+### Hardening /auth/refresh — re-resolution serveur + fix latent suppression RGPD
+
+Suite a un audit du parcours auth post-RGPD, deux problemes corriges en
+meme temps : le refresh JWT ne re-verifiait pas l'etat du compte cote
+serveur, et la fonction d'anonymisation v2.331 echouait silencieusement
+(NOT NULL constraint sur students.email) — la suppression de compte
+remontait `200 ok` cote API mais ne s'executait jamais reellement en
+base.
+
+**`POST /api/auth/refresh` re-resout l'utilisateur en base** :
+
+Avant, le endpoint recopiait servilement le payload du token entrant
+(id, name, type, promo_id) et signait un nouveau JWT 7 jours. Aucun
+appel DB. Consequence :
+- un etudiant supprime via `/auth/account` (RGPD) gardait un token
+  valide et pouvait refresher indefiniment pendant 7j ;
+- un teacher demotionne en TA gardait son role admin dans le token
+  jusqu'a l'expiration ;
+- un etudiant reaffecte a une autre promo gardait l'ancienne dans son
+  token.
+
+Nouveau helper `getActiveUserForRefresh(tokenId)` dans `db/models/
+students.js` : id > 0 -> SELECT students WHERE deleted_at IS NULL,
+id < 0 -> SELECT teachers (convention : teachers stockes en negatif
+dans le JWT cf. loginWithCredentials). Retourne null si row absente
+ou anonymisee, sinon les valeurs FRAICHES (promo_id, role) qui seront
+gravees dans le nouveau token. Le route renvoie 401 si null.
+
+**`loginWithCredentials` filtre maintenant `deleted_at IS NULL`** :
+
+Defense en profondeur — le hash random de l'anonymisation empechait
+deja le match cote bcrypt, mais ce filtre rend l'intention explicite,
+evite un appel bcrypt inutile et coupe le risque qu'un futur
+refactor casse silencieusement la garde.
+
+**Fix latent `anonymizeStudentAccount`** :
+
+Le code shippe en v2.331 faisait `SET email = NULL`. Or le schema
+declare `email TEXT NOT NULL UNIQUE` (et la migration v93 n'a touche
+qu'a `deleted_at`). Donc la requete plantait, l'erreur etait avalee
+par le wrap async et la suppression de compte ne supprimait rien.
+Nouveau placeholder : `compte-supprime-<id>@anonyme.invalid` (TLD RFC
+6761 non delivrable) — preserve l'unicite, respecte le NOT NULL,
+bloque toute reattribution accidentelle de l'email originel.
+
+**Tests** :
+
+Nouveau fichier `tests/backend/routes/auth-refresh.test.js` — 9 cas
+qui n'existaient pas :
+- refresh accepte pour student/teacher actifs
+- refresh rejette si deleted_at set (RGPD)
+- refresh rejette si id inexistant (student ou teacher)
+- refresh reflete le promo_id DB courant (pas la valeur token figee)
+- refresh reflete le role courant (demotion admin -> teacher)
+- DELETE /account smoke : suppression -> refresh bloque immediatement
+
 ## v2.337.0 (2026-05-11)
 
 ### Dashboard Santé admin — health enrichi avec alertes glanceables
