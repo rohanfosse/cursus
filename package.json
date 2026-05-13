@@ -13,6 +13,7 @@
     "build:mac": "npm run build:check && electron-builder --mac",
     "build:mac:ci": "npm run build && electron-builder --mac",
     "build:linux": "npm run build:check && electron-builder --linux",
+    "build:linux:ci": "npm run build && electron-builder --linux --publish never",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint src --fix",
     "check:design": "node scripts/check-design-tokens.js",

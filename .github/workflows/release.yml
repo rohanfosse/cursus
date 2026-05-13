@@ -201,7 +201,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_SERVER_URL: ${{ secrets.VITE_SERVER_URL }}
           VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
-        run: npm run build && electron-builder --linux --publish never
+        run: npm run build:linux:ci
 
       - name: Upload .AppImage + .deb to release
         uses: softprops/action-gh-release@v2
