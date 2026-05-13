@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.340.0 (2026-05-13)
+
+### Admin : barre d'onglets > sidebar verticale
+
+Les 5 sections admin (Sante, Erreurs, Statistiques, Utilisateurs,
+Modules) etaient empilees en barre horizontale sous le header. Avec
+l'ajout prochain de nouvelles sections (audit, sessions, parametres
+plateforme), la barre allait devenir illisible sur les petits ecrans
+desktop. Bascule en sidebar verticale a gauche (220 px), 1 colonne
+nav + 1 colonne contenu.
+
+**`src/renderer/src/views/AdminView.vue`** :
+
+- Nouveau wrapper `.adm-layout` (flex row) qui contient `.adm-side`
+  (nav verticale) et `.adm-body` (contenu scrollable).
+- `.adm-side` : nav vertical avec libelle "Sections" en small-caps en
+  tete, boutons full-width (icone + label + badge optionnel a droite).
+- Indicateur d'onglet actif redessine en barre verticale 3 px sur le
+  bord gauche du bouton (au lieu d'un fond + bordure), pattern admin
+  dashboard classique. Badge Erreurs alerte conserve.
+- Accessibilite : `role="tablist"` + `aria-orientation="vertical"`,
+  `tabindex` roving entre onglets, `role="tabpanel"` sur le contenu.
+- Mobile (<= 768 px) : fallback en barre horizontale scrollable au
+  sommet, masque le libelle "Sections", padding compact. Indicateur
+  vertical desactive pour eviter qu'il coupe le texte.
+
 ## v2.339.0 (2026-05-12)
 
 ### Hardening /auth/refresh — re-resolution serveur + fix latent suppression RGPD
