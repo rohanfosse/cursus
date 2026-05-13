@@ -11,6 +11,8 @@ const mockRelease = {
     { name: 'Cursus-2.2.3-Setup.exe', browser_download_url: 'https://github.com/rohanfosse/cursus/releases/download/v2.2.3/Cursus-2.2.3-Setup.exe' },
     { name: 'Cursus-2.2.3-Setup.exe.blockmap', browser_download_url: 'https://github.com/rohanfosse/cursus/releases/download/v2.2.3/Cursus-2.2.3-Setup.exe.blockmap' },
     { name: 'Cursus-2.2.3.dmg', browser_download_url: 'https://github.com/rohanfosse/cursus/releases/download/v2.2.3/Cursus-2.2.3.dmg' },
+    { name: 'Cursus-2.2.3.AppImage', browser_download_url: 'https://github.com/rohanfosse/cursus/releases/download/v2.2.3/Cursus-2.2.3.AppImage' },
+    { name: 'cursus_2.2.3_amd64.deb', browser_download_url: 'https://github.com/rohanfosse/cursus/releases/download/v2.2.3/cursus_2.2.3_amd64.deb' },
   ],
 }
 
@@ -74,8 +76,20 @@ describe('GET /download/:platform', () => {
     expect(res.headers.location).toMatch(/\.dmg$/)
   })
 
-  it('returns 404 for unknown platform', async () => {
+  it('redirects to .AppImage for linux (302)', async () => {
     const res = await request(app).get('/download/linux')
+    expect(res.status).toBe(302)
+    expect(res.headers.location).toMatch(/\.AppImage$/)
+  })
+
+  it('redirects to .deb for linux-deb (302)', async () => {
+    const res = await request(app).get('/download/linux-deb')
+    expect(res.status).toBe(302)
+    expect(res.headers.location).toMatch(/\.deb$/)
+  })
+
+  it('returns 404 for unknown platform', async () => {
+    const res = await request(app).get('/download/freebsd')
     expect(res.status).toBe(404)
     expect(res.body.error).toMatch(/plateforme/i)
   })
@@ -83,6 +97,7 @@ describe('GET /download/:platform', () => {
   it('returns 404 for invalid platform name', async () => {
     const res = await request(app).get('/download/android')
     expect(res.status).toBe(404)
+    expect(res.body.error).toMatch(/plateforme/i)
   })
 })
 
@@ -116,7 +131,7 @@ describe('GitHub API failure handling', () => {
   })
 
   it('unknown platform still returns 404 even if fetch would fail', async () => {
-    const res = await request(app).get('/download/linux')
+    const res = await request(app).get('/download/freebsd')
     // Platform check happens before fetch, so always 404
     expect(res.status).toBe(404)
   })
