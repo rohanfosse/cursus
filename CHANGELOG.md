@@ -1,5 +1,80 @@
 # Changelog
 
+## v2.341.0 (2026-05-14)
+
+### Mode examen surveille (partiel de code en classe)
+
+Un travail peut maintenant etre cree en "mode examen surveille" depuis
+la modale de creation de devoir (CCTL / etude de cas uniquement). Quand
+un eleve demarre l'examen, l'app Electron passe en plein ecran kiosk,
+bloque les raccourcis devtools/reload/fermeture, et empeche le copier-
+coller externe. Les comportements suspects (sortie de focus, paste
+tentee, heartbeat) sont enregistres dans une nouvelle table
+`exam_events` pour debrief prof post-mortem. Aucun proctoring lourd :
+zero capture image / audio.
+
+**Cote prof — creation** :
+
+- Toggle "Mode examen surveille" dans `NewDevoirModal`, visible
+  uniquement pour CCTL / etude de cas (epreuves chronometrees). Force
+  `requires_submission = true` et expose un champ "Code de depart"
+  (textarea monospace) pour pre-remplir l'editeur de l'eleve avec un
+  squelette de fonction / imports.
+- Lien "Voir le post-mortem" dans `GestionDevoirModal` quand le devoir
+  est en mode examen, qui ouvre la nouvelle vue `ExamReviewView` :
+  liste deroulante par eleve, code soumis en CodeMirror read-only,
+  timeline des events suspects, formulaire de notation reutilisant
+  l'infra depots existante.
+
+**Cote eleve — session d'examen** :
+
+- Nouvelle vue plein ecran `ExamSessionView` (route
+  `/exam/:travailId`) : enonce Markdown a gauche, editeur CodeMirror
+  (Python par defaut) a droite, timer countdown en haut.
+- Auto-save local toutes les 10s (`localStorage`, cle par travail +
+  user) qui permet la reprise apres crash de l'app : au remount, si un
+  state local existe, on reprend la session au lieu de recommencer.
+- Soumission via `/api/depots` avec `type='code'`, le contenu va dans
+  une nouvelle colonne `code_content`. Soumission auto si le timer
+  expire (event `exam_timeout`).
+- Paste guard dans l'editeur : tout paste est bloque (toast + event
+  `paste_blocked` logue). MVP "prevention soft" : on accepte le faux
+  positif intra-editeur pour eviter la complexite de distinguer
+  clipboard interne vs externe.
+
+**Verrouillage Electron** (`src/main/ipc/exam.js`) :
+
+- `exam:enterKiosk` : combine `setFullScreen`, `setKiosk`,
+  `setAlwaysOnTop` et menubar invisible. Snapshot de l'etat
+  fenetre avant pour restauration exacte a l'exit.
+- `before-input-event` guard qui bloque DevTools (Ctrl+Shift+I, F12),
+  reload (Ctrl+R), fermeture (Ctrl+W, Ctrl+Q).
+- Limitations OS connues : Alt+Tab et Wayland compose ne sont pas
+  blocables sans hook OS-level (hors scope MVP). On detecte via
+  `visibilitychange` + `blur` cote renderer et on log les events
+  focus_loss.
+
+**Schema DB (migration v95)** :
+
+- `travaux.exam_mode` (INTEGER 0/1) + `travaux.starter_code` (TEXT).
+- `depots.code_content` (TEXT) pour le code soumis.
+- Nouvelle table `exam_events` (id, travail_id, student_id, type, ts,
+  payload JSON) avec CHECK constraint sur les 7 types valides.
+
+**Securite** :
+
+- `POST /api/exam-events` force `student_id = req.user.id` (un eleve
+  ne peut pas attribuer des events a un autre). Verifie que le travail
+  est bien `exam_mode = 1`. Restreint a la promo via `requirePromo`.
+- `GET /api/exam-events` et `/summary` : `requireRole('teacher')` +
+  `requirePromo`.
+- Desktop only par design : `exam` est en whitelist
+  `ALLOWED_MISSING_IN_SHIM` car le verrouillage kiosk ne peut pas etre
+  garanti en web (le navigateur garde toujours sa barre).
+
+**Tests** : couverture du model `examEvents` (insertion, validation
+des types, aggregation summary) + cas `type='code'` pour `addDepot`.
+
 ## v2.340.0 (2026-05-13)
 
 ### Admin : barre d'onglets > sidebar verticale
