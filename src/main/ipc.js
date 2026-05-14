@@ -14,6 +14,7 @@ const files     = require('./ipc/files')
 const onboarding = require('./ipc/onboarding')
 const lumen     = require('./ipc/lumen')
 const cahiers   = require('./ipc/cahiers')
+const exam      = require('./ipc/exam')
 const { registerOfflineHandlers } = require('./ipc/offline')
 
 function register() {
@@ -31,6 +32,7 @@ function register() {
   onboarding.register()
   lumen.register()
   cahiers.register()
+  exam.register()
   registerOfflineHandlers()
 }
 

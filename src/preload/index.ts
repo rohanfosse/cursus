@@ -954,4 +954,14 @@ contextBridge.exposeInMainWorld('api', {
   emitTyping:   (channelId: number) => { socket?.emit('typing', { channelId }) },
   emitDmTyping: (dmStudentId: number, dmPeerId?: number) => { socket?.emit('typing', { dmStudentId, dmPeerId }) },
   onTyping:     (cb: (data: TypingPayload) => void) => sockEv.typing.add(cb),
+
+  // ── Mode examen surveille (kiosk Electron) ────────────────────────────────
+  // enterKiosk : plein ecran force + alwaysOnTop + blocage raccourcis devtools/reload.
+  // exitKiosk  : restaure l'etat fenetre precedent.
+  // logEvent   : POST vers /api/exam-events (commit 5 du sprint).
+  exam: {
+    enterKiosk: (travailId: number) => ipcRenderer.invoke('exam:enterKiosk', travailId),
+    exitKiosk:  ()                   => ipcRenderer.invoke('exam:exitKiosk'),
+    logEvent:   (payload: unknown)   => post('/api/exam-events', payload),
+  },
 })

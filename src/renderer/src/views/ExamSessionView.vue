@@ -84,6 +84,27 @@ function mountEditor(initialContent: string) {
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       python(),
+      // Paste guard : on bloque TOUT paste pendant l'examen (mode prevention
+      // soft). L'etudiant tape son code a la main. Faux positifs assumes :
+      // pas de copier-coller meme intra-editeur. Aligne avec "tricheur
+      // opportuniste" qui ouvrirait ChatGPT en alt-tab puis collerait.
+      EditorView.domEventHandlers({
+        paste: (e) => {
+          e.preventDefault()
+          const size = e.clipboardData?.getData('text')?.length ?? 0
+          showToast('Copier-coller bloque pendant l\'examen.', 'error')
+          // Log de l'event (no-op si endpoint absent, branche au commit 5)
+          try {
+            void window.api?.exam?.logEvent?.({
+              travailId: travailId.value,
+              type:      'paste_blocked',
+              ts:        Date.now(),
+              payload:   { sizeChars: size },
+            })
+          } catch { /* */ }
+          return true
+        },
+      }),
       EditorView.updateListener.of((v) => {
         if (v.docChanged) code.value = v.state.doc.toString()
       }),
