@@ -43,7 +43,10 @@
     "education",
     "cursus"
   ],
-  "author": "Rohan Fossé",
+  "author": {
+    "name":  "Rohan Fossé",
+    "email": "contact@rohanfosse.com"
+  },
   "license": "AGPL-3.0-or-later",
   "dependencies": {
     "@azure/msal-node": "^5.1.2",
