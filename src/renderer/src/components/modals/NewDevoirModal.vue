@@ -6,7 +6,7 @@
   import { ref, watch, computed } from 'vue'
   import {
     FileText, Mic, Award, BookOpen, File, HelpCircle,
-    Clock, MapPin, Calculator, FolderOpen, ChevronDown,
+    Clock, MapPin, Calculator, FolderOpen, ChevronDown, Lock,
   } from 'lucide-vue-next'
   import { useAppStore }     from '@/stores/app'
   import { useTravauxStore } from '@/stores/travaux'
@@ -77,6 +77,13 @@
   const session       = ref<'Initiale' | 'Rattrapage'>('Initiale')
   const requiresSubmission = ref(true)
 
+  // Mode examen surveille (CCTL / etude de cas uniquement) : verrouille l'app
+  // Electron en plein ecran, intercepte les paste externes, log les focus
+  // loss. starterCode pre-remplit l'editeur de l'etudiant (squelette de
+  // fonction, imports, etc.).
+  const examMode    = ref(false)
+  const starterCode = ref('')
+
   // ── Projets ─────────────────────────────────────────────────────────────
   const projects = computed(() => {
     if (!appStore.activePromoId) return []
@@ -101,6 +108,7 @@
   const { justSaved, restore: restoreDraft, clear: clearDraft } = useFormDraft(draftKey.value, {
     title, description, category, deadline, startDate, room, aavs,
     duration, calculatrice, ressources, session, requiresSubmission,
+    examMode, starterCode,
   })
 
   // ── Init ────────────────────────────────────────────────────────────────
@@ -139,6 +147,8 @@
     ressources.value = 'Aucune'
     session.value = 'Initiale'
     requiresSubmission.value = true
+    examMode.value = false
+    starterCode.value = ''
 
     // Restaurer un brouillon existant (prof qui avait ferme la modale sans submit)
     restoreDraft()
@@ -147,6 +157,18 @@
   // Adapter requiresSubmission quand le type change
   watch(type, (t) => {
     requiresSubmission.value = t === 'livrable' || t === 'memoire' || t === 'autre'
+    // Le mode examen surveille n'est pertinent que pour CCTL / etude de cas
+    // (epreuves chronometrees en classe). On le coupe sur les autres types.
+    if (t !== 'cctl' && t !== 'etude_de_cas') {
+      examMode.value = false
+      starterCode.value = ''
+    }
+  })
+
+  // Si l'examen surveille est active, on force requiresSubmission a true
+  // (l'etudiant doit pouvoir soumettre son code).
+  watch(examMode, (on) => {
+    if (on) requiresSubmission.value = true
   })
 
   // ── Description auto ────────────────────────────────────────────────────
@@ -161,6 +183,7 @@
       parts.push(ressources.value === 'Aucune' ? 'Aucune ressource autorisée' : `Ressources : ${ressources.value}`)
     }
     if (room.value.trim()) parts.push(`Salle : ${room.value.trim()}`)
+    if (examMode.value) parts.push('🔒 **Mode examen surveillé** — plein écran obligatoire, focus surveillé, copier-coller externe bloqué.')
     return parts.join('\n')
   }
 
@@ -194,6 +217,8 @@
         aavs:         aavs.value.trim() || null,
         requires_submission: requiresSubmission.value ? 1 : 0,
         scheduledPublishAt: scheduledPublishAt.value || null,
+        examMode:     examMode.value,
+        starterCode:  examMode.value ? (starterCode.value || null) : null,
       })
       if (!res) { showToast('Erreur lors de la création.', 'error'); return }
       clearDraft()
@@ -282,9 +307,28 @@
             <Calculator :size="13" /> Calculatrice autorisée
           </label>
           <label class="nd-option">
-            <input v-model="requiresSubmission" type="checkbox" />
+            <input v-model="requiresSubmission" type="checkbox" :disabled="examMode" />
             <FileText :size="13" /> Autoriser le dépôt de fichiers
           </label>
+          <label class="nd-option nd-option--exam">
+            <input v-model="examMode" type="checkbox" />
+            <Lock :size="13" /> Mode examen surveillé (verrouillage Electron)
+          </label>
+        </div>
+
+        <!-- Code de depart : pre-remplit l'editeur de l'etudiant en mode exam -->
+        <div v-if="examMode" class="nd-field nd-exam-starter">
+          <label class="nd-label">
+            <Lock :size="12" /> Code de départ <span class="nd-hint">(optionnel, pré-rempli dans l'éditeur)</span>
+          </label>
+          <textarea
+            v-model="starterCode" class="nd-input nd-textarea nd-mono" rows="5"
+            placeholder="# Compléter la fonction ci-dessous&#10;def somme(a, b):&#10;    pass"
+            spellcheck="false"
+          />
+          <p class="nd-hint" style="margin-top:4px">
+            🔒 Plein écran forcé, paste externe bloqué, focus loss logué. Pas d'enregistrement caméra/écran.
+          </p>
         </div>
 
         <!-- Depot optionnel pour soutenance (slides) -->
@@ -455,6 +499,19 @@
   font-size: 13px; color: var(--text-secondary); cursor: pointer;
 }
 .nd-option input { accent-color: var(--accent); }
+.nd-option--exam { color: var(--accent); font-weight: 500; }
+.nd-option--exam svg { color: var(--accent); }
+
+/* Editeur "code de depart" : police monospace + zone visuellement isolee */
+.nd-exam-starter {
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  background: rgba(var(--accent-rgb), .04);
+  border: 1px solid rgba(var(--accent-rgb), .2);
+}
+.nd-mono {
+  font-family: var(--font-mono, ui-monospace, 'Menlo', 'Monaco', monospace);
+  font-size: 12px; line-height: 1.5;
+}
 
 /* ── Section avancée ───────────────────────────────────────────────────── */
 .nd-advanced-toggle {
