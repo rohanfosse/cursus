@@ -51,6 +51,12 @@ const ALLOWED_MISSING_IN_SHIM = new Set([
   // Electron-only : pas d'equivalent web pertinent
   'onRuntimeError',  // uncaught exceptions du renderer-process
   'offlineWrite',    // cache offline Electron (le web utilise SW + localStorage)
+  // Mode examen surveille = desktop only par design (cf. phase 4 de
+  // l'interview produit). Le verrouillage kiosk (fullscreen, paste lock,
+  // blocage devtools) repose sur les APIs Electron BrowserWindow ; le web
+  // ne peut pas garantir ce niveau de confinement (l'utilisateur garde
+  // toujours acces a son OS via la barre du navigateur).
+  'exam',
 ])
 
 /**
