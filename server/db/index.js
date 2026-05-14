@@ -30,6 +30,7 @@ const scheduled      = require('./models/scheduled');
 const statuses       = require('./models/statuses');
 const linkPreviews   = require('./models/linkPreviews');
 const promoCalendarSubscriptions = require('./models/promoCalendarSubscriptions');
+const examEvents    = require('./models/examEvents');
 
 // Initialisation complète : schema + migrations + seed
 function init() {
@@ -68,5 +69,6 @@ module.exports = {
   ...scheduled,
   ...statuses,
   ...linkPreviews,
+  ...examEvents,
   promoCalendarSubscriptions,
 };

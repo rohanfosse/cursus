@@ -49,8 +49,11 @@ const startedAtMs   = ref<number | null>(null)
 const durationMs    = ref<number>(60 * 60_000) // fallback : 1h si pas de duree dans la description
 const now           = ref<number>(Date.now())
 
-let nowTimer:  ReturnType<typeof setInterval> | null = null
-let saveTimer: ReturnType<typeof setInterval> | null = null
+let nowTimer:        ReturnType<typeof setInterval> | null = null
+let saveTimer:       ReturnType<typeof setInterval> | null = null
+let heartbeatTimer:  ReturnType<typeof setInterval> | null = null
+let focusLossStartedAt: number | null = null // ms : debut du focus loss en cours, null si focus
+const HEARTBEAT_INTERVAL_MS = 30_000
 
 const elapsedMs       = computed(() => startedAtMs.value ? now.value - startedAtMs.value : 0)
 const timeRemainingMs = computed(() => Math.max(0, durationMs.value - elapsedMs.value))
@@ -238,6 +241,57 @@ function leaveExam() {
   }
 }
 
+// ── Surveillance focus / visibilite ──────────────────────────────────────
+// On log un event focus_loss a chaque sortie de focus (alt-tab, autre
+// fenetre cliquee, minimisation). Quand le focus revient, on log la duree.
+function logFocusLoss(durationMs: number) {
+  try {
+    void window.api?.exam?.logEvent?.({
+      travailId: travailId.value,
+      type:      'focus_loss',
+      ts:        Date.now(),
+      payload:   { durationMs },
+    })
+  } catch { /* */ }
+}
+function onVisibilityChange() {
+  if (phase.value !== 'in_progress') return
+  if (document.visibilityState === 'hidden') {
+    if (focusLossStartedAt == null) focusLossStartedAt = Date.now()
+  } else {
+    if (focusLossStartedAt != null) {
+      const dur = Date.now() - focusLossStartedAt
+      focusLossStartedAt = null
+      // Tolerance : on ignore les blips < 500ms (transitions UI, notifs OS rapides)
+      if (dur >= 500) logFocusLoss(dur)
+    }
+  }
+}
+function onWindowBlur() {
+  if (phase.value !== 'in_progress') return
+  if (focusLossStartedAt == null) focusLossStartedAt = Date.now()
+}
+function onWindowFocus() {
+  if (phase.value !== 'in_progress') return
+  if (focusLossStartedAt != null) {
+    const dur = Date.now() - focusLossStartedAt
+    focusLossStartedAt = null
+    if (dur >= 500) logFocusLoss(dur)
+  }
+}
+
+function sendHeartbeat() {
+  if (phase.value !== 'in_progress') return
+  try {
+    void window.api?.exam?.logEvent?.({
+      travailId: travailId.value,
+      type:      'heartbeat',
+      ts:        Date.now(),
+      payload:   { elapsedMs: elapsedMs.value, remainingMs: timeRemainingMs.value },
+    })
+  } catch { /* */ }
+}
+
 // ── Lifecycle ────────────────────────────────────────────────────────────
 onMounted(async () => {
   await loadTravail()
@@ -246,11 +300,19 @@ onMounted(async () => {
     if (isExpired.value) void submitExam('timeout')
   }, 1000)
   saveTimer = setInterval(saveLocalDraft, 10_000)
+  heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  window.addEventListener('blur',  onWindowBlur)
+  window.addEventListener('focus', onWindowFocus)
 })
 
 onBeforeUnmount(() => {
-  if (nowTimer)  clearInterval(nowTimer)
-  if (saveTimer) clearInterval(saveTimer)
+  if (nowTimer)        clearInterval(nowTimer)
+  if (saveTimer)       clearInterval(saveTimer)
+  if (heartbeatTimer)  clearInterval(heartbeatTimer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  window.removeEventListener('blur',  onWindowBlur)
+  window.removeEventListener('focus', onWindowFocus)
   editorView.value?.destroy()
   // Si l'etudiant quitte la vue sans soumettre (ferme l'app), on garde le state
   // local pour reprise au prochain mount. clearLocalState n'est appele qu'apres
