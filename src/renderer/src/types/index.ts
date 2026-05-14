@@ -109,6 +109,9 @@ export interface Devoir {
   requires_submission?: number | 0 | 1
   promo_id?: number | null
   scheduled_publish_at?: string | null
+  exam_mode?: number | 0 | 1
+  starter_code?: string | null
+  duration_min?: number | null
   // Devoirs de groupe v2.199 : auteur du dernier upload du depot partage.
   // null si pas de depot encore soumis ou si depot individuel ou si l'API
   // ancienne n'a pas renvoye le champ.

@@ -719,6 +719,21 @@ declare global {
       // Theme (mirror cote main pour configurer BrowserWindow.backgroundColor au boot)
       setTheme(theme: string): Promise<IpcResponse<null>>
 
+      // Mode examen surveille (commit 4-5 du sprint exam)
+      // Optionnel : peut etre absent si le main process / preload n'a pas
+      // (encore) declare ces handlers. La vue ExamSessionView fait
+      // graceful degradation via optional chaining.
+      exam?: {
+        enterKiosk(travailId: number): Promise<IpcResponse<null>>
+        exitKiosk(): Promise<IpcResponse<null>>
+        logEvent(payload: {
+          travailId: number
+          type:    'exam_start' | 'exam_submit' | 'exam_timeout' | 'focus_loss' | 'paste_blocked' | 'heartbeat' | 'crash_recovered'
+          ts:      number
+          payload: unknown
+        }): Promise<IpcResponse<null>>
+      }
+
       // Auto-update
       onSignatureUpdate(cb: (data: { id: number; status: string; signed_file_url?: string; signer_name?: string; rejection_reason?: string }) => void): () => void
       onDocumentNew(cb: (data: { name: string; category?: string }) => void): () => void

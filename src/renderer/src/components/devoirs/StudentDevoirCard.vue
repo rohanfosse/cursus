@@ -187,13 +187,29 @@ function formatDesc(text: string): string {
 
     <!-- ── Variant: event ── -->
     <template v-if="variant === 'event'">
-      <div class="devoir-presence-notice">
-        <Calendar :size="14" class="devoir-presence-icon" />
-        <span>Présence requise - pas de dépôt fichier</span>
-      </div>
-      <div class="devoir-card-footer">
-        <span class="devoir-deadline-date">Date : {{ formatDate(devoir.deadline) }}</span>
-      </div>
+      <!-- Mode examen surveille : bouton pour entrer en kiosk -->
+      <template v-if="devoir.exam_mode">
+        <div class="devoir-exam-notice">
+          <Lock :size="14" class="devoir-exam-icon" />
+          <span>Examen surveille - app verrouillee pendant l'epreuve</span>
+        </div>
+        <div class="devoir-card-footer">
+          <span class="devoir-deadline-date">Date : {{ formatDate(devoir.deadline) }}</span>
+          <router-link :to="{ name: 'exam-session', params: { travailId: devoir.id } }" class="btn-cta btn-exam-start">
+            <Lock :size="12" /> Demarrer l'examen
+          </router-link>
+        </div>
+      </template>
+      <!-- Event classique : pas de depot, presence requise -->
+      <template v-else>
+        <div class="devoir-presence-notice">
+          <Calendar :size="14" class="devoir-presence-icon" />
+          <span>Présence requise - pas de dépôt fichier</span>
+        </div>
+        <div class="devoir-card-footer">
+          <span class="devoir-deadline-date">Date : {{ formatDate(devoir.deadline) }}</span>
+        </div>
+      </template>
     </template>
 
     <!-- ── Variant: submitted ── -->
@@ -384,6 +400,29 @@ function formatDesc(text: string): string {
   margin-bottom: 8px;
 }
 .devoir-presence-icon { flex-shrink: 0; }
+
+/* Mode examen surveille (bandeau bleu accent) */
+.devoir-exam-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+.devoir-exam-icon { flex-shrink: 0; }
+.btn-exam-start {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--accent); color: white;
+  text-decoration: none;
+}
+.btn-exam-start:hover { filter: brightness(1.1); }
 
 /* Statut rendu */
 .devoir-submitted-info {
