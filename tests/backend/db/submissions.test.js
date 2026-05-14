@@ -93,6 +93,27 @@ describe('addDepot', () => {
     })
     expect(result.changes).toBe(1)
   })
+
+  it('stores code submission via type=code into code_content (mode exam)', () => {
+    const db = getTestDb()
+    // Travail exam_mode dedie + un nouvel etudiant pour eviter le conflit upsert.
+    db.exec(`
+      INSERT OR IGNORE INTO travaux (id, promo_id, channel_id, title, deadline, type, published, requires_submission, exam_mode)
+      VALUES (25, 1, 1, 'Examen Code', '2099-12-31T23:59:00Z', 'cctl', 1, 1, 1);
+      INSERT OR IGNORE INTO students (id, promo_id, name, email, avatar_initials, password, must_change_password)
+      VALUES (6, 1, 'Carla Code', 'carla@test.fr', 'CC', 'h', 0);
+    `)
+    const py = 'def somme(a, b):\n    return a + b\n'
+    const result = queries.addDepot({
+      travail_id: 25, student_id: 6, type: 'code', content: py,
+    })
+    expect(result.changes).toBe(1)
+    const row = db.prepare('SELECT code_content, file_path, link_url FROM depots WHERE travail_id = ? AND student_id = ?').get(25, 6)
+    expect(row.code_content).toBe(py)
+    // Les colonnes "file" et "link" doivent rester vides pour un rendu code.
+    expect(row.file_path).toBe('')
+    expect(row.link_url).toBeNull()
+  })
 })
 
 describe('addDepot — devoirs de groupe v2.199', () => {
