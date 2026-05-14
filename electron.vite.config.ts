@@ -18,8 +18,14 @@ const cjsIgnore = [
   ...Object.keys(dependencies),
 ]
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   main: {
+    // process.env.NODE_ENV n'est pas fiable au runtime dans un preload sandboxé.
+    // On le fige à la build (mode est 'production' pour `electron-vite build`,
+    // 'development' pour `electron-vite dev`).
+    define: {
+      'process.env.NODE_ENV': JSON.stringify(mode),
+    },
     // commonjs({ include }) : ne traite que les fichiers locaux (db + ipc).
     // ignore : garde les require() de electron/Node/node_modules en natif.
     plugins: [
@@ -40,6 +46,9 @@ export default defineConfig({
     },
   },
   preload: {
+    define: {
+      'process.env.NODE_ENV': JSON.stringify(mode),
+    },
     // Ne pas externaliser socket.io-client - il doit être bundlé dans le preload
     // car le preload packagé n'a pas accès à node_modules au runtime.
     // On externalise uniquement electron et les builtins Node.
@@ -68,4 +77,4 @@ export default defineConfig({
     },
     plugins: [vue()],
   },
-})
+}))

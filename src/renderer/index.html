@@ -12,7 +12,7 @@
       content="
         default-src 'self';
         script-src  'self' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net;
-        style-src   'self';
+        style-src   'self' 'unsafe-inline';
         worker-src  'self' blob:;
         connect-src 'self' blob: data: https://cdn.jsdelivr.net https://app.cursus.school wss://app.cursus.school https://cursus.devrohan.cloud wss://cursus.devrohan.cloud http://localhost:3001 ws://localhost:3001;
         img-src     'self' data: blob: https://app.cursus.school https://cursus.devrohan.cloud http://localhost:3001;
