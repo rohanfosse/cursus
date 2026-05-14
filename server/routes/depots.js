@@ -75,6 +75,11 @@ function validateDepotContent(type, content) {
     }
     return null
   }
+  if (type === 'code') {
+    // Rendu d'examen : le code soumis est du texte libre. La taille max est
+    // deja gardee par le Zod (.max(MAX_DEPOT_CONTENT)). On accepte tout.
+    return null
+  }
   return null
 }
 
@@ -82,7 +87,7 @@ const submitDepotSchema = z.object({
   travail_id: z.number().int().positive('Devoir invalide'),
   student_id: z.number().int().optional(),
   studentId:  z.number().int().optional(),
-  type:       z.enum(['file', 'link'], { message: 'Type de dépôt invalide (file ou link)' }),
+  type:       z.enum(['file', 'link', 'code'], { message: 'Type de dépôt invalide (file, link ou code)' }),
   content:    z.string().min(1, 'Contenu du dépôt requis').max(MAX_DEPOT_CONTENT, 'Contenu du dépôt trop long'),
   file_name:  z.string().max(255).nullable().optional(),
   link_url:   z.string().max(MAX_DEPOT_CONTENT).nullable().optional(),

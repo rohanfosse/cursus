@@ -34,10 +34,12 @@ function addDepot(payload) {
   const studentId  = payload.student_id  ?? payload.studentId
   const type       = payload.type        ?? 'file'
   const content    = payload.content     ?? payload.filePath ?? payload.linkUrl ?? ''
-  const fileName   = payload.file_name   ?? payload.fileName ?? (type === 'link' ? '🔗 Lien web' : '')
+  const fileName   = payload.file_name   ?? payload.fileName
+    ?? (type === 'link' ? '🔗 Lien web' : type === 'code' ? '💻 Code (examen)' : '')
   const filePath   = type === 'file' ? content : (payload.filePath ?? '')
   const linkUrl    = type === 'link' ? content : (payload.linkUrl  ?? null)
   const deployUrl  = payload.deploy_url  ?? payload.deployUrl ?? null
+  const codeContent = type === 'code' ? content : (payload.code_content ?? payload.codeContent ?? null)
 
   // ── Devoirs de groupe : modele "un depot = toute l'equipe" ──────────────
   // N'importe quel membre peut soumettre OU ecraser le depot du groupe.
@@ -57,27 +59,29 @@ function addDepot(payload) {
           file_path    = ?,
           link_url     = ?,
           deploy_url   = ?,
+          code_content = ?,
           submitted_at = datetime('now')
         WHERE id = ?
-      `).run(studentId, fileName, filePath, linkUrl, deployUrl, existing.id)
+      `).run(studentId, fileName, filePath, linkUrl, deployUrl, codeContent, existing.id)
     }
     return db.prepare(`
-      INSERT INTO depots (travail_id, student_id, group_id, file_name, file_path, link_url, deploy_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(travailId, studentId, travail.group_id, fileName, filePath, linkUrl, deployUrl)
+      INSERT INTO depots (travail_id, student_id, group_id, file_name, file_path, link_url, deploy_url, code_content)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(travailId, studentId, travail.group_id, fileName, filePath, linkUrl, deployUrl, codeContent)
   }
 
   // ── Devoir individuel : upsert classique sur (travail_id, student_id) ───
   return db.prepare(`
-    INSERT INTO depots (travail_id, student_id, file_name, file_path, link_url, deploy_url)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO depots (travail_id, student_id, file_name, file_path, link_url, deploy_url, code_content)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(travail_id, student_id) DO UPDATE SET
       file_name    = excluded.file_name,
       link_url     = excluded.link_url,
       deploy_url   = excluded.deploy_url,
       file_path    = excluded.file_path,
+      code_content = excluded.code_content,
       submitted_at = datetime('now')
-  `).run(travailId, studentId, fileName, filePath, linkUrl, deployUrl);
+  `).run(travailId, studentId, fileName, filePath, linkUrl, deployUrl, codeContent);
 }
 
 function setNote({ depotId, note }) {

@@ -59,7 +59,14 @@ function updateTravail(id, fields) {
 // ouvrir un creneau de depot (slides soutenance, doc etude de cas).
 const EVENT_TYPES = new Set(['cctl', 'soutenance', 'etude_de_cas']);
 
-function createTravail({ promoId, channelId, groupId, title, description, startDate, deadline, category, type, published, room, aavs, requiresSubmission, scheduledPublishAt }) {
+function createTravail(payload) {
+  const {
+    promoId, channelId, groupId, title, description, startDate, deadline,
+    category, type, published, room, aavs, requiresSubmission, scheduledPublishAt,
+  } = payload;
+  // Le Zod accepte camel ET snake → on tente les deux ici aussi.
+  const examMode    = payload.examMode    ?? payload.exam_mode    ?? false;
+  const starterCode = payload.starterCode ?? payload.starter_code ?? null;
   const db = getDb();
   const isEvent = EVENT_TYPES.has(type);
   const reqSub = requiresSubmission != null
@@ -67,14 +74,15 @@ function createTravail({ promoId, channelId, groupId, title, description, startD
     : (isEvent ? 0 : 1);
   return db.transaction(() => {
     const result = db.prepare(`
-      INSERT INTO travaux (promo_id, channel_id, group_id, title, description, start_date, deadline, category, type, published, room, aavs, requires_submission, scheduled_publish_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO travaux (promo_id, channel_id, group_id, title, description, start_date, deadline, category, type, published, room, aavs, requires_submission, scheduled_publish_at, exam_mode, starter_code)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       promoId, channelId ?? null, groupId ?? null, title, description, startDate ?? null,
       deadline, category ?? null, type ?? 'livrable',
       published != null ? (published ? 1 : 0) : 1,
       room ?? null, aavs ?? null, reqSub,
-      scheduledPublishAt ?? null
+      scheduledPublishAt ?? null,
+      examMode ? 1 : 0, starterCode
     );
     if (groupId) {
       const travailId = result.lastInsertRowid;

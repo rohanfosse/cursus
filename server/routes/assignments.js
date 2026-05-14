@@ -39,6 +39,10 @@ const createAssignmentSchema = z.object({
   published:   z.union([z.boolean(), z.number()]).optional(),
   scheduledPublishAt: z.string().nullable().optional(),
   scheduled_publish_at: z.string().nullable().optional(),
+  examMode:     z.union([z.boolean(), z.number().int().min(0).max(1)]).optional(),
+  exam_mode:    z.union([z.boolean(), z.number().int().min(0).max(1)]).optional(),
+  starterCode:  z.string().max(20000).nullable().optional(),
+  starter_code: z.string().max(20000).nullable().optional(),
 }).passthrough()
   .refine(d => {
     const dl = parseDateMs(d.deadline)

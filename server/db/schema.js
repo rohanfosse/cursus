@@ -1,6 +1,6 @@
 const { getDb } = require('./connection');
 
-const CURRENT_VERSION = 94;
+const CURRENT_VERSION = 95;
 
 // ─── Schema initial ───────────────────────────────────────────────────────────
 // Crée toutes les tables avec leur schéma complet (colonnes UTC, toutes colonnes incluses).
@@ -2195,6 +2195,34 @@ function runMigrations(db) {
       tryAlter(db, "ALTER TABLE error_reports ADD COLUMN meta_json TEXT");
       db.exec('CREATE INDEX IF NOT EXISTS idx_error_reports_source ON error_reports(source, created_at DESC)');
       db.exec('CREATE INDEX IF NOT EXISTS idx_error_reports_level ON error_reports(level, created_at DESC)');
+    },
+
+    // v95 : Mode examen surveille — un `travail` peut etre marque comme
+    // examen (exam_mode=1) avec un code de depart optionnel (starter_code).
+    // Le rendu (depots) stocke alors le code soumis directement en BD
+    // via `code_content` plutot qu'un fichier upload. La table exam_events
+    // trace les comportements suspects (focus loss, paste bloque, heartbeat,
+    // crash recovered) pour permettre au prof un debrief post-mortem.
+    // Pas de proctoring lourd : aucune image / aucun audio enregistre.
+    (db) => {
+      tryAlter(db, 'ALTER TABLE travaux ADD COLUMN exam_mode INTEGER NOT NULL DEFAULT 0');
+      tryAlter(db, 'ALTER TABLE travaux ADD COLUMN starter_code TEXT');
+      tryAlter(db, 'ALTER TABLE depots  ADD COLUMN code_content TEXT');
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS exam_events (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          travail_id INTEGER NOT NULL REFERENCES travaux(id)  ON DELETE CASCADE,
+          student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+          type       TEXT NOT NULL CHECK(type IN (
+            'exam_start','exam_submit','exam_timeout',
+            'focus_loss','paste_blocked','heartbeat','crash_recovered'
+          )),
+          ts         INTEGER NOT NULL,
+          payload    TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_exam_events_travail_student
+          ON exam_events(travail_id, student_id, ts);
+      `);
     },
   ];
 
