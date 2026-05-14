@@ -133,10 +133,11 @@ export interface Depot {
   student_name: string
   student_initials?: string
   student_photo?: string | null
-  type: 'file' | 'link'
+  type: 'file' | 'link' | 'code'
   content: string
   file_name?: string | null
   link_url?: string | null
+  code_content?: string | null
   submitted_at: string | null
   note: string | null
   feedback: string | null

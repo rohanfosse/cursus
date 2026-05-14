@@ -322,6 +322,15 @@
           @open-depots="openDepots"
         />
 
+        <!-- Examen surveille : lien vers la vue post-mortem dediee -->
+        <router-link
+          v-if="travail.exam_mode"
+          :to="{ name: 'exam-review', params: { travailId: travail.id } }"
+          class="gd-exam-review-link"
+        >
+          🔒 Voir le post-mortem de l'examen (timeline, focus loss, paste)
+        </router-link>
+
         <!-- Separator -->
         <hr class="gd-separator" />
 
@@ -467,6 +476,16 @@
   border: none; border-top: 1px solid var(--border);
   margin: 4px 20px;
 }
+
+.gd-exam-review-link {
+  display: block; margin: 8px 20px;
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  background: rgba(var(--accent-rgb), .08);
+  border: 1px solid rgba(var(--accent-rgb), .2);
+  color: var(--accent); font-size: 13px; font-weight: 500;
+  text-decoration: none; transition: background .15s;
+}
+.gd-exam-review-link:hover { background: rgba(var(--accent-rgb), .14); }
 
 /* ── Footer sticky avec actions + kbd hints ──────────────────────────────── */
 .gd-footer {

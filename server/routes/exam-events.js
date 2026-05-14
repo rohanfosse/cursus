@@ -16,7 +16,7 @@ const queries = require('../db/index')
 const { getDb } = require('../db/connection')
 const { validate } = require('../middleware/validate')
 const wrap         = require('../utils/wrap')
-const { requirePromo } = require('../middleware/authorize')
+const { requirePromo, requireRole } = require('../middleware/authorize')
 
 const eventSchema = z.object({
   travailId: z.number().int().positive(),
@@ -64,6 +64,39 @@ router.post('/',
   validate(eventSchema),
   requirePromo(promoFromBodyTravail),
   wrap(recordEvent),
+)
+
+// ── Lecture cote prof (post-mortem) ──────────────────────────────────────
+// Restreint aux profs/admins de la promo du travail.
+
+function promoFromQueryTravail(req) {
+  const travailId = Number(req.query?.travailId)
+  if (!travailId) return null
+  const t = getDb().prepare('SELECT promo_id FROM travaux WHERE id = ?').get(travailId)
+  return t?.promo_id ?? null
+}
+
+function readEvents(req) {
+  const travailId = Number(req.query.travailId)
+  const studentId = req.query.studentId ? Number(req.query.studentId) : null
+  return queries.getExamEvents(travailId, studentId)
+}
+
+function readSummary(req) {
+  const travailId = Number(req.query.travailId)
+  return queries.getExamEventSummary(travailId)
+}
+
+router.get('/',
+  requireRole('teacher'),
+  requirePromo(promoFromQueryTravail),
+  wrap(readEvents),
+)
+
+router.get('/summary',
+  requireRole('teacher'),
+  requirePromo(promoFromQueryTravail),
+  wrap(readSummary),
 )
 
 module.exports = router

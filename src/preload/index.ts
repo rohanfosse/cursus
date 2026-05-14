@@ -963,5 +963,10 @@ contextBridge.exposeInMainWorld('api', {
     enterKiosk: (travailId: number) => ipcRenderer.invoke('exam:enterKiosk', travailId),
     exitKiosk:  ()                   => ipcRenderer.invoke('exam:exitKiosk'),
     logEvent:   (payload: unknown)   => post('/api/exam-events', payload),
+    // Lecture cote prof
+    getEvents:  (travailId: number, studentId?: number | null) =>
+      get(`/api/exam-events?travailId=${travailId}${studentId != null ? `&studentId=${studentId}` : ''}`),
+    getSummary: (travailId: number) =>
+      get(`/api/exam-events/summary?travailId=${travailId}`),
   },
 })

@@ -732,6 +732,20 @@ declare global {
           ts:      number
           payload: unknown
         }): Promise<IpcResponse<null>>
+        getEvents(travailId: number, studentId?: number | null): Promise<IpcResponse<Array<{
+          id: number; travail_id: number; student_id: number;
+          type: 'exam_start' | 'exam_submit' | 'exam_timeout' | 'focus_loss' | 'paste_blocked' | 'heartbeat' | 'crash_recovered';
+          ts: number; payload: unknown
+        }>>>
+        getSummary(travailId: number): Promise<IpcResponse<Array<{
+          student_id: number;
+          focus_loss_count: number;
+          paste_blocked_count: number;
+          started_at: number | null;
+          submitted_at: number | null;
+          timed_out_at: number | null;
+          last_event_at: number;
+        }>>>
       }
 
       // Auto-update
