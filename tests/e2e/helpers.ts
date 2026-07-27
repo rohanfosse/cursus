@@ -75,6 +75,21 @@ export async function loginAndWaitDashboard(page: Page, email: string, password:
   await page.waitForTimeout(1_000)
 }
 
+/** Demarre une session demo et attend la redirection vers /dashboard */
+export async function startDemo(page: Page, role: 'Etudiant' | 'Enseignant'): Promise<void> {
+  await page.goto('/#/demo')
+  await page.waitForSelector(`button:has-text("${role}")`, { timeout: 20_000 })
+  const [res] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes('/api/demo/start') && r.request().method() === 'POST',
+      { timeout: 20_000 },
+    ),
+    page.click(`button:has-text("${role}")`),
+  ])
+  if (!res.ok()) throw new Error(`Demo start failed for role ${role}: HTTP ${res.status()}`)
+  await expect(page).toHaveURL(/dashboard/, { timeout: 20_000 })
+}
+
 /** Navigue vers une section via le bouton NavRail (aria-label) */
 export async function navigateTo(page: Page, section: 'messages' | 'devoirs' | 'documents' | 'dashboard'): Promise<void> {
   // Capitaliser le nom de section pour le matching texte
