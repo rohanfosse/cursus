@@ -76,9 +76,9 @@ export async function loginAndWaitDashboard(page: Page, email: string, password:
   await page.route('**/api/auth/login', async (route) => {
     const response = await route.fetch()
     const json = await response.json()
-    if (json.ok && json.data?.user) {
-      json.data.user.must_change_password = 0
-      json.data.user.onboarding_done = 1
+    if (json.ok && json.data) {
+      json.data.must_change_password = 0
+      json.data.onboarding_done = 1
     }
     await route.fulfill({ response, json })
   })
