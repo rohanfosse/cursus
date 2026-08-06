@@ -70,6 +70,18 @@ export async function login(page: Page, email: string, password: string): Promis
 export async function loginAndWaitDashboard(page: Page, email: string, password: string): Promise<void> {
   // Pre-seed the privacy-seen flag so the GDPR overlay never intercepts pointer events.
   await page.addInitScript(() => localStorage.setItem('cc_privacy_seen', '1'))
+  // Intercept login response to clear server-side blocking flags before Vue evaluates them.
+  // must_change_password=1 shows .cpw-overlay forced; onboarding_done=0 shows .ob-overlay.
+  // Both are blocked by the router guard (next(false)), so this must happen at the API layer.
+  await page.route('**/api/auth/login', async (route) => {
+    const response = await route.fetch()
+    const json = await response.json()
+    if (json.ok && json.data?.user) {
+      json.data.user.must_change_password = 0
+      json.data.user.onboarding_done = 1
+    }
+    await route.fulfill({ response, json })
+  })
   await login(page, email, password)
   // L'URL contient deja /dashboard/ (redirect /), donc le vrai signal de login est l'app-shell.
   await page.waitForSelector('#app-shell, .app-shell, .app-columns', { state: 'attached', timeout: 20_000 })
