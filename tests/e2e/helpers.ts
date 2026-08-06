@@ -68,6 +68,8 @@ export async function login(page: Page, email: string, password: string): Promis
 }
 
 export async function loginAndWaitDashboard(page: Page, email: string, password: string): Promise<void> {
+  // Pre-seed the privacy-seen flag so the GDPR overlay never intercepts pointer events.
+  await page.addInitScript(() => localStorage.setItem('cc_privacy_seen', '1'))
   await login(page, email, password)
   // L'URL contient deja /dashboard/ (redirect /), donc le vrai signal de login est l'app-shell.
   await page.waitForSelector('#app-shell, .app-shell, .app-columns', { state: 'attached', timeout: 20_000 })
