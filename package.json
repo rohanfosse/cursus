@@ -147,7 +147,7 @@
   },
   "overrides": {
     "picomatch": "^4.0.4",
-    "path-to-regexp": ">=0.1.13"
+    "path-to-regexp": "^0.1.13"
   },
   "build": {
     "appId": "dev.rohanfosse.cursus",
