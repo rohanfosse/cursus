@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
+    "lib": ["ES2020", "DOM"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@playwright/test": ["../../../opt/node22/lib/node_modules/playwright/test"]
+    },
+    "typeRoots": [
+      "../../../opt/node22/lib/node_modules/ts-node/node_modules/@types",
+      "../../../opt/node22/lib/node_modules/@types"
+    ],
+    "types": ["node"]
+  },
+  "include": ["tests/e2e/**/*.ts"]
+}
