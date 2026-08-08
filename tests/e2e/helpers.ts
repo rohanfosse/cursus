@@ -24,6 +24,12 @@ export const SEL = {
 // ── API helpers ──────────────────────────────────────────────────────────────
 let teacherToken: string | null = null
 
+interface ApiResponse {
+  ok: boolean
+  error?: string
+  data?: Record<string, unknown>
+}
+
 export async function getTeacherToken(): Promise<string> {
   if (teacherToken) return teacherToken
   const res = await fetch(`${API_BASE}/api/auth/login`, {
@@ -31,9 +37,9 @@ export async function getTeacherToken(): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: TEACHER.email, password: TEACHER.password }),
   })
-  const data = await res.json()
+  const data = await res.json() as ApiResponse
   if (!data.ok) throw new Error(`Teacher login failed: ${data.error}`)
-  teacherToken = data.data.token
+  teacherToken = data.data?.token as string
   return teacherToken!
 }
 
@@ -50,7 +56,7 @@ export async function provisionStudent(): Promise<void> {
       promoId: STUDENT.promoId,
     }),
   })
-  const data = await res.json()
+  const data = await res.json() as ApiResponse
   // Ignore if already exists (409 or "déjà utilisée" error)
   if (!data.ok && res.status !== 409 && !data.error?.includes('déjà')) {
     throw new Error(`Student provisioning failed: ${data.error}`)
