@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { TEACHER, SEL, login } from './helpers'
+import { TEACHER, STUDENT, SEL, login, provisionStudent } from './helpers'
 
 test.describe('Authentification', () => {
 
@@ -16,6 +16,12 @@ test.describe('Authentification', () => {
 
   test('connecte un enseignant et affiche le dashboard', async ({ page }) => {
     await login(page, TEACHER.email, TEACHER.password)
+    await expect(page).toHaveURL(/dashboard/, { timeout: 10_000 })
+  })
+
+  test('connecte un etudiant et affiche le dashboard', async ({ page }) => {
+    await provisionStudent()
+    await login(page, STUDENT.email, STUDENT.password)
     await expect(page).toHaveURL(/dashboard/, { timeout: 10_000 })
   })
 
