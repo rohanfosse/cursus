@@ -1,8 +1,16 @@
 import { type Page, expect } from '@playwright/test'
 
 // ── Credentials ──────────────────────────────────────────────────────────────
-// Teacher from schema v12 migration (rfosse@cesi.fr, password 'admin' hashed at v16)
+// Teacher from schema v12 migration (rfosse@cesi.fr, password 'admin' hashed at v16).
+// ATTENTION : la migration v42 promeut le premier teacher en role 'admin' — donc
+// ce compte a le type 'admin' apres login. Utiliser TA pour tester le guard admin.
 export const TEACHER = { email: 'rfosse@cesi.fr', password: 'admin' }
+
+// TA seede en v12 (ta@cesi.fr, meme mot de passe initial 'admin' hashe en v16).
+// Role 'ta' (niveau 1) : autorise sur /dashboard mais bloque sur /admin (niveau 3
+// requis, cf. router/index.ts + utils/permissions.ts). Utile pour tester les
+// gardes de route sans avoir a provisionner un etudiant.
+export const TA = { email: 'ta@cesi.fr', password: 'admin' }
 
 // Test student provisioned via API before tests (fixed email to avoid orphan accumulation)
 export const STUDENT = {
