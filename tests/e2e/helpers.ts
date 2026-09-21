@@ -31,9 +31,9 @@ export async function getTeacherToken(): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: TEACHER.email, password: TEACHER.password }),
   })
-  const data = await res.json()
+  const data = await res.json() as { ok: boolean; error?: string; data?: { token: string } }
   if (!data.ok) throw new Error(`Teacher login failed: ${data.error}`)
-  teacherToken = data.data.token
+  teacherToken = data.data!.token
   return teacherToken!
 }
 
@@ -50,7 +50,7 @@ export async function provisionStudent(): Promise<void> {
       promoId: STUDENT.promoId,
     }),
   })
-  const data = await res.json()
+  const data = await res.json() as { ok: boolean; error?: string }
   // Ignore if already exists (409 or "déjà utilisée" error)
   if (!data.ok && res.status !== 409 && !data.error?.includes('déjà')) {
     throw new Error(`Student provisioning failed: ${data.error}`)
