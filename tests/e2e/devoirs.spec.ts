@@ -1,17 +1,13 @@
 import { test, expect, type Page } from '@playwright/test'
-import { TEACHER, loginAndWaitDashboard, navigateTo } from './helpers'
+import { navigateTo } from './helpers'
 
-/** Supprime les modales bloquantes (RGPD + onboarding) avant le premier chargement. */
-async function suppressBlockingModals(page: Page): Promise<void> {
+/** Demarre une session demo et attend le dashboard. */
+async function startDemoAndWait(page: Page, role: 'Etudiant' | 'Enseignant'): Promise<void> {
+  // Pre-set localStorage before the page loads to suppress the RGPD and onboarding modals.
   await page.addInitScript(() => {
     localStorage.setItem('cc_privacy_seen', '1')
     localStorage.setItem('cc_onboarding_seen', '1')
   })
-}
-
-/** Demarre une session demo et attend le dashboard. */
-async function startDemoAndWait(page: Page, role: 'Etudiant' | 'Enseignant'): Promise<void> {
-  await suppressBlockingModals(page)
   await page.goto('/#/demo')
   await page.waitForSelector(`button:has-text("${role}")`, { timeout: 20_000 })
   const [res] = await Promise.all([
@@ -30,8 +26,7 @@ async function startDemoAndWait(page: Page, role: 'Etudiant' | 'Enseignant'): Pr
 test.describe('Devoirs', () => {
 
   test('un enseignant voit la vue devoirs et le bouton Nouveau devoir', async ({ page }) => {
-    await suppressBlockingModals(page)
-    await loginAndWaitDashboard(page, TEACHER.email, TEACHER.password)
+    await startDemoAndWait(page, 'Enseignant')
     await navigateTo(page, 'devoirs')
     await expect(page.locator('.devoirs-area')).toBeVisible({ timeout: 10_000 })
     // Bouton CTA reserve au prof
